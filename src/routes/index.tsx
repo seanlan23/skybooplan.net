@@ -11,8 +11,14 @@ import { FeatureGrid } from "@/components/FeatureGrid";
 import { PricingSection } from "@/components/PricingSection";
 import { SiteFooter } from "@/components/SiteFooter";
 import { searchFlights, type DuffelFlight } from "@/lib/flights.functions";
-import { generateAiPlan, type AiTripPlan } from "@/lib/aiPlan.functions";
+import {
+  generateAiPlan,
+  generateAiPlanSkeleton,
+  type AiTripPlan,
+  type TripSkeleton,
+} from "@/lib/aiPlan.functions";
 import { AiPlanView } from "@/components/AiPlanView";
+import { AiPlanSkeletonView } from "@/components/AiPlanSkeletonView";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { FlightSearchHistory } from "@/components/FlightSearchHistory";
 import { supabase } from "@/integrations/supabase/client";
@@ -45,8 +51,11 @@ function Landing() {
   const [error, setError] = useState<string | null>(null);
   const [lastSearch, setLastSearch] = useState<SearchValues | null>(null);
   const [aiPlan, setAiPlan] = useState<AiTripPlan | null>(null);
+  const [aiSkeleton, setAiSkeleton] = useState<TripSkeleton | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
+  const [aiExpandingFull, setAiExpandingFull] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+  const [lastPlannerForm, setLastPlannerForm] = useState<AiPlannerSubmit | null>(null);
   const [historyRefresh, setHistoryRefresh] = useState(0);
   const [prefill, setPrefill] = useState<SearchValues | null>(null);
   const [savedPlanId, setSavedPlanId] = useState<string | null>(null);
@@ -59,6 +68,7 @@ function Landing() {
   const { t } = useI18n();
   const searchFn = useServerFn(searchFlights);
   const planFn = useServerFn(generateAiPlan);
+  const skeletonFn = useServerFn(generateAiPlanSkeleton);
 
   // Hydrate only search context + AI state from localStorage.
   // Do not restore old flight results, because they can become stale and look
@@ -244,6 +254,56 @@ function Landing() {
     }, 100);
   }
 
+  function buildWishes(form: AiPlannerSubmit) {
+    return [form.wishes, form.tags.length ? `Oznake: ${form.tags.join(", ")}.` : ""]
+      .filter(Boolean)
+      .join(" ");
+  }
+
+  async function persistPlanToTrips(plan: AiTripPlan, ctx: AiPlannerContext) {
+    if (!user) return;
+    const dest = plan.destinationName || ctx.to;
+    const startDate = (ctx.departDate || "").slice(0, 10) || null;
+    const endDate = ctx.returnDate ? ctx.returnDate.slice(0, 10) : null;
+    const title = `${ctx.from} → ${ctx.to} · ${startDate ?? ctx.departDate}`;
+    const basePayload = {
+      user_id: user.id,
+      title,
+      destination: dest,
+      start_date: startDate,
+      end_date: endDate,
+      itinerary: plan as never,
+      ai_model: "openai-assistant:gpt-4o",
+      is_paid: subscription.isActive,
+    };
+
+    let query = supabase
+      .from("travel_plans")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("destination", dest);
+    query = startDate ? query.eq("start_date", startDate) : query.is("start_date", null);
+    query = endDate ? query.eq("end_date", endDate) : query.is("end_date", null);
+    const { data: existing } = await query
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (existing?.id) {
+      const { error: updErr } = await supabase.from("travel_plans").update(basePayload).eq("id", existing.id);
+      if (updErr) console.error("Update plan failed:", updErr);
+      else setSavedPlanId(existing.id);
+    } else {
+      const { data: saved, error: saveErr } = await supabase
+        .from("travel_plans")
+        .insert(basePayload)
+        .select("id")
+        .single();
+      if (saveErr) console.error("Save plan failed:", saveErr);
+      else if (saved) setSavedPlanId(saved.id);
+    }
+  }
+
   async function handleGeneratePlan(
     form: AiPlannerSubmit,
     ctxOverride?: AiPlannerContext & { language?: string },
@@ -251,25 +311,25 @@ function Landing() {
   ) {
     const ctx = ctxOverride ?? aiContext;
     if (!ctx) return;
+    setLastPlannerForm(form);
     setAiPlan(null);
+    setAiSkeleton(null);
     setAiError(null);
     setAiLoading(true);
     setTimeout(() => {
       document.getElementById("ai-plan-anchor")?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 100);
     try {
-      const wishes = [form.wishes, form.tags.length ? `Oznake: ${form.tags.join(", ")}.` : ""]
-        .filter(Boolean)
-        .join(" ");
+      const wishes = buildWishes(form);
       const clientStartedAt = performance.now();
-      console.log("[AiPlan] client: starting plan generation…", {
+      console.log("[AiPlan] client: starting skeleton generation…", {
         from: ctx.from,
         to: ctx.to,
         departDate: ctx.departDate,
         returnDate: ctx.returnDate,
         mode: modeOverride ?? "trip",
       });
-      const res = await planFn({
+      const res = await skeletonFn({
         data: {
           destinationIata: ctx.to,
           originIata: ctx.from,
@@ -284,7 +344,52 @@ function Landing() {
         },
       });
       console.log(
-        `[AiPlan] client: server responded in ${Math.round(performance.now() - clientStartedAt)}ms`,
+        `[AiPlan] client: skeleton responded in ${Math.round(performance.now() - clientStartedAt)}ms`,
+        { error: res.error, regions: res.skeleton?.regions.length ?? 0 },
+      );
+      if (res.debug?.length) {
+        console.group("[AiPlan:Skeleton] server trace");
+        res.debug.forEach((line) => console.log(`[AiPlan:Skeleton] ${line}`));
+        console.groupEnd();
+      }
+
+      if (res.error) setAiError(res.error);
+      setAiSkeleton(res.skeleton);
+      setSavedPlanId(null);
+    } catch (e) {
+      console.error(e);
+      setAiError("AI plan se ni uspel generirati.");
+    } finally {
+      setAiLoading(false);
+    }
+  }
+
+  async function handleExpandFullPlan() {
+    const ctx = aiContext;
+    const form = lastPlannerForm;
+    if (!ctx || !form || !aiSkeleton) return;
+    setAiExpandingFull(true);
+    setAiError(null);
+    try {
+      const wishes = buildWishes(form);
+      const clientStartedAt = performance.now();
+      console.log("[AiPlan] client: expanding to full day-by-day plan…");
+      const res = await planFn({
+        data: {
+          destinationIata: ctx.to,
+          originIata: ctx.from,
+          departDate: ctx.departDate,
+          returnDate: ctx.returnDate || undefined,
+          pax: ctx.pax,
+          language: ctx.language || "sl",
+          pace: form.pace,
+          wishes,
+          customPrompt: form.customPrompt,
+          mode: plannerMode,
+        },
+      });
+      console.log(
+        `[AiPlan] client: full plan in ${Math.round(performance.now() - clientStartedAt)}ms`,
         { error: res.error, days: res.plan?.days.length ?? 0 },
       );
       if (res.debug?.length) {
@@ -293,68 +398,22 @@ function Landing() {
         console.groupEnd();
       }
 
-      // Plan generation is FREE — no paywall on generation.
-      if (res.error) setAiError(res.error);
+      if (res.error) {
+        setAiError(res.error);
+        return;
+      }
 
-      // Server enforces routing; only accept plans that passed validation there.
-      setAiPlan(res.plan);
-      setSavedPlanId(null);
-      // Save to "My plans" for ANY logged-in user (free or paid).
-      // Paywall only applies to PDF export — see onDownloadClick below.
-      if (res.plan && user) {
-        const dest = res.plan.destinationName || ctx.to;
-        // Defensively normalize to YYYY-MM-DD — never trust upstream date drift.
-        const startDate = (ctx.departDate || "").slice(0, 10) || null;
-        const endDate = ctx.returnDate ? ctx.returnDate.slice(0, 10) : null;
-        const title = `${ctx.from} → ${ctx.to} · ${startDate ?? ctx.departDate}`;
-        const basePayload = {
-          user_id: user.id,
-          title,
-          destination: dest,
-          start_date: startDate,
-          end_date: endDate,
-          itinerary: res.plan as never,
-          ai_model: "openai-assistant:gpt-4o",
-          is_paid: subscription.isActive,
-        };
-
-        // Dedupe: a re-generated plan for the same search (same user + destination
-        // + exact dates) updates the existing row instead of creating a duplicate
-        // trip card in "My trips".
-        let query = supabase
-          .from("travel_plans")
-          .select("id")
-          .eq("user_id", user.id)
-          .eq("destination", dest);
-        query = startDate ? query.eq("start_date", startDate) : query.is("start_date", null);
-        query = endDate ? query.eq("end_date", endDate) : query.is("end_date", null);
-        const { data: existing } = await query
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (existing?.id) {
-          const { error: updErr } = await supabase
-            .from("travel_plans")
-            .update(basePayload)
-            .eq("id", existing.id);
-          if (updErr) console.error("Update plan failed:", updErr);
-          else setSavedPlanId(existing.id);
-        } else {
-          const { data: saved, error: saveErr } = await supabase
-            .from("travel_plans")
-            .insert(basePayload)
-            .select("id")
-            .single();
-          if (saveErr) console.error("Save plan failed:", saveErr);
-          else if (saved) setSavedPlanId(saved.id);
-        }
+      if (res.plan) {
+        setAiPlan(res.plan);
+        setAiSkeleton(null);
+        setSavedPlanId(null);
+        await persistPlanToTrips(res.plan, ctx);
       }
     } catch (e) {
       console.error(e);
       setAiError("AI plan se ni uspel generirati.");
     } finally {
-      setAiLoading(false);
+      setAiExpandingFull(false);
     }
   }
 
@@ -377,7 +436,7 @@ function Landing() {
           </p>
 
           <div className="mt-12 max-w-6xl mx-auto text-left" id="flights">
-            {(aiPlan || flights.length > 0 || lastSearch) && (
+            {(aiPlan || aiSkeleton || flights.length > 0 || lastSearch) && (
               <div className="mb-4 flex justify-end">
                 <Button
                   variant="outline"
@@ -388,6 +447,7 @@ function Landing() {
                     setSelected(null);
                     setConfirmFlight(null);
                     setAiPlan(null);
+                    setAiSkeleton(null);
                     setAiError(null);
                     setAiContext(null);
                     setLastSearch(null);
@@ -439,17 +499,18 @@ function Landing() {
               </div>
             )}
 
-            {(selected || plannerMode === "stays") && !aiLoading && !aiPlan && (
+            {(selected || plannerMode === "stays") && !aiLoading && !aiPlan && !aiSkeleton && (
               <AiPlannerPreview context={aiContext} onGenerate={(f) => handleGeneratePlan(f, undefined, plannerMode)} loading={aiLoading} />
             )}
 
             <div id="ai-plan-anchor" />
-            {(aiLoading || aiPlan || aiError) && (
+            {(aiLoading || aiSkeleton || aiPlan || aiError || aiExpandingFull) && (
               <>
+                {aiPlan ? (
                 <AiPlanView
-                  loading={aiLoading}
+                  loading={false}
                   plan={aiPlan}
-                  error={aiError}
+                  error={null}
                   protect={false}
                   onDownloadClick={async () => {
                     if (!user) {
@@ -480,6 +541,20 @@ function Landing() {
                     rooms: lastSearch?.rooms ?? 1,
                   }}
                 />
+                ) : (
+                <AiPlanSkeletonView
+                  skeleton={aiSkeleton}
+                  loading={aiLoading}
+                  expanding={aiExpandingFull}
+                  error={aiError}
+                  stayInfo={{
+                    adults: lastSearch?.stayAdults ?? lastSearch?.pax ?? 2,
+                    childrenAges: lastSearch?.childrenAges ?? [],
+                    rooms: lastSearch?.rooms ?? 1,
+                  }}
+                  onExpandFull={handleExpandFullPlan}
+                />
+                )}
                 {savedPlanId && (
                   <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-brand/40 bg-brand/10 px-5 py-3 text-sm">
                     <span className="text-foreground font-medium">

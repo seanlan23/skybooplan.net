@@ -73,6 +73,41 @@ export type AiTripPlan = {
   destinationIata?: string;
 };
 
+/** Phase A — city/region blocks shown in ~30s before day-by-day expansion. */
+export type TripRegionTransport = {
+  type: string;
+  duration: string;
+};
+
+export type TripRegion = {
+  city: string;
+  startDay: number;
+  endDay: number;
+  startDate: string;
+  endDate: string;
+  summary: string;
+  lat: number;
+  lng: number;
+  transportToNext?: TripRegionTransport;
+};
+
+export type TripSkeleton = {
+  destinationName: string;
+  summary: string;
+  totalBudgetEur: number;
+  originIata: string;
+  destinationIata: string;
+  departDate: string;
+  returnDate?: string;
+  regions: TripRegion[];
+};
+
+export type GenerateAiSkeletonResult = {
+  skeleton: TripSkeleton | null;
+  error: string | null;
+  debug?: string[];
+};
+
 export type GenerateAiPlanResult = {
   plan: AiTripPlan | null;
   error: string | null;
@@ -793,5 +828,253 @@ export const generateAiPlan = createServerFn({ method: "POST" })
       trace(`fatal: ${err instanceof Error ? err.message : String(err)}`);
       console.error("AI plan failed:", err);
       return withDebug({ plan: null, error: "AI plan se trenutno ne da generirati." });
+    }
+  });
+
+/** Convert skeleton regions to a minimal plan for map pin rendering. */
+export function skeletonToPreviewPlan(skeleton: TripSkeleton): AiTripPlan {
+  const first = skeleton.regions[0];
+  return {
+    destinationName: skeleton.destinationName,
+    summary: skeleton.summary,
+    totalBudgetEur: skeleton.totalBudgetEur,
+    centerLat: first?.lat ?? 0,
+    centerLng: first?.lng ?? 0,
+    originIata: skeleton.originIata,
+    destinationIata: skeleton.destinationIata,
+    days: skeleton.regions.map((r) => ({
+      day: r.startDay,
+      date: r.startDate,
+      title: r.city,
+      morning: "",
+      afternoon: "",
+      evening: "",
+      travelHack: "",
+      transportationTips: "",
+      localWarnings: "",
+      dailyBudgetEur: 0,
+      lat: r.lat,
+      lng: r.lng,
+      focusName: r.city,
+      city: r.city,
+      category: "sight" as const,
+    })),
+  };
+}
+
+function buildSkeletonRequestMessage(opts: {
+  originIata: string;
+  destinationIata: string;
+  departDate: string;
+  returnDate?: string;
+  nDays: number;
+  pax: number;
+  lang: string;
+  paceLabel: string;
+  isStays: boolean;
+  wishes?: string;
+  customPrompt?: string;
+}) {
+  const lines = [
+    `Generate a ${opts.nDays}-day trip SKELETON — regions/cities only. Do NOT output day-by-day itineraries.`,
+    "",
+    `Origin airport/city: ${opts.originIata}`,
+    `Main destination: ${opts.destinationIata}`,
+    `Depart: ${opts.departDate}`,
+    opts.returnDate ? `Return: ${opts.returnDate}` : `Length: ${opts.nDays} days`,
+    `Travelers: ${opts.pax}`,
+    `Pace: ${opts.paceLabel}`,
+    `Language (all text): ${opts.lang}`,
+    `Mode: ${opts.isStays ? "stays" : "trip"}`,
+  ];
+  if (opts.wishes?.trim()) lines.push(`User wishes: ${opts.wishes.trim()}`);
+  if (opts.customPrompt?.trim()) lines.push(`Extra: ${opts.customPrompt.trim()}`);
+
+  lines.push(
+    "",
+    "ROUTING (CRITICAL):",
+    "- Linear flow: cluster by geographic region. Finish each area before moving on.",
+    "- NEVER revisit a city mid-trip (no ping-pong).",
+    "- Final region MAY return to the departure hub for the outbound flight only.",
+    "",
+    "Return ONE JSON object:",
+    "{",
+    '  "destinationName": "country or region name",',
+    '  "summary": "4-6 sentence trip overview in the requested language",',
+    '  "totalBudgetEur": number,',
+    '  "regions": [',
+    "    {",
+    '      "city": "city name",',
+    '      "startDay": 1,',
+    '      "endDay": 4,',
+    '      "summary": "2-4 sentences what travelers do here",',
+    '      "lat": number,',
+    '      "lng": number,',
+    '      "transportToNext": { "type": "flight|train|ferry|bus", "duration": "1h 30m" }',
+    "    }",
+    "  ]",
+    "}",
+    "",
+    `regions must cover days 1-${opts.nDays} with no gaps or overlaps.`,
+    "Each region needs accurate WGS84 lat/lng for the city center.",
+    "Omit transportToNext on the last region.",
+  );
+  return lines.join("\n");
+}
+
+function normalizeSkeletonRegion(
+  raw: Partial<TripRegion>,
+  departDate: string,
+): TripRegion | null {
+  const city = textValue(raw.city);
+  const startDay = numberValue(raw.startDay, 0);
+  const endDay = numberValue(raw.endDay, 0);
+  if (!city || startDay < 1 || endDay < startDay) return null;
+  return {
+    city,
+    startDay,
+    endDay,
+    startDate: isoDateAtOffset(departDate, startDay - 1),
+    endDate: isoDateAtOffset(departDate, endDay - 1),
+    summary: textValue(raw.summary, city),
+    lat: numberValue(raw.lat, 0),
+    lng: numberValue(raw.lng, 0),
+    transportToNext:
+      raw.transportToNext && textValue(raw.transportToNext.type)
+        ? {
+            type: textValue(raw.transportToNext.type, "transport"),
+            duration: textValue(raw.transportToNext.duration, ""),
+          }
+        : undefined,
+  };
+}
+
+function enrichSkeletonRegions(
+  skeleton: TripSkeleton,
+  destinationIata: string,
+  trace: (msg: string) => void,
+): TripSkeleton {
+  const anchor = CITY_ANCHORS[destinationIata.toUpperCase()];
+  const regions = skeleton.regions.map((r) => {
+    const valid =
+      isValidCoord(r.lat, r.lng) &&
+      (!anchor || inBbox(r.lng, r.lat, anchor.bbox));
+    if (valid) return r;
+    if (anchor) {
+      trace(`skeleton region "${r.city}" → anchor ${anchor.name}`);
+      return { ...r, lat: anchor.lat, lng: anchor.lng };
+    }
+    return r;
+  });
+  return { ...skeleton, regions };
+}
+
+function validateSkeletonCoverage(regions: TripRegion[], nDays: number): string | null {
+  const sorted = [...regions].sort((a, b) => a.startDay - b.startDay);
+  if (!sorted.length) return "no regions";
+  if (sorted[0].startDay !== 1) return "must start day 1";
+  if (sorted[sorted.length - 1].endDay !== nDays) return `must end day ${nDays}`;
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i].startDay !== sorted[i - 1].endDay + 1) return "gap in day coverage";
+  }
+  return null;
+}
+
+export const generateAiPlanSkeleton = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => Input.parse(data))
+  .handler(async ({ data }): Promise<GenerateAiSkeletonResult> => {
+    const IS_DEV = process.env.NODE_ENV !== "production";
+    const debugTrace: string[] = [];
+    const trace = (msg: string) => {
+      console.log(`[AiPlan:Skeleton] ${msg}`);
+      if (IS_DEV) debugTrace.push(msg);
+    };
+    const withDebug = (result: GenerateAiSkeletonResult): GenerateAiSkeletonResult =>
+      IS_DEV && debugTrace.length ? { ...result, debug: [...debugTrace] } : result;
+
+    const key = process.env.OPENAI_API_KEY;
+    if (!key) return withDebug({ skeleton: null, error: "OPENAI_API_KEY ni nastavljen" });
+    const assistantId = process.env.OPENAI_ASSISTANT_ID;
+    if (!assistantId) return withDebug({ skeleton: null, error: "OPENAI_ASSISTANT_ID ni nastavljen" });
+
+    const nDays = daysBetween(data.departDate, data.returnDate || undefined);
+    const lang = LANG_MAP[data.language ?? "sl"] ?? "slovenščini";
+    const paceLabel =
+      data.pace === "intensive" ? "intensive" : data.pace === "calm" ? "calm" : "relaxed";
+
+    trace(`start skeleton ${data.originIata}→${data.destinationIata}, ${nDays} days`);
+
+    try {
+      const { findDuplicateCitySegments } = await import("./planValidation");
+      const userMessage = buildSkeletonRequestMessage({
+        originIata: data.originIata,
+        destinationIata: data.destinationIata,
+        departDate: data.departDate,
+        returnDate: data.returnDate || undefined,
+        nDays,
+        pax: data.pax,
+        lang,
+        paceLabel,
+        isStays: data.mode === "stays",
+        wishes: data.wishes,
+        customPrompt: data.customPrompt,
+      });
+
+      const response = await runAssistant(key, assistantId, userMessage, trace);
+      if (!response.ok) {
+        if (response.status === 408) return withDebug({ skeleton: null, error: "error.flightsUnavailable" });
+        return withDebug({ skeleton: null, error: "AI plan se trenutno ne da generirati." });
+      }
+
+      const parsed = parseJson<{
+        destinationName?: string;
+        summary?: string;
+        totalBudgetEur?: number;
+        regions?: Partial<TripRegion>[];
+      }>(response.text);
+
+      if (!parsed?.regions?.length) {
+        trace("parse failed — no regions");
+        return withDebug({ skeleton: null, error: "AI plan se trenutno ne da generirati." });
+      }
+
+      const regions = parsed.regions
+        .map((r) => normalizeSkeletonRegion(r, data.departDate))
+        .filter((r): r is TripRegion => r !== null)
+        .sort((a, b) => a.startDay - b.startDay);
+
+      const coverageErr = validateSkeletonCoverage(regions, nDays);
+      if (coverageErr) {
+        trace(`coverage invalid: ${coverageErr}`);
+        return withDebug({ skeleton: null, error: "AI plan se trenutno ne da generirati." });
+      }
+
+      let skeleton: TripSkeleton = {
+        destinationName: sanitizeOutdatedText(
+          textValue(parsed.destinationName, data.destinationIata),
+        ),
+        summary: sanitizeOutdatedText(textValue(parsed.summary, "")),
+        totalBudgetEur: numberValue(parsed.totalBudgetEur, 300),
+        originIata: data.originIata,
+        destinationIata: data.destinationIata,
+        departDate: data.departDate,
+        returnDate: data.returnDate || undefined,
+        regions,
+      };
+
+      skeleton = enrichSkeletonRegions(skeleton, data.destinationIata, trace);
+
+      const preview = skeletonToPreviewPlan(skeleton);
+      const cityViolations = findDuplicateCitySegments(preview);
+      if (cityViolations.length) {
+        trace(`routing blocked: ${cityViolations.map((v) => v.message).join("; ")}`);
+        return withDebug({ skeleton: null, error: "error.invalidItinerary" });
+      }
+
+      trace(`complete: ${skeleton.regions.length} regions`);
+      return withDebug({ skeleton, error: null });
+    } catch (err) {
+      trace(`fatal: ${err instanceof Error ? err.message : String(err)}`);
+      return withDebug({ skeleton: null, error: "AI plan se trenutno ne da generirati." });
     }
   });
