@@ -1,0 +1,317 @@
+import { describe, it, expect } from "vitest";
+import type { AiTripPlan, DayPlan } from "./aiPlan.functions";
+import {
+  distanceKm,
+  findDuplicateActivities,
+  findDuplicateCitySegments,
+  findDuplicateDayNumbers,
+  findMissingTravelBlocks,
+  findNonLinearRoute,
+  validateItinerary,
+} from "./planValidation";
+
+const day = (overrides: Partial<DayPlan>): DayPlan => ({
+  day: 1,
+  date: "2026-07-01",
+  title: "Day",
+  morning: "",
+  afternoon: "",
+  evening: "",
+  travelHack: "",
+  transportationTips: "",
+  localWarnings: "",
+  dailyBudgetEur: 100,
+  lat: 0,
+  lng: 0,
+  focusName: "",
+  city: "",
+  category: "sight",
+  ...overrides,
+});
+
+const plan = (days: DayPlan[]): AiTripPlan => ({
+  destinationName: "Test",
+  summary: "",
+  totalBudgetEur: 0,
+  centerLat: days[0]?.lat ?? 0,
+  centerLng: days[0]?.lng ?? 0,
+  days,
+});
+
+// Reference coordinates for realistic Thailand-style fixtures.
+const PHUKET = { lat: 7.88, lng: 98.4 };
+const PHI_PHI = { lat: 7.74, lng: 98.77 };
+const KRABI = { lat: 8.05, lng: 98.92 };
+const KOH_SAMUI = { lat: 9.51, lng: 100.0 };
+const KOH_PHANGAN = { lat: 9.74, lng: 100.02 };
+const BANGKOK = { lat: 13.75, lng: 100.5 };
+
+describe("distanceKm", () => {
+  it("computes Phuket → Koh Samui as a long hop (>250km)", () => {
+    expect(distanceKm(PHUKET, KOH_SAMUI)).toBeGreaterThan(250);
+  });
+  it("computes Phuket → Phi Phi as a short hop (<100km)", () => {
+    expect(distanceKm(PHUKET, PHI_PHI)).toBeLessThan(100);
+  });
+});
+
+describe("findDuplicateDayNumbers", () => {
+  it("flags repeated day numbers", () => {
+    const p = plan([day({ day: 1 }), day({ day: 2 }), day({ day: 2 })]);
+    expect(findDuplicateDayNumbers(p)).toHaveLength(1);
+  });
+  it("passes on sequential days", () => {
+    const p = plan([1, 2, 3, 4].map((d) => day({ day: d })));
+    expect(findDuplicateDayNumbers(p)).toEqual([]);
+  });
+});
+
+describe("findDuplicateCitySegments — no duplicate non-contiguous stays", () => {
+  it("allows multi-day contiguous stays in one city", () => {
+    const p = plan([
+      day({ day: 1, city: "Phuket", ...PHUKET }),
+      day({ day: 2, city: "Phuket", ...PHUKET }),
+      day({ day: 3, city: "Krabi", ...KRABI }),
+    ]);
+    expect(findDuplicateCitySegments(p)).toEqual([]);
+  });
+
+  it("flags a destination revisited later (Phuket → Krabi → Phuket)", () => {
+    const p = plan([
+      day({ day: 1, city: "Phuket", ...PHUKET }),
+      day({ day: 2, city: "Krabi", ...KRABI }),
+      day({ day: 3, city: "Phuket", ...PHUKET }),
+    ]);
+    const v = findDuplicateCitySegments(p);
+    expect(v).toHaveLength(1);
+    expect(v[0].rule).toBe("duplicate_destination_segment");
+  });
+
+  it("allows return to hub city on final 1–2 days (Bangkok → islands → Bangkok)", () => {
+    const days: DayPlan[] = [
+      ...[1, 2, 3].map((d) => day({ day: d, city: "Bangkok", ...BANGKOK })),
+      ...[4, 5, 6, 7, 8, 9, 10, 11, 12].map((d) =>
+        day({ day: d, city: "Phuket", ...PHUKET }),
+      ),
+      day({ day: 13, city: "Bangkok", ...BANGKOK }),
+      day({ day: 14, city: "Bangkok", ...BANGKOK }),
+    ];
+    expect(findDuplicateCitySegments(plan(days))).toEqual([]);
+  });
+
+  it("still flags mid-trip hub return (Bangkok → Chiang Mai → Bangkok → Phuket)", () => {
+    const days: DayPlan[] = [
+      day({ day: 1, city: "Bangkok", ...BANGKOK }),
+      day({ day: 2, city: "Chiang Mai", lat: 18.8, lng: 98.9 }),
+      day({ day: 3, city: "Bangkok", ...BANGKOK }),
+      ...[4, 5, 6, 7, 8, 9, 10, 11, 12, 13].map((d) =>
+        day({ day: d, city: "Phuket", ...PHUKET }),
+      ),
+      day({ day: 14, city: "Bangkok", ...BANGKOK }),
+    ];
+    const v = findDuplicateCitySegments(plan(days));
+    expect(v).toHaveLength(1);
+    expect(v[0].dayNumbers).toContain(3);
+  });
+});
+
+describe("findMissingTravelBlocks — realistic travel time", () => {
+  it("flags an inter-region jump without a transport block", () => {
+    const p = plan([
+      day({ day: 1, city: "Phuket", ...PHUKET, category: "sight" }),
+      day({ day: 2, city: "Koh Samui", ...KOH_SAMUI, category: "beach" }),
+    ]);
+    const v = findMissingTravelBlocks(p);
+    expect(v).toHaveLength(1);
+    expect(v[0].rule).toBe("missing_travel_block");
+  });
+
+  it("accepts a transport day between distant regions", () => {
+    const p = plan([
+      day({ day: 1, city: "Phuket", ...PHUKET, category: "sight" }),
+      day({
+        day: 2,
+        city: "Surat Thani",
+        lat: 9.14,
+        lng: 99.33,
+        category: "transport",
+      }),
+      day({ day: 3, city: "Koh Samui", ...KOH_SAMUI, category: "beach" }),
+    ]);
+    // The day-2 → day-3 hop is short; day-1 → day-2 is the long one and has
+    // category=transport, so no violation.
+    expect(findMissingTravelBlocks(p)).toEqual([]);
+  });
+
+  it("accepts a structured transport block on the destination day itself", () => {
+    const p = plan([
+      day({ day: 1, city: "Phuket", ...PHUKET }),
+      day({
+        day: 2,
+        city: "Koh Samui",
+        ...KOH_SAMUI,
+        category: "beach",
+        transport: {
+          type: "flight",
+          duration: "1h",
+          cost: "60 EUR",
+          description: "HKT → USM",
+        },
+      }),
+    ]);
+    expect(findMissingTravelBlocks(p)).toEqual([]);
+  });
+});
+
+describe("findNonLinearRoute — linear A→B→C flow", () => {
+  it("passes for a clustered Andaman-coast loop", () => {
+    const p = plan([
+      day({ day: 1, city: "Phuket", ...PHUKET }),
+      day({ day: 2, city: "Phi Phi", ...PHI_PHI }),
+      day({ day: 3, city: "Krabi", ...KRABI }),
+    ]);
+    expect(findNonLinearRoute(p)).toEqual([]);
+  });
+
+  it("flags backtracking Phuket → Bangkok → Phuket → Krabi", () => {
+    const p = plan([
+      day({ day: 1, city: "Phuket", ...PHUKET }),
+      day({ day: 2, city: "Bangkok", ...BANGKOK }),
+      day({ day: 3, city: "Phuket", ...PHUKET }),
+      day({ day: 4, city: "Krabi", ...KRABI }),
+    ]);
+    const v = findNonLinearRoute(p);
+    expect(v).toHaveLength(1);
+    expect(v[0].rule).toBe("non_linear_route");
+  });
+
+  it("flags coast-jumping Phuket → Koh Phangan → Krabi → Koh Samui (zig-zag)", () => {
+    const p = plan([
+      day({ day: 1, city: "Phuket", ...PHUKET }),
+      day({ day: 2, city: "Koh Phangan", ...KOH_PHANGAN, category: "transport" }),
+      day({ day: 3, city: "Krabi", ...KRABI, category: "transport" }),
+      day({ day: 4, city: "Koh Samui", ...KOH_SAMUI, category: "transport" }),
+    ]);
+    expect(findNonLinearRoute(p).length).toBeGreaterThan(0);
+  });
+});
+
+describe("findDuplicateActivities — no repeated sightseeing", () => {
+  it("flags the same focusName on two different days", () => {
+    const p = plan([
+      day({ day: 1, city: "Manila", focusName: "Intramuros" }),
+      day({ day: 2, city: "Manila", focusName: "Intramuros" }),
+    ]);
+    const v = findDuplicateActivities(p);
+    expect(v.some((x) => x.message.toLowerCase().includes("intramuros"))).toBe(
+      true,
+    );
+  });
+
+  it("flags duplicates inside the structured activities[] slots", () => {
+    const slot = [{ name: "Fort Santiago", description: "" }];
+    const p = plan([
+      day({ day: 1, city: "Manila", activities: { morning: slot } }),
+      day({ day: 2, city: "Manila", activities: { afternoon: slot } }),
+    ]);
+    const v = findDuplicateActivities(p);
+    expect(v.some((x) => x.message.toLowerCase().includes("fort santiago"))).toBe(
+      true,
+    );
+  });
+
+  it("passes when every day has unique attractions", () => {
+    const p = plan([
+      day({ day: 1, city: "Manila", focusName: "Intramuros" }),
+      day({ day: 2, city: "Cebu", focusName: "Magellan's Cross" }),
+    ]);
+    expect(findDuplicateActivities(p)).toEqual([]);
+  });
+});
+
+describe("validateItinerary — end-to-end on a realistic Thailand plan", () => {
+  it("passes for a properly clustered, linear, deduped 6-day plan", () => {
+    const good = plan([
+      day({
+        day: 1,
+        city: "Phuket",
+        ...PHUKET,
+        focusName: "Old Town walk",
+        category: "sight",
+      }),
+      day({
+        day: 2,
+        city: "Phi Phi",
+        ...PHI_PHI,
+        focusName: "Maya Bay",
+        category: "beach",
+      }),
+      day({
+        day: 3,
+        city: "Krabi",
+        ...KRABI,
+        focusName: "Railay cliffs",
+        category: "nature",
+      }),
+      day({
+        day: 4,
+        city: "Surat Thani",
+        lat: 9.14,
+        lng: 99.33,
+        focusName: "Ferry transfer",
+        category: "transport",
+      }),
+      day({
+        day: 5,
+        city: "Koh Samui",
+        ...KOH_SAMUI,
+        focusName: "Chaweng beach",
+        category: "beach",
+      }),
+      day({
+        day: 6,
+        city: "Koh Phangan",
+        ...KOH_PHANGAN,
+        focusName: "Bottle Beach",
+        category: "beach",
+      }),
+    ]);
+    expect(validateItinerary(good)).toEqual([]);
+  });
+
+  it("catches multiple violations on a deliberately broken plan", () => {
+    const bad = plan([
+      day({
+        day: 1,
+        city: "Phuket",
+        ...PHUKET,
+        focusName: "Old Town",
+      }),
+      day({
+        day: 2,
+        city: "Koh Samui",
+        ...KOH_SAMUI,
+        focusName: "Chaweng",
+        category: "beach",
+      }), // long hop, no transport
+      day({
+        day: 2, // duplicate day number
+        city: "Phuket",
+        ...PHUKET,
+        focusName: "Old Town", // duplicate activity
+      }),
+      day({
+        day: 4,
+        city: "Bangkok",
+        ...BANGKOK,
+        focusName: "Grand Palace",
+      }), // backtracking
+    ]);
+    const v = validateItinerary(bad);
+    const rules = new Set(v.map((x) => x.rule));
+    expect(rules.has("duplicate_day_number")).toBe(true);
+    expect(rules.has("missing_travel_block")).toBe(true);
+    expect(rules.has("duplicate_destination_segment")).toBe(true);
+    expect(rules.has("duplicate_activity")).toBe(true);
+  });
+});

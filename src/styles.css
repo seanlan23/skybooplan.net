@@ -1,0 +1,300 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-brand-soft: var(--brand-soft);
+  --color-sky-tint: var(--sky-tint);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+
+  --font-display: "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-sans: "Inter", system-ui, sans-serif;
+}
+
+:root {
+  --radius: 1rem;
+
+  /* Brand: orange + deep blue */
+  --background: oklch(0.995 0.005 240);
+  --foreground: oklch(0.18 0.04 250);
+
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.18 0.04 250);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.18 0.04 250);
+
+  /* Orange — primary CTA / Flights tab */
+  --primary: oklch(0.72 0.18 48);
+  --primary-foreground: oklch(0.99 0 0);
+
+  /* Deep ocean blue — accent / Skyscanner button */
+  --brand: oklch(0.5 0.18 245);
+  --brand-foreground: oklch(0.99 0 0);
+  --brand-soft: oklch(0.96 0.03 240);
+
+  --secondary: oklch(0.97 0.01 240);
+  --secondary-foreground: oklch(0.18 0.04 250);
+  --muted: oklch(0.97 0.01 240);
+  --muted-foreground: oklch(0.5 0.02 250);
+  --accent: oklch(0.96 0.03 240);
+  --accent-foreground: oklch(0.18 0.04 250);
+
+  --destructive: oklch(0.6 0.22 27);
+  --destructive-foreground: oklch(0.99 0 0);
+
+  --success: oklch(0.65 0.18 145);
+  --success-foreground: oklch(0.99 0 0);
+  --warning: oklch(0.75 0.16 85);
+  --warning-foreground: oklch(0.2 0.04 250);
+
+  --border: oklch(0.92 0.01 240);
+  --input: oklch(0.93 0.01 240);
+  --ring: oklch(0.5 0.18 245);
+
+  --sky-tint: oklch(0.98 0.02 240);
+
+  --gradient-hero: linear-gradient(180deg, oklch(0.99 0.01 240) 0%, oklch(0.96 0.04 235) 100%);
+  --gradient-brand: linear-gradient(135deg, oklch(0.5 0.18 245), oklch(0.6 0.18 235));
+  --gradient-warm: linear-gradient(135deg, oklch(0.72 0.18 48), oklch(0.78 0.16 60));
+  --shadow-card: 0 10px 30px -12px oklch(0.5 0.18 245 / 0.18);
+  --shadow-search: 0 20px 60px -20px oklch(0.5 0.18 245 / 0.25);
+
+  --animate-diff-flash: diff-flash 1.2s ease-out forwards;
+  --animate-diff-slide-left: diff-slide-left 0.8s ease-out forwards;
+  --animate-diff-slide-right: diff-slide-right 0.8s ease-out 0.3s forwards;
+  --animate-diff-arrow: diff-arrow 0.5s ease-out 0.2s forwards;
+}
+
+.dark {
+  --background: oklch(0.14 0.03 250);
+  --foreground: oklch(0.98 0.01 240);
+  --card: oklch(0.18 0.03 250);
+  --card-foreground: oklch(0.98 0.01 240);
+  --popover: oklch(0.18 0.03 250);
+  --popover-foreground: oklch(0.98 0.01 240);
+  --primary: oklch(0.74 0.18 48);
+  --primary-foreground: oklch(0.14 0.03 250);
+  --brand: oklch(0.65 0.18 240);
+  --brand-foreground: oklch(0.14 0.03 250);
+  --brand-soft: oklch(0.22 0.04 245);
+  --secondary: oklch(0.22 0.03 250);
+  --secondary-foreground: oklch(0.98 0.01 240);
+  --muted: oklch(0.22 0.03 250);
+  --muted-foreground: oklch(0.7 0.02 250);
+  --accent: oklch(0.22 0.04 245);
+  --accent-foreground: oklch(0.98 0.01 240);
+  --destructive: oklch(0.6 0.22 27);
+  --destructive-foreground: oklch(0.99 0 0);
+  --success: oklch(0.7 0.18 145);
+  --success-foreground: oklch(0.14 0.03 250);
+  --warning: oklch(0.78 0.16 85);
+  --warning-foreground: oklch(0.14 0.03 250);
+  --border: oklch(1 0 0 / 12%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.65 0.18 240);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  html {
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+  }
+  h1, h2, h3, h4 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+}
+
+@keyframes diff-flash {
+  0% { background-color: oklch(0.72 0.18 48 / 0.2); }
+  100% { background-color: transparent; }
+}
+
+@keyframes diff-slide-left {
+  0% { opacity: 1; transform: translateX(0); }
+  40% { opacity: 0.5; transform: translateX(-6px); }
+  100% { opacity: 0.35; transform: translateX(-10px); }
+}
+
+@keyframes diff-slide-right {
+  0% { opacity: 0; transform: translateX(10px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes diff-arrow {
+  0% { opacity: 0; transform: scale(0.6); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes value-glow {
+  0% { box-shadow: 0 0 0 0 oklch(0.72 0.18 48 / 0.35); }
+  50% { box-shadow: 0 0 0 6px oklch(0.72 0.18 48 / 0); }
+  100% { box-shadow: 0 0 0 0 oklch(0.72 0.18 48 / 0); }
+}
+
+@keyframes spotlight-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--brand) 80%, transparent),
+                0 0 0 8px color-mix(in oklab, var(--brand) 20%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--brand) 100%, transparent),
+                0 0 0 16px color-mix(in oklab, var(--brand) 0%, transparent);
+  }
+}
+
+/* Mapbox trip markers (Layla-style: city label + colored pin with icon + day number) */
+@keyframes trip-marker-pop {
+  0%   { transform: scale(0.6); opacity: 0; }
+  60%  { transform: scale(1.25); opacity: 1; }
+  100% { transform: scale(1.2);  opacity: 1; }
+}
+@keyframes trip-marker-label-in {
+  0%   { transform: translateY(4px) scale(0.9); opacity: 0; }
+  100% { transform: translateY(0)  scale(1);   opacity: 1; }
+}
+
+.trip-marker-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+              filter 0.35s ease;
+  will-change: transform;
+}
+.trip-marker-wrap:not(.is-active) {
+  filter: saturate(0.85);
+  opacity: 0.92;
+}
+.trip-marker-label {
+  background: #fff;
+  color: #111827;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.18);
+  margin-bottom: 4px;
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+  transform-origin: bottom center;
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+              background 0.3s ease,
+              color 0.3s ease,
+              box-shadow 0.3s ease;
+}
+.trip-marker-pin {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  border-radius: 9999px;
+  border: 2.5px solid #fff;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.28);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  transform-origin: bottom center;
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.35s ease,
+              border-color 0.3s ease;
+}
+.trip-marker-icon {
+  font-size: 16px;
+  line-height: 1;
+  transition: transform 0.3s ease;
+}
+.trip-marker-day {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  background: #fff;
+  color: #111827;
+  font-size: 10px;
+  font-weight: 700;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+  transition: transform 0.3s ease, background 0.3s ease, color 0.3s ease;
+}
+
+.trip-marker-wrap.is-active {
+  filter: saturate(1.1);
+  opacity: 1;
+  z-index: 5;
+}
+.trip-marker-wrap.is-active .trip-marker-pin {
+  animation: trip-marker-pop 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--brand) 35%, transparent),
+              0 6px 16px rgba(0,0,0,0.35);
+  border-color: color-mix(in oklab, var(--brand) 55%, white);
+}
+.trip-marker-wrap.is-active .trip-marker-label {
+  animation: trip-marker-label-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+  background: var(--brand);
+  color: var(--brand-foreground, #fff);
+  box-shadow: 0 2px 8px color-mix(in oklab, var(--brand) 40%, transparent);
+}
+.trip-marker-wrap.is-active .trip-marker-day {
+  transform: scale(1.1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trip-marker-wrap,
+  .trip-marker-pin,
+  .trip-marker-label,
+  .trip-marker-day,
+  .trip-marker-icon {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+

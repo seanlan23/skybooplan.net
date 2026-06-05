@@ -1,0 +1,1 @@
+ALTER TYPE public.subscription_tier ADD VALUE IF NOT EXISTS 'annual';
