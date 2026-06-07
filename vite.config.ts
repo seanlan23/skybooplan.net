@@ -6,8 +6,15 @@
 // You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
+/** Lovable defaults to Cloudflare; on Vercel CI set Nitro preset so routes + SSR work. */
+const nitroPreset =
+  process.env.VERCEL || process.env.NITRO_PRESET === "vercel"
+    ? "vercel"
+    : "cloudflare-module";
+
 export default defineConfig({
   nitro: {
+    preset: nitroPreset,
     routeRules: {
       "/_serverFn/**": {
         maxDuration: 300,
