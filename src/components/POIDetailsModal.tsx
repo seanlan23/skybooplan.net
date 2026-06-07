@@ -1,0 +1,324 @@
+import { useEffect, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import {
+  Check,
+  Clock,
+  Lightbulb,
+  MapPin,
+  Sparkles,
+  Star,
+  Wallet,
+  X,
+} from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  mockPoiRating,
+  resolvePoiModalImageGrid,
+  resolvePoiRating,
+  splitDescriptionParagraphs,
+  type PoiDetailsData,
+} from "@/lib/poiDetails.types";
+import { NavigateButton } from "@/components/NavigateButton";
+import { fetchPhotosForPoi } from "@/lib/dayPhotos.functions";
+
+const TIME_SLOT_LABELS: Record<string, string> = {
+  dopoldan: "Dopoldan",
+  popoldan: "Popoldan",
+  vecer: "Večer",
+  morning: "Dopoldan",
+  afternoon: "Popoldan",
+  evening: "Večer",
+};
+
+function StarRow({ score }: { score: number }) {
+  const full = Math.floor(score);
+  const half = score - full >= 0.5;
+  return (
+    <div className="flex items-center gap-0.5" aria-hidden="true">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <Star
+          key={i}
+          className={`h-4 w-4 ${
+            i < full
+              ? "fill-amber-400 text-amber-400"
+              : i === full && half
+                ? "fill-amber-200 text-amber-400"
+                : "fill-slate-200 text-slate-200"
+          }`}
+        />
+      ))}
+    </div>
+  );
+}
+
+function PoiImageGrid({
+  poi,
+  loading,
+}: {
+  poi: PoiDetailsData;
+  loading?: boolean;
+}) {
+  const fromApi = [...new Set([poi.imageUrl, ...(poi.imageUrls ?? [])].filter(Boolean))] as string[];
+
+  if (loading && fromApi.length === 0) {
+    return (
+      <div className="relative bg-slate-900/5 p-1.5 space-y-1.5">
+        <div className="animate-pulse rounded-xl bg-slate-200 aspect-[16/9] sm:aspect-[21/9] max-h-[320px]" />
+        <div className="grid grid-cols-2 gap-1.5">
+          <div className="animate-pulse rounded-xl bg-slate-200 aspect-[4/3] max-h-[140px]" />
+          <div className="animate-pulse rounded-xl bg-slate-200 aspect-[4/3] max-h-[140px]" />
+        </div>
+      </div>
+    );
+  }
+
+  const { hero, secondary } = resolvePoiModalImageGrid(poi);
+  return (
+    <div className="relative bg-slate-900/5 p-1.5 space-y-1.5">
+      <div className="overflow-hidden rounded-xl bg-slate-200 aspect-[16/9] sm:aspect-[21/9] max-h-[320px]">
+        <img
+          src={hero}
+          alt={poi.name}
+          className={`h-full w-full object-cover transition-opacity duration-500 ${loading ? "opacity-70" : "opacity-100"}`}
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-1.5">
+        {secondary.map((src, i) => (
+          <div key={i} className="overflow-hidden rounded-xl bg-slate-200 aspect-[4/3] max-h-[140px]">
+            <img src={src} alt="" className="h-full w-full object-cover" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function POIDetailsModal({
+  open,
+  onOpenChange,
+  poi,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  poi: PoiDetailsData | null;
+}) {
+  const fetchPoiPhotos = useServerFn(fetchPhotosForPoi);
+  const [displayPoi, setDisplayPoi] = useState<PoiDetailsData | null>(poi);
+  const [photosLoading, setPhotosLoading] = useState(false);
+
+  useEffect(() => {
+    setDisplayPoi(poi);
+  }, [poi]);
+
+  useEffect(() => {
+    if (!open || !poi?.city) return;
+    if (poi.imageUrl) return;
+
+    let cancelled = false;
+    setPhotosLoading(true);
+    void fetchPoiPhotos({
+      data: {
+        name: poi.name,
+        city: poi.city,
+        destinationName: poi.destinationName ?? poi.city,
+        imageSearchQuery: poi.imageSearchQuery,
+      },
+    })
+      .then((result) => {
+        if (cancelled || !result.imageUrl) return;
+        setDisplayPoi((prev) =>
+          prev
+            ? {
+                ...prev,
+                imageUrl: result.imageUrl,
+                imageUrls: result.imageUrls ?? prev.imageUrls,
+              }
+            : prev,
+        );
+      })
+      .catch((err) => console.warn("[POIDetailsModal] photo fetch failed:", err))
+      .finally(() => {
+        if (!cancelled) setPhotosLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, poi, fetchPoiPhotos]);
+
+  if (!poi || !displayPoi) return null;
+
+  const guide = displayPoi.tripAdvisorStyleDetails;
+  const score = resolvePoiRating(displayPoi);
+  const { reviewCount } = mockPoiRating(displayPoi.name);
+  const timeLabel =
+    displayPoi.arrivalTime && displayPoi.departureTime
+      ? `${displayPoi.arrivalTime} – ${displayPoi.departureTime}`
+      : displayPoi.arrivalTime ?? displayPoi.departureTime ?? "Po načrtu dneva";
+  const slotLabel = displayPoi.timeSlot
+    ? (TIME_SLOT_LABELS[displayPoi.timeSlot.toLowerCase()] ?? displayPoi.timeSlot)
+    : null;
+  const costLabel =
+    displayPoi.estimatedCostEur != null && displayPoi.estimatedCostEur >= 0
+      ? `cca. €${displayPoi.estimatedCostEur} / osebo`
+      : "Vključeno v dnevni proračun";
+  const paragraphs = splitDescriptionParagraphs(
+    displayPoi.fullDescription ?? displayPoi.description,
+  );
+  const bestTime = guide?.bestTimeOfDay?.trim();
+  const proTip = guide?.proTip?.trim();
+  const highlights = guide?.highlights?.filter(Boolean) ?? [];
+  const reviewSummary = guide?.reviewSummary?.trim();
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-4xl w-[calc(100%-2rem)] max-h-[94vh] overflow-y-auto p-0 gap-0 rounded-2xl border-slate-200 shadow-2xl">
+        <DialogTitle className="sr-only">{displayPoi.name}</DialogTitle>
+
+        <div className="relative">
+          <PoiImageGrid poi={displayPoi} loading={photosLoading} />
+          <button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-slate-700 shadow-lg hover:bg-white transition-colors z-10"
+            aria-label="Zapri"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="px-5 py-6 sm:px-8 sm:py-7">
+          <div className="mb-6">
+            <h2 className="text-2xl sm:text-[1.75rem] font-bold text-slate-900 leading-tight">
+              {displayPoi.name}
+            </h2>
+            {(displayPoi.city || displayPoi.category) && (
+              <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-slate-600">
+                {displayPoi.city && (
+                  <span className="inline-flex items-center gap-1.5">
+                    <MapPin className="h-4 w-4 text-indigo-500 shrink-0" />
+                    {displayPoi.city}
+                  </span>
+                )}
+                {displayPoi.category && (
+                  <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                    {displayPoi.category}
+                  </span>
+                )}
+              </p>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6 lg:gap-8">
+            {/* LEFT — description & highlights */}
+            <div className="space-y-5 min-w-0">
+              {paragraphs.length > 0 && (
+                <div className="space-y-3">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                    O znamenitosti
+                  </h3>
+                  {paragraphs.map((p, i) => (
+                    <p key={i} className="text-[15px] text-slate-700 leading-relaxed">
+                      {p}
+                    </p>
+                  ))}
+                </div>
+              )}
+
+              {highlights.length > 0 && (
+                <div className="rounded-2xl border border-slate-100 bg-white px-5 py-4 shadow-sm">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
+                    Kaj ne smeš zamuditi
+                  </h3>
+                  <ul className="space-y-2.5">
+                    {highlights.map((item, i) => (
+                      <li key={i} className="flex gap-2.5 text-sm text-slate-700 leading-snug">
+                        <Check
+                          className="h-4 w-4 shrink-0 text-emerald-500 mt-0.5"
+                          aria-hidden="true"
+                        />
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {reviewSummary && (
+                <div className="rounded-2xl border border-slate-100 bg-slate-50/80 px-5 py-4">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
+                    Mnenja popotnikov
+                  </h3>
+                  <p className="text-sm text-slate-700 leading-relaxed italic">&ldquo;{reviewSummary}&rdquo;</p>
+                </div>
+              )}
+            </div>
+
+            {/* RIGHT — sidebar */}
+            <aside className="space-y-4 lg:sticky lg:top-0 lg:self-start">
+              <div className="rounded-2xl border border-amber-200/80 bg-gradient-to-br from-amber-50 to-orange-50 px-5 py-4 shadow-sm">
+                <div className="flex items-center gap-2 mb-1">
+                  <StarRow score={score} />
+                  <span className="text-xl font-bold text-slate-900 tabular-nums">{score}</span>
+                </div>
+                <p className="text-xs font-medium text-amber-900/75">
+                  {guide ? "Ocena popotnikov" : "Ocena"} · {reviewCount.toLocaleString("sl-SI")} ocen
+                </p>
+              </div>
+
+              {proTip && (
+                <div className="rounded-2xl border-2 border-violet-200 bg-gradient-to-br from-violet-50 via-indigo-50/80 to-white px-5 py-4 shadow-sm">
+                  <div className="flex items-center gap-2 text-violet-800 mb-2">
+                    <Lightbulb className="h-5 w-5 shrink-0" aria-hidden="true" />
+                    <span className="text-xs font-bold uppercase tracking-wider">Pro nasvet</span>
+                  </div>
+                  <p className="text-sm font-medium text-slate-800 leading-relaxed">{proTip}</p>
+                </div>
+              )}
+
+              {bestTime && (
+                <div className="rounded-xl border border-sky-100 bg-sky-50/60 px-4 py-3.5">
+                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-sky-700 mb-1.5">
+                    <Sparkles className="h-4 w-4 shrink-0" />
+                    Kdaj obiskati
+                  </div>
+                  <p className="text-sm font-semibold text-slate-900 leading-snug">{bestTime}</p>
+                </div>
+              )}
+
+              <div className="rounded-xl border border-blue-100 bg-blue-50/50 px-4 py-3.5">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">
+                  <Clock className="h-4 w-4 shrink-0 opacity-80" />
+                  Čas obiska
+                </div>
+                <p className="text-sm font-semibold text-slate-900 leading-snug">
+                  {[slotLabel, timeLabel].filter(Boolean).join(" · ")}
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 px-4 py-3.5">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">
+                  <Wallet className="h-4 w-4 shrink-0 opacity-80" />
+                  Predviden strošek
+                </div>
+                <p className="text-sm font-semibold text-slate-900 leading-snug">{costLabel}</p>
+              </div>
+
+              <NavigateButton lat={displayPoi.lat} lng={displayPoi.lng} label={displayPoi.name} />
+            </aside>
+          </div>
+
+          {displayPoi.day != null && (
+            <p className="text-center text-xs text-slate-400 pt-6 mt-6 border-t border-slate-100">
+              Dan {displayPoi.day} · Skybooplan
+            </p>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}

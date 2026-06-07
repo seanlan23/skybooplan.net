@@ -76,15 +76,28 @@ function isAllowedHubReturn(
   totalDays: number,
 ): boolean {
   if (segmentStartDays.length !== 2 || segments.length < 2) return false;
-  const hub = segments[0].city;
-  if (city !== hub) return false;
-  if (segments[0].startDay !== 1) return false;
-  const last = segments[segments.length - 1];
-  if (last.city !== hub) return false;
-  if (last.endDay !== totalDays) return false;
-  if (last.endDay - last.startDay + 1 > 2) return false;
-  // Require a meaningful stretch away from the hub (not Phuket → Krabi → Phuket).
-  const daysAway = last.startDay - segments[0].endDay - 1;
+
+  const citySegments = segments.filter((s) => s.city === city);
+  if (citySegments.length !== 2) return false;
+
+  const [first, returnSeg] = citySegments;
+  const lastTripSegment = segments[segments.length - 1];
+
+  // Return hub must be the trip's final geographic stop (buffer before outbound flight).
+  if (returnSeg.startDay !== lastTripSegment.startDay) return false;
+  if (returnSeg.endDay !== totalDays) return false;
+
+  const returnSpan = returnSeg.endDay - returnSeg.startDay + 1;
+  const maxHubReturnDays = totalDays >= 14 ? 6 : totalDays >= 10 ? 4 : 2;
+  if (returnSpan > maxHubReturnDays) return false;
+
+  const firstSpan = first.endDay - first.startDay + 1;
+  if (firstSpan > 4) return false;
+
+  // Allow day-1 in-flight / red-eye before the hub (Bangkok often starts day 2).
+  if (first.startDay > 4) return false;
+
+  const daysAway = returnSeg.startDay - first.endDay - 1;
   return daysAway >= 5;
 }
 

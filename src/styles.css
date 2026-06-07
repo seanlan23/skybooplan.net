@@ -297,4 +297,182 @@
   }
 }
 
+/* POI category badges on the map */
+.poi-marker-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+.poi-marker-badge {
+  width: 30px;
+  height: 30px;
+  border-radius: 9999px;
+  border: 2px solid #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.28);
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+              opacity 0.3s ease,
+              box-shadow 0.35s ease,
+              border-color 0.3s ease;
+  transform-origin: center center;
+}
+.poi-marker-emoji {
+  font-size: 14px;
+  line-height: 1;
+  pointer-events: none;
+}
+.poi-marker-wrap--active {
+  z-index: 6;
+}
+.poi-marker-wrap--active .poi-marker-badge {
+  animation: poi-marker-glow 1.8s ease-in-out infinite alternate;
+}
+@keyframes poi-marker-glow {
+  0%   { filter: brightness(1); }
+  100% { filter: brightness(1.15); }
+}
 
+@media (prefers-reduced-motion: reduce) {
+  .poi-marker-wrap,
+  .poi-marker-badge {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* Layla-style map markers */
+.layla-city-marker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), filter 0.3s ease;
+}
+.layla-city-marker:not(.layla-city-marker--active):not(.layla-city-marker--origin) {
+  opacity: 0.86;
+}
+.layla-city-label {
+  background: #fff;
+  color: #111827;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.1);
+  margin-bottom: 4px;
+  white-space: nowrap;
+  letter-spacing: -0.01em;
+}
+.layla-city-pin {
+  position: relative;
+  width: 42px;
+  height: 42px;
+  border-radius: 9999px;
+  border: 3px solid #fff;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.22);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.35s ease;
+}
+.layla-city-pin--fallback {
+  background: #e8eef5 !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.layla-city-pin--fallback svg {
+  pointer-events: none;
+}
+.layla-day-badge {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 9999px;
+  background: #111827;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+  border: 1.5px solid #fff;
+  z-index: 1;
+}
+.layla-city-marker--active .layla-city-pin,
+.layla-city-pin--active {
+  transform: scale(1.1);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.28), 0 0 0 3px rgba(14,165,233,0.35);
+}
+.layla-city-marker--active .layla-city-label {
+  background: #111827;
+  color: #fff;
+}
+.layla-city-pin--origin {
+  background: #fff !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+}
+.layla-duration-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #fff;
+  color: #111827;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 9999px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.14);
+  white-space: nowrap;
+  pointer-events: none;
+}
+.layla-duration-badge svg {
+  flex-shrink: 0;
+  color: #111827;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .layla-city-marker,
+  .layla-city-pin,
+  .layla-city-label {
+    transition: none !important;
+  }
+}
+
+/* Mapbox marker popups — premium floating cards */
+.mapboxgl-popup.trip-map-popup--premium .mapboxgl-popup-content {
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  border-radius: 1rem;
+}
+.mapboxgl-popup.trip-map-popup--premium .mapboxgl-popup-tip {
+  display: none;
+}
+.mapboxgl-popup.trip-map-popup--premium .mapboxgl-popup-close-button {
+  font-size: 20px;
+  line-height: 1;
+  padding: 8px 10px;
+  color: #94a3b8;
+  right: 2px;
+  top: 2px;
+  border-radius: 9999px;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.mapboxgl-popup.trip-map-popup--premium .mapboxgl-popup-close-button:hover {
+  color: #475569;
+  background: #f1f5f9;
+}

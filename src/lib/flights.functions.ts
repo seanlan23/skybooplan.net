@@ -1,14 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
-import { z } from "zod";
-
-const SearchSchema = z.object({
-  from: z.string().min(3).max(3).regex(/^[A-Z]{3}$/, "IATA koda (3 črke)"),
-  to: z.string().min(3).max(3).regex(/^[A-Z]{3}$/),
-  departDate: z.string().min(10).max(10),
-  returnDate: z.string().min(10).max(10).optional().or(z.literal("")),
-  pax: z.number().min(1).max(9),
-  cabinClass: z.enum(["economy", "premium_economy", "business", "first"]).optional(),
-});
+import {
+  buildDuffelSlices,
+  FlightSearchSchema,
+  isClassicRoundTrip,
+  isMultiCitySearch,
+} from "@/lib/flightSearch";
 
 export type FlightLeg = {
   from: string;
@@ -38,14 +34,25 @@ export type DuffelFlight = {
   durationMin: number;
   outbound: FlightLeg;
   inbound?: FlightLeg;
+  /** All slices (multi-city / open-jaw). */
+  legs?: FlightLeg[];
+  tripKind?: "oneway" | "roundtrip" | "multicity";
 };
 
+/**
+ * Wall-clock HH:MM at the airport from a Duffel ISO timestamp.
+ * Duffel uses local time at origin/destination with an explicit offset (e.g. -07:00 at LAX).
+ * That matches the boarding pass / itinerary — not UTC.
+ */
 export function isoToHM(iso: string) {
-  const localTimeMatch = iso.match(/T(\d{2}:\d{2})/);
-  if (localTimeMatch?.[1]) return localTimeMatch[1];
+  const wallClock = iso.match(/T(\d{2}):(\d{2})(?::\d{2})?(?:\.\d+)?(?:[+-]\d{2}:\d{2}|Z)?/);
+  if (wallClock?.[1] && wallClock[2]) {
+    return `${wallClock[1]}:${wallClock[2]}`;
+  }
 
   const d = new Date(iso);
-  return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
+  if (!Number.isFinite(d.getTime())) return "00:00";
+  return `${d.getUTCHours().toString().padStart(2, "0")}:${d.getUTCMinutes().toString().padStart(2, "0")}`;
 }
 
 function isoToDate(iso: string) {
@@ -149,15 +156,19 @@ function mapSliceToLeg(slice: DuffelSlice): FlightLeg {
   };
 }
 
-/** Map one Duffel offer into a distinct round-trip / one-way flight card. */
+/** Map one Duffel offer into a flight card (one-way, round-trip, or multi-city). */
 export function mapDuffelOfferToFlight(offer: DuffelOffer): DuffelFlight | null {
-  const outSlice = offer.slices[0];
-  if (!outSlice?.segments?.length) return null;
+  const legs = offer.slices
+    .filter((s) => s.segments?.length)
+    .map(mapSliceToLeg);
+  if (legs.length === 0) return null;
 
-  const outbound = mapSliceToLeg(outSlice);
-  const backSlice = offer.slices[1];
-  const inbound = backSlice?.segments?.length ? mapSliceToLeg(backSlice) : undefined;
-  const durationMin = outbound.durationMin + (inbound?.durationMin ?? 0);
+  const outbound = legs[0]!;
+  const inbound = legs.length > 1 ? legs[legs.length - 1] : undefined;
+  const durationMin = legs.reduce((sum, leg) => sum + leg.durationMin, 0);
+  const roundtrip = inbound ? isClassicRoundTrip(outbound, inbound) : false;
+  const tripKind =
+    legs.length > 2 ? "multicity" : roundtrip ? "roundtrip" : legs.length === 2 ? "multicity" : "oneway";
 
   return {
     id: offer.id,
@@ -170,21 +181,18 @@ export function mapDuffelOfferToFlight(offer: DuffelOffer): DuffelFlight | null 
     durationMin,
     outbound,
     inbound,
+    legs,
+    tripKind,
   };
 }
 
 export const searchFlights = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) => SearchSchema.parse(data))
+  .inputValidator((data: unknown) => FlightSearchSchema.parse(data))
   .handler(async ({ data }): Promise<{ flights: DuffelFlight[]; error: string | null }> => {
     const token = process.env.DUFFEL_API_KEY;
     if (!token) return { flights: [], error: "error.duffelNotConfigured" };
 
-    const slices = [
-      { origin: data.from, destination: data.to, departure_date: data.departDate },
-    ];
-    if (data.returnDate) {
-      slices.push({ origin: data.to, destination: data.from, departure_date: data.returnDate });
-    }
+    const slices = buildDuffelSlices(data);
 
     const passengers = Array.from({ length: data.pax }, () => ({ type: "adult" as const }));
 
@@ -215,9 +223,29 @@ export const searchFlights = createServerFn({ method: "POST" })
       const json = (await createRes.json()) as { data: { offers: DuffelOffer[] } };
       const offers = (json.data.offers ?? []).slice(0, 12);
 
-      const flights = offers
+      let flights = offers
         .map(mapDuffelOfferToFlight)
         .filter((flight): flight is DuffelFlight => flight !== null);
+
+      const wantsMulti = isMultiCitySearch(data);
+      const wantsReturn = data.tripType === "return" || Boolean(data.returnDate?.trim());
+      if (wantsMulti) {
+        flights = flights.filter((f) => (f.legs?.length ?? 0) >= 2);
+        if (flights.length === 0) {
+          return { flights: [], error: "error.multicityUnavailable" };
+        }
+      } else if (wantsReturn) {
+        const roundTrip = flights.filter(
+          (f) => f.inbound && (f.tripKind === "roundtrip" || isClassicRoundTrip(f.outbound, f.inbound)),
+        );
+        if (roundTrip.length === 0 && flights.length > 0) {
+          console.error(
+            `Round-trip requested (${data.from}→${data.to}) but ${flights.length} offer(s) lack return slice`,
+          );
+          return { flights: [], error: "error.roundTripUnavailable" };
+        }
+        flights = roundTrip;
+      }
 
       flights.sort((a, b) => a.price - b.price || a.durationMin - b.durationMin);
       return { flights, error: null };

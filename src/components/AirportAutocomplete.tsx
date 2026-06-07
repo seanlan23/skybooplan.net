@@ -28,6 +28,8 @@ export function AirportAutocomplete({
   const selectedRef = useRef<{ value: string; display: string } | null>(null);
   const boxRef = useRef<HTMLDivElement>(null);
   const placesFn = useServerFn(searchPlaces);
+  const placesFnRef = useRef(placesFn);
+  placesFnRef.current = placesFn;
   const visibleSuggestions =
     kind === "place"
       ? suggestions.filter((suggestion) => suggestion.type === "city")
@@ -58,22 +60,28 @@ export function AirportAutocomplete({
       return;
     }
     setLoading(true);
+    let cancelled = false;
     const t = setTimeout(async () => {
       try {
-        const res = await placesFn({ data: { query: q, kind } });
+        const res = await placesFnRef.current({ data: { query: q, kind } });
+        if (cancelled) return;
         setSuggestions(res.suggestions);
         setOpen(true);
         setHighlight(0);
         if (res.error) console.warn("Places:", res.error);
       } catch (e) {
+        if (cancelled) return;
         console.error("Places fetch error:", e);
         setSuggestions([]);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }, 220);
-    return () => clearTimeout(t);
-  }, [query, placesFn]);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [query, kind]);
 
   // Close on outside click
   useEffect(() => {
@@ -92,7 +100,11 @@ export function AirportAutocomplete({
   }
 
   function formatDisplay(s: PlaceSuggestion): string {
-    if (kind === "airport") return `${s.name} (${s.iata})`;
+    if (kind === "airport") {
+      const place = s.city && s.city !== s.name ? s.city : s.name.replace(/ Airport$/i, "");
+      const cc = s.country ? `, ${s.country}` : "";
+      return `${s.iata} — ${place}${cc}`;
+    }
     return formatPick(s);
   }
 
@@ -193,9 +205,20 @@ export function AirportAutocomplete({
                     )}
                     <div className="min-w-0 flex-1">
                       <div className="text-sm font-semibold text-foreground truncate">
-                        {s.name}
-                        {s.city && s.city !== s.name && (
-                          <span className="ml-1 font-normal text-muted-foreground">· {s.city}</span>
+                        {kind === "airport" ? (
+                          <>
+                            <span className="text-brand">{s.iata}</span>
+                            <span className="ml-1.5">
+                              {s.city && s.city !== s.name ? s.city : s.name.replace(/ Airport$/i, "")}
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            {s.name}
+                            {s.city && s.city !== s.name && (
+                              <span className="ml-1 font-normal text-muted-foreground">· {s.city}</span>
+                            )}
+                          </>
                         )}
                       </div>
                       <div className="text-xs text-muted-foreground flex items-center gap-1">

@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
-import { Plane, Hotel, Sparkles, ArrowLeftRight, Search, ChevronDown, Calendar as CalendarIcon, Users, Minus, Plus, BedDouble, Info } from "lucide-react";
-import { format, parseISO } from "date-fns";
+import { Plane, Hotel, Sparkles, ArrowLeftRight, Search, ChevronDown, Calendar as CalendarIcon, Users, Minus, Plus, BedDouble, Info, Car, Bus, TrainFront } from "lucide-react";
+import type { GroundTransportMode } from "@/lib/aiPlan.functions";
+import { groundTransportLabel } from "@/lib/groundTransport";
+import { format, parseISO, startOfDay } from "date-fns";
 import { cn } from "@/lib/utils";
 import { AirportAutocomplete } from "@/components/AirportAutocomplete";
 
@@ -17,11 +19,19 @@ export type SearchValues = {
   to: string;
   departDate: string;
   returnDate: string;
+  /** Flights: return vs one-way vs multi-city — drives API slice count */
+  tripType?: "return" | "oneway" | "multicity";
+  /** Multi-city legs (open-jaw). When set, overrides classic from/to/returnDate for search. */
+  slices?: Array<{ from: string; to: string; departDate: string }>;
   /** Total travellers (adults + children) — kept for backward compatibility */
   pax: number;
   language?: string;
   /** Free-text destination for Stays-only search */
   destination?: string;
+  /** AI planner — origin/destination places and ground transport mode */
+  originPlace?: string;
+  destinationPlace?: string;
+  groundTransportMode?: GroundTransportMode;
   /** Flights only */
   adults?: number;
   children?: number;
@@ -43,16 +53,24 @@ export function SearchPanel({
 }) {
   const { t, lang } = useI18n();
   const [tab, setTab] = useState<Tab>("flights");
-  const [tripType, setTripType] = useState("Return");
+  const [tripType, setTripType] = useState<"Return" | "One-way" | "Multi-city">("Return");
+  const [tripTypeOpen, setTripTypeOpen] = useState(false);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [departDate, setDepartDate] = useState("");
   const [returnDate, setReturnDate] = useState("");
+  const [leg2From, setLeg2From] = useState("");
+  const [leg2To, setLeg2To] = useState("");
+  const [leg2Date, setLeg2Date] = useState("");
+  const [leg2DateOpen, setLeg2DateOpen] = useState(false);
   const [destination, setDestination] = useState("");
+  const [originPlace, setOriginPlace] = useState("");
+  const [destinationPlace, setDestinationPlace] = useState("");
+  const [groundTransportMode, setGroundTransportMode] = useState<GroundTransportMode>("car");
+  const [transportModeOpen, setTransportModeOpen] = useState(false);
 
   // Flights traveller state
   const [adults, setAdults] = useState(1);
-  const [children, setChildren] = useState(0);
   const [cabinClass, setCabinClass] = useState<CabinClass>("economy");
 
   // Stays traveller state
@@ -71,9 +89,14 @@ export function SearchPanel({
       setDepartDate("");
       setReturnDate("");
       setDestination("");
+      setOriginPlace("");
+      setDestinationPlace("");
+      setGroundTransportMode("car");
       setTripType("Return");
+      setLeg2From("");
+      setLeg2To("");
+      setLeg2Date("");
       setAdults(1);
-      setChildren(0);
       setCabinClass("economy");
       setStayAdults(2);
       setChildrenAges([]);
@@ -84,11 +107,33 @@ export function SearchPanel({
     setTo(initialValues.to);
     setDepartDate(initialValues.departDate);
     setReturnDate(initialValues.returnDate);
-    setTripType(initialValues.returnDate ? "Return" : "One-way");
+    if (initialValues.tripType === "multicity" && initialValues.slices?.length) {
+      setTripType("Multi-city");
+      const leg1 = initialValues.slices[0];
+      if (leg1) {
+        setFrom(leg1.from);
+        setTo(leg1.to);
+        setDepartDate(leg1.departDate);
+      }
+      const leg2 = initialValues.slices[1];
+      if (leg2) {
+        setLeg2From(leg2.from);
+        setLeg2To(leg2.to);
+        setLeg2Date(leg2.departDate);
+      }
+    } else {
+      setTripType(initialValues.returnDate ? "Return" : "One-way");
+    }
     if (initialValues.destination) setDestination(initialValues.destination);
+    if (initialValues.originPlace) setOriginPlace(initialValues.originPlace);
+    if (initialValues.destinationPlace) setDestinationPlace(initialValues.destinationPlace);
+    if (initialValues.groundTransportMode) setGroundTransportMode(initialValues.groundTransportMode);
     if (initialValues.mode) setTab(initialValues.mode);
     if (typeof initialValues.adults === "number") setAdults(initialValues.adults);
-    if (typeof initialValues.children === "number") setChildren(initialValues.children);
+    if (initialValues.childrenAges) setChildrenAges(initialValues.childrenAges);
+    else if (typeof initialValues.children === "number" && initialValues.children > 0) {
+      setChildrenAges(Array(initialValues.children).fill(8));
+    }
     if (initialValues.cabinClass) setCabinClass(initialValues.cabinClass);
     if (typeof initialValues.stayAdults === "number") setStayAdults(initialValues.stayAdults);
     if (initialValues.childrenAges) setChildrenAges(initialValues.childrenAges);
@@ -97,24 +142,41 @@ export function SearchPanel({
 
   function handleSearch() {
     const isStays = tab === "stays";
-    const pax = isStays ? stayAdults + childrenAges.length : adults + children;
+    const isReturn = tripType === "Return";
+    const isMulticity = tripType === "Multi-city";
+    const pax = isStays ? stayAdults + childrenAges.length : adults + childrenAges.length;
+    const slices =
+      isMulticity && leg2From && leg2To && leg2Date
+        ? [
+            { from, to, departDate },
+            { from: leg2From, to: leg2To, departDate: leg2Date },
+          ]
+        : undefined;
     onSearch?.({
       mode: tab,
-      from,
-      to,
+      from: tab === "ai" ? originPlace : from,
+      to: tab === "ai" ? destinationPlace : to,
       departDate,
-      returnDate,
+      returnDate: isReturn ? returnDate : isMulticity ? leg2Date : "",
+      tripType: isMulticity ? "multicity" : isReturn ? "return" : "oneway",
+      slices,
       pax,
       language: lang,
       destination: isStays ? destination : undefined,
+      originPlace: tab === "ai" ? originPlace : undefined,
+      destinationPlace: tab === "ai" ? destinationPlace : undefined,
+      groundTransportMode: tab === "ai" ? groundTransportMode : undefined,
       adults,
-      children,
+      children: childrenAges.length,
       cabinClass,
       stayAdults,
       childrenAges,
       rooms,
     });
   }
+
+  const tripTypeLabel =
+    tripType === "Return" ? t("trip.return") : tripType === "One-way" ? t("trip.oneway") : t("trip.multicity");
 
   const ctaLabel =
     tab === "stays" ? t("cta.searchStays") : tab === "ai" ? t("cta.generateAi") : t("cta.searchFlights");
@@ -139,14 +201,41 @@ export function SearchPanel({
 
         <div className="flex items-center gap-2">
 
-          {tab !== "stays" && (
-            <button
-              onClick={() => setTripType(tripType === "Return" ? "One-way" : "Return")}
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground/80 hover:text-foreground px-3 py-1.5 rounded-full hover:bg-muted transition-colors"
-            >
-              {tripType === "Return" ? t("trip.return") : t("trip.oneway")}
-              <ChevronDown className="h-4 w-4" />
-            </button>
+          {tab !== "stays" && tab !== "ai" && (
+            <Popover open={tripTypeOpen} onOpenChange={setTripTypeOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground/80 hover:text-foreground px-3 py-1.5 rounded-full hover:bg-muted transition-colors"
+                >
+                  {tripTypeLabel}
+                  <ChevronDown className="h-4 w-4" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-44 p-1">
+                {(["Return", "One-way", "Multi-city"] as const).map((opt) => (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() => {
+                      setTripType(opt);
+                      setTripTypeOpen(false);
+                      if (opt === "One-way") setReturnDate("");
+                      if (opt === "Multi-city") {
+                        setReturnDate("");
+                        if (!leg2To && from) setLeg2To(from);
+                      }
+                    }}
+                    className={cn(
+                      "w-full rounded-lg px-3 py-2 text-left text-sm transition-colors",
+                      tripType === opt ? "bg-brand-soft text-brand font-semibold" : "hover:bg-muted",
+                    )}
+                  >
+                    {opt === "Return" ? t("trip.return") : opt === "One-way" ? t("trip.oneway") : t("trip.multicity")}
+                  </button>
+                ))}
+              </PopoverContent>
+            </Popover>
           )}
         </div>
       </div>
@@ -188,22 +277,81 @@ export function SearchPanel({
           />
           <SearchButton onClick={handleSearch} loading={loading} label={ctaLabel} loadingLabel={loadingLabel} />
         </div>
+      ) : tab === "ai" ? (
+        <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_1.2fr_1fr_1fr_1fr_auto] gap-x-3 gap-y-3 items-stretch">
+          <AirportAutocomplete
+            label={t("field.originPlace" as never) as string}
+            placeholder={t("field.originPlacePlaceholder" as never) as string}
+            value={originPlace}
+            onChange={setOriginPlace}
+            kind="place"
+          />
+          <AirportAutocomplete
+            label={t("field.destinationPlace" as never) as string}
+            placeholder={t("field.destinationPlacePlaceholder" as never) as string}
+            value={destinationPlace}
+            onChange={setDestinationPlace}
+            kind="place"
+          />
+          <TransportModeField
+            value={groundTransportMode}
+            onChange={setGroundTransportMode}
+            open={transportModeOpen}
+            onOpenChange={setTransportModeOpen}
+          />
+          <DateField
+            departDate={departDate}
+            returnDate={returnDate}
+            showReturn={tripType === "Return"}
+            onDepart={setDepartDate}
+            onReturn={setReturnDate}
+            open={dateOpen}
+            onOpenChange={setDateOpen}
+            onComplete={() => {
+              setDateOpen(false);
+              setTimeout(() => setTravellersOpen(true), 80);
+            }}
+          />
+          <FlightsTravellersField
+            adults={adults}
+            onAdults={setAdults}
+            childrenAges={childrenAges}
+            onChildrenAges={setChildrenAges}
+            cabinClass={cabinClass}
+            onCabinClass={setCabinClass}
+            open={travellersOpen}
+            onOpenChange={setTravellersOpen}
+          />
+          <SearchButton onClick={handleSearch} loading={loading} label={ctaLabel} loadingLabel={loadingLabel} />
+        </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr_1fr_1fr_auto] gap-3 items-stretch">
-          <AirportAutocomplete label={t("field.from")} placeholder={t("field.fromPlaceholder")} value={from} onChange={setFrom} />
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr_1fr_1fr_auto] gap-x-3 gap-y-3 items-stretch">
+          <AirportAutocomplete
+            label={t("field.from")}
+            placeholder={t("field.fromPlaceholder")}
+            value={from}
+            onChange={setFrom}
+          />
           <div className="relative">
-            <AirportAutocomplete label={t("field.to")} placeholder={t("field.toPlaceholder")} value={to} onChange={setTo} />
-            <button
-              aria-label="Swap"
-              onClick={() => {
-                const a = from;
-                setFrom(to);
-                setTo(a);
-              }}
-              className="hidden lg:flex absolute -left-6 top-1/2 -translate-y-1/2 z-10 h-10 w-10 items-center justify-center rounded-full border border-border bg-card shadow-sm hover:shadow-md transition-shadow"
-            >
-              <ArrowLeftRight className="h-4 w-4 text-muted-foreground" />
-            </button>
+            <AirportAutocomplete
+              label={t("field.to")}
+              placeholder={t("field.toPlaceholder")}
+              value={to}
+              onChange={setTo}
+            />
+            {tripType !== "Multi-city" && (
+              <button
+                aria-label="Swap"
+                onClick={() => {
+                  const a = from;
+                  setFrom(to);
+                  setTo(a);
+                }}
+                className="hidden lg:flex absolute -left-6 top-1/2 -translate-y-1/2 z-10 h-10 w-10 items-center justify-center rounded-full border border-border bg-card shadow-sm hover:shadow-md transition-shadow"
+              >
+                <ArrowLeftRight className="h-4 w-4 text-muted-foreground" />
+              </button>
+            )}
           </div>
 
           <DateField
@@ -223,8 +371,8 @@ export function SearchPanel({
           <FlightsTravellersField
             adults={adults}
             onAdults={setAdults}
-            children={children}
-            onChildren={setChildren}
+            childrenAges={childrenAges}
+            onChildrenAges={setChildrenAges}
             cabinClass={cabinClass}
             onCabinClass={setCabinClass}
             open={travellersOpen}
@@ -232,9 +380,106 @@ export function SearchPanel({
           />
 
           <SearchButton onClick={handleSearch} loading={loading} label={ctaLabel} loadingLabel={loadingLabel} />
+
+          {tripType === "Multi-city" && (
+            <>
+              <p className="lg:col-span-5 text-xs font-medium text-muted-foreground -mt-1 mb-0.5">
+                {t("multicity.returnLeg")}
+              </p>
+              <AirportAutocomplete
+                label={t("field.from")}
+                placeholder={t("field.fromPlaceholder")}
+                value={leg2From}
+                onChange={setLeg2From}
+              />
+              <AirportAutocomplete
+                label={t("field.to")}
+                placeholder={t("field.toPlaceholder")}
+                value={leg2To}
+                onChange={setLeg2To}
+              />
+              <SingleDateField
+                label={t("field.depart")}
+                value={leg2Date}
+                onChange={setLeg2Date}
+                open={leg2DateOpen}
+                onOpenChange={setLeg2DateOpen}
+                minDate={departDate ? parseISO(departDate) : undefined}
+              />
+              <div className="hidden lg:block" aria-hidden />
+              <div className="hidden lg:block" aria-hidden />
+            </>
+          )}
         </div>
       )}
     </div>
+  );
+}
+
+const TRANSPORT_MODE_OPTIONS: {
+  key: GroundTransportMode;
+  icon: typeof Car;
+}[] = [
+  { key: "car", icon: Car },
+  { key: "motorhome", icon: Bus },
+  { key: "train", icon: TrainFront },
+];
+
+function TransportModeField({
+  value,
+  onChange,
+  open,
+  onOpenChange,
+}: {
+  value: GroundTransportMode;
+  onChange: (v: GroundTransportMode) => void;
+  open?: boolean;
+  onOpenChange?: (o: boolean) => void;
+}) {
+  const { t, lang } = useI18n();
+  const slo = lang === "sl" || lang.startsWith("sl");
+  const current = TRANSPORT_MODE_OPTIONS.find((o) => o.key === value) ?? TRANSPORT_MODE_OPTIONS[0]!;
+  const Icon = current.icon;
+
+  return (
+    <Popover open={open} onOpenChange={onOpenChange}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="rounded-2xl border border-border bg-background/60 px-4 py-3 hover:border-brand/40 transition-colors text-left w-full h-full"
+        >
+          <div className="text-xs font-semibold text-muted-foreground tracking-wide uppercase">
+            {t("field.transportMode" as never) as string}
+          </div>
+          <div className="mt-1 flex items-center gap-2 text-[15px] font-semibold text-foreground">
+            <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+            {groundTransportLabel(value, slo)}
+          </div>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-52 p-1">
+        {TRANSPORT_MODE_OPTIONS.map((opt) => {
+          const OptIcon = opt.icon;
+          return (
+            <button
+              key={opt.key}
+              type="button"
+              onClick={() => {
+                onChange(opt.key);
+                onOpenChange?.(false);
+              }}
+              className={cn(
+                "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors",
+                value === opt.key ? "bg-brand-soft text-brand font-semibold" : "hover:bg-muted",
+              )}
+            >
+              <OptIcon className="h-4 w-4" />
+              {groundTransportLabel(opt.key, slo)}
+            </button>
+          );
+        })}
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -476,7 +721,67 @@ function DateField({
   );
 }
 
+function SingleDateField({
+  label,
+  value,
+  onChange,
+  open,
+  onOpenChange,
+  minDate,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  open?: boolean;
+  onOpenChange?: (o: boolean) => void;
+  minDate?: Date;
+}) {
+  const { t } = useI18n();
+  const selected = value ? parseISO(value) : undefined;
+  const earliest = startOfDay(minDate ?? new Date());
 
+  return (
+    <Popover open={open} onOpenChange={onOpenChange}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="w-full h-full rounded-2xl border border-border bg-background/60 px-4 py-3 hover:border-brand/40 transition-colors focus:outline-none focus:border-brand focus:bg-card text-left group"
+        >
+          <div className="text-xs font-semibold text-muted-foreground tracking-wide uppercase">{label}</div>
+          <div className="mt-1 flex items-center gap-2 text-[15px] font-medium text-foreground">
+            <CalendarIcon className="h-4 w-4 shrink-0 text-muted-foreground group-hover:text-brand transition-colors" />
+            <span className={cn("truncate", !selected && "text-muted-foreground/60")}>
+              {selected ? format(selected, "d MMM yyyy") : t("field.selectDate")}
+            </span>
+          </div>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        className="w-auto p-0"
+        align="start"
+        side="bottom"
+        sideOffset={8}
+        avoidCollisions={false}
+      >
+        <Calendar
+          mode="single"
+          selected={selected}
+          onSelect={(d) => {
+            if (d) {
+              onChange(format(d, "yyyy-MM-dd"));
+              onOpenChange?.(false);
+            }
+          }}
+          disabled={{ before: earliest }}
+          defaultMonth={selected ?? earliest}
+          showOutsideDays={false}
+          initialFocus
+          className="p-3 pointer-events-auto"
+        />
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 function SearchButton({
   onClick,
@@ -601,8 +906,8 @@ const CABIN_KEY: Record<CabinClass, "cabin.economy" | "cabin.premium" | "cabin.b
 function FlightsTravellersField({
   adults,
   onAdults,
-  children,
-  onChildren,
+  childrenAges,
+  onChildrenAges,
   cabinClass,
   onCabinClass,
   open,
@@ -610,15 +915,28 @@ function FlightsTravellersField({
 }: {
   adults: number;
   onAdults: (n: number) => void;
-  children: number;
-  onChildren: (n: number) => void;
+  childrenAges: number[];
+  onChildrenAges: (a: number[]) => void;
   cabinClass: CabinClass;
   onCabinClass: (c: CabinClass) => void;
   open?: boolean;
   onOpenChange?: (o: boolean) => void;
 }) {
   const { t } = useI18n();
-  const total = adults + children;
+  const total = adults + childrenAges.length;
+
+  function setChildCount(n: number) {
+    const clamped = Math.max(0, Math.min(8, n));
+    if (clamped > childrenAges.length) {
+      onChildrenAges([...childrenAges, ...Array(clamped - childrenAges.length).fill(8)]);
+    } else {
+      onChildrenAges(childrenAges.slice(0, clamped));
+    }
+  }
+  function setChildAge(idx: number, age: number) {
+    onChildrenAges(childrenAges.map((a, i) => (i === idx ? age : a)));
+  }
+
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>
@@ -679,8 +997,32 @@ function FlightsTravellersField({
               <div className="text-sm font-semibold text-foreground">{t("trav.children")}</div>
               <div className="text-xs text-muted-foreground">{t("trav.childrenAge")}</div>
             </div>
-            <Stepper value={children} onChange={onChildren} min={0} max={8} />
+            <Stepper value={childrenAges.length} onChange={setChildCount} min={0} max={8} />
           </div>
+
+          {childrenAges.length > 0 && (
+            <div className="space-y-2 pl-1">
+              {childrenAges.map((age, i) => (
+                <div key={i} className="flex items-center justify-between gap-3">
+                  <div className="text-sm text-foreground">
+                    {t("trav.child")} {i + 1}
+                  </div>
+                  <select
+                    value={age}
+                    onChange={(e) => setChildAge(i, Number(e.target.value))}
+                    className="rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-sky-400/40"
+                    aria-label={`${t("trav.ageOf")} ${i + 1}`}
+                  >
+                    {Array.from({ length: 18 }, (_, n) => (
+                      <option key={n} value={n}>
+                        {n === 0 ? t("trav.under1") : `${n} ${n === 1 ? t("trav.year") : t("trav.years")}`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </PopoverContent>
     </Popover>

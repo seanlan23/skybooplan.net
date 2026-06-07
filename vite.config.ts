@@ -10,7 +10,7 @@ export default defineConfig({
   nitro: {
     routeRules: {
       "/_serverFn/**": {
-        maxDuration: 60,
+        maxDuration: 300,
       },
     },
   } as any,

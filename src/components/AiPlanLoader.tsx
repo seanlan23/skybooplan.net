@@ -1,13 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 import { Plane, Sparkles, Lightbulb } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { AI_PLAN_TIP_KEYS, shuffleTipOrder } from "@/lib/aiPlanTips";
 
 /**
  * Loader prikazan med generiranjem AI plana.
  * Brez lažnih števcev — prikazuje napredek faze, animirano letalo
  * po poti in rotacijske potovalne nasvete.
  */
-export function AiPlanLoader({ tripDays: _tripDays }: { tripDays?: number } = {}) {
+export function AiPlanLoader({
+  tripDays = 7,
+  startedAt,
+}: {
+  tripDays?: number;
+  startedAt?: number | null;
+} = {}) {
   const { t, lang } = useI18n();
 
   const phases = useMemo(
@@ -22,23 +29,20 @@ export function AiPlanLoader({ tripDays: _tripDays }: { tripDays?: number } = {}
   );
 
   const tips = useMemo(
-    () =>
-      [
-        t("aiplan.tip1"),
-        t("aiplan.tip2"),
-        t("aiplan.tip3"),
-        t("aiplan.tip4"),
-        t("aiplan.tip5"),
-        t("aiplan.tip6"),
-        t("aiplan.tip7"),
-        t("aiplan.tip8"),
-      ].filter(Boolean),
+    () => AI_PLAN_TIP_KEYS.map((key) => t(key)).filter(Boolean),
     [lang, t],
   );
 
   const [phase, setPhase] = useState(0);
-  const [tipIdx, setTipIdx] = useState(() => Math.floor(Math.random() * tips.length));
+  const [tipOrder] = useState(() =>
+    shuffleTipOrder(AI_PLAN_TIP_KEYS.length, Math.floor(Math.random() * AI_PLAN_TIP_KEYS.length)),
+  );
+  const [tipStep, setTipStep] = useState(0);
+  const tipIdx = tipOrder[tipStep % tipOrder.length] ?? 0;
   const [progress, setProgress] = useState(0);
+  const [elapsedSec, setElapsedSec] = useState(0);
+
+  const estimateSec = Math.min(120, Math.max(35, 25 + tripDays * 2.5));
 
   // Faze: ~3.5s vsaka
   useEffect(() => {
@@ -50,29 +54,33 @@ export function AiPlanLoader({ tripDays: _tripDays }: { tripDays?: number } = {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Rotacija nasvetov: vsakih 5s
+  // Rotacija nasvetov: vsakih 4s, naključen vrstni red ob zagonu
   useEffect(() => {
-    const id = setInterval(
-      () => setTipIdx((i) => (i + 1) % tips.length),
-      5000,
-    );
+    const id = setInterval(() => setTipStep((s) => s + 1), 4000);
     return () => clearInterval(id);
-  }, [tips.length]);
+  }, []);
 
-  // Vizualni napredek letala (0 → 95 %), ne predstavlja realnega %
+  // Vizualni napredek letala (0 → 95 %), usklajen z oceno trajanja
   useEffect(() => {
-    const duration = 55000; // do ~55s počasi do 95 %
-    const start = performance.now();
+    const duration = estimateSec * 1000;
+    const wallStart = startedAt ?? Date.now();
+    const perfStart = performance.now();
     let raf = 0;
-    const tick = (now: number) => {
-      const tt = Math.min(1, (now - start) / duration);
+    const tick = (perfNow: number) => {
+      const elapsedMs = startedAt
+        ? Date.now() - wallStart
+        : perfNow - perfStart;
+      const tt = Math.min(1, elapsedMs / duration);
       const eased = 1 - Math.pow(1 - tt, 2);
       setProgress(eased * 95);
+      setElapsedSec(Math.floor(elapsedMs / 1000));
       if (tt < 1) raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, []);
+  }, [estimateSec, startedAt]);
+
+  const remainingSec = Math.max(0, estimateSec - elapsedSec);
 
   return (
     <div className="mt-8 rounded-3xl border-2 border-sky-200 bg-gradient-to-br from-white via-sky-50/40 to-orange-50/40 p-8 sm:p-10 shadow-md">
@@ -115,7 +123,9 @@ export function AiPlanLoader({ tripDays: _tripDays }: { tripDays?: number } = {}
           <span key={phase} className="animate-fade-in">{phases[phase]}</span>
         </div>
         <div className="mt-2 text-xs text-slate-500">
-          {t("aiplan.loadingHint")}
+          {remainingSec > 5
+            ? t("aiplan.loadingEta").replace("{sec}", String(remainingSec))
+            : t("aiplan.loadingAlmost")}
         </div>
       </div>
 
@@ -126,7 +136,7 @@ export function AiPlanLoader({ tripDays: _tripDays }: { tripDays?: number } = {}
           {t("aiplan.tipsTitle")}
         </div>
         <p
-          key={tipIdx}
+          key={`${tipStep}-${tipIdx}`}
           className="mt-2 text-sm sm:text-base text-slate-700 leading-relaxed animate-fade-in min-h-[3.5rem]"
         >
           {tips[tipIdx]}

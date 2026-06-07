@@ -1,30 +1,20 @@
-import { useMemo, useState } from "react";
-import {
-  Bus,
-  Ship,
-  Loader2,
-  MapPin,
-  Plane,
-  Sparkles,
-  Train,
-  ChevronRight,
-} from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ChevronRight, Loader2, Sparkles } from "lucide-react";
 import type { TripSkeleton } from "@/lib/aiPlan.functions";
-import { skeletonToPreviewPlan } from "@/lib/aiPlan.functions";
+import { buildSkeletonDayPlans, skeletonToPreviewPlan } from "@/lib/aiPlan.functions";
 import { TripMap } from "@/components/TripMap";
-import { HotelsSection, type StayInfo } from "@/components/HotelsSection";
+import { AiPlanDayCard } from "@/components/AiPlanDayCard";
 import { AiPlanLoader } from "@/components/AiPlanLoader";
 import { resolveErrorMessage, useI18n } from "@/lib/i18n";
-import { formatLocalDate } from "@/lib/dateUtils";
-import { useRegionPhotos } from "@/hooks/useRegionPhotos";
-
-function transportIcon(type: string) {
-  const t = type.toLowerCase();
-  if (t.includes("ferry") || t.includes("boat")) return Ship;
-  if (t.includes("train") || t.includes("vlak")) return Train;
-  if (t.includes("bus") || t.includes("avtobus")) return Bus;
-  return Plane;
-}
+import { parseLocalDate } from "@/lib/dateUtils";
+import { useLazyDayPhotos } from "@/hooks/useLazyDayPhotos";
+import { useDestinationContext } from "@/hooks/useDestinationContext";
+import { DestinationInsightBanner } from "@/components/DestinationInsightBanner";
+import { PlannerChoicesSummary } from "@/components/PlannerChoicesSummary";
+import { TripTotalBreakdown } from "@/components/TripTotalBreakdown";
+import type { AiPlannerSubmit } from "@/components/AiPlannerPreview";
+import type { TripFlightContext } from "@/lib/flightScheduling";
+import type { StayInfo } from "@/components/HotelsSection";
 
 export function AiPlanSkeletonView({
   skeleton,
@@ -32,35 +22,149 @@ export function AiPlanSkeletonView({
   expanding,
   error,
   stayInfo,
+  tripDays,
+  genStartedAt,
+  destinationIata,
+  departDate,
+  language,
+  flights,
+  pax = 1,
   onExpandFull,
+  plannerWishes,
+  plannerForm,
 }: {
   skeleton: TripSkeleton | null;
   loading: boolean;
   expanding: boolean;
   error: string | null;
   stayInfo?: StayInfo;
+  tripDays?: number;
+  genStartedAt?: number | null;
+  destinationIata?: string;
+  departDate?: string;
+  language?: string;
+  flights?: TripFlightContext;
+  pax?: number;
   onExpandFull: () => void;
+  plannerWishes?: string;
+  plannerForm?: AiPlannerSubmit | null;
 }) {
-  const { t } = useI18n();
-  const [activeDay, setActiveDay] = useState(1);
-  const { photoMap } = useRegionPhotos(skeleton?.regions ?? []);
-
-  const previewPlan = useMemo(
-    () => (skeleton ? skeletonToPreviewPlan(skeleton) : null),
-    [skeleton],
+  const { t, lang } = useI18n();
+  const { ctx: destCtx, loading: destLoading } = useDestinationContext(
+    destinationIata ?? skeleton?.destinationIata,
+    departDate ?? skeleton?.departDate,
+    language ?? lang,
+    {
+      returnDate: skeleton?.returnDate,
+      priorities: plannerForm?.tags,
+      wishes: plannerWishes ?? plannerForm?.wishes,
+    },
   );
+  const [activeDay, setActiveDay] = useState(1);
+  const dayRefs = useRef<Map<number, HTMLDivElement>>(new Map());
 
-  const regionPhotoEntries = useMemo(() => {
-    const entries = new Map<number, string>();
-    if (!skeleton) return entries;
-    skeleton.regions.forEach((r) => {
-      const url = photoMap.get(r.city);
-      if (url) entries.set(r.startDay, url);
-    });
-    return entries;
-  }, [skeleton, photoMap]);
+  const planOpts = useMemo(
+    () => ({
+      flights: flights ?? undefined,
+      lang,
+      originIata: skeleton?.originIata,
+      destinationIata: destinationIata ?? skeleton?.destinationIata,
+      returnFromIata: skeleton?.returnFromIata,
+      destinationName: skeleton?.destinationName,
+      pax: Math.max(1, pax),
+      paceLabel: plannerForm?.pace,
+    }),
+    [
+      flights,
+      lang,
+      skeleton?.originIata,
+      destinationIata,
+      skeleton?.destinationIata,
+      skeleton?.returnFromIata,
+      skeleton?.destinationName,
+      pax,
+      plannerForm?.pace,
+    ],
+  );
+  const previewPlan = useMemo(
+    () => (skeleton ? skeletonToPreviewPlan(skeleton, planOpts) : null),
+    [skeleton, planOpts],
+  );
+  const dayPlans = useMemo(
+    () => (skeleton ? buildSkeletonDayPlans(skeleton, planOpts) : []),
+    [skeleton, planOpts],
+  );
+  const computedTotalEur = useMemo(
+    () =>
+      dayPlans.reduce(
+        (sum, d) => sum + (d.dailyBudgetEur ?? 0) * Math.max(1, pax),
+        0,
+      ),
+    [dayPlans, pax],
+  );
+  const { photoMap, getActivityPhoto, isDayPhotosLoading } = useLazyDayPhotos(previewPlan);
 
-  if (loading) return <AiPlanLoader />;
+  useEffect(() => {
+    if (dayPlans.length) setActiveDay(dayPlans[0].day);
+  }, [dayPlans]);
+
+  useEffect(() => {
+    if (!dayPlans.length) return;
+    if (typeof window === "undefined") return;
+
+    const THRESHOLD = 0.38;
+    let rafId = 0;
+    let lastDay = activeDay;
+
+    const compute = () => {
+      rafId = 0;
+      const els = Array.from(dayRefs.current.entries());
+      if (els.length === 0) return;
+      const lineY = window.innerHeight * THRESHOLD;
+
+      let bestDay = lastDay;
+      let bestScore = Number.POSITIVE_INFINITY;
+      let straddler: number | null = null;
+
+      for (const [day, el] of els) {
+        const r = el.getBoundingClientRect();
+        if (r.top <= lineY && r.bottom >= lineY) {
+          straddler = day;
+          break;
+        }
+        const center = (r.top + r.bottom) / 2;
+        const score = Math.abs(center - lineY);
+        if (score < bestScore) {
+          bestScore = score;
+          bestDay = day;
+        }
+      }
+
+      const next = straddler ?? bestDay;
+      if (next !== lastDay) {
+        lastDay = next;
+        setActiveDay(next);
+      }
+    };
+
+    const onScroll = () => {
+      if (rafId) return;
+      rafId = window.requestAnimationFrame(compute);
+    };
+
+    rafId = window.requestAnimationFrame(compute);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dayPlans]);
+
+  if (loading) return <AiPlanLoader tripDays={tripDays} startedAt={genStartedAt} />;
 
   if (error) {
     return (
@@ -72,7 +176,11 @@ export function AiPlanSkeletonView({
 
   if (!skeleton || !previewPlan) return null;
 
-  const fmt = (iso: string) => formatLocalDate(iso, undefined, { day: "numeric", month: "short" });
+  const hasCoords = dayPlans.some(
+    (d) =>
+      (Number.isFinite(d.lat) && Number.isFinite(d.lng)) ||
+      Boolean((d.city ?? "").trim()),
+  );
 
   return (
     <div id="ai-plan" className="mt-8 space-y-5">
@@ -98,120 +206,100 @@ export function AiPlanSkeletonView({
         </button>
       </div>
 
+      {(destCtx || destLoading || flights) && (
+        <DestinationInsightBanner context={destCtx} loading={destLoading} flights={flights} />
+      )}
+
       <div className="rounded-2xl border border-sky-200 bg-white p-6 shadow-sm">
         <div className="flex items-start justify-between flex-wrap gap-3">
           <div>
             <div className="flex items-center gap-2 text-xs font-bold text-sky-600 uppercase tracking-wider">
-              <Sparkles className="h-4 w-4" /> {t("skeleton.badge")}
+              <Sparkles className="h-4 w-4" /> {t("skeleton.badge" as never)}
             </div>
             <h2 className="mt-1 text-2xl sm:text-3xl font-bold text-slate-900">
               {skeleton.destinationName}
             </h2>
-            <p className="mt-2 text-slate-600 max-w-2xl">{skeleton.summary}</p>
+            <PlannerChoicesSummary form={plannerForm} />
+            <p className="mt-2 text-slate-600 max-w-2xl leading-relaxed">{skeleton.summary}</p>
           </div>
-          <div className="text-right">
+          <div className="text-right shrink-0">
             <div className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">
               {t("aiplan.total" as never)}
             </div>
-            <div className="text-3xl font-bold text-slate-900">€{skeleton.totalBudgetEur}</div>
+            <div className="text-3xl font-bold text-slate-900">€{computedTotalEur}</div>
+            <TripTotalBreakdown pax={pax} />
           </div>
         </div>
       </div>
 
-      {/* Timeline */}
-      <div className="overflow-x-auto pb-2">
-        <div className="flex items-center gap-2 min-w-max px-1">
-          <div className="shrink-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700">
-            {skeleton.originIata}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.3fr] gap-5 lg:gap-6 items-start">
+        <div className="space-y-5 min-w-0 order-2 lg:order-1">
+          {dayPlans.map((d, idx) => {
+            let checkOut = d.dateEnd ?? d.date;
+            if (d.city) {
+              let endIdx = idx;
+              for (let j = idx + 1; j < dayPlans.length; j++) {
+                if (dayPlans[j].city === d.city) endIdx = j;
+                else break;
+              }
+              const lastDate = dayPlans[endIdx].dateEnd ?? dayPlans[endIdx].date;
+              const parsed = parseLocalDate(lastDate);
+              if (parsed) {
+                parsed.setDate(parsed.getDate() + 1);
+                const y = parsed.getFullYear();
+                const m = String(parsed.getMonth() + 1).padStart(2, "0");
+                const dd = String(parsed.getDate()).padStart(2, "0");
+                checkOut = `${y}-${m}-${dd}`;
+              } else {
+                checkOut = lastDate;
+              }
+            }
+            return (
+              <AiPlanDayCard
+                key={d.day}
+                day={d}
+                photoUrl={photoMap.get(d.day)}
+                photosLoading={isDayPhotosLoading(d.day)}
+                getActivityPhotoUrl={(a) => getActivityPhoto(d.day, a.name)?.imageUrl}
+                isActive={activeDay === d.day}
+                isFirstInCity={idx === 0 || dayPlans[idx - 1].city !== d.city}
+                lang={lang}
+                pax={Math.max(1, pax)}
+                stayInfo={stayInfo}
+                accommodationMode={skeleton.accommodationMode}
+                hotelRestEveryNDays={skeleton.hotelRestEveryNDays}
+                plannerWishes={plannerWishes}
+                totalTripDays={dayPlans.length}
+                checkOut={checkOut}
+                regionFallback={skeleton.destinationName}
+                onSelect={() => {
+                  setActiveDay(d.day);
+                  if (typeof window !== "undefined" && window.innerWidth < 1024) {
+                    document.getElementById("ai-trip-map")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }
+                }}
+                registerRef={(el) => {
+                  if (el) dayRefs.current.set(d.day, el);
+                  else dayRefs.current.delete(d.day);
+                }}
+              />
+            );
+          })}
+        </div>
+
+        {hasCoords && (
+          <div
+            id="ai-trip-map"
+            className="order-1 lg:order-2 lg:sticky lg:top-0 lg:h-screen lg:self-start lg:flex lg:flex-col min-h-[320px]"
+          >
+            <div className="flex-1 min-h-[280px]">
+              <TripMap plan={previewPlan} activeDay={activeDay} photoMap={photoMap} />
+            </div>
+            <p className="mt-2 text-xs text-slate-500 text-center hidden lg:block">
+              {t("aiplan.mapHint" as never)}
+            </p>
           </div>
-          {skeleton.regions.map((r, i) => {
-            const TIcon = i > 0 && skeleton.regions[i - 1].transportToNext
-              ? transportIcon(skeleton.regions[i - 1].transportToNext!.type)
-              : Plane;
-            const dur = skeleton.regions[i - 1]?.transportToNext?.duration;
-            return (
-              <div key={`${r.city}-${r.startDay}`} className="flex items-center gap-2">
-                {i > 0 && (
-                  <div className="flex flex-col items-center text-[10px] text-slate-500 px-1">
-                    <TIcon className="h-4 w-4 text-sky-600" />
-                    {dur && <span>{dur}</span>}
-                  </div>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setActiveDay(r.startDay)}
-                  className={`shrink-0 rounded-xl border px-4 py-3 text-left transition-colors ${
-                    activeDay === r.startDay
-                      ? "border-sky-500 bg-sky-50 ring-2 ring-sky-200"
-                      : "border-slate-200 bg-white hover:border-sky-300"
-                  }`}
-                >
-                  <div className="font-bold text-slate-900">{r.city}</div>
-                  <div className="text-xs text-slate-500 mt-0.5">
-                    {fmt(r.startDate)} – {fmt(r.endDate)}
-                  </div>
-                  <div className="text-[10px] text-sky-600 font-medium mt-1">
-                    {t("skeleton.daysCount").replace("{n}", String(r.endDay - r.startDay + 1))}
-                  </div>
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_minmax(360px,440px)] gap-5 items-start">
-        <div className="space-y-5 min-w-0">
-          {skeleton.regions.map((r) => {
-            const photo = photoMap.get(r.city);
-            return (
-              <article
-                key={`${r.city}-${r.startDay}`}
-                className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm"
-              >
-                <div className="grid sm:grid-cols-[1fr_200px] gap-0">
-                  <div className="p-6">
-                    <div className="flex items-center gap-2 text-xs font-bold text-sky-600 uppercase">
-                      <MapPin className="h-3.5 w-3.5" />
-                      {fmt(r.startDate)} – {fmt(r.endDate)}
-                    </div>
-                    <h3 className="mt-2 text-2xl font-bold text-slate-900">{r.city}</h3>
-                    <p className="mt-3 text-slate-600 leading-relaxed">{r.summary}</p>
-                    <HotelsSection
-                      city={r.city}
-                      checkIn={r.startDate}
-                      checkOut={r.endDate}
-                      stayInfo={stayInfo}
-                      regionFallback={skeleton.destinationName}
-                    />
-                  </div>
-                  <div className="relative min-h-[200px] sm:min-h-full bg-slate-100">
-                    {photo ? (
-                      <img
-                        src={photo}
-                        alt={r.city}
-                        loading="lazy"
-                        className="absolute inset-0 h-full w-full object-cover"
-                      />
-                    ) : (
-                      <div className="absolute inset-0 flex items-center justify-center text-slate-400 text-sm">
-                        {r.city}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </article>
-            );
-          })}
-        </div>
-
-        <div className="lg:sticky lg:top-32">
-          <TripMap
-            plan={previewPlan}
-            activeDay={activeDay}
-            photoMap={regionPhotoEntries}
-          />
-        </div>
+        )}
       </div>
     </div>
   );

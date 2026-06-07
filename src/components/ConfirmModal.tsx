@@ -1,9 +1,12 @@
 import { useState } from "react";
 import { Plane, Clock, ArrowRight, MapPin, CalendarDays, X, Sparkles, AlertTriangle, ChevronLeft } from "lucide-react";
 import type { DuffelFlight } from "@/lib/flights.functions";
+import { resolveInboundRoute } from "@/lib/flightSearch";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import { formatLocalDate } from "@/lib/dateUtils";
+import { buildOriginDepartureHint, flightContextFromLegs } from "@/lib/flightScheduling";
+import { useI18n } from "@/lib/i18n";
 
 export function ConfirmModal({
   flight,
@@ -22,6 +25,7 @@ export function ConfirmModal({
 }) {
   const [step, setStep] = useState<1 | 2>(1);
   const t = useT();
+  const { lang } = useI18n();
 
   if (!open || !flight) return null;
 
@@ -31,8 +35,9 @@ export function ConfirmModal({
   // logically guaranteed to be outbound.to → outbound.from.
   const outboundDate = searchDepartDate || flight.outbound.date;
   const inboundDate = searchReturnDate || flight.inbound?.date;
-  const inboundFrom = flight.inbound ? flight.outbound.to : undefined;
-  const inboundTo = flight.inbound ? flight.outbound.from : undefined;
+  const inboundRoute = resolveInboundRoute(flight.outbound, flight.inbound, flight.tripKind);
+  const inboundFrom = inboundRoute?.from;
+  const inboundTo = inboundRoute?.to;
 
 
 
@@ -130,6 +135,13 @@ export function ConfirmModal({
                     </div>
                   </div>
                 </div>
+                <p className="text-xs leading-relaxed text-amber-900 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2.5">
+                  {buildOriginDepartureHint(
+                    flight.outbound.from,
+                    flightContextFromLegs(flight.outbound, flight.inbound),
+                    lang,
+                  )}
+                </p>
               </div>
 
               {/* Inbound */}

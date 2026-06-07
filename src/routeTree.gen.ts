@@ -15,10 +15,12 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as RefundsRouteImport } from './routes/refunds'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as GeminiProTestRouteImport } from './routes/gemini-pro-test'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CheckoutReturnRouteImport } from './routes/checkout.return'
+import { Route as ApiGenerateItineraryRouteImport } from './routes/api/generate-itinerary'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated.profile'
 import { Route as AuthenticatedMyTripsRouteImport } from './routes/_authenticated.my-trips'
 import { Route as AuthenticatedMyTripsPlanIdRouteImport } from './routes/_authenticated.my-trips.$planId'
@@ -56,6 +58,11 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const GeminiProTestRoute = GeminiProTestRouteImport.update({
+  id: '/gemini-pro-test',
+  path: '/gemini-pro-test',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AboutRoute = AboutRouteImport.update({
   id: '/about',
   path: '/about',
@@ -73,6 +80,11 @@ const IndexRoute = IndexRouteImport.update({
 const CheckoutReturnRoute = CheckoutReturnRouteImport.update({
   id: '/checkout/return',
   path: '/checkout/return',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiGenerateItineraryRoute = ApiGenerateItineraryRouteImport.update({
+  id: '/api/generate-itinerary',
+  path: '/api/generate-itinerary',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedProfileRoute = AuthenticatedProfileRouteImport.update({
@@ -113,6 +125,7 @@ const ApiPublicPaymentsWebhookRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/gemini-pro-test': typeof GeminiProTestRoute
   '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
   '/refunds': typeof RefundsRoute
@@ -121,6 +134,7 @@ export interface FileRoutesByFullPath {
   '/terms': typeof TermsRoute
   '/my-trips': typeof AuthenticatedMyTripsRouteWithChildren
   '/profile': typeof AuthenticatedProfileRoute
+  '/api/generate-itinerary': typeof ApiGenerateItineraryRoute
   '/checkout/return': typeof CheckoutReturnRoute
   '/admin/pdf-downloads': typeof AuthenticatedAdminPdfDownloadsRoute
   '/admin/webhooks': typeof AuthenticatedAdminWebhooksRoute
@@ -130,6 +144,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/gemini-pro-test': typeof GeminiProTestRoute
   '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
   '/refunds': typeof RefundsRoute
@@ -138,6 +153,7 @@ export interface FileRoutesByTo {
   '/terms': typeof TermsRoute
   '/my-trips': typeof AuthenticatedMyTripsRouteWithChildren
   '/profile': typeof AuthenticatedProfileRoute
+  '/api/generate-itinerary': typeof ApiGenerateItineraryRoute
   '/checkout/return': typeof CheckoutReturnRoute
   '/admin/pdf-downloads': typeof AuthenticatedAdminPdfDownloadsRoute
   '/admin/webhooks': typeof AuthenticatedAdminWebhooksRoute
@@ -149,6 +165,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteWithChildren
   '/about': typeof AboutRoute
+  '/gemini-pro-test': typeof GeminiProTestRoute
   '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
   '/refunds': typeof RefundsRoute
@@ -157,6 +174,7 @@ export interface FileRoutesById {
   '/terms': typeof TermsRoute
   '/_authenticated/my-trips': typeof AuthenticatedMyTripsRouteWithChildren
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
+  '/api/generate-itinerary': typeof ApiGenerateItineraryRoute
   '/checkout/return': typeof CheckoutReturnRoute
   '/_authenticated/admin/pdf-downloads': typeof AuthenticatedAdminPdfDownloadsRoute
   '/_authenticated/admin/webhooks': typeof AuthenticatedAdminWebhooksRoute
@@ -168,6 +186,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/about'
+    | '/gemini-pro-test'
     | '/login'
     | '/privacy'
     | '/refunds'
@@ -176,6 +195,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/my-trips'
     | '/profile'
+    | '/api/generate-itinerary'
     | '/checkout/return'
     | '/admin/pdf-downloads'
     | '/admin/webhooks'
@@ -185,6 +205,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/about'
+    | '/gemini-pro-test'
     | '/login'
     | '/privacy'
     | '/refunds'
@@ -193,6 +214,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/my-trips'
     | '/profile'
+    | '/api/generate-itinerary'
     | '/checkout/return'
     | '/admin/pdf-downloads'
     | '/admin/webhooks'
@@ -203,6 +225,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/about'
+    | '/gemini-pro-test'
     | '/login'
     | '/privacy'
     | '/refunds'
@@ -211,6 +234,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/_authenticated/my-trips'
     | '/_authenticated/profile'
+    | '/api/generate-itinerary'
     | '/checkout/return'
     | '/_authenticated/admin/pdf-downloads'
     | '/_authenticated/admin/webhooks'
@@ -222,12 +246,14 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
   AboutRoute: typeof AboutRoute
+  GeminiProTestRoute: typeof GeminiProTestRoute
   LoginRoute: typeof LoginRoute
   PrivacyRoute: typeof PrivacyRoute
   RefundsRoute: typeof RefundsRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SignupRoute: typeof SignupRoute
   TermsRoute: typeof TermsRoute
+  ApiGenerateItineraryRoute: typeof ApiGenerateItineraryRoute
   CheckoutReturnRoute: typeof CheckoutReturnRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
 }
@@ -276,6 +302,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/gemini-pro-test': {
+      id: '/gemini-pro-test'
+      path: '/gemini-pro-test'
+      fullPath: '/gemini-pro-test'
+      preLoaderRoute: typeof GeminiProTestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/about': {
       id: '/about'
       path: '/about'
@@ -302,6 +335,13 @@ declare module '@tanstack/react-router' {
       path: '/checkout/return'
       fullPath: '/checkout/return'
       preLoaderRoute: typeof CheckoutReturnRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/generate-itinerary': {
+      id: '/api/generate-itinerary'
+      path: '/api/generate-itinerary'
+      fullPath: '/api/generate-itinerary'
+      preLoaderRoute: typeof ApiGenerateItineraryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/profile': {
@@ -382,12 +422,14 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
   AboutRoute: AboutRoute,
+  GeminiProTestRoute: GeminiProTestRoute,
   LoginRoute: LoginRoute,
   PrivacyRoute: PrivacyRoute,
   RefundsRoute: RefundsRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SignupRoute: SignupRoute,
   TermsRoute: TermsRoute,
+  ApiGenerateItineraryRoute: ApiGenerateItineraryRoute,
   CheckoutReturnRoute: CheckoutReturnRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
 }

@@ -8,6 +8,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import type { DuffelFlight } from "@/lib/flights.functions";
+import { resolveInboundRoute } from "@/lib/flightSearch";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 import {
@@ -307,8 +308,9 @@ export function FlightResults({
         {sorted.map((f, idx) => {
           const selected = selectedId === f.id;
           const isCheapest = idx === 0 && sortBy === "cheapest";
-          const returnFrom = f.inbound ? f.outbound.to : undefined;
-          const returnTo = f.inbound ? f.outbound.from : undefined;
+          const inboundRoute = resolveInboundRoute(f.outbound, f.inbound, f.tripKind);
+          const returnFrom = inboundRoute?.from;
+          const returnTo = inboundRoute?.to;
           return (
             <div
               key={`${f.id}-${idx}`}

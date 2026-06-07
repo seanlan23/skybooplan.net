@@ -99,6 +99,18 @@ describe("findDuplicateCitySegments — no duplicate non-contiguous stays", () =
     expect(findDuplicateCitySegments(plan(days))).toEqual([]);
   });
 
+  it("allows hub return when day 1 is in-flight and Bangkok starts day 2", () => {
+    const days: DayPlan[] = [
+      day({ day: 1, city: "En route", lat: 20, lng: 100, category: "transport" }),
+      day({ day: 2, city: "Bangkok", ...BANGKOK }),
+      ...[3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].map((d) =>
+        day({ day: d, city: "Chiang Mai", lat: 18.8, lng: 98.9 }),
+      ),
+      ...[16, 17, 18].map((d) => day({ day: d, city: "Bangkok", ...BANGKOK })),
+    ];
+    expect(findDuplicateCitySegments(plan(days))).toEqual([]);
+  });
+
   it("still flags mid-trip hub return (Bangkok → Chiang Mai → Bangkok → Phuket)", () => {
     const days: DayPlan[] = [
       day({ day: 1, city: "Bangkok", ...BANGKOK }),

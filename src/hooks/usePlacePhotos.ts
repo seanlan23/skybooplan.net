@@ -23,6 +23,7 @@ export function usePlacePhotos(plan: AiTripPlan | null): {
     if (!plan) return [] as Array<{ day: number; query: string }>;
     return plan.days
       .map((d) => {
+        if (d.imageUrl) return null;
         const focus = (d.focusName ?? "").trim();
         const city = (d.city ?? "").trim();
         if (!focus && !city) return null;
@@ -51,13 +52,17 @@ export function usePlacePhotos(plan: AiTripPlan | null): {
 
   const photoMap = useMemo(() => {
     const map: DayPhotoMap = new Map();
+    if (!plan) return map;
+    for (const d of plan.days) {
+      if (d.imageUrl) map.set(d.day, d.imageUrl);
+    }
     if (!data) return map;
     queries.forEach((q, i) => {
       const url = data[i]?.photoUrl;
       if (url) map.set(q.day, url);
     });
     return map;
-  }, [data, queries]);
+  }, [plan, data, queries]);
 
   return { photoMap, isLoading };
 }

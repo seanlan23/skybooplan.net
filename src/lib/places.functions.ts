@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { rankAirportSuggestions } from "@/lib/airportRank";
 
 export type PlaceSuggestion = {
   iata: string;
@@ -104,16 +105,18 @@ export const searchPlaces = createServerFn({ method: "POST" })
 
       const json = (await res.json()) as { data: DuffelPlace[] };
 
-      const suggestions: PlaceSuggestion[] = (json.data ?? [])
+      const raw: PlaceSuggestion[] = (json.data ?? [])
         .filter((p) => (data.kind === "place" ? p.type === "city" : !!p.iata_code))
         .map((p) => ({
-          iata: p.iata_code ?? p.iata_city_code ?? p.name,
+          iata: (p.iata_code ?? p.iata_city_code ?? "").toUpperCase(),
           name: p.name,
           city: p.city?.name ?? p.city_name ?? "",
           country: p.iata_country_code ?? "",
           type: p.type,
         }))
-        .slice(0, 12);
+        .filter((p) => p.iata.length === 3);
+
+      const suggestions = rankAirportSuggestions(data.query, raw);
 
       return { suggestions, error: null };
     } catch (err) {

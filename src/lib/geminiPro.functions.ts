@@ -1,0 +1,256 @@
+import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
+import { pipelineLog, pipelineStep } from "@/lib/asyncTimeout";
+import { geminiApiKey } from "@/lib/llm";
+import {
+  TRIP_WISH_TAGS,
+  normalizeIata,
+  normalizeTripPlanPax,
+  tripPlanSchema,
+} from "@/lib/geminiPro.shared";
+import {
+  buildCatalogPlanFromResponse,
+} from "@/lib/geminiProCatalog";
+import type { AiTripPlan } from "@/lib/aiPlan.functions";
+import { DESTINATION_BY_IATA } from "@/lib/destinationCoords";
+
+const SL_MONTHS = [
+  "januar",
+  "februar",
+  "marec",
+  "april",
+  "maj",
+  "junij",
+  "julij",
+  "avgust",
+  "september",
+  "oktober",
+  "november",
+  "december",
+] as const;
+
+const COUNTRY_NAMES_SL: Record<string, string> = {
+  JP: "Japonska",
+  TH: "Tajska",
+  IT: "Italija",
+  ES: "Španija",
+  FR: "Francija",
+  GR: "Grčija",
+  PT: "Portugalska",
+  HR: "Hrvaška",
+  ID: "Indonezija",
+  VN: "Vietnam",
+  TR: "Türkiye",
+  US: "Združene države Amerike",
+  CA: "Kanada",
+  AU: "Avstralija",
+  NZ: "Nova Zelandija",
+  EG: "Egipt",
+  MA: "Maroko",
+  ZA: "Južna Afrika",
+  MX: "Mehika",
+  IS: "Islandija",
+  GB: "Velika Britanija",
+  DE: "Nemčija",
+  AT: "Avstrija",
+  CH: "Švica",
+  NL: "Nizozemska",
+  SI: "Slovenija",
+  KR: "Južna Koreja",
+  IN: "Indija",
+  AE: "Združeni arabski emirati",
+};
+
+const optionalIata = z.preprocess((value) => {
+  if (value == null || value === "") return undefined;
+  return normalizeIata(String(value)) ?? undefined;
+}, z.string().length(3).optional());
+
+const isoDate = z.preprocess((value) => {
+  const raw = String(value ?? "").trim();
+  const match = raw.match(/^(\d{4}-\d{2}-\d{2})/);
+  return match?.[1] ?? raw;
+}, z.string().regex(/^\d{4}-\d{2}-\d{2}$/));
+
+export const generateGeminiProTripInputSchema = z
+  .object({
+    originIata: z.preprocess(
+      (value) => normalizeIata(String(value ?? "")) ?? undefined,
+      z.string().length(3).optional(),
+    ),
+    destinationIata: z.preprocess(
+      (value) => normalizeIata(String(value ?? "")) ?? undefined,
+      z.string().length(3).optional(),
+    ),
+    returnFromIata: optionalIata,
+    departDate: isoDate,
+    returnDate: isoDate.optional(),
+    pax: z
+      .object({
+        adults: z.number().int().min(1).max(9).optional(),
+        childrenAges: z.array(z.number().int().min(0).max(17)).max(8).optional(),
+      })
+      .optional()
+      .transform((pax) => normalizeTripPlanPax(pax)),
+    budget: z.enum(["budget", "standard", "premium"]).default("standard"),
+    wishTags: z.array(z.enum(TRIP_WISH_TAGS)).max(TRIP_WISH_TAGS.length).default([]),
+    customWishes: z.string().trim().max(500).optional(),
+    pace: z.enum(["intensive", "relaxed", "calm"]).optional(),
+    priorities: z.array(z.string().max(200)).max(12).optional(),
+    groundTransportMode: z.enum(["car", "motorhome", "train"]).optional(),
+    originPlace: z.string().trim().min(2).max(120).optional(),
+    destinationPlace: z.string().trim().min(2).max(120).optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.groundTransportMode) {
+      if (!data.originPlace?.trim()) {
+        ctx.addIssue({ code: "custom", path: ["originPlace"], message: "Kraj odhoda je obvezen." });
+      }
+      if (!data.destinationPlace?.trim()) {
+        ctx.addIssue({ code: "custom", path: ["destinationPlace"], message: "Destinacija je obvezna." });
+      }
+    } else {
+      if (!data.originIata) {
+        ctx.addIssue({ code: "custom", path: ["originIata"], message: "IATA odhoda je obvezen." });
+      }
+      if (!data.destinationIata) {
+        ctx.addIssue({ code: "custom", path: ["destinationIata"], message: "IATA destinacije je obvezen." });
+      }
+    }
+  });
+
+const generateInput = generateGeminiProTripInputSchema.transform((data) => ({
+  ...data,
+  originIata: data.originIata ?? "LJU",
+  destinationIata: data.destinationIata ?? "FCO",
+}));
+
+export type GenerateGeminiProTripInput = z.infer<typeof generateInput>;
+
+/** Catalog-ready plan (same shape as full AI / skeleton expansion). */
+export type GenerateGeminiProTripResult = {
+  plan: AiTripPlan | null;
+  error: string | null;
+};
+
+export function tripDayCount(departDate: string, returnDate?: string): number {
+  if (!returnDate) return 7;
+  try {
+    const start = new Date(`${departDate}T12:00:00`);
+    const end = new Date(`${returnDate}T12:00:00`);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 7;
+    return Math.max(1, Math.round((end.getTime() - start.getTime()) / 86_400_000) + 1);
+  } catch {
+    return 7;
+  }
+}
+
+export function monthNameSl(isoDate: string): string {
+  try {
+    const d = new Date(`${isoDate}T12:00:00`);
+    if (Number.isNaN(d.getTime())) return "avgust";
+    return SL_MONTHS[d.getMonth()] ?? "avgust";
+  } catch {
+    return "avgust";
+  }
+}
+
+export function resolveDestinationLabel(
+  destinationIata: string,
+  destinationPlace?: string,
+): string {
+  if (destinationPlace?.trim()) return destinationPlace.trim();
+  try {
+    const code = normalizeIata(destinationIata);
+    if (!code) return destinationIata;
+    const meta = DESTINATION_BY_IATA[code];
+    if (!meta) return code;
+    const country = COUNTRY_NAMES_SL[meta.country];
+    if (country) return country;
+    return `${meta.name}, ${meta.country}`;
+  } catch {
+    return destinationIata;
+  }
+}
+
+export function buildGeminiTripPlanParams(data: GenerateGeminiProTripInput, days: number) {
+  return {
+    originIata: data.originIata,
+    destinationIata: data.destinationIata,
+    returnFromIata: data.returnFromIata,
+    departDate: data.departDate,
+    returnDate: data.returnDate,
+    destination: resolveDestinationLabel(data.destinationIata, data.destinationPlace),
+    days,
+    month: monthNameSl(data.departDate),
+    pax: data.pax,
+    budget: data.budget,
+    wishTags: data.wishTags,
+    customWishes: data.customWishes,
+    pace: data.pace,
+    priorities: data.priorities,
+    groundTransportMode: data.groundTransportMode,
+    originPlace: data.originPlace,
+    destinationPlace: data.destinationPlace,
+  };
+}
+
+export const generateGeminiProTrip = createServerFn({ method: "POST" })
+  .inputValidator(generateInput)
+  .handler(async ({ data }): Promise<GenerateGeminiProTripResult> => {
+    const pipelineStart = performance.now();
+    pipelineLog("handler START", `${data.originIata}→${data.destinationIata}`);
+
+    if (!geminiApiKey()) {
+      return { plan: null, error: "GEMINI_API_KEY ni nastavljen na strežniku." };
+    }
+
+    try {
+      const { generateTripPlan } = await pipelineStep("import geminiPro", () =>
+        import("@/lib/geminiPro"),
+      );
+
+      const days = tripDayCount(data.departDate, data.returnDate);
+      const raw = await pipelineStep("generateTripPlan (Gemini)", () =>
+        generateTripPlan(buildGeminiTripPlanParams(data, days)),
+      );
+
+      pipelineLog("schema safeParse START");
+      let parsed: ReturnType<typeof tripPlanSchema.safeParse>;
+      try {
+        parsed = tripPlanSchema.safeParse(raw);
+      } catch (parseErr) {
+        console.error("generateGeminiProTrip: schema parse threw:", parseErr);
+        return {
+          plan: null,
+          error: "Načrt ni bil pretvorjen v veljavno strukturo (parse napaka).",
+        };
+      }
+      pipelineLog(
+        "schema safeParse DONE",
+        parsed.success ? "ok" : `fail: ${parsed.error.issues.length} issues`,
+      );
+
+      if (!parsed.success) {
+        console.error("generateGeminiProTrip: schema validation failed", parsed.error.flatten());
+        return {
+          plan: null,
+          error: "Načrt ni bil generiran v veljavni obliki (manjkajo mesto ali koordinate).",
+        };
+      }
+
+      const built = buildCatalogPlanFromResponse(parsed.data, data);
+      if (built.error || !built.plan) {
+        return { plan: null, error: built.error ?? "Načrt ni bil generiran." };
+      }
+
+      pipelineLog("handler DONE", `${Math.round(performance.now() - pipelineStart)}ms total`);
+      return { plan: built.plan, error: null };
+    } catch (err) {
+      pipelineLog("handler FAIL", `${Math.round(performance.now() - pipelineStart)}ms total`);
+      console.error("generateGeminiProTrip:", err);
+      const message =
+        err instanceof Error ? err.message : "Napaka pri generiranju načrta.";
+      return { plan: null, error: message };
+    }
+  });
