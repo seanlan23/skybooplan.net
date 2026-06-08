@@ -7,14 +7,23 @@
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
 /** Lovable defaults to Cloudflare; on Vercel CI set Nitro preset so routes + SSR work. */
-const nitroPreset =
-  process.env.VERCEL || process.env.NITRO_PRESET === "vercel"
-    ? "vercel"
-    : "cloudflare-module";
+const isVercelDeploy =
+  Boolean(process.env.VERCEL) || process.env.NITRO_PRESET === "vercel";
+const nitroPreset = isVercelDeploy ? "vercel" : "cloudflare-module";
 
 export default defineConfig({
   nitro: {
     preset: nitroPreset,
+    // Lovable forces Nitro output into dist/ — Vercel expects Build Output API in .vercel/output/.
+    ...(isVercelDeploy
+      ? {
+          output: {
+            dir: ".vercel/output",
+            publicDir: ".vercel/output/static",
+            serverDir: ".vercel/output/functions/__server.func",
+          },
+        }
+      : {}),
     routeRules: {
       "/_serverFn/**": {
         maxDuration: 300,
