@@ -134,7 +134,6 @@ const EMPTY_AI_CONTEXT: AiPlannerContext & { language?: string } = {
   adults: 2,
   childrenAges: [],
   language: "sl",
-  groundTransportMode: "car",
 };
 
 function normalizeAiContext(
@@ -173,7 +172,12 @@ function normalizeAiContext(
       originPlace: typeof input.originPlace === "string" ? input.originPlace.trim() : undefined,
       destinationPlace:
         typeof input.destinationPlace === "string" ? input.destinationPlace.trim() : undefined,
-      groundTransportMode: input.groundTransportMode ?? base.groundTransportMode,
+      groundTransportMode:
+        input.groundTransportMode === "car" ||
+        input.groundTransportMode === "motorhome" ||
+        input.groundTransportMode === "train"
+          ? input.groundTransportMode
+          : undefined,
     };
   } catch (err) {
     console.warn("[normalizeAiContext] fallback:", err);
@@ -721,6 +725,17 @@ function Landing() {
           pax,
         });
 
+        const groundTrip =
+          ctx.groundTransportMode &&
+          ctx.originPlace?.trim() &&
+          ctx.destinationPlace?.trim()
+            ? {
+                groundTransportMode: ctx.groundTransportMode,
+                originPlace: ctx.originPlace.trim(),
+                destinationPlace: ctx.destinationPlace.trim(),
+              }
+            : {};
+
         const streamInput: GenerateGeminiProTripInput = {
           originIata: ctx.from,
           destinationIata: ctx.to,
@@ -733,9 +748,7 @@ function Landing() {
           customWishes: buildWishes(safeForm) || safeForm.wishes?.trim() || undefined,
           pace: safeForm.pace,
           priorities,
-          groundTransportMode: ctx.groundTransportMode,
-          originPlace: ctx.originPlace,
-          destinationPlace: ctx.destinationPlace,
+          ...groundTrip,
         };
 
         const { plan, error: streamError } = await streamItinerary.start(streamInput);

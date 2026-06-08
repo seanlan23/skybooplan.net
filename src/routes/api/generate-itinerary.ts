@@ -4,6 +4,7 @@ import { geminiApiKey } from "@/lib/llm";
 import {
   tripDayCount,
   buildGeminiTripPlanParams,
+  formatGenerateTripInputError,
   generateGeminiProTripInputSchema,
   type GenerateGeminiProTripInput,
 } from "@/lib/geminiPro.functions";
@@ -49,7 +50,11 @@ export const Route = createFileRoute("/api/generate-itinerary")({
 
         const parsedInput = generateInput.safeParse(body);
         if (!parsedInput.success) {
-          return Response.json({ error: "Neveljavni parametri." }, { status: 400 });
+          console.warn("[generate-itinerary] invalid input", parsedInput.error.flatten());
+          return Response.json(
+            { error: formatGenerateTripInputError(parsedInput.error) },
+            { status: 400 },
+          );
         }
 
         const data = parsedInput.data as GenerateGeminiProTripInput;

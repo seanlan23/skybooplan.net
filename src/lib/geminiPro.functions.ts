@@ -127,6 +127,26 @@ const generateInput = generateGeminiProTripInputSchema.transform((data) => ({
 
 export type GenerateGeminiProTripInput = z.infer<typeof generateInput>;
 
+/** Human-readable validation message for /api/generate-itinerary 400 responses. */
+export function formatGenerateTripInputError(error: z.ZodError): string {
+  const custom = error.issues.find((i) => i.code === "custom");
+  if (custom?.message) return custom.message;
+
+  const missingIata = error.issues.some((i) =>
+    ["originIata", "destinationIata"].includes(String(i.path[0] ?? "")),
+  );
+  if (missingIata) {
+    return "Izberi veljavna letališča (3-črkovne IATA kode, npr. LJU → FCO) v iskalniku zgoraj.";
+  }
+
+  const dateIssue = error.issues.find((i) =>
+    ["departDate", "returnDate"].includes(String(i.path[0] ?? "")),
+  );
+  if (dateIssue) return "Preveri datume odhoda in vrnitve v iskalniku.";
+
+  return "Neveljavni parametri načrta. Preveri letališča, datume in izbrane možnosti.";
+}
+
 /** Catalog-ready plan (same shape as full AI / skeleton expansion). */
 export type GenerateGeminiProTripResult = {
   plan: AiTripPlan | null;
