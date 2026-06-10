@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Sparkles } from "lucide-react";
 import type { AiTripPlan } from "@/lib/aiPlan.functions";
-import { TripMap, type MapFocusTarget } from "@/components/TripMap";
+import { type MapFocusTarget } from "@/components/TripMap";
+import { AiTripMapPanel } from "@/components/AiTripMapPanel";
 import { AiPlanDayCard, StreamingDayPlaceholder } from "@/components/AiPlanDayCard";
 import { POIDetailsModal } from "@/components/POIDetailsModal";
 import type { PoiDetailsData } from "@/lib/poiDetails.types";
@@ -10,7 +11,6 @@ import { AiPlanLoader } from "@/components/AiPlanLoader";
 import { resolveErrorMessage, useI18n } from "@/lib/i18n";
 import { parseLocalDate } from "@/lib/dateUtils";
 import type { StayInfo } from "@/components/HotelsSection";
-import { useLazyDayPhotos } from "@/hooks/useLazyDayPhotos";
 import { PlannerChoicesSummary } from "@/components/PlannerChoicesSummary";
 import { TripTotalBreakdown } from "@/components/TripTotalBreakdown";
 import { ReturnHomeCard } from "@/components/ReturnHomeCard";
@@ -54,9 +54,24 @@ export function AiPlanView({
   const [poiModal, setPoiModal] = useState<PoiDetailsData | null>(null);
   const [poiModalOpen, setPoiModalOpen] = useState(false);
   const [scrollSpyPaused, setScrollSpyPaused] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
   const isClickNavigatingRef = useRef(false);
+  const isPlayingRef = useRef(false);
+  isPlayingRef.current = isPlaying;
   const clickNavTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const { photoMap, loadDay, getActivityPhoto, isDayPhotosLoading } = useLazyDayPhotos(plan);
+
+  const hasCoords = useMemo(
+    () =>
+      Boolean(
+        plan?.days.some(
+          (d) =>
+            (Number.isFinite(d.lat) && Number.isFinite(d.lng)) ||
+            Boolean((d.city ?? "").trim()) ||
+            Boolean((d.focusName ?? "").trim()),
+        ),
+      ),
+    [plan?.days],
+  );
 
   const pauseScrollSpy = useCallback((ms = 3000) => {
     isClickNavigatingRef.current = true;
@@ -92,62 +107,61 @@ export function AiPlanView({
 
   const handleActivityDetails = useCallback(
     (poi: PoiDetailsData) => {
-      let enriched = poi;
-      if (poi.day != null) {
-        void loadDay(poi.day);
-        const lazy = getActivityPhoto(poi.day, poi.name);
-        if (lazy?.imageUrl) {
-          enriched = {
-            ...poi,
-            imageUrl: lazy.imageUrl,
-            imageUrls: lazy.imageUrls ?? poi.imageUrls,
-            destinationName: plan?.destinationName,
-          };
-        } else {
-          enriched = { ...poi, destinationName: plan?.destinationName };
-        }
-      }
-      setPoiModal(enriched);
+      setPoiModal({ ...poi, destinationName: plan?.destinationName });
       setPoiModalOpen(true);
     },
-    [getActivityPhoto, loadDay, plan?.destinationName],
+    [plan?.destinationName],
   );
 
-  // Lazy-load photos when a day scrolls into view.
-  useEffect(() => {
-    if (!plan?.days.length) return;
-    if (typeof window === "undefined") return;
+  const sortedDayNumbers = useMemo(
+    () => (plan?.days ?? []).map((d) => d.day).sort((a, b) => a - b),
+    [plan?.days],
+  );
 
-    let observer: IntersectionObserver | null = null;
-    let retryTimer = 0;
-
-    const attach = () => {
-      const els = Array.from(dayRefs.current.values());
-      if (els.length === 0) return false;
-
-      observer = new IntersectionObserver(
-        (entries) => {
-          for (const entry of entries) {
-            if (!entry.isIntersecting) continue;
-            const day = Number((entry.target as HTMLElement).dataset.day);
-            if (Number.isFinite(day)) void loadDay(day);
-          }
-        },
-        { root: null, rootMargin: "240px 0px", threshold: 0.01 },
-      );
-      els.forEach((el) => observer!.observe(el));
+  const handleTogglePlayback = useCallback(() => {
+    setIsPlaying((playing) => {
+      if (playing) {
+        setScrollSpyPaused(false);
+        isClickNavigatingRef.current = false;
+        return false;
+      }
+      const firstDay = sortedDayNumbers[0] ?? 1;
+      setActiveDay(firstDay);
+      setMapFocus(null);
+      setScrollSpyPaused(true);
+      isClickNavigatingRef.current = true;
       return true;
-    };
+    });
+  }, [sortedDayNumbers]);
 
-    if (!attach()) {
-      retryTimer = window.setTimeout(attach, 150);
-    }
+  // Auto-advance days during route playback (every 3 s).
+  useEffect(() => {
+    if (!isPlaying || sortedDayNumbers.length < 2) return;
 
-    return () => {
-      if (retryTimer) window.clearTimeout(retryTimer);
-      observer?.disconnect();
-    };
-  }, [plan, loadDay, plan?.days.length]);
+    const timer = window.setInterval(() => {
+      setActiveDay((current) => {
+        const idx = sortedDayNumbers.indexOf(current);
+        const nextIdx = idx < 0 ? 0 : idx + 1;
+        if (nextIdx >= sortedDayNumbers.length) {
+          window.setTimeout(() => {
+            setIsPlaying(false);
+            setScrollSpyPaused(false);
+            isClickNavigatingRef.current = false;
+          }, 0);
+          return sortedDayNumbers[sortedDayNumbers.length - 1]!;
+        }
+        return sortedDayNumbers[nextIdx]!;
+      });
+    }, 3000);
+
+    return () => window.clearInterval(timer);
+  }, [isPlaying, sortedDayNumbers]);
+
+  // Keep sidebar in sync while the map plays through days.
+  useEffect(() => {
+    if (!isPlaying) return;
+    dayRefs.current.get(activeDay)?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [activeDay, isPlaying]);
 
   useEffect(() => {
     if (plan?.days?.length) {
@@ -165,7 +179,7 @@ export function AiPlanView({
     let rafId = 0;
 
     const pickActiveDay = () => {
-      if (isClickNavigatingRef.current) return;
+      if (isClickNavigatingRef.current || isPlayingRef.current) return;
 
       const els = Array.from(dayRefs.current.entries());
       if (els.length === 0) return;
@@ -177,7 +191,7 @@ export function AiPlanView({
       for (const [day, el] of els) {
         const r = el.getBoundingClientRect();
         if (r.top <= lineY && r.bottom >= lineY) {
-          setActiveDay(day);
+          setActiveDay((prev) => (prev === day ? prev : day));
           return;
         }
         const center = (r.top + r.bottom) / 2;
@@ -187,7 +201,7 @@ export function AiPlanView({
           bestDay = day;
         }
       }
-      if (bestDay != null) setActiveDay(bestDay);
+      if (bestDay != null) setActiveDay((prev) => (prev === bestDay ? prev : bestDay));
     };
 
     const onScroll = () => {
@@ -205,7 +219,7 @@ export function AiPlanView({
       observer?.disconnect();
       observer = new IntersectionObserver(
         (entries) => {
-          if (isClickNavigatingRef.current) return;
+          if (isClickNavigatingRef.current || isPlayingRef.current) return;
 
           let bestDay: number | null = null;
           let bestRatio = 0;
@@ -218,7 +232,7 @@ export function AiPlanView({
               bestDay = day;
             }
           }
-          if (bestDay != null) setActiveDay(bestDay);
+          if (bestDay != null) setActiveDay((prev) => (prev === bestDay ? prev : bestDay));
         },
         {
           root: null,
@@ -272,12 +286,9 @@ export function AiPlanView({
     }
   }
 
-  const hasCoords = plan.days.some(
-    (d) =>
-      (Number.isFinite(d.lat) && Number.isFinite(d.lng)) ||
-      Boolean((d.city ?? "").trim()) ||
-      Boolean((d.focusName ?? "").trim()),
-  );
+  const mapHint = t("aiplan.mapHint" as never);
+  const mapPlayLabel = t("aiplan.mapPlay" as never);
+  const mapStopLabel = t("aiplan.mapStop" as never);
 
   return (
     <div
@@ -399,9 +410,6 @@ export function AiPlanView({
               <AiPlanDayCard
                 key={d.day}
                 day={d}
-                photoUrl={photoMap.get(d.day)}
-                photosLoading={isDayPhotosLoading(d.day)}
-                getActivityPhotoUrl={(a) => getActivityPhoto(d.day, a.name)?.imageUrl}
                 isActive={activeDay === d.day}
                 isFirstInCity={idx === 0 || plan.days[idx - 1].city !== d.city}
                 lang={lang}
@@ -439,26 +447,21 @@ export function AiPlanView({
         </div>
 
         {hasCoords && (
-          <div
-            id="ai-trip-map"
-            className="order-1 lg:order-2 lg:sticky lg:top-0 lg:h-screen lg:self-start lg:flex lg:flex-col min-h-[320px]"
-          >
-            <div className="flex-1 min-h-[280px]">
-              <TripMap
-                plan={plan}
-                activeDay={activeDay}
-                photoMap={photoMap}
-                focusTarget={mapFocus}
-                scrollSpyPaused={scrollSpyPaused}
-                onOpenPoiDetails={handleActivityDetails}
-                streaming={streaming}
-                expectedDayCount={totalExpectedDays}
-              />
-            </div>
-            <div className="mt-2 text-xs text-slate-500 text-center hidden lg:block">
-              {t("aiplan.mapHint" as never)}
-            </div>
-          </div>
+          <AiTripMapPanel
+            plan={plan}
+            activeDay={activeDay}
+            hasCoords={hasCoords}
+            focusTarget={mapFocus}
+            scrollSpyPaused={scrollSpyPaused || isPlaying}
+            onOpenPoiDetails={handleActivityDetails}
+            streaming={streaming}
+            expectedDayCount={totalExpectedDays}
+            mapHint={mapHint}
+            isPlaying={isPlaying}
+            onTogglePlayback={handleTogglePlayback}
+            playLabel={mapPlayLabel}
+            stopLabel={mapStopLabel}
+          />
         )}
       </div>
 

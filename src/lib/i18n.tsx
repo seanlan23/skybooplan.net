@@ -177,6 +177,10 @@ const en: Dict = {
   "aiplan.tip23": "Morning markets (not night markets) are where locals actually shop for food.",
   "aiplan.tip24": "One unplanned half-day on a trip often becomes the memory you talk about for years.",
   "aiplan.mapHint": "The map follows the day you're reading.",
+  "aiplan.mapPlay": "Play route",
+  "aiplan.mapStop": "Stop",
+  "aiplan.mapSatellite": "Satellite",
+  "aiplan.mapStreets": "Map",
   "aiplan.day": "Day",
   "aiplan.islandStayActivities": "What to see & do",
   "aiplan.islandStayHint":
@@ -580,6 +584,10 @@ const dicts: Record<Lang, Dict> = {
     "aiplan.tip23": "Zjutranje tržnice (ne nočne) so kraj, kjer domačini res kupujejo hrano.",
     "aiplan.tip24": "En nepremišljen pol-dan na potovanju pogosto postane spomin, o katerem govoriš leta.",
     "aiplan.mapHint": "Karta sledi dnevu, ki ga prebiraš.",
+    "aiplan.mapPlay": "Predvajaj pot",
+    "aiplan.mapStop": "Ustavi",
+    "aiplan.mapSatellite": "Satelit",
+    "aiplan.mapStreets": "Zemljevid",
     "aiplan.day": "Dan",
     "aiplan.islandStayActivities": "Kaj videti in početi",
     "aiplan.islandStayHint":

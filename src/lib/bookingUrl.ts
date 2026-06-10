@@ -15,6 +15,10 @@ function normalizeBookingDate(iso: string): string {
   return match ? match[1] : iso.trim();
 }
 
+export function normalizeHotelSearchDate(iso: string): string {
+  return normalizeBookingDate(iso);
+}
+
 function ensureCheckoutAfterCheckin(checkIn: string, checkOut?: string): string {
   const inDate = normalizeBookingDate(checkIn);
   let outDate = checkOut ? normalizeBookingDate(checkOut) : inDate;
@@ -30,6 +34,10 @@ function searchDestination(params: BookingSearchParams): string {
   const city = params.destination.trim();
   if (!city) return "";
   return params.hotelName?.trim() ? `${params.hotelName.trim()}, ${city}` : city;
+}
+
+export function ensureHotelCheckoutAfterCheckin(checkIn: string, checkOut?: string): string {
+  return ensureCheckoutAfterCheckin(checkIn, checkOut);
 }
 
 /** Standard Booking.com affiliate search URL with destination + stay dates. */

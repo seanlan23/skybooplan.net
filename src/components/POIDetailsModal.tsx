@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
 import {
   Check,
   Clock,
@@ -17,13 +16,11 @@ import {
 } from "@/components/ui/dialog";
 import {
   mockPoiRating,
-  resolvePoiModalImageGrid,
   resolvePoiRating,
   splitDescriptionParagraphs,
   type PoiDetailsData,
 } from "@/lib/poiDetails.types";
 import { NavigateButton } from "@/components/NavigateButton";
-import { fetchPhotosForPoi } from "@/lib/dayPhotos.functions";
 
 const TIME_SLOT_LABELS: Record<string, string> = {
   dopoldan: "Dopoldan",
@@ -55,48 +52,6 @@ function StarRow({ score }: { score: number }) {
   );
 }
 
-function PoiImageGrid({
-  poi,
-  loading,
-}: {
-  poi: PoiDetailsData;
-  loading?: boolean;
-}) {
-  const fromApi = [...new Set([poi.imageUrl, ...(poi.imageUrls ?? [])].filter(Boolean))] as string[];
-
-  if (loading && fromApi.length === 0) {
-    return (
-      <div className="relative bg-slate-900/5 p-1.5 space-y-1.5">
-        <div className="animate-pulse rounded-xl bg-slate-200 aspect-[16/9] sm:aspect-[21/9] max-h-[320px]" />
-        <div className="grid grid-cols-2 gap-1.5">
-          <div className="animate-pulse rounded-xl bg-slate-200 aspect-[4/3] max-h-[140px]" />
-          <div className="animate-pulse rounded-xl bg-slate-200 aspect-[4/3] max-h-[140px]" />
-        </div>
-      </div>
-    );
-  }
-
-  const { hero, secondary } = resolvePoiModalImageGrid(poi);
-  return (
-    <div className="relative bg-slate-900/5 p-1.5 space-y-1.5">
-      <div className="overflow-hidden rounded-xl bg-slate-200 aspect-[16/9] sm:aspect-[21/9] max-h-[320px]">
-        <img
-          src={hero}
-          alt={poi.name}
-          className={`h-full w-full object-cover transition-opacity duration-500 ${loading ? "opacity-70" : "opacity-100"}`}
-        />
-      </div>
-      <div className="grid grid-cols-2 gap-1.5">
-        {secondary.map((src, i) => (
-          <div key={i} className="overflow-hidden rounded-xl bg-slate-200 aspect-[4/3] max-h-[140px]">
-            <img src={src} alt="" className="h-full w-full object-cover" />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 export function POIDetailsModal({
   open,
   onOpenChange,
@@ -106,49 +61,11 @@ export function POIDetailsModal({
   onOpenChange: (open: boolean) => void;
   poi: PoiDetailsData | null;
 }) {
-  const fetchPoiPhotos = useServerFn(fetchPhotosForPoi);
   const [displayPoi, setDisplayPoi] = useState<PoiDetailsData | null>(poi);
-  const [photosLoading, setPhotosLoading] = useState(false);
 
   useEffect(() => {
     setDisplayPoi(poi);
   }, [poi]);
-
-  useEffect(() => {
-    if (!open || !poi?.city) return;
-    if (poi.imageUrl) return;
-
-    let cancelled = false;
-    setPhotosLoading(true);
-    void fetchPoiPhotos({
-      data: {
-        name: poi.name,
-        city: poi.city,
-        destinationName: poi.destinationName ?? poi.city,
-        imageSearchQuery: poi.imageSearchQuery,
-      },
-    })
-      .then((result) => {
-        if (cancelled || !result.imageUrl) return;
-        setDisplayPoi((prev) =>
-          prev
-            ? {
-                ...prev,
-                imageUrl: result.imageUrl,
-                imageUrls: result.imageUrls ?? prev.imageUrls,
-              }
-            : prev,
-        );
-      })
-      .catch((err) => console.warn("[POIDetailsModal] photo fetch failed:", err))
-      .finally(() => {
-        if (!cancelled) setPhotosLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [open, poi, fetchPoiPhotos]);
 
   if (!poi || !displayPoi) return null;
 
@@ -179,20 +96,16 @@ export function POIDetailsModal({
       <DialogContent className="max-w-4xl w-[calc(100%-2rem)] max-h-[94vh] overflow-y-auto p-0 gap-0 rounded-2xl border-slate-200 shadow-2xl">
         <DialogTitle className="sr-only">{displayPoi.name}</DialogTitle>
 
-        <div className="relative">
-          <PoiImageGrid poi={displayPoi} loading={photosLoading} />
+        <div className="relative border-b border-slate-100 bg-gradient-to-br from-sky-50 via-white to-slate-50 px-5 py-5 sm:px-8 sm:py-6">
           <button
             type="button"
             onClick={() => onOpenChange(false)}
-            className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-slate-700 shadow-lg hover:bg-white transition-colors z-10"
+            className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-700 shadow-md hover:bg-slate-50 transition-colors z-10"
             aria-label="Zapri"
           >
             <X className="h-5 w-5" />
           </button>
-        </div>
-
-        <div className="px-5 py-6 sm:px-8 sm:py-7">
-          <div className="mb-6">
+          <div className="pr-12">
             <h2 className="text-2xl sm:text-[1.75rem] font-bold text-slate-900 leading-tight">
               {displayPoi.name}
             </h2>
@@ -212,9 +125,10 @@ export function POIDetailsModal({
               </p>
             )}
           </div>
+        </div>
 
+        <div className="px-5 py-6 sm:px-8 sm:py-7">
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6 lg:gap-8">
-            {/* LEFT — description & highlights */}
             <div className="space-y-5 min-w-0">
               {paragraphs.length > 0 && (
                 <div className="space-y-3">
@@ -258,7 +172,6 @@ export function POIDetailsModal({
               )}
             </div>
 
-            {/* RIGHT — sidebar */}
             <aside className="space-y-4 lg:sticky lg:top-0 lg:self-start">
               <div className="rounded-2xl border border-amber-200/80 bg-gradient-to-br from-amber-50 to-orange-50 px-5 py-4 shadow-sm">
                 <div className="flex items-center gap-2 mb-1">

@@ -11,6 +11,7 @@ import {
   applyMotorhomeBudgetFloor,
   applyHotelRestBudgetFloor,
 } from "@/lib/tripBudget";
+import { addDays } from "@/lib/dateUtils";
 import {
   detectAccommodationMode,
   detectHotelRestInterval,
@@ -20,9 +21,19 @@ import {
 export type GeminiPlanMapOpts = {
   originIata?: string;
   destinationIata?: string;
+  /** Trip start — used to derive ISO day.date when Gemini returns a label instead. */
+  departDate?: string;
   /** Full user wishes blob (custom text + tags) for accommodation detection. */
   wishesText?: string;
 };
+
+function resolveIsoDayDate(raw: string, departDate: string | undefined, dayNumber: number): string {
+  const fromRaw = raw?.match(/^(\d{4}-\d{2}-\d{2})/)?.[1];
+  if (fromRaw) return fromRaw;
+  const base = departDate?.match(/^(\d{4}-\d{2}-\d{2})/)?.[1];
+  if (base) return addDays(base, dayNumber - 1);
+  return raw;
+}
 
 function isValidCoord(lat: unknown, lng: unknown): lat is number {
   if (typeof lat !== "number" || typeof lng !== "number") return false;
@@ -301,7 +312,7 @@ export function tripPlanResponseToAiTripPlan(
 
       days.push({
         day: day.day_number,
-        date: day.date,
+        date: resolveIsoDayDate(day.date, opts?.departDate, day.day_number),
         title: day.title,
         morning: slots.morning,
         afternoon: slots.afternoon,

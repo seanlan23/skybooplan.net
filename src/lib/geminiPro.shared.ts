@@ -28,11 +28,6 @@ const poiSchema = z.object({
   lat: wgsLat,
   lng: wgsLng,
   tripAdvisorStyleDetails: tripAdvisorStyleDetailsSchema,
-  /** English Unsplash/Places search string — e.g. "Bamboo bikes tour, Intramuros, Manila, Philippines". */
-  imageSearchQuery: z.string().min(12).max(220),
-  /** Populated server-side via Google Places — not from Gemini. */
-  imageUrl: z.string().url().optional(),
-  imageUrls: z.array(z.string().url()).max(3).optional(),
 });
 
 const DAY_TIME_SLOTS = ["dopoldan", "popoldan", "vecer"] as const;
@@ -59,11 +54,6 @@ const activitySchema = z.object({
   /** Estimated cost for this activity in EUR. */
   estimatedCostEur: z.number().min(0).optional(),
   coordinates: coordinatesSchema.optional(),
-  /** English Unsplash/Places search string — e.g. "Grand Palace, Bangkok, Thailand, temple". */
-  imageSearchQuery: z.string().min(12).max(220),
-  /** Populated server-side via Google Places — not from Gemini. */
-  imageUrl: z.string().url().optional(),
-  imageUrls: z.array(z.string().url()).max(3).optional(),
   /** Required for sightseeing activities — omit for hotel/airport only. */
   tripAdvisorStyleDetails: tripAdvisorStyleDetailsSchema.optional(),
 });
@@ -112,9 +102,6 @@ export const tripPlanSchema = z.object({
       city: z.string().min(1),
       lat: wgsLat,
       lng: wgsLng,
-      /** Populated server-side via Google Places — not from Gemini. */
-      imageUrl: z.string().url().optional(),
-      imageUrls: z.array(z.string().url()).max(3).optional(),
       /** Must-see sights for this stop with exact coordinates. */
       pois: z.array(poiSchema).min(1),
       days: z.array(daySchema),

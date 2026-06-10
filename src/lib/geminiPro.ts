@@ -151,8 +151,9 @@ Obvezna logistična pravila za ta načrt:
 - transportTip / rubriko "Kako se premikati" generiraj SAMO IN IZKLJUČNO, če obstaja kakšen specifičen, edinstven nasvet za tisti konkretni dan (npr. nasvet o parkiranju avtodoma, opozorilo o lokalnem prometu). Če ni posebnosti, rubriko popolnoma izpusti!
 - Za dni z notranjim letom, trajektom, kombijem ali vlakom obvezno izpolni transportation[] (type: flight|ferry|train|van, from, to, duration, estimatedPrice v EUR). Za otok z letališčem na celini (npr. Boracay/MPH) obvezno 3 koraki: let → kombi → trajekt.
 - Vsak dan (days[]) mora imeti dailyBudget (EUR), drivingDistanceKm (km vožnje tistega dne) in drivingDurationHours (npr. "3h 45m").
-- Za vsako fazo (itinerar[]) obvezno generiraj pois[] — vsaj 3–6 znamenitosti z name, description, lat, lng, imageSearchQuery, tripAdvisorStyleDetails (highlights, proTip, bestTimeOfDay, rating, reviewSummary).
-- Vsaka aktivnost z ogledom mora imeti tripAdvisorStyleDetails (razen hotel/airport) in obvezno imageSearchQuery (angleško, za iskanje slik).
+- Polje days[].date mora biti vedno v ISO obliki YYYY-MM-DD (npr. "2026-08-14") — ne slovenskega datuma; day_name je lahko "Sobota, 14. avgust".
+- Za vsako fazo (itinerar[]) obvezno generiraj pois[] — vsaj 3–6 znamenitosti z name, description, lat, lng, tripAdvisorStyleDetails (highlights, proTip, bestTimeOfDay, rating, reviewSummary).
+- Vsaka aktivnost z ogledom mora imeti tripAdvisorStyleDetails (razen hotel/airport).
 - Vsak dan mora imeti vsaj 2–4 smiselne aktivnosti z opisi — prazni dnevi niso dovoljeni.
 
 Opisi aktivnosti morajo biti izjemno podrobni, zanimivi in dolgi vsaj 3–4 stavke (ne kratki!). Vsaka aktivnost mora imeti estimatedCostEur (realna cifra v EUR). day_name zapisuj s polnimi imeni mesecev (npr. "Sobota, 14. avgust"). season_warning naj bo geografsko natančen za ${params.destination}.
@@ -257,11 +258,6 @@ OBVEZNA DNEVNA LOGISTIKA (itinerar[].days[] — za vsak dan):
 OBVEZNE ZNAMENITOSTI NA FAZO (itinerar[].pois[]):
 - Za vsako postojanko generiraj pois[] z natančnimi lat/lng — glavne znamenitosti, ki jih bomo obiskali.
 - Vsak POI: name (angleško/uradno ime), description (2–3 privlačne stavke), lat, lng.
-- Vsak POI MORA imeti imageSearchQuery (obvezno, angleško) — natančen iskalni niz za Unsplash/Google Photos.
-  • Format: "[Ime znamenitosti/dejavnosti], [Mesto], [Država]" + po želji 1–2 vizualni ključni besedi (npr. "temple", "street food", "historical architecture").
-  • Primer: "Bamboo bikes tour, Intramuros, Manila, Philippines, historical architecture"
-  • Primer: "Grand Palace, Bangkok, Thailand, golden temple"
-  • NE uporabljaj slovenskega jezika — samo angleščina, konkretno in vizualno opisno.
 - Vsak POI MORA imeti tripAdvisorStyleDetails (obvezno, brez izjeme):
   • highlights: 3–5 kratkih točk (max 12 besed na točko) — kaj je must-see pri tej lokaciji
   • proTip: EN specifičen, praktičen nasvet za TO mesto (npr. "Pridi 30 min pred odprtjem", "Ne fotografiraj proti vzhodu sonca ob poldnevu", "Vstop preko vzhodnega vhoda — krajša vrsta"). Prepovedani generični nasveti!
@@ -271,8 +267,7 @@ OBVEZNE ZNAMENITOSTI NA FAZO (itinerar[].pois[]):
 
 TRIPADVISOR PODATKI ZA AKTIVNOSTI (activities[] — obvezno za oglede):
 - Vsaka aktivnost s category sightseeing, nature, beach, food ali entertainment MORA imeti tripAdvisorStyleDetails (ista struktura kot pri POI).
-- Vsaka aktivnost (vključno hotel/airport) MORA imeti imageSearchQuery — enak format kot pri pois[] (angleško, vizualno, z mesto in državo).
-- Za category hotel ali airport tripAdvisorStyleDetails izpusti, imageSearchQuery pa vseeno generiraj (npr. "Suvarnabhumi Airport, Bangkok, Thailand").
+- Za category hotel ali airport tripAdvisorStyleDetails izpusti.
 
 POVRATEK V EU (obvezno):
 - Zadnji dan logistike: aktivnost category airport z natančno uro odhoda in prihoda v EU.

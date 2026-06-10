@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import {
   AlarmClock,
   CloudSun,
@@ -161,55 +161,14 @@ function ActivityTypePill({ type }: { type?: string }) {
   );
 }
 
-function ImageSkeleton({ className = "" }: { className?: string }) {
-  return (
-    <div
-      className={`animate-pulse bg-gradient-to-r from-slate-200 via-slate-100 to-slate-200 ${className}`}
-      aria-hidden="true"
-    />
-  );
-}
-
-function LazyFadeImage({
-  src,
-  alt,
-  className = "",
-  containerClassName = "",
-}: {
-  src: string;
-  alt: string;
-  className?: string;
-  containerClassName?: string;
-}) {
-  const [loaded, setLoaded] = useState(false);
-  return (
-    <div className={`relative overflow-hidden ${containerClassName}`}>
-      {!loaded && <ImageSkeleton className="absolute inset-0" />}
-      <img
-        src={src}
-        alt={alt}
-        loading="lazy"
-        onLoad={() => setLoaded(true)}
-        className={`transition-opacity duration-500 ${loaded ? "opacity-100" : "opacity-0"} ${className}`}
-      />
-    </div>
-  );
-}
-
 function ActivityItem({
   activity,
   day,
-  photoUrl,
-  activityPhotoUrl,
-  photosLoading,
   onFocus,
   onDetails,
 }: {
   activity: Activity;
   day: DayPlan;
-  photoUrl?: string;
-  activityPhotoUrl?: string;
-  photosLoading?: boolean;
   onFocus?: (coords: { lat: number; lng: number; day: number }) => void;
   onDetails?: (poi: PoiDetailsData) => void;
 }) {
@@ -228,10 +187,6 @@ function ActivityItem({
   const handleFocus = () => {
     if (hasCoords && onFocus) onFocus({ lat, lng, day: day.day });
   };
-
-  const resolvedPhoto = activity.imageUrl ?? activityPhotoUrl ?? photoUrl;
-  const showPhotoSkeleton = photosLoading && !resolvedPhoto;
-  const showPhoto = Boolean(resolvedPhoto);
 
   return (
     <li
@@ -253,17 +208,6 @@ function ActivityItem({
       role={hasCoords ? "button" : undefined}
       tabIndex={hasCoords ? 0 : undefined}
     >
-      {showPhotoSkeleton && (
-        <ImageSkeleton className="mb-3 h-36 sm:h-40 w-full rounded-lg" />
-      )}
-      {showPhoto && resolvedPhoto && (
-        <LazyFadeImage
-          src={resolvedPhoto}
-          alt={activity.name}
-          containerClassName="mb-3 h-36 sm:h-40 w-full rounded-lg bg-slate-200"
-          className="h-full w-full object-cover"
-        />
-      )}
       <h4 className="font-bold text-slate-900 text-[15px] leading-snug">{activity.name}</h4>
       <div className="mt-2.5 flex flex-wrap gap-2">
         <ActivityTimePill activity={activity} />
@@ -290,7 +234,7 @@ function ActivityItem({
           onClick={(e) => {
             e.stopPropagation();
             onDetails(
-              activityToPoiDetails(activity, day, activityPhotoUrl ?? photoUrl),
+              activityToPoiDetails(activity, day),
             );
           }}
           className="mt-3 inline-flex items-center rounded-full bg-sky-600 px-4 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-sky-700 transition-colors"
@@ -341,9 +285,6 @@ function IslandStayBlock({
   hint,
   activities,
   day,
-  photoUrl,
-  photosLoading,
-  getActivityPhotoUrl,
   onActivityFocus,
   onActivityDetails,
 }: {
@@ -351,9 +292,6 @@ function IslandStayBlock({
   hint: string;
   activities: Activity[];
   day: DayPlan;
-  photoUrl?: string;
-  photosLoading?: boolean;
-  getActivityPhotoUrl?: (activity: Activity) => string | undefined;
   onActivityFocus?: (coords: { lat: number; lng: number; day: number }) => void;
   onActivityDetails?: (poi: PoiDetailsData) => void;
 }) {
@@ -375,9 +313,6 @@ function IslandStayBlock({
             key={i}
             activity={a}
             day={day}
-            photoUrl={photoUrl}
-            activityPhotoUrl={getActivityPhotoUrl?.(a)}
-            photosLoading={photosLoading}
             onFocus={onActivityFocus}
             onDetails={onActivityDetails}
           />
@@ -392,9 +327,6 @@ function TimeBlock({
   label,
   activities,
   day,
-  photoUrl,
-  photosLoading,
-  getActivityPhotoUrl,
   onActivityFocus,
   onActivityDetails,
 }: {
@@ -402,9 +334,6 @@ function TimeBlock({
   label: string;
   activities: Activity[];
   day: DayPlan;
-  photoUrl?: string;
-  photosLoading?: boolean;
-  getActivityPhotoUrl?: (activity: Activity) => string | undefined;
   onActivityFocus?: (coords: { lat: number; lng: number; day: number }) => void;
   onActivityDetails?: (poi: PoiDetailsData) => void;
 }) {
@@ -425,9 +354,6 @@ function TimeBlock({
             key={i}
             activity={a}
             day={day}
-            photoUrl={photoUrl}
-            activityPhotoUrl={getActivityPhotoUrl?.(a)}
-            photosLoading={photosLoading}
             onFocus={onActivityFocus}
             onDetails={onActivityDetails}
           />
@@ -482,7 +408,6 @@ export function StreamingDayPlaceholder({
       data-day={dayNumber}
       className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm animate-fade-in"
     >
-      <div className="h-40 sm:h-48 animate-pulse bg-gradient-to-r from-slate-200 via-slate-100 to-slate-200" />
       <div className="px-5 py-5 sm:px-6 sm:py-6 space-y-4">
         <div className="flex items-start gap-4">
           <div className="h-10 w-10 shrink-0 rounded-full animate-pulse bg-sky-200" />
@@ -507,9 +432,6 @@ export function StreamingDayPlaceholder({
 
 export function AiPlanDayCard({
   day,
-  photoUrl,
-  photosLoading,
-  getActivityPhotoUrl,
   isActive,
   isFirstInCity,
   lang,
@@ -527,9 +449,6 @@ export function AiPlanDayCard({
   onActivityDetails,
 }: {
   day: DayPlan;
-  photoUrl?: string;
-  photosLoading?: boolean;
-  getActivityPhotoUrl?: (activity: Activity) => string | undefined;
   isActive: boolean;
   isFirstInCity: boolean;
   lang: string;
@@ -601,25 +520,6 @@ export function AiPlanDayCard({
           : "border border-slate-100 hover:shadow-md"
       }`}
     >
-      {photosLoading && !photoUrl && (
-        <ImageSkeleton className="h-40 sm:h-48 w-full" />
-      )}
-      {photoUrl && (
-        <div className="relative h-40 sm:h-48 w-full overflow-hidden bg-slate-100">
-          <LazyFadeImage
-            src={photoUrl}
-            alt={day.focusName || day.title}
-            className="h-full w-full object-cover"
-            containerClassName="h-full w-full"
-          />
-          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent px-5 py-3 pointer-events-none">
-            <div className="text-white text-sm font-medium drop-shadow">
-              {day.focusName || day.title}
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className="bg-gradient-to-br from-sky-50 via-slate-50 to-slate-100 px-5 py-5 sm:px-6 sm:py-6">
         <div className="flex items-start gap-4">
           <div className="flex h-10 min-w-10 shrink-0 items-center justify-center rounded-full bg-sky-600 px-2 text-white font-bold text-sm shadow-sm">
@@ -672,9 +572,6 @@ export function AiPlanDayCard({
             }
             activities={day.islandStay.flexibleActivities}
             day={day}
-            photoUrl={photoUrl}
-            photosLoading={photosLoading}
-            getActivityPhotoUrl={getActivityPhotoUrl}
             onActivityFocus={onActivityFocus}
             onActivityDetails={onActivityDetails}
           />
@@ -685,9 +582,6 @@ export function AiPlanDayCard({
               label={t("aiplan.morning" as never)}
               activities={getSlotActivities(day, "morning")}
               day={day}
-              photoUrl={photoUrl}
-              photosLoading={photosLoading}
-              getActivityPhotoUrl={getActivityPhotoUrl}
               onActivityFocus={onActivityFocus}
               onActivityDetails={onActivityDetails}
             />
@@ -696,9 +590,6 @@ export function AiPlanDayCard({
               label={t("aiplan.afternoon" as never)}
               activities={getSlotActivities(day, "afternoon")}
               day={day}
-              photoUrl={photoUrl}
-              photosLoading={photosLoading}
-              getActivityPhotoUrl={getActivityPhotoUrl}
               onActivityFocus={onActivityFocus}
               onActivityDetails={onActivityDetails}
             />
@@ -707,9 +598,6 @@ export function AiPlanDayCard({
               label={t("aiplan.evening" as never)}
               activities={getSlotActivities(day, "evening")}
               day={day}
-              photoUrl={photoUrl}
-              photosLoading={photosLoading}
-              getActivityPhotoUrl={getActivityPhotoUrl}
               onActivityFocus={onActivityFocus}
               onActivityDetails={onActivityDetails}
             />

@@ -34,6 +34,7 @@ export function buildCatalogPlanFromResponse(
   const catalogPlan = tripPlanResponseToAiTripPlan(parsed.data, {
     originIata: data.originIata,
     destinationIata: data.destinationIata,
+    departDate: data.departDate,
     wishesText,
   });
 
@@ -76,6 +77,7 @@ export function buildGeminiMapOpts(data: GenerateGeminiProTripInput) {
   return {
     originIata: data.originIata,
     destinationIata: data.destinationIata,
+    departDate: data.departDate,
     wishesText,
     groundTransportMode: data.groundTransportMode,
     originPlace: data.originPlace,

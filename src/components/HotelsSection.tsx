@@ -61,18 +61,19 @@ export function HotelsSection({
 
   const primary = useQuery({
     queryKey: ["hotels", city, checkIn, effectiveCheckOut, adults, rooms, childrenAges.join(",")],
-    queryFn: () =>
-      fetchHotels({
-        data: {
-          city,
-          checkIn,
-          checkOut: effectiveCheckOut,
-          adults,
-          rooms,
-          childrenAges,
-          currency: "EUR",
-        },
-      }),
+    queryFn: () => {
+      const payload = {
+        city,
+        checkIn,
+        checkOut: effectiveCheckOut,
+        adults,
+        rooms,
+        childrenAges,
+        currency: "EUR" as const,
+      };
+      console.log("[HotelsSection] fetchHotels payload", payload);
+      return fetchHotels({ data: payload });
+    },
     staleTime: 5 * 60 * 1000,
     retry: 1,
   });
@@ -103,8 +104,10 @@ export function HotelsSection({
   });
 
   const selection = selectHotelSource(primary, fallback, city, regionFallback);
-  const { isLoading, isError, usedFallback, sourceCity } = selection;
+  const { isLoading, usedFallback, sourceCity } = selection;
   const realHotels = selection.hotels;
+  const apiError = primary.data?.error ?? (shouldFallback ? fallback.data?.error : null);
+  const isError = selection.isError || Boolean(apiError);
 
   const hotels = realHotels.map((h) => ({
     id: h.id,
@@ -188,7 +191,7 @@ export function HotelsSection({
           </p>
           <p className="mt-1 text-xs text-slate-500">
             {isError
-              ? t("aiplan.hotelsEmptyErrorSub" as never)
+              ? apiError || t("aiplan.hotelsEmptyErrorSub" as never)
               : t("aiplan.hotelsEmptyDefaultSub" as never)}
           </p>
           <a

@@ -16,9 +16,6 @@ export type PoiDetailsData = {
   city?: string;
   destinationName?: string;
   category?: string;
-  imageUrl?: string;
-  imageUrls?: string[];
-  imageSearchQuery?: string;
   tripAdvisorStyleDetails?: TripAdvisorStyleDetails;
   day?: number;
 };
@@ -29,46 +26,6 @@ export function mockPoiRating(name: string): { score: number; reviewCount: numbe
   const score = Math.round((4 + (Math.abs(h) % 8) / 10) * 10) / 10;
   const reviewCount = 180 + (Math.abs(h) % 9200);
   return { score, reviewCount };
-}
-
-const UNSPLASH_POOL = [
-  "photo-1506929562872-bb421503ef21",
-  "photo-1469854523086-cc02fe3d8800",
-  "photo-1476514525535-07fb3b4ae5f1",
-  "photo-1488646953014-85cb44e25828",
-  "photo-1523906834658-6e24ef2386f8",
-  "photo-1530789250518-9cce9963a47c",
-];
-
-export function poiUnsplashPlaceholder(name: string, index = 0): string {
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = (Math.imul(31, h) + name.charCodeAt(i)) | 0;
-  const id = UNSPLASH_POOL[(Math.abs(h) + index) % UNSPLASH_POOL.length]!;
-  return `https://images.unsplash.com/${id}?auto=format&fit=crop&w=900&q=80`;
-}
-
-/** Up to 3 images: hero + 2 thumbnails for modal grid. */
-export function resolvePoiModalImageGrid(poi: PoiDetailsData): {
-  hero: string;
-  secondary: [string, string];
-} {
-  const fromApi = [...new Set([poi.imageUrl, ...(poi.imageUrls ?? [])].filter(Boolean))] as string[];
-  if (fromApi.length > 0) {
-    const hero = fromApi[0]!;
-    const second = fromApi[1] ?? hero;
-    const third = fromApi[2] ?? second;
-    return { hero, secondary: [second, third] };
-  }
-  return {
-    hero: poiUnsplashPlaceholder(poi.name, 0),
-    secondary: [poiUnsplashPlaceholder(poi.name, 1), poiUnsplashPlaceholder(poi.name, 2)],
-  };
-}
-
-/** @deprecated use resolvePoiModalImageGrid */
-export function resolvePoiModalImages(poi: PoiDetailsData): [string, string, string] {
-  const { hero, secondary } = resolvePoiModalImageGrid(poi);
-  return [hero, secondary[0]!, secondary[1]!];
 }
 
 export function poiRecommendationTip(poi: PoiDetailsData): string {
@@ -119,21 +76,8 @@ function resolveGuideDetails(
   return activity?.tripAdvisorStyleDetails ?? pin?.tripAdvisorStyleDetails;
 }
 
-export function activityToPoiDetails(
-  activity: Activity,
-  day: DayPlan,
-  photoUrl?: string,
-): PoiDetailsData {
+export function activityToPoiDetails(activity: Activity, day: DayPlan): PoiDetailsData {
   const pin = findActivityPin(day, activity);
-  const resolvedPhoto = activity.imageUrl ?? pin?.imageUrl ?? photoUrl;
-  const resolvedPhotos =
-    activity.imageUrls?.length
-      ? activity.imageUrls
-      : pin?.imageUrls?.length
-        ? pin.imageUrls
-        : resolvedPhoto
-          ? [resolvedPhoto]
-          : undefined;
   return {
     name: activity.name,
     description: activity.description,
@@ -146,10 +90,6 @@ export function activityToPoiDetails(
     lng: activity.lng ?? pin?.lng,
     city: day.city,
     category: activity.type ?? pin?.category,
-    imageUrl: resolvedPhotos?.[0] ?? resolvedPhoto,
-    imageUrls: resolvedPhotos,
-    imageSearchQuery:
-      activity.imageSearchQuery ?? pin?.imageSearchQuery,
     tripAdvisorStyleDetails: resolveGuideDetails(activity, pin),
     day: day.day,
   };
@@ -159,11 +99,6 @@ export function mapPinToPoiDetails(
   pin: NonNullable<DayPlan["mapPins"]>[number],
   day: DayPlan,
 ): PoiDetailsData {
-  const urls = pin.imageUrls?.length
-    ? pin.imageUrls
-    : pin.imageUrl
-      ? [pin.imageUrl]
-      : undefined;
   return {
     name: pin.name,
     description: pin.description,
@@ -175,9 +110,6 @@ export function mapPinToPoiDetails(
     lng: pin.lng,
     city: day.city,
     category: pin.category,
-    imageUrl: urls?.[0],
-    imageUrls: urls,
-    imageSearchQuery: pin.imageSearchQuery,
     tripAdvisorStyleDetails: pin.tripAdvisorStyleDetails,
     day: day.day,
   };

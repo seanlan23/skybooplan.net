@@ -7,9 +7,8 @@ import { AiPlanDayCard } from "@/components/AiPlanDayCard";
 import { AiPlanLoader } from "@/components/AiPlanLoader";
 import { resolveErrorMessage, useI18n } from "@/lib/i18n";
 import { parseLocalDate } from "@/lib/dateUtils";
-import { useLazyDayPhotos } from "@/hooks/useLazyDayPhotos";
-import { useDestinationContext } from "@/hooks/useDestinationContext";
 import { DestinationInsightBanner } from "@/components/DestinationInsightBanner";
+import { useDestinationContext } from "@/hooks/useDestinationContext";
 import { PlannerChoicesSummary } from "@/components/PlannerChoicesSummary";
 import { TripTotalBreakdown } from "@/components/TripTotalBreakdown";
 import type { AiPlannerSubmit } from "@/components/AiPlannerPreview";
@@ -102,7 +101,6 @@ export function AiPlanSkeletonView({
       ),
     [dayPlans, pax],
   );
-  const { photoMap, getActivityPhoto, isDayPhotosLoading } = useLazyDayPhotos(previewPlan);
 
   useEffect(() => {
     if (dayPlans.length) setActiveDay(dayPlans[0].day);
@@ -258,9 +256,6 @@ export function AiPlanSkeletonView({
               <AiPlanDayCard
                 key={d.day}
                 day={d}
-                photoUrl={photoMap.get(d.day)}
-                photosLoading={isDayPhotosLoading(d.day)}
-                getActivityPhotoUrl={(a) => getActivityPhoto(d.day, a.name)?.imageUrl}
                 isActive={activeDay === d.day}
                 isFirstInCity={idx === 0 || dayPlans[idx - 1].city !== d.city}
                 lang={lang}
@@ -293,7 +288,7 @@ export function AiPlanSkeletonView({
             className="order-1 lg:order-2 lg:sticky lg:top-0 lg:h-screen lg:self-start lg:flex lg:flex-col min-h-[320px]"
           >
             <div className="flex-1 min-h-[280px]">
-              <TripMap plan={previewPlan} activeDay={activeDay} photoMap={photoMap} />
+              <TripMap plan={previewPlan} activeDay={activeDay} />
             </div>
             <p className="mt-2 text-xs text-slate-500 text-center hidden lg:block">
               {t("aiplan.mapHint" as never)}

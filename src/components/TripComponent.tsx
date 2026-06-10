@@ -6,7 +6,6 @@ import { TripMap } from "@/components/TripMap";
 import { AiPlanDayCard } from "@/components/AiPlanDayCard";
 import { GeminiLogisticsCards } from "@/components/GeminiLogisticsCards";
 import { DestinationInsightBanner } from "@/components/DestinationInsightBanner";
-import { useLazyDayPhotos } from "@/hooks/useLazyDayPhotos";
 import { useDestinationContext } from "@/hooks/useDestinationContext";
 import { useI18n } from "@/lib/i18n";
 import { parseLocalDate } from "@/lib/dateUtils";
@@ -55,11 +54,10 @@ export default function TripComponent({
       tripPlanResponseToAiTripPlan(data, {
         originIata,
         destinationIata,
+        departDate,
       }),
-    [data, originIata, destinationIata],
+    [data, originIata, destinationIata, departDate],
   );
-
-  const { photoMap, getActivityPhoto, isDayPhotosLoading } = useLazyDayPhotos(mapPlan);
 
   const { ctx: destCtx, loading: destLoading } = useDestinationContext(
     destinationIata,
@@ -206,9 +204,6 @@ export default function TripComponent({
                 ) : null}
                 <AiPlanDayCard
                   day={d}
-                  photoUrl={photoMap.get(d.day)}
-                  photosLoading={isDayPhotosLoading(d.day)}
-                  getActivityPhotoUrl={(a) => getActivityPhoto(d.day, a.name)?.imageUrl}
                   isActive={activeDay === d.day}
                   isFirstInCity={idx === 0 || mapPlan.days[idx - 1].city !== d.city}
                   lang={uiLang}
@@ -246,7 +241,7 @@ export default function TripComponent({
 
         {hasCoords ? (
           <div id="ai-trip-map" className="lg:sticky lg:top-24 scroll-mt-24">
-            <TripMap plan={mapPlan} activeDay={activeDay} photoMap={photoMap} />
+            <TripMap plan={mapPlan} activeDay={activeDay} />
             <p className="mt-2 text-xs text-slate-500 text-center">
               {t("aiplan.mapHint" as never)}
             </p>
