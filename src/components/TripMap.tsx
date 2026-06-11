@@ -18,6 +18,7 @@ import {
 import {
   normalizeMapPoiCategory,
   inferMapPoiCategoryFromText,
+  mapPoiVisual,
   type MapPoiCategory,
   type MapPoiPin,
 } from "@/lib/mapPoiCategory";
@@ -225,7 +226,13 @@ function unmountReactRoot(root: Root | undefined) {
   queueMicrotask(() => root.unmount());
 }
 
-type PoiMarkerEntry = { marker: mapboxgl.Marker; day: number; root: Root; pin: MapPoiPin };
+type PoiMarkerEntry = {
+  marker: mapboxgl.Marker;
+  day: number;
+  root: Root | null;
+  pin: MapPoiPin;
+  photoEl?: HTMLDivElement;
+};
 type CityMarkerEntry = {
   marker: mapboxgl.Marker;
   startDay: number;
@@ -309,21 +316,52 @@ function createOriginMarkerElement(label: string): { el: HTMLDivElement; root: R
   return { el: wrap, root };
 }
 
+const POI_PHOTO_MARKER_CLASS =
+  "h-10 w-10 rounded-full border-2 border-white bg-cover bg-center bg-no-repeat shadow-md transition-transform duration-300 ease-out hover:scale-125";
+
+function poiPhotoMarkerClass(isActive: boolean): string {
+  return `${POI_PHOTO_MARKER_CLASS}${
+    isActive ? " ring-2 ring-sky-400/50 ring-offset-1 scale-110 z-[6]" : " opacity-90"
+  }`;
+}
+
+/** Plain DOM marker — rounded-full div with Unsplash backgroundImage for Mapbox. */
 function createPoiMarkerElement(
   pin: MapPoiPin,
   isActive: boolean,
-): { el: HTMLDivElement; root: Root } {
+): { el: HTMLDivElement; root: Root | null; photoEl?: HTMLDivElement } {
   const el = document.createElement("div");
   el.className =
-    "trip-map-poi-marker pointer-events-auto flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden";
-  const root = createRoot(el);
+    "trip-map-poi-marker pointer-events-auto flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center overflow-hidden";
+  el.title = pin.name;
+
+  const imageUrl = pin.imageUrl?.trim();
+  if (imageUrl) {
+    const photo = document.createElement("div");
+    photo.className = poiPhotoMarkerClass(isActive);
+    photo.style.backgroundImage = `url("${imageUrl.replace(/"/g, "%22")}")`;
+    photo.setAttribute("role", "img");
+    photo.setAttribute("aria-label", pin.name);
+    el.appendChild(photo);
+
+    const probe = new Image();
+    probe.onerror = () => {
+      const visual = mapPoiVisual(pin.category);
+      photo.style.backgroundImage = "";
+      photo.className = `${poiPhotoMarkerClass(isActive)} flex items-center justify-center text-base leading-none`;
+      photo.style.backgroundColor = visual.bg;
+      photo.textContent = visual.emoji;
+    };
+    probe.src = imageUrl;
+
+    return { el, root: null, photoEl: photo };
+  }
+
+  const iconHost = document.createElement("div");
+  el.appendChild(iconHost);
+  const root = createRoot(iconHost);
   root.render(
-    <MapPoiMarker
-      category={pin.category}
-      isActive={isActive}
-      name={pin.name}
-      imageUrl={pin.imageUrl}
-    />,
+    <MapPoiMarker category={pin.category} isActive={isActive} name={pin.name} />,
   );
   return { el, root };
 }
@@ -1247,9 +1285,9 @@ function TripMapInner({
 
       for (const pin of poiPins) {
         const isActive = pin.day === activeDayRef.current;
-        const { el, root } = createPoiMarkerElement(pin, isActive);
+        const { el, root, photoEl } = createPoiMarkerElement(pin, isActive);
         const lngLat: [number, number] = [pin.lng, pin.lat];
-        const marker = new mapboxgl.Marker({ element: el, anchor: "center" })
+        const marker = new mapboxgl.Marker(el)
           .setLngLat(lngLat)
           .addTo(map);
 
@@ -1275,6 +1313,7 @@ function TripMapInner({
                   arrivalTime: pin.arrivalTime,
                   departureTime: pin.departureTime,
                   estimatedCostEur: pin.estimatedCostEur,
+                  imageUrl: pin.imageUrl,
                 },
                 dayPlan,
               ),
@@ -1296,7 +1335,7 @@ function TripMapInner({
           poiDetails && openDetails ? () => openDetails(poiDetails) : undefined,
         );
 
-        poiMarkersRef.current.push({ marker, day: pin.day, root, pin });
+        poiMarkersRef.current.push({ marker, day: pin.day, root, pin, photoEl });
       }
     };
 
@@ -1317,15 +1356,18 @@ function TripMapInner({
 
   // Highlight active POI markers without rebuilding the whole layer.
   useEffect(() => {
-    for (const { root, pin, day } of poiMarkersRef.current) {
-      root.render(
-        <MapPoiMarker
-          category={pin.category}
-          isActive={day === activeDay}
-          name={pin.name}
-          imageUrl={pin.imageUrl}
-        />,
-      );
+    for (const { root, pin, day, photoEl } of poiMarkersRef.current) {
+      const isActive = day === activeDay;
+      if (photoEl) {
+        const hasEmojiFallback = Boolean(photoEl.textContent?.trim());
+        photoEl.className = hasEmojiFallback
+          ? `${poiPhotoMarkerClass(isActive)} flex items-center justify-center text-base leading-none`
+          : poiPhotoMarkerClass(isActive);
+      } else if (root) {
+        root.render(
+          <MapPoiMarker category={pin.category} isActive={isActive} name={pin.name} />,
+        );
+      }
     }
   }, [activeDay]);
 

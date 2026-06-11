@@ -97,15 +97,6 @@ export function POIDetailsModal({
       <DialogContent className="max-w-4xl w-[calc(100%-2rem)] max-h-[94vh] overflow-y-auto p-0 gap-0 rounded-2xl border-slate-200 shadow-2xl">
         <DialogTitle className="sr-only">{displayPoi.name}</DialogTitle>
 
-        {displayPoi.imageUrl ? (
-          <img
-            src={displayPoi.imageUrl}
-            alt=""
-            loading="lazy"
-            className="h-48 w-full object-cover sm:h-56"
-          />
-        ) : null}
-
         <div className="relative border-b border-slate-100 bg-gradient-to-br from-sky-50 via-white to-slate-50 px-5 py-5 sm:px-8 sm:py-6">
           <button
             type="button"
@@ -116,6 +107,14 @@ export function POIDetailsModal({
             <X className="h-5 w-5" />
           </button>
           <div className="pr-12">
+            {displayPoi.imageUrl ? (
+              <img
+                src={displayPoi.imageUrl}
+                alt={displayPoi.name}
+                loading="lazy"
+                className="mb-4 h-20 w-20 rounded-full border-4 border-white object-cover shadow-lg sm:h-24 sm:w-24"
+              />
+            ) : null}
             <h2 className="text-2xl sm:text-[1.75rem] font-bold text-slate-900 leading-tight">
               {displayPoi.name}
             </h2>
@@ -183,16 +182,6 @@ export function POIDetailsModal({
             </div>
 
             <aside className="space-y-4 lg:sticky lg:top-0 lg:self-start">
-              {displayPoi.imageUrl ? (
-                <div className="flex justify-center lg:justify-start">
-                  <img
-                    src={displayPoi.imageUrl}
-                    alt=""
-                    loading="lazy"
-                    className="h-24 w-24 rounded-full border-4 border-white object-cover shadow-lg transition-transform duration-300 ease-out hover:scale-125"
-                  />
-                </div>
-              ) : null}
               <div className="rounded-2xl border border-amber-200/80 bg-gradient-to-br from-amber-50 to-orange-50 px-5 py-4 shadow-sm">
                 <div className="flex items-center gap-2 mb-1">
                   <StarRow score={score} />
