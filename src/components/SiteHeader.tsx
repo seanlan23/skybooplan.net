@@ -53,9 +53,9 @@ export function SiteHeader() {
   }
 
   return (
-    <header className="sticky top-0 z-40 w-full max-w-full overflow-x-hidden bg-background/80 backdrop-blur-md border-b border-border/60">
-      <div className="mx-auto max-w-7xl w-full min-w-0 px-4 sm:px-6">
-        <div className="flex items-center justify-between gap-2 py-3 lg:h-28 lg:py-0">
+    <header className="sticky top-0 z-40 w-full max-w-full overflow-visible bg-background/80 backdrop-blur-md border-b border-border/60">
+      <div className="mx-auto max-w-7xl w-full min-w-0 overflow-visible px-4 sm:px-6">
+        <div className="flex items-center justify-between gap-2 overflow-visible py-3 lg:h-28 lg:py-0">
           <Link to="/" onClick={handleLogoClick} className="flex items-center shrink-0 min-w-0">
             <img
               src={logo}
@@ -167,14 +167,18 @@ export function SiteHeader() {
 
             <div className="hidden lg:flex items-center gap-2">
               <CurrencyPicker />
-              <LanguagePicker />
+              <div className="relative">
+                <LanguagePicker />
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="flex lg:hidden items-center justify-end gap-2 pb-3 border-t border-border/40 pt-2">
+        <div className="flex lg:hidden items-center justify-end gap-2 pb-3 border-t border-border/40 pt-2 overflow-visible">
           <CurrencyPicker compact />
-          <LanguagePicker compact />
+          <div className="relative">
+            <LanguagePicker compact />
+          </div>
         </div>
       </div>
     </header>

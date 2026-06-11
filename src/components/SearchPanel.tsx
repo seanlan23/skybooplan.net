@@ -15,6 +15,20 @@ import { formatTravellersSummary } from "@/lib/travellersFormat";
 export type Tab = "flights" | "stays" | "ai";
 export type CabinClass = "economy" | "premium" | "business" | "first";
 
+type TripTypeUi = "Return" | "One-way" | "Multi-city";
+
+function tripTypeFromSearchValues(tripType?: SearchValues["tripType"]): TripTypeUi {
+  if (tripType === "multicity") return "Multi-city";
+  if (tripType === "oneway") return "One-way";
+  return "Return";
+}
+
+/** Round-trip dates everywhere except explicit one-way flights. */
+function showReturnDateField(tab: Tab, tripType: TripTypeUi): boolean {
+  if (tab === "stays" || tab === "ai") return true;
+  return tripType === "Return";
+}
+
 export type SearchValues = {
   mode: Tab;
   from: string;
@@ -89,10 +103,17 @@ export function SearchPanel({
   const [travellersOpen, setTravellersOpen] = useState(false);
   const skipValuesEmit = useRef(true);
 
+  // AI planner always uses round-trip dates (no one-way toggle in that tab).
+  useEffect(() => {
+    if (tab === "ai" && tripType !== "Return") {
+      setTripType("Return");
+    }
+  }, [tab, tripType]);
+
   function buildSearchValues(): SearchValues {
     const isStays = tab === "stays";
-    const isReturn = tripType === "Return";
     const isMulticity = tripType === "Multi-city";
+    const isReturn = showReturnDateField(tab, tripType);
     const pax = isStays ? stayAdults + childrenAges.length : adults + childrenAges.length;
     const slices =
       isMulticity && leg2From && leg2To && leg2Date
@@ -107,7 +128,14 @@ export function SearchPanel({
       to: tab === "ai" ? destinationPlace : to,
       departDate,
       returnDate: isReturn ? returnDate : isMulticity ? leg2Date : "",
-      tripType: isMulticity ? "multicity" : isReturn ? "return" : "oneway",
+      tripType:
+        tab === "ai"
+          ? "return"
+          : isMulticity
+            ? "multicity"
+            : isReturn
+              ? "return"
+              : "oneway",
       slices,
       pax,
       language: lang,
@@ -149,8 +177,8 @@ export function SearchPanel({
     }
     setFrom(initialValues.from);
     setTo(initialValues.to);
-    setDepartDate(initialValues.departDate);
-    setReturnDate(initialValues.returnDate);
+    setDepartDate(initialValues.departDate ?? "");
+    setReturnDate(initialValues.returnDate ?? "");
     if (initialValues.tripType === "multicity" && initialValues.slices?.length) {
       setTripType("Multi-city");
       const leg1 = initialValues.slices[0];
@@ -166,7 +194,11 @@ export function SearchPanel({
         setLeg2Date(leg2.departDate);
       }
     } else {
-      setTripType(initialValues.returnDate ? "Return" : "One-way");
+      setTripType(
+        initialValues.mode === "ai"
+          ? "Return"
+          : tripTypeFromSearchValues(initialValues.tripType),
+      );
     }
     if (initialValues.destination) setDestination(initialValues.destination);
     if (initialValues.originPlace) setOriginPlace(initialValues.originPlace);
@@ -322,7 +354,7 @@ export function SearchPanel({
           <SearchButton onClick={handleSearch} loading={loading} label={ctaLabel} loadingLabel={loadingLabel} />
         </div>
       ) : tab === "ai" ? (
-        <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_1.2fr_1fr_1fr_1fr_auto] gap-x-3 gap-y-3 items-stretch">
+        <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_1.2fr_1fr_minmax(15rem,1.25fr)_1fr_auto] gap-x-3 gap-y-3 items-stretch">
           <AirportAutocomplete
             label={t("field.originPlace" as never) as string}
             placeholder={t("field.originPlacePlaceholder" as never) as string}
@@ -346,7 +378,7 @@ export function SearchPanel({
           <DateField
             departDate={departDate}
             returnDate={returnDate}
-            showReturn={tripType === "Return"}
+            showReturn={showReturnDateField("ai", tripType)}
             onDepart={setDepartDate}
             onReturn={setReturnDate}
             open={dateOpen}
@@ -369,7 +401,7 @@ export function SearchPanel({
           <SearchButton onClick={handleSearch} loading={loading} label={ctaLabel} loadingLabel={loadingLabel} />
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr_1fr_1fr_auto] gap-x-3 gap-y-3 items-stretch">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr_minmax(15rem,1.4fr)_1fr_auto] gap-x-3 gap-y-3 items-stretch">
           <AirportAutocomplete
             label={t("field.from")}
             placeholder={t("field.fromPlaceholder")}
@@ -401,7 +433,7 @@ export function SearchPanel({
           <DateField
             departDate={departDate}
             returnDate={returnDate}
-            showReturn={tripType === "Return"}
+            showReturn={showReturnDateField("flights", tripType)}
             onDepart={setDepartDate}
             onReturn={setReturnDate}
             open={dateOpen}
@@ -688,8 +720,8 @@ function DateField({
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>
-        <div className="rounded-2xl border border-border bg-background/60 px-4 py-3 hover:border-brand/40 transition-colors cursor-pointer">
-          <div className={cn("grid gap-2", showReturn ? "grid-cols-2" : "grid-cols-1")}>
+        <div className="rounded-2xl border border-border bg-background/60 px-4 py-3 hover:border-brand/40 transition-colors cursor-pointer min-w-0 w-full">
+          <div className={cn("grid gap-2 min-w-0", showReturn ? "grid-cols-2" : "grid-cols-1")}>
             {showReturn ? (
               <>
                 <SummaryCell
@@ -699,7 +731,7 @@ function DateField({
                   onClick={() => handleTriggerClick("from")}
                   active={focusSide === "from"}
                 />
-                <div className="border-l border-border pl-3">
+                <div className="border-l border-border pl-3 min-w-0">
                   <SummaryCell
                     label={labelB}
                     value={returnSel}

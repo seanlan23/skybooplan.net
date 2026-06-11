@@ -76,7 +76,7 @@ export function LanguagePicker({
       </button>
 
       {open && (
-        <div className="absolute right-0 z-50 mt-2 w-60 rounded-xl border border-border bg-card shadow-lg p-1.5 max-h-72 overflow-y-auto">
+        <div className="absolute right-0 top-full z-50 mt-2 w-60 rounded-lg border border-border bg-white shadow-xl p-1.5 max-h-72 overflow-y-auto">
           {LANGUAGES.map((lang) => (
             <button
               key={lang.code}
