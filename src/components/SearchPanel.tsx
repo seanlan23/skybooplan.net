@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plane, Hotel, Sparkles, ArrowLeftRight, Search, ChevronDown, Calendar as CalendarIcon, Users, Minus, Plus, BedDouble, Info, Car, Bus, TrainFront } from "lucide-react";
+import { Plane, Hotel, Route, ArrowLeftRight, Search, ChevronDown, Calendar as CalendarIcon, Users, Minus, Plus, BedDouble, Info, Car, Bus, TrainFront } from "lucide-react";
 import type { GroundTransportMode } from "@/lib/aiPlan.functions";
 import { groundTransportLabel } from "@/lib/groundTransport";
 import { format, parseISO, startOfDay } from "date-fns";
@@ -195,7 +195,7 @@ export function SearchPanel({
             <Hotel className="h-4 w-4" /> {t("tab.stays")}
           </TabButton>
           <TabButton active={tab === "ai"} onClick={() => setTab("ai")} variant="primary">
-            <Sparkles className="h-4 w-4" /> {t("tab.ai")}
+            <Route className="h-4 w-4 shrink-0" /> {t("tab.ai")}
           </TabButton>
         </div>
 
