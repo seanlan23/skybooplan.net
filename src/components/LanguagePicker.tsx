@@ -32,9 +32,11 @@ export function getLanguageName(code: string): string {
 export function LanguagePicker({
   value,
   onChange,
+  compact = false,
 }: {
   value?: string;
   onChange?: (code: string) => void;
+  compact?: boolean;
 } = {}) {
   const i18n = useI18n();
   const current = value ?? i18n.lang;
@@ -61,13 +63,14 @@ export function LanguagePicker({
       <button
         onClick={() => setOpen((o) => !o)}
         className={cn(
-          "inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium transition-all border",
+          "inline-flex items-center shrink-0 rounded-full text-sm font-medium transition-all border",
+          compact ? "gap-1.5 px-2.5 py-1" : "gap-2 px-3 py-1.5",
           open
             ? "border-brand bg-brand/10 text-brand"
             : "border-border bg-card text-foreground hover:border-brand/40"
         )}
       >
-        <Globe className="h-3.5 w-3.5" />
+        {!compact && <Globe className="h-3.5 w-3.5" />}
         <span className="text-base leading-none">{selected?.flag}</span>
         <span className="font-semibold tracking-wide">{selected?.code.toUpperCase()}</span>
       </button>

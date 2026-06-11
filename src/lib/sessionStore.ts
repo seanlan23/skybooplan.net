@@ -18,11 +18,17 @@ export const PLAN_SCHEMA_VERSION = 2;
 
 const KEY = `skybooplan:lastSession:v${PLAN_SCHEMA_VERSION}`;
 
+/** One-shot flag: logo “home” should wipe persisted session (not a tab refresh). */
+const HOME_RESET_KEY = "skybooplan:pendingHomeReset";
+
 /** Older keys — removed on load and clear to prevent stale plan leaks. */
 const LEGACY_KEYS = [
   "skybooplan:lastSession:v1",
   "skybooplan:lastSession",
 ] as const;
+
+/** Dispatched when the logo is clicked while already on `/`. */
+export const HOME_RESET_EVENT = "skybooplan:home-reset";
 
 export type AiPlannerCtx = {
   from: string;
@@ -37,6 +43,8 @@ export type AiPlannerCtx = {
 
 export type SavedSession = {
   planSchemaVersion: number;
+  /** Live search-form draft — persisted on every field change. */
+  searchDraft: SearchValues | null;
   lastSearch: SearchValues | null;
   aiPlan: AiTripPlan | null;
   aiSkeleton: TripSkeleton | null;
@@ -54,6 +62,7 @@ export type SavedSession = {
 function emptySession(): SavedSession {
   return {
     planSchemaVersion: PLAN_SCHEMA_VERSION,
+    searchDraft: null,
     lastSearch: null,
     aiPlan: null,
     aiSkeleton: null,
@@ -132,5 +141,27 @@ export function clearSession() {
     purgeLegacySessionCache();
   } catch {
     /* noop */
+  }
+}
+
+/** Mark the next landing mount (or same-page logo click) as an explicit home reset. */
+export function requestHomeReset(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.setItem(HOME_RESET_KEY, "1");
+  } catch {
+    /* noop */
+  }
+}
+
+/** Returns true once when the user navigated home via the logo (not a refresh). */
+export function consumeHomeReset(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    if (window.sessionStorage.getItem(HOME_RESET_KEY) !== "1") return false;
+    window.sessionStorage.removeItem(HOME_RESET_KEY);
+    return true;
+  } catch {
+    return false;
   }
 }

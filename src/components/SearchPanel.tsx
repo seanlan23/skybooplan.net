@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Plane, Hotel, Route, ArrowLeftRight, Search, ChevronDown, Calendar as CalendarIcon, Users, Minus, Plus, BedDouble, Info, Car, Bus, TrainFront } from "lucide-react";
 import type { GroundTransportMode } from "@/lib/aiPlan.functions";
 import { groundTransportLabel } from "@/lib/groundTransport";
@@ -47,10 +47,13 @@ export type SearchValues = {
 
 export function SearchPanel({
   onSearch,
+  onValuesChange,
   loading,
   initialValues,
 }: {
   onSearch?: (v: SearchValues) => void;
+  /** Called whenever any field changes — used for localStorage draft persistence. */
+  onValuesChange?: (v: SearchValues) => void;
   loading?: boolean;
   initialValues?: SearchValues | null;
 }) {
@@ -84,8 +87,46 @@ export function SearchPanel({
   // Controlled popover open states for Skyscanner-style auto-advance
   const [dateOpen, setDateOpen] = useState(false);
   const [travellersOpen, setTravellersOpen] = useState(false);
+  const skipValuesEmit = useRef(true);
+
+  function buildSearchValues(): SearchValues {
+    const isStays = tab === "stays";
+    const isReturn = tripType === "Return";
+    const isMulticity = tripType === "Multi-city";
+    const pax = isStays ? stayAdults + childrenAges.length : adults + childrenAges.length;
+    const slices =
+      isMulticity && leg2From && leg2To && leg2Date
+        ? [
+            { from, to, departDate },
+            { from: leg2From, to: leg2To, departDate: leg2Date },
+          ]
+        : undefined;
+    return {
+      mode: tab,
+      from: tab === "ai" ? originPlace : from,
+      to: tab === "ai" ? destinationPlace : to,
+      departDate,
+      returnDate: isReturn ? returnDate : isMulticity ? leg2Date : "",
+      tripType: isMulticity ? "multicity" : isReturn ? "return" : "oneway",
+      slices,
+      pax,
+      language: lang,
+      currency,
+      destination: isStays ? destination : undefined,
+      originPlace: tab === "ai" ? originPlace : undefined,
+      destinationPlace: tab === "ai" ? destinationPlace : undefined,
+      groundTransportMode: tab === "ai" ? groundTransportMode : undefined,
+      adults,
+      children: childrenAges.length,
+      cabinClass,
+      stayAdults,
+      childrenAges,
+      rooms,
+    };
+  }
 
   useEffect(() => {
+    skipValuesEmit.current = true;
     if (!initialValues) {
       setFrom("");
       setTo("");
@@ -143,40 +184,39 @@ export function SearchPanel({
     if (typeof initialValues.rooms === "number") setRooms(initialValues.rooms);
   }, [initialValues]);
 
+  useEffect(() => {
+    if (!onValuesChange) return;
+    if (skipValuesEmit.current) {
+      skipValuesEmit.current = false;
+      return;
+    }
+    onValuesChange(buildSearchValues());
+  }, [
+    onValuesChange,
+    tab,
+    tripType,
+    from,
+    to,
+    departDate,
+    returnDate,
+    leg2From,
+    leg2To,
+    leg2Date,
+    destination,
+    originPlace,
+    destinationPlace,
+    groundTransportMode,
+    adults,
+    cabinClass,
+    stayAdults,
+    childrenAges,
+    rooms,
+    lang,
+    currency,
+  ]);
+
   function handleSearch() {
-    const isStays = tab === "stays";
-    const isReturn = tripType === "Return";
-    const isMulticity = tripType === "Multi-city";
-    const pax = isStays ? stayAdults + childrenAges.length : adults + childrenAges.length;
-    const slices =
-      isMulticity && leg2From && leg2To && leg2Date
-        ? [
-            { from, to, departDate },
-            { from: leg2From, to: leg2To, departDate: leg2Date },
-          ]
-        : undefined;
-    onSearch?.({
-      mode: tab,
-      from: tab === "ai" ? originPlace : from,
-      to: tab === "ai" ? destinationPlace : to,
-      departDate,
-      returnDate: isReturn ? returnDate : isMulticity ? leg2Date : "",
-      tripType: isMulticity ? "multicity" : isReturn ? "return" : "oneway",
-      slices,
-      pax,
-      language: lang,
-      currency,
-      destination: isStays ? destination : undefined,
-      originPlace: tab === "ai" ? originPlace : undefined,
-      destinationPlace: tab === "ai" ? destinationPlace : undefined,
-      groundTransportMode: tab === "ai" ? groundTransportMode : undefined,
-      adults,
-      children: childrenAges.length,
-      cabinClass,
-      stayAdults,
-      childrenAges,
-      rooms,
-    });
+    onSearch?.(buildSearchValues());
   }
 
   const tripTypeLabel =

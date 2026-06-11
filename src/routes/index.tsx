@@ -1,11 +1,13 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Component, type ErrorInfo, type ReactNode, useEffect, useState } from "react";
+import { Component, type ErrorInfo, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
+  HOME_RESET_EVENT,
   loadSession,
   saveSession,
   clearSession,
+  consumeHomeReset,
   purgeLegacySessionCache,
 } from "@/lib/sessionStore";
 import { SiteHeader } from "@/components/SiteHeader";
@@ -284,6 +286,8 @@ function Landing() {
   const [genInterrupted, setGenInterrupted] = useState(false);
   const [historyRefresh, setHistoryRefresh] = useState(0);
   const [prefill, setPrefill] = useState<SearchValues | null>(null);
+  const [searchDraft, setSearchDraft] = useState<SearchValues | null>(null);
+  const [sessionReady, setSessionReady] = useState(false);
   const [savedPlanId, setSavedPlanId] = useState<string | null>(null);
   const [aiContext, setAiContextState] = useState<AiPlannerContext & { language?: string }>(
     () => ({ ...EMPTY_AI_CONTEXT }),
@@ -307,6 +311,36 @@ function Landing() {
   const streamItinerary = useStreamItinerary();
 
   usePlanPhotoEnrichment(aiPlan, setAiPlan);
+
+  const resetLanding = useCallback(() => {
+    clearSession();
+    queryClient.clear();
+    setFlights([]);
+    setSelected(null);
+    setConfirmFlight(null);
+    setAiPlan(null);
+    setAiSkeleton(null);
+    setAiError(null);
+    setAiContext(null);
+    setLastPlannerForm(null);
+    setAiGenStartedAt(null);
+    setGenInterrupted(false);
+    setLastSearch(null);
+    setFlightSearchDone(false);
+    setPrefill(null);
+    setSearchDraft(null);
+    setSavedPlanId(null);
+    setError(null);
+    setShowSpotlight(false);
+    streamItinerary.reset();
+  }, [queryClient, streamItinerary]);
+
+  const handleSearchDraftChange = useCallback((v: SearchValues) => {
+    setSearchDraft(v);
+  }, []);
+
+  const resetLandingRef = useRef(resetLanding);
+  resetLandingRef.current = resetLanding;
 
   // Ujemi napake v useEffect / event handlerjih (Error Boundary jih ne vidi).
   useEffect(() => {
@@ -333,34 +367,53 @@ function Landing() {
     };
   }, []);
 
-  // Hydrate only search context + AI state from localStorage.
-  // Do not restore old flight results, because they can become stale and look
-  // like live search data after API/config changes.
+  // Logo “home” on the same page — wipe session without a full navigation.
+  useEffect(() => {
+    const onHomeReset = () => resetLanding();
+    window.addEventListener(HOME_RESET_EVENT, onHomeReset);
+    return () => window.removeEventListener(HOME_RESET_EVENT, onHomeReset);
+  }, [resetLanding]);
+
+  // Hydrate search draft + AI plan from localStorage (survives tab refresh).
+  // Flight result lists are not restored — they can be stale after API changes.
   useEffect(() => {
     try {
+      if (consumeHomeReset()) {
+        resetLandingRef.current();
+        setSessionReady(true);
+        return;
+      }
       purgeLegacySessionCache();
       const s = loadSession();
-      if (!s) return;
-      // Do not prefill the search form on page open/refresh — user wants
-      // an empty searcher every time. Restore lastSearch only when it backs
-      // AI/stays context; orphan flight-only sessions would show a false
-      // "no flights" banner because results are intentionally not restored.
-      if (
-        s.lastSearch &&
-        (s.aiPlan || s.aiContext || s.lastSearch.mode !== "flights")
-      ) {
-        setLastSearch(s.lastSearch);
+      if (!s) {
+        setSessionReady(true);
+        return;
       }
-      if (s.aiPlan) setAiPlan(s.aiPlan);
+
+      const draft = s.searchDraft ?? s.lastSearch;
+      if (draft) {
+        setPrefill(draft);
+        setSearchDraft(draft);
+      }
+      if (s.lastSearch) setLastSearch(s.lastSearch);
+
+      if (s.aiPlan) {
+        setAiPlan(s.aiPlan);
+        setTimeout(() => {
+          document.getElementById("ai-plan-anchor")?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 300);
+      }
       if (
         s.aiSkeleton &&
         Array.isArray(s.aiSkeleton.regions) &&
         s.aiSkeleton.regions.some((r) => (r?.highlights?.length ?? 0) > 0)
       ) {
         setAiSkeleton(s.aiSkeleton);
-        setTimeout(() => {
-          document.getElementById("ai-plan-anchor")?.scrollIntoView({ behavior: "smooth", block: "start" });
-        }, 300);
+        if (!s.aiPlan) {
+          setTimeout(() => {
+            document.getElementById("ai-plan-anchor")?.scrollIntoView({ behavior: "smooth", block: "start" });
+          }, 300);
+        }
       }
       if (s.aiError) setAiError(s.aiError);
       if (s.aiContext) {
@@ -382,12 +435,16 @@ function Landing() {
     } catch (err) {
       console.warn("[session] hydrate failed:", err);
       setAiContextState({ ...EMPTY_AI_CONTEXT });
+    } finally {
+      setSessionReady(true);
     }
   }, []);
 
-  // Persist on key state changes.
+  // Persist after hydration so a refresh never overwrites stored data with empty state.
   useEffect(() => {
+    if (!sessionReady) return;
     saveSession({
+      searchDraft,
       lastSearch,
       aiPlan,
       aiSkeleton,
@@ -400,7 +457,30 @@ function Landing() {
       flights: [],
       savedPlanId,
     });
-  }, [lastSearch, aiPlan, aiSkeleton, aiError, aiContext, lastPlannerForm, aiGenStartedAt, plannerMode, savedPlanId]);
+  }, [
+    sessionReady,
+    searchDraft,
+    lastSearch,
+    aiPlan,
+    aiSkeleton,
+    aiError,
+    aiContext,
+    lastPlannerForm,
+    aiGenStartedAt,
+    plannerMode,
+    savedPlanId,
+  ]);
+
+  function beginNewSearch() {
+    setAiPlan(null);
+    setAiSkeleton(null);
+    setAiError(null);
+    setLastPlannerForm(null);
+    setAiGenStartedAt(null);
+    setGenInterrupted(false);
+    setSavedPlanId(null);
+    streamItinerary.reset();
+  }
 
   async function handleSearch(v: SearchValues) {
     setError(null);
@@ -419,8 +499,7 @@ function Landing() {
       setFlights([]);
       setSelected(null);
       setShowSpotlight(false);
-      setAiPlan(null);
-      setAiError(null);
+      beginNewSearch();
       setLastSearch({ ...v });
       const { adults, childrenAges } = plannerPaxFromSearch(v);
       const ctx = {
@@ -463,8 +542,7 @@ function Landing() {
       setFlights([]);
       setSelected(null);
       setShowSpotlight(false);
-      setAiPlan(null);
-      setAiError(null);
+      beginNewSearch();
       setLastSearch({ ...v, from: origin, to: dest });
       const { adults, childrenAges } = plannerPaxFromSearch(v);
       setAiContext({
@@ -525,8 +603,7 @@ function Landing() {
     setFlights([]);
     setSelected(null);
     setShowSpotlight(false);
-    setAiPlan(null);
-    setAiError(null);
+    beginNewSearch();
     const normalizedSlices = isMulticity
       ? v.slices!.map((s) => ({
           from: s.from.trim().toUpperCase(),
@@ -911,7 +988,7 @@ function Landing() {
 
   try {
     return (
-    <div className="min-h-screen flex flex-col" style={{ background: "var(--gradient-hero)" }}>
+    <div className="min-h-screen flex flex-col w-full max-w-full overflow-x-hidden" style={{ background: "var(--gradient-hero)" }}>
       <SiteHeader />
 
       <main className="flex-1">
@@ -930,32 +1007,18 @@ function Landing() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => {
-                    clearSession();
-                    queryClient.clear();
-                    setFlights([]);
-                    setSelected(null);
-                    setConfirmFlight(null);
-                    setAiPlan(null);
-                    setAiSkeleton(null);
-                    setAiError(null);
-                    setAiContext(null);
-                    setLastPlannerForm(null);
-                    setAiGenStartedAt(null);
-                    setGenInterrupted(false);
-                    setLastSearch(null);
-                    setFlightSearchDone(false);
-                    setPrefill(null);
-                    setSavedPlanId(null);
-                    setError(null);
-                    setShowSpotlight(false);
-                  }}
+                  onClick={resetLanding}
                 >
                   🗑️ {t("search.clearNew")}
                 </Button>
               </div>
             )}
-            <SearchPanel onSearch={handleSearch} loading={loading || aiLoading} initialValues={prefill} />
+            <SearchPanel
+              onSearch={handleSearch}
+              onValuesChange={handleSearchDraftChange}
+              loading={loading || aiLoading}
+              initialValues={prefill}
+            />
 
             <FlightSearchHistory refreshKey={historyRefresh} onRepeat={handleRepeat} />
 

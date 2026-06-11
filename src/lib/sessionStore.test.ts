@@ -2,8 +2,10 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   PLAN_SCHEMA_VERSION,
   clearSession,
+  consumeHomeReset,
   loadSession,
   purgeLegacySessionCache,
+  requestHomeReset,
   saveSession,
 } from "@/lib/sessionStore";
 
@@ -25,14 +27,19 @@ function makeStorage() {
   };
 }
 
+function mockWindow() {
+  const localStorage = makeStorage();
+  const sessionStorage = makeStorage();
+  Object.defineProperty(globalThis, "window", {
+    value: { localStorage, sessionStorage },
+    writable: true,
+    configurable: true,
+  });
+}
+
 describe("sessionStore cache invalidation", () => {
   beforeEach(() => {
-    const storage = makeStorage();
-    Object.defineProperty(globalThis, "window", {
-      value: { localStorage: storage },
-      writable: true,
-      configurable: true,
-    });
+    mockWindow();
   });
 
   afterEach(() => {
@@ -75,5 +82,24 @@ describe("sessionStore cache invalidation", () => {
     clearSession();
     expect(window.localStorage.getItem(KEY)).toBeNull();
     expect(window.localStorage.getItem("skybooplan:lastSession:v1")).toBeNull();
+  });
+
+  it("persists and restores searchDraft", () => {
+    const draft = {
+      mode: "ai" as const,
+      from: "Ljubljana",
+      to: "Bangkok",
+      departDate: "2026-09-01",
+      returnDate: "2026-09-14",
+      pax: 2,
+    };
+    saveSession({ searchDraft: draft });
+    expect(loadSession()?.searchDraft).toEqual(draft);
+  });
+
+  it("requestHomeReset is consumed once", () => {
+    requestHomeReset();
+    expect(consumeHomeReset()).toBe(true);
+    expect(consumeHomeReset()).toBe(false);
   });
 });
