@@ -182,6 +182,16 @@ export function POIDetailsModal({
             </div>
 
             <aside className="space-y-4 lg:sticky lg:top-0 lg:self-start">
+              {displayPoi.imageUrl ? (
+                <div className="flex justify-center lg:justify-start">
+                  <img
+                    src={displayPoi.imageUrl}
+                    alt=""
+                    loading="lazy"
+                    className="h-24 w-24 rounded-full border-4 border-white object-cover shadow-lg transition-transform duration-300 ease-out hover:scale-125"
+                  />
+                </div>
+              ) : null}
               <div className="rounded-2xl border border-amber-200/80 bg-gradient-to-br from-amber-50 to-orange-50 px-5 py-4 shadow-sm">
                 <div className="flex items-center gap-2 mb-1">
                   <StarRow score={score} />

@@ -98,6 +98,19 @@ export function activityToPoiDetails(activity: Activity, day: DayPlan): PoiDetai
   };
 }
 
+/** Re-resolve Unsplash image after background enrichment updates the plan. */
+export function refreshPoiDetailsImage(poi: PoiDetailsData, plan: DayPlan): PoiDetailsData {
+  const key = poi.name.trim().toLowerCase();
+  const pin = (plan.mapPins ?? []).find((p) => p.name.trim().toLowerCase() === key);
+  const acts = plan.activities
+    ? [...plan.activities.morning, ...plan.activities.afternoon, ...plan.activities.evening]
+    : [];
+  const act = acts.find((a) => a.name.trim().toLowerCase() === key);
+  const imageUrl = normalizeImageUrl(act?.imageUrl ?? pin?.imageUrl ?? poi.imageUrl);
+  if (!imageUrl || imageUrl === poi.imageUrl) return poi;
+  return { ...poi, imageUrl };
+}
+
 export function mapPinToPoiDetails(
   pin: NonNullable<DayPlan["mapPins"]>[number],
   day: DayPlan,

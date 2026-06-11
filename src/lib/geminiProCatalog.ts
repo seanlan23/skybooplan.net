@@ -9,12 +9,11 @@ import {
   tripPlanResponseToAiTripPlan,
 } from "@/lib/geminiPlanMap";
 import type { GenerateGeminiProTripInput } from "@/lib/geminiPro.functions";
-import { enrichPlanPoiPhotos } from "@/lib/unsplashPhotos";
 
-export async function buildCatalogPlanFromResponse(
+export function buildCatalogPlanFromResponse(
   raw: TripPlanResponse,
   data: GenerateGeminiProTripInput,
-): Promise<{ plan: AiTripPlan | null; error: string | null }> {
+): { plan: AiTripPlan | null; error: string | null } {
   const parsed = tripPlanSchema.safeParse(raw);
   if (!parsed.success) {
     console.error("buildCatalogPlanFromResponse: validation failed", parsed.error.flatten());
@@ -63,8 +62,6 @@ export async function buildCatalogPlanFromResponse(
     originPlace: data.originPlace,
     destinationPlace: data.destinationPlace,
   });
-
-  await enrichPlanPoiPhotos(catalogPlan);
 
   return { plan: catalogPlan, error: null };
 }

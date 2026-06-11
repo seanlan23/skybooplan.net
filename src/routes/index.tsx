@@ -25,6 +25,7 @@ import {
   type TripSkeleton,
 } from "@/lib/aiPlan.functions";
 import { useStreamItinerary } from "@/hooks/useStreamItinerary";
+import { usePlanPhotoEnrichment } from "@/hooks/usePlanPhotoEnrichment";
 import type { GenerateGeminiProTripInput } from "@/lib/geminiPro.functions";
 import {
   normalizeIata,
@@ -293,6 +294,8 @@ function Landing() {
   const planFn = useServerFn(generateAiPlan);
   const skeletonFn = useServerFn(generateAiPlanSkeleton);
   const streamItinerary = useStreamItinerary();
+
+  usePlanPhotoEnrichment(aiPlan, setAiPlan);
 
   // Ujemi napake v useEffect / event handlerjih (Error Boundary jih ne vidi).
   useEffect(() => {

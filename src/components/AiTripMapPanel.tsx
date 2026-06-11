@@ -47,7 +47,7 @@ export const AiTripMapPanel = memo(function AiTripMapPanel({
   return (
     <div
       id="ai-trip-map"
-      className="order-1 lg:order-2 lg:sticky lg:top-0 lg:h-screen lg:self-start lg:flex lg:flex-col min-h-[320px]"
+      className="order-1 lg:order-2 lg:sticky lg:top-0 lg:z-20 lg:h-screen lg:max-h-screen lg:self-start lg:flex lg:flex-col min-h-[320px] overflow-hidden"
     >
       <div className="flex items-center justify-center gap-2 px-1 pb-2">
         <button
@@ -74,7 +74,7 @@ export const AiTripMapPanel = memo(function AiTripMapPanel({
           </span>
         )}
       </div>
-      <div className="flex-1 min-h-[280px]">
+      <div className="flex-1 min-h-0">
         <TripMap
           plan={plan}
           activeDay={activeDay}

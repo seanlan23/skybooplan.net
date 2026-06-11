@@ -21,6 +21,7 @@ import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CheckoutReturnRouteImport } from './routes/checkout.return'
 import { Route as ApiGenerateItineraryRouteImport } from './routes/api/generate-itinerary'
+import { Route as ApiEnrichPlanPhotosRouteImport } from './routes/api/enrich-plan-photos'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated.profile'
 import { Route as AuthenticatedMyTripsRouteImport } from './routes/_authenticated.my-trips'
 import { Route as AuthenticatedMyTripsPlanIdRouteImport } from './routes/_authenticated.my-trips.$planId'
@@ -87,6 +88,11 @@ const ApiGenerateItineraryRoute = ApiGenerateItineraryRouteImport.update({
   path: '/api/generate-itinerary',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiEnrichPlanPhotosRoute = ApiEnrichPlanPhotosRouteImport.update({
+  id: '/api/enrich-plan-photos',
+  path: '/api/enrich-plan-photos',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedProfileRoute = AuthenticatedProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
@@ -134,6 +140,7 @@ export interface FileRoutesByFullPath {
   '/terms': typeof TermsRoute
   '/my-trips': typeof AuthenticatedMyTripsRouteWithChildren
   '/profile': typeof AuthenticatedProfileRoute
+  '/api/enrich-plan-photos': typeof ApiEnrichPlanPhotosRoute
   '/api/generate-itinerary': typeof ApiGenerateItineraryRoute
   '/checkout/return': typeof CheckoutReturnRoute
   '/admin/pdf-downloads': typeof AuthenticatedAdminPdfDownloadsRoute
@@ -153,6 +160,7 @@ export interface FileRoutesByTo {
   '/terms': typeof TermsRoute
   '/my-trips': typeof AuthenticatedMyTripsRouteWithChildren
   '/profile': typeof AuthenticatedProfileRoute
+  '/api/enrich-plan-photos': typeof ApiEnrichPlanPhotosRoute
   '/api/generate-itinerary': typeof ApiGenerateItineraryRoute
   '/checkout/return': typeof CheckoutReturnRoute
   '/admin/pdf-downloads': typeof AuthenticatedAdminPdfDownloadsRoute
@@ -174,6 +182,7 @@ export interface FileRoutesById {
   '/terms': typeof TermsRoute
   '/_authenticated/my-trips': typeof AuthenticatedMyTripsRouteWithChildren
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
+  '/api/enrich-plan-photos': typeof ApiEnrichPlanPhotosRoute
   '/api/generate-itinerary': typeof ApiGenerateItineraryRoute
   '/checkout/return': typeof CheckoutReturnRoute
   '/_authenticated/admin/pdf-downloads': typeof AuthenticatedAdminPdfDownloadsRoute
@@ -195,6 +204,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/my-trips'
     | '/profile'
+    | '/api/enrich-plan-photos'
     | '/api/generate-itinerary'
     | '/checkout/return'
     | '/admin/pdf-downloads'
@@ -214,6 +224,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/my-trips'
     | '/profile'
+    | '/api/enrich-plan-photos'
     | '/api/generate-itinerary'
     | '/checkout/return'
     | '/admin/pdf-downloads'
@@ -234,6 +245,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/_authenticated/my-trips'
     | '/_authenticated/profile'
+    | '/api/enrich-plan-photos'
     | '/api/generate-itinerary'
     | '/checkout/return'
     | '/_authenticated/admin/pdf-downloads'
@@ -253,6 +265,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   SignupRoute: typeof SignupRoute
   TermsRoute: typeof TermsRoute
+  ApiEnrichPlanPhotosRoute: typeof ApiEnrichPlanPhotosRoute
   ApiGenerateItineraryRoute: typeof ApiGenerateItineraryRoute
   CheckoutReturnRoute: typeof CheckoutReturnRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
@@ -344,6 +357,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiGenerateItineraryRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/enrich-plan-photos': {
+      id: '/api/enrich-plan-photos'
+      path: '/api/enrich-plan-photos'
+      fullPath: '/api/enrich-plan-photos'
+      preLoaderRoute: typeof ApiEnrichPlanPhotosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/profile': {
       id: '/_authenticated/profile'
       path: '/profile'
@@ -429,6 +449,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   SignupRoute: SignupRoute,
   TermsRoute: TermsRoute,
+  ApiEnrichPlanPhotosRoute: ApiEnrichPlanPhotosRoute,
   ApiGenerateItineraryRoute: ApiGenerateItineraryRoute,
   CheckoutReturnRoute: CheckoutReturnRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,

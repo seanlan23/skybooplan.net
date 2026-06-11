@@ -5,7 +5,7 @@ import { type MapFocusTarget } from "@/components/TripMap";
 import { AiTripMapPanel } from "@/components/AiTripMapPanel";
 import { AiPlanDayCard, StreamingDayPlaceholder } from "@/components/AiPlanDayCard";
 import { POIDetailsModal } from "@/components/POIDetailsModal";
-import type { PoiDetailsData } from "@/lib/poiDetails.types";
+import { refreshPoiDetailsImage, type PoiDetailsData } from "@/lib/poiDetails.types";
 import { DayScrollDebug } from "@/components/DayScrollDebug";
 import { AiPlanLoader } from "@/components/AiPlanLoader";
 import { resolveErrorMessage, useI18n } from "@/lib/i18n";
@@ -107,11 +107,23 @@ export function AiPlanView({
 
   const handleActivityDetails = useCallback(
     (poi: PoiDetailsData) => {
-      setPoiModal({ ...poi, destinationName: plan?.destinationName });
+      const day = plan?.days.find((d) => d.day === poi.day);
+      const resolved = day ? refreshPoiDetailsImage(poi, day) : poi;
+      setPoiModal({ ...resolved, destinationName: plan?.destinationName });
       setPoiModalOpen(true);
     },
-    [plan?.destinationName],
+    [plan],
   );
+
+  useEffect(() => {
+    if (!poiModalOpen || !poiModal || !plan) return;
+    const day = plan.days.find((d) => d.day === poiModal.day);
+    if (!day) return;
+    const refreshed = refreshPoiDetailsImage(poiModal, day);
+    if (refreshed.imageUrl !== poiModal.imageUrl) {
+      setPoiModal({ ...refreshed, destinationName: plan.destinationName });
+    }
+  }, [plan, poiModal, poiModalOpen]);
 
   const sortedDayNumbers = useMemo(
     () => (plan?.days ?? []).map((d) => d.day).sort((a, b) => a - b),
@@ -383,7 +395,7 @@ export function AiPlanView({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.3fr] gap-5 lg:gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.3fr] gap-5 lg:gap-6 lg:items-start">
         <div className="space-y-5 min-w-0 order-2 lg:order-1">
           {plan.groundJourney && <TransportDashboard plan={plan} />}
           {plan.days.map((d, idx) => {

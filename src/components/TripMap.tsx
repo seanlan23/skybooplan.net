@@ -158,6 +158,10 @@ function tripMapPropsAreEqual(prev: Props, next: Props): boolean {
     return false;
   }
   if (buildTripMapPlanKey(prev.plan) !== buildTripMapPlanKey(next.plan)) return false;
+  if (buildPoiPinsKey(prev.plan) !== buildPoiPinsKey(next.plan)) return false;
+  const cityPhotos = (plan: AiTripPlan) =>
+    plan.days.map((d) => `${d.day}:${d.imageUrl ?? ""}`).join("|");
+  if (cityPhotos(prev.plan) !== cityPhotos(next.plan)) return false;
   return true;
 }
 
@@ -1536,7 +1540,7 @@ function TripMapInner({
 
   return (
     <div className="relative h-full min-h-[280px] rounded-2xl overflow-hidden border border-border bg-card shadow-sm">
-      <div ref={containerRef} className="h-full w-full min-h-[280px]" />
+      <div ref={containerRef} className="h-full w-full min-h-[280px] lg:min-h-0" />
       <div className="absolute top-3 left-3 z-10 flex flex-col gap-2">
         <button
           type="button"

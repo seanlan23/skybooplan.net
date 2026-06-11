@@ -35,10 +35,10 @@ const CATEGORY_ICON_CLASS: Record<MapPoiCategory, string> = {
 };
 
 const MARKER_IMG_CLASS =
-  "h-10 w-10 rounded-full border-2 border-white object-cover shadow-md transition-transform duration-300 ease-out";
+  "h-10 w-10 rounded-full border-2 border-white object-cover shadow-md transition-transform duration-300 ease-out hover:scale-125";
 
 const MARKER_ICON_SHELL_CLASS =
-  "flex h-10 w-10 items-center justify-center rounded-full border border-white/90 bg-white/75 shadow-md backdrop-blur-sm transition-all duration-300 ease-out";
+  "flex h-10 w-10 items-center justify-center rounded-full border border-white/90 bg-white/75 shadow-md backdrop-blur-sm transition-transform duration-300 ease-out hover:scale-125";
 
 type MarkerShellProps = {
   isActive?: boolean;
@@ -53,7 +53,7 @@ function MarkerShell({ isActive = false, name, children }: MarkerShellProps) {
       title={name}
     >
       <div
-        className={`transition-transform duration-300 ease-out ${
+        className={`group/marker transition-transform duration-300 ease-out ${
           isActive ? "z-[6] scale-110" : "opacity-90 hover:opacity-100"
         }`}
       >

@@ -176,9 +176,21 @@ Opisi aktivnosti morajo biti izjemno podrobni, zanimivi in dolgi vsaj 3–4 stav
 ${lastDayBlock}${flightReturnClosing}`;
 }
 
+/** Enough headroom for multi-day catalog JSON — prevents truncated streams. */
+export const GEMINI_TRIP_PLAN_MAX_OUTPUT_TOKENS = 8192;
+
 const google = createGoogleGenerativeAI({
   apiKey: geminiApiKey() ?? undefined,
 });
+
+const tripPlanGenerationConfig = {
+  maxTokens: GEMINI_TRIP_PLAN_MAX_OUTPUT_TOKENS,
+  providerOptions: {
+    google: {
+      maxOutputTokens: GEMINI_TRIP_PLAN_MAX_OUTPUT_TOKENS,
+    },
+  },
+} as const;
 
 export function tripPlanSystemPrompt(params: GenerateTripPlanParams): string {
   const motorhome = isMotorhomeTrip(params);
@@ -347,6 +359,7 @@ export function createTripPlanStream(params: GenerateTripPlanParams) {
     system: tripPlanSystemPrompt(params),
     prompt: buildTripPlanPrompt(params),
     schema: tripPlanSchema,
+    ...tripPlanGenerationConfig,
   });
 }
 
@@ -357,11 +370,12 @@ export async function generateTripPlan(params: GenerateTripPlanParams): Promise<
 
     const result = await withTimeout(
       generateObject({
-      model: google("gemini-pro-latest"),
-      system: tripPlanSystemPrompt(params),
-      prompt: buildTripPlanPrompt(params),
-      schema: tripPlanSchema,
-    }),
+        model: google("gemini-pro-latest"),
+        system: tripPlanSystemPrompt(params),
+        prompt: buildTripPlanPrompt(params),
+        schema: tripPlanSchema,
+        ...tripPlanGenerationConfig,
+      }),
       GEMINI_GENERATION_TIMEOUT_MS,
       "gemini:generateObject",
     );
