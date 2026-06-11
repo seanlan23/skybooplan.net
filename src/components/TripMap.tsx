@@ -21,7 +21,8 @@ import {
   type MapPoiCategory,
   type MapPoiPin,
 } from "@/lib/mapPoiCategory";
-import { MapCityMarker, MapOriginMarker, MapPoiMarker, resolveMarkerImageUrl } from "@/components/MapPoiMarker";
+import { MapCityMarker, MapOriginMarker, MapPoiMarker } from "@/components/MapPoiMarker";
+import { normalizeImageUrl } from "@/lib/unsplashPhotos";
 
 import { mapPinToPoiDetails, type PoiDetailsData } from "@/lib/poiDetails.types";
 import { useI18n } from "@/lib/i18n";
@@ -114,6 +115,34 @@ function buildTripMapPlanKey(plan: AiTripPlan): string {
   ].join("::");
 }
 
+/** Stable string key for POI marker layer — avoids re-running effects on array identity churn. */
+function buildPoiPinsKey(plan: AiTripPlan): string {
+  return collectPlanPoiPins(plan)
+    .map(
+      (p) =>
+        `${p.day}:${p.name}:${p.lat.toFixed(4)}:${p.lng.toFixed(4)}:${p.category}:${p.imageUrl ?? ""}`,
+    )
+    .join("|");
+}
+
+function buildCityStopsKey(stops: CityMapStop[]): string {
+  return stops
+    .map(
+      (s) =>
+        `${s.city}:${coordKey(s.coord)}:${s.startDay}-${s.endDay}:${s.dayCount}:${s.imageUrl ?? ""}`,
+    )
+    .join("|");
+}
+
+function buildRouteDataKey(segments: TripRouteSegment[]): string {
+  return segments
+    .map((s) => {
+      const mid = segmentMidpoint(s.coordinates);
+      return `${s.mode}:${s.durationLabel}:${coordKey(mid)}`;
+    })
+    .join("|");
+}
+
 function focusTargetSignature(target?: MapFocusTarget | null): string {
   if (!target) return "";
   return `${target.mode}:${target.day}:${target.lat}:${target.lng}:${target.key}`;
@@ -169,7 +198,7 @@ function buildCityStops(
         startDay: day.day,
         endDay: day.day,
         dayCount: 1,
-        imageUrl: resolveMarkerImageUrl({ imageUrl: day.imageUrl }),
+        imageUrl: normalizeImageUrl(day.imageUrl),
       });
     }
   }
@@ -192,6 +221,36 @@ function unmountReactRoot(root: Root | undefined) {
   queueMicrotask(() => root.unmount());
 }
 
+type PoiMarkerEntry = { marker: mapboxgl.Marker; day: number; root: Root; pin: MapPoiPin };
+type CityMarkerEntry = {
+  marker: mapboxgl.Marker;
+  startDay: number;
+  endDay: number;
+  root: Root;
+  stop: CityMapStop;
+};
+
+function clearPoiMarkerLayer(store: { current: PoiMarkerEntry[] }) {
+  store.current.forEach((m) => {
+    unmountReactRoot(m.root);
+    m.marker.remove();
+  });
+  store.current = [];
+}
+
+function clearCityMarkerLayer(
+  markers: { current: CityMarkerEntry[] },
+  durationMarkers: { current: mapboxgl.Marker[] },
+) {
+  markers.current.forEach((m) => {
+    unmountReactRoot(m.root);
+    m.marker.remove();
+  });
+  markers.current = [];
+  durationMarkers.current.forEach((m) => m.remove());
+  durationMarkers.current = [];
+}
+
 function cityLabelElement(text: string): HTMLDivElement {
   const label = document.createElement("div");
   label.className =
@@ -205,12 +264,13 @@ function createCityMarkerElement(
   isActive: boolean,
 ): { el: HTMLDivElement; root: Root } {
   const wrap = document.createElement("div");
-  wrap.className = `flex flex-col items-center cursor-pointer transition-transform duration-300 ease-out${
+  wrap.className = `trip-map-city-marker flex flex-col items-center cursor-pointer transition-opacity duration-300 ease-out${
     isActive ? "" : " opacity-90"
   }`;
   wrap.appendChild(cityLabelElement(stop.city));
 
   const pinHost = document.createElement("div");
+  pinHost.className = "flex h-10 w-10 shrink-0 items-center justify-center";
   wrap.appendChild(pinHost);
 
   const root = createRoot(pinHost);
@@ -250,6 +310,8 @@ function createPoiMarkerElement(
   isActive: boolean,
 ): { el: HTMLDivElement; root: Root } {
   const el = document.createElement("div");
+  el.className =
+    "trip-map-poi-marker pointer-events-auto flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden";
   const root = createRoot(el);
   root.render(
     <MapPoiMarker
@@ -276,8 +338,6 @@ function collectPlanPoiPins(plan: AiTripPlan): MapPoiPin[] {
     departureTime?: string;
     estimatedCostEur?: number;
     imageUrl?: string;
-    imageUrls?: string[];
-    photoUrl?: string;
   }) => {
     if (!isValidCoord(pin.lat, pin.lng)) return;
     const key = `${pin.lat.toFixed(4)}:${pin.lng.toFixed(4)}:${day}`;
@@ -293,11 +353,7 @@ function collectPlanPoiPins(plan: AiTripPlan): MapPoiPin[] {
       arrivalTime: pin.arrivalTime,
       departureTime: pin.departureTime,
       estimatedCostEur: pin.estimatedCostEur,
-      imageUrl: resolveMarkerImageUrl({
-        imageUrl: pin.imageUrl,
-        imageUrls: pin.imageUrls,
-        photoUrl: pin.photoUrl,
-      }),
+      imageUrl: normalizeImageUrl(pin.imageUrl),
     });
   };
 
@@ -320,7 +376,6 @@ function collectPlanPoiPins(plan: AiTripPlan): MapPoiPin[] {
         departureTime: act.departureTime,
         estimatedCostEur: act.estimatedCostEur,
         imageUrl: act.imageUrl,
-        imageUrls: act.imageUrls,
       });
     }
   }
@@ -734,13 +789,9 @@ function TripMapInner({
   const appliedStyleRef = useRef<string | null>(null);
   const [isSatellite, setIsSatellite] = useState(false);
   const [mapStyleEpoch, setMapStyleEpoch] = useState(0);
-  const markersRef = useRef<
-    Array<{ marker: mapboxgl.Marker; startDay: number; endDay: number; root: Root; stop: CityMapStop }>
-  >([]);
+  const markersRef = useRef<CityMarkerEntry[]>([]);
   const durationMarkersRef = useRef<mapboxgl.Marker[]>([]);
-  const poiMarkersRef = useRef<
-    Array<{ marker: mapboxgl.Marker; day: number; root: Root; pin: MapPoiPin }>
-  >([]);
+  const poiMarkersRef = useRef<PoiMarkerEntry[]>([]);
   const originMarkerRef = useRef<{ marker: mapboxgl.Marker; root: Root } | null>(null);
   const tokenFn = useServerFn(getMapboxToken);
   const [token, setToken] = useState<string | null>(null);
@@ -776,7 +827,8 @@ function TripMapInner({
 
   const visibleRouteModes = useMemo((): RouteMode[] => ROUTE_MODES, []);
 
-  const poiPins = useMemo(() => collectPlanPoiPins(plan), [planContentKey, plan]);
+  const poiPinsKey = useMemo(() => buildPoiPinsKey(plan), [planContentKey]);
+  const poiPins = useMemo(() => collectPlanPoiPins(plan), [planContentKey]);
 
   useEffect(() => {
     let cancelled = false;
@@ -917,10 +969,12 @@ function TripMapInner({
     })();
 
     return () => { cancelled = true; };
-  }, [token, planContentKey, plan.days, plan.destinationIata, plan.destinationName]);
+  }, [token, planContentKey, plan.destinationIata, plan.destinationName]);
 
 
   /** Days with resolved coords (geocoding). */
+  const dayCoordsKey = useMemo(() => dayCoordsSignature(dayCoords), [dayCoords]);
+
   const validDays = useMemo(() => {
     return plan.days
       .map((d) => {
@@ -928,7 +982,7 @@ function TripMapInner({
         return c ? { day: d, coord: c } : null;
       })
       .filter((x): x is { day: DayPlan; coord: [number, number] } => x !== null);
-  }, [plan.days, dayCoords]);
+  }, [planContentKey, dayCoordsKey]);
 
   const originLabel = plan.originPlace?.trim() || plan.originIata || "";
   const destinationLabel =
@@ -939,7 +993,7 @@ function TripMapInner({
 
   const finalizedRouteDays = useMemo(
     () => buildFinalizedRouteDays(plan.days, dayCoords),
-    [plan.days, dayCoords],
+    [planContentKey, dayCoordsKey],
   );
 
   const routeReady = useMemo(
@@ -969,11 +1023,9 @@ function TripMapInner({
     [routeReady, tripSegments],
   );
 
-  const dayCoordsKey = useMemo(() => dayCoordsSignature(dayCoords), [dayCoords]);
-
   const planDaysGeoKey = useMemo(
     () => planDaysGeoSignature(plan.days),
-    [plan.days],
+    [planContentKey],
   );
 
   /** City stop geometry only — stable across re-renders. */
@@ -984,7 +1036,7 @@ function TripMapInner({
 
   const activeDayCoord = useMemo((): [number, number] | null => {
     return resolveActiveDayCoord(activeDay, plan, dayCoords, cityStopCoords);
-  }, [activeDay, plan, dayCoordsKey, planDaysGeoKey, cityStopCoords]);
+  }, [activeDay, planContentKey, dayCoordsKey, planDaysGeoKey, cityStopCoords]);
 
   const activeDayCoordKey = activeDayCoord ? coordKey(activeDayCoord) : "";
 
@@ -1052,7 +1104,7 @@ function TripMapInner({
         features: [],
       });
     }
-  }, [activeDay, plan.days]);
+  }, [activeDay, planContentKey]);
 
   // Click-to-zoom: drone view on selected activity.
   useEffect(() => {
@@ -1075,6 +1127,10 @@ function TripMapInner({
     () => buildCityStops(validDays, plan.days.length, roadTripMode),
     [validDays, plan.days.length, roadTripMode],
   );
+
+  const cityStopsKey = useMemo(() => buildCityStopsKey(cityStops), [cityStops]);
+
+  const routeDataKey = useMemo(() => buildRouteDataKey(routeData), [routeData]);
 
   useEffect(() => {
     if (token && (cityStops.length > 0 || !segmentsLoading)) {
@@ -1123,18 +1179,8 @@ function TripMapInner({
 
     return () => {
       ro.disconnect();
-      markersRef.current.forEach((m) => {
-        unmountReactRoot(m.root);
-        m.marker.remove();
-      });
-      markersRef.current = [];
-      durationMarkersRef.current.forEach((m) => m.remove());
-      durationMarkersRef.current = [];
-      poiMarkersRef.current.forEach((m) => {
-        unmountReactRoot(m.root);
-        m.marker.remove();
-      });
-      poiMarkersRef.current = [];
+      clearCityMarkerLayer(markersRef, durationMarkersRef);
+      clearPoiMarkerLayer(poiMarkersRef);
       if (originMarkerRef.current) {
         unmountReactRoot(originMarkerRef.current.root);
         originMarkerRef.current.marker.remove();
@@ -1182,14 +1228,14 @@ function TripMapInner({
   // POI sightseeing markers from AI-generated pins.
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || poiPins.length === 0) return;
+    if (!map) return;
+
+    let disposed = false;
 
     const apply = () => {
-      poiMarkersRef.current.forEach((m) => {
-        unmountReactRoot(m.root);
-        m.marker.remove();
-      });
-      poiMarkersRef.current = [];
+      if (disposed) return;
+      clearPoiMarkerLayer(poiMarkersRef);
+      if (poiPins.length === 0) return;
 
       for (const pin of poiPins) {
         const isActive = pin.day === activeDayRef.current;
@@ -1245,9 +1291,20 @@ function TripMapInner({
       }
     };
 
-    if (map.isStyleLoaded() && ready.current) apply();
-    else map.once("load", apply);
-  }, [poiPins, planContentKey, plan.days, mapStyleEpoch]);
+    const onReady = () => apply();
+
+    if (map.isStyleLoaded() && ready.current) {
+      apply();
+    } else {
+      map.once("load", onReady);
+    }
+
+    return () => {
+      disposed = true;
+      map.off("load", onReady);
+      clearPoiMarkerLayer(poiMarkersRef);
+    };
+  }, [poiPinsKey, mapStyleEpoch]);
 
   // Highlight active POI markers without rebuilding the whole layer.
   useEffect(() => {
@@ -1345,19 +1402,18 @@ function TripMapInner({
   // Layla-style city markers + duration badges (rebuild when stops/segments change).
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || cityStops.length === 0) return;
+    if (!map) return;
+
+    let disposed = false;
 
     const apply = () => {
-      markersRef.current.forEach((m) => {
-        unmountReactRoot(m.root);
-        m.marker.remove();
-      });
-      markersRef.current = [];
-      durationMarkersRef.current.forEach((m) => m.remove());
-      durationMarkersRef.current = [];
+      if (disposed) return;
+      clearCityMarkerLayer(markersRef, durationMarkersRef);
+      if (cityStops.length === 0) return;
 
       for (const stop of cityStops) {
-        const isActive = activeDay >= stop.startDay && activeDay <= stop.endDay;
+        const isActive =
+          activeDayRef.current >= stop.startDay && activeDayRef.current <= stop.endDay;
         const { el, root } = createCityMarkerElement(stop, isActive);
         const marker = new mapboxgl.Marker({ element: el, anchor: "bottom" })
           .setLngLat(stop.coord)
@@ -1402,9 +1458,20 @@ function TripMapInner({
       }
     };
 
-    if (map.isStyleLoaded() && ready.current) apply();
-    else map.once("load", apply);
-  }, [cityStops, routeData, plan.days, mapStyleEpoch]);
+    const onReady = () => apply();
+
+    if (map.isStyleLoaded() && ready.current) {
+      apply();
+    } else {
+      map.once("load", onReady);
+    }
+
+    return () => {
+      disposed = true;
+      map.off("load", onReady);
+      clearCityMarkerLayer(markersRef, durationMarkersRef);
+    };
+  }, [cityStopsKey, routeDataKey, mapStyleEpoch]);
 
   // Highlight active city marker without rebuilding DOM.
   useEffect(() => {
@@ -1418,11 +1485,11 @@ function TripMapInner({
           city={stop.city}
         />,
       );
-      marker.getElement().className = `flex flex-col items-center cursor-pointer transition-transform duration-300 ease-out${
+      marker.getElement().className = `trip-map-city-marker flex flex-col items-center cursor-pointer transition-opacity duration-300 ease-out${
         isActive ? "" : " opacity-90"
       }`;
     }
-  }, [activeDay, cityStops]);
+  }, [activeDay]);
 
   // Reset fly dedupe when playback starts so day 1 always animates.
   const wasPlayingRef = useRef(false);

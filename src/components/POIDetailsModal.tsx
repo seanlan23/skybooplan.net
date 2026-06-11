@@ -96,6 +96,15 @@ export function POIDetailsModal({
       <DialogContent className="max-w-4xl w-[calc(100%-2rem)] max-h-[94vh] overflow-y-auto p-0 gap-0 rounded-2xl border-slate-200 shadow-2xl">
         <DialogTitle className="sr-only">{displayPoi.name}</DialogTitle>
 
+        {displayPoi.imageUrl ? (
+          <img
+            src={displayPoi.imageUrl}
+            alt=""
+            loading="lazy"
+            className="h-48 w-full object-cover sm:h-56"
+          />
+        ) : null}
+
         <div className="relative border-b border-slate-100 bg-gradient-to-br from-sky-50 via-white to-slate-50 px-5 py-5 sm:px-8 sm:py-6">
           <button
             type="button"

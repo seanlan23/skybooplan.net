@@ -259,7 +259,7 @@ export const generateGeminiProTrip = createServerFn({ method: "POST" })
         };
       }
 
-      const built = buildCatalogPlanFromResponse(parsed.data, data);
+      const built = await buildCatalogPlanFromResponse(parsed.data, data);
       if (built.error || !built.plan) {
         return { plan: null, error: built.error ?? "Načrt ni bil generiran." };
       }

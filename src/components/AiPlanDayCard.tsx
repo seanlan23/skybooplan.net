@@ -26,6 +26,7 @@ import {
   findActivityPin,
   type PoiDetailsData,
 } from "@/lib/poiDetails.types";
+import { normalizeImageUrl } from "@/lib/unsplashPhotos";
 
 const PRICE_REGEX = /\(([^)]*(?:€|EUR|THB|USD|\$|£|JPY|¥|brezplačno|free|varies)[^)]*)\)/i;
 const BOLD_REGEX = /\*\*([^*]+)\*\*/;
@@ -174,6 +175,7 @@ function ActivityItem({
 }) {
   const bullets = activityDescriptionBullets(activity.description);
   const pin = findActivityPin(day, activity);
+  const imageUrl = normalizeImageUrl(activity.imageUrl ?? pin?.imageUrl);
   const lat = activity.lat ?? pin?.lat;
   const lng = activity.lng ?? pin?.lng;
   const hasCoords =
@@ -208,6 +210,14 @@ function ActivityItem({
       role={hasCoords ? "button" : undefined}
       tabIndex={hasCoords ? 0 : undefined}
     >
+      {imageUrl ? (
+        <img
+          src={imageUrl}
+          alt=""
+          loading="lazy"
+          className="mb-3 h-28 w-full rounded-xl object-cover"
+        />
+      ) : null}
       <h4 className="font-bold text-slate-900 text-[15px] leading-snug">{activity.name}</h4>
       <div className="mt-2.5 flex flex-wrap gap-2">
         <ActivityTimePill activity={activity} />

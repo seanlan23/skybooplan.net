@@ -1,5 +1,6 @@
 import type { Activity, DayPlan } from "@/lib/aiPlan.functions";
 import type { TripAdvisorStyleDetails } from "@/lib/geminiPro.shared";
+import { normalizeImageUrl } from "@/lib/unsplashPhotos";
 
 export type { TripAdvisorStyleDetails };
 
@@ -16,6 +17,7 @@ export type PoiDetailsData = {
   city?: string;
   destinationName?: string;
   category?: string;
+  imageUrl?: string;
   tripAdvisorStyleDetails?: TripAdvisorStyleDetails;
   day?: number;
 };
@@ -90,6 +92,7 @@ export function activityToPoiDetails(activity: Activity, day: DayPlan): PoiDetai
     lng: activity.lng ?? pin?.lng,
     city: day.city,
     category: activity.type ?? pin?.category,
+    imageUrl: normalizeImageUrl(activity.imageUrl ?? pin?.imageUrl),
     tripAdvisorStyleDetails: resolveGuideDetails(activity, pin),
     day: day.day,
   };
@@ -110,6 +113,7 @@ export function mapPinToPoiDetails(
     lng: pin.lng,
     city: day.city,
     category: pin.category,
+    imageUrl: normalizeImageUrl(pin.imageUrl),
     tripAdvisorStyleDetails: pin.tripAdvisorStyleDetails,
     day: day.day,
   };

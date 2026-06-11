@@ -86,7 +86,7 @@ export const Route = createFileRoute("/api/generate-itinerary")({
               }
 
               const finalObject = await result.object;
-              const built = buildCatalogPlanFromResponse(finalObject, data);
+              const built = await buildCatalogPlanFromResponse(finalObject, data);
               if (built.error || !built.plan) {
                 push({ type: "error", error: built.error ?? "Načrt ni bil generiran." });
               } else {

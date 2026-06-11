@@ -222,9 +222,6 @@ export type Activity = {
   lng?: number;
   /** Google Places photo for this activity (server-enriched). */
   imageUrl?: string;
-  imageUrls?: string[];
-  /** AI-generated Unsplash search query (English). */
-  imageSearchQuery?: string;
   tripAdvisorStyleDetails?: import("@/lib/geminiPro.shared").TripAdvisorStyleDetails;
 };
 
@@ -326,8 +323,6 @@ export type DayPlan = {
     departureTime?: string;
     estimatedCostEur?: number;
     imageUrl?: string;
-    imageUrls?: string[];
-    imageSearchQuery?: string;
     tripAdvisorStyleDetails?: import("@/lib/geminiPro.shared").TripAdvisorStyleDetails;
   }>;
 };

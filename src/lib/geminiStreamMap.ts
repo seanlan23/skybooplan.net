@@ -35,11 +35,7 @@ function coercePartialResponse(partial: PartialResponse): TripPlanResponse | nul
             lat: poi.lat,
             lng: poi.lng,
             tripAdvisorStyleDetails: poi.tripAdvisorStyleDetails ?? { ...DEFAULT_POI },
-            imageSearchQuery:
-              poi.imageSearchQuery?.trim() ||
-              `${poi.name.trim()}, ${city}`,
             imageUrl: poi.imageUrl,
-            imageUrls: poi.imageUrls,
           };
         })
         .filter(Boolean) as TripPlanResponse["itinerar"][number]["pois"];
@@ -85,11 +81,7 @@ function coercePartialResponse(partial: PartialResponse): TripPlanResponse | nul
                     ? { lat: act.coordinates.lat, lng: act.coordinates.lng }
                     : undefined,
                 tripAdvisorStyleDetails: act.tripAdvisorStyleDetails,
-                imageSearchQuery:
-                  act.imageSearchQuery?.trim() ||
-                  `${act.title.trim()}, ${city}`,
                 imageUrl: act.imageUrl,
-                imageUrls: act.imageUrls,
               };
             })
             .filter(Boolean) as TripPlanResponse["itinerar"][number]["days"][number]["activities"];
@@ -117,8 +109,6 @@ function coercePartialResponse(partial: PartialResponse): TripPlanResponse | nul
         city,
         lat: typeof phase.lat === "number" ? phase.lat : safePois[0]!.lat,
         lng: typeof phase.lng === "number" ? phase.lng : safePois[0]!.lng,
-        imageUrl: phase.imageUrl,
-        imageUrls: phase.imageUrls,
         pois: safePois,
         days,
       };

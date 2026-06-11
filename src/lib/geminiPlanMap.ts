@@ -105,8 +105,6 @@ function toActivity(
     category?: string;
     coordinates?: { lat: number; lng: number };
     imageUrl?: string;
-    imageUrls?: string[];
-    imageSearchQuery?: string;
     tripAdvisorStyleDetails?: TripAdvisorStyleDetails;
   },
   poiGuideByName?: Map<string, TripAdvisorStyleDetails>,
@@ -130,8 +128,6 @@ function toActivity(
     lat: act.coordinates?.lat,
     lng: act.coordinates?.lng,
     imageUrl: act.imageUrl,
-    imageUrls: act.imageUrls,
-    imageSearchQuery: act.imageSearchQuery?.trim() || undefined,
     tripAdvisorStyleDetails: guide,
   };
 }
@@ -224,8 +220,6 @@ export function tripPlanResponseToAiTripPlan(
         departureTime?: string;
         estimatedCostEur?: number;
         imageUrl?: string;
-        imageUrls?: string[];
-        imageSearchQuery?: string;
         tripAdvisorStyleDetails?: TripAdvisorStyleDetails;
       }) => {
         if (!isValidCoord(opts.lat, opts.lng)) return;
@@ -242,8 +236,6 @@ export function tripPlanResponseToAiTripPlan(
           departureTime: opts.departureTime?.trim() || undefined,
           estimatedCostEur: opts.estimatedCostEur,
           imageUrl: opts.imageUrl,
-          imageUrls: opts.imageUrls,
-          imageSearchQuery: opts.imageSearchQuery,
           tripAdvisorStyleDetails: opts.tripAdvisorStyleDetails,
         });
       };
@@ -260,8 +252,6 @@ export function tripPlanResponseToAiTripPlan(
             departureTime: a.departureTime,
             estimatedCostEur: a.estimatedCostEur,
             imageUrl: a.imageUrl,
-            imageUrls: a.imageUrls,
-            imageSearchQuery: a.imageSearchQuery,
             tripAdvisorStyleDetails:
               a.tripAdvisorStyleDetails ?? poiGuideByName.get(a.title.trim().toLowerCase()),
           });
@@ -276,8 +266,6 @@ export function tripPlanResponseToAiTripPlan(
           category: "sightseeing",
           description: poi.description,
           imageUrl: poi.imageUrl,
-          imageUrls: poi.imageUrls,
-          imageSearchQuery: poi.imageSearchQuery,
           tripAdvisorStyleDetails: poi.tripAdvisorStyleDetails,
         });
       }
@@ -338,7 +326,7 @@ export function tripPlanResponseToAiTripPlan(
         lng,
         focusName: mapPins[0]?.name ?? day.activities?.[0]?.title ?? day.title,
         city,
-        imageUrl: phase.imageUrl,
+        imageUrl: undefined,
         category: "activity",
         mapPins: mapPins.length > 0 ? mapPins : undefined,
       });

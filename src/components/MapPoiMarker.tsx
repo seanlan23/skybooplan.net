@@ -49,12 +49,16 @@ type MarkerShellProps = {
 function MarkerShell({ isActive = false, name, children }: MarkerShellProps) {
   return (
     <div
-      className={`flex cursor-pointer items-center justify-center transition-transform duration-300 ease-out ${
-        isActive ? "z-[6] scale-110" : "opacity-90 hover:opacity-100"
-      }`}
+      className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center"
       title={name}
     >
-      {children}
+      <div
+        className={`transition-transform duration-300 ease-out ${
+          isActive ? "z-[6] scale-110" : "opacity-90 hover:opacity-100"
+        }`}
+      >
+        {children}
+      </div>
     </div>
   );
 }
@@ -130,7 +134,7 @@ export function MapCityMarker({
   const hasPhoto = Boolean(imageUrl?.trim()) && !photoFailed;
 
   return (
-    <div className="relative">
+    <div className="relative h-10 w-10 shrink-0">
       {hasPhoto && imageUrl ? (
         <img
           src={imageUrl}
@@ -138,11 +142,11 @@ export function MapCityMarker({
           loading="lazy"
           decoding="async"
           onError={() => setPhotoFailed(true)}
-          className={`${MARKER_IMG_CLASS}${isActive ? " scale-110 ring-2 ring-sky-400/50 ring-offset-1" : ""}`}
+          className={`${MARKER_IMG_CLASS}${isActive ? " ring-2 ring-sky-400/50 ring-offset-1" : ""}`}
         />
       ) : (
         <div
-          className={`${MARKER_ICON_SHELL_CLASS}${isActive ? " scale-110 ring-2 ring-sky-400/40 ring-offset-1 bg-white/90" : ""}`}
+          className={`${MARKER_ICON_SHELL_CLASS}${isActive ? " ring-2 ring-sky-400/40 ring-offset-1 bg-white/90" : ""}`}
           title={city}
         >
           <MapPin className="pointer-events-none h-[18px] w-[18px] text-slate-500" strokeWidth={2} aria-hidden />
@@ -166,15 +170,3 @@ export function MapOriginMarker() {
   );
 }
 
-export function resolveMarkerImageUrl(opts: {
-  imageUrl?: string;
-  imageUrls?: string[];
-  photoUrl?: string;
-}): string | undefined {
-  const candidates = [opts.imageUrl, opts.photoUrl, ...(opts.imageUrls ?? [])];
-  for (const url of candidates) {
-    const trimmed = url?.trim();
-    if (trimmed && /^https?:\/\//i.test(trimmed)) return trimmed;
-  }
-  return undefined;
-}
