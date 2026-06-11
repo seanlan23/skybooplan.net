@@ -1,7 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { rankAirportSuggestions } from "@/lib/airportRank";
+import { checkPlacesSearchRateLimit, extractIp } from "@/lib/quota.server";
 
 export type PlaceSuggestion = {
   iata: string;
@@ -36,9 +37,14 @@ type MapboxFeature = {
 };
 
 export const searchPlaces = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => QuerySchema.parse(data))
   .handler(async ({ data }): Promise<{ suggestions: PlaceSuggestion[]; error: string | null }> => {
+    const request = getRequest();
+    const ip = extractIp(request?.headers ?? new Headers());
+    if (!checkPlacesSearchRateLimit(ip).allowed) {
+      return { suggestions: [], error: "error.placesRateLimit" };
+    }
+
     if (data.kind === "place") {
       const token = process.env.MAPBOX_PUBLIC_TOKEN;
       if (!token) return { suggestions: [], error: "MAPBOX_PUBLIC_TOKEN ni nastavljen" };

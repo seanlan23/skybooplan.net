@@ -22,6 +22,26 @@ export function extractIp(headers: Headers): string {
   );
 }
 
+const PLACES_SEARCH_WINDOW_MS = 60_000;
+const PLACES_SEARCH_MAX_PER_WINDOW = 40;
+const placesSearchHits = new Map<string, { count: number; resetAt: number }>();
+
+/** Sliding-window limit for public autocomplete / geocoding (per hashed IP). */
+export function checkPlacesSearchRateLimit(ip: string): { allowed: boolean } {
+  const now = Date.now();
+  const key = `places:${hashIp(ip)}`;
+  let bucket = placesSearchHits.get(key);
+  if (!bucket || now >= bucket.resetAt) {
+    bucket = { count: 0, resetAt: now + PLACES_SEARCH_WINDOW_MS };
+    placesSearchHits.set(key, bucket);
+  }
+  if (bucket.count >= PLACES_SEARCH_MAX_PER_WINDOW) {
+    return { allowed: false };
+  }
+  bucket.count += 1;
+  return { allowed: true };
+}
+
 /** Returns { allowed, plansUsed }. Anonymous users get exactly 1 free plan. */
 export async function checkAnonQuota(ip: string): Promise<{ allowed: boolean; plansUsed: number }> {
   const ipHash = hashIp(ip);
