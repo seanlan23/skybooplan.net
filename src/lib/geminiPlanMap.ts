@@ -105,6 +105,7 @@ function toActivity(
     category?: string;
     coordinates?: { lat: number; lng: number };
     imageUrl?: string;
+    unsplashQuery?: string;
     tripAdvisorStyleDetails?: TripAdvisorStyleDetails;
   },
   poiGuideByName?: Map<string, TripAdvisorStyleDetails>,
@@ -128,6 +129,7 @@ function toActivity(
     lat: act.coordinates?.lat,
     lng: act.coordinates?.lng,
     imageUrl: act.imageUrl,
+    unsplashQuery: act.unsplashQuery?.trim() || undefined,
     tripAdvisorStyleDetails: guide,
   };
 }
@@ -220,6 +222,7 @@ export function tripPlanResponseToAiTripPlan(
         departureTime?: string;
         estimatedCostEur?: number;
         imageUrl?: string;
+        unsplashQuery?: string;
         tripAdvisorStyleDetails?: TripAdvisorStyleDetails;
       }) => {
         if (!isValidCoord(opts.lat, opts.lng)) return;
@@ -236,9 +239,14 @@ export function tripPlanResponseToAiTripPlan(
           departureTime: opts.departureTime?.trim() || undefined,
           estimatedCostEur: opts.estimatedCostEur,
           imageUrl: opts.imageUrl,
+          unsplashQuery: opts.unsplashQuery,
           tripAdvisorStyleDetails: opts.tripAdvisorStyleDetails,
         });
       };
+
+      const poiUnsplashByName = new Map(
+        (phase.pois ?? []).map((p) => [p.name.trim().toLowerCase(), p.unsplashQuery?.trim()]),
+      );
 
       for (const a of day.activities ?? []) {
         if (a.coordinates && isValidCoord(a.coordinates.lat, a.coordinates.lng)) {
@@ -252,6 +260,9 @@ export function tripPlanResponseToAiTripPlan(
             departureTime: a.departureTime,
             estimatedCostEur: a.estimatedCostEur,
             imageUrl: a.imageUrl,
+            unsplashQuery:
+              a.unsplashQuery?.trim() ||
+              poiUnsplashByName.get(a.title.trim().toLowerCase()),
             tripAdvisorStyleDetails:
               a.tripAdvisorStyleDetails ?? poiGuideByName.get(a.title.trim().toLowerCase()),
           });
@@ -266,6 +277,7 @@ export function tripPlanResponseToAiTripPlan(
           category: "sightseeing",
           description: poi.description,
           imageUrl: poi.imageUrl,
+          unsplashQuery: poi.unsplashQuery?.trim(),
           tripAdvisorStyleDetails: poi.tripAdvisorStyleDetails,
         });
       }
@@ -326,6 +338,7 @@ export function tripPlanResponseToAiTripPlan(
         lng,
         focusName: mapPins[0]?.name ?? day.activities?.[0]?.title ?? day.title,
         city,
+        unsplashQuery: phase.unsplashQuery?.trim(),
         imageUrl: undefined,
         category: "activity",
         mapPins: mapPins.length > 0 ? mapPins : undefined,

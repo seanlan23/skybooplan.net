@@ -167,7 +167,8 @@ ${flightReturnLine}
 - Za dni z notranjim letom, trajektom, kombijem ali vlakom obvezno izpolni transportation[] (type: flight|ferry|train|van, from, to, duration, estimatedPrice v EUR). Za otok z letališčem na celini (npr. Boracay/MPH) obvezno 3 koraki: let → kombi → trajekt.
 - Vsak dan (days[]) mora imeti dailyBudget (EUR), drivingDistanceKm (km vožnje tistega dne) in drivingDurationHours (npr. "3h 45m").
 - Polje days[].date mora biti vedno v ISO obliki YYYY-MM-DD (npr. "2026-08-14") — ne slovenskega datuma; day_name je lahko "Sobota, 14. avgust".
-- Za vsako fazo (itinerar[]) obvezno generiraj pois[] — vsaj 3–6 znamenitosti z name, description, lat, lng, tripAdvisorStyleDetails (highlights, proTip, bestTimeOfDay, rating, reviewSummary).
+- Za vsako fazo (itinerar[]) obvezno generiraj pois[] — vsaj 3–6 znamenitosti z name, description, lat, lng, unsplashQuery, tripAdvisorStyleDetails (highlights, proTip, bestTimeOfDay, rating, reviewSummary).
+- UNSPLASH ISKANJE SLIK (obvezno): Za vsako fazo (itinerar[]) izpolni unsplashQuery z čistim angleškim izrazom za mesto (npr. "Dubai", ne "Dubaj"). Za vsak POI (pois[]) in vsako aktivnost z ogledom izpolni unsplashQuery z uradnim angleškim imenom znamenitosti (npr. "Burj Khalifa", ne "Burj Kalifa"). Brez slovenskih črk — samo angleščina, kot jo uporablja Unsplash/Google.
 - Vsaka aktivnost z ogledom mora imeti tripAdvisorStyleDetails (razen hotel/airport).
 - Vsak dan mora imeti vsaj 2–4 smiselne aktivnosti z opisi — prazni dnevi niso dovoljeni.
 
@@ -307,7 +308,8 @@ OBVEZNA DNEVNA LOGISTIKA (itinerar[].days[] — za vsak dan):
 
 OBVEZNE ZNAMENITOSTI NA FAZO (itinerar[].pois[]):
 - Za vsako postojanko generiraj pois[] z natančnimi lat/lng — glavne znamenitosti, ki jih bomo obiskali.
-- Vsak POI: name (angleško/uradno ime), description (2–3 privlačne stavke), lat, lng.
+- Vsaka faza MORA imeti unsplashQuery (angleško ime mesta za iskanje slik, npr. "Dubai", "Bangkok").
+- Vsak POI: name (angleško/uradno ime), description (2–3 privlačne stavke), lat, lng, unsplashQuery (angleško ime za Unsplash, npr. "Burj Khalifa", "Grand Palace Bangkok").
 - Vsak POI MORA imeti tripAdvisorStyleDetails (obvezno, brez izjeme):
   • highlights: 3–5 kratkih točk (max 12 besed na točko) — kaj je must-see pri tej lokaciji
   • proTip: EN specifičen, praktičen nasvet za TO mesto (npr. "Pridi 30 min pred odprtjem", "Ne fotografiraj proti vzhodu sonca ob poldnevu", "Vstop preko vzhodnega vhoda — krajša vrsta"). Prepovedani generični nasveti!
@@ -317,7 +319,8 @@ OBVEZNE ZNAMENITOSTI NA FAZO (itinerar[].pois[]):
 
 TRIPADVISOR PODATKI ZA AKTIVNOSTI (activities[] — obvezno za oglede):
 - Vsaka aktivnost s category sightseeing, nature, beach, food ali entertainment MORA imeti tripAdvisorStyleDetails (ista struktura kot pri POI).
-- Za category hotel ali airport tripAdvisorStyleDetails izpusti.
+- Vsaka aktivnost z ogledom MORA imeti tudi unsplashQuery (angleško ime znamenitosti za Unsplash).
+- Za category hotel ali airport tripAdvisorStyleDetails in unsplashQuery izpusti.
 
 ${povratekEuBlock}
 

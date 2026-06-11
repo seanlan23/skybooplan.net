@@ -27,6 +27,8 @@ const poiSchema = z.object({
   description: z.string(),
   lat: wgsLat,
   lng: wgsLng,
+  /** Clean English Unsplash search term, e.g. "Burj Khalifa" not "Burj Kalifa". */
+  unsplashQuery: z.string().min(1),
   tripAdvisorStyleDetails: tripAdvisorStyleDetailsSchema,
 });
 
@@ -54,6 +56,8 @@ const activitySchema = z.object({
   /** Estimated cost for this activity in EUR. */
   estimatedCostEur: z.number().min(0).optional(),
   coordinates: coordinatesSchema.optional(),
+  /** English Unsplash search term for this activity (omit for hotel/airport). */
+  unsplashQuery: z.string().min(1).optional(),
   /** Required for sightseeing activities — omit for hotel/airport only. */
   tripAdvisorStyleDetails: tripAdvisorStyleDetailsSchema.optional(),
 });
@@ -100,6 +104,8 @@ export const tripPlanSchema = z.object({
       phase: z.string().min(1),
       /** Official English city name for Booking.com + map (e.g. "Bangkok", "Chiang Mai"). */
       city: z.string().min(1),
+      /** English Unsplash search term for city hero photo, e.g. "Dubai" not "Dubaj". */
+      unsplashQuery: z.string().min(1),
       lat: wgsLat,
       lng: wgsLng,
       /** Must-see sights for this stop with exact coordinates. */

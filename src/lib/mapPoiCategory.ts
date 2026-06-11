@@ -74,4 +74,5 @@ export type MapPoiPin = {
   departureTime?: string;
   estimatedCostEur?: number;
   imageUrl?: string;
+  unsplashQuery?: string;
 };

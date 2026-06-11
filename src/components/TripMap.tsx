@@ -120,7 +120,7 @@ function buildPoiPinsKey(plan: AiTripPlan): string {
   return collectPlanPoiPins(plan)
     .map(
       (p) =>
-        `${p.day}:${p.name}:${p.lat.toFixed(4)}:${p.lng.toFixed(4)}:${p.category}:${p.imageUrl ?? ""}`,
+        `${p.day}:${p.name}:${p.lat.toFixed(4)}:${p.lng.toFixed(4)}:${p.category}:${p.unsplashQuery ?? ""}:${p.imageUrl ?? ""}`,
     )
     .join("|");
 }
@@ -342,6 +342,7 @@ function collectPlanPoiPins(plan: AiTripPlan): MapPoiPin[] {
     departureTime?: string;
     estimatedCostEur?: number;
     imageUrl?: string;
+    unsplashQuery?: string;
   }) => {
     if (!isValidCoord(pin.lat, pin.lng)) return;
     const key = `${pin.lat.toFixed(4)}:${pin.lng.toFixed(4)}:${day}`;
@@ -358,6 +359,7 @@ function collectPlanPoiPins(plan: AiTripPlan): MapPoiPin[] {
       departureTime: pin.departureTime,
       estimatedCostEur: pin.estimatedCostEur,
       imageUrl: normalizeImageUrl(pin.imageUrl),
+      unsplashQuery: pin.unsplashQuery,
     });
   };
 
@@ -380,6 +382,7 @@ function collectPlanPoiPins(plan: AiTripPlan): MapPoiPin[] {
         departureTime: act.departureTime,
         estimatedCostEur: act.estimatedCostEur,
         imageUrl: act.imageUrl,
+        unsplashQuery: act.unsplashQuery,
       });
     }
   }

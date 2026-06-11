@@ -15,7 +15,7 @@ type UnsplashSearchResponse = {
   }>;
 };
 
-/** Search queries in priority order — first hit wins. */
+/** Legacy fallback when Gemini omits unsplashQuery (older plans). */
 export function buildUnsplashSearchQueries(poiName: string, cityName: string): string[] {
   const poi = poiName.trim();
   const city = cityName.trim();
@@ -36,8 +36,13 @@ function pickPhotoUrl(data: UnsplashSearchResponse): string | null {
 
 /** Always request exactly one result from Unsplash. */
 async function searchUnsplashOnce(query: string, accessKey: string): Promise<string | null> {
+  const trimmed = query.trim();
+  if (!trimmed) return null;
+
+  console.log("Unsplash klic za:", trimmed);
+
   const params = new URLSearchParams({
-    query,
+    query: trimmed,
     per_page: "1",
     orientation: "squarish",
   });
@@ -48,54 +53,64 @@ async function searchUnsplashOnce(query: string, accessKey: string): Promise<str
         "Accept-Version": "v1",
       },
       timeoutMs: UNSPLASH_REQUEST_TIMEOUT_MS,
-      label: `unsplash:${query.slice(0, 48)}`,
+      label: `unsplash:${trimmed.slice(0, 48)}`,
     });
     if (!res.ok) {
-      console.warn(`[unsplash] search failed ${res.status} for "${query}"`);
+      console.warn(`[unsplash] search failed ${res.status} for "${trimmed}"`);
+      console.log("Unsplash vrnil URL:", null);
       return null;
     }
     const data = (await res.json()) as UnsplashSearchResponse;
-    return pickPhotoUrl(data);
-  } catch {
+    const url = pickPhotoUrl(data);
+    console.log("Unsplash vrnil URL:", data.results?.[0]?.urls?.small ?? url ?? null);
+    return url;
+  } catch (err) {
+    console.warn(`[unsplash] search error for "${trimmed}":`, err);
+    console.log("Unsplash vrnil URL:", null);
     return null;
   }
 }
 
 /**
- * Fetch exactly one POI photo from Unsplash Search API (per_page=1).
- * All query variants fire in parallel; whole lookup capped at 2s.
+ * Fetch one photo using Gemini's English unsplashQuery (primary path).
  */
-export async function fetchUnsplashPhoto(
-  poiName: string,
-  cityName: string,
-): Promise<string | null> {
+export async function fetchUnsplashByQuery(query: string): Promise<string | null> {
   const accessKey = process.env.UNSPLASH_ACCESS_KEY?.trim();
   if (!accessKey) {
     return null;
   }
 
-  const queries = buildUnsplashSearchQueries(poiName, cityName);
-  if (queries.length === 0) return null;
+  const trimmed = query.trim();
+  if (!trimmed) return null;
 
   try {
     return await withTimeout(
-      (async () => {
-        const results = await Promise.all(
-          queries.map((query) => searchUnsplashOnce(query, accessKey)),
-        );
-        return results.find((url) => url) ?? null;
-      })(),
+      searchUnsplashOnce(trimmed, accessKey),
       UNSPLASH_REQUEST_TIMEOUT_MS,
-      "unsplash-photo",
+      "unsplash-query",
     );
   } catch {
     return null;
   }
 }
 
-/** One hero photo per city/location (city-only search). */
-export async function fetchUnsplashCityPhoto(cityName: string): Promise<string | null> {
-  return fetchUnsplashPhoto("", cityName);
+/**
+ * @deprecated Prefer fetchUnsplashByQuery with Gemini unsplashQuery.
+ * Legacy fallback using Slovenian/local names.
+ */
+export async function fetchUnsplashPhoto(
+  poiName: string,
+  cityName: string,
+): Promise<string | null> {
+  const queries = buildUnsplashSearchQueries(poiName, cityName);
+  const primary = queries[0];
+  if (!primary) return null;
+  return fetchUnsplashByQuery(primary);
+}
+
+/** One hero photo per city/location. */
+export async function fetchUnsplashCityPhoto(cityQuery: string): Promise<string | null> {
+  return fetchUnsplashByQuery(cityQuery);
 }
 
 export function normalizeImageUrl(url?: string): string | undefined {
@@ -110,14 +125,33 @@ function shouldFetchPoiPhoto(category?: string): boolean {
 
 type FetchJob = {
   key: string;
-  poiName: string;
-  city: string;
+  unsplashQuery: string;
   isCity: boolean;
   needsFetch: boolean;
 };
 
 function dayCity(day: AiTripPlan["days"][number]): string {
   return (day.city ?? day.focusName ?? "").trim();
+}
+
+function resolveCityUnsplashQuery(day: AiTripPlan["days"][number]): string {
+  return (
+    day.unsplashQuery?.trim() ||
+    buildUnsplashSearchQueries("", dayCity(day))[0] ||
+    dayCity(day)
+  );
+}
+
+function resolvePoiUnsplashQuery(
+  unsplashQuery: string | undefined,
+  name: string,
+  city: string,
+): string {
+  return (
+    unsplashQuery?.trim() ||
+    buildUnsplashSearchQueries(name, city)[0] ||
+    ""
+  );
 }
 
 function collectFetchJobs(plan: AiTripPlan): Map<string, FetchJob> {
@@ -132,26 +166,29 @@ function collectFetchJobs(plan: AiTripPlan): Map<string, FetchJob> {
       const hasCityPhoto = plan.days.some(
         (d) => dayCity(d) === city && Boolean(d.imageUrl?.trim()),
       );
+      const unsplashQuery = resolveCityUnsplashQuery(day);
       jobs.set(locKey, {
         key: locKey,
-        poiName: "",
-        city,
+        unsplashQuery,
         isCity: true,
-        needsFetch: !hasCityPhoto,
+        needsFetch: !hasCityPhoto && Boolean(unsplashQuery),
       });
     }
 
     for (const pin of day.mapPins ?? []) {
       if (!shouldFetchPoiPhoto(pin.category)) continue;
       const poiKey = `poi:${pin.name.trim().toLowerCase()}|${city.toLowerCase()}`;
+      const unsplashQuery = resolvePoiUnsplashQuery(pin.unsplashQuery, pin.name, city);
       if (!jobs.has(poiKey)) {
         jobs.set(poiKey, {
           key: poiKey,
-          poiName: pin.name,
-          city,
+          unsplashQuery,
           isCity: false,
-          needsFetch: !pin.imageUrl?.trim(),
+          needsFetch: !pin.imageUrl?.trim() && Boolean(unsplashQuery),
         });
+      } else if (pin.imageUrl?.trim()) {
+        const existing = jobs.get(poiKey)!;
+        existing.needsFetch = false;
       }
     }
 
@@ -163,17 +200,18 @@ function collectFetchJobs(plan: AiTripPlan): Map<string, FetchJob> {
         ...(slots.evening ?? []),
       ]) {
         const poiKey = `poi:${act.name.trim().toLowerCase()}|${city.toLowerCase()}`;
+        const unsplashQuery = resolvePoiUnsplashQuery(act.unsplashQuery, act.name, city);
         const existing = jobs.get(poiKey);
         if (existing) {
           if (act.imageUrl?.trim()) existing.needsFetch = false;
+          if (!existing.unsplashQuery && unsplashQuery) existing.unsplashQuery = unsplashQuery;
           continue;
         }
         jobs.set(poiKey, {
           key: poiKey,
-          poiName: act.name,
-          city,
+          unsplashQuery,
           isCity: false,
-          needsFetch: !act.imageUrl?.trim(),
+          needsFetch: !act.imageUrl?.trim() && Boolean(unsplashQuery),
         });
       }
     }
@@ -235,7 +273,7 @@ function applyPhotoCache(plan: AiTripPlan, cache: Map<string, string | null>): v
 
 /**
  * Enrich plan with exactly one imageUrl per city and per POI/activity.
- * All Unsplash jobs run in parallel via Promise.all.
+ * Uses Gemini unsplashQuery (English) for Unsplash Search API.
  */
 export async function enrichPlanPoiPhotos(plan: AiTripPlan): Promise<void> {
   const accessKey = process.env.UNSPLASH_ACCESS_KEY?.trim();
@@ -245,16 +283,19 @@ export async function enrichPlanPoiPhotos(plan: AiTripPlan): Promise<void> {
   }
 
   const pending = [...collectFetchJobs(plan).values()].filter((j) => j.needsFetch);
-  if (pending.length === 0) return;
+  if (pending.length === 0) {
+    console.log("[unsplash] no pending photo jobs");
+    return;
+  }
+
+  console.log(`[unsplash] fetching ${pending.length} photos in parallel`);
 
   const cache = new Map<string, string | null>();
 
   await Promise.all(
     pending.map(async (job) => {
       if (cache.has(job.key)) return;
-      const url = job.isCity
-        ? await fetchUnsplashCityPhoto(job.city)
-        : await fetchUnsplashPhoto(job.poiName, job.city);
+      const url = await fetchUnsplashByQuery(job.unsplashQuery);
       cache.set(job.key, url);
     }),
   );
@@ -269,14 +310,14 @@ export function buildPlanPhotoRequestKey(plan: AiTripPlan): string {
       const city = dayCity(d);
       const pins = (d.mapPins ?? [])
         .filter((p) => shouldFetchPoiPhoto(p.category))
-        .map((p) => `${p.name}:${p.imageUrl ?? ""}`)
+        .map((p) => `${p.name}:${p.unsplashQuery ?? ""}:${p.imageUrl ?? ""}`)
         .join(",");
       const acts = d.activities
         ? [...d.activities.morning, ...d.activities.afternoon, ...d.activities.evening]
-            .map((a) => `${a.name}:${a.imageUrl ?? ""}`)
+            .map((a) => `${a.name}:${a.unsplashQuery ?? ""}:${a.imageUrl ?? ""}`)
             .join(",")
         : "";
-      return `${d.day}:${city}:${d.imageUrl ?? ""}:${pins}:${acts}`;
+      return `${d.day}:${city}:${d.unsplashQuery ?? ""}:${d.imageUrl ?? ""}:${pins}:${acts}`;
     })
     .join("|");
 }

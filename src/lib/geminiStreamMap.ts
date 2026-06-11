@@ -35,6 +35,7 @@ function coercePartialResponse(partial: PartialResponse): TripPlanResponse | nul
             lat: poi.lat,
             lng: poi.lng,
             tripAdvisorStyleDetails: poi.tripAdvisorStyleDetails ?? { ...DEFAULT_POI },
+            unsplashQuery: poi.unsplashQuery?.trim() || poi.name.trim(),
             imageUrl: poi.imageUrl,
           };
         })
@@ -50,6 +51,7 @@ function coercePartialResponse(partial: PartialResponse): TripPlanResponse | nul
                 lat: typeof phase.lat === "number" ? phase.lat : 0,
                 lng: typeof phase.lng === "number" ? phase.lng : 0,
                 tripAdvisorStyleDetails: { ...DEFAULT_POI },
+                unsplashQuery: city,
               },
             ];
 
@@ -81,6 +83,7 @@ function coercePartialResponse(partial: PartialResponse): TripPlanResponse | nul
                     ? { lat: act.coordinates.lat, lng: act.coordinates.lng }
                     : undefined,
                 tripAdvisorStyleDetails: act.tripAdvisorStyleDetails,
+                unsplashQuery: act.unsplashQuery?.trim(),
                 imageUrl: act.imageUrl,
               };
             })
@@ -107,6 +110,7 @@ function coercePartialResponse(partial: PartialResponse): TripPlanResponse | nul
       return {
         phase: phase.phase?.trim() || city,
         city,
+        unsplashQuery: phase.unsplashQuery?.trim() || city,
         lat: typeof phase.lat === "number" ? phase.lat : safePois[0]!.lat,
         lng: typeof phase.lng === "number" ? phase.lng : safePois[0]!.lng,
         pois: safePois,

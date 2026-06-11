@@ -222,6 +222,8 @@ export type Activity = {
   lng?: number;
   /** Google Places photo for this activity (server-enriched). */
   imageUrl?: string;
+  /** English Unsplash search term from Gemini. */
+  unsplashQuery?: string;
   tripAdvisorStyleDetails?: import("@/lib/geminiPro.shared").TripAdvisorStyleDetails;
 };
 
@@ -309,6 +311,8 @@ export type DayPlan = {
   city: string;
   /** Hero photo for map marker (Google Places / Unsplash). */
   imageUrl?: string;
+  /** English Unsplash search term for this city/phase. */
+  unsplashQuery?: string;
   category: DayCategory;
   /** No hotel search while still en route on an international flight. */
   inFlightDay?: boolean;
@@ -323,6 +327,7 @@ export type DayPlan = {
     departureTime?: string;
     estimatedCostEur?: number;
     imageUrl?: string;
+    unsplashQuery?: string;
     tripAdvisorStyleDetails?: import("@/lib/geminiPro.shared").TripAdvisorStyleDetails;
   }>;
 };
