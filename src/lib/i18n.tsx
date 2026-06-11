@@ -344,6 +344,8 @@ const en: Dict = {
   "paywall.dailyTitle": "Daily quota used",
   "paywall.dailyDesc": "Your subscription allows 2 plans per day. Come back tomorrow or upgrade your package.",
   "paywall.unlockPlanCta": "Unlock the full travel plan + discounts for just €3.90",
+  "paywall.giftCodePrompt": "Have a gift code?",
+  "paywall.giftCodeApply": "Apply",
   "plan.teaser":
     "Your AI plan is ready! At the end you'll also find exclusive discounts on eSIM cards and travel insurance to save you money.",
   "common.cancel": "Cancel",
@@ -913,6 +915,8 @@ const dicts: Record<Lang, Dict> = {
     "paywall.dailyTitle": "Dnevna kvota porabljena",
     "paywall.dailyDesc": "Tvoja naročnina omogoča 2 plana na dan. Vrni se jutri ali nadgradi paket.",
     "paywall.unlockPlanCta": "Odkleneš celoten potovalni načrt + popuste za samo 3,90 €",
+    "paywall.giftCodePrompt": "Imaš darilno kodo?",
+    "paywall.giftCodeApply": "Uporabi",
     "plan.teaser":
       "Tvoj AI načrt je pripravljen! Na koncu te čakajo tudi ekskluzivni popusti za eSIM kartice in zavarovanje, ki ti bodo prihranili denar.",
     "common.cancel": "Prekliči",

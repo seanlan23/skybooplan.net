@@ -10,8 +10,14 @@ import { DayScrollDebug } from "@/components/DayScrollDebug";
 import { AiPlanLoader } from "@/components/AiPlanLoader";
 import { resolveErrorMessage, useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
-import { PAYWALL_LOCKED_FROM_INDEX, PAYWALL_FREE_DAYS, withPlanTeaser } from "@/lib/planTeaser";
+import {
+  PAYWALL_LOCKED_FROM_INDEX,
+  PAYWALL_FREE_DAYS,
+  isPromoUnlockCode,
+  withPlanTeaser,
+} from "@/lib/planTeaser";
 import { Lock } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { parseLocalDate } from "@/lib/dateUtils";
 import type { StayInfo } from "@/components/HotelsSection";
 import { PlannerChoicesSummary } from "@/components/PlannerChoicesSummary";
@@ -21,6 +27,57 @@ import { TransportDashboard } from "@/components/TransportDashboard";
 import type { AiPlannerSubmit } from "@/components/AiPlannerPreview";
 
 export type { StayInfo };
+
+function PaywallUnlockSection({
+  onUnlockClick,
+  onPromoUnlock,
+}: {
+  onUnlockClick?: () => void;
+  onPromoUnlock: () => void;
+}) {
+  const { t } = useI18n();
+  const [giftCode, setGiftCode] = useState("");
+
+  const handleApplyCode = () => {
+    if (isPromoUnlockCode(giftCode)) {
+      onPromoUnlock();
+      setGiftCode("");
+    }
+  };
+
+  return (
+    <div className="mb-4 flex flex-col items-center gap-3">
+      <button
+        type="button"
+        onClick={onUnlockClick}
+        className="inline-flex max-w-lg items-center gap-2.5 rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-600 to-violet-600 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-indigo-200/50 transition-all hover:-translate-y-0.5 hover:shadow-xl hover:shadow-indigo-300/40"
+      >
+        <Lock className="h-4 w-4 shrink-0" aria-hidden />
+        {t("paywall.unlockPlanCta")}
+      </button>
+      <div className="flex w-full max-w-sm items-center gap-2">
+        <Input
+          type="text"
+          value={giftCode}
+          onChange={(e) => setGiftCode(e.target.value)}
+          placeholder={t("paywall.giftCodePrompt")}
+          aria-label={t("paywall.giftCodePrompt")}
+          className="h-9 flex-1 border-slate-200 bg-slate-50/80 text-sm text-slate-600 placeholder:text-slate-400 shadow-none"
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleApplyCode();
+          }}
+        />
+        <button
+          type="button"
+          onClick={handleApplyCode}
+          className="shrink-0 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
+        >
+          {t("paywall.giftCodeApply")}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export function AiPlanView({
   loading,
@@ -63,6 +120,7 @@ export function AiPlanView({
   const [poiModalOpen, setPoiModalOpen] = useState(false);
   const [scrollSpyPaused, setScrollSpyPaused] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [promoUnlocked, setPromoUnlocked] = useState(false);
   const isClickNavigatingRef = useRef(false);
   const isPlayingRef = useRef(false);
   isPlayingRef.current = isPlaying;
@@ -309,8 +367,9 @@ export function AiPlanView({
   const mapHint = t("aiplan.mapHint" as never);
   const mapPlayLabel = t("aiplan.mapPlay" as never);
   const mapStopLabel = t("aiplan.mapStop" as never);
+  const planUnlocked = isUnlocked || promoUnlocked;
   const shouldPaywallDays =
-    !isUnlocked && (plan?.days.length ?? 0) > PAYWALL_FREE_DAYS;
+    !planUnlocked && (plan?.days.length ?? 0) > PAYWALL_FREE_DAYS;
   const displaySummary = plan ? withPlanTeaser(plan.summary, lang) : "";
 
   return (
@@ -436,16 +495,10 @@ export function AiPlanView({
             return (
               <div key={d.day} className="relative">
                 {showUnlockOverlay && (
-                  <div className="mb-4 flex justify-center">
-                    <button
-                      type="button"
-                      onClick={onUnlockClick}
-                      className="inline-flex max-w-lg items-center gap-2.5 rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-600 to-violet-600 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-indigo-200/50 transition-all hover:-translate-y-0.5 hover:shadow-xl hover:shadow-indigo-300/40"
-                    >
-                      <Lock className="h-4 w-4 shrink-0" aria-hidden />
-                      {t("paywall.unlockPlanCta")}
-                    </button>
-                  </div>
+                  <PaywallUnlockSection
+                    onUnlockClick={onUnlockClick}
+                    onPromoUnlock={() => setPromoUnlocked(true)}
+                  />
                 )}
                 <div
                   className={cn(
@@ -489,16 +542,10 @@ export function AiPlanView({
             return (
               <div key={`pending-${dayNum}`} className="relative">
                 {showUnlockOverlayPending && (
-                  <div className="mb-4 flex justify-center">
-                    <button
-                      type="button"
-                      onClick={onUnlockClick}
-                      className="inline-flex max-w-lg items-center gap-2.5 rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-600 to-violet-600 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-indigo-200/50 transition-all hover:-translate-y-0.5 hover:shadow-xl hover:shadow-indigo-300/40"
-                    >
-                      <Lock className="h-4 w-4 shrink-0" aria-hidden />
-                      {t("paywall.unlockPlanCta")}
-                    </button>
-                  </div>
+                  <PaywallUnlockSection
+                    onUnlockClick={onUnlockClick}
+                    onPromoUnlock={() => setPromoUnlocked(true)}
+                  />
                 )}
                 <div className={cn(isLockedPending && "blur-md pointer-events-none select-none")}>
                   <StreamingDayPlaceholder dayNumber={dayNum} isGenerating={i === 0} />
@@ -506,7 +553,7 @@ export function AiPlanView({
               </div>
             );
           })}
-          {!streaming && isUnlocked && <ReturnHomeCard plan={plan} />}
+          {!streaming && planUnlocked && <ReturnHomeCard plan={plan} />}
         </div>
 
         {hasCoords && (
