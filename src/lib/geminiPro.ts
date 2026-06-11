@@ -176,6 +176,9 @@ Opisi aktivnosti morajo biti izjemno podrobni, zanimivi in dolgi vsaj 3–4 stav
 ${lastDayBlock}${flightReturnClosing}`;
 }
 
+/** Fast, cost-efficient model for structured trip-plan JSON. */
+export const GEMINI_TRIP_PLAN_MODEL = "gemini-3.5-flash";
+
 /** Enough headroom for multi-day catalog JSON — prevents truncated streams. */
 export const GEMINI_TRIP_PLAN_MAX_OUTPUT_TOKENS = 8192;
 
@@ -355,7 +358,7 @@ PRILAGODITEV POTNIKOM IN PRORAČUNU (obvezno):
 export function createTripPlanStream(params: GenerateTripPlanParams) {
   pipelineLog("gemini:streamObject START");
   return streamObject({
-    model: google("gemini-pro-latest"),
+    model: google(GEMINI_TRIP_PLAN_MODEL),
     system: tripPlanSystemPrompt(params),
     prompt: buildTripPlanPrompt(params),
     schema: tripPlanSchema,
@@ -370,7 +373,7 @@ export async function generateTripPlan(params: GenerateTripPlanParams): Promise<
 
     const result = await withTimeout(
       generateObject({
-        model: google("gemini-pro-latest"),
+        model: google(GEMINI_TRIP_PLAN_MODEL),
         system: tripPlanSystemPrompt(params),
         prompt: buildTripPlanPrompt(params),
         schema: tripPlanSchema,
