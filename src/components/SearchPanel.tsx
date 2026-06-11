@@ -28,6 +28,7 @@ export type SearchValues = {
   /** Total travellers (adults + children) — kept for backward compatibility */
   pax: number;
   language?: string;
+  currency?: "EUR" | "USD";
   /** Free-text destination for Stays-only search */
   destination?: string;
   /** AI planner — origin/destination places and ground transport mode */
@@ -53,7 +54,7 @@ export function SearchPanel({
   loading?: boolean;
   initialValues?: SearchValues | null;
 }) {
-  const { t, lang } = useI18n();
+  const { t, lang, currency } = useI18n();
   const [tab, setTab] = useState<Tab>("flights");
   const [tripType, setTripType] = useState<"Return" | "One-way" | "Multi-city">("Return");
   const [tripTypeOpen, setTripTypeOpen] = useState(false);
@@ -164,6 +165,7 @@ export function SearchPanel({
       slices,
       pax,
       language: lang,
+      currency,
       destination: isStays ? destination : undefined,
       originPlace: tab === "ai" ? originPlace : undefined,
       destinationPlace: tab === "ai" ? destinationPlace : undefined,
@@ -440,7 +442,7 @@ function TransportModeField({
   open?: boolean;
   onOpenChange?: (o: boolean) => void;
 }) {
-  const { t, lang } = useI18n();
+  const { t, lang, currency } = useI18n();
   const current = TRANSPORT_MODE_OPTIONS.find((o) => o.key === value) ?? TRANSPORT_MODE_OPTIONS[0]!;
   const Icon = current.icon;
 
@@ -926,7 +928,7 @@ function FlightsTravellersField({
   open?: boolean;
   onOpenChange?: (o: boolean) => void;
 }) {
-  const { t, lang } = useI18n();
+  const { t, lang, currency } = useI18n();
 
   function setChildCount(n: number) {
     const clamped = Math.max(0, Math.min(8, n));

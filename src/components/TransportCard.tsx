@@ -1,6 +1,7 @@
 import { ArrowRight, Bus, Plane, Ship, TrainFront } from "lucide-react";
 import type { DayTransportLeg } from "@/lib/aiPlan.functions";
 import { NavigateButton } from "@/components/NavigateButton";
+import { useI18n } from "@/lib/i18n";
 import { isValidNavCoord } from "@/lib/navigationService";
 
 const TYPE_META: Record<
@@ -42,6 +43,7 @@ function TransportLegCard({
   navLat?: number;
   navLng?: number;
 }) {
+  const { formatMoney } = useI18n();
   const meta = TYPE_META[leg.type];
   const Icon = meta.icon;
   const canNavigate = isValidNavCoord(navLat, navLng);
@@ -68,7 +70,7 @@ function TransportLegCard({
             <span className="text-slate-300" aria-hidden="true">
               ·
             </span>
-            <span className="font-bold text-slate-900">cca. €{Math.round(leg.estimatedPrice)}</span>
+            <span className="font-bold text-slate-900">cca. {formatMoney(Math.round(leg.estimatedPrice))}</span>
           </div>
           {canNavigate && (
             <div className="mt-3">

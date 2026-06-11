@@ -3,6 +3,7 @@
  * Phase 1: Thailand (BKK hub routes).
  */
 
+import { formatPlanMoneyRange, type PlanCurrency } from "@/lib/planCurrency";
 import { lookupDestination } from "@/lib/destinationCoords";
 import { resolveInterestBlueprint } from "@/lib/interestAnchors";
 import type { PlannerInterestKey } from "@/lib/plannerInterests";
@@ -457,11 +458,15 @@ export function formatDuration(min: number, lang: string): string {
   return slo ? `${min} min` : `${min} min`;
 }
 
-export function formatPriceRange(min: number, max: number, lang: string): string {
+export function formatPriceRange(
+  min: number,
+  max: number,
+  lang: string,
+  currency: PlanCurrency = "EUR",
+): string {
   const slo = lang === "sl" || lang.startsWith("sl");
   if (min === 0 && max === 0) return slo ? "brezplačno" : "free";
-  if (min === max) return `€${min}`;
-  return `€${min}–${max}`;
+  return formatPlanMoneyRange(min, max, currency);
 }
 
 export type CatalogBudgetEstimate = {

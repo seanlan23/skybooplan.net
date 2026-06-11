@@ -13,19 +13,10 @@ export type Language = {
 export const LANGUAGES: Language[] = [
   { code: "sl", label: "Slovenščina", native: "Slovenščina", flag: "🇸🇮" },
   { code: "en", label: "English", native: "English", flag: "🇬🇧" },
-  { code: "zh", label: "Mandarin Chinese", native: "中文", flag: "🇨🇳" },
-  { code: "hi", label: "Hindi", native: "हिन्दी", flag: "🇮🇳" },
   { code: "es", label: "Spanish", native: "Español", flag: "🇪🇸" },
   { code: "fr", label: "French", native: "Français", flag: "🇫🇷" },
-  { code: "ar", label: "Arabic", native: "العربية", flag: "🇸🇦" },
-  { code: "bn", label: "Bengali", native: "বাংলা", flag: "🇧🇩" },
-  { code: "pt", label: "Portuguese", native: "Português", flag: "🇵🇹" },
-  { code: "ru", label: "Russian", native: "Русский", flag: "🇷🇺" },
-  { code: "ja", label: "Japanese", native: "日本語", flag: "🇯🇵" },
-  { code: "de", label: "German", native: "Deutsch", flag: "🇩🇪" },
-  { code: "ko", label: "Korean", native: "한국어", flag: "🇰🇷" },
   { code: "it", label: "Italian", native: "Italiano", flag: "🇮🇹" },
-  { code: "vi", label: "Vietnamese", native: "Tiếng Việt", flag: "🇻🇳" },
+  { code: "de", label: "German", native: "Deutsch", flag: "🇩🇪" },
 ];
 
 export const DEFAULT_LANGUAGE = "sl";

@@ -86,10 +86,12 @@ function ProfilePage() {
             <div className="grid grid-cols-2 gap-4">
               <Row label="Language">
                 <select value={language} onChange={(e) => setLanguage(e.target.value)} className={inputClass}>
-                  <option value="en">English</option>
                   <option value="sl">Slovenščina</option>
-                  <option value="de">Deutsch</option>
+                  <option value="en">English</option>
+                  <option value="es">Español</option>
+                  <option value="fr">Français</option>
                   <option value="it">Italiano</option>
+                  <option value="de">Deutsch</option>
                 </select>
               </Row>
               <Row label="Currency">

@@ -3,6 +3,7 @@ import { Pause, Play } from "lucide-react";
 import { TripMap, type MapFocusTarget } from "@/components/TripMap";
 import type { AiTripPlan } from "@/lib/aiPlan.functions";
 import type { PoiDetailsData } from "@/lib/poiDetails.types";
+import { useI18n } from "@/lib/i18n";
 
 type Props = {
   plan: AiTripPlan;
@@ -39,6 +40,7 @@ export const AiTripMapPanel = memo(function AiTripMapPanel({
   playLabel,
   stopLabel,
 }: Props) {
+  const { t } = useI18n();
   const everHadCoordsRef = useRef(false);
   if (hasCoords) everHadCoordsRef.current = true;
 
@@ -47,7 +49,7 @@ export const AiTripMapPanel = memo(function AiTripMapPanel({
   return (
     <div
       id="ai-trip-map"
-      className="order-1 lg:order-2 lg:sticky lg:top-0 lg:z-20 lg:h-screen lg:max-h-screen lg:self-start lg:flex lg:flex-col min-h-[320px] overflow-hidden"
+      className="order-2 w-full shrink-0 flex flex-col overflow-hidden lg:order-2 lg:sticky lg:top-0 lg:z-20 lg:h-screen lg:max-h-screen lg:self-start"
     >
       <div className="flex items-center justify-center gap-2 px-1 pb-2">
         <button
@@ -70,11 +72,13 @@ export const AiTripMapPanel = memo(function AiTripMapPanel({
         </button>
         {isPlaying && (
           <span className="text-xs text-sky-600 font-medium tabular-nums">
-            Dan {activeDay}/{plan.days.length}
+            {t("aiplan.mapDayProgress" as never)
+              .replace("{current}", String(activeDay))
+              .replace("{total}", String(plan.days.length))}
           </span>
         )}
       </div>
-      <div className="flex-1 min-h-0">
+      <div className="h-[40vh] max-h-[300px] min-h-[260px] w-full lg:h-auto lg:flex-1 lg:min-h-0 lg:max-h-none">
         <TripMap
           plan={plan}
           activeDay={activeDay}

@@ -23,8 +23,8 @@ function normCity(city: string) {
   return city.toLowerCase().trim();
 }
 
-function priceEur(locale: TripLocale, local: string): string {
-  return locale.priceUnit === "EUR" ? locale.mealPrice : local;
+function priceEur(locale: TripLocale, _local: string): string {
+  return locale.mealPrice;
 }
 
 /** Afternoon sights on heavy inbound travel days (after flight/train into a new city). */

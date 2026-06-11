@@ -1,10 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { getToken } from "@auth/core/jwt";
-import { authConfig } from "@/lib/auth.config";
-import { ensureAuthEnv } from "@/lib/auth.env";
-
-ensureAuthEnv();
+import { createAuthConfig } from "@/lib/auth.config";
 
 /** Read the Google id_token from the Auth.js session cookie (server-only). */
 export const fetchGoogleIdToken = createServerFn({ method: "GET" }).handler(async () => {
@@ -13,7 +10,7 @@ export const fetchGoogleIdToken = createServerFn({ method: "GET" }).handler(asyn
 
   const token = await getToken({
     req: request,
-    secret: authConfig.secret,
+    secret: createAuthConfig().secret,
     secureCookie,
   });
 

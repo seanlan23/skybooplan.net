@@ -33,14 +33,22 @@ import {
   isRouteDrawingReady,
 } from "@/lib/tripMapRouteState";
 
-export type MapFocusTarget = {
+export type ActivityMapFocus = {
   lat: number;
   lng: number;
   day: number;
+  poiName?: string;
+};
+
+export type MapFocusTarget = ActivityMapFocus & {
   mode: "drone" | "day";
   /** Bumps on each click so repeated clicks re-trigger fly. */
   key: number;
 };
+
+export function poiFocusKey(name: string, lat: number, lng: number): string {
+  return `${name.trim().toLowerCase()}@${lat.toFixed(5)},${lng.toFixed(5)}`;
+}
 
 type Props = {
   plan: AiTripPlan;
@@ -146,7 +154,7 @@ function buildRouteDataKey(segments: TripRouteSegment[]): string {
 
 function focusTargetSignature(target?: MapFocusTarget | null): string {
   if (!target) return "";
-  return `${target.mode}:${target.day}:${target.lat}:${target.lng}:${target.key}`;
+  return `${target.mode}:${target.day}:${target.lat}:${target.lng}:${target.poiName ?? ""}:${target.key}`;
 }
 
 function tripMapPropsAreEqual(prev: Props, next: Props): boolean {
@@ -316,19 +324,23 @@ function createOriginMarkerElement(label: string): { el: HTMLDivElement; root: R
   return { el: wrap, root };
 }
 
-const POI_PHOTO_MARKER_CLASS =
-  "h-10 w-10 rounded-full border-2 border-white bg-cover bg-center bg-no-repeat shadow-md transition-transform duration-300 ease-out hover:scale-125";
+const POI_PHOTO_MARKER_BASE =
+  "w-10 h-10 rounded-full border-2 border-white shadow-md bg-cover bg-center bg-no-repeat transition-transform duration-300 ease-out";
 
-function poiPhotoMarkerClass(isActive: boolean): string {
-  return `${POI_PHOTO_MARKER_CLASS}${
-    isActive ? " ring-2 ring-sky-400/50 ring-offset-1 scale-110 z-[6]" : " opacity-90"
+function poiPhotoMarkerClass(isDayActive: boolean, isFocused: boolean): string {
+  if (isFocused) {
+    return `${POI_PHOTO_MARKER_BASE} scale-125 border-amber-500 animate-pulse z-[10]`;
+  }
+  return `${POI_PHOTO_MARKER_BASE}${
+    isDayActive ? " ring-2 ring-sky-400/50 ring-offset-1 scale-110 z-[6]" : " opacity-90 hover:scale-110"
   }`;
 }
 
 /** Plain DOM marker — rounded-full div with Unsplash backgroundImage for Mapbox. */
 function createPoiMarkerElement(
   pin: MapPoiPin,
-  isActive: boolean,
+  isDayActive: boolean,
+  isFocused: boolean,
 ): { el: HTMLDivElement; root: Root | null; photoEl?: HTMLDivElement } {
   const el = document.createElement("div");
   el.className =
@@ -338,7 +350,7 @@ function createPoiMarkerElement(
   const imageUrl = pin.imageUrl?.trim();
   if (imageUrl) {
     const photo = document.createElement("div");
-    photo.className = poiPhotoMarkerClass(isActive);
+    photo.className = poiPhotoMarkerClass(isDayActive, isFocused);
     photo.style.backgroundImage = `url("${imageUrl.replace(/"/g, "%22")}")`;
     photo.setAttribute("role", "img");
     photo.setAttribute("aria-label", pin.name);
@@ -348,7 +360,7 @@ function createPoiMarkerElement(
     probe.onerror = () => {
       const visual = mapPoiVisual(pin.category);
       photo.style.backgroundImage = "";
-      photo.className = `${poiPhotoMarkerClass(isActive)} flex items-center justify-center text-base leading-none`;
+      photo.className = `${poiPhotoMarkerClass(isDayActive, isFocused)} flex items-center justify-center text-base leading-none`;
       photo.style.backgroundColor = visual.bg;
       photo.textContent = visual.emoji;
     };
@@ -361,7 +373,7 @@ function createPoiMarkerElement(
   el.appendChild(iconHost);
   const root = createRoot(iconHost);
   root.render(
-    <MapPoiMarker category={pin.category} isActive={isActive} name={pin.name} />,
+    <MapPoiMarker category={pin.category} isActive={isDayActive || isFocused} name={pin.name} />,
   );
   return { el, root };
 }
@@ -714,12 +726,8 @@ function ensureRouteLayer(
 function flyToPoiDrone(map: mapboxgl.Map, center: [number, number]) {
   map.flyTo({
     center,
-    zoom: 13,
-    pitch: 45,
-    bearing: -15,
-    duration: 2500,
-    speed: 0.85,
-    curve: 1.25,
+    zoom: 15,
+    duration: 1800,
     essential: true,
     padding: { top: 48, bottom: 48, left: 48, right: 48 },
   });
@@ -825,13 +833,15 @@ function TripMapInner({
   expectedDayCount = 0,
   isPlaying = false,
 }: Props) {
-  const { t } = useI18n();
+  const { t, formatMoney } = useI18n();
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const onOpenPoiDetailsRef = useRef(onOpenPoiDetails);
   onOpenPoiDetailsRef.current = onOpenPoiDetails;
   const activeDayRef = useRef(activeDay);
   activeDayRef.current = activeDay;
+  const focusTargetRef = useRef(focusTarget);
+  focusTargetRef.current = focusTarget;
   const appliedStyleRef = useRef<string | null>(null);
   const [isSatellite, setIsSatellite] = useState(false);
   const [mapStyleEpoch, setMapStyleEpoch] = useState(0);
@@ -1283,9 +1293,19 @@ function TripMapInner({
       clearPoiMarkerLayer(poiMarkersRef);
       if (poiPins.length === 0) return;
 
+      const focusedKey =
+        focusTargetRef.current?.mode === "drone" && focusTargetRef.current.poiName
+          ? poiFocusKey(
+              focusTargetRef.current.poiName,
+              focusTargetRef.current.lat,
+              focusTargetRef.current.lng,
+            )
+          : null;
+
       for (const pin of poiPins) {
-        const isActive = pin.day === activeDayRef.current;
-        const { el, root, photoEl } = createPoiMarkerElement(pin, isActive);
+        const isDayActive = pin.day === activeDayRef.current;
+        const isFocused = focusedKey === poiFocusKey(pin.name, pin.lat, pin.lng);
+        const { el, root, photoEl } = createPoiMarkerElement(pin, isDayActive, isFocused);
         const lngLat: [number, number] = [pin.lng, pin.lat];
         const marker = new mapboxgl.Marker(el)
           .setLngLat(lngLat)
@@ -1298,7 +1318,7 @@ function TripMapInner({
             : pin.arrivalTime ?? pin.departureTime;
         const cost =
           pin.estimatedCostEur != null && pin.estimatedCostEur >= 0
-            ? `€${pin.estimatedCostEur}`
+            ? formatMoney(pin.estimatedCostEur)
             : undefined;
 
         const poiDetails: PoiDetailsData | null = dayPlan
@@ -1352,24 +1372,37 @@ function TripMapInner({
       map.off("load", onReady);
       clearPoiMarkerLayer(poiMarkersRef);
     };
-  }, [poiPinsKey, mapStyleEpoch]);
+  }, [poiPinsKey, mapStyleEpoch, focusTarget]);
 
   // Highlight active POI markers without rebuilding the whole layer.
   useEffect(() => {
+    const focusedKey =
+      focusTarget?.mode === "drone" && focusTarget.poiName
+        ? poiFocusKey(focusTarget.poiName, focusTarget.lat, focusTarget.lng)
+        : null;
+
     for (const { root, pin, day, photoEl } of poiMarkersRef.current) {
-      const isActive = day === activeDay;
+      const isDayActive = day === activeDay;
+      const isFocused = focusedKey === poiFocusKey(pin.name, pin.lat, pin.lng);
       if (photoEl) {
         const hasEmojiFallback = Boolean(photoEl.textContent?.trim());
         photoEl.className = hasEmojiFallback
-          ? `${poiPhotoMarkerClass(isActive)} flex items-center justify-center text-base leading-none`
-          : poiPhotoMarkerClass(isActive);
+          ? `${poiPhotoMarkerClass(isDayActive, isFocused)} flex items-center justify-center text-base leading-none`
+          : poiPhotoMarkerClass(isDayActive, isFocused);
+        if (hasEmojiFallback && isFocused) {
+          photoEl.style.backgroundColor = mapPoiVisual(pin.category).bg;
+        }
       } else if (root) {
         root.render(
-          <MapPoiMarker category={pin.category} isActive={isActive} name={pin.name} />,
+          <MapPoiMarker
+            category={pin.category}
+            isActive={isDayActive || isFocused}
+            name={pin.name}
+          />,
         );
       }
     }
-  }, [activeDay]);
+  }, [activeDay, focusTarget]);
 
   // Realistic multi-modal route layers (driving / flight / ferry / transit).
   useEffect(() => {
@@ -1473,7 +1506,10 @@ function TripMapInner({
         const dayPlan = plan.days.find((d) => d.day === stop.startDay);
         const budget =
           dayPlan && typeof dayPlan.dailyBudgetEur === "number" && dayPlan.dailyBudgetEur > 0
-            ? t("map.budgetPerDay").replace("{n}", String(Math.round(dayPlan.dailyBudgetEur)))
+            ? t("map.budgetPerDay").replace(
+                "{amount}",
+                formatMoney(Math.round(dayPlan.dailyBudgetEur)),
+              )
             : undefined;
         const timeParts = [
           dayPlan?.drivingDurationHours,
@@ -1588,8 +1624,8 @@ function TripMapInner({
   }
 
   return (
-    <div className="relative h-full min-h-[280px] rounded-2xl overflow-hidden border border-border bg-card shadow-sm">
-      <div ref={containerRef} className="h-full w-full min-h-[280px] lg:min-h-0" />
+    <div className="relative h-full min-h-0 rounded-xl sm:rounded-2xl overflow-hidden border border-border bg-card shadow-sm">
+      <div ref={containerRef} className="h-full w-full min-h-0" />
       <div className="absolute top-3 left-3 z-10 flex flex-col gap-2">
         <button
           type="button"

@@ -21,6 +21,13 @@ import {
 } from "@/lib/tripMode";
 import { groundTransportPromptBlock, lastDayReturnPromptBlock } from "@/lib/groundTransport";
 import { planTeaserText } from "@/lib/planTeaser";
+import { STRICT_LLM_LANGUAGE_RULE } from "@/lib/planLanguages";
+import {
+  currencyWritingRule,
+  normalizePlanCurrency,
+  STRICT_LLM_CURRENCY_RULE,
+  type PlanCurrency,
+} from "@/lib/planCurrency";
 import { languageWritingRule } from "@/lib/tripLocale";
 import type { Lang } from "@/lib/i18n";
 
@@ -234,12 +241,21 @@ export function tripPlanSystemPrompt(params: GenerateTripPlanParams): string {
     : "razen zadnjega logističnega dneva na izhodno letališče";
 
   const lang = (params.language ?? "sl") as Lang;
+  const displayCurrency: PlanCurrency = normalizePlanCurrency(params.currency);
   const writingRule = languageWritingRule(lang);
+  const moneyRule = currencyWritingRule(displayCurrency);
 
   return `Si strokovni potovalni agent za aplikacijo skybooplan. Striktno sledi zahtevani JSON shemi.
 
+${STRICT_LLM_LANGUAGE_RULE}
+
+${STRICT_LLM_CURRENCY_RULE}
+
 JEZIK IZHODA:
 ${writingRule}
+
+VALUTA (displayCurrency = ${displayCurrency}):
+${moneyRule}
 
 ${motorhomeRules}
 
@@ -253,8 +269,8 @@ STROGO PRAVILO — AVTODOM / RV / CAMPERVAN:
 
 HITROST — bogati, privlačni opisi (obvezno):
 - Polje description pri vsaki aktivnosti mora biti izjemno podrobno, zanimivo in dolgo vsaj 3–4 stavke (150–300 besed skupaj na dan).
-- Vsaka aktivnost mora imeti estimatedCostEur z realno cifro v EUR (vstopnine, hrana, gorivo — ne 0, razen res brezplačnih).
-- dailyBudget na vsakem dnevu mora biti realna vsota dnevnih stroškov v EUR — nikoli 0.
+- Vsaka aktivnost mora imeti estimatedCostEur z realno cifro v ${displayCurrency} (vstopnine, hrana, gorivo — ne 0, razen res brezplačnih). Polje se imenuje estimatedCostEur, vrednost pa je v ${displayCurrency}.
+- dailyBudget na vsakem dnevu mora biti realna vsota dnevnih stroškov v ${displayCurrency} — nikoli 0. Prilagodi rang državi (npr. večerja na Šrilanki ≈ 5–15 ${displayCurrency === "USD" ? "$" : "€"}, ne 40).
 ${flightReturnEuRule}
 
 STROGA GEOGRAFSKA NATANČNOST:

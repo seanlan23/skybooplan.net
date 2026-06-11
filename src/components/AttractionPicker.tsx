@@ -11,6 +11,8 @@ import {
   MIN_CATALOG_PICKS,
   type CatalogAttraction,
 } from "@/lib/attractionCatalog";
+import { useI18n } from "@/lib/i18n";
+import { formatPlanMoneyRange } from "@/lib/planCurrency";
 
 type Props = {
   cities: string[];
@@ -38,6 +40,7 @@ export function AttractionPicker({
   pax,
   labels,
 }: Props) {
+  const { currency } = useI18n();
   const grouped = useMemo(() => {
     const items = getCatalogForCities(cities);
     const map = new Map<string, CatalogAttraction[]>();
@@ -151,7 +154,7 @@ export function AttractionPicker({
                             </span>
                             <span className="inline-flex items-center gap-1">
                               <Euro className="h-3 w-3" />
-                              {formatPriceRange(a.priceEurMin, a.priceEurMax, lang)}
+                              {formatPriceRange(a.priceEurMin, a.priceEurMax, lang, currency)}
                             </span>
                           </div>
                         </div>
@@ -178,14 +181,12 @@ export function AttractionPicker({
         <div className="rounded-2xl border border-brand/25 bg-brand-soft/40 px-4 py-3">
           <p className="text-sm font-semibold text-foreground">{labels.budgetLabel}</p>
           <p className="mt-1 text-lg font-bold text-foreground">
-            €{budget.groupMin}
-            {budget.groupMax > budget.groupMin ? `–${budget.groupMax}` : ""}
+            {formatPlanMoneyRange(budget.groupMin, budget.groupMax, currency)}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            {labels.perPerson}: €{budget.perPersonMin}
-            {budget.perPersonMax > budget.perPersonMin ? `–${budget.perPersonMax}` : ""} ·{" "}
-            {labels.group.replace("{n}", String(Math.max(1, pax)))}: €{budget.groupMin}
-            {budget.groupMax > budget.groupMin ? `–${budget.groupMax}` : ""}
+            {labels.perPerson}: {formatPlanMoneyRange(budget.perPersonMin, budget.perPersonMax, currency)} ·{" "}
+            {labels.group.replace("{n}", String(Math.max(1, pax)))}:{" "}
+            {formatPlanMoneyRange(budget.groupMin, budget.groupMax, currency)}
           </p>
           <p className="mt-2 text-[11px] text-muted-foreground">{labels.budgetNote}</p>
         </div>

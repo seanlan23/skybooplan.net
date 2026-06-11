@@ -164,6 +164,8 @@ export type GenerateTripPlanParams = {
   destinationPlace?: string;
   /** UI locale for output language (e.g. sl, en, de). */
   language?: string;
+  /** Display currency for all plan costs (EUR or USD). */
+  currency?: "EUR" | "USD";
 };
 
 export const TRIP_WISH_TAGS = [

@@ -10,8 +10,8 @@ export type BangkokIcon = {
   build: (locale: TripLocale) => Activity;
 };
 
-function price(locale: TripLocale, thb: string): string {
-  return locale.priceUnit === "EUR" ? locale.mealPrice : thb;
+function price(locale: TripLocale, _thb: string): string {
+  return locale.mealPrice;
 }
 
 /** Mandatory Bangkok icons — correct slot only (no midday temple marathon). */

@@ -21,6 +21,7 @@ import { isHotelRestDay, motorhomeCampingHint, resolveTripAccommodation } from "
 import { formatDayCardTitle } from "@/lib/dayPlanUi";
 import { formatStayDateRange } from "@/lib/islandStays";
 import { sanitizeLegacyTemplateLeak } from "@/lib/textSanitize";
+import type { ActivityMapFocus } from "@/components/TripMap";
 import {
   activityToPoiDetails,
   findActivityPin,
@@ -170,7 +171,7 @@ function ActivityItem({
 }: {
   activity: Activity;
   day: DayPlan;
-  onFocus?: (coords: { lat: number; lng: number; day: number }) => void;
+  onFocus?: (coords: ActivityMapFocus) => void;
   onDetails?: (poi: PoiDetailsData) => void;
 }) {
   const { t } = useI18n();
@@ -188,12 +189,14 @@ function ActivityItem({
     Number.isFinite(lng);
 
   const handleFocus = () => {
-    if (hasCoords && onFocus) onFocus({ lat, lng, day: day.day });
+    if (hasCoords && onFocus) {
+      onFocus({ lat, lng, day: day.day, poiName: activity.name });
+    }
   };
 
   return (
     <li
-      className={`rounded-xl border border-slate-100 bg-slate-50/60 px-4 py-4 shadow-sm transition-all ${
+      className={`rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-3 sm:px-4 sm:py-4 shadow-sm transition-all ${
         hasCoords
           ? "cursor-pointer hover:border-sky-200 hover:bg-sky-50/50 hover:shadow-md active:scale-[0.99]"
           : ""
@@ -258,7 +261,7 @@ function ActivityItem({
 }
 
 function DayLogisticsBar({ day, pax }: { day: DayPlan; pax: number }) {
-  const { t } = useI18n();
+  const { t, formatMoney } = useI18n();
   const budget =
     typeof day.dailyBudgetEur === "number" && day.dailyBudgetEur > 0
       ? Math.round(day.dailyBudgetEur)
@@ -272,7 +275,7 @@ function DayLogisticsBar({ day, pax }: { day: DayPlan; pax: number }) {
       {budget != null && (
         <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-200/80">
           <Wallet className="h-3.5 w-3.5 shrink-0" />
-          €{budget}
+          {formatMoney(budget)}
           {pax > 1 ? t("aiplan.perPerson") : t("aiplan.perDay")}
         </span>
       )}
@@ -304,7 +307,7 @@ function IslandStayBlock({
   hint: string;
   activities: Activity[];
   day: DayPlan;
-  onActivityFocus?: (coords: { lat: number; lng: number; day: number }) => void;
+  onActivityFocus?: (coords: ActivityMapFocus) => void;
   onActivityDetails?: (poi: PoiDetailsData) => void;
 }) {
   const conf = VARIANT_CONF.island;
@@ -346,7 +349,7 @@ function TimeBlock({
   label: string;
   activities: Activity[];
   day: DayPlan;
-  onActivityFocus?: (coords: { lat: number; lng: number; day: number }) => void;
+  onActivityFocus?: (coords: ActivityMapFocus) => void;
   onActivityDetails?: (poi: PoiDetailsData) => void;
 }) {
   const conf = VARIANT_CONF[variant];
@@ -397,7 +400,7 @@ function SuggestionsSection({ suggestions }: { suggestions: Suggestion[] }) {
               </div>
               {s.priceLabel && (
                 <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                  € {s.priceLabel}
+                  {s.priceLabel}
                 </span>
               )}
             </div>
@@ -421,8 +424,8 @@ export function StreamingDayPlaceholder({
       data-day={dayNumber}
       className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm animate-fade-in"
     >
-      <div className="px-5 py-5 sm:px-6 sm:py-6 space-y-4">
-        <div className="flex items-start gap-4">
+      <div className="px-4 py-4 sm:px-5 sm:py-5 md:px-6 md:py-6 space-y-4">
+        <div className="flex items-start gap-3 sm:gap-4">
           <div className="h-10 w-10 shrink-0 rounded-full animate-pulse bg-sky-200" />
           <div className="flex-1 space-y-2">
             <div className="h-5 w-2/3 animate-pulse rounded bg-slate-200" />
@@ -477,10 +480,10 @@ export function AiPlanDayCard({
   totalTripDays?: number;
   /** Fallback when skeleton/plan omits hotelRestEveryNDays (e.g. old session). */
   plannerWishes?: string;
-  onActivityFocus?: (coords: { lat: number; lng: number; day: number }) => void;
+  onActivityFocus?: (coords: ActivityMapFocus) => void;
   onActivityDetails?: (poi: PoiDetailsData) => void;
 }) {
-  const { t } = useI18n();
+  const { t, formatMoney } = useI18n();
   const slo = lang === "sl" || lang?.startsWith("sl");
   const tripAcc = resolveTripAccommodation({
     accommodationMode,
@@ -533,13 +536,13 @@ export function AiPlanDayCard({
           : "border border-slate-100 hover:shadow-md"
       }`}
     >
-      <div className="bg-gradient-to-br from-sky-50 via-slate-50 to-slate-100 px-5 py-5 sm:px-6 sm:py-6">
-        <div className="flex items-start gap-4">
+      <div className="bg-gradient-to-br from-sky-50 via-slate-50 to-slate-100 px-4 py-4 sm:px-5 sm:py-5 md:px-6 md:py-6">
+        <div className="flex items-start gap-3 sm:gap-4">
           <div className="flex h-10 min-w-10 shrink-0 items-center justify-center rounded-full bg-sky-600 px-2 text-white font-bold text-sm shadow-sm">
             {dayBadge}
           </div>
           <div className="min-w-0 flex-1">
-            <h3 className="text-lg sm:text-xl font-bold text-slate-900 leading-tight">
+            <h3 className="text-base sm:text-lg md:text-xl font-bold text-slate-900 leading-tight">
               {formatDayCardTitle(day, t("aiplan.day" as never) as string)}
             </h3>
             <div className="mt-1.5 flex flex-wrap items-center gap-2">
@@ -559,7 +562,7 @@ export function AiPlanDayCard({
         <DayLogisticsBar day={day} pax={pax} />
       </div>
 
-      <div className="px-5 py-5 sm:px-6 sm:py-6 space-y-6">
+      <div className="px-4 py-4 sm:px-5 sm:py-5 md:px-6 md:py-6 space-y-4 sm:space-y-6">
         {day.transportation && day.transportation.length > 0 && (
           day.islandAccessRoute ? (
             <IslandAccessTransferCard legs={day.transportation} />
@@ -674,12 +677,12 @@ export function AiPlanDayCard({
                   : t("aiplan.dailyBudgetPerPerson" as never)}
                 :
               </span>{" "}
-              €{Math.round(day.dailyBudgetEur)}
+              {formatMoney(Math.round(day.dailyBudgetEur))}
             </span>
             {pax > 1 && (
               <span className="text-slate-600">
-                · {t("aiplan.dailyBudgetGroup" as never).replace("{n}", String(pax))}: €
-                {Math.round(day.dailyBudgetEur * pax)}
+                · {t("aiplan.dailyBudgetGroup" as never).replace("{n}", String(pax))}:{" "}
+                {formatMoney(Math.round(day.dailyBudgetEur * pax))}
               </span>
             )}
           </p>

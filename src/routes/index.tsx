@@ -41,6 +41,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useSubscription } from "@/hooks/use-subscription";
 import { resolveErrorMessage, useI18n } from "@/lib/i18n";
+import { normalizePlanLangCode } from "@/lib/planLanguages";
+import { normalizePlanCurrency } from "@/lib/planCurrency";
 import { flightContextFromLegs } from "@/lib/flightScheduling";
 import { isClassicRoundTrip } from "@/lib/flightSearch";
 import { formatPlannerInterests } from "@/lib/plannerInterests";
@@ -128,7 +130,7 @@ function plannerPaxFromSearch(v: SearchValues): { adults: number; childrenAges: 
   }
 }
 
-const EMPTY_AI_CONTEXT: AiPlannerContext & { language?: string } = {
+const EMPTY_AI_CONTEXT: AiPlannerContext & { language?: string; currency?: "EUR" | "USD" } = {
   from: "",
   to: "",
   departDate: "",
@@ -136,6 +138,7 @@ const EMPTY_AI_CONTEXT: AiPlannerContext & { language?: string } = {
   adults: 2,
   childrenAges: [],
   language: "sl",
+  currency: "EUR",
 };
 
 function normalizeAiContext(
@@ -169,7 +172,14 @@ function normalizeAiContext(
       adults: pax.adults,
       childrenAges: pax.childrenAges ?? [],
       pax: pax.adults + (pax.childrenAges?.length ?? 0),
-      language: typeof input.language === "string" ? input.language : base.language,
+      language:
+        typeof input.language === "string"
+          ? normalizePlanLangCode(input.language)
+          : base.language,
+      currency:
+        typeof input.currency === "string"
+          ? normalizePlanCurrency(input.currency)
+          : base.currency,
       flights: input.flights,
       originPlace: typeof input.originPlace === "string" ? input.originPlace.trim() : undefined,
       destinationPlace:
@@ -289,7 +299,7 @@ function Landing() {
   const subscription = useSubscription();
   const navigate = useNavigate();
   const [paywall, setPaywall] = useState<null | "register" | "pay" | "daily">(null);
-  const { t, lang } = useI18n();
+  const { t, lang, currency: uiCurrency } = useI18n();
   const queryClient = useQueryClient();
   const searchFn = useServerFn(searchFlights);
   const planFn = useServerFn(generateAiPlan);
@@ -711,6 +721,7 @@ function Landing() {
     }, 100);
     try {
       const lang = ctx.language || "sl";
+      const planCurrency = normalizePlanCurrency(ctx.currency ?? lastSearch?.currency ?? uiCurrency);
       const tags = safeForm.tags ?? [];
       const priorities =
         tags.length > 0 ? [formatPlannerInterests(tags, lang)] : undefined;
@@ -754,6 +765,7 @@ function Landing() {
           priorities,
           ...groundTrip,
           language: ctx.language || lang,
+          currency: planCurrency,
         };
 
         const { plan, error: streamError } = await streamItinerary.start(streamInput);
@@ -795,6 +807,7 @@ function Landing() {
           returnDate: ctx.returnDate || undefined,
           pax: ctx.pax,
           language: ctx.language || "sl",
+          currency: planCurrency,
           pace: safeForm.pace,
           wishes,
           priorities: safeForm.tags,
@@ -845,6 +858,7 @@ function Landing() {
           returnDate: ctx.returnDate || undefined,
           pax: ctx.pax,
           language: ctx.language || "sl",
+          currency: normalizePlanCurrency(ctx.currency ?? lastSearch?.currency ?? uiCurrency),
           pace: form.pace,
           wishes,
           priorities: form.tags,

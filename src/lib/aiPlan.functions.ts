@@ -46,6 +46,14 @@ import {
 } from "@/lib/tripGeo";
 import { dailyMealsBudgetEur, getPriceTier } from "@/lib/tripLocale";
 import { DESTINATION_BY_IATA } from "@/lib/destinationCoords";
+import { normalizePlanLangCode, STRICT_LLM_LANGUAGE_RULE } from "@/lib/planLanguages";
+import {
+  currencyWritingRule,
+  normalizePlanCurrency,
+  priceCurrencyPayload,
+  STRICT_LLM_CURRENCY_RULE,
+  type PlanCurrency,
+} from "@/lib/planCurrency";
 import { languageWritingRule, resolveTripLocale } from "@/lib/tripLocale";
 import {
   annotateDayAstronomy,
@@ -187,7 +195,8 @@ const Input = z.object({
   departDate: z.string().min(10).max(10),
   returnDate: z.string().min(10).max(10).optional().or(z.literal("")),
   pax: z.number().min(1).max(9),
-  language: z.string().min(2).max(5).optional(),
+  language: z.enum(["en", "sl", "es", "fr", "it", "de"]).optional(),
+  currency: z.enum(["EUR", "USD"]).optional(),
   pace: z.enum(["intensive", "relaxed", "calm"]).optional(),
   wishes: z.string().max(2000).optional(),
   priorities: z.array(z.enum(PLANNER_INTEREST_KEYS)).max(10).optional(),
@@ -636,7 +645,8 @@ function buildTripUserMessage(opts: {
   startDay: number;
   endDay: number;
   pax: number;
-  lang: string;
+  langCode: string;
+  displayCurrency: PlanCurrency;
   paceLabel: string;
   isStays: boolean;
   wishes?: string;
@@ -649,6 +659,7 @@ function buildTripUserMessage(opts: {
   regionClimate?: Array<{ city: string; hints: string[] }>;
   tripAstronomy?: string[];
 }): string {
+  const locale = resolveTripLocale(opts.destinationIata, "", opts.langCode, opts.displayCurrency);
   const payload: Record<string, unknown> = {
     task: resolveFullPlanTask(opts.startDay, opts.handoff, opts.routingRepair),
     originIata: opts.originIata,
@@ -663,17 +674,23 @@ function buildTripUserMessage(opts: {
     },
     travelers: opts.pax,
     pace: opts.paceLabel,
-    language: opts.lang,
+    languageCode: opts.langCode,
+    language: LANG_MAP[opts.langCode] ?? opts.langCode,
+    writingRule: languageWritingRule(opts.langCode),
+    displayCurrency: opts.displayCurrency,
+    priceCurrency: priceCurrencyPayload(opts.displayCurrency),
+    currencyRule: currencyWritingRule(opts.displayCurrency),
+    destinationCountry: locale.countryName,
     mode: opts.isStays ? "stays" : "trip",
   };
   if (opts.wishes?.trim()) payload.wishes = opts.wishes.trim();
-  const prioritiesBase = buildPrioritiesPayload(opts.priorities ?? [], opts.lang);
+  const prioritiesBase = buildPrioritiesPayload(opts.priorities ?? [], opts.langCode);
   if (prioritiesBase) {
     payload.priorities = enrichPrioritiesPayload(
       prioritiesBase,
       opts.destinationIata,
       opts.priorities ?? [],
-      opts.lang,
+      opts.langCode,
     );
   }
   if (opts.customPrompt?.trim()) payload.customPrompt = opts.customPrompt.trim();
@@ -699,6 +716,7 @@ function buildSkeletonUserMessage(opts: {
   nDays: number;
   pax: number;
   langCode: string;
+  displayCurrency: PlanCurrency;
   paceLabel: string;
   isStays: boolean;
   wishes?: string;
@@ -711,7 +729,7 @@ function buildSkeletonUserMessage(opts: {
   regionClimate?: Array<{ city: string; hints: string[] }>;
   tripAstronomy?: string[];
 }): string {
-  const locale = resolveTripLocale(opts.destinationIata, "", opts.langCode);
+  const locale = resolveTripLocale(opts.destinationIata, "", opts.langCode, opts.displayCurrency);
   const payload: Record<string, unknown> = {
     task: opts.coverageRepair ? "skeleton_repair" : "skeleton",
     originIata: opts.originIata,
@@ -729,7 +747,9 @@ function buildSkeletonUserMessage(opts: {
     languageCode: opts.langCode,
     language: LANG_MAP[opts.langCode] ?? opts.langCode,
     writingRule: languageWritingRule(opts.langCode),
-    priceCurrency: locale.priceUnit === "EUR" ? "EUR (€) only" : "local currency",
+    displayCurrency: opts.displayCurrency,
+    priceCurrency: priceCurrencyPayload(opts.displayCurrency),
+    currencyRule: currencyWritingRule(opts.displayCurrency),
     destinationCountry: locale.countryName,
     mode: opts.isStays ? "stays" : "trip",
   };
@@ -1360,7 +1380,12 @@ async function postProcessSkeletonRegions(
     regions: deduplicateTripHighlights(s.regions, trace),
   };
   if (accommodationMode === "motorhome") {
-    const locale = resolveTripLocale(destinationIata, s.destinationName, sanitizeLangCode);
+    const locale = resolveTripLocale(
+      destinationIata,
+      s.destinationName,
+      sanitizeLangCode,
+      sanitizeDisplayCurrency,
+    );
     s = {
       ...s,
       regions: s.regions.map((r) => ({
@@ -1514,6 +1539,7 @@ function clampSkeletonRegions(regions: TripRegion[]): TripRegion[] {
 }
 
 let sanitizeLangCode = "sl";
+let sanitizeDisplayCurrency: PlanCurrency = "EUR";
 
 function sanitizeOutdatedText(text: string): string {
   let out = text;
@@ -1812,7 +1838,10 @@ export const generateAiPlan = createServerFn({ method: "POST" })
     }
 
     const nDays = daysBetween(data.departDate, data.returnDate || undefined);
-    const lang = LANG_MAP[data.language ?? "sl"] ?? "slovenščini";
+    const langCode = normalizePlanLangCode(data.language);
+    const displayCurrency = normalizePlanCurrency(data.currency);
+    sanitizeDisplayCurrency = displayCurrency;
+    const lang = LANG_MAP[langCode] ?? langCode;
     const isStays = data.mode === "stays";
     const paceLabel =
       data.pace === "intensive" ? "intensive" : data.pace === "calm" ? "calm" : "relaxed";
@@ -1828,7 +1857,7 @@ export const generateAiPlan = createServerFn({ method: "POST" })
       destinationIata: data.destinationIata,
       departDate: data.departDate,
       returnDate: data.returnDate || undefined,
-      lang: data.language ?? "sl",
+      lang: langCode,
       priorities: data.priorities,
       wishes: data.wishes,
       regionCities: regionBlueprint?.map((b) => b.city),
@@ -1836,7 +1865,7 @@ export const generateAiPlan = createServerFn({ method: "POST" })
     const { tripHints: tripAstronomy } = buildTripAstronomy({
       departDate: data.departDate,
       returnDate: data.returnDate || undefined,
-      lang: data.language ?? "sl",
+      lang: langCode,
       lat: destHub?.lat,
       lng: destHub?.lng,
       regionCities: regionBlueprint?.map((b) => b.city),
@@ -1954,7 +1983,8 @@ export const generateAiPlan = createServerFn({ method: "POST" })
             startDay: batch.start,
             endDay: batch.end,
             pax: data.pax,
-            lang,
+            langCode,
+            displayCurrency,
             paceLabel,
             isStays,
             wishes: data.wishes,
@@ -3616,14 +3646,21 @@ function regionNeedsFill(region: TripRegion, paceLabel: string): boolean {
   return false;
 }
 
-function buildRegionFillSystem(langCode: string, destinationIata: string, destinationName: string): string {
-  const locale = resolveTripLocale(destinationIata, destinationName, langCode);
+function buildRegionFillSystem(
+  langCode: string,
+  destinationIata: string,
+  destinationName: string,
+  displayCurrency: PlanCurrency,
+): string {
+  const locale = resolveTripLocale(destinationIata, destinationName, langCode, displayCurrency);
   const transportModes = locale.localTransportModes;
-  const priceRule =
-    locale.priceUnit === "EUR"
-      ? "Cene SAMO v € (npr. 15–30 €). Nikoli lokalne valute v besedilu."
-      : `Cene v lokalni valuti za ${locale.countryName}.`;
-  return `You are an experienced trip planner filling ONE region of a preview itinerary.
+  const sym = displayCurrency === "USD" ? "$" : "€";
+  const priceRule = `All priceLabel values in ${displayCurrency} (${sym}) only — realistic for ${locale.countryName}, never mix currencies.`;
+  return `${STRICT_LLM_LANGUAGE_RULE}
+
+${STRICT_LLM_CURRENCY_RULE}
+
+You are an experienced trip planner filling ONE region of a preview itinerary.
 Return ONLY valid JSON:
 {
   "localTransportTips": "2 sentences: ${transportModes} — ${priceRule} (max 200 chars)",
@@ -3678,12 +3715,19 @@ async function fillOneRegion(
     if (have < target) dayGaps.push({ day: d, have, target });
   }
 
-  const locale = resolveTripLocale(skeleton.destinationIata, skeleton.destinationName, langCode);
+  const locale = resolveTripLocale(
+    skeleton.destinationIata,
+    skeleton.destinationName,
+    langCode,
+    sanitizeDisplayCurrency,
+  );
   const payload = {
     languageCode: langCode,
     language: LANG_MAP[langCode] ?? langCode,
     writingRule: languageWritingRule(langCode),
-    priceCurrency: locale.priceUnit === "EUR" ? "EUR (€) only" : "local currency",
+    displayCurrency: sanitizeDisplayCurrency,
+    priceCurrency: priceCurrencyPayload(sanitizeDisplayCurrency),
+    currencyRule: currencyWritingRule(sanitizeDisplayCurrency),
     destinationCountry: locale.countryName,
     pace: paceLabel,
     destination: skeleton.destinationName,
@@ -3725,7 +3769,12 @@ async function fillOneRegion(
     highlights?: Partial<SkeletonHighlight>[];
   }>({
     role: "skeleton",
-    system: buildRegionFillSystem(langCode, skeleton.destinationIata, skeleton.destinationName),
+    system: buildRegionFillSystem(
+      langCode,
+      skeleton.destinationIata,
+      skeleton.destinationName,
+      sanitizeDisplayCurrency,
+    ),
     user: JSON.stringify(payload),
     trace,
     label: `fill ${region.city} d${region.startDay}-${region.endDay}`,
@@ -3802,10 +3851,17 @@ function applyProgrammaticSkeletonFill(
   skeleton: TripSkeleton,
   langCode: string,
 ): TripSkeleton {
-  const locale = resolveTripLocale(skeleton.destinationIata, skeleton.destinationName, langCode);
+  const locale = resolveTripLocale(
+    skeleton.destinationIata,
+    skeleton.destinationName,
+    langCode,
+    sanitizeDisplayCurrency,
+  );
   const slo = locale.slo;
-  const priceHint =
-    locale.priceUnit === "EUR" ? (slo ? "cene v €" : "prices in €") : locale.countryName;
+  const sym = locale.displayCurrency === "USD" ? "$" : "€";
+  const priceHint = slo
+    ? `cene v ${locale.displayCurrency} (${sym})`
+    : `prices in ${locale.displayCurrency} (${sym})`;
   let regions = ensureEveryDayHasHighlight(skeleton.regions);
   regions = injectVietnamCuratedHighlights(regions, langCode);
   regions = regions.map((r) => ({
@@ -3949,9 +4005,11 @@ export const generateAiPlanSkeleton = createServerFn({ method: "POST" })
     );
 
     const nDays = daysBetween(data.departDate, data.returnDate || undefined);
-    const langCode = data.language ?? "sl";
+    const langCode = normalizePlanLangCode(data.language);
+    const displayCurrency = normalizePlanCurrency(data.currency);
     sanitizeLangCode = langCode;
-    const lang = LANG_MAP[langCode] ?? "slovenščini";
+    sanitizeDisplayCurrency = displayCurrency;
+    const lang = LANG_MAP[langCode] ?? langCode;
     const paceLabel =
       data.pace === "intensive" ? "intensive" : data.pace === "calm" ? "calm" : "relaxed";
     const regionBlueprint = resolveRegionBlueprint(
@@ -3998,6 +4056,7 @@ export const generateAiPlanSkeleton = createServerFn({ method: "POST" })
         nDays,
         pax: data.pax,
         langCode,
+        displayCurrency,
         paceLabel,
         isStays: data.mode === "stays",
         wishes: data.wishes,

@@ -48,7 +48,7 @@ export function AiPlanSkeletonView({
   plannerWishes?: string;
   plannerForm?: AiPlannerSubmit | null;
 }) {
-  const { t, lang } = useI18n();
+  const { t, lang, formatMoney } = useI18n();
   const { ctx: destCtx, loading: destLoading } = useDestinationContext(
     destinationIata ?? skeleton?.destinationIata,
     departDate ?? skeleton?.departDate,
@@ -208,8 +208,8 @@ export function AiPlanSkeletonView({
         <DestinationInsightBanner context={destCtx} loading={destLoading} flights={flights} />
       )}
 
-      <div className="rounded-2xl border border-sky-200 bg-white p-6 shadow-sm">
-        <div className="flex items-start justify-between flex-wrap gap-3">
+      <div className="rounded-2xl border border-sky-200 bg-white p-4 sm:p-6 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
           <div>
             <div className="flex items-center gap-2 text-xs font-bold text-sky-600 uppercase tracking-wider">
               <Sparkles className="h-4 w-4" /> {t("skeleton.badge" as never)}
@@ -224,14 +224,14 @@ export function AiPlanSkeletonView({
             <div className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">
               {t("aiplan.total" as never)}
             </div>
-            <div className="text-3xl font-bold text-slate-900">€{computedTotalEur}</div>
+            <div className="text-2xl sm:text-3xl font-bold text-slate-900">{formatMoney(computedTotalEur)}</div>
             <TripTotalBreakdown pax={pax} />
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.3fr] gap-5 lg:gap-6 items-start">
-        <div className="space-y-5 min-w-0 order-2 lg:order-1">
+      <div className="flex flex-col lg:grid lg:grid-cols-[1fr_1.3fr] gap-4 sm:gap-5 lg:gap-6 items-start w-full">
+        <div className="space-y-4 sm:space-y-5 min-w-0 w-full order-1">
           {dayPlans.map((d, idx) => {
             let checkOut = d.dateEnd ?? d.date;
             if (d.city) {
@@ -285,9 +285,9 @@ export function AiPlanSkeletonView({
         {hasCoords && (
           <div
             id="ai-trip-map"
-            className="order-1 lg:order-2 lg:sticky lg:top-0 lg:z-20 lg:h-screen lg:max-h-screen lg:self-start lg:flex lg:flex-col min-h-[320px] overflow-hidden"
+            className="order-2 w-full shrink-0 flex flex-col overflow-hidden lg:order-2 lg:sticky lg:top-0 lg:z-20 lg:h-screen lg:max-h-screen lg:self-start"
           >
-            <div className="flex-1 min-h-[280px]">
+            <div className="h-[40vh] max-h-[300px] min-h-[260px] w-full lg:h-auto lg:flex-1 lg:min-h-0 lg:max-h-none">
               <TripMap plan={previewPlan} activeDay={activeDay} />
             </div>
             <p className="mt-2 text-xs text-slate-500 text-center hidden lg:block">

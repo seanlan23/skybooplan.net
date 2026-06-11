@@ -62,7 +62,7 @@ export function POIDetailsModal({
   onOpenChange: (open: boolean) => void;
   poi: PoiDetailsData | null;
 }) {
-  const { t, lang } = useI18n();
+  const { t, lang, formatMoney } = useI18n();
   const [displayPoi, setDisplayPoi] = useState<PoiDetailsData | null>(poi);
 
   useEffect(() => {
@@ -82,7 +82,10 @@ export function POIDetailsModal({
   const slotLabel = slotKey ? t(slotKey) : displayPoi.timeSlot ?? null;
   const costLabel =
     displayPoi.estimatedCostEur != null && displayPoi.estimatedCostEur >= 0
-      ? t("poi.costApprox").replace("{price}", String(displayPoi.estimatedCostEur))
+      ? t("poi.costApprox").replace(
+          "{amount}",
+          formatMoney(displayPoi.estimatedCostEur),
+        )
       : t("poi.costIncluded");
   const paragraphs = splitDescriptionParagraphs(
     displayPoi.fullDescription ?? displayPoi.description,
@@ -94,28 +97,34 @@ export function POIDetailsModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl w-[calc(100%-2rem)] max-h-[94vh] overflow-y-auto p-0 gap-0 rounded-2xl border-slate-200 shadow-2xl">
+      <DialogContent className="fixed inset-x-0 bottom-0 top-auto left-0 right-0 z-50 w-full max-w-none translate-x-0 translate-y-0 rounded-t-2xl rounded-b-none border-slate-200 shadow-2xl h-[90vh] max-h-[90vh] overflow-y-auto p-0 gap-0 data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom md:inset-x-auto md:bottom-auto md:left-[50%] md:top-[50%] md:h-auto md:max-h-[94vh] md:w-[calc(100%-2rem)] md:max-w-4xl md:translate-x-[-50%] md:translate-y-[-50%] md:rounded-2xl md:data-[state=open]:slide-in-from-bottom-0 md:data-[state=open]:zoom-in-95 md:data-[state=closed]:slide-out-to-bottom-0 md:data-[state=closed]:zoom-out-95 [&>button.absolute]:hidden">
         <DialogTitle className="sr-only">{displayPoi.name}</DialogTitle>
 
-        <div className="relative border-b border-slate-100 bg-gradient-to-br from-sky-50 via-white to-slate-50 px-5 py-5 sm:px-8 sm:py-6">
+        <div
+          aria-hidden="true"
+          className="mx-auto mt-2 mb-1 h-1 w-10 shrink-0 rounded-full bg-slate-300 md:hidden"
+        />
+
+        {displayPoi.imageUrl ? (
+          <img
+            src={displayPoi.imageUrl}
+            alt={displayPoi.name}
+            loading="lazy"
+            className="w-full h-36 sm:h-48 object-cover rounded-t-2xl md:rounded-t-xl"
+          />
+        ) : null}
+
+        <div className="relative border-b border-slate-100 bg-gradient-to-br from-sky-50 via-white to-slate-50 px-4 py-4 sm:px-6 sm:py-5 md:px-8 md:py-6">
           <button
             type="button"
             onClick={() => onOpenChange(false)}
-            className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-700 shadow-md hover:bg-slate-50 transition-colors z-10"
+            className="absolute right-3 top-3 sm:right-4 sm:top-4 flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-white text-slate-700 shadow-md hover:bg-slate-50 transition-colors z-10"
             aria-label={t("poi.close")}
           >
             <X className="h-5 w-5" />
           </button>
           <div className="pr-12">
-            {displayPoi.imageUrl ? (
-              <img
-                src={displayPoi.imageUrl}
-                alt={displayPoi.name}
-                loading="lazy"
-                className="mb-4 h-20 w-20 rounded-full border-4 border-white object-cover shadow-lg sm:h-24 sm:w-24"
-              />
-            ) : null}
-            <h2 className="text-2xl sm:text-[1.75rem] font-bold text-slate-900 leading-tight">
+            <h2 className="text-xl sm:text-2xl md:text-[1.75rem] font-bold text-slate-900 leading-tight">
               {displayPoi.name}
             </h2>
             {(displayPoi.city || displayPoi.category) && (
@@ -136,8 +145,8 @@ export function POIDetailsModal({
           </div>
         </div>
 
-        <div className="px-5 py-6 sm:px-8 sm:py-7">
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6 lg:gap-8">
+        <div className="px-4 py-4 sm:px-6 sm:py-6 md:px-8 md:py-7">
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-4 sm:gap-6 lg:gap-8">
             <div className="space-y-5 min-w-0">
               {paragraphs.length > 0 && (
                 <div className="space-y-3">
@@ -145,7 +154,7 @@ export function POIDetailsModal({
                     {t("poi.about")}
                   </h3>
                   {paragraphs.map((p, i) => (
-                    <p key={i} className="text-[15px] text-slate-700 leading-relaxed">
+                    <p key={i} className="text-sm sm:text-[15px] text-slate-700 leading-relaxed">
                       {p}
                     </p>
                   ))}
@@ -182,7 +191,7 @@ export function POIDetailsModal({
             </div>
 
             <aside className="space-y-4 lg:sticky lg:top-0 lg:self-start">
-              <div className="rounded-2xl border border-amber-200/80 bg-gradient-to-br from-amber-50 to-orange-50 px-5 py-4 shadow-sm">
+              <div className="rounded-2xl border border-amber-200/80 bg-gradient-to-br from-amber-50 to-orange-50 px-4 py-3 sm:px-5 sm:py-4 shadow-sm">
                 <div className="flex items-center gap-2 mb-1">
                   <StarRow score={score} />
                   <span className="text-xl font-bold text-slate-900 tabular-nums">{score}</span>
@@ -194,7 +203,7 @@ export function POIDetailsModal({
               </div>
 
               {proTip && (
-                <div className="rounded-2xl border-2 border-violet-200 bg-gradient-to-br from-violet-50 via-indigo-50/80 to-white px-5 py-4 shadow-sm">
+                <div className="rounded-2xl border-2 border-violet-200 bg-gradient-to-br from-violet-50 via-indigo-50/80 to-white px-4 py-3 sm:px-5 sm:py-4 shadow-sm">
                   <div className="flex items-center gap-2 text-violet-800 mb-2">
                     <Lightbulb className="h-5 w-5 shrink-0" aria-hidden="true" />
                     <span className="text-xs font-bold uppercase tracking-wider">{t("poi.proTip")}</span>

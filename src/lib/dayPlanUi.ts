@@ -1,3 +1,5 @@
+import { DAY_TITLE_PREFIXES } from "@/lib/planLanguages";
+
 /** Avoid "Dan 1: Dan 1: …" when `title` already includes the day prefix. */
 export function formatDayCardTitle(
   day: { day: number; dayEnd?: number; title: string },
@@ -5,8 +7,14 @@ export function formatDayCardTitle(
 ): string {
   if (day.dayEnd != null && day.dayEnd > day.day) return day.title.trim();
   const title = day.title.trim();
-  const escaped = dayWord.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const dupPrefix = new RegExp(`^(?:${escaped}|Day)\\s*${day.day}\\s*:\\s*`, "i");
+  const escapedDayWord = dayWord.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const prefixAlternatives = [
+    escapedDayWord,
+    ...DAY_TITLE_PREFIXES.filter((p) => p.toLowerCase() !== dayWord.toLowerCase()).map((p) =>
+      p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+    ),
+  ].join("|");
+  const dupPrefix = new RegExp(`^(?:${prefixAlternatives})\\s*${day.day}\\s*:\\s*`, "i");
   if (dupPrefix.test(title)) return title;
   return `${dayWord} ${day.day}: ${title}`;
 }

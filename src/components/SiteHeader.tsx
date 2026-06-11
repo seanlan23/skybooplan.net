@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { LayoutGrid, User as UserIcon, LogOut } from "lucide-react";
+import { CurrencyPicker } from "@/components/CurrencyPicker";
 import { LanguagePicker } from "@/components/LanguagePicker";
 import { GoogleIcon } from "@/components/GoogleIcon";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -129,6 +130,7 @@ export function SiteHeader() {
               <span>{t("nav.signInGoogle")}</span>
             </a>
           )}
+          <CurrencyPicker />
           <LanguagePicker />
         </div>
       </div>

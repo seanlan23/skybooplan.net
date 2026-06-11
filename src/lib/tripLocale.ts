@@ -1,4 +1,10 @@
 import { lookupDestination } from "@/lib/destinationCoords";
+import { normalizePlanLangCode, type PlanLang } from "@/lib/planLanguages";
+import {
+  formatPlanMoneyRange,
+  normalizePlanCurrency,
+  type PlanCurrency,
+} from "@/lib/planCurrency";
 
 export type TripLocale = {
   langCode: string;
@@ -6,8 +12,8 @@ export type TripLocale = {
   country: string;
   countryName: string;
   destinationIata: string;
-  /** User-facing price unit — Slovenian trips use € only. */
-  priceUnit: "EUR" | "LOCAL";
+  /** User-selected display currency (EUR or USD). */
+  displayCurrency: PlanCurrency;
   /** Airport ↔ hotel transfer price band. */
   transferPrice: string;
   mealPrice: string;
@@ -226,12 +232,22 @@ function inferCountry(destinationIata: string, destinationName: string): string 
   return "XX";
 }
 
-function eurPrices(country: string, slo: boolean): { transfer: string; meal: string; massage: string } {
-  if (!slo) {
-    return { transfer: "varies", meal: "varies", massage: "varies" };
-  }
+function tierPriceBands(
+  country: string,
+  currency: PlanCurrency,
+): { transfer: string; meal: string; massage: string } {
   const tier = TIER_BY_COUNTRY[country] ?? "mid";
-  return EUR_BANDS[tier];
+  const band = EUR_BANDS[tier];
+  const parse = (s: string) => {
+    const m = /(\d+)\s*[-–]\s*(\d+)/.exec(s);
+    if (!m) return s;
+    return formatPlanMoneyRange(Number(m[1]), Number(m[2]), currency);
+  };
+  return {
+    transfer: parse(band.transfer),
+    meal: parse(band.meal),
+    massage: parse(band.massage),
+  };
 }
 
 export function getPriceTier(country: string): PriceTier {
@@ -260,23 +276,26 @@ export function resolveTripLocale(
   destinationIata: string,
   destinationName: string,
   langCode = "sl",
+  displayCurrency: PlanCurrency = "EUR",
 ): TripLocale {
-  const slo = langCode === "sl" || langCode.startsWith("sl");
+  const code = normalizePlanLangCode(langCode);
+  const slo = code === "sl";
+  const currency = normalizePlanCurrency(displayCurrency);
   const country = inferCountry(destinationIata, destinationName);
   const names = COUNTRY_NAMES[country] ?? COUNTRY_NAMES.XX;
   const transport = TRANSPORT_BY_COUNTRY[country] ?? DEFAULT_TRANSPORT;
-  const eur = eurPrices(country, slo);
+  const bands = tierPriceBands(country, currency);
 
   return {
-    langCode,
+    langCode: code,
     slo,
     country,
     countryName: slo ? names.sl : names.en,
     destinationIata: destinationIata.toUpperCase(),
-    priceUnit: slo ? "EUR" : "LOCAL",
-    transferPrice: eur.transfer,
-    mealPrice: eur.meal,
-    massagePrice: eur.massage,
+    displayCurrency: currency,
+    transferPrice: bands.transfer,
+    mealPrice: bands.meal,
+    massagePrice: bands.massage,
     transferLabel: slo ? transport.label.sl : transport.label.en,
     localTransportModes: slo ? transport.modes.sl : transport.modes.en,
   };
@@ -332,12 +351,16 @@ export function airportTransferDescription(
   return `Return flight at ${dep}. Leave about ${leaveHours} hours early. Pre-book ${modes} with buffer time.`;
 }
 
+const WRITING_RULES: Record<PlanLang, string> = {
+  sl: "KRITIČNO: Ves tekst SAMO v slovenščini. Nikoli ne mešaj jezikov v istem bloku — brez angleških stavkov ali dvojnih prevodov. Dovoljene izjeme: uradna imena krajev/znamenitosti in kode letališč (npr. CDG).",
+  en: "CRITICAL: All text in English only. Never mix languages or provide dual translations in the same field. Proper nouns and airport codes may stay as-is.",
+  es: "CRÍTICO: Todo el texto solo en español. Nunca mezcles idiomas ni ofrezcas traducciones duales en el mismo campo. Nombres propios y códigos de aeropuerto pueden quedar como están.",
+  fr: "CRITIQUE : Tout le texte uniquement en français. Ne mélangez jamais les langues ni ne fournissez de double traduction dans le même champ. Noms propres et codes aéroport inchangés.",
+  it: "CRITICO: Tutto il testo solo in italiano. Non mescolare mai le lingue né fornire doppie traduzioni nello stesso campo. Nomi propri e codici aeroporto invariati.",
+  de: "KRITISCH: Gesamter Text nur auf Deutsch. Niemals Sprachen mischen oder Doppelübersetzungen im selben Feld. Eigennamen und Flughafencodes unverändert.",
+};
+
 export function languageWritingRule(langCode: string): string {
-  if (langCode === "sl" || langCode.startsWith("sl")) {
-    return "KRITIČNO: Ves tekst SAMO v slovenščini. Brez angleških stavkov. Dovoljene izjeme: lastna imena krajev/znamenitosti in kode letališč (npr. CDG). Cene SAMO v € (npr. 15–30 €), nikoli lokalne valute v besedilu.";
-  }
-  if (langCode === "en") {
-    return "All text in English. Prices in local currency with € equivalent where helpful.";
-  }
-  return `All text in language code ${langCode}. Use consistent currency per destination country.`;
+  const code = normalizePlanLangCode(langCode);
+  return WRITING_RULES[code];
 }

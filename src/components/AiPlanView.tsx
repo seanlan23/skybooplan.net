@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Sparkles } from "lucide-react";
 import type { AiTripPlan } from "@/lib/aiPlan.functions";
-import { type MapFocusTarget } from "@/components/TripMap";
+import { type ActivityMapFocus, type MapFocusTarget } from "@/components/TripMap";
 import { AiTripMapPanel } from "@/components/AiTripMapPanel";
 import { AiPlanDayCard, StreamingDayPlaceholder } from "@/components/AiPlanDayCard";
 import { POIDetailsModal } from "@/components/POIDetailsModal";
@@ -50,7 +50,7 @@ function PaywallUnlockSection({
       <button
         type="button"
         onClick={onUnlockClick}
-        className="inline-flex max-w-lg items-center gap-2.5 rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-600 to-violet-600 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-indigo-200/50 transition-all hover:-translate-y-0.5 hover:shadow-xl hover:shadow-indigo-300/40"
+        className="inline-flex w-full sm:w-auto sm:max-w-lg items-center justify-center gap-2.5 rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-600 to-violet-600 px-4 sm:px-6 py-3 sm:py-3.5 text-sm font-semibold text-white shadow-lg shadow-indigo-200/50 transition-all hover:-translate-y-0.5 hover:shadow-xl hover:shadow-indigo-300/40"
       >
         <Lock className="h-4 w-4 shrink-0" aria-hidden />
         {t("paywall.unlockPlanCta")}
@@ -111,7 +111,7 @@ export function AiPlanView({
   /** Total trip days — used to render placeholders for not-yet-streamed days. */
   expectedDayCount?: number;
 }) {
-  const { t, lang } = useI18n();
+  const { t, lang, formatMoney } = useI18n();
   const [activeDay, setActiveDay] = useState<number>(1);
   const dayRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const focusKeyRef = useRef(0);
@@ -151,7 +151,7 @@ export function AiPlanView({
   }, []);
 
   const handleActivityFocus = useCallback(
-    (coords: { lat: number; lng: number; day: number }) => {
+    (coords: ActivityMapFocus) => {
       pauseScrollSpy(3000);
       focusKeyRef.current += 1;
       setActiveDay(coords.day);
@@ -159,6 +159,7 @@ export function AiPlanView({
         lat: coords.lat,
         lng: coords.lng,
         day: coords.day,
+        poiName: coords.poiName,
         mode: "drone",
         key: focusKeyRef.current,
       });
@@ -177,8 +178,23 @@ export function AiPlanView({
       const resolved = day ? refreshPoiDetailsImage(poi, day) : poi;
       setPoiModal({ ...resolved, destinationName: plan?.destinationName });
       setPoiModalOpen(true);
+      if (
+        poi.lat != null &&
+        poi.lng != null &&
+        Number.isFinite(poi.lat) &&
+        Number.isFinite(poi.lng) &&
+        poi.lat !== 0 &&
+        poi.lng !== 0
+      ) {
+        handleActivityFocus({
+          lat: poi.lat,
+          lng: poi.lng,
+          day: poi.day ?? day?.day ?? 1,
+          poiName: poi.name,
+        });
+      }
     },
-    [plan],
+    [plan, handleActivityFocus],
   );
 
   useEffect(() => {
@@ -375,7 +391,7 @@ export function AiPlanView({
   return (
     <div
       id="ai-plan"
-      className={`mt-8 space-y-5 relative ${protect ? "select-none" : ""}`}
+      className={`mt-4 sm:mt-8 space-y-4 sm:space-y-5 relative w-full min-w-0 ${protect ? "select-none" : ""}`}
       style={
         protect
           ? {
@@ -434,13 +450,13 @@ export function AiPlanView({
         </div>
       )}
 
-      <div className="rounded-2xl border border-sky-200 bg-white p-6 shadow-sm">
-        <div className="flex items-start justify-between flex-wrap gap-3">
+      <div className="rounded-2xl border border-sky-200 bg-white p-4 sm:p-6 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
           <div>
             <div className="flex items-center gap-2 text-xs font-bold text-sky-600 uppercase tracking-wider">
               <Sparkles className="h-4 w-4" /> {t("aiplan.badge" as never)}
             </div>
-            <h2 className="mt-1 text-2xl sm:text-3xl font-bold text-slate-900">
+            <h2 className="mt-1 text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900 leading-tight">
               {plan.destinationName}
             </h2>
             <PlannerChoicesSummary form={plannerForm} />
@@ -457,18 +473,20 @@ export function AiPlanView({
               </p>
             )}
           </div>
-          <div className="text-right">
+          <div className="sm:text-right shrink-0">
             <div className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">
               {t("aiplan.total" as never)}
             </div>
-            <div className="text-3xl font-bold text-slate-900">€{plan.totalBudgetEur}</div>
+            <div className="text-2xl sm:text-3xl font-bold text-slate-900">
+              {formatMoney(plan.totalBudgetEur)}
+            </div>
             <TripTotalBreakdown pax={pax} />
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.3fr] gap-5 lg:gap-6 lg:items-start">
-        <div className="space-y-5 min-w-0 order-2 lg:order-1">
+      <div className="flex flex-col lg:grid lg:grid-cols-[1fr_1.3fr] gap-4 sm:gap-5 lg:gap-6 lg:items-start w-full">
+        <div className="space-y-4 sm:space-y-5 min-w-0 w-full order-1">
           {plan.groundJourney && <TransportDashboard plan={plan} />}
           {plan.days.map((d, idx) => {
             const isLockedDay = shouldPaywallDays && idx >= PAYWALL_LOCKED_FROM_INDEX;

@@ -1,6 +1,13 @@
+import { STRICT_LLM_CURRENCY_RULE } from "@/lib/planCurrency";
+import { STRICT_LLM_LANGUAGE_RULE } from "@/lib/planLanguages";
+
 /** System prompts for LLM calls — user messages are JSON trip parameters only. */
 
-export const SKELETON_SYSTEM = `You are Skybooplan's fast trip preview generator for ANY destination worldwide.
+export const SKELETON_SYSTEM = `${STRICT_LLM_LANGUAGE_RULE}
+
+${STRICT_LLM_CURRENCY_RULE}
+
+You are Skybooplan's fast trip preview generator for ANY destination worldwide.
 The user message is JSON trip parameters. Return ONE JSON object only.
 
 {
@@ -50,8 +57,9 @@ Rules:
 - If accommodationMode=motorhome in user JSON: campgrounds OUTSIDE city centers only — NO downtown hotels; inter-city travel by DRIVING the motorhome only (never domestic flights); city sightseeing via public transit from campsite
 - If hotelRestEveryNDays in user JSON (e.g. 3 or 5): motorhome/campground on most nights; hotel ONLY on days divisible by that number (e.g. 3→day 3,6,9… or 5→day 5,10,15…) — never suggest hotels on other days
 - If writingRule in user JSON: follow it strictly (language + currency)
-- All text in languageCode from user message — never mix languages
-- priceCurrency in user JSON defines price format (Slovenian = € only)
+- All text in languageCode from user message — never mix languages or provide dual translations
+- displayCurrency and priceCurrency in user JSON define the single currency for ALL costs (EUR or USD — never both)
+- REALISTIC PRICING: scale costs to destination (budget Asia/Africa lower; Western Europe/NYC/safari higher) then convert to displayCurrency
 - Accurate lat/lng within each region city; never truncate with "..."
 - Omit transportToNext on the last region
 - If flightScheduling in user JSON: respect day1 and lastDay constraints (late arrival = light day 1; early return = short last day)
@@ -67,7 +75,11 @@ Rules:
 
 Task skeleton_repair: fix coverage only — extend or add regions so the last endDay equals totalDays; keep valid existing regions; fill all missing highlights with unique POIs per day.`;
 
-export const FULL_PLAN_SYSTEM = `You are Skybooplan's day-by-day itinerary generator for ANY destination worldwide.
+export const FULL_PLAN_SYSTEM = `${STRICT_LLM_LANGUAGE_RULE}
+
+${STRICT_LLM_CURRENCY_RULE}
+
+You are Skybooplan's day-by-day itinerary generator for ANY destination worldwide.
 The user message is JSON trip parameters. Return ONE JSON object only.
 
 {
@@ -113,7 +125,7 @@ Rules:
 - Linear routing: finish each region before moving on; no mid-trip city revisit
 - Final 1-2 days may return to departure hub for outbound flight only
 - If writingRule in user JSON: follow strictly
-- All text in languageCode from user message
+- All text in languageCode from user message — never mix languages or provide dual translations
 - Never truncate with "..."
 - If flightScheduling present: day 1 and last day must match landing/departure times
 - If tripClimate present: mention relevant season/rain/heat in localWarnings or travelHack where useful
