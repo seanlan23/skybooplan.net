@@ -1,4 +1,7 @@
 import "./lib/error-capture";
+import { ensureAuthEnv } from "./lib/auth.env";
+
+ensureAuthEnv();
 
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";

@@ -2,6 +2,27 @@
  * Maps legacy NextAuth env names (NEXTAUTH_*) and GOOGLE_* to Auth.js v5 names (AUTH_*)
  * so start-authjs / @auth/core pick them up on every server request.
  */
+function normalizeAuthBaseUrl(raw: string): string {
+  const base = raw.replace(/\/$/, "");
+  return base.endsWith("/api/auth") ? base : `${base}/api/auth`;
+}
+
+/** Infer public site origin on Vercel / Cloudflare / Netlify when NEXTAUTH_URL is unset. */
+function inferDeploymentOrigin(): string | undefined {
+  const candidates = [
+    process.env.VERCEL_PROJECT_PRODUCTION_URL,
+    process.env.VERCEL_URL,
+    process.env.CF_PAGES_URL,
+    process.env.URL,
+  ];
+  for (const value of candidates) {
+    if (!value?.trim()) continue;
+    const trimmed = value.trim();
+    return trimmed.startsWith("http") ? trimmed.replace(/\/$/, "") : `https://${trimmed}`;
+  }
+  return undefined;
+}
+
 export function ensureAuthEnv(): void {
   if (typeof process === "undefined" || !process.env) return;
 
@@ -10,8 +31,7 @@ export function ensureAuthEnv(): void {
   }
 
   if (!process.env.AUTH_URL && process.env.NEXTAUTH_URL) {
-    const base = process.env.NEXTAUTH_URL.replace(/\/$/, "");
-    process.env.AUTH_URL = base.endsWith("/api/auth") ? base : `${base}/api/auth`;
+    process.env.AUTH_URL = normalizeAuthBaseUrl(process.env.NEXTAUTH_URL);
   }
 
   // @auth/core setEnvDefaults reads AUTH_GOOGLE_ID / AUTH_GOOGLE_SECRET
@@ -22,8 +42,14 @@ export function ensureAuthEnv(): void {
     process.env.AUTH_GOOGLE_SECRET = process.env.GOOGLE_CLIENT_SECRET;
   }
 
-  if (!process.env.AUTH_TRUST_HOST) {
-    process.env.AUTH_TRUST_HOST = "true";
+  // Required behind reverse proxies (Vercel, Cloudflare) so Auth.js trusts x-forwarded-host.
+  process.env.AUTH_TRUST_HOST = "true";
+
+  if (!process.env.AUTH_URL) {
+    const origin = inferDeploymentOrigin();
+    if (origin) {
+      process.env.AUTH_URL = normalizeAuthBaseUrl(origin);
+    }
   }
 }
 

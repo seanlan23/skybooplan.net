@@ -1,23 +1,37 @@
+import { Auth } from "@auth/core";
 import { createFileRoute } from "@tanstack/react-router";
-import { StartAuthJS } from "start-authjs";
+import { setEnvDefaults } from "start-authjs";
 import { createAuthConfig } from "@/lib/auth.config";
+import { ensureAuthEnv } from "@/lib/auth.env";
+
+ensureAuthEnv();
+
+async function handleAuthRequest(request: Request): Promise<Response> {
+  try {
+    ensureAuthEnv();
+    const config = createAuthConfig();
+    setEnvDefaults(process.env, config);
+    return await Auth(request, config);
+  } catch (error) {
+    console.error("[auth] handler error:", error);
+    const message =
+      error instanceof Error ? error.message : "Authentication service error";
+    const isConfig =
+      message.includes("[auth] Missing required environment variables") ||
+      message.includes("AUTH_SECRET");
+    return Response.json({ error: message }, { status: isConfig ? 503 : 500 });
+  }
+}
 
 /**
- * TanStack Start equivalent of Next.js App Router:
- *   const handler = NextAuth(authOptions);
- *   export { handler as GET, handler as POST };
- *
- * Here StartAuthJS builds the handler per request so env vars are read at runtime.
+ * Auth.js API route handler for TanStack Start / Nitro.
+ * Handles all auth routes: /api/auth/*
  */
-const authHandlers = StartAuthJS(() => createAuthConfig());
-
 export const Route = createFileRoute("/api/auth/$")({
   server: {
     handlers: {
-      GET: ({ request }) =>
-        authHandlers.GET({ request, response: new Response() }),
-      POST: ({ request }) =>
-        authHandlers.POST({ request, response: new Response() }),
+      GET: async ({ request }) => handleAuthRequest(request),
+      POST: async ({ request }) => handleAuthRequest(request),
     },
   },
 });

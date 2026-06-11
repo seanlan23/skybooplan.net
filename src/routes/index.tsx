@@ -50,6 +50,9 @@ import { isClassicRoundTrip } from "@/lib/flightSearch";
 import { formatPlannerInterests } from "@/lib/plannerInterests";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { GoogleIcon } from "@/components/GoogleIcon";
+import { googleSignInHref } from "@/lib/auth.urls";
+import { hasAuthSession } from "@/lib/supabaseAuthHeaders";
 
 /** Full-screen fatal error — visible without devtools. */
 function FatalErrorScreen({ error }: { error: Error }) {
@@ -302,7 +305,7 @@ function Landing() {
   const { user } = useAuth();
   const subscription = useSubscription();
   const navigate = useNavigate();
-  const [paywall, setPaywall] = useState<null | "register" | "pay" | "daily">(null);
+  const [paywall, setPaywall] = useState<null | "login" | "register" | "pay" | "daily">(null);
   const { t, lang, currency: uiCurrency } = useI18n();
   const queryClient = useQueryClient();
   const searchFn = useServerFn(searchFlights);
@@ -782,6 +785,12 @@ function Landing() {
       setAiError(t("error.invalidSearchContext"));
       return;
     }
+
+    if (!(await hasAuthSession())) {
+      setPaywall("login");
+      return;
+    }
+
     const ctx = normalizeAiContext(rawCtx);
 
     const safeForm = normalizeLastPlannerForm(form) ?? form;
@@ -919,6 +928,12 @@ function Landing() {
   async function handleExpandFullPlan() {
     const form = normalizeLastPlannerForm(lastPlannerForm);
     if (!isActiveAiContext(aiContext) || !form || !aiSkeleton) return;
+
+    if (!(await hasAuthSession())) {
+      setPaywall("login");
+      return;
+    }
+
     const ctx = aiContext;
     setAiExpandingFull(true);
     setAiError(null);
@@ -1242,18 +1257,33 @@ function Landing() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
+              {paywall === "login" && t("paywall.loginTitle")}
               {paywall === "register" && t("paywall.registerTitle")}
               {paywall === "pay" && t("paywall.payTitle")}
               {paywall === "daily" && t("paywall.dailyTitle")}
             </DialogTitle>
             <DialogDescription>
+              {paywall === "login" && t("paywall.loginDesc")}
               {paywall === "register" && t("paywall.registerDesc")}
               {paywall === "pay" && t("paywall.payDesc")}
               {paywall === "daily" && t("paywall.dailyDesc")}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-2">
-            {paywall === "register" ? (
+            {paywall === "login" ? (
+              <>
+                <Button variant="outline" onClick={() => setPaywall(null)}>{t("common.cancel")}</Button>
+                <Button
+                  onClick={() => {
+                    setPaywall(null);
+                    window.location.href = googleSignInHref();
+                  }}
+                >
+                  <GoogleIcon className="h-4 w-4 mr-2" />
+                  {t("nav.signInGoogle")}
+                </Button>
+              </>
+            ) : paywall === "register" ? (
               <>
                 <Button variant="outline" onClick={() => setPaywall(null)}>{t("common.cancel")}</Button>
                 <Button onClick={() => { setPaywall(null); navigate({ to: "/signup" }); }}>{t("common.signUp")}</Button>
