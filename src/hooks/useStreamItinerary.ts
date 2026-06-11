@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import type { AiTripPlan } from "@/lib/aiPlan.functions";
 import type { GenerateGeminiProTripInput } from "@/lib/geminiPro.functions";
+import { supabaseAuthHeaders } from "@/lib/supabaseAuthHeaders";
 import {
   consumeNdjsonBuffer,
   flushNdjsonBuffer,
@@ -103,7 +104,7 @@ export function useStreamItinerary() {
       try {
         const res = await fetch("/api/generate-itinerary", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: await supabaseAuthHeaders({ "Content-Type": "application/json" }),
           body: JSON.stringify(input),
           signal: controller.signal,
         });

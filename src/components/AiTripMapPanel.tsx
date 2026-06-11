@@ -49,7 +49,7 @@ export const AiTripMapPanel = memo(function AiTripMapPanel({
   return (
     <div
       id="ai-trip-map"
-      className="order-2 w-full shrink-0 flex flex-col overflow-hidden lg:order-2 lg:sticky lg:top-0 lg:z-20 lg:h-screen lg:max-h-screen lg:self-start"
+      className="order-2 w-full shrink-0 flex flex-col overflow-hidden lg:order-2 lg:sticky lg:top-24 lg:z-20 lg:h-[calc(100vh-120px)] lg:max-h-[calc(100vh-120px)] lg:self-start"
     >
       <div className="flex items-center justify-center gap-2 px-1 pb-2">
         <button

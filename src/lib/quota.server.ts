@@ -93,6 +93,56 @@ export async function bumpUserDailyUsage(userId: string): Promise<void> {
   }
 }
 
+/** Record a successful itinerary generation against user or anon quota. */
+export async function recordPlanGeneration(
+  userId: string | null,
+  tier: QuotaCheck["tier"],
+  request?: Request,
+): Promise<void> {
+  if (userId) {
+    if (tier === "one_time") {
+      await decrementOneTimePlan(userId);
+    } else if (tier === "monthly" || tier === "annual") {
+      await bumpUserDailyUsage(userId);
+    }
+    return;
+  }
+  if (request) {
+    const ua = request.headers.get("user-agent") ?? undefined;
+    await bumpAnonQuota(extractIp(request.headers), ua);
+  }
+}
+
+export type ItineraryQuotaResult =
+  | { ok: true; tier: QuotaCheck["tier"] }
+  | { ok: false; response: Response };
+
+/** Enforce per-user or per-IP quota before calling Gemini. */
+export async function enforceItineraryQuota(
+  request: Request,
+  userId: string | null,
+): Promise<ItineraryQuotaResult> {
+  if (userId) {
+    const quota = await checkUserQuota(userId);
+    if (!quota.allowed) {
+      return {
+        ok: false,
+        response: Response.json({ error: "Quota exceeded" }, { status: 429 }),
+      };
+    }
+    return { ok: true, tier: quota.tier };
+  }
+
+  const anon = await checkAnonQuota(extractIp(request.headers));
+  if (!anon.allowed) {
+    return {
+      ok: false,
+      response: Response.json({ error: "Quota exceeded" }, { status: 429 }),
+    };
+  }
+  return { ok: true, tier: "free" };
+}
+
 /** For one_time tier: decrement plans_remaining after a plan is generated. */
 export async function decrementOneTimePlan(userId: string): Promise<void> {
   const { data } = await svc()

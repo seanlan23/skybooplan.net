@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { rankAirportSuggestions } from "@/lib/airportRank";
 
@@ -35,6 +36,7 @@ type MapboxFeature = {
 };
 
 export const searchPlaces = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => QuerySchema.parse(data))
   .handler(async ({ data }): Promise<{ suggestions: PlaceSuggestion[]; error: string | null }> => {
     if (data.kind === "place") {

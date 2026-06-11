@@ -486,7 +486,7 @@ export function AiPlanView({
       </div>
 
       <div className="flex flex-col lg:grid lg:grid-cols-[1fr_1.3fr] gap-4 sm:gap-5 lg:gap-6 lg:items-start w-full">
-        <div className="space-y-4 sm:space-y-5 min-w-0 w-full order-1">
+        <div className="space-y-4 sm:space-y-5 min-w-0 w-full order-1 lg:h-[calc(100vh-120px)] lg:overflow-y-auto lg:overscroll-contain">
           {plan.groundJourney && <TransportDashboard plan={plan} />}
           {plan.days.map((d, idx) => {
             const isLockedDay = shouldPaywallDays && idx >= PAYWALL_LOCKED_FROM_INDEX;

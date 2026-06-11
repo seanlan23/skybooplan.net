@@ -1,4 +1,5 @@
 import { createServerFn } from '@tanstack/react-start';
+import { requireSupabaseAuth } from '@/integrations/supabase/auth-middleware';
 import { type StripeEnv, createStripeClient, getStripeErrorMessage } from '@/lib/stripe.server';
 
 type CheckoutSessionResult = { clientSecret: string } | { error: string };
@@ -37,19 +38,22 @@ async function resolveOrCreateCustomer(
 }
 
 export const createCheckoutSession = createServerFn({ method: 'POST' })
+  .middleware([requireSupabaseAuth])
   .inputValidator((data: {
     priceId: string;
     quantity?: number;
-    customerEmail?: string;
-    userId?: string;
     returnUrl: string;
     environment: StripeEnv;
   }) => {
     if (!/^[a-zA-Z0-9_-]+$/.test(data.priceId)) throw new Error('Invalid priceId');
     return data;
   })
-  .handler(async ({ data }): Promise<CheckoutSessionResult> => {
+  .handler(async ({ data, context }): Promise<CheckoutSessionResult> => {
     try {
+      const { supabase, userId } = context;
+      const { data: userData } = await supabase.auth.getUser();
+      const customerEmail = userData.user?.email ?? undefined;
+
       const stripe = createStripeClient(data.environment);
 
       const prices = await stripe.prices.list({ lookup_keys: [data.priceId] });
@@ -57,8 +61,8 @@ export const createCheckoutSession = createServerFn({ method: 'POST' })
       const stripePrice = prices.data[0];
       const isRecurring = stripePrice.type === 'recurring';
 
-      const customerId = (data.customerEmail || data.userId)
-        ? await resolveOrCreateCustomer(stripe, { email: data.customerEmail, userId: data.userId })
+      const customerId = (customerEmail || userId)
+        ? await resolveOrCreateCustomer(stripe, { email: customerEmail, userId })
         : undefined;
 
       let productDescription: string | undefined;
@@ -75,10 +79,8 @@ export const createCheckoutSession = createServerFn({ method: 'POST' })
         return_url: data.returnUrl,
         ...(customerId && { customer: customerId }),
         ...(!isRecurring && { payment_intent_data: { description: productDescription } }),
-        ...(data.userId && {
-          metadata: { userId: data.userId },
-          ...(isRecurring && { subscription_data: { metadata: { userId: data.userId } } }),
-        }),
+        metadata: { userId },
+        ...(isRecurring && { subscription_data: { metadata: { userId } } }),
         // Lovable-managed compliance handling (tax + fraud + disputes + support).
         // Cast to any: not yet in Stripe types as of 22.0.2.
         managed_payments: { enabled: true },

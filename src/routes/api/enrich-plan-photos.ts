@@ -1,11 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type { AiTripPlan } from "@/lib/aiPlan.functions";
 import { enrichPlanPoiPhotos } from "@/lib/unsplashPhotos";
+import { requireSupabaseAuthRequest } from "@/lib/supabaseRequestAuth.server";
 
 export const Route = createFileRoute("/api/enrich-plan-photos")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        const authResult = await requireSupabaseAuthRequest(request);
+        if (!authResult.ok) return authResult.response;
+
         let body: unknown;
         try {
           body = await request.json();

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
 import type { AiTripPlan } from "@/lib/aiPlan.functions";
+import { supabaseAuthHeaders } from "@/lib/supabaseAuthHeaders";
 import {
   buildPlanPhotoRequestKey,
   mergePlanPhotos,
@@ -38,7 +39,7 @@ export function usePlanPhotoEnrichment(
       try {
         const res = await fetch("/api/enrich-plan-photos", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: await supabaseAuthHeaders({ "Content-Type": "application/json" }),
           body: JSON.stringify({ plan: currentPlan }),
           signal: controller.signal,
         });

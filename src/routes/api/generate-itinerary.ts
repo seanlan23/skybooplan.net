@@ -14,6 +14,8 @@ import {
   buildCatalogPlanFromResponse,
   buildGeminiMapOpts,
 } from "@/lib/geminiProCatalog";
+import { requireSupabaseAuthRequest } from "@/lib/supabaseRequestAuth.server";
+import { enforceItineraryQuota, recordPlanGeneration } from "@/lib/quota.server";
 
 const generateInput = generateGeminiProTripInputSchema.transform((data) => ({
   ...data,
@@ -34,6 +36,14 @@ export const Route = createFileRoute("/api/generate-itinerary")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        const authResult = await requireSupabaseAuthRequest(request);
+        if (!authResult.ok) return authResult.response;
+
+        const { userId } = authResult.auth;
+
+        const quota = await enforceItineraryQuota(request, userId);
+        if (!quota.ok) return quota.response;
+
         if (!geminiApiKey()) {
           return Response.json(
             { error: "GEMINI_API_KEY ni nastavljen na strežniku." },
@@ -90,6 +100,7 @@ export const Route = createFileRoute("/api/generate-itinerary")({
               if (built.error || !built.plan) {
                 push({ type: "error", error: built.error ?? "Načrt ni bil generiran." });
               } else {
+                await recordPlanGeneration(userId, quota.tier, request);
                 push({ type: "done", plan: built.plan });
               }
 

@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import {
   ensureHotelCheckoutAfterCheckin,
@@ -68,6 +69,7 @@ function extractHotelsRows(result: unknown): any[] {
 }
 
 export const searchHotels = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((d) => Input.parse(d))
   .handler(async ({ data }): Promise<{ hotels: RealHotel[]; error: string | null }> => {
     const city = data.city.trim();

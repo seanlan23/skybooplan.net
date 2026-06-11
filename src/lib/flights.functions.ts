@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
   buildDuffelSlices,
   FlightSearchSchema,
@@ -187,6 +188,7 @@ export function mapDuffelOfferToFlight(offer: DuffelOffer): DuffelFlight | null 
 }
 
 export const searchFlights = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => FlightSearchSchema.parse(data))
   .handler(async ({ data }): Promise<{ flights: DuffelFlight[]; error: string | null }> => {
     const token = process.env.DUFFEL_API_KEY;
