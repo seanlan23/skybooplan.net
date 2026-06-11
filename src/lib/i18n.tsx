@@ -236,10 +236,26 @@ const en: Dict = {
   "nav.ai": "AI Planner",
   "nav.myPlans": "My plans",
   "nav.signIn": "Sign in",
+  "nav.signInGoogle": "Sign in with Google",
   "nav.signUp": "Sign up",
   "nav.signOut": "Sign out",
+  "nav.logout": "Logout",
   "nav.profile": "Profile",
   "nav.myTrips": "My trips",
+  "dashboard.badge": "Dashboard",
+  "dashboard.greeting": "Welcome back, {name}",
+  "dashboard.subtitle": "Your saved trips will appear here. Start planning your next adventure.",
+  "dashboard.emptyTitle": "No saved trips yet",
+  "dashboard.emptyHint": "Create your first AI travel plan on the home page — it will show up here automatically.",
+  "dashboard.planTrip": "Plan a trip",
+  "dashboard.tripSlot": "Saved trip card",
+  "dashboard.traveler": "Traveler",
+  "dashboard.statPlans": "Saved plans",
+  "dashboard.statLatest": "Latest destination",
+  "dashboard.statNext": "Next departure",
+  "dashboard.openPlan": "Open plan",
+  "dashboard.addPlan": "New AI plan",
+  "dashboard.addPlanHint": "Craft another dream trip",
   "pricing.badge": "Pricing",
   "pricing.title1": "Simple pricing.",
   "pricing.title2": "Pay only for what you need.",
@@ -355,6 +371,8 @@ const en: Dict = {
   "auth.welcomeBack": "Welcome back",
   "auth.loginSub": "Sign in to plan your next adventure.",
   "auth.continueGoogle": "Continue with Google",
+  "auth.completingSignIn": "Completing sign in…",
+  "auth.googleBridgeFailed": "Google sign-in could not be completed. Please try again.",
   "auth.or": "OR",
   "auth.emailPh": "you@email.com",
   "auth.passwordPh": "Password",
@@ -785,10 +803,26 @@ const dicts: Record<Lang, Dict> = {
     "nav.ai": "AI načrtovalec",
     "nav.myPlans": "Moji plani",
     "nav.signIn": "Prijava",
+    "nav.signInGoogle": "Prijava z Googlom",
     "nav.signUp": "Registracija",
     "nav.signOut": "Odjava",
+    "nav.logout": "Odjava",
     "nav.profile": "Profil",
     "nav.myTrips": "Moja potovanja",
+    "dashboard.badge": "Nadzorna plošča",
+    "dashboard.greeting": "Pozdravljeni, {name}",
+    "dashboard.subtitle": "Tukaj bodo prikazana vaša shranjena potovanja. Začnite načrtovati naslednjo avanturo.",
+    "dashboard.emptyTitle": "Še nimate shranjenih potovanj",
+    "dashboard.emptyHint": "Ustvarite prvi AI načrt na domači strani — samodejno se bo prikazal tukaj.",
+    "dashboard.planTrip": "Načrtuj potovanje",
+    "dashboard.tripSlot": "Kartica potovanja",
+    "dashboard.traveler": "Popotnik",
+    "dashboard.statPlans": "Shranjeni plani",
+    "dashboard.statLatest": "Zadnja destinacija",
+    "dashboard.statNext": "Naslednji odhod",
+    "dashboard.openPlan": "Odpri plan",
+    "dashboard.addPlan": "Nov AI plan",
+    "dashboard.addPlanHint": "Ustvari novo sanjsko potovanje",
     "pricing.badge": "Cenik",
     "pricing.title1": "Preprosta cena.",
     "pricing.title2": "Plačaj samo to, kar potrebuješ.",
@@ -906,6 +940,8 @@ const dicts: Record<Lang, Dict> = {
     "auth.welcomeBack": "Dobrodošel nazaj",
     "auth.loginSub": "Prijavi se in načrtuj svojo naslednjo avanturo.",
     "auth.continueGoogle": "Nadaljuj z Googlom",
+    "auth.completingSignIn": "Dokončujem prijavo …",
+    "auth.googleBridgeFailed": "Google prijave ni bilo mogoče dokončati. Poskusite znova.",
     "auth.or": "ALI",
     "auth.emailPh": "ti@email.com",
     "auth.passwordPh": "Geslo",
@@ -2010,11 +2046,36 @@ const RTL: Lang[] = ["ar"];
 
 const STORAGE_KEY = "skybooplan.lang";
 
+/** Only these locales have a complete dictionary — others must not mix partial strings into the UI. */
+const COMPLETE_LOCALES: ReadonlySet<Lang> = new Set(["sl", "en"]);
+
+function isUsableTranslation(value: string | undefined): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+/**
+ * Strict fallback chain: incomplete locale packs (e.g. de at ~15% coverage) never
+ * contribute strings — the UI stays fully sl, en, or en→sl without a mixed language.
+ */
+export function translationFallbackChain(lang: Lang): Lang[] {
+  if (lang === "sl") return ["sl", "en"];
+  if (lang === "en") return ["en", "sl"];
+  if (COMPLETE_LOCALES.has(lang)) return [lang, "en", "sl"];
+  return ["en", "sl"];
+}
+
+/** Normalize persisted / picked codes so incomplete packs do not stick as UI language. */
+export function normalizeAppLang(code: string): Lang {
+  if (!(SUPPORTED_LANGS as readonly string[]).includes(code)) return "sl";
+  const lang = code as Lang;
+  return lang === "sl" || lang === "en" ? lang : "en";
+}
+
 export function readStoredLang(): Lang {
   if (typeof window === "undefined") return "sl";
   try {
-    const stored = localStorage.getItem(STORAGE_KEY) as Lang | null;
-    if (stored && (SUPPORTED_LANGS as readonly string[]).includes(stored)) return stored;
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) return normalizeAppLang(stored);
   } catch {}
   return "sl";
 }
@@ -2029,15 +2090,12 @@ type I18nCtx = {
 const Ctx = createContext<I18nCtx | null>(null);
 
 function lookupTranslation(lang: Lang, key: keyof typeof en): string {
-  const dict = dicts[lang] ?? dicts.en;
-  const v = dict[key];
-  if (v !== undefined && v !== "") return v;
-  const enVal = dicts.en[key];
-  if (enVal !== undefined && enVal !== "") return enVal;
-  const slVal = dicts.sl[key];
-  if (slVal !== undefined && slVal !== "") return slVal;
+  for (const code of translationFallbackChain(lang)) {
+    const v = dicts[code]?.[key];
+    if (isUsableTranslation(v)) return v;
+  }
   if (import.meta.env.DEV) {
-    console.warn(`[i18n] Missing translation for "${String(key)}" in "${lang}"`);
+    console.warn(`[i18n] Missing translation for "${String(key)}" (lang=${lang})`);
   }
   return String(key);
 }
@@ -2073,8 +2131,9 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     return {
       lang,
       setLang: (l) => {
-        setLangState(l);
-        try { localStorage.setItem(STORAGE_KEY, l); } catch {}
+        const normalized = normalizeAppLang(l);
+        setLangState(normalized);
+        try { localStorage.setItem(STORAGE_KEY, normalized); } catch {}
       },
       t: (key) => lookupTranslation(lang, key),
       dir: RTL.includes(lang) ? "rtl" : "ltr",

@@ -3,6 +3,7 @@ import type { Session, User } from "@supabase/supabase-js";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
+import { authSignOutHref } from "@/lib/auth.urls";
 
 type AuthContextValue = {
   user: User | null;
@@ -39,6 +40,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     await supabase.auth.signOut();
+    if (typeof window !== "undefined") {
+      window.location.href = authSignOutHref();
+    }
   };
 
   return (

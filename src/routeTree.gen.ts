@@ -20,10 +20,13 @@ import { Route as AboutRouteImport } from './routes/about'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CheckoutReturnRouteImport } from './routes/checkout.return'
+import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
 import { Route as ApiGenerateItineraryRouteImport } from './routes/api/generate-itinerary'
 import { Route as ApiEnrichPlanPhotosRouteImport } from './routes/api/enrich-plan-photos'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated.profile'
 import { Route as AuthenticatedMyTripsRouteImport } from './routes/_authenticated.my-trips'
+import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated.dashboard'
+import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as AuthenticatedMyTripsPlanIdRouteImport } from './routes/_authenticated.my-trips.$planId'
 import { Route as AuthenticatedAdminWebhooksRouteImport } from './routes/_authenticated.admin.webhooks'
 import { Route as AuthenticatedAdminPdfDownloadsRouteImport } from './routes/_authenticated.admin.pdf-downloads'
@@ -83,6 +86,11 @@ const CheckoutReturnRoute = CheckoutReturnRouteImport.update({
   path: '/checkout/return',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthCallbackRoute = AuthCallbackRouteImport.update({
+  id: '/auth/callback',
+  path: '/auth/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiGenerateItineraryRoute = ApiGenerateItineraryRouteImport.update({
   id: '/api/generate-itinerary',
   path: '/api/generate-itinerary',
@@ -102,6 +110,16 @@ const AuthenticatedMyTripsRoute = AuthenticatedMyTripsRouteImport.update({
   id: '/my-trips',
   path: '/my-trips',
   getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
+  id: '/api/auth/$',
+  path: '/api/auth/$',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedMyTripsPlanIdRoute =
   AuthenticatedMyTripsPlanIdRouteImport.update({
@@ -138,14 +156,17 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/terms': typeof TermsRoute
+  '/dashboard': typeof AuthenticatedDashboardRoute
   '/my-trips': typeof AuthenticatedMyTripsRouteWithChildren
   '/profile': typeof AuthenticatedProfileRoute
   '/api/enrich-plan-photos': typeof ApiEnrichPlanPhotosRoute
   '/api/generate-itinerary': typeof ApiGenerateItineraryRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/checkout/return': typeof CheckoutReturnRoute
   '/admin/pdf-downloads': typeof AuthenticatedAdminPdfDownloadsRoute
   '/admin/webhooks': typeof AuthenticatedAdminWebhooksRoute
   '/my-trips/$planId': typeof AuthenticatedMyTripsPlanIdRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
 export interface FileRoutesByTo {
@@ -158,14 +179,17 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/terms': typeof TermsRoute
+  '/dashboard': typeof AuthenticatedDashboardRoute
   '/my-trips': typeof AuthenticatedMyTripsRouteWithChildren
   '/profile': typeof AuthenticatedProfileRoute
   '/api/enrich-plan-photos': typeof ApiEnrichPlanPhotosRoute
   '/api/generate-itinerary': typeof ApiGenerateItineraryRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/checkout/return': typeof CheckoutReturnRoute
   '/admin/pdf-downloads': typeof AuthenticatedAdminPdfDownloadsRoute
   '/admin/webhooks': typeof AuthenticatedAdminWebhooksRoute
   '/my-trips/$planId': typeof AuthenticatedMyTripsPlanIdRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
 export interface FileRoutesById {
@@ -180,14 +204,17 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/terms': typeof TermsRoute
+  '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/my-trips': typeof AuthenticatedMyTripsRouteWithChildren
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/api/enrich-plan-photos': typeof ApiEnrichPlanPhotosRoute
   '/api/generate-itinerary': typeof ApiGenerateItineraryRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/checkout/return': typeof CheckoutReturnRoute
   '/_authenticated/admin/pdf-downloads': typeof AuthenticatedAdminPdfDownloadsRoute
   '/_authenticated/admin/webhooks': typeof AuthenticatedAdminWebhooksRoute
   '/_authenticated/my-trips/$planId': typeof AuthenticatedMyTripsPlanIdRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
 export interface FileRouteTypes {
@@ -202,14 +229,17 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/signup'
     | '/terms'
+    | '/dashboard'
     | '/my-trips'
     | '/profile'
     | '/api/enrich-plan-photos'
     | '/api/generate-itinerary'
+    | '/auth/callback'
     | '/checkout/return'
     | '/admin/pdf-downloads'
     | '/admin/webhooks'
     | '/my-trips/$planId'
+    | '/api/auth/$'
     | '/api/public/payments/webhook'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -222,14 +252,17 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/signup'
     | '/terms'
+    | '/dashboard'
     | '/my-trips'
     | '/profile'
     | '/api/enrich-plan-photos'
     | '/api/generate-itinerary'
+    | '/auth/callback'
     | '/checkout/return'
     | '/admin/pdf-downloads'
     | '/admin/webhooks'
     | '/my-trips/$planId'
+    | '/api/auth/$'
     | '/api/public/payments/webhook'
   id:
     | '__root__'
@@ -243,14 +276,17 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/signup'
     | '/terms'
+    | '/_authenticated/dashboard'
     | '/_authenticated/my-trips'
     | '/_authenticated/profile'
     | '/api/enrich-plan-photos'
     | '/api/generate-itinerary'
+    | '/auth/callback'
     | '/checkout/return'
     | '/_authenticated/admin/pdf-downloads'
     | '/_authenticated/admin/webhooks'
     | '/_authenticated/my-trips/$planId'
+    | '/api/auth/$'
     | '/api/public/payments/webhook'
   fileRoutesById: FileRoutesById
 }
@@ -267,7 +303,9 @@ export interface RootRouteChildren {
   TermsRoute: typeof TermsRoute
   ApiEnrichPlanPhotosRoute: typeof ApiEnrichPlanPhotosRoute
   ApiGenerateItineraryRoute: typeof ApiGenerateItineraryRoute
+  AuthCallbackRoute: typeof AuthCallbackRoute
   CheckoutReturnRoute: typeof CheckoutReturnRoute
+  ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
 }
 
@@ -350,6 +388,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CheckoutReturnRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth/callback': {
+      id: '/auth/callback'
+      path: '/auth/callback'
+      fullPath: '/auth/callback'
+      preLoaderRoute: typeof AuthCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/generate-itinerary': {
       id: '/api/generate-itinerary'
       path: '/api/generate-itinerary'
@@ -377,6 +422,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/my-trips'
       preLoaderRoute: typeof AuthenticatedMyTripsRouteImport
       parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/dashboard': {
+      id: '/_authenticated/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AuthenticatedDashboardRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/api/auth/$': {
+      id: '/api/auth/$'
+      path: '/api/auth/$'
+      fullPath: '/api/auth/$'
+      preLoaderRoute: typeof ApiAuthSplatRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/my-trips/$planId': {
       id: '/_authenticated/my-trips/$planId'
@@ -421,6 +480,7 @@ const AuthenticatedMyTripsRouteWithChildren =
   AuthenticatedMyTripsRoute._addFileChildren(AuthenticatedMyTripsRouteChildren)
 
 interface AuthenticatedRouteChildren {
+  AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedMyTripsRoute: typeof AuthenticatedMyTripsRouteWithChildren
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
   AuthenticatedAdminPdfDownloadsRoute: typeof AuthenticatedAdminPdfDownloadsRoute
@@ -428,6 +488,7 @@ interface AuthenticatedRouteChildren {
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
+  AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedMyTripsRoute: AuthenticatedMyTripsRouteWithChildren,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
   AuthenticatedAdminPdfDownloadsRoute: AuthenticatedAdminPdfDownloadsRoute,
@@ -451,7 +512,9 @@ const rootRouteChildren: RootRouteChildren = {
   TermsRoute: TermsRoute,
   ApiEnrichPlanPhotosRoute: ApiEnrichPlanPhotosRoute,
   ApiGenerateItineraryRoute: ApiGenerateItineraryRoute,
+  AuthCallbackRoute: AuthCallbackRoute,
   CheckoutReturnRoute: CheckoutReturnRoute,
+  ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
 }
 export const routeTree = rootRouteImport

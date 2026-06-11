@@ -903,7 +903,7 @@ function Landing() {
       <main className="flex-1">
         {/* Hero */}
         <section className="mx-auto max-w-7xl px-6 pt-16 sm:pt-24 pb-12 text-center">
-          <h1 className="bg-gradient-to-r from-slate-950 via-blue-900 to-indigo-800 bg-clip-text text-4xl font-bold tracking-tight text-transparent sm:text-6xl lg:text-7xl">
+          <h1 className="overflow-visible bg-gradient-to-r from-slate-950 via-blue-900 to-indigo-800 bg-clip-text pb-2 text-4xl font-bold leading-tight tracking-tight text-transparent sm:text-6xl lg:text-7xl">
             {t("hero.title.a")} {t("hero.title.b")} {t("hero.title.c")}
           </h1>
           <p className="mx-auto mt-5 max-w-2xl text-lg text-slate-500 sm:text-xl">

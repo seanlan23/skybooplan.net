@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.80",
+    "@auth/core": "^0.41.2",
     "@google/genai": "^2.8.0",
     "@google/generative-ai": "^0.24.1",
     "@hookform/resolvers": "^5.2.2",
@@ -70,6 +71,7 @@
     "react-resizable-panels": "^4.6.5",
     "recharts": "^2.15.4",
     "sonner": "^2.0.7",
+    "start-authjs": "^1.0.2",
     "stripe": "22.0.2",
     "tailwind-merge": "^3.5.0",
     "tailwindcss": "^4.2.1",
