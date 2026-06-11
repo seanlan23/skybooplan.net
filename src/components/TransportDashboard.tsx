@@ -1,6 +1,6 @@
 import { ArrowRight, Bus, Car, MapPin, Route, TrainFront } from "lucide-react";
 import type { AiTripPlan, DayPlan } from "@/lib/aiPlan.functions";
-import { groundTransportLabel, isJourneyDay } from "@/lib/groundTransport";
+import { groundTransportLabel } from "@/lib/groundTransport";
 import { useI18n } from "@/lib/i18n";
 
 const MODE_ICON = {
@@ -50,7 +50,7 @@ export function TransportDashboard({ plan }: { plan: AiTripPlan }) {
   if (!mode || !journey) return null;
 
   const Icon = MODE_ICON[mode];
-  const journeyDays = plan.days.filter((d) => isJourneyDay(d, plan));
+  const tripDays = [...plan.days].sort((a, b) => a.day - b.day);
 
   return (
     <section className="rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-50/80 via-white to-sky-50/60 p-5 sm:p-6 shadow-sm">
@@ -105,12 +105,12 @@ export function TransportDashboard({ plan }: { plan: AiTripPlan }) {
         </div>
       )}
 
-      {journeyDays.length > 0 && (
+      {tripDays.length > 0 && (
         <div className="mt-5 space-y-2">
           <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
             {slo ? "Dnevi poti" : "Travel days"}
           </p>
-          {journeyDays.map((day) => (
+          {tripDays.map((day) => (
             <JourneyDaySummary key={day.day} day={day} />
           ))}
         </div>

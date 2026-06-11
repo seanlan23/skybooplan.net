@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Building2,
   FerrisWheel,
@@ -10,7 +11,7 @@ import {
   Waves,
   type LucideIcon,
 } from "lucide-react";
-import { mapPoiVisual, type MapPoiCategory } from "@/lib/mapPoiCategory";
+import { type MapPoiCategory } from "@/lib/mapPoiCategory";
 
 const POI_ICONS: Record<MapPoiCategory, LucideIcon> = {
   sightseeing: Landmark,
@@ -22,57 +23,131 @@ const POI_ICONS: Record<MapPoiCategory, LucideIcon> = {
   airport: Plane,
 };
 
-type Props = {
+/** Subtle icon tint — no heavy filled badge backgrounds. */
+const CATEGORY_ICON_CLASS: Record<MapPoiCategory, string> = {
+  sightseeing: "text-slate-600",
+  nature: "text-emerald-600",
+  beach: "text-cyan-600",
+  food: "text-orange-600",
+  entertainment: "text-violet-600",
+  hotel: "text-amber-700",
+  airport: "text-sky-600",
+};
+
+const MARKER_IMG_CLASS =
+  "h-10 w-10 rounded-full border-2 border-white object-cover shadow-md transition-transform duration-300 ease-out";
+
+const MARKER_ICON_SHELL_CLASS =
+  "flex h-10 w-10 items-center justify-center rounded-full border border-white/90 bg-white/75 shadow-md backdrop-blur-sm transition-all duration-300 ease-out";
+
+type MarkerShellProps = {
+  isActive?: boolean;
+  name?: string;
+  children: React.ReactNode;
+};
+
+function MarkerShell({ isActive = false, name, children }: MarkerShellProps) {
+  return (
+    <div
+      className={`flex cursor-pointer items-center justify-center transition-transform duration-300 ease-out ${
+        isActive ? "z-[6] scale-110" : "opacity-90 hover:opacity-100"
+      }`}
+      title={name}
+    >
+      {children}
+    </div>
+  );
+}
+
+type IconMarkerProps = {
   category: MapPoiCategory;
   isActive?: boolean;
   name?: string;
 };
 
-export function MapPoiMarker({ category, isActive = false, name }: Props) {
-  const visual = mapPoiVisual(category);
+function IconMarker({ category, isActive = false, name }: IconMarkerProps) {
   const Icon = POI_ICONS[category] ?? MapPin;
 
   return (
-    <div
-      className={`flex items-center justify-center cursor-pointer transition-transform duration-300 ease-out ${
-        isActive ? "z-[6]" : "opacity-80"
-      }`}
-      title={name}
-    >
+    <MarkerShell isActive={isActive} name={name}>
       <div
-        className={`flex h-8 w-8 items-center justify-center rounded-full border-2 border-white shadow-md transition-all duration-300 ease-out ${
-          isActive ? "scale-110 shadow-lg ring-2 ring-offset-1" : ""
+        className={`${MARKER_ICON_SHELL_CLASS}${
+          isActive ? " ring-2 ring-sky-400/40 ring-offset-1 bg-white/90" : ""
         }`}
-        style={{
-          backgroundColor: visual.bg,
-          ...(isActive ? { borderColor: visual.ring, boxShadow: `0 4px 14px ${visual.ring}55` } : {}),
-        }}
       >
         <Icon
-          className="pointer-events-none h-4 w-4 text-white"
-          strokeWidth={2.25}
+          className={`pointer-events-none h-[18px] w-[18px] ${CATEGORY_ICON_CLASS[category]}`}
+          strokeWidth={2}
           aria-hidden
         />
       </div>
-    </div>
+    </MarkerShell>
   );
 }
 
-/** City / day stop marker — circular pin with map icon. */
+export type MapPoiMarkerProps = {
+  category: MapPoiCategory;
+  isActive?: boolean;
+  name?: string;
+  imageUrl?: string;
+};
+
+export function MapPoiMarker({ category, isActive = false, name, imageUrl }: MapPoiMarkerProps) {
+  const [photoFailed, setPhotoFailed] = useState(false);
+  const hasPhoto = Boolean(imageUrl?.trim()) && !photoFailed;
+
+  if (hasPhoto && imageUrl) {
+    return (
+      <MarkerShell isActive={isActive} name={name}>
+        <img
+          src={imageUrl}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          onError={() => setPhotoFailed(true)}
+          className={`${MARKER_IMG_CLASS}${isActive ? " ring-2 ring-sky-400/50 ring-offset-1" : ""}`}
+        />
+      </MarkerShell>
+    );
+  }
+
+  return <IconMarker category={category} isActive={isActive} name={name} />;
+}
+
+/** City / day stop marker — photo thumbnail or minimal pin. */
 export function MapCityMarker({
   isActive = false,
   dayCount,
+  imageUrl,
+  city,
 }: {
   isActive?: boolean;
   dayCount?: number;
+  imageUrl?: string;
+  city?: string;
 }) {
+  const [photoFailed, setPhotoFailed] = useState(false);
+  const hasPhoto = Boolean(imageUrl?.trim()) && !photoFailed;
+
   return (
-    <div
-      className={`relative flex h-10 w-10 items-center justify-center rounded-full border-[3px] border-white bg-slate-100 shadow-md transition-all duration-300 ease-out ${
-        isActive ? "scale-110 shadow-lg ring-2 ring-sky-400/60 ring-offset-1" : "opacity-90"
-      }`}
-    >
-      <MapPin className="h-5 w-5 text-slate-500" strokeWidth={2.25} aria-hidden />
+    <div className="relative">
+      {hasPhoto && imageUrl ? (
+        <img
+          src={imageUrl}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          onError={() => setPhotoFailed(true)}
+          className={`${MARKER_IMG_CLASS}${isActive ? " scale-110 ring-2 ring-sky-400/50 ring-offset-1" : ""}`}
+        />
+      ) : (
+        <div
+          className={`${MARKER_ICON_SHELL_CLASS}${isActive ? " scale-110 ring-2 ring-sky-400/40 ring-offset-1 bg-white/90" : ""}`}
+          title={city}
+        >
+          <MapPin className="pointer-events-none h-[18px] w-[18px] text-slate-500" strokeWidth={2} aria-hidden />
+        </div>
+      )}
       {dayCount != null && dayCount > 0 ? (
         <span className="absolute -bottom-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-sky-600 px-1 text-[9px] font-bold leading-none text-white shadow-sm">
           {dayCount}
@@ -85,8 +160,21 @@ export function MapCityMarker({
 /** Origin / home marker. */
 export function MapOriginMarker() {
   return (
-    <div className="flex h-10 w-10 items-center justify-center rounded-full border-[3px] border-white bg-white shadow-md">
-      <Building2 className="h-5 w-5 text-slate-800" strokeWidth={2.25} aria-hidden />
+    <div className={`${MARKER_ICON_SHELL_CLASS} bg-white/90`}>
+      <Building2 className="h-[18px] w-[18px] text-slate-700" strokeWidth={2} aria-hidden />
     </div>
   );
+}
+
+export function resolveMarkerImageUrl(opts: {
+  imageUrl?: string;
+  imageUrls?: string[];
+  photoUrl?: string;
+}): string | undefined {
+  const candidates = [opts.imageUrl, opts.photoUrl, ...(opts.imageUrls ?? [])];
+  for (const url of candidates) {
+    const trimmed = url?.trim();
+    if (trimmed && /^https?:\/\//i.test(trimmed)) return trimmed;
+  }
+  return undefined;
 }

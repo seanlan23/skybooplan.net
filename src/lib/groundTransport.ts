@@ -37,7 +37,13 @@ PREVOZ DO DESTINACIJE — VLAK (obvezno):
 - Prvi dni itinerarja morajo vključevati logistiko poti od doma: ključne postaje, prestope, trajanje in oceno cene.
 - Označi vsak dan poti z jasnim naslovom (npr. "Pot do Rima — vlak preko Dunaja").
 - V transportation[] na dneh poti uporabi type "train" z realnimi imeni postaj/mest.
-- Po prihodu na destinacijo nadaljuj z običajnim oglednim programom.`;
+- Po prihodu na destinacijo nadaljuj z običajnim oglednim programom.
+
+POVRATEK DOMOV — VLAK (obvezno, zadnji dnevi):
+- Potnik se NE vrača z mednarodnega letala! Celotno potovanje je vlak iz "${origin}" do "${dest}" in nazaj.
+- Zadnji dan (ali zadnja 1–2 dni) mora biti vožnja/vlak NAZAJ do izhodišča "${origin}".
+- Na zadnjem dnevu NE načrtuj mednarodnega leta, odhoda z letališča ali trip_metadata.return_flight_eu.
+- transportation[] zadnjega dne: type "train" proti domu.`;
   }
 
   const vehicle = mode === "motorhome" ? "avtodomom" : "avtom";
@@ -47,7 +53,47 @@ PREVOZ DO DESTINACIJE — ${mode === "motorhome" ? "AVTODOM" : "AVTO"} (obvezno)
 - Prvi dni morajo pokrivati celotno pot od doma do destinacije z realističnimi postanki (npr. "Postanek v Milanu", "Nočitev v Münchenu").
 - Vsak dan poti: drivingDistanceKm, drivingDurationHours, smiselne postanke ali kratki ogledi ob poti.
 - Za avtodom: kampiri/RV parki ob poti, ne hoteli v centru mest.
-- Po prihodu na destinacijo nadaljuj z glavnim programom na cilju.`;
+- Po prihodu na destinacijo nadaljuj z glavnim programom na cilju.
+
+POVRATEK DOMOV — ${mode === "motorhome" ? "AVTODOM" : "AVTO"} (obvezno, zadnji dnevi):
+- Potnik se NE vrača z mednarodnega letala! Celotno potovanje je z ${vehicle} iz "${origin}" do "${dest}" in nazaj.
+- Zadnji dan (ali zadnja 1–3 dni, glede na razdaljo) mora biti vožnja NAZAJ do izhodišča "${origin}" z realističnimi postanki, drivingDistanceKm in drivingDurationHours.
+- Na zadnjem dnevu NE načrtuj mednarodnega leta, category airport za odlet v EU, prevoza na letališče ali trip_metadata.return_flight_eu.
+- transportation[] zadnjega dne: vožnja z avtom/avtodomom proti domu — ne flight.`;
+}
+
+/** Last-day return rules — must match groundTransportMode (car ≠ flight home). */
+export function lastDayReturnPromptBlock(params: {
+  groundTransportMode?: GroundTransportMode;
+  originPlace?: string;
+  returnFromIata?: string;
+  destinationIata?: string;
+}): string {
+  const origin = params.originPlace?.trim() || "izhodišče potnika";
+  const mode = params.groundTransportMode;
+
+  if (mode === "car" || mode === "motorhome") {
+    const vehicle = mode === "motorhome" ? "avtodomom" : "avtom";
+    return `ZADNJI DAN — POVRATEK DOMOV (obvezno, ${mode === "motorhome" ? "AVTODOM" : "AVTO"}):
+- Striktno: potnik potuje z ${vehicle} od "${origin}" — zadnji dan je vožnja NAZAJ na "${origin}", NE mednarodni let z letališča!
+- Zadnji dan: check-out, nato vožnja domov z drivingDistanceKm, drivingDurationHours in po potrebi postanki ob cesti.
+- Prepovedano na zadnjem dnevu: mednarodni let, aktivnost category airport za odlet v EU, prevoz na letališče za povratek domov.
+- trip_metadata.return_flight_eu NE izpolnjuj — potnik se vrne z ${vehicle}.`;
+  }
+
+  if (mode === "train") {
+    return `ZADNJI DAN — POVRATEK DOMOV (obvezno, VLAK):
+- Striktno: potnik se vrača z vlakom na "${origin}" — NE z mednarodnega letala!
+- Zadnji dan(i): vlak/postaje proti domu; transportation[] type "train".
+- trip_metadata.return_flight_eu NE izpolnjuj.`;
+  }
+
+  const airport = params.returnFromIata ?? params.destinationIata ?? "izhodno letališče";
+  return `ZADNJI DAN — LOGISTIČNI ZAKLJUČEK (LET):
+- Zadnji dan potovanja je IZKLJUČNO za logistiko: check-out, prevoz na izhodno letališče (${airport}), buffer za varnost, morebiten hiter obrok v bližini letališča.
+- Na zadnji dan NE dodajaj novih mest, ogledov, atrakcij ali oddaljenih regij — potnik mora priti do letala brez stresa.
+- Če je odhod zgodaj zjutraj, zadnji dan naj bo kratek; noč pred odhodom prespi v mestu blizu izhodnega letališča.
+- Obvezno: aktivnost category airport z natančno uro mednarodnega odleta in trip_metadata.return_flight_eu (departure_time, arrival_time_eu, from_airport, to_airport, summary).`;
 }
 
 export function isJourneyDay(day: DayPlan, plan: AiTripPlan): boolean {

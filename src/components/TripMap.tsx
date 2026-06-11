@@ -17,10 +17,11 @@ import {
 } from "@/lib/tripMapRoutes";
 import {
   normalizeMapPoiCategory,
+  inferMapPoiCategoryFromText,
   type MapPoiCategory,
   type MapPoiPin,
 } from "@/lib/mapPoiCategory";
-import { MapCityMarker, MapOriginMarker, MapPoiMarker } from "@/components/MapPoiMarker";
+import { MapCityMarker, MapOriginMarker, MapPoiMarker, resolveMarkerImageUrl } from "@/components/MapPoiMarker";
 
 import { mapPinToPoiDetails, type PoiDetailsData } from "@/lib/poiDetails.types";
 import { useI18n } from "@/lib/i18n";
@@ -59,6 +60,7 @@ type CityMapStop = {
   startDay: number;
   endDay: number;
   dayCount: number;
+  imageUrl?: string;
 };
 
 const EMPTY_TRIP_SEGMENTS: TripRouteSegment[] = [];
@@ -167,6 +169,7 @@ function buildCityStops(
         startDay: day.day,
         endDay: day.day,
         dayCount: 1,
+        imageUrl: resolveMarkerImageUrl({ imageUrl: day.imageUrl }),
       });
     }
   }
@@ -211,7 +214,14 @@ function createCityMarkerElement(
   wrap.appendChild(pinHost);
 
   const root = createRoot(pinHost);
-  root.render(<MapCityMarker isActive={isActive} dayCount={stop.dayCount} />);
+  root.render(
+    <MapCityMarker
+      isActive={isActive}
+      dayCount={stop.dayCount}
+      imageUrl={stop.imageUrl}
+      city={stop.city}
+    />,
+  );
   return { el: wrap, root };
 }
 
@@ -242,7 +252,12 @@ function createPoiMarkerElement(
   const el = document.createElement("div");
   const root = createRoot(el);
   root.render(
-    <MapPoiMarker category={pin.category} isActive={isActive} name={pin.name} />,
+    <MapPoiMarker
+      category={pin.category}
+      isActive={isActive}
+      name={pin.name}
+      imageUrl={pin.imageUrl}
+    />,
   );
   return { el, root };
 }
@@ -251,22 +266,61 @@ function collectPlanPoiPins(plan: AiTripPlan): MapPoiPin[] {
   const pins: MapPoiPin[] = [];
   const seen = new Set<string>();
 
+  const pushPin = (day: number, pin: {
+    name: string;
+    lat: number;
+    lng: number;
+    category?: string;
+    description?: string;
+    arrivalTime?: string;
+    departureTime?: string;
+    estimatedCostEur?: number;
+    imageUrl?: string;
+    imageUrls?: string[];
+    photoUrl?: string;
+  }) => {
+    if (!isValidCoord(pin.lat, pin.lng)) return;
+    const key = `${pin.lat.toFixed(4)}:${pin.lng.toFixed(4)}:${day}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    pins.push({
+      day,
+      name: pin.name,
+      lat: pin.lat,
+      lng: pin.lng,
+      category: normalizeMapPoiCategory(pin.category) as MapPoiCategory,
+      description: pin.description,
+      arrivalTime: pin.arrivalTime,
+      departureTime: pin.departureTime,
+      estimatedCostEur: pin.estimatedCostEur,
+      imageUrl: resolveMarkerImageUrl({
+        imageUrl: pin.imageUrl,
+        imageUrls: pin.imageUrls,
+        photoUrl: pin.photoUrl,
+      }),
+    });
+  };
+
   for (const day of plan.days) {
     for (const pin of day.mapPins ?? []) {
-      if (!isValidCoord(pin.lat, pin.lng)) continue;
-      const key = `${pin.lat.toFixed(4)}:${pin.lng.toFixed(4)}:${day.day}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      pins.push({
-        day: day.day,
-        name: pin.name,
-        lat: pin.lat,
-        lng: pin.lng,
-        category: normalizeMapPoiCategory(pin.category) as MapPoiCategory,
-        description: pin.description,
-        arrivalTime: pin.arrivalTime,
-        departureTime: pin.departureTime,
-        estimatedCostEur: pin.estimatedCostEur,
+      pushPin(day.day, pin);
+    }
+
+    const slots = day.activities;
+    if (!slots) continue;
+    for (const act of [...slots.morning, ...slots.afternoon, ...slots.evening]) {
+      if (act.lat == null || act.lng == null) continue;
+      pushPin(day.day, {
+        name: act.name,
+        lat: act.lat,
+        lng: act.lng,
+        category: inferMapPoiCategoryFromText(`${act.name} ${act.description ?? ""}`),
+        description: act.description,
+        arrivalTime: act.arrivalTime,
+        departureTime: act.departureTime,
+        estimatedCostEur: act.estimatedCostEur,
+        imageUrl: act.imageUrl,
+        imageUrls: act.imageUrls,
       });
     }
   }
@@ -1203,6 +1257,7 @@ function TripMapInner({
           category={pin.category}
           isActive={day === activeDay}
           name={pin.name}
+          imageUrl={pin.imageUrl}
         />,
       );
     }
@@ -1355,7 +1410,14 @@ function TripMapInner({
   useEffect(() => {
     for (const { root, stop, startDay, endDay, marker } of markersRef.current) {
       const isActive = activeDay >= startDay && activeDay <= endDay;
-      root.render(<MapCityMarker isActive={isActive} dayCount={stop.dayCount} />);
+      root.render(
+        <MapCityMarker
+          isActive={isActive}
+          dayCount={stop.dayCount}
+          imageUrl={stop.imageUrl}
+          city={stop.city}
+        />,
+      );
       marker.getElement().className = `flex flex-col items-center cursor-pointer transition-transform duration-300 ease-out${
         isActive ? "" : " opacity-90"
       }`;

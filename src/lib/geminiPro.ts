@@ -19,7 +19,7 @@ import {
   detectHotelRestInterval,
   motorhomePromptRules,
 } from "@/lib/tripMode";
-import { groundTransportPromptBlock } from "@/lib/groundTransport";
+import { groundTransportPromptBlock, lastDayReturnPromptBlock } from "@/lib/groundTransport";
 
 export type {
   GenerateTripPlanParams,
@@ -128,6 +128,21 @@ ${roadTrip ? "- Road trip (npr. Route 66): enosmerna pot vzdolž ceste, vsak dan
         )
       : "";
 
+  const lastDayBlock = lastDayReturnPromptBlock({
+    groundTransportMode: params.groundTransportMode,
+    originPlace: params.originPlace,
+    returnFromIata: params.returnFromIata,
+    destinationIata: params.destinationIata,
+  });
+
+  const flightReturnLine = params.groundTransportMode
+    ? "- Povratek domov mora ustrezati izbranemu prevozu (avto/vlak/avtodom) — glej pravila spodaj, NE let z letališča."
+    : `- Zadnji dan izključno prevoz na izhodno letališče (${params.returnFromIata ?? params.destinationIata}) — brez novih ogledov.`;
+
+  const flightReturnClosing = params.groundTransportMode
+    ? ""
+    : "\n\nZadnji dan logistike: obvezno dodaj aktivnost z category airport z natančno uro odhoda mednarodnega leta nazaj v Evropo (EU) in izpolni trip_metadata.return_flight_eu (departure_time, arrival_time_eu, from_airport, to_airport, summary).";
+
   return `Ustvari ${params.days}-dnevni načrt potovanja za lokacijo: ${params.destination} v mesecu ${params.month}.
 ${tvojeZeljeBlock}${motorhomeBlock}${groundTransportBlock}
 
@@ -142,7 +157,7 @@ Posebne zahteve (oznake): ${wishes}.
 Obvezna logistična pravila za ta načrt:
 - ${motorhome || roadTrip ? `Načrtuj ${maxBases} postaj vzdolž enosmerne poti (road trip — vsak dan ali vsak drug dan nova postaja ob cesti).` : `Največ ${maxBases} glavne baze (mesta/regije) za ${params.days} dni — brez skakanja sem in tja po državi.`}
 - Enosmerna geografska pot (en jasen lok); brez vračanja v že obiskana mesta.
-- Zadnji dan izključno prevoz na izhodno letališče (${params.returnFromIata ?? params.destinationIata}) — brez novih ogledov.
+${flightReturnLine}
 - Za vsako fazo obvezno izpolni city (angleško ime), lat in lng (centrum mesta ali kamp ob poti).
 - Vsaka aktivnost mora imeti category (sightseeing, nature, beach, food, entertainment, hotel, airport) in koordinate za oglede.
 - Vsaka aktivnost mora imeti arrivalTime in departureTime v formatu "HH:MM" (npr. "09:00", "11:30") — realen časovni okvir obiska.
@@ -158,7 +173,7 @@ Obvezna logistična pravila za ta načrt:
 
 Opisi aktivnosti morajo biti izjemno podrobni, zanimivi in dolgi vsaj 3–4 stavke (ne kratki!). Vsaka aktivnost mora imeti estimatedCostEur (realna cifra v EUR). day_name zapisuj s polnimi imeni mesecev (npr. "Sobota, 14. avgust"). season_warning naj bo geografsko natančen za ${params.destination}.
 
-Zadnji dan logistike: obvezno dodaj aktivnost z category airport z natančno uro odhoda mednarodnega leta nazaj v Evropo (EU) in izpolni trip_metadata.return_flight_eu (departure_time, arrival_time_eu, from_airport, to_airport, summary).`;
+${lastDayBlock}${flightReturnClosing}`;
 }
 
 const google = createGoogleGenerativeAI({
@@ -169,6 +184,26 @@ export function tripPlanSystemPrompt(params: GenerateTripPlanParams): string {
   const motorhome = isMotorhomeTrip(params);
   const roadTrip = isRoadTripRequest(params);
   const motorhomeRules = motorhome ? motorhomePromptRules(true) : "";
+  const lastDayBlock = lastDayReturnPromptBlock({
+    groundTransportMode: params.groundTransportMode,
+    originPlace: params.originPlace,
+    returnFromIata: params.returnFromIata,
+    destinationIata: params.destinationIata,
+  });
+  const flightReturnEuRule = params.groundTransportMode
+    ? `- Če je prevoz avto/vlak/avtodom: trip_metadata.return_flight_eu NE izpolnjuj — potnik se vrne z istim prevozom na izhodišče (${params.originPlace ?? "domov"}), ne z letalom.`
+    : `- Na zadnjem dnevu logistike obvezno generiraj točno uro mednarodnega leta nazaj v Evropo (EU) in izpolni trip_metadata.return_flight_eu.`;
+  const povratekEuBlock = params.groundTransportMode
+    ? `POVRATEK DOMOV (obvezno — ${params.groundTransportMode === "train" ? "VLAK" : "AVTO/AVTODOM"}):
+- Zadnji dan: vožnja/vlak nazaj na izhodiščno lokacijo — NE mednarodni let z letališča.
+- trip_metadata.return_flight_eu NE izpolnjuj.`
+    : `POVRATEK V EU (obvezno):
+- Zadnji dan logistike: aktivnost category airport z natančno uro odhoda in prihoda v EU.
+- Izpolni trip_metadata.return_flight_eu (departure_time, arrival_time_eu, from_airport, to_airport, summary).`;
+
+  const lastDayTransitException = params.groundTransportMode
+    ? "razen zadnjega logističnega dneva (vožnja/vlak nazaj na izhodišče)"
+    : "razen zadnjega logističnega dneva na izhodno letališče";
 
   return `Si strokovni potovalni agent za aplikacijo skybooplan. Načrte potovanj vedno vrni v slovenščini in striktno sledi zahtevani JSON shemi.
 
@@ -186,7 +221,7 @@ HITROST — bogati, privlačni opisi (obvezno):
 - Polje description pri vsaki aktivnosti mora biti izjemno podrobno, zanimivo in dolgo vsaj 3–4 stavke (150–300 besed skupaj na dan).
 - Vsaka aktivnost mora imeti estimatedCostEur z realno cifro v EUR (vstopnine, hrana, gorivo — ne 0, razen res brezplačnih).
 - dailyBudget na vsakem dnevu mora biti realna vsota dnevnih stroškov v EUR — nikoli 0.
-- Na zadnjem dnevu logistike obvezno generiraj točno uro mednarodnega leta nazaj v Evropo (EU) in izpolni trip_metadata.return_flight_eu.
+${flightReturnEuRule}
 
 STROGA GEOGRAFSKA NATANČNOST:
 - season_warning mora biti 100 % specifičen za izbrano lokacijo in mesec (vreme, sezona, lokalni dogodki).
@@ -269,15 +304,13 @@ TRIPADVISOR PODATKI ZA AKTIVNOSTI (activities[] — obvezno za oglede):
 - Vsaka aktivnost s category sightseeing, nature, beach, food ali entertainment MORA imeti tripAdvisorStyleDetails (ista struktura kot pri POI).
 - Za category hotel ali airport tripAdvisorStyleDetails izpusti.
 
-POVRATEK V EU (obvezno):
-- Zadnji dan logistike: aktivnost category airport z natančno uro odhoda in prihoda v EU.
-- Izpolni trip_metadata.return_flight_eu (departure_time, arrival_time_eu, from_airport, to_airport, summary).
+${povratekEuBlock}
 
 VEČ DESTINACIJ — LOGIČNA, ENOSMERNA POT (brez skakanja):
 - Če je potovanje daljše od 10 dni in destinacija predstavlja celo državo ali večjo regijo (npr. Japonska, Tajska, Italija, Španija), NE omejuj celotnega itinerarja na eno samo mesto — a tudi NE raztegni na preveč regij.
 - STROGA GEOGRAFSKA LINEARNOST (obvezno): Pot mora potekati enosmerno v enem jasnem geografskem smernem loku. Prepovedano je:
   • skakanje s severa na jug in nazaj (npr. Bangkok → Chiang Mai → južni otoki → spet Bangkok — NAROBE),
-  • vračanje v mesta/regije, ki jih je potnik že obiskal (razen zadnjega logističnega dneva na izhodno letališče),
+  • vračanje v mesta/regije, ki jih je potnik že obiskal (${lastDayTransitException}),
   • ciklična pot ali "zig-zag" preko celega ozemlja brez smisla.
 - Primeri DOVOLJENIH poti za Tajsko (izberi EN sam smerni lok, ne mešaj obeh):
   • severni lok: Bangkok → Ayutthaya → Chiang Mai → Chiang Rai → odhod iz Chiang Mai ali Bangkoka,
@@ -285,7 +318,7 @@ VEČ DESTINACIJ — LOGIČNA, ENOSMERNA POT (brez skakanja):
   • osrednji lok: Bangkok → Ayutthaya → Chiang Mai (brez skoka na otroke) ALI Bangkok → Hua Hin → juž — nikoli oboje v istem načrtu.
 - Primer za Japonsko: Tokio → Hakone → Kjoto → Osaka (enosmerno proti zahodu/jugu, brez vračanja v Tokio sredi poti).
 - Vsaka faza (phase) = ena regija/mesto; dni razporedi sorazmerno glede na velikost lokacije.
-- Unikatnost mest: Vsako mesto/regija se lahko v celotnem itinerarju pojavi samo enkrat (izjema: zadnji dan — le tranzit na izhodno letališče, brez ogledov).
+- Unikatnost mest: Vsako mesto/regija se lahko v celotnem itinerarju pojavi samo enkrat (izjema: zadnji dan — le ${params.groundTransportMode ? "vožnja/vlak nazaj domov" : "tranzit na izhodno letališče"}, brez ogledov).
 
 PRILAGODITEV TRAJANJU — MANJ REGIJ, VEČ ČASA NA KRAJ (obvezno):
 ${motorhome || roadTrip ? `- ROAD TRIP / AVTODOM: Načrtuj enosmerno pot z ${params.days} postajami vzdolž ceste. Vsak dan mora imeti smiselne aktivnosti + kamp/RV park za nočitev. Ne združuj več dni v eno mesto, razen če uporabnik izrecno želi.` : `- Število glavnih baz (mest/regij, kjer potnik prespi več dni) MORAŠ omejiti glede na dolžino poti — manj regij = manj prevozev, več uživanja:
@@ -295,10 +328,7 @@ ${motorhome || roadTrip ? `- ROAD TRIP / AVTODOM: Načrtuj enosmerno pot z ${par
 - Med bazami načrtuj le en logičen premik; izogibaj se dnevnim dolgim preskokom (>4–5 h prevoza) razen ob enem preselitvenem dnevu med bazami.
 - Če je pot krajša od 10 dni, ostani v 1–2 mestih/regijah — ne raztezaj na celo državo.`}
 
-ZADNJI DAN — LOGISTIČNI ZAKLJUČEK (obvezno):
-- Zadnji dan potovanja je IZKLJUČNO za logistiko: check-out, prevoz na izhodno letališče za povratek domov, buffer za varnost, morebiten hiter obrok v bližini letališča.
-- Na zadnji dan NE dodajaj novih mest, ogledov, atrakcij ali oddaljenih regij — potnik mora priti do letala brez stresa.
-- Če je odhod zgodaj zjutraj, zadnji dan naj bo kratek; noč pred odhodom prespi v mestu blizu izhodnega letališča (npr. Bangkok pred mednarodnim odletom), ne na drugem koncu države.
+${lastDayBlock}
 
 PRILAGODITEV POTNIKOM IN PRORAČUNU (obvezno):
 - Celoten itinerar, tempo, predlagana hrana, aktivnosti, prevoz in finance MORAŠ popolnoma prilagoditi natančni sestavi potnikov (pax) in izbranemu proračunu.

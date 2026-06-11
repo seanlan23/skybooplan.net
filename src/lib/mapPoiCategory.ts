@@ -73,4 +73,7 @@ export type MapPoiPin = {
   arrivalTime?: string;
   departureTime?: string;
   estimatedCostEur?: number;
+  imageUrl?: string;
+  imageUrls?: string[];
+  photoUrl?: string;
 };
