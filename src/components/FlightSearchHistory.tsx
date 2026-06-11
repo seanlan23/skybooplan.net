@@ -3,6 +3,7 @@ import { History, Plane, RotateCcw, Trash2, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import type { SearchValues } from "@/components/SearchPanel";
+import { useI18n } from "@/lib/i18n";
 
 type Row = {
   id: string;
@@ -23,6 +24,7 @@ export function FlightSearchHistory({
   onRepeat: (v: SearchValues) => void;
 }) {
   const { user } = useAuth();
+  const { t } = useI18n();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
@@ -60,24 +62,22 @@ export function FlightSearchHistory({
       >
         <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
           <History className="h-4 w-4 text-brand" />
-          Zgodovina iskanj
+          {t("history.title")}
           {rows.length > 0 && (
             <span className="text-xs font-normal text-muted-foreground">({rows.length})</span>
           )}
         </div>
-        <span className="text-xs text-muted-foreground">{open ? "Skrij" : "Prikaži"}</span>
+        <span className="text-xs text-muted-foreground">{open ? t("common.hide") : t("common.show")}</span>
       </button>
 
       {open && (
         <div className="px-3 pb-3">
           {loading ? (
             <div className="flex items-center gap-2 px-3 py-4 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" /> Nalagam…
+              <Loader2 className="h-4 w-4 animate-spin" /> {t("common.loading")}
             </div>
           ) : rows.length === 0 ? (
-            <div className="px-3 py-4 text-sm text-muted-foreground">
-              Še nimaš shranjenih iskanj. Tvoja prihodnja iskanja se bodo pojavila tukaj.
-            </div>
+            <div className="px-3 py-4 text-sm text-muted-foreground">{t("history.empty")}</div>
           ) : (
             <ul className="space-y-2">
               {rows.map((r) => (
@@ -91,14 +91,14 @@ export function FlightSearchHistory({
                       <div className="text-sm font-semibold text-foreground truncate">
                         {r.origin} → {r.destination}
                         <span className="ml-2 text-xs font-normal text-muted-foreground">
-                          {r.pax} pax
+                          {r.pax} {t("history.paxLabel")}
                         </span>
                       </div>
                       <div className="text-xs text-muted-foreground truncate">
                         {r.depart_date}
-                        {r.return_date ? ` · ${r.return_date}` : " · one-way"}
+                        {r.return_date ? ` · ${r.return_date}` : ` · ${t("trip.oneway")}`}
                         {" · "}
-                        {r.results_count} rezultatov
+                        {t("history.resultsCount").replace("{n}", String(r.results_count))}
                       </div>
                     </div>
                   </div>
@@ -115,15 +115,15 @@ export function FlightSearchHistory({
                         })
                       }
                       className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-brand hover:bg-brand/10 transition-colors"
-                      title="Ponovi iskanje"
+                      title={t("history.repeatTitle")}
                     >
-                      <RotateCcw className="h-3.5 w-3.5" /> Ponovi
+                      <RotateCcw className="h-3.5 w-3.5" /> {t("history.repeat")}
                     </button>
                     <button
                       onClick={() => handleDelete(r.id)}
                       className="inline-flex items-center justify-center rounded-lg p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                      title="Izbriši"
-                      aria-label="Izbriši"
+                      title={t("common.delete")}
+                      aria-label={t("common.delete")}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>

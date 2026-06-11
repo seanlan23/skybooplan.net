@@ -2,9 +2,9 @@ import { Navigation } from "lucide-react";
 import { toast } from "sonner";
 import {
   isValidNavCoord,
-  NAV_ERROR_MESSAGES,
   openInGoogleMaps,
 } from "@/lib/navigationService";
+import { useI18n } from "@/lib/i18n";
 
 export function NavigateButton({
   lat,
@@ -19,16 +19,20 @@ export function NavigateButton({
   className?: string;
   size?: "default" | "compact";
 }) {
+  const { t } = useI18n();
   const canNavigate = isValidNavCoord(lat, lng);
+
+  const navError = (reason: "invalid_coords" | "no_window") =>
+    reason === "invalid_coords" ? t("navigate.error.invalidCoords") : t("navigate.error.noWindow");
 
   const handleClick = () => {
     if (!canNavigate) {
-      toast.error(NAV_ERROR_MESSAGES.invalid_coords);
+      toast.error(navError("invalid_coords"));
       return;
     }
     const result = openInGoogleMaps(lat!, lng!, label);
     if (!result.ok) {
-      toast.error(NAV_ERROR_MESSAGES[result.reason]);
+      toast.error(navError(result.reason));
     }
   };
 
@@ -42,7 +46,7 @@ export function NavigateButton({
       type="button"
       onClick={handleClick}
       disabled={!canNavigate}
-      title={canNavigate ? "Odpri Google Maps navigacijo" : NAV_ERROR_MESSAGES.invalid_coords}
+      title={canNavigate ? t("navigate.openMapsTitle") : t("navigate.error.invalidCoords")}
       className={`inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-colors ${sizeClasses} ${
         canNavigate
           ? "bg-sky-600 text-white hover:bg-sky-700 shadow-sm"
@@ -50,7 +54,7 @@ export function NavigateButton({
       } ${className}`}
     >
       <Navigation className={size === "compact" ? "h-3.5 w-3.5" : "h-4 w-4"} aria-hidden="true" />
-      Navigiraj
+      {t("navigate.button")}
     </button>
   );
 }

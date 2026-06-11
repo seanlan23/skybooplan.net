@@ -11,6 +11,7 @@ import { useSubscription } from "@/hooks/use-subscription";
 import { generatePlanPdf } from "@/lib/pdf-export";
 import type { AiTripPlan } from "@/lib/aiPlan.functions";
 import { formatLocalDate } from "@/lib/dateUtils";
+import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/_authenticated/my-trips/$planId")({
   head: () => ({ meta: [{ title: "Trip details — Skybooplan" }] }),
@@ -29,22 +30,20 @@ type TravelPlanRow = {
   itinerary: AiTripPlan | null;
 };
 
-type PlanLoadFailureReason = "not_found" | "permission_denied" | "auth" | "network" | "unknown";
+type PlanLoadFailureReason =
+  | "not_found"
+  | "permission_denied"
+  | "auth"
+  | "network"
+  | "unknown"
+  | "not_logged_in";
 
 type PlanLoadFailure = {
   reason: PlanLoadFailureReason;
-  title: string;
-  message: string;
 };
 
 function classifyPlanLoadFailure(err: PostgrestError | null): PlanLoadFailure {
-  if (!err) {
-    return {
-      reason: "not_found",
-      title: "Načrt ni bil najden",
-      message: "Načrt ni bil najden. Preveri povezavo ali se prijavi.",
-    };
-  }
+  if (!err) return { reason: "not_found" };
 
   const code = err.code ?? "";
   const msg = (err.message ?? "").toLowerCase();
@@ -55,35 +54,18 @@ function classifyPlanLoadFailure(err: PostgrestError | null): PlanLoadFailure {
     msg.includes("row-level security") ||
     msg.includes("insufficient privilege")
   ) {
-    return {
-      reason: "permission_denied",
-      title: "Dostop zavrnjen",
-      message:
-        "Nimaš dovoljenja za ogled te poti. Prijavi se z istim računom, s katerim si jo shranil.",
-    };
+    return { reason: "permission_denied" };
   }
 
   if (code === "PGRST301" || msg.includes("jwt") || msg.includes("not authenticated")) {
-    return {
-      reason: "auth",
-      title: "Seja je potekla",
-      message: "Ponovno se prijavi in poskusi znova odpreti pot.",
-    };
+    return { reason: "auth" };
   }
 
   if (msg.includes("fetch") || msg.includes("network") || msg.includes("failed to fetch")) {
-    return {
-      reason: "network",
-      title: "Težava s povezavo",
-      message: "Poti trenutno ni bilo mogoče naložiti. Preveri internetno povezavo in poskusi znova.",
-    };
+    return { reason: "network" };
   }
 
-  return {
-    reason: "unknown",
-    title: "Poti ni bilo mogoče naložiti",
-    message: err.message || "Prišlo je do nepričakovane napake.",
-  };
+  return { reason: "unknown" };
 }
 
 function logPlanLoadResult(
@@ -111,6 +93,7 @@ function logPlanLoadResult(
 
 function TripDetailPage() {
   const { planId } = Route.useParams();
+  const { t } = useI18n();
   const { user, loading: authLoading } = useAuth();
   const subscription = useSubscription();
   const [plan, setPlan] = useState<TravelPlanRow | null>(null);
@@ -129,11 +112,7 @@ function TripDetailPage() {
       if (authLoading) return;
 
       if (!user) {
-        const failure: PlanLoadFailure = {
-          reason: "auth",
-          title: "Nisi prijavljen",
-          message: "Za ogled te poti se moraš prijaviti.",
-        };
+        const failure: PlanLoadFailure = { reason: "not_logged_in" };
         console.warn("[travel_plans] load plan detail skipped — no user", { planId });
         if (!cancelled) {
           setLoadFailure(failure);
@@ -222,7 +201,7 @@ function TripDetailPage() {
           },
         }).catch((err) => console.error("[pdf_downloads] log failed", err));
       }
-      alert("Could not generate PDF. Please try again.");
+      alert(t("trips.pdfError"));
     } finally {
       setDownloading(false);
     }
@@ -236,18 +215,22 @@ function TripDetailPage() {
           to="/my-trips"
           className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"
         >
-          <ArrowLeft className="h-4 w-4" /> Nazaj na My trips
+          <ArrowLeft className="h-4 w-4" /> {t("tripDetail.backToTrips")}
         </Link>
 
         {loading ? (
-          <div className="text-muted-foreground">Loading…</div>
+          <div className="text-muted-foreground">{t("common.loading")}</div>
         ) : loadFailure ? (
           <div className="rounded-2xl border border-destructive/40 bg-destructive/10 p-6 space-y-4">
             <div className="flex items-start gap-3">
               <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
               <div className="space-y-2">
-                <h2 className="text-lg font-semibold text-destructive">{loadFailure.title}</h2>
-                <p className="text-sm text-destructive/90">{loadFailure.message}</p>
+                <h2 className="text-lg font-semibold text-destructive">
+                  {t(`tripDetail.error.${loadFailure.reason}.title` as never)}
+                </h2>
+                <p className="text-sm text-destructive/90">
+                  {t(`tripDetail.error.${loadFailure.reason}.message` as never)}
+                </p>
                 {import.meta.env.DEV && (
                   <p className="text-xs font-mono text-destructive/70">
                     debug: reason={loadFailure.reason}, planId={planId}
@@ -260,21 +243,21 @@ function TripDetailPage() {
                 to="/my-trips"
                 className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium bg-background border border-border hover:bg-muted transition-colors"
               >
-                <ArrowLeft className="h-4 w-4" /> Moje poti
+                <ArrowLeft className="h-4 w-4" /> {t("nav.myTrips")}
               </Link>
               <Link
                 to="/"
                 className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity"
                 style={{ background: "var(--gradient-warm)" }}
               >
-                Ustvari novo pot
+                {t("tripDetail.createNewTrip")}
               </Link>
-              {loadFailure.reason === "auth" && (
+              {(loadFailure.reason === "auth" || loadFailure.reason === "not_logged_in") && (
                 <Link
                   to="/login"
                   className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium bg-background border border-border hover:bg-muted transition-colors"
                 >
-                  Prijava
+                  {t("nav.signIn")}
                 </Link>
               )}
             </div>
@@ -305,18 +288,18 @@ function TripDetailPage() {
                   style={{ background: "var(--gradient-warm)" }}
                 >
                   {downloading ? (
-                    <><Loader2 className="h-4 w-4 animate-spin" /> Preparing PDF…</>
+                    <><Loader2 className="h-4 w-4 animate-spin" /> {t("tripDetail.preparingPdf")}</>
                   ) : (
-                    <><Download className="h-4 w-4" /> Download PDF</>
+                    <><Download className="h-4 w-4" /> {t("tripDetail.downloadPdf")}</>
                   )}
                 </button>
               ) : (
                 <a
                   href="/#pricing"
                   className="inline-flex items-center gap-2 rounded-2xl px-5 py-2.5 font-semibold text-foreground border border-border bg-muted/50 hover:bg-muted transition-colors shrink-0"
-                  title="Upgrade to download PDF"
+                  title={t("tripDetail.upgradePdfTitle")}
                 >
-                  <Lock className="h-4 w-4" /> Unlock PDF download
+                  <Lock className="h-4 w-4" /> {t("tripDetail.unlockPdf")}
                 </a>
               )}
             </div>
@@ -326,16 +309,20 @@ function TripDetailPage() {
                 loading={false}
                 plan={plan.itinerary}
                 error={null}
+                isUnlocked={subscription.isActive}
+                onUnlockClick={() => {
+                  window.location.href = "/#pricing";
+                }}
               />
             ) : (
               <div className="rounded-2xl border border-border bg-card p-10 text-center text-muted-foreground">
-                Ni podrobnejšega itinerarja za ta plan.
+                {t("tripDetail.noItinerary")}
               </div>
             )}
           </>
         ) : (
           <div className="rounded-2xl border border-border bg-card p-6 text-center text-muted-foreground">
-            Načrt ni bil najden. Preveri povezavo ali se prijavi.
+            {t("tripDetail.error.not_found.message")}
           </div>
         )}
       </main>

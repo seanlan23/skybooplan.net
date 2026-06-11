@@ -1,7 +1,9 @@
 import { Plane, Clock, MapPin } from "lucide-react";
 import type { AiTripPlan } from "@/lib/aiPlan.functions";
+import { useI18n } from "@/lib/i18n";
 
 export function ReturnHomeCard({ plan }: { plan: AiTripPlan }) {
+  const { t } = useI18n();
   const rf = plan.returnFlightEu;
   const lastDay = plan.days[plan.days.length - 1];
 
@@ -10,7 +12,7 @@ export function ReturnHomeCard({ plan }: { plan: AiTripPlan }) {
   const departure = rf?.departureTime;
   const arrival = rf?.arrivalTimeEu;
   const from = rf?.fromAirport ?? lastDay?.city;
-  const to = rf?.toAirport ?? plan.originIata ?? "Evropa (EU)";
+  const to = rf?.toAirport ?? plan.originIata ?? t("returnHome.europeFallback");
   const summary = rf?.summary;
 
   return (
@@ -21,8 +23,8 @@ export function ReturnHomeCard({ plan }: { plan: AiTripPlan }) {
             <Plane className="h-5 w-5" />
           </div>
           <div>
-            <h3 className="text-lg font-bold leading-tight">Povratek domov (EU)</h3>
-            <p className="text-sm text-indigo-100">Mednarodni let nazaj v Evropo</p>
+            <h3 className="text-lg font-bold leading-tight">{t("returnHome.title")}</h3>
+            <p className="text-sm text-indigo-100">{t("returnHome.subtitle")}</p>
           </div>
         </div>
       </div>
@@ -32,7 +34,7 @@ export function ReturnHomeCard({ plan }: { plan: AiTripPlan }) {
           {departure && (
             <div className="rounded-xl bg-white border border-indigo-100 px-4 py-3 shadow-sm">
               <div className="text-[10px] font-bold uppercase tracking-wider text-indigo-500 mb-1">
-                Odhod
+                {t("returnHome.departure")}
               </div>
               <div className="flex items-center gap-2 text-xl font-bold text-slate-900 tabular-nums">
                 <Clock className="h-5 w-5 text-indigo-500 shrink-0" />
@@ -50,7 +52,7 @@ export function ReturnHomeCard({ plan }: { plan: AiTripPlan }) {
           {arrival && (
             <div className="rounded-xl bg-white border border-emerald-100 px-4 py-3 shadow-sm">
               <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 mb-1">
-                Prihod v EU
+                {t("returnHome.arrivalEu")}
               </div>
               <div className="flex items-center gap-2 text-xl font-bold text-slate-900 tabular-nums">
                 <Clock className="h-5 w-5 text-emerald-600 shrink-0" />
@@ -72,7 +74,7 @@ export function ReturnHomeCard({ plan }: { plan: AiTripPlan }) {
 
         {!departure && !arrival && lastDay && (
           <p className="text-sm text-slate-600">
-            Zadnji dan ({lastDay.title}): preveri urnik leta v kartici dneva spodaj.
+            {t("returnHome.checkSchedule").replace("{title}", lastDay.title)}
           </p>
         )}
       </div>

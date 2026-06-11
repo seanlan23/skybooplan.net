@@ -10,10 +10,13 @@ const MODE_ICON = {
 } as const;
 
 function JourneyDaySummary({ day }: { day: DayPlan }) {
+  const { t } = useI18n();
   return (
     <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
       <div className="flex flex-wrap items-center gap-2 text-sm">
-        <span className="font-bold text-slate-900">Dan {day.day}</span>
+        <span className="font-bold text-slate-900">
+          {t("aiplan.day")} {day.day}
+        </span>
         {day.city && (
           <>
             <span className="text-slate-300">·</span>
@@ -42,8 +45,7 @@ function JourneyDaySummary({ day }: { day: DayPlan }) {
 }
 
 export function TransportDashboard({ plan }: { plan: AiTripPlan }) {
-  const { lang } = useI18n();
-  const slo = lang === "sl" || lang.startsWith("sl");
+  const { t, lang } = useI18n();
   const mode = plan.groundTransportMode;
   const journey = plan.groundJourney;
 
@@ -60,10 +62,10 @@ export function TransportDashboard({ plan }: { plan: AiTripPlan }) {
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-xs font-bold uppercase tracking-wider text-indigo-700">
-            {slo ? "Pot do tja" : "Getting there"}
+            {t("transportDashboard.gettingThere")}
           </p>
           <h3 className="mt-0.5 text-lg font-bold text-slate-900">
-            {groundTransportLabel(mode, slo)} · {journey.originLabel}
+            {groundTransportLabel(mode, lang)} · {journey.originLabel}
             <ArrowRight className="mx-1.5 inline h-4 w-4 text-slate-400" aria-hidden="true" />
             {journey.destinationLabel}
           </h3>
@@ -87,7 +89,7 @@ export function TransportDashboard({ plan }: { plan: AiTripPlan }) {
       {journey.stops.length > 0 && (
         <div className="mt-5">
           <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
-            {slo ? "Postanki na poti" : "Stops along the way"}
+            {t("transportDashboard.stops")}
           </p>
           <ol className="flex flex-wrap gap-2">
             {journey.stops.map((stop, i) => (
@@ -108,7 +110,7 @@ export function TransportDashboard({ plan }: { plan: AiTripPlan }) {
       {tripDays.length > 0 && (
         <div className="mt-5 space-y-2">
           <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
-            {slo ? "Dnevi poti" : "Travel days"}
+            {t("transportDashboard.travelDays")}
           </p>
           {tripDays.map((day) => (
             <JourneyDaySummary key={day.day} day={day} />

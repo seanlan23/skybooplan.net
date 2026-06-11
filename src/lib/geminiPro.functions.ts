@@ -100,6 +100,7 @@ export const generateGeminiProTripInputSchema = z
     groundTransportMode: z.enum(["car", "motorhome", "train"]).optional(),
     originPlace: z.string().trim().min(2).max(120).optional(),
     destinationPlace: z.string().trim().min(2).max(120).optional(),
+    language: z.string().min(2).max(5).optional(),
   })
   .superRefine((data, ctx) => {
     if (data.groundTransportMode) {
@@ -212,6 +213,7 @@ export function buildGeminiTripPlanParams(data: GenerateGeminiProTripInput, days
     groundTransportMode: data.groundTransportMode,
     originPlace: data.originPlace,
     destinationPlace: data.destinationPlace,
+    language: data.language ?? "sl",
   };
 }
 

@@ -162,6 +162,8 @@ export type GenerateTripPlanParams = {
   groundTransportMode?: "car" | "motorhome" | "train";
   originPlace?: string;
   destinationPlace?: string;
+  /** UI locale for output language (e.g. sl, en, de). */
+  language?: string;
 };
 
 export const TRIP_WISH_TAGS = [

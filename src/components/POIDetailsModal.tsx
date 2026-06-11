@@ -21,14 +21,15 @@ import {
   type PoiDetailsData,
 } from "@/lib/poiDetails.types";
 import { NavigateButton } from "@/components/NavigateButton";
+import { useI18n } from "@/lib/i18n";
 
-const TIME_SLOT_LABELS: Record<string, string> = {
-  dopoldan: "Dopoldan",
-  popoldan: "Popoldan",
-  vecer: "Večer",
-  morning: "Dopoldan",
-  afternoon: "Popoldan",
-  evening: "Večer",
+const TIME_SLOT_KEYS: Record<string, "poi.timeSlot.morning" | "poi.timeSlot.afternoon" | "poi.timeSlot.evening"> = {
+  dopoldan: "poi.timeSlot.morning",
+  popoldan: "poi.timeSlot.afternoon",
+  vecer: "poi.timeSlot.evening",
+  morning: "poi.timeSlot.morning",
+  afternoon: "poi.timeSlot.afternoon",
+  evening: "poi.timeSlot.evening",
 };
 
 function StarRow({ score }: { score: number }) {
@@ -61,6 +62,7 @@ export function POIDetailsModal({
   onOpenChange: (open: boolean) => void;
   poi: PoiDetailsData | null;
 }) {
+  const { t, lang } = useI18n();
   const [displayPoi, setDisplayPoi] = useState<PoiDetailsData | null>(poi);
 
   useEffect(() => {
@@ -75,14 +77,13 @@ export function POIDetailsModal({
   const timeLabel =
     displayPoi.arrivalTime && displayPoi.departureTime
       ? `${displayPoi.arrivalTime} – ${displayPoi.departureTime}`
-      : displayPoi.arrivalTime ?? displayPoi.departureTime ?? "Po načrtu dneva";
-  const slotLabel = displayPoi.timeSlot
-    ? (TIME_SLOT_LABELS[displayPoi.timeSlot.toLowerCase()] ?? displayPoi.timeSlot)
-    : null;
+      : displayPoi.arrivalTime ?? displayPoi.departureTime ?? t("poi.timeByPlan");
+  const slotKey = displayPoi.timeSlot ? TIME_SLOT_KEYS[displayPoi.timeSlot.toLowerCase()] : undefined;
+  const slotLabel = slotKey ? t(slotKey) : displayPoi.timeSlot ?? null;
   const costLabel =
     displayPoi.estimatedCostEur != null && displayPoi.estimatedCostEur >= 0
-      ? `cca. €${displayPoi.estimatedCostEur} / osebo`
-      : "Vključeno v dnevni proračun";
+      ? t("poi.costApprox").replace("{price}", String(displayPoi.estimatedCostEur))
+      : t("poi.costIncluded");
   const paragraphs = splitDescriptionParagraphs(
     displayPoi.fullDescription ?? displayPoi.description,
   );
@@ -110,7 +111,7 @@ export function POIDetailsModal({
             type="button"
             onClick={() => onOpenChange(false)}
             className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-700 shadow-md hover:bg-slate-50 transition-colors z-10"
-            aria-label="Zapri"
+            aria-label={t("poi.close")}
           >
             <X className="h-5 w-5" />
           </button>
@@ -142,7 +143,7 @@ export function POIDetailsModal({
               {paragraphs.length > 0 && (
                 <div className="space-y-3">
                   <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                    O znamenitosti
+                    {t("poi.about")}
                   </h3>
                   {paragraphs.map((p, i) => (
                     <p key={i} className="text-[15px] text-slate-700 leading-relaxed">
@@ -155,7 +156,7 @@ export function POIDetailsModal({
               {highlights.length > 0 && (
                 <div className="rounded-2xl border border-slate-100 bg-white px-5 py-4 shadow-sm">
                   <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
-                    Kaj ne smeš zamuditi
+                    {t("poi.highlights")}
                   </h3>
                   <ul className="space-y-2.5">
                     {highlights.map((item, i) => (
@@ -174,7 +175,7 @@ export function POIDetailsModal({
               {reviewSummary && (
                 <div className="rounded-2xl border border-slate-100 bg-slate-50/80 px-5 py-4">
                   <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
-                    Mnenja popotnikov
+                    {t("poi.reviews")}
                   </h3>
                   <p className="text-sm text-slate-700 leading-relaxed italic">&ldquo;{reviewSummary}&rdquo;</p>
                 </div>
@@ -198,7 +199,8 @@ export function POIDetailsModal({
                   <span className="text-xl font-bold text-slate-900 tabular-nums">{score}</span>
                 </div>
                 <p className="text-xs font-medium text-amber-900/75">
-                  {guide ? "Ocena popotnikov" : "Ocena"} · {reviewCount.toLocaleString("sl-SI")} ocen
+                  {guide ? t("poi.ratingTravelers") : t("poi.rating")} ·{" "}
+                  {t("poi.reviewCount").replace("{n}", reviewCount.toLocaleString(lang === "sl" ? "sl-SI" : "en-US"))}
                 </p>
               </div>
 
@@ -206,7 +208,7 @@ export function POIDetailsModal({
                 <div className="rounded-2xl border-2 border-violet-200 bg-gradient-to-br from-violet-50 via-indigo-50/80 to-white px-5 py-4 shadow-sm">
                   <div className="flex items-center gap-2 text-violet-800 mb-2">
                     <Lightbulb className="h-5 w-5 shrink-0" aria-hidden="true" />
-                    <span className="text-xs font-bold uppercase tracking-wider">Pro nasvet</span>
+                    <span className="text-xs font-bold uppercase tracking-wider">{t("poi.proTip")}</span>
                   </div>
                   <p className="text-sm font-medium text-slate-800 leading-relaxed">{proTip}</p>
                 </div>
@@ -216,7 +218,7 @@ export function POIDetailsModal({
                 <div className="rounded-xl border border-sky-100 bg-sky-50/60 px-4 py-3.5">
                   <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-sky-700 mb-1.5">
                     <Sparkles className="h-4 w-4 shrink-0" />
-                    Kdaj obiskati
+                    {t("poi.bestTime")}
                   </div>
                   <p className="text-sm font-semibold text-slate-900 leading-snug">{bestTime}</p>
                 </div>
@@ -225,7 +227,7 @@ export function POIDetailsModal({
               <div className="rounded-xl border border-blue-100 bg-blue-50/50 px-4 py-3.5">
                 <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">
                   <Clock className="h-4 w-4 shrink-0 opacity-80" />
-                  Čas obiska
+                  {t("poi.visitTime")}
                 </div>
                 <p className="text-sm font-semibold text-slate-900 leading-snug">
                   {[slotLabel, timeLabel].filter(Boolean).join(" · ")}
@@ -235,7 +237,7 @@ export function POIDetailsModal({
               <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 px-4 py-3.5">
                 <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">
                   <Wallet className="h-4 w-4 shrink-0 opacity-80" />
-                  Predviden strošek
+                  {t("poi.estimatedCost")}
                 </div>
                 <p className="text-sm font-semibold text-slate-900 leading-snug">{costLabel}</p>
               </div>
@@ -246,7 +248,7 @@ export function POIDetailsModal({
 
           {displayPoi.day != null && (
             <p className="text-center text-xs text-slate-400 pt-6 mt-6 border-t border-slate-100">
-              Dan {displayPoi.day} · Skybooplan
+              {t("poi.dayFooter").replace("{day}", String(displayPoi.day))}
             </p>
           )}
         </div>

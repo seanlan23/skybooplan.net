@@ -173,6 +173,7 @@ function ActivityItem({
   onFocus?: (coords: { lat: number; lng: number; day: number }) => void;
   onDetails?: (poi: PoiDetailsData) => void;
 }) {
+  const { t } = useI18n();
   const bullets = activityDescriptionBullets(activity.description);
   const pin = findActivityPin(day, activity);
   const imageUrl = normalizeImageUrl(activity.imageUrl ?? pin?.imageUrl);
@@ -249,7 +250,7 @@ function ActivityItem({
           }}
           className="mt-3 inline-flex items-center rounded-full bg-sky-600 px-4 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-sky-700 transition-colors"
         >
-          Več informacij
+          {t("poi.moreInfo")}
         </button>
       )}
     </li>
@@ -257,6 +258,7 @@ function ActivityItem({
 }
 
 function DayLogisticsBar({ day, pax }: { day: DayPlan; pax: number }) {
+  const { t } = useI18n();
   const budget =
     typeof day.dailyBudgetEur === "number" && day.dailyBudgetEur > 0
       ? Math.round(day.dailyBudgetEur)
@@ -271,7 +273,7 @@ function DayLogisticsBar({ day, pax }: { day: DayPlan; pax: number }) {
         <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-200/80">
           <Wallet className="h-3.5 w-3.5 shrink-0" />
           €{budget}
-          {pax > 1 ? ` / osebo` : ` / dan`}
+          {pax > 1 ? t("aiplan.perPerson") : t("aiplan.perDay")}
         </span>
       )}
       {hasDriveKm && (
@@ -413,6 +415,7 @@ export function StreamingDayPlaceholder({
   dayNumber: number;
   isGenerating?: boolean;
 }) {
+  const { t } = useI18n();
   return (
     <div
       data-day={dayNumber}
@@ -432,7 +435,7 @@ export function StreamingDayPlaceholder({
         </div>
         {isGenerating && (
           <p className="text-sm font-medium text-sky-600 animate-pulse">
-            Generiram dan {dayNumber}…
+            {t("aiplan.generatingDay").replace("{n}", String(dayNumber))}
           </p>
         )}
       </div>

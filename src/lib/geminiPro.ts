@@ -20,6 +20,9 @@ import {
   motorhomePromptRules,
 } from "@/lib/tripMode";
 import { groundTransportPromptBlock, lastDayReturnPromptBlock } from "@/lib/groundTransport";
+import { planTeaserText } from "@/lib/planTeaser";
+import { languageWritingRule } from "@/lib/tripLocale";
+import type { Lang } from "@/lib/i18n";
 
 export type {
   GenerateTripPlanParams,
@@ -143,7 +146,16 @@ ${roadTrip ? "- Road trip (npr. Route 66): enosmerna pot vzdolž ceste, vsak dan
     ? ""
     : "\n\nZadnji dan logistike: obvezno dodaj aktivnost z category airport z natančno uro odhoda mednarodnega leta nazaj v Evropo (EU) in izpolni trip_metadata.return_flight_eu (departure_time, arrival_time_eu, from_airport, to_airport, summary).";
 
+  const lang = (params.language ?? "sl") as Lang;
+  const teaser = planTeaserText(lang);
+  const teaserBlock = `
+UVODNI TEASER (obvezno — pred 1. dnem):
+Na samem začetku polja trip_metadata.season_warning (uvodno besedilo pred dnevnim načrtom) mora biti kot prvi stavek NATANKO ta tekst, v izbranem jeziku uporabnika:
+"${teaser}"
+Takoj za tem nadaljuj z geografsko natančnim sezonskim opozorilom za destinacijo.`;
+
   return `Ustvari ${params.days}-dnevni načrt potovanja za lokacijo: ${params.destination} v mesecu ${params.month}.
+${teaserBlock}
 ${tvojeZeljeBlock}${motorhomeBlock}${groundTransportBlock}
 
 Let: ${route}.
@@ -221,7 +233,13 @@ export function tripPlanSystemPrompt(params: GenerateTripPlanParams): string {
     ? "razen zadnjega logističnega dneva (vožnja/vlak nazaj na izhodišče)"
     : "razen zadnjega logističnega dneva na izhodno letališče";
 
-  return `Si strokovni potovalni agent za aplikacijo skybooplan. Načrte potovanj vedno vrni v slovenščini in striktno sledi zahtevani JSON shemi.
+  const lang = (params.language ?? "sl") as Lang;
+  const writingRule = languageWritingRule(lang);
+
+  return `Si strokovni potovalni agent za aplikacijo skybooplan. Striktno sledi zahtevani JSON shemi.
+
+JEZIK IZHODA:
+${writingRule}
 
 ${motorhomeRules}
 

@@ -5,10 +5,12 @@ import { groundTransportLabel } from "@/lib/groundTransport";
 import { format, parseISO, startOfDay } from "date-fns";
 import { cn } from "@/lib/utils";
 import { AirportAutocomplete } from "@/components/AirportAutocomplete";
+import { TravelAccessoriesBar } from "@/components/TravelAccessoriesBar";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { useI18n } from "@/lib/i18n";
+import { formatTravellersSummary } from "@/lib/travellersFormat";
 
 export type Tab = "flights" | "stays" | "ai";
 export type CabinClass = "economy" | "premium" | "business" | "first";
@@ -341,7 +343,7 @@ export function SearchPanel({
             />
             {tripType !== "Multi-city" && (
               <button
-                aria-label="Swap"
+                aria-label={t("search.swapAirports")}
                 onClick={() => {
                   const a = from;
                   setFrom(to);
@@ -412,6 +414,8 @@ export function SearchPanel({
           )}
         </div>
       )}
+
+      <TravelAccessoriesBar />
     </div>
   );
 }
@@ -437,7 +441,6 @@ function TransportModeField({
   onOpenChange?: (o: boolean) => void;
 }) {
   const { t, lang } = useI18n();
-  const slo = lang === "sl" || lang.startsWith("sl");
   const current = TRANSPORT_MODE_OPTIONS.find((o) => o.key === value) ?? TRANSPORT_MODE_OPTIONS[0]!;
   const Icon = current.icon;
 
@@ -453,7 +456,7 @@ function TransportModeField({
           </div>
           <div className="mt-1 flex items-center gap-2 text-[15px] font-semibold text-foreground">
             <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
-            {groundTransportLabel(value, slo)}
+            {groundTransportLabel(value, lang)}
           </div>
         </button>
       </PopoverTrigger>
@@ -474,7 +477,7 @@ function TransportModeField({
               )}
             >
               <OptIcon className="h-4 w-4" />
-              {groundTransportLabel(opt.key, slo)}
+              {groundTransportLabel(opt.key, lang)}
             </button>
           );
         })}
@@ -871,6 +874,7 @@ function Stepper({
   min?: number;
   max?: number;
 }) {
+  const { t } = useI18n();
   return (
     <div className="flex items-center gap-3">
       <button
@@ -878,7 +882,7 @@ function Stepper({
         onClick={() => onChange(Math.max(min, value - 1))}
         disabled={value <= min}
         className="h-9 w-9 inline-flex items-center justify-center rounded-full border border-border text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-        aria-label="Decrease"
+        aria-label={t("common.decrease")}
       >
         <Minus className="h-4 w-4" />
       </button>
@@ -888,7 +892,7 @@ function Stepper({
         onClick={() => onChange(Math.min(max, value + 1))}
         disabled={value >= max}
         className="h-9 w-9 inline-flex items-center justify-center rounded-full border border-border text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-        aria-label="Increase"
+        aria-label={t("common.increase")}
       >
         <Plus className="h-4 w-4" />
       </button>
@@ -922,8 +926,7 @@ function FlightsTravellersField({
   open?: boolean;
   onOpenChange?: (o: boolean) => void;
 }) {
-  const { t } = useI18n();
-  const total = adults + childrenAges.length;
+  const { t, lang } = useI18n();
 
   function setChildCount(n: number) {
     const clamped = Math.max(0, Math.min(8, n));
@@ -949,7 +952,7 @@ function FlightsTravellersField({
           </div>
           <div className="mt-1 flex items-center gap-2 text-[15px] font-semibold text-foreground">
             <Users className="h-4 w-4 shrink-0 text-muted-foreground" />
-            {total} {total === 1 ? t("trav.adult") : t("trav.people")}
+            {formatTravellersSummary(lang, adults, childrenAges.length)}
           </div>
           <div className="text-xs text-muted-foreground truncate">{t(CABIN_KEY[cabinClass])}</div>
         </button>

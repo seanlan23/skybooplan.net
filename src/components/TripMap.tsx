@@ -401,6 +401,7 @@ function buildMarkerPopupHtml(opts: {
   time?: string;
   cost?: string;
   showDetailsButton?: boolean;
+  detailsButtonLabel?: string;
 }): string {
   const desc = opts.description?.trim();
   const time = opts.time?.trim();
@@ -421,7 +422,7 @@ function buildMarkerPopupHtml(opts: {
         ${cost ? `<span class="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 rounded-full px-3 py-1 text-xs font-semibold"><span aria-hidden="true">💶</span>${escapeHtml(cost)}</span>` : ""}
       </div>
       ${descShort ? `<p class="mt-3 text-sm text-slate-600 leading-relaxed line-clamp-2">${escapeHtml(descShort)}</p>` : ""}
-      ${opts.showDetailsButton ? `<button type="button" data-poi-details-btn class="mt-3 w-full rounded-full bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold px-4 py-2 transition-colors cursor-pointer">Več informacij</button>` : ""}
+      ${opts.showDetailsButton ? `<button type="button" data-poi-details-btn class="mt-3 w-full rounded-full bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold px-4 py-2 transition-colors cursor-pointer">${escapeHtml(opts.detailsButtonLabel ?? "More info")}</button>` : ""}
     </div>
   `;
 }
@@ -842,10 +843,10 @@ function TripMapInner({
     tokenFn({})
       .then((r) => {
         if (cancelled) return;
-        if (!r.token) setError("Mapbox token ni nastavljen.");
+        if (!r.token) setError(t("map.tokenMissing"));
         else setToken(r.token);
       })
-      .catch(() => !cancelled && setError("Napaka pri nalaganju karte."));
+      .catch(() => !cancelled && setError(t("map.loadError")));
     return () => { cancelled = true; };
   }, [tokenFn]);
 
@@ -1290,6 +1291,7 @@ function TripMapInner({
             time,
             cost,
             showDetailsButton: Boolean(openDetails && poiDetails),
+            detailsButtonLabel: t("poi.moreInfo"),
           }),
           poiDetails && openDetails ? () => openDetails(poiDetails) : undefined,
         );
@@ -1429,11 +1431,13 @@ function TripMapInner({
         const dayPlan = plan.days.find((d) => d.day === stop.startDay);
         const budget =
           dayPlan && typeof dayPlan.dailyBudgetEur === "number" && dayPlan.dailyBudgetEur > 0
-            ? `€${Math.round(dayPlan.dailyBudgetEur)} / dan`
+            ? t("map.budgetPerDay").replace("{n}", String(Math.round(dayPlan.dailyBudgetEur)))
             : undefined;
         const timeParts = [
           dayPlan?.drivingDurationHours,
-          stop.dayCount > 1 ? `Dan ${stop.startDay}–${stop.endDay}` : `Dan ${stop.startDay}`,
+          stop.dayCount > 1
+            ? t("map.dayRange").replace("{start}", String(stop.startDay)).replace("{end}", String(stop.endDay))
+            : t("map.daySingle").replace("{n}", String(stop.startDay)),
         ].filter(Boolean);
 
         attachMarkerPopup(

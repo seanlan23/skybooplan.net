@@ -3,6 +3,7 @@ import type { AiTripPlan } from "@/lib/aiPlan.functions";
 import type { TripPlanResponse } from "@/lib/geminiPro.shared";
 import { MAP_POI_CATEGORIES } from "@/lib/mapPoiCategory";
 import { tripPlanResponseToAiTripPlan, type GeminiPlanMapOpts } from "@/lib/geminiPlanMap";
+import { withPlanTeaser } from "@/lib/planTeaser";
 
 type PartialResponse = DeepPartial<TripPlanResponse>;
 
@@ -154,9 +155,11 @@ export function partialTripPlanToPreviewPlan(
   if (!coerced) return null;
   try {
     const plan = tripPlanResponseToAiTripPlan(coerced, opts);
+    const lang = opts.language ?? "sl";
+    const rawSummary = partial.trip_metadata?.season_warning?.trim() || plan.summary;
     return {
       ...plan,
-      summary: partial.trip_metadata?.season_warning?.trim() || plan.summary,
+      summary: withPlanTeaser(rawSummary, lang),
     };
   } catch (err) {
     console.warn("[geminiStreamMap] preview mapping failed:", err);

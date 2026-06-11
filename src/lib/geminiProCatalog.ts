@@ -9,6 +9,7 @@ import {
   tripPlanResponseToAiTripPlan,
 } from "@/lib/geminiPlanMap";
 import type { GenerateGeminiProTripInput } from "@/lib/geminiPro.functions";
+import type { Lang } from "@/lib/i18n";
 
 export function buildCatalogPlanFromResponse(
   raw: TripPlanResponse,
@@ -36,6 +37,7 @@ export function buildCatalogPlanFromResponse(
     destinationIata: data.destinationIata,
     departDate: data.departDate,
     wishesText,
+    language: (data.language ?? "sl") as Lang,
   });
 
   if (!isCatalogTripPlan(catalogPlan)) {
@@ -82,5 +84,6 @@ export function buildGeminiMapOpts(data: GenerateGeminiProTripInput) {
     groundTransportMode: data.groundTransportMode,
     originPlace: data.originPlace,
     destinationPlace: data.destinationPlace,
+    language: (data.language ?? "sl") as Lang,
   };
 }

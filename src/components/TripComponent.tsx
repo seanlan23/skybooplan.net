@@ -133,7 +133,7 @@ export default function TripComponent({
   if (!meta || mapPlan.days.length === 0) {
     return (
       <div className="mt-8 rounded-2xl border border-amber-300 bg-amber-50 p-5 text-amber-900 text-sm">
-        Načrt ni v pričakovani obliki — poskusi znova generirati.
+        {t("error.planUnexpectedFormat")}
       </div>
     );
   }

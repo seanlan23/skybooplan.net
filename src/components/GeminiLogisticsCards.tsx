@@ -1,5 +1,6 @@
 import { Bus, CreditCard, Plane, Ship, Wifi } from "lucide-react";
 import type { TripPlanResponse } from "@/lib/geminiPro.shared";
+import { useI18n } from "@/lib/i18n";
 
 type Logistics = TripPlanResponse["logistics_and_tips"];
 
@@ -37,6 +38,7 @@ export function GeminiLogisticsCards({
   currency?: string;
   visaRequired?: boolean;
 }) {
+  const { t } = useI18n();
   if (!logistics) return null;
 
   const transport = logistics.transport;
@@ -50,35 +52,37 @@ export function GeminiLogisticsCards({
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-5 sm:p-6 shadow-sm space-y-4">
-      <h3 className="text-lg font-bold text-slate-900">Praktični nasveti in logistika</h3>
+      <h3 className="text-lg font-bold text-slate-900">{t("logistics.title")}</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <TipCard
           icon={Plane}
-          title="Leti"
+          title={t("logistics.flights")}
           body={transport?.flights ?? ""}
           accent="border-sky-200 bg-sky-50/40"
         />
         <TipCard
           icon={Ship}
-          title="Trajekti in čolni"
+          title={t("logistics.ferries")}
           body={transport?.ferries ?? ""}
           accent="border-cyan-200 bg-cyan-50/40"
         />
         <TipCard
           icon={Bus}
-          title="Prevoz po mestu"
+          title={t("logistics.cityTransport")}
           body={transport?.city_transport ?? ""}
           accent="border-indigo-200 bg-indigo-50/40"
         />
         <TipCard
           icon={CreditCard}
-          title="Finance in plačila"
+          title={t("logistics.finance")}
           body={
             [
               logistics.finance?.trim(),
-              currency ? `Lokalna valuta: ${currency}.` : "",
+              currency ? t("logistics.localCurrency").replace("{currency}", currency) : "",
               visaRequired != null
-                ? `Viza: ${visaRequired ? "potrebna" : "ni potrebna"}.`
+                ? visaRequired
+                  ? t("logistics.visaRequired")
+                  : t("logistics.visaNotRequired")
                 : "",
             ]
               .filter(Boolean)
@@ -88,7 +92,7 @@ export function GeminiLogisticsCards({
         />
         <TipCard
           icon={Wifi}
-          title="Internet in povezljivost"
+          title={t("logistics.internet")}
           body={logistics.internet ?? ""}
           accent="border-violet-200 bg-violet-50/40"
         />

@@ -17,6 +17,8 @@ import {
   detectHotelRestInterval,
   isHotelRestDay,
 } from "@/lib/tripMode";
+import { withPlanTeaser } from "@/lib/planTeaser";
+import type { Lang } from "@/lib/i18n";
 
 export type GeminiPlanMapOpts = {
   originIata?: string;
@@ -25,6 +27,7 @@ export type GeminiPlanMapOpts = {
   departDate?: string;
   /** Full user wishes blob (custom text + tags) for accommodation detection. */
   wishesText?: string;
+  language?: Lang;
 };
 
 function resolveIsoDayDate(raw: string, departDate: string | undefined, dayNumber: number): string {
@@ -385,12 +388,15 @@ export function tripPlanResponseToAiTripPlan(
     returnFlightEu = extractReturnFlightFromLastDay(days, opts?.originIata);
   }
 
+  const lang = opts?.language ?? "sl";
+  const rawSummary =
+    meta?.season_warning?.trim() ||
+    logisticsSummary ||
+    `Načrt poti: ${meta?.destination ?? ""}`;
+
   return {
     destinationName: meta?.destination ?? "Potovanje",
-    summary:
-      meta?.season_warning?.trim() ||
-      logisticsSummary ||
-      `Načrt poti: ${meta?.destination ?? ""}`,
+    summary: withPlanTeaser(rawSummary, lang),
     totalBudgetEur: 0,
     centerLat: coordCount > 0 ? latSum / coordCount : 0,
     centerLng: coordCount > 0 ? lngSum / coordCount : 0,

@@ -1,18 +1,18 @@
 import type { AiTripPlan, DayPlan, GroundJourney, GroundJourneyStop, GroundTransportMode } from "@/lib/aiPlan.functions";
+import { translate, type Lang } from "@/lib/i18n";
 
 export type { GroundJourney, GroundJourneyStop, GroundTransportMode };
 
 export const GROUND_TRANSPORT_MODES: GroundTransportMode[] = ["car", "motorhome", "train"];
 
-export function groundTransportLabel(mode: GroundTransportMode, slo = true): string {
-  if (slo) {
-    if (mode === "car") return "Avto";
-    if (mode === "motorhome") return "Avtodom";
-    return "Vlak";
-  }
-  if (mode === "car") return "Car";
-  if (mode === "motorhome") return "Motorhome";
-  return "Train";
+const TRANSPORT_I18N: Record<GroundTransportMode, "transport.car" | "transport.motorhome" | "transport.train"> = {
+  car: "transport.car",
+  motorhome: "transport.motorhome",
+  train: "transport.train",
+};
+
+export function groundTransportLabel(mode: GroundTransportMode, lang: Lang = "sl"): string {
+  return translate(lang, TRANSPORT_I18N[mode]);
 }
 
 export function isGroundTransportMode(value: unknown): value is GroundTransportMode {

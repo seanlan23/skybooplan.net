@@ -17,7 +17,9 @@ import {
   PLANNER_INTEREST_KEYS,
   type PlannerInterestKey,
 } from "@/lib/plannerInterests";
-import { TRIP_WISH_TAGS, type TripBudgetTier } from "@/lib/geminiPro.shared";
+import { TRIP_WISH_TAGS, type TripBudgetTier, type TripWishTag } from "@/lib/geminiPro.shared";
+import { formatTravellersSummary } from "@/lib/travellersFormat";
+import { groundTransportLabel } from "@/lib/groundTransport";
 
 export type AiPlannerContext = {
   from: string;
@@ -48,11 +50,14 @@ export type AiPlannerSubmit = {
   plannerStyle?: "ai" | "catalog";
 };
 
-const BUDGET_OPTIONS: { key: TripBudgetTier; label: string; hint: string }[] = [
-  { key: "budget", label: "Budget", hint: "Low" },
-  { key: "standard", label: "Standard", hint: "Uravnoteženo" },
-  { key: "premium", label: "Premium", hint: "Višji standard" },
-];
+const BUDGET_KEYS: TripBudgetTier[] = ["budget", "standard", "premium"];
+
+const WISH_TAG_I18N: Record<TripWishTag, "ai.wish.vegetarian" | "ai.wish.accessible" | "ai.wish.carRental" | "ai.wish.noNightDrives"> = {
+  "Vegetarijansko/Vegansko": "ai.wish.vegetarian",
+  "Dostopno z vozičkom": "ai.wish.accessible",
+  "Najem avtomobila": "ai.wish.carRental",
+  "Brez nočnih voženj": "ai.wish.noNightDrives",
+};
 
 function tripDays(departDate: string, returnDate?: string): number {
   if (!returnDate) return 7;
@@ -122,6 +127,16 @@ export function AiPlannerPreview({
     { key: "relaxed" as const, label: t("ai.paceRelaxed") },
     { key: "calm" as const, label: t("ai.paceCalm") },
   ];
+
+  const budgetOptions = useMemo(
+    () =>
+      BUDGET_KEYS.map((key) => ({
+        key,
+        label: t(`ai.budget.${key}` as never),
+        hint: t(`ai.budget.${key}Hint` as never),
+      })),
+    [lang, t],
+  );
 
   const hasContext = !!context;
   const interestsOk = selectedInterests.length >= MIN_PLANNER_INTERESTS;
@@ -198,11 +213,7 @@ export function AiPlannerPreview({
                   <>
                     <span className="text-muted-foreground">·</span>
                     <span className="text-muted-foreground capitalize">
-                      {context!.groundTransportMode === "car"
-                        ? "Avto"
-                        : context!.groundTransportMode === "motorhome"
-                          ? "Avtodom"
-                          : "Vlak"}
+                      {groundTransportLabel(context!.groundTransportMode, lang)}
                     </span>
                   </>
                 )}
@@ -210,11 +221,11 @@ export function AiPlannerPreview({
                 <span className="text-muted-foreground">
                   {context!.departDate}
                   {context!.returnDate ? ` → ${context!.returnDate}` : ""} ·{" "}
-                  {context!.adults ?? context!.pax}{" "}
-                  {(context!.adults ?? context!.pax) === 1 ? "odrasel" : "odraslih"}
-                  {(context!.childrenAges ?? []).length > 0
-                    ? `, ${(context!.childrenAges ?? []).length} otrok`
-                    : ""}
+                  {formatTravellersSummary(
+                    lang,
+                    context!.adults ?? context!.pax,
+                    (context!.childrenAges ?? []).length,
+                  )}
                 </span>
               </div>
             ) : (
@@ -291,9 +302,9 @@ export function AiPlannerPreview({
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-foreground">Proračun</label>
+              <label className="text-sm font-semibold text-foreground">{t("ai.budget")}</label>
               <div className="mt-3 grid grid-cols-3 gap-2">
-                {BUDGET_OPTIONS.map((b) => (
+                {budgetOptions.map((b) => (
                   <button
                     key={b.key}
                     type="button"
@@ -320,7 +331,7 @@ export function AiPlannerPreview({
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-foreground">Posebne želje</label>
+              <label className="text-sm font-semibold text-foreground">{t("ai.specialWishes")}</label>
               <div className="mt-3 flex flex-wrap gap-2">
                 {TRIP_WISH_TAGS.map((tag) => {
                   const active = wishTags.includes(tag);
@@ -336,7 +347,7 @@ export function AiPlannerPreview({
                           : "bg-card text-foreground/80 border-border hover:border-brand/50",
                       )}
                     >
-                      {tag}
+                      {t(WISH_TAG_I18N[tag])}
                     </button>
                   );
                 })}

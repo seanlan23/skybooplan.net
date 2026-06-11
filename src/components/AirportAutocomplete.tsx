@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Loader2, MapPin, Plane, Globe, X } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { searchPlaces, type PlaceSuggestion } from "@/lib/places.functions";
+import { useI18n } from "@/lib/i18n";
 
 type Kind = "airport" | "place";
 
@@ -19,6 +20,7 @@ export function AirportAutocomplete({
   /** "airport" -> emits IATA code; "place" -> emits "City, Country" / "Name, Country" text */
   kind?: Kind;
 }) {
+  const { t } = useI18n();
   const [query, setQuery] = useState(value);
   const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
   const [open, setOpen] = useState(false);
@@ -159,7 +161,7 @@ export function AirportAutocomplete({
         {query && (
           <button
             type="button"
-            aria-label="Clear"
+            aria-label={t("common.clear")}
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => {
               selectedRef.current = null;
@@ -179,10 +181,12 @@ export function AirportAutocomplete({
         <div className="absolute z-30 mt-2 w-full min-w-[280px] rounded-xl border border-border bg-popover shadow-xl overflow-hidden">
           {loading ? (
             <div className="flex items-center gap-2 px-4 py-3 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" /> Searching…
+              <Loader2 className="h-4 w-4 animate-spin" /> {t("autocomplete.searching")}
             </div>
           ) : visibleSuggestions.length === 0 ? (
-            <div className="px-4 py-3 text-sm text-muted-foreground">No results for "{query}"</div>
+            <div className="px-4 py-3 text-sm text-muted-foreground">
+              {t("autocomplete.noResults").replace("{query}", query)}
+            </div>
           ) : (
             <ul className="max-h-72 overflow-y-auto">
               {visibleSuggestions.map((s, i) => (
@@ -222,7 +226,7 @@ export function AirportAutocomplete({
                         )}
                       </div>
                       <div className="text-xs text-muted-foreground flex items-center gap-1">
-                        {s.type === "city" ? "City (all airports)" : "Airport"}
+                        {s.type === "city" ? t("autocomplete.type.city") : t("autocomplete.type.airport")}
                         {s.country ? (
                           <>
                             <span>·</span>

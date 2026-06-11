@@ -9,6 +9,9 @@ import { refreshPoiDetailsImage, type PoiDetailsData } from "@/lib/poiDetails.ty
 import { DayScrollDebug } from "@/components/DayScrollDebug";
 import { AiPlanLoader } from "@/components/AiPlanLoader";
 import { resolveErrorMessage, useI18n } from "@/lib/i18n";
+import { cn } from "@/lib/utils";
+import { PAYWALL_LOCKED_FROM_INDEX, PAYWALL_FREE_DAYS, withPlanTeaser } from "@/lib/planTeaser";
+import { Lock } from "lucide-react";
 import { parseLocalDate } from "@/lib/dateUtils";
 import type { StayInfo } from "@/components/HotelsSection";
 import { PlannerChoicesSummary } from "@/components/PlannerChoicesSummary";
@@ -25,6 +28,8 @@ export function AiPlanView({
   error,
   stayInfo,
   protect = false,
+  isUnlocked = true,
+  onUnlockClick,
   onDownloadClick,
   pax = 1,
   plannerWishes,
@@ -37,6 +42,9 @@ export function AiPlanView({
   error: string | null;
   stayInfo?: StayInfo;
   protect?: boolean;
+  /** When false and plan has more than 3 days, days 4+ are blurred behind paywall. */
+  isUnlocked?: boolean;
+  onUnlockClick?: () => void;
   onDownloadClick?: () => void;
   pax?: number;
   plannerWishes?: string;
@@ -301,6 +309,9 @@ export function AiPlanView({
   const mapHint = t("aiplan.mapHint" as never);
   const mapPlayLabel = t("aiplan.mapPlay" as never);
   const mapStopLabel = t("aiplan.mapStop" as never);
+  const shouldPaywallDays =
+    !isUnlocked && (plan?.days.length ?? 0) > PAYWALL_FREE_DAYS;
+  const displaySummary = plan ? withPlanTeaser(plan.summary, lang) : "";
 
   return (
     <div
@@ -336,12 +347,12 @@ export function AiPlanView({
           >
             <div className="absolute inset-0 flex items-center justify-center">
               <span className="rotate-[-22deg] text-4xl sm:text-6xl font-black text-sky-900/10 tracking-widest">
-                SKYBOOPLAN · PREDOGLED
+                {t("aiplan.previewWatermark")}
               </span>
             </div>
           </div>
           <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            🔒 Predogled — kopiranje, izbira besedila in prenos PDF so onemogočeni. Za odklep se registriraj in plačaj.
+            🔒 {t("aiplan.previewLockNotice")}
           </div>
         </>
       )}
@@ -374,14 +385,16 @@ export function AiPlanView({
               {plan.destinationName}
             </h2>
             <PlannerChoicesSummary form={plannerForm} />
-            <p className="mt-2 text-slate-600 max-w-2xl">{plan.summary}</p>
+            <p className="mt-2 text-slate-600 max-w-2xl">{displaySummary}</p>
             {streaming && (
               <p className="mt-2 inline-flex items-center gap-2 text-sm font-medium text-sky-600">
                 <span className="relative flex h-2 w-2">
                   <span className="absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75 animate-ping" />
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-sky-600" />
                 </span>
-                Generiram načrt… {plan.days.length}/{totalExpectedDays} dni
+                {t("aiplan.streamingProgress")
+                  .replace("{n}", String(plan.days.length))
+                  .replace("{total}", String(totalExpectedDays))}
               </p>
             )}
           </div>
@@ -399,6 +412,8 @@ export function AiPlanView({
         <div className="space-y-5 min-w-0 order-2 lg:order-1">
           {plan.groundJourney && <TransportDashboard plan={plan} />}
           {plan.days.map((d, idx) => {
+            const isLockedDay = shouldPaywallDays && idx >= PAYWALL_LOCKED_FROM_INDEX;
+            const showUnlockOverlay = shouldPaywallDays && idx === PAYWALL_LOCKED_FROM_INDEX;
             let checkOut = d.date;
             if (d.city) {
               let endIdx = idx;
@@ -419,43 +434,79 @@ export function AiPlanView({
               }
             }
             return (
-              <AiPlanDayCard
-                key={d.day}
-                day={d}
-                isActive={activeDay === d.day}
-                isFirstInCity={idx === 0 || plan.days[idx - 1].city !== d.city}
-                lang={lang}
-                pax={Math.max(1, pax)}
-                stayInfo={stayInfo}
-                accommodationMode={plan.accommodationMode}
-                hotelRestEveryNDays={plan.hotelRestEveryNDays}
-                plannerWishes={plannerWishes}
-                totalTripDays={plan.days.length}
-                checkOut={checkOut}
-                regionFallback={plan.destinationName}
-                onSelect={() => {
-                  setActiveDay(d.day);
-                  if (typeof window !== "undefined" && window.innerWidth < 1024) {
-                    document.getElementById("ai-trip-map")?.scrollIntoView({ behavior: "smooth", block: "start" });
-                  }
-                }}
-                onActivityFocus={handleActivityFocus}
-                onActivityDetails={handleActivityDetails}
-                registerRef={(el) => {
-                  if (el) dayRefs.current.set(d.day, el);
-                  else dayRefs.current.delete(d.day);
-                }}
-              />
+              <div key={d.day} className="relative">
+                {showUnlockOverlay && (
+                  <div className="mb-4 flex justify-center">
+                    <button
+                      type="button"
+                      onClick={onUnlockClick}
+                      className="inline-flex max-w-lg items-center gap-2.5 rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-600 to-violet-600 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-indigo-200/50 transition-all hover:-translate-y-0.5 hover:shadow-xl hover:shadow-indigo-300/40"
+                    >
+                      <Lock className="h-4 w-4 shrink-0" aria-hidden />
+                      {t("paywall.unlockPlanCta")}
+                    </button>
+                  </div>
+                )}
+                <div
+                  className={cn(
+                    isLockedDay && "blur-md pointer-events-none select-none",
+                  )}
+                >
+                  <AiPlanDayCard
+                    day={d}
+                    isActive={activeDay === d.day}
+                    isFirstInCity={idx === 0 || plan.days[idx - 1].city !== d.city}
+                    lang={lang}
+                    pax={Math.max(1, pax)}
+                    stayInfo={stayInfo}
+                    accommodationMode={plan.accommodationMode}
+                    hotelRestEveryNDays={plan.hotelRestEveryNDays}
+                    plannerWishes={plannerWishes}
+                    totalTripDays={plan.days.length}
+                    checkOut={checkOut}
+                    regionFallback={plan.destinationName}
+                    onSelect={() => {
+                      setActiveDay(d.day);
+                      if (typeof window !== "undefined" && window.innerWidth < 1024) {
+                        document.getElementById("ai-trip-map")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                      }
+                    }}
+                    onActivityFocus={handleActivityFocus}
+                    onActivityDetails={handleActivityDetails}
+                    registerRef={(el) => {
+                      if (el) dayRefs.current.set(d.day, el);
+                      else dayRefs.current.delete(d.day);
+                    }}
+                  />
+                </div>
+              </div>
             );
           })}
-          {pendingDayNumbers.map((dayNum, i) => (
-            <StreamingDayPlaceholder
-              key={`pending-${dayNum}`}
-              dayNumber={dayNum}
-              isGenerating={i === 0}
-            />
-          ))}
-          {!streaming && <ReturnHomeCard plan={plan} />}
+          {pendingDayNumbers.map((dayNum, i) => {
+            const isLockedPending = shouldPaywallDays && dayNum > PAYWALL_FREE_DAYS;
+            const showUnlockOverlayPending =
+              shouldPaywallDays && dayNum === PAYWALL_FREE_DAYS + 1 && plan.days.length <= PAYWALL_FREE_DAYS;
+            return (
+              <div key={`pending-${dayNum}`} className="relative">
+                {showUnlockOverlayPending && (
+                  <div className="mb-4 flex justify-center">
+                    <button
+                      type="button"
+                      onClick={onUnlockClick}
+                      className="inline-flex max-w-lg items-center gap-2.5 rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-600 to-violet-600 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-indigo-200/50 transition-all hover:-translate-y-0.5 hover:shadow-xl hover:shadow-indigo-300/40"
+                    >
+                      <Lock className="h-4 w-4 shrink-0" aria-hidden />
+                      {t("paywall.unlockPlanCta")}
+                    </button>
+                  </div>
+                )}
+                <div className={cn(isLockedPending && "blur-md pointer-events-none select-none")}>
+                  <StreamingDayPlaceholder dayNumber={dayNum} isGenerating={i === 0} />
+                </div>
+              </div>
+            );
+          })}
+          {!streaming && isUnlocked && <ReturnHomeCard plan={plan} />}
         </div>
 
         {hasCoords && (

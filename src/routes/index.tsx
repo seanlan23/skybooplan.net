@@ -49,14 +49,15 @@ import { Button } from "@/components/ui/button";
 
 /** Full-screen fatal error — visible without devtools. */
 function FatalErrorScreen({ error }: { error: Error }) {
+  const { t } = useI18n();
   return (
     <div
       className="min-h-screen p-6 sm:p-10 bg-red-950 text-red-50"
       role="alert"
     >
-      <h1 className="text-xl font-bold text-red-200 mb-4">Napaka pri nalaganju strani</h1>
+      <h1 className="text-xl font-bold text-red-200 mb-4">{t("error.pageLoadTitle")}</h1>
       <pre className="text-sm whitespace-pre-wrap break-words font-mono leading-relaxed">
-        {error.toString()} v vrstici {error.stack ?? "(stack ni na voljo)"}
+        {error.toString()} {t("error.pageLoadAtLine")} {error.stack ?? t("error.stackUnavailable")}
       </pre>
     </div>
   );
@@ -288,7 +289,7 @@ function Landing() {
   const subscription = useSubscription();
   const navigate = useNavigate();
   const [paywall, setPaywall] = useState<null | "register" | "pay" | "daily">(null);
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const queryClient = useQueryClient();
   const searchFn = useServerFn(searchFlights);
   const planFn = useServerFn(generateAiPlan);
@@ -691,7 +692,7 @@ function Landing() {
   ) {
     const rawCtx = ctxOverride ?? aiContext;
     if (!isActiveAiContext(rawCtx)) {
-      setAiError("Nevelaven kontekst iskanja. Najprej izberi letališči in datume v iskalniku.");
+      setAiError(t("error.invalidSearchContext"));
       return;
     }
     const ctx = normalizeAiContext(rawCtx);
@@ -752,6 +753,7 @@ function Landing() {
           pace: safeForm.pace,
           priorities,
           ...groundTrip,
+          language: ctx.language || lang,
         };
 
         const { plan, error: streamError } = await streamItinerary.start(streamInput);
@@ -770,7 +772,7 @@ function Landing() {
           setAiPlan(plan);
           setSavedPlanId(null);
         } else {
-          setAiError("Načrt ni bil generiran v veljavni obliki.");
+          setAiError(t("error.planInvalidFormat"));
         }
         return;
       }
@@ -817,7 +819,7 @@ function Landing() {
       setSavedPlanId(null);
     } catch (e) {
       console.error(e);
-      setAiError("AI plan se ni uspel generirati.");
+      setAiError(t("error.planGenerationFailed"));
     } finally {
       setAiLoading(false);
       setAiGenStartedAt(null);
@@ -879,7 +881,7 @@ function Landing() {
       }
     } catch (e) {
       console.error(e);
-      setAiError("AI plan se ni uspel generirati.");
+      setAiError(t("error.planGenerationFailed"));
     } finally {
       setAiExpandingFull(false);
     }
@@ -901,14 +903,10 @@ function Landing() {
       <main className="flex-1">
         {/* Hero */}
         <section className="mx-auto max-w-7xl px-6 pt-16 sm:pt-24 pb-12 text-center">
-          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-bold text-foreground tracking-tight">
-            {t("hero.title.a")}{" "}
-            <span className="bg-clip-text text-transparent" style={{ backgroundImage: "var(--gradient-brand)" }}>
-              {t("hero.title.b")}
-            </span>{" "}
-            {t("hero.title.c")}
+          <h1 className="bg-gradient-to-r from-slate-950 via-blue-900 to-indigo-800 bg-clip-text text-4xl font-bold tracking-tight text-transparent sm:text-6xl lg:text-7xl">
+            {t("hero.title.a")} {t("hero.title.b")} {t("hero.title.c")}
           </h1>
-          <p className="mt-5 text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto">
+          <p className="mx-auto mt-5 max-w-2xl text-lg text-slate-500 sm:text-xl">
             {t("hero.subtitle")}
           </p>
 
@@ -1018,6 +1016,14 @@ function Landing() {
                   error={null}
                   pax={aiContext?.pax ?? 1}
                   protect={false}
+                  isUnlocked={subscription.isActive}
+                  onUnlockClick={() => {
+                    if (!user) {
+                      setPaywall("register");
+                      return;
+                    }
+                    setPaywall("pay");
+                  }}
                   onDownloadClick={
                     aiPlan
                       ? async () => {
