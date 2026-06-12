@@ -14,6 +14,7 @@ import {
  * (equivalent to Next.js app/api/auth/[...nextauth]/route.ts)
  *
  * Env: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, NEXTAUTH_SECRET, NEXTAUTH_URL
+ * Aliasi: AUTH_GOOGLE_*, NEXT_PUBLIC_GOOGLE_CLIENT_ID (samo client ID)
  */
 export function createAuthConfig(): StartAuthJSConfig {
   ensureAuthEnv();
@@ -23,11 +24,18 @@ export function createAuthConfig(): StartAuthJSConfig {
   const clientId =
     process.env.GOOGLE_CLIENT_ID?.trim() ||
     process.env.AUTH_GOOGLE_ID?.trim() ||
+    process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID?.trim() ||
     googleClientId();
   const clientSecret =
     process.env.GOOGLE_CLIENT_SECRET?.trim() ||
     process.env.AUTH_GOOGLE_SECRET?.trim() ||
     googleClientSecret();
+
+  if (!clientId || !clientSecret) {
+    throw new Error(
+      `[auth] Google OAuth is not configured (clientId=${Boolean(clientId)}, clientSecret=${Boolean(clientSecret)})`,
+    );
+  }
 
   return {
     secret,

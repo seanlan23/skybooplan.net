@@ -35,8 +35,15 @@ export function ensureAuthEnv(): void {
   }
 
   // @auth/core setEnvDefaults reads AUTH_GOOGLE_ID / AUTH_GOOGLE_SECRET
-  if (!process.env.AUTH_GOOGLE_ID && process.env.GOOGLE_CLIENT_ID) {
-    process.env.AUTH_GOOGLE_ID = process.env.GOOGLE_CLIENT_ID;
+  const publicGoogleId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID?.trim();
+  if (!process.env.AUTH_GOOGLE_ID) {
+    process.env.AUTH_GOOGLE_ID =
+      process.env.GOOGLE_CLIENT_ID?.trim() ||
+      publicGoogleId ||
+      undefined;
+  }
+  if (!process.env.GOOGLE_CLIENT_ID && publicGoogleId) {
+    process.env.GOOGLE_CLIENT_ID = publicGoogleId;
   }
   if (!process.env.AUTH_GOOGLE_SECRET && process.env.GOOGLE_CLIENT_SECRET) {
     process.env.AUTH_GOOGLE_SECRET = process.env.GOOGLE_CLIENT_SECRET;
@@ -64,6 +71,7 @@ export function googleClientId(): string {
   return (
     process.env.GOOGLE_CLIENT_ID ??
     process.env.AUTH_GOOGLE_ID ??
+    process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ??
     ""
   ).trim();
 }
@@ -81,8 +89,12 @@ export function assertAuthEnvReady(): void {
   ensureAuthEnv();
   const missing: string[] = [];
   if (!authSecret()) missing.push("NEXTAUTH_SECRET (or AUTH_SECRET)");
-  if (!googleClientId()) missing.push("GOOGLE_CLIENT_ID");
-  if (!googleClientSecret()) missing.push("GOOGLE_CLIENT_SECRET");
+  if (!googleClientId()) {
+    missing.push("GOOGLE_CLIENT_ID (or AUTH_GOOGLE_ID / NEXT_PUBLIC_GOOGLE_CLIENT_ID)");
+  }
+  if (!googleClientSecret()) {
+    missing.push("GOOGLE_CLIENT_SECRET (or AUTH_GOOGLE_SECRET)");
+  }
   if (missing.length > 0) {
     throw new Error(
       `[auth] Missing required environment variables: ${missing.join(", ")}`,
