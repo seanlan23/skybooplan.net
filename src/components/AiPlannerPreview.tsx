@@ -200,34 +200,39 @@ export function AiPlannerPreview({
 
           <div className="p-6 space-y-6">
             {hasContext ? (
-              <div className="flex items-center gap-2 rounded-2xl border border-brand/30 bg-brand-soft px-4 py-3 text-sm text-foreground">
-                <MapPin className="h-4 w-4 text-brand shrink-0" />
-                <span className="font-medium">
-                  {context!.originPlace && context!.destinationPlace
-                    ? `${context!.originPlace} → ${context!.destinationPlace}`
-                    : `${context!.from} → ${context!.to}`}
-                  {context!.returnFromIata && context!.returnFromIata !== context!.from
-                    ? ` · ${context!.returnFromIata} → ${context!.from}`
-                    : ""}
-                </span>
-                {context!.groundTransportMode && (
-                  <>
-                    <span className="text-muted-foreground">·</span>
-                    <span className="text-muted-foreground capitalize">
-                      {groundTransportLabel(context!.groundTransportMode, lang)}
-                    </span>
-                  </>
-                )}
-                <span className="text-muted-foreground">·</span>
-                <span className="text-muted-foreground">
-                  {context!.departDate}
-                  {context!.returnDate ? ` → ${context!.returnDate}` : ""} ·{" "}
-                  {formatTravellersSummary(
-                    lang,
-                    context!.adults ?? context!.pax,
-                    (context!.childrenAges ?? []).length,
-                  )}
-                </span>
+              <div className="rounded-2xl border border-brand/30 bg-brand-soft px-4 py-3 text-sm">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                  <div className="flex min-w-0 items-start gap-2.5 sm:items-center">
+                    <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-brand sm:mt-0" />
+                    <div className="min-w-0 leading-snug">
+                      <p className="font-semibold text-foreground">
+                        {context!.originPlace && context!.destinationPlace
+                          ? `${context!.originPlace} → ${context!.destinationPlace}`
+                          : `${context!.from} → ${context!.to}`}
+                        {context!.returnFromIata && context!.returnFromIata !== context!.from
+                          ? ` · ${context!.returnFromIata} → ${context!.from}`
+                          : context!.returnDate
+                            ? ` · ${context!.to} → ${context!.from}`
+                            : ""}
+                      </p>
+                      {context!.groundTransportMode && (
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          {groundTransportLabel(context!.groundTransportMode, lang)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <p className="shrink-0 pl-6 text-xs leading-snug text-muted-foreground sm:pl-0 sm:text-right sm:text-sm">
+                    {context!.departDate}
+                    {context!.returnDate ? ` → ${context!.returnDate}` : ""}
+                    <span className="mx-1.5 text-border">·</span>
+                    {formatTravellersSummary(
+                      lang,
+                      context!.adults ?? context!.pax,
+                      (context!.childrenAges ?? []).length,
+                    )}
+                  </p>
+                </div>
               </div>
             ) : (
               <div className="rounded-2xl border border-dashed border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">

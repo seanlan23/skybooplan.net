@@ -32,37 +32,45 @@ export function DestinationInsightBanner({
   if (!hasHints && !hasRegionHints && !hasAstroHints && !hasTemp && !flights) return null;
 
   return (
-    <div className="rounded-xl border border-amber-200/80 bg-gradient-to-r from-amber-50/80 to-sky-50/60 px-4 py-3 space-y-2">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-        {hasTemp && (
-          <span className="inline-flex items-center gap-1.5 font-semibold text-slate-800">
-            <Thermometer className="h-4 w-4 text-orange-500" />
-            {context!.destinationName}: {context!.tempC}°C
-            {context!.weatherLabel && (
-              <span className="font-normal text-slate-600">· {context!.weatherLabel}</span>
-            )}
-          </span>
-        )}
-        {flights && (
-          <span className="inline-flex items-center gap-1.5 text-xs text-slate-700">
-            <Plane className="h-3.5 w-3.5 text-sky-600" />
-            {t("context.flightLand")} {flights.outboundArrive}
-            {flights.outboundArriveDayOffset > 0 && ` (+${flights.outboundArriveDayOffset}d)`}
-            {flights.inboundDepart && (
-              <>
-                {" "}
-                · {t("context.flightDepart")} {flights.inboundDepart}
-              </>
-            )}
-          </span>
-        )}
-      </div>
+    <div className="space-y-2 rounded-xl border border-amber-200/80 bg-gradient-to-r from-amber-50/80 to-sky-50/60 px-3 py-2.5 sm:px-4 sm:py-3">
+      {(hasTemp || flights) && (
+        <div className="flex flex-col gap-1.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-4 sm:gap-y-1">
+          {hasTemp && (
+            <span className="inline-flex items-center gap-2 text-sm font-semibold text-slate-800">
+              <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center">
+                <Thermometer className="h-4 w-4 text-orange-500" />
+              </span>
+              {context!.destinationName}: {context!.tempC}°C
+              {context!.weatherLabel && (
+                <span className="font-normal text-slate-600">· {context!.weatherLabel}</span>
+              )}
+            </span>
+          )}
+          {flights && (
+            <span className="inline-flex items-center gap-2 text-xs text-slate-700 sm:ml-auto">
+              <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center">
+                <Plane className="h-3.5 w-3.5 text-sky-600" />
+              </span>
+              {t("context.flightLand")} {flights.outboundArrive}
+              {flights.outboundArriveDayOffset > 0 && ` (+${flights.outboundArriveDayOffset}d)`}
+              {flights.inboundDepart && (
+                <>
+                  <span className="text-slate-400">·</span>
+                  {t("context.flightDepart")} {flights.inboundDepart}
+                </>
+              )}
+            </span>
+          )}
+        </div>
+      )}
 
       {(hasHints || hasRegionHints || hasAstroHints) && (
-        <ul className="space-y-1">
+        <ul className="space-y-1 border-t border-amber-200/50 pt-2">
           {context!.seasonalHints.map((hint) => (
-            <li key={hint} className="flex items-start gap-2 text-xs text-slate-700 leading-snug">
-              <CloudSun className="h-3.5 w-3.5 text-amber-600 mt-0.5 shrink-0" />
+            <li key={hint} className="flex items-start gap-2 text-xs leading-snug text-slate-700">
+              <span className="mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center">
+                <CloudSun className="h-3.5 w-3.5 text-amber-600" />
+              </span>
               {hint}
             </li>
           ))}
@@ -70,9 +78,11 @@ export function DestinationInsightBanner({
             block.hints.map((hint) => (
               <li
                 key={`${block.city}-${hint}`}
-                className="flex items-start gap-2 text-xs text-slate-700 leading-snug"
+                className="flex items-start gap-2 text-xs leading-snug text-slate-700"
               >
-                <CloudSun className="h-3.5 w-3.5 text-sky-600 mt-0.5 shrink-0" />
+                <span className="mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center">
+                  <CloudSun className="h-3.5 w-3.5 text-sky-600" />
+                </span>
                 <span>
                   <span className="font-semibold text-slate-800">{block.city}:</span> {hint}
                 </span>
@@ -80,8 +90,10 @@ export function DestinationInsightBanner({
             )),
           )}
           {context!.astronomyHints?.map((hint) => (
-            <li key={hint} className="flex items-start gap-2 text-xs text-slate-700 leading-snug">
-              <Moon className="h-3.5 w-3.5 text-indigo-600 mt-0.5 shrink-0" />
+            <li key={hint} className="flex items-start gap-2 text-xs leading-snug text-slate-700">
+              <span className="mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center">
+                <Moon className="h-3.5 w-3.5 text-indigo-600" />
+              </span>
               {hint}
             </li>
           ))}
