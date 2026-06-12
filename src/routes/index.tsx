@@ -641,7 +641,7 @@ function Landing() {
                   : (v.cabinClass as "economy" | "business" | "first" | undefined),
             },
       });
-      if (res.error) setError(res.error);
+      if (res.error && res.flights.length === 0) setError(res.error);
       setFlights(res.flights);
       if (res.flights.length > 0) {
         setTimeout(() => setShowSpotlight(true), 400);
@@ -660,7 +660,14 @@ function Landing() {
       }
     } catch (e) {
       console.error(e);
-      setError("error.flightsSearchFailed");
+      const msg = e instanceof Error ? e.message : String(e);
+      if (/Unauthorized|authorization/i.test(msg)) {
+        setError("error.authRequired" as never);
+      } else if (/FlightSearchSchema|validation/i.test(msg)) {
+        setError("error.iataInvalid");
+      } else {
+        setError("error.flightsSearchFailed");
+      }
     } finally {
       setLoading(false);
       setFlightSearchDone(true);

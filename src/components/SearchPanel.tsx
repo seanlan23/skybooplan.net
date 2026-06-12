@@ -9,8 +9,25 @@ import { TravelAccessoriesBar } from "@/components/TravelAccessoriesBar";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { Button } from "@/components/ui/button";
 import { useI18n } from "@/lib/i18n";
 import { formatTravellersSummary } from "@/lib/travellersFormat";
+
+/** Shared shell / label / value-row styling for search form fields */
+const FIELD_SHELL =
+  "rounded-2xl border border-border bg-background/60 px-4 py-3 hover:border-brand/40 transition-colors focus-within:border-brand focus-within:bg-card";
+const FIELD_LABEL = "text-xs font-semibold text-muted-foreground tracking-wide uppercase leading-none";
+const FIELD_VALUE_ROW =
+  "mt-1.5 flex items-center gap-2.5 min-h-[22px] text-[15px] font-medium text-foreground";
+const FIELD_ICON = "h-4 w-4 shrink-0 text-muted-foreground";
+
+const CALENDAR_DUAL_MONTH = {
+  numberOfMonths: 2 as const,
+  classNames: { months: "relative flex flex-row gap-4" },
+  showOutsideDays: false,
+  initialFocus: true,
+  className: "p-3 pointer-events-auto",
+};
 
 export type Tab = "flights" | "stays" | "ai";
 export type CabinClass = "economy" | "premium" | "business" | "first";
@@ -523,14 +540,12 @@ function TransportModeField({
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="rounded-2xl border border-border bg-background/60 px-4 py-3 hover:border-brand/40 transition-colors text-left w-full h-full"
+          className={cn(FIELD_SHELL, "text-left w-full h-full")}
         >
-          <div className="text-xs font-semibold text-muted-foreground tracking-wide uppercase">
-            {t("field.transportMode" as never) as string}
-          </div>
-          <div className="mt-1 flex items-center gap-2 text-[15px] font-semibold text-foreground">
-            <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
-            {groundTransportLabel(value, lang)}
+          <div className={FIELD_LABEL}>{t("field.transportMode" as never) as string}</div>
+          <div className={FIELD_VALUE_ROW}>
+            <Icon className={FIELD_ICON} />
+            <span className="truncate">{groundTransportLabel(value, lang)}</span>
           </div>
         </button>
       </PopoverTrigger>
@@ -601,15 +616,15 @@ function Field({
   maxLength?: number;
 }) {
   return (
-    <div className="rounded-2xl border border-border bg-background/60 px-4 py-3 hover:border-brand/40 transition-colors focus-within:border-brand focus-within:bg-card">
-      <div className="text-xs font-semibold text-muted-foreground tracking-wide uppercase">{label}</div>
+    <div className={FIELD_SHELL}>
+      <div className={FIELD_LABEL}>{label}</div>
       <input
         type="text"
         placeholder={placeholder}
         value={value}
         maxLength={maxLength}
         onChange={(e) => onChange(e.target.value)}
-        className="mt-1 w-full bg-transparent text-[15px] font-medium text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
+        className="mt-1.5 w-full min-h-[22px] bg-transparent text-[15px] font-medium text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
       />
     </div>
   );
@@ -707,9 +722,9 @@ function DateField({
       onClick={onClick}
       className={cn("w-full text-left group rounded-xl", active && "")}
     >
-      <div className="text-xs font-semibold text-muted-foreground tracking-wide uppercase">{label}</div>
-      <div className="mt-1 flex items-center gap-2 text-[15px] font-medium text-foreground">
-        <CalendarIcon className="h-4 w-4 shrink-0 text-muted-foreground group-hover:text-brand transition-colors" />
+      <div className={FIELD_LABEL}>{label}</div>
+      <div className={FIELD_VALUE_ROW}>
+        <CalendarIcon className={cn(FIELD_ICON, "group-hover:text-brand transition-colors")} />
         <span className={cn("truncate", !value && "text-muted-foreground/60")}>
           {value ? format(value, "d MMM yyyy") : placeholder}
         </span>
@@ -720,7 +735,7 @@ function DateField({
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>
-        <div className="rounded-2xl border border-border bg-background/60 px-4 py-3 hover:border-brand/40 transition-colors cursor-pointer min-w-0 w-full">
+        <div className={cn(FIELD_SHELL, "cursor-pointer min-w-0 w-full h-full")}>
           <div className={cn("grid gap-2 min-w-0", showReturn ? "grid-cols-2" : "grid-cols-1")}>
             {showReturn ? (
               <>
@@ -763,7 +778,7 @@ function DateField({
         {showReturn ? (
           <Calendar
             mode="range"
-            numberOfMonths={1}
+            {...CALENDAR_DUAL_MONTH}
             selected={{ from: departSel, to: returnSel }}
             onDayClick={handleRangeDayClick}
             onSelect={() => {
@@ -771,13 +786,11 @@ function DateField({
             }}
             disabled={{ before: new Date() }}
             defaultMonth={departSel ?? new Date()}
-            showOutsideDays={false}
-            initialFocus
-            className="p-3 pointer-events-auto"
           />
         ) : (
           <Calendar
             mode="single"
+            {...CALENDAR_DUAL_MONTH}
             selected={departSel}
             onSelect={(d) => {
               if (d) {
@@ -788,9 +801,6 @@ function DateField({
             }}
             disabled={{ before: new Date() }}
             defaultMonth={departSel ?? new Date()}
-            showOutsideDays={false}
-            initialFocus
-            className="p-3 pointer-events-auto"
           />
         )}
       </PopoverContent>
@@ -822,11 +832,11 @@ function SingleDateField({
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="w-full h-full rounded-2xl border border-border bg-background/60 px-4 py-3 hover:border-brand/40 transition-colors focus:outline-none focus:border-brand focus:bg-card text-left group"
+          className={cn(FIELD_SHELL, "w-full h-full text-left group focus:outline-none")}
         >
-          <div className="text-xs font-semibold text-muted-foreground tracking-wide uppercase">{label}</div>
-          <div className="mt-1 flex items-center gap-2 text-[15px] font-medium text-foreground">
-            <CalendarIcon className="h-4 w-4 shrink-0 text-muted-foreground group-hover:text-brand transition-colors" />
+          <div className={FIELD_LABEL}>{label}</div>
+          <div className={FIELD_VALUE_ROW}>
+            <CalendarIcon className={cn(FIELD_ICON, "group-hover:text-brand transition-colors")} />
             <span className={cn("truncate", !selected && "text-muted-foreground/60")}>
               {selected ? format(selected, "d MMM yyyy") : t("field.selectDate")}
             </span>
@@ -842,6 +852,7 @@ function SingleDateField({
       >
         <Calendar
           mode="single"
+          {...CALENDAR_DUAL_MONTH}
           selected={selected}
           onSelect={(d) => {
             if (d) {
@@ -851,9 +862,6 @@ function SingleDateField({
           }}
           disabled={{ before: earliest }}
           defaultMonth={selected ?? earliest}
-          showOutsideDays={false}
-          initialFocus
-          className="p-3 pointer-events-auto"
         />
       </PopoverContent>
     </Popover>
@@ -904,9 +912,9 @@ function DatePickerCell({
           type="button"
           className="w-full text-left group"
         >
-          <div className="text-xs font-semibold text-muted-foreground tracking-wide uppercase">{label}</div>
-          <div className="mt-1 flex items-center gap-2 text-[15px] font-medium text-foreground">
-            <CalendarIcon className="h-4 w-4 shrink-0 text-muted-foreground group-hover:text-brand transition-colors" />
+          <div className={FIELD_LABEL}>{label}</div>
+          <div className={FIELD_VALUE_ROW}>
+            <CalendarIcon className={cn(FIELD_ICON, "group-hover:text-brand transition-colors")} />
             <span className={cn("truncate", !selected && "text-muted-foreground/60")}>
               {selected ? format(selected, "d MMM yyyy") : t("field.selectDate")}
             </span>
@@ -922,13 +930,11 @@ function DatePickerCell({
       >
         <Calendar
           mode="single"
+          {...CALENDAR_DUAL_MONTH}
           selected={selected}
           onSelect={(d) => d && onChange(format(d, "yyyy-MM-dd"))}
           disabled={minDate ? { before: minDate } : undefined}
           defaultMonth={selected ?? minDate ?? new Date()}
-          showOutsideDays={false}
-          initialFocus
-          className="p-3 pointer-events-auto"
         />
       </PopoverContent>
     </Popover>
@@ -1000,18 +1006,39 @@ function FlightsTravellersField({
   open?: boolean;
   onOpenChange?: (o: boolean) => void;
 }) {
-  const { t, lang, currency } = useI18n();
+  const { t, lang } = useI18n();
+  const [draftChildrenAges, setDraftChildrenAges] = useState(childrenAges);
+  const [draftCabinClass, setDraftCabinClass] = useState(cabinClass);
 
-  function setChildCount(n: number) {
+  useEffect(() => {
+    if (open) {
+      setDraftAdults(adults);
+      setDraftChildrenAges(childrenAges);
+      setDraftCabinClass(cabinClass);
+    }
+  }, [open, adults, childrenAges, cabinClass]);
+
+  function setDraftChildCount(n: number) {
     const clamped = Math.max(0, Math.min(8, n));
-    if (clamped > childrenAges.length) {
-      onChildrenAges([...childrenAges, ...Array(clamped - childrenAges.length).fill(8)]);
+    if (clamped > draftChildrenAges.length) {
+      setDraftChildrenAges([
+        ...draftChildrenAges,
+        ...Array(clamped - draftChildrenAges.length).fill(8),
+      ]);
     } else {
-      onChildrenAges(childrenAges.slice(0, clamped));
+      setDraftChildrenAges(draftChildrenAges.slice(0, clamped));
     }
   }
-  function setChildAge(idx: number, age: number) {
-    onChildrenAges(childrenAges.map((a, i) => (i === idx ? age : a)));
+
+  function setDraftChildAge(idx: number, age: number) {
+    setDraftChildrenAges(draftChildrenAges.map((a, i) => (i === idx ? age : a)));
+  }
+
+  function handleConfirm() {
+    onAdults(draftAdults);
+    onChildrenAges(draftChildrenAges);
+    onCabinClass(draftCabinClass);
+    onOpenChange?.(false);
   }
 
   return (
@@ -1019,16 +1046,18 @@ function FlightsTravellersField({
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="rounded-2xl border border-border bg-background/60 px-4 py-3 hover:border-brand/40 transition-colors text-left w-full"
+          className={cn(FIELD_SHELL, "text-left w-full h-full")}
         >
-          <div className="text-xs font-semibold text-muted-foreground tracking-wide uppercase">
-            {t("field.travellers")}
+          <div className={FIELD_LABEL}>{t("field.travellers")}</div>
+          <div className={FIELD_VALUE_ROW}>
+            <Users className={FIELD_ICON} />
+            <span className="truncate font-semibold">
+              {formatTravellersSummary(lang, adults, childrenAges.length)}
+            </span>
           </div>
-          <div className="mt-1 flex items-center gap-2 text-[15px] font-semibold text-foreground">
-            <Users className="h-4 w-4 shrink-0 text-muted-foreground" />
-            {formatTravellersSummary(lang, adults, childrenAges.length)}
+          <div className="mt-0.5 pl-[26px] text-xs text-muted-foreground truncate">
+            {t(CABIN_KEY[cabinClass])}
           </div>
-          <div className="text-xs text-muted-foreground truncate">{t(CABIN_KEY[cabinClass])}</div>
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-[320px] p-5" align="end" side="bottom" sideOffset={8} avoidCollisions={false}>
@@ -1041,10 +1070,10 @@ function FlightsTravellersField({
                 <button
                   key={c}
                   type="button"
-                  onClick={() => onCabinClass(c)}
+                  onClick={() => setDraftCabinClass(c)}
                   className={cn(
                     "rounded-xl border px-3 py-2 text-sm font-medium transition-colors text-center",
-                    cabinClass === c
+                    draftCabinClass === c
                       ? "bg-sky-500 text-white border-sky-500"
                       : "bg-card text-foreground border-border hover:border-sky-300",
                   )}
@@ -1065,7 +1094,7 @@ function FlightsTravellersField({
               <div className="text-sm font-semibold text-foreground">{t("trav.adults")}</div>
               <div className="text-xs text-muted-foreground">{t("trav.adultsAge")}</div>
             </div>
-            <Stepper value={adults} onChange={onAdults} min={1} max={9} />
+            <Stepper value={draftAdults} onChange={setDraftAdults} min={1} max={9} />
           </div>
 
           {/* Children */}
@@ -1074,19 +1103,19 @@ function FlightsTravellersField({
               <div className="text-sm font-semibold text-foreground">{t("trav.children")}</div>
               <div className="text-xs text-muted-foreground">{t("trav.childrenAge")}</div>
             </div>
-            <Stepper value={childrenAges.length} onChange={setChildCount} min={0} max={8} />
+            <Stepper value={draftChildrenAges.length} onChange={setDraftChildCount} min={0} max={8} />
           </div>
 
-          {childrenAges.length > 0 && (
+          {draftChildrenAges.length > 0 && (
             <div className="space-y-2 pl-1">
-              {childrenAges.map((age, i) => (
+              {draftChildrenAges.map((age, i) => (
                 <div key={i} className="flex items-center justify-between gap-3">
                   <div className="text-sm text-foreground">
                     {t("trav.child")} {i + 1}
                   </div>
                   <select
                     value={age}
-                    onChange={(e) => setChildAge(i, Number(e.target.value))}
+                    onChange={(e) => setDraftChildAge(i, Number(e.target.value))}
                     className="rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-sky-400/40"
                     aria-label={`${t("trav.ageOf")} ${i + 1}`}
                   >
@@ -1100,6 +1129,10 @@ function FlightsTravellersField({
               ))}
             </div>
           )}
+
+          <Button type="button" className="w-full" onClick={handleConfirm}>
+            {t("filters.apply")}
+          </Button>
         </div>
       </PopoverContent>
     </Popover>
@@ -1127,17 +1160,39 @@ function StaysGuestsField({
 }) {
   const { t } = useI18n();
   const total = adults + childrenAges.length;
+  const [draftAdults, setDraftAdults] = useState(adults);
+  const [draftChildrenAges, setDraftChildrenAges] = useState(childrenAges);
+  const [draftRooms, setDraftRooms] = useState(rooms);
 
-  function setChildCount(n: number) {
+  useEffect(() => {
+    if (open) {
+      setDraftAdults(adults);
+      setDraftChildrenAges(childrenAges);
+      setDraftRooms(rooms);
+    }
+  }, [open, adults, childrenAges, rooms]);
+
+  function setDraftChildCount(n: number) {
     const clamped = Math.max(0, Math.min(8, n));
-    if (clamped > childrenAges.length) {
-      onChildrenAges([...childrenAges, ...Array(clamped - childrenAges.length).fill(8)]);
+    if (clamped > draftChildrenAges.length) {
+      setDraftChildrenAges([
+        ...draftChildrenAges,
+        ...Array(clamped - draftChildrenAges.length).fill(8),
+      ]);
     } else {
-      onChildrenAges(childrenAges.slice(0, clamped));
+      setDraftChildrenAges(draftChildrenAges.slice(0, clamped));
     }
   }
-  function setChildAge(idx: number, age: number) {
-    onChildrenAges(childrenAges.map((a, i) => (i === idx ? age : a)));
+
+  function setDraftChildAge(idx: number, age: number) {
+    setDraftChildrenAges(draftChildrenAges.map((a, i) => (i === idx ? age : a)));
+  }
+
+  function handleConfirm() {
+    onAdults(draftAdults);
+    onChildrenAges(draftChildrenAges);
+    onRooms(draftRooms);
+    onOpenChange?.(false);
   }
 
   return (
@@ -1145,16 +1200,18 @@ function StaysGuestsField({
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="rounded-2xl border border-border bg-background/60 px-4 py-3 hover:border-brand/40 transition-colors text-left w-full"
+          className={cn(FIELD_SHELL, "text-left w-full h-full")}
         >
-          <div className="text-xs font-semibold text-muted-foreground tracking-wide uppercase">
-            {t("field.guests")}
+          <div className={FIELD_LABEL}>{t("field.guests")}</div>
+          <div className={FIELD_VALUE_ROW}>
+            <Users className={FIELD_ICON} />
+            <span className="truncate font-semibold">
+              {total} {total === 1 ? t("trav.guest") : t("trav.guestsPlural")}
+            </span>
           </div>
-          <div className="mt-1 flex items-center gap-2 text-[15px] font-semibold text-foreground">
-            <Users className="h-4 w-4 shrink-0 text-muted-foreground" />
-            {total} {total === 1 ? t("trav.guest") : t("trav.guestsPlural")}
+          <div className="mt-0.5 pl-[26px] text-xs text-muted-foreground truncate">
+            {rooms} {rooms === 1 ? t("trav.room") : t("trav.roomsPlural")}
           </div>
-          <div className="text-xs text-muted-foreground truncate">{rooms} {rooms === 1 ? t("trav.room") : t("trav.roomsPlural")}</div>
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-[340px] p-5" align="end" side="bottom" sideOffset={8} avoidCollisions={false}>
@@ -1165,7 +1222,7 @@ function StaysGuestsField({
               <div className="text-sm font-semibold text-foreground">{t("trav.adults")}</div>
               <div className="text-xs text-muted-foreground">{t("trav.adultsAge")}</div>
             </div>
-            <Stepper value={adults} onChange={onAdults} min={1} max={16} />
+            <Stepper value={draftAdults} onChange={setDraftAdults} min={1} max={16} />
           </div>
 
           {/* Children */}
@@ -1174,18 +1231,18 @@ function StaysGuestsField({
               <div className="text-sm font-semibold text-foreground">{t("trav.children")}</div>
               <div className="text-xs text-muted-foreground">{t("trav.childrenAge")}</div>
             </div>
-            <Stepper value={childrenAges.length} onChange={setChildCount} min={0} max={8} />
+            <Stepper value={draftChildrenAges.length} onChange={setDraftChildCount} min={0} max={8} />
           </div>
 
           {/* Per-child age selectors */}
-          {childrenAges.length > 0 && (
+          {draftChildrenAges.length > 0 && (
             <div className="space-y-2 pl-1">
-              {childrenAges.map((age, i) => (
+              {draftChildrenAges.map((age, i) => (
                 <div key={i} className="flex items-center justify-between gap-3">
                   <div className="text-sm text-foreground">{t("trav.child")} {i + 1}</div>
                   <select
                     value={age}
-                    onChange={(e) => setChildAge(i, Number(e.target.value))}
+                    onChange={(e) => setDraftChildAge(i, Number(e.target.value))}
                     className="rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-sky-400/40"
                     aria-label={`${t("trav.ageOf")} ${i + 1}`}
                   >
@@ -1209,8 +1266,12 @@ function StaysGuestsField({
                 <div className="text-xs text-muted-foreground">{t("trav.roomsDesc")}</div>
               </div>
             </div>
-            <Stepper value={rooms} onChange={onRooms} min={1} max={8} />
+            <Stepper value={draftRooms} onChange={setDraftRooms} min={1} max={8} />
           </div>
+
+          <Button type="button" className="w-full" onClick={handleConfirm}>
+            {t("filters.apply")}
+          </Button>
         </div>
       </PopoverContent>
     </Popover>

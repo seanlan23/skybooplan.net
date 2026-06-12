@@ -5,7 +5,7 @@ import {
   isMultiCitySearch,
   resolveInboundRoute,
 } from "@/lib/flightSearch";
-import { mapDuffelOfferToFlight } from "@/lib/flights.functions";
+import { mapDuffelOfferToFlight, filterFlightsForTripType, type DuffelFlight } from "@/lib/flights.functions";
 
 describe("flightSearch", () => {
   it("builds classic round-trip slices", () => {
@@ -95,5 +95,41 @@ describe("open-jaw offer mapping", () => {
     expect(flight?.inbound?.from).toBe("LAX");
     expect(flight?.inbound?.to).toBe("MXP");
     expect(flight?.legs).toHaveLength(2);
+  });
+});
+
+describe("filterFlightsForTripType", () => {
+  const roundTripFlight = {
+    id: "rt-1",
+    outbound: { from: "MXP", to: "JFK" },
+    inbound: { from: "JFK", to: "MXP" },
+    legs: [{}, {}],
+  } as DuffelFlight;
+
+  it("requires inbound slice for return searches", () => {
+    const oneWayOnly = { ...roundTripFlight, inbound: undefined, legs: [{}] } as DuffelFlight;
+    const result = filterFlightsForTripType([oneWayOnly], {
+      from: "MXP",
+      to: "JFK",
+      departDate: "2026-06-01",
+      returnDate: "2026-06-10",
+      tripType: "return",
+      pax: 1,
+    });
+    expect(result.error).toBe("error.roundTripUnavailable");
+    expect(result.flights).toHaveLength(0);
+  });
+
+  it("keeps two-leg offers for return searches", () => {
+    const result = filterFlightsForTripType([roundTripFlight], {
+      from: "MXP",
+      to: "JFK",
+      departDate: "2026-06-01",
+      returnDate: "2026-06-10",
+      tripType: "return",
+      pax: 1,
+    });
+    expect(result.error).toBeNull();
+    expect(result.flights).toHaveLength(1);
   });
 });

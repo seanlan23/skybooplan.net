@@ -1,11 +1,51 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
   buildDuffelSlices,
   FlightSearchSchema,
   isClassicRoundTrip,
   isMultiCitySearch,
+  type FlightSearchInput,
 } from "@/lib/flightSearch";
+
+/** Max offers pulled from Duffel per search (sorted by price server-side). */
+export const DUFFEL_MAX_OFFERS = 20;
+
+const DUFFEL_API_BASE = "https://api.duffel.com";
+const DUFFEL_API_VERSION = "v2";
+const DUFFEL_SUPPLIER_TIMEOUT_MS = 25_000;
+
+/** Read Duffel token from env (trimmed). Supports legacy alias. */
+export function getDuffelApiKey(): string | null {
+  const raw = process.env.DUFFEL_API_KEY ?? process.env.DUFFEL_ACCESS_TOKEN ?? "";
+  const token = raw.trim();
+  return token.length > 0 ? token : null;
+}
+
+function duffelHeaders(token: string): Record<string, string> {
+  return {
+    Authorization: `Bearer ${token}`,
+    Accept: "application/json",
+    "Content-Type": "application/json",
+    "Duffel-Version": DUFFEL_API_VERSION,
+  };
+}
+
+type DuffelApiErrorBody = {
+  errors?: Array<{ title?: string; message?: string; code?: string }>;
+};
+
+async function readDuffelFailure(res: Response): Promise<string> {
+  const text = await res.text();
+  try {
+    const json = JSON.parse(text) as DuffelApiErrorBody;
+    const first = json.errors?.[0];
+    const detail = first?.message?.trim() || first?.title?.trim() || first?.code?.trim();
+    if (detail) return detail;
+  } catch {
+    /* non-JSON body */
+  }
+  return text.trim().slice(0, 240) || `HTTP ${res.status}`;
+}
 
 export type FlightLeg = {
   from: string;
@@ -187,67 +227,126 @@ export function mapDuffelOfferToFlight(offer: DuffelOffer): DuffelFlight | null 
   };
 }
 
+/** Keep offers that match the requested trip shape (return / multi-city / one-way). */
+export function filterFlightsForTripType(
+  flights: DuffelFlight[],
+  data: FlightSearchInput,
+): { flights: DuffelFlight[]; error: string | null } {
+  const wantsMulti = isMultiCitySearch(data);
+  const wantsReturn = data.tripType === "return" || Boolean(data.returnDate?.trim());
+
+  if (wantsMulti) {
+    const multi = flights.filter((f) => (f.legs?.length ?? 0) >= 2);
+    if (multi.length === 0) {
+      return { flights: [], error: "error.multicityUnavailable" };
+    }
+    return { flights: multi, error: null };
+  }
+
+  if (wantsReturn) {
+    const withReturn = flights.filter((f) => Boolean(f.inbound));
+    if (withReturn.length === 0) {
+      return { flights: [], error: "error.roundTripUnavailable" };
+    }
+    return { flights: withReturn, error: null };
+  }
+
+  return { flights, error: null };
+}
+
+async function createDuffelOfferRequest(
+  token: string,
+  slices: ReturnType<typeof buildDuffelSlices>,
+  passengers: Array<{ type: "adult" }>,
+  cabinClass: string,
+): Promise<{ offerRequestId: string } | { error: string }> {
+  const url = `${DUFFEL_API_BASE}/air/offer_requests?return_offers=false&supplier_timeout=${DUFFEL_SUPPLIER_TIMEOUT_MS}`;
+  const createRes = await fetch(url, {
+    method: "POST",
+    headers: duffelHeaders(token),
+    body: JSON.stringify({
+      data: {
+        slices,
+        passengers,
+        cabin_class: cabinClass,
+      },
+    }),
+  });
+
+  if (!createRes.ok) {
+    const detail = await readDuffelFailure(createRes);
+    console.error("Duffel offer_requests error:", createRes.status, detail);
+    return { error: `error.duffelApi:${createRes.status}` };
+  }
+
+  const json = (await createRes.json()) as { data?: { id?: string } };
+  const offerRequestId = json.data?.id?.trim();
+  if (!offerRequestId) {
+    console.error("Duffel offer_requests missing id:", json);
+    return { error: "error.flightsUnavailable" };
+  }
+
+  return { offerRequestId };
+}
+
+async function listDuffelOffers(
+  token: string,
+  offerRequestId: string,
+  limit = DUFFEL_MAX_OFFERS,
+): Promise<{ offers: DuffelOffer[] } | { error: string }> {
+  const url = new URL(`${DUFFEL_API_BASE}/air/offers`);
+  url.searchParams.set("offer_request_id", offerRequestId);
+  url.searchParams.set("limit", String(limit));
+  url.searchParams.set("sort", "total_amount");
+
+  const listRes = await fetch(url.toString(), {
+    method: "GET",
+    headers: duffelHeaders(token),
+  });
+
+  if (!listRes.ok) {
+    const detail = await readDuffelFailure(listRes);
+    console.error("Duffel list offers error:", listRes.status, detail);
+    return { error: `error.duffelApi:${listRes.status}` };
+  }
+
+  const json = (await listRes.json()) as { data?: DuffelOffer[] };
+  return { offers: json.data ?? [] };
+}
+
 export const searchFlights = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => FlightSearchSchema.parse(data))
   .handler(async ({ data }): Promise<{ flights: DuffelFlight[]; error: string | null }> => {
-    const token = process.env.DUFFEL_API_KEY;
-    if (!token) return { flights: [], error: "error.duffelNotConfigured" };
+    const token = getDuffelApiKey();
+    if (!token) {
+      console.error("[Duffel] DUFFEL_API_KEY is missing or empty in server environment");
+      return { flights: [], error: "error.duffelNotConfigured" };
+    }
 
     const slices = buildDuffelSlices(data);
-
     const passengers = Array.from({ length: data.pax }, () => ({ type: "adult" as const }));
+    const cabinClass = data.cabinClass ?? "economy";
 
     try {
-      const createRes = await fetch("https://api.duffel.com/air/offer_requests?return_offers=true", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          "Duffel-Version": "v2",
-        },
-        body: JSON.stringify({
-          data: {
-            slices,
-            passengers,
-            cabin_class: data.cabinClass ?? "economy",
-          },
-        }),
-      });
-
-      if (!createRes.ok) {
-        const text = await createRes.text();
-        console.error("Duffel offer_requests error:", createRes.status, text);
-        return { flights: [], error: `error.duffelApi:${createRes.status}` };
+      const created = await createDuffelOfferRequest(token, slices, passengers, cabinClass);
+      if ("error" in created) {
+        return { flights: [], error: created.error };
       }
 
-      const json = (await createRes.json()) as { data: { offers: DuffelOffer[] } };
-      const offers = (json.data.offers ?? []).slice(0, 12);
+      const listed = await listDuffelOffers(token, created.offerRequestId);
+      if ("error" in listed) {
+        return { flights: [], error: listed.error };
+      }
 
-      let flights = offers
+      let flights = listed.offers
         .map(mapDuffelOfferToFlight)
         .filter((flight): flight is DuffelFlight => flight !== null);
 
-      const wantsMulti = isMultiCitySearch(data);
-      const wantsReturn = data.tripType === "return" || Boolean(data.returnDate?.trim());
-      if (wantsMulti) {
-        flights = flights.filter((f) => (f.legs?.length ?? 0) >= 2);
-        if (flights.length === 0) {
-          return { flights: [], error: "error.multicityUnavailable" };
-        }
-      } else if (wantsReturn) {
-        const roundTrip = flights.filter(
-          (f) => f.inbound && (f.tripKind === "roundtrip" || isClassicRoundTrip(f.outbound, f.inbound)),
-        );
-        if (roundTrip.length === 0 && flights.length > 0) {
-          console.error(
-            `Round-trip requested (${data.from}→${data.to}) but ${flights.length} offer(s) lack return slice`,
-          );
-          return { flights: [], error: "error.roundTripUnavailable" };
-        }
-        flights = roundTrip;
+      const filtered = filterFlightsForTripType(flights, data);
+      if (filtered.error) {
+        return { flights: [], error: filtered.error };
       }
+      flights = filtered.flights;
 
       flights.sort((a, b) => a.price - b.price || a.durationMin - b.durationMin);
       return { flights, error: null };

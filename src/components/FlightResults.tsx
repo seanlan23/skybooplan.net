@@ -21,6 +21,9 @@ import {
 
 type SortKey = "cheapest" | "fastest" | "earliest";
 
+/** Initial visible cards; each "load more" adds the same batch. */
+const FLIGHTS_PAGE_SIZE = 6;
+
 function parseDurationToMin(s: string): number {
   // "16h 35m" or "1d 2h 55m"
   const d = /(\d+)\s*d/.exec(s);
@@ -144,6 +147,7 @@ export function FlightResults({
   const { t } = useI18n();
   const [sortBy, setSortBy] = useState<SortKey>("cheapest");
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(FLIGHTS_PAGE_SIZE);
 
   const bounds = useFlightFilterBounds(flights);
   const hasReturn = flights.some((f) => !!f.inbound);
@@ -154,6 +158,11 @@ export function FlightResults({
   useEffect(() => {
     setFilters(defaultFilters({ maxPrice: bounds.priceMax, maxDurationMin: bounds.durationMax }));
   }, [bounds.priceMax, bounds.durationMax, flights.length]);
+
+  // Collapse list when search results or filters/sort change
+  useEffect(() => {
+    setVisibleCount(FLIGHTS_PAGE_SIZE);
+  }, [flights, filters, sortBy]);
 
   const tripDurationMin = (f: DuffelFlight) =>
     f.durationMin ?? parseDurationToMin(f.duration);
@@ -180,6 +189,10 @@ export function FlightResults({
       arr.sort((a, b) => a.outbound.depart.localeCompare(b.outbound.depart));
     return arr;
   }, [filtered, sortBy]);
+
+  const visibleFlights = sorted.slice(0, visibleCount);
+  const remainingCount = sorted.length - visibleFlights.length;
+  const hasMore = remainingCount > 0;
 
   const activeCount =
     (filters.stops !== "any" ? 1 : 0) +
@@ -305,7 +318,7 @@ export function FlightResults({
 
         {/* Full-width flight cards */}
         <div className="space-y-3 w-full">
-        {sorted.map((f, idx) => {
+        {visibleFlights.map((f, idx) => {
           const selected = selectedId === f.id;
           const isCheapest = idx === 0 && sortBy === "cheapest";
           const inboundRoute = resolveInboundRoute(f.outbound, f.inbound, f.tripKind);
@@ -401,6 +414,24 @@ export function FlightResults({
             </div>
           );
         })}
+        {hasMore && (
+          <div className="pt-2 flex justify-center">
+            <button
+              type="button"
+              onClick={() =>
+                setVisibleCount((n) => Math.min(n + FLIGHTS_PAGE_SIZE, sorted.length))
+              }
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-card px-6 py-3 text-sm font-semibold text-foreground shadow-sm transition-colors hover:border-sky-300 hover:bg-sky-50/60 hover:text-sky-700"
+            >
+              {remainingCount <= FLIGHTS_PAGE_SIZE
+                ? t("results.loadMore")
+                : t("results.loadMoreCount").replace(
+                    "{n}",
+                    String(Math.min(FLIGHTS_PAGE_SIZE, remainingCount)),
+                  )}
+            </button>
+          </div>
+        )}
         </div>
       </div>
     </div>
