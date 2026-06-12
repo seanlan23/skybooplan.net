@@ -20,8 +20,14 @@ export function createAuthConfig(): StartAuthJSConfig {
   assertAuthEnvReady();
 
   const secret = authSecret();
-  const clientId = googleClientId();
-  const clientSecret = googleClientSecret();
+  const clientId =
+    process.env.GOOGLE_CLIENT_ID?.trim() ||
+    process.env.AUTH_GOOGLE_ID?.trim() ||
+    googleClientId();
+  const clientSecret =
+    process.env.GOOGLE_CLIENT_SECRET?.trim() ||
+    process.env.AUTH_GOOGLE_SECRET?.trim() ||
+    googleClientSecret();
 
   return {
     secret,

@@ -8,7 +8,7 @@ import { useState, useRef, useEffect, type MouseEvent } from "react";
 import logo from "@/assets/skybooplan-logo-transparent-v2.png";
 import { useAuth } from "@/hooks/use-auth";
 import { useT } from "@/lib/i18n";
-import { googleSignInHref } from "@/lib/auth.urls";
+import { googleSignInHref, GOOGLE_SIGN_IN_PATH } from "@/lib/auth.urls";
 import { HOME_RESET_EVENT, requestHomeReset } from "@/lib/sessionStore";
 
 function userAvatarUrl(user: NonNullable<ReturnType<typeof useAuth>["user"]>): string | undefined {
@@ -158,6 +158,7 @@ export function SiteHeader() {
               <a
                 href={googleSignInHref()}
                 aria-label={t("nav.signInGoogle")}
+                data-sign-in-path={GOOGLE_SIGN_IN_PATH}
                 className="inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-background px-2.5 py-1.5 text-xs font-semibold shadow-sm transition-all hover:border-brand/30 hover:shadow-md shrink-0"
               >
                 <GoogleIcon className="h-4 w-4 shrink-0" />
