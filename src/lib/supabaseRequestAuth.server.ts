@@ -11,6 +11,10 @@ export type SupabaseAuthRequestResult =
   | { ok: true; auth: SupabaseRequestAuth }
   | { ok: false; response: Response };
 
+export type OptionalSupabaseAuthRequestResult =
+  | { ok: true; userId: string | null; auth?: SupabaseRequestAuth }
+  | { ok: false; response: Response };
+
 function unauthorized(message: string): SupabaseAuthRequestResult {
   return {
     ok: false,
@@ -69,4 +73,19 @@ export async function requireSupabaseAuthRequest(
       claims: data.claims as Record<string, unknown>,
     },
   };
+}
+
+/** Like requireSupabaseAuthRequest, but allows missing Bearer token (anonymous preview). */
+export async function optionalSupabaseAuthRequest(
+  request: Request,
+): Promise<OptionalSupabaseAuthRequestResult> {
+  const authHeader = request.headers.get("authorization");
+  if (!authHeader?.startsWith("Bearer ")) {
+    return { ok: true, userId: null };
+  }
+
+  const authResult = await requireSupabaseAuthRequest(request);
+  if (!authResult.ok) return authResult;
+
+  return { ok: true, userId: authResult.auth.userId, auth: authResult.auth };
 }

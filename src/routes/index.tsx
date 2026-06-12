@@ -793,11 +793,6 @@ function Landing() {
       return;
     }
 
-    if (!(await hasAuthSession())) {
-      setPaywall("login");
-      return;
-    }
-
     const ctx = normalizeAiContext(rawCtx);
 
     const safeForm = normalizeLastPlannerForm(form) ?? form;
@@ -1118,7 +1113,7 @@ function Landing() {
                   isUnlocked={subscription.isActive}
                   onUnlockClick={() => {
                     if (!user) {
-                      setPaywall("register");
+                      setPaywall("login");
                       return;
                     }
                     setPaywall("pay");

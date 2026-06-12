@@ -14,7 +14,7 @@ import {
   buildCatalogPlanFromResponse,
   buildGeminiMapOpts,
 } from "@/lib/geminiProCatalog";
-import { requireSupabaseAuthRequest } from "@/lib/supabaseRequestAuth.server";
+import { optionalSupabaseAuthRequest } from "@/lib/supabaseRequestAuth.server";
 import { enforceItineraryQuota, recordPlanGeneration } from "@/lib/quota.server";
 
 const generateInput = generateGeminiProTripInputSchema.transform((data) => ({
@@ -36,10 +36,10 @@ export const Route = createFileRoute("/api/generate-itinerary")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const authResult = await requireSupabaseAuthRequest(request);
+        const authResult = await optionalSupabaseAuthRequest(request);
         if (!authResult.ok) return authResult.response;
 
-        const { userId } = authResult.auth;
+        const userId = authResult.userId;
 
         const quota = await enforceItineraryQuota(request, userId);
         if (!quota.ok) return quota.response;
