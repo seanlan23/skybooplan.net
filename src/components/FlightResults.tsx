@@ -56,16 +56,16 @@ function FlightLeg({
   const { t } = useI18n();
   const plus = arriveDayOffset;
   return (
-    <div className="grid grid-cols-[110px_1fr] sm:grid-cols-[140px_1fr] gap-3 sm:gap-5 items-center py-4">
+    <div className="flex items-center gap-3 py-2.5 sm:gap-4 sm:py-3">
       {/* Airline */}
-      <div className="flex flex-col items-center text-center">
-        <div className="h-10 w-10 rounded-md bg-white border border-border flex items-center justify-center overflow-hidden shadow-sm">
+      <div className="flex w-12 shrink-0 flex-col items-center text-center sm:w-14">
+        <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-md border border-border bg-white shadow-sm">
           {airlineCode ? (
             <img
               src={`https://images.kiwi.com/airlines/64/${airlineCode}.png`}
               alt={airline}
               loading="lazy"
-              className="h-9 w-9 object-contain"
+              className="h-7 w-7 object-contain"
               onError={(e) => {
                 const img = e.currentTarget;
                 img.onerror = null;
@@ -76,50 +76,50 @@ function FlightLeg({
             />
           ) : null}
           <span
-            className="h-full w-full items-center justify-center text-[11px] font-bold text-foreground/70 tracking-wider"
+            className="h-full w-full items-center justify-center text-[10px] font-bold tracking-wider text-foreground/70"
             style={{ display: airlineCode ? "none" : "flex" }}
           >
             {airlineCode || "—"}
           </span>
         </div>
-        <div className="mt-1.5 text-[11px] text-muted-foreground leading-tight">
+        <div className="mt-1 max-w-[3.5rem] truncate text-[10px] leading-tight text-muted-foreground">
           {airline}
         </div>
       </div>
 
-      {/* Times row */}
-      <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3 sm:gap-5">
-        <div className="text-left">
-          <div className="text-2xl sm:text-3xl font-bold text-foreground tabular-nums leading-none">
+      {/* Route — capped width so the card doesn't feel stretched */}
+      <div className="flex min-w-0 flex-1 items-center justify-between gap-2 sm:max-w-md sm:gap-4">
+        <div className="shrink-0">
+          <div className="text-xl font-bold tabular-nums leading-none text-foreground sm:text-2xl">
             {depart}
           </div>
-          <div className="mt-1 text-xs text-muted-foreground tracking-wider">{from}</div>
+          <div className="mt-0.5 text-[11px] tracking-wide text-muted-foreground">{from}</div>
         </div>
 
-        <div className="flex flex-col items-center min-w-0">
-          <div className="text-xs text-muted-foreground mb-1">{duration}</div>
-          <div className="relative w-full flex items-center">
+        <div className="flex w-20 shrink-0 flex-col items-center sm:w-24">
+          <div className="text-[11px] text-muted-foreground">{duration}</div>
+          <div className="relative my-1 flex w-full items-center">
             <span className="h-px flex-1 bg-border" />
-            <span className="mx-2 inline-flex h-6 w-6 items-center justify-center rounded-full border border-border bg-card">
-              <Plane className="h-3 w-3 text-muted-foreground -rotate-45" />
+            <span className="mx-1 inline-flex h-5 w-5 items-center justify-center rounded-full border border-border bg-card">
+              <Plane className="h-2.5 w-2.5 -rotate-45 text-muted-foreground" />
             </span>
             <span className="h-px flex-1 bg-border" />
           </div>
-          <div className="mt-1 text-xs font-medium text-rose-600">
+          <div className="text-[11px] font-medium text-rose-600">
             {stops === 0 ? t("results.direct") : `${stops} ${stops === 1 ? t("results.stop") : t("results.stops")}`}
           </div>
         </div>
 
-        <div className="text-right">
-          <div className="text-2xl sm:text-3xl font-bold text-foreground tabular-nums leading-none">
+        <div className="shrink-0 text-right">
+          <div className="text-xl font-bold tabular-nums leading-none text-foreground sm:text-2xl">
             {arrive}
             {plus > 0 && (
-              <sup className="ml-0.5 text-xs font-semibold align-super text-foreground/70">
+              <sup className="ml-0.5 align-super text-[10px] font-semibold text-foreground/70">
                 +{plus}
               </sup>
             )}
           </div>
-          <div className="mt-1 text-xs text-muted-foreground tracking-wider">{to}</div>
+          <div className="mt-0.5 text-[11px] tracking-wide text-muted-foreground">{to}</div>
         </div>
       </div>
     </div>
@@ -275,7 +275,7 @@ export function FlightResults({
         </SheetContent>
       </Sheet>
 
-      <div className="w-full max-w-none space-y-3">
+      <div className="mx-auto w-full max-w-4xl space-y-3">
         {/* Sort + Filters toolbar */}
         <div className="flex flex-wrap items-center gap-3 px-1">
           <span className="text-sm font-medium text-foreground">{t("results.sortBy")}</span>
@@ -316,8 +316,8 @@ export function FlightResults({
           </div>
         )}
 
-        {/* Full-width flight cards */}
-        <div className="space-y-3 w-full">
+        {/* Flight cards */}
+        <div className="space-y-2.5">
         {visibleFlights.map((f, idx) => {
           const selected = selectedId === f.id;
           const isCheapest = idx === 0 && sortBy === "cheapest";
@@ -328,15 +328,15 @@ export function FlightResults({
             <div
               key={`${f.id}-${idx}`}
               className={cn(
-                "rounded-2xl border bg-card transition-all overflow-hidden",
+                "overflow-hidden rounded-xl border bg-card transition-all",
                 selected
-                  ? "border-sky-400 shadow-[0_0_0_3px_color-mix(in_oklab,#38bdf8_25%,transparent)] bg-sky-50/30"
+                  ? "border-sky-400 bg-sky-50/30 shadow-[0_0_0_2px_color-mix(in_oklab,#38bdf8_20%,transparent)]"
                   : "border-border hover:border-sky-300 hover:shadow-sm",
               )}
             >
-              <div className="grid grid-cols-1 lg:grid-cols-[1fr_220px]">
+              <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_148px]">
                 {/* Left: legs */}
-                <div className="px-4 sm:px-6 divide-y divide-border">
+                <div className="divide-y divide-border px-3 sm:px-4">
                   <FlightLeg
                     airline={f.outbound.airline || f.airline}
                     airlineCode={f.outbound.airlineCode || f.airlineCode}
@@ -364,24 +364,24 @@ export function FlightResults({
                 </div>
 
                 {/* Right: price + CTA */}
-                <div className="border-t lg:border-t-0 lg:border-l border-border bg-muted/20 px-5 py-5 flex flex-col items-center lg:items-end justify-center gap-2 text-right">
+                <div className="flex flex-col items-center justify-center gap-1.5 border-t border-border bg-muted/15 px-3 py-3 text-center lg:items-end lg:border-l lg:border-t-0 lg:text-right">
                   {isCheapest && (
-                    <span className="inline-flex items-center rounded-full bg-emerald-100 text-emerald-700 text-xs font-semibold px-2.5 py-0.5">
+                    <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
                       {t("results.cheapestBadge")}
                     </span>
                   )}
-                  <div className="text-xs text-muted-foreground">
+                  <div className="text-[11px] text-muted-foreground">
                     {pax} {pax === 1 ? t("results.traveler") : t("results.travelers")}
                   </div>
-                  <div className="text-3xl font-bold text-foreground tabular-nums leading-none">
+                  <div className="text-2xl font-bold tabular-nums leading-none text-foreground">
                     {f.price} €
                   </div>
-                  <div className="text-xs text-muted-foreground">{t("results.totalPrice")}</div>
+                  <div className="text-[11px] text-muted-foreground">{t("results.totalPrice")}</div>
                   <a
                     href={skyscannerUrl ?? "#"}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="mt-2 inline-flex items-center justify-center gap-2 rounded-lg bg-sky-500 hover:bg-sky-600 text-white font-semibold text-sm px-6 py-2.5 transition-colors w-full max-w-[180px]"
+                    className="mt-1 inline-flex w-full max-w-[132px] items-center justify-center gap-1.5 rounded-lg bg-sky-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-sky-600"
                   >
                     {t("results.select")} <span aria-hidden>→</span>
                   </a>
@@ -389,24 +389,24 @@ export function FlightResults({
               </div>
 
               {/* AI plan footer row */}
-              <div className="border-t border-border bg-card px-4 sm:px-6 py-2.5">
+              <div className="border-t border-border bg-card px-3 py-2 sm:px-4">
                 <button
                   data-select-ai-plan={idx === 0 ? "first" : undefined}
                   onClick={() => onSelect(f)}
                   className={cn(
-                    "inline-flex items-center gap-2 rounded-full text-sm font-semibold px-4 py-1.5 transition-colors",
+                    "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-colors sm:text-sm",
                     selected
                       ? "bg-sky-500 text-white"
-                      : "text-sky-600 hover:bg-sky-50 border border-transparent",
+                      : "border border-transparent text-sky-600 hover:bg-sky-50",
                   )}
                 >
                   {selected ? (
                     <>
-                      <Check className="h-3.5 w-3.5" /> {t("results.selectedAi")}
+                      <Check className="h-3 w-3" /> {t("results.selectedAi")}
                     </>
                   ) : (
                     <>
-                      <Sparkles className="h-3.5 w-3.5" /> {t("results.selectAiPlan")}
+                      <Sparkles className="h-3 w-3" /> {t("results.selectAiPlan")}
                     </>
                   )}
                 </button>
