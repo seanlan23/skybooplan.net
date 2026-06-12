@@ -1007,6 +1007,7 @@ function FlightsTravellersField({
   onOpenChange?: (o: boolean) => void;
 }) {
   const { t, lang } = useI18n();
+  const [draftAdults, setDraftAdults] = useState(adults);
   const [draftChildrenAges, setDraftChildrenAges] = useState(childrenAges);
   const [draftCabinClass, setDraftCabinClass] = useState(cabinClass);
 
