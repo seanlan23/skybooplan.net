@@ -98,6 +98,22 @@ export const tripPlanSchema = z.object({
       })
       .optional(),
   }),
+  travel_requirements: z
+    .object({
+      target_residents: z.array(z.string().min(1)).min(1),
+      visa_info: z
+        .array(
+          z.object({
+            country: z.string().min(1),
+            requirement: z.string().min(1),
+            how_to_apply: z.string().min(1),
+          }),
+        )
+        .min(1),
+      vaccinations: z.string().min(1),
+      estimated_costs: z.string().min(1),
+    })
+    .optional(),
   itinerar: z.array(
     z.object({
       /** Slovenian display label for the phase (UI). */

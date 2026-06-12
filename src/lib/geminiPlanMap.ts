@@ -1,5 +1,6 @@
 import type { Activity, AiTripPlan, DayPlan, ReturnFlightEu } from "@/lib/aiPlan.functions";
 import type { TripAdvisorStyleDetails, TripPlanResponse, TripBudgetTier } from "@/lib/geminiPro.shared";
+import { mapTravelRequirementsFromJson } from "@/lib/travelRequirements";
 import {
   normalizeMapPoiCategory,
 } from "@/lib/mapPoiCategory";
@@ -406,6 +407,7 @@ export function tripPlanResponseToAiTripPlan(
     accommodationMode,
     hotelRestEveryNDays,
     returnFlightEu,
+    travelRequirements: mapTravelRequirementsFromJson(data.travel_requirements),
   };
 }
 

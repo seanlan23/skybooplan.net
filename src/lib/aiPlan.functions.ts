@@ -349,6 +349,8 @@ export type ReturnFlightEu = {
   summary: string;
 };
 
+export type { TravelRequirements, TravelVisaInfo } from "@/lib/travelRequirements";
+
 export type AiTripPlan = {
   destinationName: string;
   summary: string;
@@ -361,6 +363,8 @@ export type AiTripPlan = {
   accommodationMode?: "hotel" | "motorhome";
   hotelRestEveryNDays?: number;
   returnFlightEu?: ReturnFlightEu;
+  /** Smart travel requirements by likely resident nationality (origin hub). */
+  travelRequirements?: import("@/lib/travelRequirements").TravelRequirements;
   /** Ground transport from origin city to destination (car / motorhome / train). */
   groundTransportMode?: GroundTransportMode;
   originPlace?: string;

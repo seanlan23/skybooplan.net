@@ -22,6 +22,7 @@ import { parseLocalDate } from "@/lib/dateUtils";
 import type { StayInfo } from "@/components/HotelsSection";
 import { PlannerChoicesSummary } from "@/components/PlannerChoicesSummary";
 import { TripTotalBreakdown } from "@/components/TripTotalBreakdown";
+import { TravelRequirements } from "@/components/TravelRequirements";
 import { ReturnHomeCard } from "@/components/ReturnHomeCard";
 import { TransportDashboard } from "@/components/TransportDashboard";
 import type { AiPlannerSubmit } from "@/components/AiPlannerPreview";
@@ -461,6 +462,14 @@ export function AiPlanView({
             </h2>
             <PlannerChoicesSummary form={plannerForm} />
             <p className="mt-2 text-slate-600 max-w-2xl">{displaySummary}</p>
+            <div className="mt-4">
+              <TravelRequirements
+                requirements={plan.travelRequirements}
+                originIata={plan.originIata}
+                destinationIata={plan.destinationIata}
+                preview={!plan.travelRequirements?.visaInfo?.length}
+              />
+            </div>
             {streaming && (
               <p className="mt-2 inline-flex items-center gap-2 text-sm font-medium text-sky-600">
                 <span className="relative flex h-2 w-2">

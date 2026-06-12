@@ -20,6 +20,7 @@ import {
   motorhomePromptRules,
 } from "@/lib/tripMode";
 import { groundTransportPromptBlock, lastDayReturnPromptBlock } from "@/lib/groundTransport";
+import { travelRequirementsPromptBlock } from "@/lib/travelRequirements";
 import { planTeaserText } from "@/lib/planTeaser";
 import { STRICT_LLM_LANGUAGE_RULE } from "@/lib/planLanguages";
 import {
@@ -161,8 +162,15 @@ Na samem začetku polja trip_metadata.season_warning (uvodno besedilo pred dnevn
 "${teaser}"
 Takoj za tem nadaljuj z geografsko natančnim sezonskim opozorilom za destinacijo.`;
 
+  const travelReqBlock = travelRequirementsPromptBlock({
+    originIata: params.originIata,
+    destinationIata: params.destinationIata,
+    destinationLabel: params.destination,
+  });
+
   return `Ustvari ${params.days}-dnevni načrt potovanja za lokacijo: ${params.destination} v mesecu ${params.month}.
 ${teaserBlock}
+${travelReqBlock}
 ${tvojeZeljeBlock}${motorhomeBlock}${groundTransportBlock}
 
 Let: ${route}.
@@ -245,6 +253,12 @@ export function tripPlanSystemPrompt(params: GenerateTripPlanParams): string {
   const writingRule = languageWritingRule(lang);
   const moneyRule = currencyWritingRule(displayCurrency);
 
+  const travelReqBlock = travelRequirementsPromptBlock({
+    originIata: params.originIata,
+    destinationIata: params.destinationIata,
+    destinationLabel: params.destination,
+  });
+
   return `Si strokovni potovalni agent za aplikacijo skybooplan. Striktno sledi zahtevani JSON shemi.
 
 ${STRICT_LLM_LANGUAGE_RULE}
@@ -256,6 +270,8 @@ ${writingRule}
 
 VALUTA (displayCurrency = ${displayCurrency}):
 ${moneyRule}
+
+${travelReqBlock}
 
 ${motorhomeRules}
 

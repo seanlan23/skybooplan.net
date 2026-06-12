@@ -5,6 +5,7 @@ import { useI18n } from "@/lib/i18n";
 import type { TripFlightContext } from "@/lib/flightScheduling";
 import { useDestinationContext } from "@/hooks/useDestinationContext";
 import { DestinationInsightBanner } from "@/components/DestinationInsightBanner";
+import { TravelRequirements } from "@/components/TravelRequirements";
 import { AttractionPicker } from "@/components/AttractionPicker";
 import {
   catalogSupportedForIata,
@@ -235,11 +236,18 @@ export function AiPlannerPreview({
             )}
 
             {hasContext && (
-              <DestinationInsightBanner
-                context={destCtx}
-                flights={context?.flights}
-                loading={destLoading}
-              />
+              <>
+                <DestinationInsightBanner
+                  context={destCtx}
+                  flights={context?.flights}
+                  loading={destLoading}
+                />
+                <TravelRequirements
+                  originIata={context?.from}
+                  destinationIata={context?.to}
+                  preview
+                />
+              </>
             )}
 
             <div>
