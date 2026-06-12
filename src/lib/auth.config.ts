@@ -17,18 +17,14 @@ import {
  */
 export function createAuthConfig(): StartAuthJSConfig {
   ensureAuthEnv();
-  assertAuthEnvReady();
+  if (typeof window === "undefined") {
+    assertAuthEnvReady();
+  }
 
   const secret = authSecret();
   const clientId = process.env.GOOGLE_CLIENT_ID || process.env.AUTH_GOOGLE_ID;
   const clientSecret =
     process.env.GOOGLE_CLIENT_SECRET || process.env.AUTH_GOOGLE_SECRET;
-
-  if (!clientId || !clientSecret) {
-    throw new Error(
-      `[auth] Google OAuth is not configured (clientId=${Boolean(clientId)}, clientSecret=${Boolean(clientSecret)})`,
-    );
-  }
 
   const config: StartAuthJSConfig = {
     secret,
