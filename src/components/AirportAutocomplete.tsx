@@ -4,15 +4,16 @@ import { Loader2, MapPin, Plane, Globe, X } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { searchPlaces, type PlaceSuggestion } from "@/lib/places.functions";
 import { useI18n } from "@/lib/i18n";
+import {
+  FIELD_ICON,
+  FIELD_ICON_SLOT,
+  FIELD_INPUT,
+  FIELD_LABEL,
+  FIELD_SHELL,
+  FIELD_VALUE_ROW,
+} from "@/components/searchFieldStyles";
 
 type Kind = "airport" | "place";
-
-const FIELD_SHELL =
-  "rounded-2xl border border-border bg-background/60 px-4 py-3 hover:border-brand/40 transition-colors focus-within:border-brand focus-within:bg-card";
-const FIELD_LABEL = "text-xs font-semibold text-muted-foreground tracking-wide uppercase leading-none";
-const FIELD_VALUE_ROW =
-  "mt-1.5 flex items-center gap-2.5 min-h-[22px] text-[15px] font-medium text-foreground";
-const FIELD_ICON = "h-4 w-4 shrink-0 text-muted-foreground";
 
 export function AirportAutocomplete({
   label,
@@ -149,12 +150,14 @@ export function AirportAutocomplete({
     <div className="relative" ref={boxRef}>
       <div className={cn("relative h-full", FIELD_SHELL)}>
         <div className={FIELD_LABEL}>{label}</div>
-        <div className={cn(FIELD_VALUE_ROW, "pr-7")}>
-          {kind === "airport" ? (
-            <Plane className={FIELD_ICON} />
-          ) : (
-            <MapPin className={FIELD_ICON} />
-          )}
+        <div className={cn(FIELD_VALUE_ROW, "relative pr-7")}>
+          <div className={FIELD_ICON_SLOT}>
+            {kind === "airport" ? (
+              <Plane className={FIELD_ICON} />
+            ) : (
+              <MapPin className={FIELD_ICON} />
+            )}
+          </div>
           <input
             type="text"
             placeholder={placeholder}
@@ -170,26 +173,26 @@ export function AirportAutocomplete({
             onFocus={() => setOpen(true)}
             onKeyDown={onKeyDown}
             autoComplete="off"
-            className="flex-1 min-w-0 bg-transparent placeholder:text-muted-foreground/60 focus:outline-none"
+            className={FIELD_INPUT}
           />
+          {query && (
+            <button
+              type="button"
+              aria-label={t("common.clear")}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                selectedRef.current = null;
+                setQuery("");
+                onChange("");
+                setSuggestions([]);
+                setOpen(false);
+              }}
+              className="absolute right-0 top-1/2 -translate-y-1/2 inline-flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
-        {query && (
-          <button
-            type="button"
-            aria-label={t("common.clear")}
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => {
-              selectedRef.current = null;
-              setQuery("");
-              onChange("");
-              setSuggestions([]);
-              setOpen(false);
-            }}
-            className="absolute right-3 top-1/2 -translate-y-1/2 h-6 w-6 inline-flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
-        )}
       </div>
 
       {open && query.trim().length >= 2 && (

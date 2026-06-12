@@ -6,20 +6,21 @@ import { format, parseISO, startOfDay } from "date-fns";
 import { cn } from "@/lib/utils";
 import { AirportAutocomplete } from "@/components/AirportAutocomplete";
 import { TravelAccessoriesBar } from "@/components/TravelAccessoriesBar";
-
+import {
+  FIELD_ICON,
+  FIELD_ICON_SLOT,
+  FIELD_INPUT,
+  FIELD_LABEL,
+  FIELD_SHELL,
+  FIELD_SUBTEXT,
+  FIELD_TEXT,
+  FIELD_VALUE_ROW,
+} from "@/components/searchFieldStyles";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/lib/i18n";
 import { formatTravellersSummary } from "@/lib/travellersFormat";
-
-/** Shared shell / label / value-row styling for search form fields */
-const FIELD_SHELL =
-  "rounded-2xl border border-border bg-background/60 px-4 py-3 hover:border-brand/40 transition-colors focus-within:border-brand focus-within:bg-card";
-const FIELD_LABEL = "text-xs font-semibold text-muted-foreground tracking-wide uppercase leading-none";
-const FIELD_VALUE_ROW =
-  "mt-1.5 flex items-center gap-2.5 min-h-[22px] text-[15px] font-medium text-foreground";
-const FIELD_ICON = "h-4 w-4 shrink-0 text-muted-foreground";
 
 const CALENDAR_DUAL_MONTH = {
   numberOfMonths: 2 as const,
@@ -418,7 +419,7 @@ export function SearchPanel({
           <SearchButton onClick={handleSearch} loading={loading} label={ctaLabel} loadingLabel={loadingLabel} />
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr_minmax(15rem,1.4fr)_1fr_auto] gap-x-3 gap-y-3 items-stretch">
+        <div className="grid grid-cols-1 lg:grid-cols-[1.05fr_1.05fr_minmax(17rem,1.55fr)_minmax(10rem,1fr)_auto] gap-x-3 gap-y-3 items-stretch">
           <AirportAutocomplete
             label={t("field.from")}
             placeholder={t("field.fromPlaceholder")}
@@ -544,8 +545,12 @@ function TransportModeField({
         >
           <div className={FIELD_LABEL}>{t("field.transportMode" as never) as string}</div>
           <div className={FIELD_VALUE_ROW}>
-            <Icon className={FIELD_ICON} />
-            <span className="truncate">{groundTransportLabel(value, lang)}</span>
+            <div className={FIELD_ICON_SLOT}>
+              <Icon className={FIELD_ICON} />
+            </div>
+            <span className={cn(FIELD_TEXT, "font-semibold")}>
+              {groundTransportLabel(value, lang)}
+            </span>
           </div>
         </button>
       </PopoverTrigger>
@@ -624,7 +629,7 @@ function Field({
         value={value}
         maxLength={maxLength}
         onChange={(e) => onChange(e.target.value)}
-        className="mt-1.5 w-full min-h-[22px] bg-transparent text-[15px] font-medium text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
+        className={cn(FIELD_INPUT, "mt-1.5")}
       />
     </div>
   );
@@ -709,25 +714,17 @@ function DateField({
     value,
     placeholder,
     onClick,
-    active,
   }: {
     label: string;
     value?: Date;
     placeholder: string;
     onClick: () => void;
-    active: boolean;
+    active?: boolean;
   }) => (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn("w-full text-left group rounded-xl", active && "")}
-    >
+    <button type="button" onClick={onClick} className="min-w-0 w-full text-left">
       <div className={FIELD_LABEL}>{label}</div>
-      <div className={FIELD_VALUE_ROW}>
-        <CalendarIcon className={cn(FIELD_ICON, "group-hover:text-brand transition-colors")} />
-        <span className={cn("truncate", !value && "text-muted-foreground/60")}>
-          {value ? format(value, "d MMM yyyy") : placeholder}
-        </span>
+      <div className={cn(FIELD_TEXT, !value && "text-muted-foreground/60")}>
+        {value ? format(value, "d MMM yyyy") : placeholder}
       </div>
     </button>
   );
@@ -735,37 +732,51 @@ function DateField({
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>
-        <div className={cn(FIELD_SHELL, "cursor-pointer min-w-0 w-full h-full")}>
-          <div className={cn("grid gap-2 min-w-0", showReturn ? "grid-cols-2" : "grid-cols-1")}>
-            {showReturn ? (
-              <>
-                <SummaryCell
-                  label={labelA}
-                  value={departSel}
-                  placeholder={t("field.selectDate")}
-                  onClick={() => handleTriggerClick("from")}
-                  active={focusSide === "from"}
-                />
-                <div className="border-l border-border pl-3 min-w-0">
-                  <SummaryCell
-                    label={labelB}
-                    value={returnSel}
-                    placeholder={t("field.selectDate")}
-                    onClick={() => handleTriggerClick("to")}
-                    active={focusSide === "to"}
+        <div className={cn(FIELD_SHELL, "group cursor-pointer min-w-0 w-full")}>
+          {showReturn ? (
+            <>
+              <div className={cn(FIELD_LABEL, "invisible select-none")} aria-hidden>
+                &nbsp;
+              </div>
+              <div className="flex min-w-0 items-center gap-2.5">
+                <div className={FIELD_ICON_SLOT}>
+                  <CalendarIcon
+                    className={cn(FIELD_ICON, "group-hover:text-brand transition-colors")}
                   />
                 </div>
-              </>
-            ) : (
-              <SummaryCell
-                label={labelA}
-                value={departSel}
-                placeholder={t("field.selectDate")}
-                onClick={() => handleTriggerClick("from")}
-                active
-              />
-            )}
-          </div>
+                <div className="grid min-w-0 flex-1 grid-cols-2 gap-x-3">
+                  <SummaryCell
+                    label={labelA}
+                    value={departSel}
+                    placeholder={t("field.selectDate")}
+                    onClick={() => handleTriggerClick("from")}
+                  />
+                  <div className="min-w-0 border-l border-border pl-3">
+                    <SummaryCell
+                      label={labelB}
+                      value={returnSel}
+                      placeholder={t("field.selectDate")}
+                      onClick={() => handleTriggerClick("to")}
+                    />
+                  </div>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className={FIELD_LABEL}>{labelA}</div>
+              <div className={FIELD_VALUE_ROW}>
+                <div className={FIELD_ICON_SLOT}>
+                  <CalendarIcon
+                    className={cn(FIELD_ICON, "group-hover:text-brand transition-colors")}
+                  />
+                </div>
+                <span className={cn(FIELD_TEXT, !departSel && "text-muted-foreground/60")}>
+                  {departSel ? format(departSel, "d MMM yyyy") : t("field.selectDate")}
+                </span>
+              </div>
+            </>
+          )}
         </div>
       </PopoverTrigger>
       <PopoverContent
@@ -836,8 +847,10 @@ function SingleDateField({
         >
           <div className={FIELD_LABEL}>{label}</div>
           <div className={FIELD_VALUE_ROW}>
-            <CalendarIcon className={cn(FIELD_ICON, "group-hover:text-brand transition-colors")} />
-            <span className={cn("truncate", !selected && "text-muted-foreground/60")}>
+            <div className={FIELD_ICON_SLOT}>
+              <CalendarIcon className={cn(FIELD_ICON, "group-hover:text-brand transition-colors")} />
+            </div>
+            <span className={cn(FIELD_TEXT, !selected && "text-muted-foreground/60")}>
               {selected ? format(selected, "d MMM yyyy") : t("field.selectDate")}
             </span>
           </div>
@@ -883,11 +896,11 @@ function SearchButton({
     <button
       onClick={onClick}
       disabled={loading}
-      className="h-full min-h-[68px] inline-flex items-center justify-center gap-2 rounded-2xl px-6 font-semibold text-brand-foreground shadow-md hover:shadow-lg transition-all hover:scale-[1.02] active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed"
+      className="inline-flex h-full min-h-[76px] shrink-0 items-center justify-center gap-2.5 whitespace-nowrap rounded-2xl px-5 sm:px-6 text-sm sm:text-base font-semibold text-brand-foreground shadow-md hover:shadow-lg transition-all hover:scale-[1.02] active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed"
       style={{ background: "var(--gradient-brand)" }}
     >
-      <Search className="h-5 w-5" />
-      {loading ? loadingLabel : label}
+      <Search className="h-5 w-5 shrink-0" />
+      <span>{loading ? loadingLabel : label}</span>
     </button>
   );
 }
@@ -914,8 +927,10 @@ function DatePickerCell({
         >
           <div className={FIELD_LABEL}>{label}</div>
           <div className={FIELD_VALUE_ROW}>
-            <CalendarIcon className={cn(FIELD_ICON, "group-hover:text-brand transition-colors")} />
-            <span className={cn("truncate", !selected && "text-muted-foreground/60")}>
+            <div className={FIELD_ICON_SLOT}>
+              <CalendarIcon className={cn(FIELD_ICON, "group-hover:text-brand transition-colors")} />
+            </div>
+            <span className={cn(FIELD_TEXT, !selected && "text-muted-foreground/60")}>
               {selected ? format(selected, "d MMM yyyy") : t("field.selectDate")}
             </span>
           </div>
@@ -1051,13 +1066,15 @@ function FlightsTravellersField({
         >
           <div className={FIELD_LABEL}>{t("field.travellers")}</div>
           <div className={FIELD_VALUE_ROW}>
-            <Users className={FIELD_ICON} />
-            <span className="truncate font-semibold">
-              {formatTravellersSummary(lang, adults, childrenAges.length)}
-            </span>
-          </div>
-          <div className="mt-0.5 pl-[26px] text-xs text-muted-foreground truncate">
-            {t(CABIN_KEY[cabinClass])}
+            <div className={FIELD_ICON_SLOT}>
+              <Users className={FIELD_ICON} />
+            </div>
+            <div className="flex min-w-0 flex-1 flex-col justify-center gap-0.5">
+              <span className={cn(FIELD_TEXT, "font-semibold")}>
+                {formatTravellersSummary(lang, adults, childrenAges.length)}
+              </span>
+              <span className={FIELD_SUBTEXT}>{t(CABIN_KEY[cabinClass])}</span>
+            </div>
           </div>
         </button>
       </PopoverTrigger>
@@ -1205,13 +1222,17 @@ function StaysGuestsField({
         >
           <div className={FIELD_LABEL}>{t("field.guests")}</div>
           <div className={FIELD_VALUE_ROW}>
-            <Users className={FIELD_ICON} />
-            <span className="truncate font-semibold">
-              {total} {total === 1 ? t("trav.guest") : t("trav.guestsPlural")}
-            </span>
-          </div>
-          <div className="mt-0.5 pl-[26px] text-xs text-muted-foreground truncate">
-            {rooms} {rooms === 1 ? t("trav.room") : t("trav.roomsPlural")}
+            <div className={FIELD_ICON_SLOT}>
+              <Users className={FIELD_ICON} />
+            </div>
+            <div className="flex min-w-0 flex-1 flex-col justify-center gap-0.5">
+              <span className={cn(FIELD_TEXT, "font-semibold")}>
+                {total} {total === 1 ? t("trav.guest") : t("trav.guestsPlural")}
+              </span>
+              <span className={FIELD_SUBTEXT}>
+                {rooms} {rooms === 1 ? t("trav.room") : t("trav.roomsPlural")}
+              </span>
+            </div>
           </div>
         </button>
       </PopoverTrigger>
