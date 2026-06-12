@@ -74,6 +74,19 @@ describe("buildTripClimate Phase 2", () => {
     });
     expect(out.regionClimate).toHaveLength(0);
   });
+
+  it("prefers dry season for late Oct–Nov Thailand trip ending in cool season", () => {
+    const out = buildTripClimate({
+      destinationIata: "BKK",
+      departDate: "2026-10-24",
+      returnDate: "2026-11-08",
+      lang: "sl",
+      priorities: ["beaches", "sights", "nightlife"],
+    });
+    expect(out.tripClimate.some((h) => /sušn|hladnej/i.test(h))).toBe(true);
+    expect(out.tripClimate.some((h) => /deževna sezona na tajskem/i.test(h))).toBe(false);
+    expect(out.regionClimate.find((r) => /chiang mai/i.test(r.city))).toBeUndefined();
+  });
 });
 
 describe("inferLikelyRegionCities", () => {

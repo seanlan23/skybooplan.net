@@ -8,6 +8,8 @@ type HintText = { sl: string; en: string };
 type CountryHint = HintText & {
   countries: string[];
   months: number[];
+  /** Mutually exclusive bucket — only the best-matching hint per group is kept. */
+  group?: string;
 };
 
 type RegionHint = HintText & {
@@ -22,12 +24,14 @@ const COUNTRY_HINTS: CountryHint[] = [
   {
     countries: ["PH"],
     months: [6, 7, 8, 9, 10, 11],
+    group: "PH-season",
     sl: "Na Filipinih je običajno obdobje monsunskih dežjev — pogoste popoldanske plohe in višja vlažnost.",
     en: "Philippines wet/monsoon season — frequent afternoon showers and high humidity.",
   },
   {
     countries: ["PH"],
     months: [12, 1, 2, 3, 4, 5],
+    group: "PH-season",
     sl: "Sušna sezona na Filipinih — manj dežja, primerno za otoke in potapljanje.",
     en: "Philippines dry season — less rain, good for islands and diving.",
   },
@@ -45,13 +49,22 @@ const COUNTRY_HINTS: CountryHint[] = [
   },
   {
     countries: ["TH"],
-    months: [5, 6, 7, 8, 9, 10],
+    months: [5, 6, 7, 8, 9],
+    group: "TH-season",
     sl: "Deževna sezona na Tajskem — krajši popoldanski rokopi, še vedno potovalno, manj turistov.",
     en: "Thailand rainy season — short afternoon downpours, still travelable, fewer crowds.",
   },
   {
     countries: ["TH"],
+    months: [10],
+    group: "TH-season",
+    sl: "Oktober na Tajskem — konec monsunov, dež se hitro manjša; od sredine meseca naprej vse bolj suho.",
+    en: "October in Thailand — monsoon tailing off, rain decreases; drier from mid-month onward.",
+  },
+  {
+    countries: ["TH"],
     months: [11, 12, 1, 2, 3],
+    group: "TH-season",
     sl: "Sušna / hladnejša sezona na Tajskem — prijetno vreme, vrhunec sezone na plažah.",
     en: "Thailand cool/dry season — pleasant weather, peak beach season.",
   },
@@ -288,13 +301,81 @@ export function tripMonths(departDate: string, returnDate?: string): number[] {
   return [...new Set(months)];
 }
 
-function countryHints(country: string, months: number[], lang: string): string[] {
-  const out: string[] = [];
-  for (const h of COUNTRY_HINTS) {
-    if (!h.countries.includes(country)) continue;
-    if (!months.some((m) => h.months.includes(m))) continue;
-    out.push(pickText(h, lang));
+/** Calendar days per month (1–12) covered by the trip. */
+export function tripDayCountByMonth(departDate: string, returnDate?: string): Map<number, number> {
+  const start = new Date(`${departDate}T12:00:00`);
+  const end = returnDate && returnDate.length >= 10 ? new Date(`${returnDate}T12:00:00`) : start;
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) {
+    const m = Number(departDate.slice(5, 7));
+    return Number.isFinite(m) ? new Map([[m, 1]]) : new Map();
   }
+
+  const counts = new Map<number, number>();
+  const cur = new Date(start);
+  for (let guard = 0; guard < 400; guard++) {
+    const m = cur.getMonth() + 1;
+    counts.set(m, (counts.get(m) ?? 0) + 1);
+    if (cur.toDateString() === end.toDateString()) break;
+    cur.setDate(cur.getDate() + 1);
+  }
+  return counts;
+}
+
+function scoreHintMonths(hintMonths: number[], dayCounts: Map<number, number>): number {
+  let score = 0;
+  for (const [month, days] of dayCounts) {
+    if (hintMonths.includes(month)) score += days;
+  }
+  return score;
+}
+
+function totalTripDays(dayCounts: Map<number, number>): number {
+  let total = 0;
+  for (const days of dayCounts.values()) total += days;
+  return total;
+}
+
+function countryHints(
+  country: string,
+  dayCounts: Map<number, number>,
+  returnMonth: number | null,
+  lang: string,
+): string[] {
+  const candidates = COUNTRY_HINTS.filter((h) => h.countries.includes(country))
+    .map((h) => ({ h, score: scoreHintMonths(h.months, dayCounts) }))
+    .filter((c) => c.score > 0);
+
+  const byGroup = new Map<string, typeof candidates>();
+  const ungrouped: typeof candidates = [];
+
+  for (const c of candidates) {
+    if (c.h.group) {
+      const list = byGroup.get(c.h.group) ?? [];
+      list.push(c);
+      byGroup.set(c.h.group, list);
+    } else {
+      ungrouped.push(c);
+    }
+  }
+
+  const out: string[] = [];
+
+  for (const group of byGroup.values()) {
+    group.sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      const aReturn = returnMonth != null && a.h.months.includes(returnMonth);
+      const bReturn = returnMonth != null && b.h.months.includes(returnMonth);
+      if (aReturn && !bReturn) return -1;
+      if (bReturn && !aReturn) return 1;
+      return 0;
+    });
+    out.push(pickText(group[0]!.h, lang));
+  }
+
+  for (const c of ungrouped) {
+    out.push(pickText(c.h, lang));
+  }
+
   return out;
 }
 
@@ -302,14 +383,35 @@ function regionHintsForCity(
   city: string,
   country: string,
   months: number[],
+  dayCounts: Map<number, number>,
+  returnMonth: number | null,
   lang: string,
 ): string[] {
   const c = city.toLowerCase();
   const out: string[] = [];
+  const totalDays = totalTripDays(dayCounts);
+
   for (const h of REGION_HINTS) {
     if (!h.countries.includes(country)) continue;
     if (!h.cityTest.test(c)) continue;
     if (!months.some((m) => h.months.includes(m))) continue;
+
+    const score = scoreHintMonths(h.months, dayCounts);
+    if (score <= 0) continue;
+
+    const isWetHint = /rain|monso|wet|monsun|dežev/i.test(h.id);
+    const endsInCoolDrySeason =
+      returnMonth != null && (returnMonth >= 11 || returnMonth <= 3);
+    if (
+      isWetHint &&
+      country === "TH" &&
+      endsInCoolDrySeason &&
+      totalDays > 0 &&
+      score / totalDays < 0.6
+    ) {
+      continue;
+    }
+
     out.push(pickText(h, lang));
   }
   return out;
@@ -346,9 +448,9 @@ function wishesMentionRainforest(wishes?: string): boolean {
   );
 }
 
-function isRainyMonthForCountry(country: string, months: number[]): boolean {
+function isRainyMonthForCountry(country: string, dayCounts: Map<number, number>): boolean {
   const rainyCountries: Record<string, number[]> = {
-    TH: [5, 6, 7, 8, 9, 10],
+    TH: [5, 6, 7, 8, 9],
     VN: [5, 6, 7, 8, 9, 10, 11],
     PH: [6, 7, 8, 9, 10, 11],
     ID: [10, 11, 12, 1, 2, 3, 4],
@@ -358,12 +460,15 @@ function isRainyMonthForCountry(country: string, months: number[]): boolean {
   };
   const rainy = rainyCountries[country];
   if (!rainy) return false;
-  return months.some((m) => rainy.includes(m));
+  const total = totalTripDays(dayCounts);
+  if (total <= 0) return false;
+  const rainyDays = scoreHintMonths(rainy, dayCounts);
+  return rainyDays / total >= 0.5;
 }
 
 function natureInterestHint(
   country: string,
-  months: number[],
+  dayCounts: Map<number, number>,
   priorities: string[] | undefined,
   wishes: string | undefined,
   lang: string,
@@ -377,7 +482,7 @@ function natureInterestHint(
     keys.includes("mountains");
 
   if (!rainforestTrip && !hasNatureInterest) return null;
-  if (!isRainyMonthForCountry(country, months)) return null;
+  if (!isRainyMonthForCountry(country, dayCounts)) return null;
 
   if (wishesMentionRainforest(wishes)) {
     return pickText(RAINFOREST_INTEREST_HINT, lang);
@@ -396,15 +501,18 @@ export function buildTripClimate(opts: TripClimateOpts): TripClimateResult {
   const months = tripMonths(opts.departDate, opts.returnDate);
   if (months.length === 0) return { tripClimate: [], regionClimate: [] };
 
+  const dayCounts = tripDayCountByMonth(opts.departDate, opts.returnDate);
+  const returnMonth = opts.returnDate ? Number(opts.returnDate.slice(5, 7)) : null;
+
   const lang = opts.lang;
-  const tripClimate: string[] = [...countryHints(dest.country, months, lang)];
+  const tripClimate: string[] = [...countryHints(dest.country, dayCounts, returnMonth, lang)];
 
   const hemisphereNote = hemisphereHints(dest, months, lang);
   tripClimate.push(...hemisphereNote);
 
   const natureHint = natureInterestHint(
     dest.country,
-    months,
+    dayCounts,
     opts.priorities,
     opts.wishes,
     lang,
@@ -419,7 +527,14 @@ export function buildTripClimate(opts: TripClimateOpts): TripClimateResult {
   const regionClimate: RegionClimateBlock[] = [];
 
   for (const city of cities) {
-    const hints = regionHintsForCity(city, dest.country, months, lang);
+    const hints = regionHintsForCity(
+      city,
+      dest.country,
+      months,
+      dayCounts,
+      returnMonth,
+      lang,
+    );
     if (hints.length === 0) continue;
     regionClimate.push({ city, hints: [...new Set(hints)] });
   }
