@@ -1,11 +1,10 @@
 import Google from "@auth/core/providers/google";
 import type { StartAuthJSConfig } from "start-authjs";
+import { setEnvDefaults } from "start-authjs";
 import {
   assertAuthEnvReady,
   authSecret,
   ensureAuthEnv,
-  googleClientId,
-  googleClientSecret,
 } from "@/lib/auth.env";
 
 /**
@@ -14,22 +13,16 @@ import {
  * (equivalent to Next.js app/api/auth/[...nextauth]/route.ts)
  *
  * Env: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, NEXTAUTH_SECRET, NEXTAUTH_URL
- * Aliasi: AUTH_GOOGLE_*, NEXT_PUBLIC_GOOGLE_CLIENT_ID (samo client ID)
+ * Aliasi: AUTH_GOOGLE_ID, AUTH_GOOGLE_SECRET
  */
 export function createAuthConfig(): StartAuthJSConfig {
   ensureAuthEnv();
   assertAuthEnvReady();
 
   const secret = authSecret();
-  const clientId =
-    process.env.GOOGLE_CLIENT_ID?.trim() ||
-    process.env.AUTH_GOOGLE_ID?.trim() ||
-    process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID?.trim() ||
-    googleClientId();
+  const clientId = process.env.GOOGLE_CLIENT_ID || process.env.AUTH_GOOGLE_ID;
   const clientSecret =
-    process.env.GOOGLE_CLIENT_SECRET?.trim() ||
-    process.env.AUTH_GOOGLE_SECRET?.trim() ||
-    googleClientSecret();
+    process.env.GOOGLE_CLIENT_SECRET || process.env.AUTH_GOOGLE_SECRET;
 
   if (!clientId || !clientSecret) {
     throw new Error(
@@ -37,10 +30,9 @@ export function createAuthConfig(): StartAuthJSConfig {
     );
   }
 
-  return {
+  const config: StartAuthJSConfig = {
     secret,
     trustHost: true,
-    basePath: "/api/auth",
     session: {
       strategy: "jwt",
     },
@@ -68,4 +60,14 @@ export function createAuthConfig(): StartAuthJSConfig {
       },
     },
   };
+
+  // AUTH_URL already includes /api/auth — do not set basePath (Auth.js Configuration error).
+  if (!process.env.AUTH_URL?.trim()) {
+    config.basePath = "/api/auth";
+  }
+
+  setEnvDefaults(process.env, config);
+  config.trustHost = true;
+
+  return config;
 }

@@ -1,6 +1,5 @@
 import { Auth } from "@auth/core";
 import { createFileRoute } from "@tanstack/react-router";
-import { setEnvDefaults } from "start-authjs";
 import { createAuthConfig } from "@/lib/auth.config";
 import { ensureAuthEnv } from "@/lib/auth.env";
 
@@ -10,7 +9,6 @@ async function handleAuthRequest(request: Request): Promise<Response> {
   try {
     ensureAuthEnv();
     const config = createAuthConfig();
-    setEnvDefaults(process.env, config);
     return await Auth(request, config);
   } catch (error) {
     console.error("[auth] handler error:", error);

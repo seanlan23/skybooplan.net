@@ -34,6 +34,11 @@ export function ensureAuthEnv(): void {
     process.env.AUTH_URL = normalizeAuthBaseUrl(process.env.NEXTAUTH_URL);
   }
 
+  // Auth.js v5: prefer site origin in NEXTAUTH_URL; full auth endpoint in AUTH_URL only.
+  if (process.env.NEXTAUTH_URL?.includes("/api/auth")) {
+    process.env.NEXTAUTH_URL = process.env.NEXTAUTH_URL.replace(/\/api\/auth\/?$/, "");
+  }
+
   // @auth/core setEnvDefaults reads AUTH_GOOGLE_ID / AUTH_GOOGLE_SECRET
   const publicGoogleId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID?.trim();
   if (!process.env.AUTH_GOOGLE_ID) {
