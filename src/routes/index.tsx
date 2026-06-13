@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { Component, type ErrorInfo, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -16,7 +16,6 @@ import { FlightResults } from "@/components/FlightResults";
 import { SpotlightOverlay } from "@/components/SpotlightOverlay";
 import { AiPlannerPreview, type AiPlannerContext, type AiPlannerSubmit } from "@/components/AiPlannerPreview";
 import { FeatureGrid } from "@/components/FeatureGrid";
-import { PricingSection } from "@/components/PricingSection";
 import { SiteFooter } from "@/components/SiteFooter";
 import { searchFlights, type DuffelFlight } from "@/lib/flights.functions";
 import { airportConfusionHint } from "@/lib/airportRank";
@@ -41,18 +40,13 @@ import { ConfirmModal } from "@/components/ConfirmModal";
 import { FlightSearchHistory } from "@/components/FlightSearchHistory";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { useSubscription } from "@/hooks/use-subscription";
 import { resolveErrorMessage, useI18n } from "@/lib/i18n";
 import { normalizePlanLangCode } from "@/lib/planLanguages";
 import { normalizePlanCurrency } from "@/lib/planCurrency";
 import { flightContextFromLegs } from "@/lib/flightScheduling";
 import { isClassicRoundTrip } from "@/lib/flightSearch";
 import { formatPlannerInterests } from "@/lib/plannerInterests";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { GoogleIcon } from "@/components/GoogleIcon";
-import { googleSignInHref } from "@/lib/auth.urls";
-import { hasAuthSession } from "@/lib/supabaseAuthHeaders";
 
 /** Full-screen fatal error — visible without devtools. */
 function FatalErrorScreen({ error }: { error: Error }) {
@@ -106,9 +100,9 @@ export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "Skybooplan — AI-powered travel planning, flights & stays" },
-      { name: "description", content: "Find flights, plan your route and book accommodation. AI itineraries, interactive maps and a downloadable PDF plan from €3.90." },
+      { name: "description", content: "Find flights, plan your route and book accommodation. Free AI itineraries, interactive maps and PDF download — no paywall." },
       { property: "og:title", content: "Skybooplan — Plan your next trip with AI" },
-      { property: "og:description", content: "Real-time flights, smart itineraries, beautiful maps. One plan, one price." },
+      { property: "og:description", content: "Real-time flights, smart itineraries, beautiful maps. Free for everyone." },
       { property: "og:type", content: "website" },
     ],
   }),
@@ -303,9 +297,6 @@ function Landing() {
   }
   const [plannerMode, setPlannerMode] = useState<"trip" | "stays">("trip");
   const { user } = useAuth();
-  const subscription = useSubscription();
-  const navigate = useNavigate();
-  const [paywall, setPaywall] = useState<null | "login" | "register" | "pay" | "daily">(null);
   const { t, lang, currency: uiCurrency } = useI18n();
   const queryClient = useQueryClient();
   const searchFn = useServerFn(searchFlights);
@@ -752,7 +743,7 @@ function Landing() {
       end_date: endDate,
       itinerary: plan as never,
       ai_model: "google:gemini-flash-latest",
-      is_paid: subscription.isActive,
+      is_paid: false,
     };
 
     let query = supabase
@@ -915,9 +906,43 @@ function Landing() {
         console.groupEnd();
       }
 
-      if (res.error) setAiError(res.error);
-      setAiSkeleton(res.skeleton);
-      setSavedPlanId(null);
+      if (res.error) {
+        setAiError(res.error);
+        setSavedPlanId(null);
+        return;
+      }
+      if (!res.skeleton) {
+        setAiError(t("error.planInvalidFormat"));
+        setSavedPlanId(null);
+        return;
+      }
+
+      setAiLoading(false);
+      setAiExpandingFull(true);
+      try {
+        const { plan: fullPlan, error: expandError } = await expandSkeletonToFullPlan(
+          res.skeleton,
+          safeForm,
+          ctx,
+        );
+        if (expandError) {
+          setAiError(expandError);
+          setAiSkeleton(res.skeleton);
+        } else if (fullPlan) {
+          setAiPlan(fullPlan);
+          setAiSkeleton(null);
+          setSavedPlanId(null);
+          await persistPlanToTrips(fullPlan, ctx);
+        }
+      } catch (e) {
+        console.error(e);
+        setAiError(t("error.planGenerationFailed"));
+        setAiSkeleton(res.skeleton);
+      } finally {
+        setAiExpandingFull(false);
+        setAiGenStartedAt(null);
+      }
+      return;
     } catch (e) {
       console.error(e);
       setAiError(t("error.planGenerationFailed"));
@@ -927,65 +952,73 @@ function Landing() {
     }
   }
 
+  async function expandSkeletonToFullPlan(
+    skeleton: TripSkeleton,
+    form: AiPlannerSubmit,
+    ctx: ReturnType<typeof normalizeAiContext>,
+  ): Promise<{ plan: AiTripPlan | null; error: string | null }> {
+    const wishes = buildWishes(form);
+    const clientStartedAt = performance.now();
+    console.log("[AiPlan] client: expanding to full day-by-day plan…");
+    const res = await planFn({
+      data: {
+        destinationIata: ctx.to,
+        originIata: ctx.from,
+        returnFromIata: ctx.returnFromIata,
+        departDate: ctx.departDate,
+        returnDate: ctx.returnDate || undefined,
+        pax: ctx.pax,
+        language: ctx.language || "sl",
+        currency: normalizePlanCurrency(ctx.currency ?? lastSearch?.currency ?? uiCurrency),
+        pace: form.pace,
+        wishes,
+        priorities: form.tags,
+        customPrompt: form.customPrompt,
+        mode: plannerMode,
+        flightContext: ctx.flights,
+      },
+    });
+    console.log(
+      `[AiPlan] client: full plan in ${Math.round(performance.now() - clientStartedAt)}ms`,
+      { error: res.error, days: res.plan?.days.length ?? 0 },
+    );
+    if (res.debug?.length) {
+      console.group("[AiPlan] server trace");
+      res.debug.forEach((line) => console.log(`[AiPlan] ${line}`));
+      console.groupEnd();
+    }
+
+    if (res.error) return { plan: null, error: res.error };
+    if (!res.plan) return { plan: null, error: t("error.planInvalidFormat") };
+
+    return {
+      plan: {
+        ...res.plan,
+        accommodationMode: res.plan.accommodationMode ?? skeleton.accommodationMode,
+        hotelRestEveryNDays: res.plan.hotelRestEveryNDays ?? skeleton.hotelRestEveryNDays,
+      },
+      error: null,
+    };
+  }
+
   async function handleExpandFullPlan() {
     const form = normalizeLastPlannerForm(lastPlannerForm);
     if (!isActiveAiContext(aiContext) || !form || !aiSkeleton) return;
-
-    if (!(await hasAuthSession())) {
-      setPaywall("login");
-      return;
-    }
 
     const ctx = aiContext;
     setAiExpandingFull(true);
     setAiError(null);
     try {
-      const wishes = buildWishes(form);
-      const clientStartedAt = performance.now();
-      console.log("[AiPlan] client: expanding to full day-by-day plan…");
-      const res = await planFn({
-        data: {
-          destinationIata: ctx.to,
-          originIata: ctx.from,
-          returnFromIata: ctx.returnFromIata,
-          departDate: ctx.departDate,
-          returnDate: ctx.returnDate || undefined,
-          pax: ctx.pax,
-          language: ctx.language || "sl",
-          currency: normalizePlanCurrency(ctx.currency ?? lastSearch?.currency ?? uiCurrency),
-          pace: form.pace,
-          wishes,
-          priorities: form.tags,
-          customPrompt: form.customPrompt,
-          mode: plannerMode,
-          flightContext: ctx.flights,
-        },
-      });
-      console.log(
-        `[AiPlan] client: full plan in ${Math.round(performance.now() - clientStartedAt)}ms`,
-        { error: res.error, days: res.plan?.days.length ?? 0 },
-      );
-      if (res.debug?.length) {
-        console.group("[AiPlan] server trace");
-        res.debug.forEach((line) => console.log(`[AiPlan] ${line}`));
-        console.groupEnd();
-      }
-
-      if (res.error) {
-        setAiError(res.error);
+      const { plan, error } = await expandSkeletonToFullPlan(aiSkeleton, form, ctx);
+      if (error) {
+        setAiError(error);
         return;
       }
-
-      if (res.plan) {
-        setAiPlan({
-          ...res.plan,
-          accommodationMode: res.plan.accommodationMode ?? aiSkeleton.accommodationMode,
-          hotelRestEveryNDays:
-            res.plan.hotelRestEveryNDays ?? aiSkeleton.hotelRestEveryNDays,
-        });
+      if (plan) {
+        setAiPlan(plan);
         setAiSkeleton(null);
         setSavedPlanId(null);
-        await persistPlanToTrips(res.plan, ctx);
+        await persistPlanToTrips(plan, ctx);
       }
     } catch (e) {
       console.error(e);
@@ -1110,39 +1143,23 @@ function Landing() {
                   error={null}
                   pax={aiContext?.pax ?? 1}
                   protect={false}
-                  isUnlocked={subscription.isActive}
-                  onUnlockClick={() => {
-                    if (!user) {
-                      setPaywall("login");
-                      return;
-                    }
-                    setPaywall("pay");
-                  }}
                   onDownloadClick={
                     aiPlan
                       ? async () => {
-                    if (!user) {
-                      setPaywall("register");
-                      return;
-                    }
-                    if (!subscription.isActive) {
-                      setPaywall("pay");
-                      return;
-                    }
-                    try {
-                      const { generatePlanPdf } = await import("@/lib/pdf-export");
-                      await generatePlanPdf({
-                        title: `${aiContext?.from ?? ""} → ${aiContext?.to ?? ""}`,
-                        destination: aiPlan?.destinationName ?? aiContext?.to ?? "",
-                        start_date: aiContext?.departDate ?? null,
-                        end_date: aiContext?.returnDate ?? null,
-                        itinerary: aiPlan as never,
-                      });
-                    } catch (e) {
-                      console.error("PDF export failed", e);
-                      alert(t("trips.pdfError"));
-                    }
-                  }
+                          try {
+                            const { generatePlanPdf } = await import("@/lib/pdf-export");
+                            await generatePlanPdf({
+                              title: `${aiContext?.from ?? ""} → ${aiContext?.to ?? ""}`,
+                              destination: aiPlan?.destinationName ?? aiContext?.to ?? "",
+                              start_date: aiContext?.departDate ?? null,
+                              end_date: aiContext?.returnDate ?? null,
+                              itinerary: aiPlan as never,
+                            });
+                          } catch (e) {
+                            console.error("PDF export failed", e);
+                            alert(t("trips.pdfError"));
+                          }
+                        }
                       : undefined
                   }
                   stayInfo={{
@@ -1155,7 +1172,7 @@ function Landing() {
                   }
                   plannerForm={normalizeLastPlannerForm(lastPlannerForm)}
                 />
-                ) : aiLoading && lastPlannerForm?.plannerStyle !== "catalog" ? (
+                ) : aiLoading || aiExpandingFull ? (
                 <AiPlanLoader
                   tripDays={
                     aiContext?.departDate && aiContext?.returnDate
@@ -1233,7 +1250,6 @@ function Landing() {
 
         {/* Bottom planner removed — only the inline planner above renders to avoid form duplication. */}
         <FeatureGrid />
-        <PricingSection />
       </main>
 
       <SiteFooter />
@@ -1254,51 +1270,6 @@ function Landing() {
         onConfirm={handleConfirm}
         onCancel={() => { setShowConfirm(false); setConfirmFlight(null); }}
       />
-
-      <Dialog open={paywall !== null} onOpenChange={(o) => !o && setPaywall(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {paywall === "login" && t("paywall.loginTitle")}
-              {paywall === "register" && t("paywall.registerTitle")}
-              {paywall === "pay" && t("paywall.payTitle")}
-              {paywall === "daily" && t("paywall.dailyTitle")}
-            </DialogTitle>
-            <DialogDescription>
-              {paywall === "login" && t("paywall.loginDesc")}
-              {paywall === "register" && t("paywall.registerDesc")}
-              {paywall === "pay" && t("paywall.payDesc")}
-              {paywall === "daily" && t("paywall.dailyDesc")}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-2">
-            {paywall === "login" ? (
-              <>
-                <Button variant="outline" onClick={() => setPaywall(null)}>{t("common.cancel")}</Button>
-                <Button
-                  onClick={() => {
-                    setPaywall(null);
-                    window.location.href = googleSignInHref();
-                  }}
-                >
-                  <GoogleIcon className="h-4 w-4 mr-2" />
-                  {t("nav.signInGoogle")}
-                </Button>
-              </>
-            ) : paywall === "register" ? (
-              <>
-                <Button variant="outline" onClick={() => setPaywall(null)}>{t("common.cancel")}</Button>
-                <Button onClick={() => { setPaywall(null); navigate({ to: "/signup" }); }}>{t("common.signUp")}</Button>
-              </>
-            ) : (
-              <>
-                <Button variant="outline" onClick={() => setPaywall(null)}>{t("common.ok")}</Button>
-                <Button onClick={() => { setPaywall(null); document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth" }); }}>{t("aiplan.viewPrices" as never)}</Button>
-              </>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
     );
   } catch (err) {

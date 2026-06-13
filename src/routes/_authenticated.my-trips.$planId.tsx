@@ -1,13 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ArrowLeft, Calendar, MapPin, Download, Loader2, Lock, AlertCircle } from "lucide-react";
+import { ArrowLeft, Calendar, MapPin, Download, Loader2, AlertCircle } from "lucide-react";
 import type { PostgrestError } from "@supabase/supabase-js";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { AiPlanView } from "@/components/AiPlanView";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { useSubscription } from "@/hooks/use-subscription";
 import { generatePlanPdf } from "@/lib/pdf-export";
 import type { AiTripPlan } from "@/lib/aiPlan.functions";
 import { formatLocalDate } from "@/lib/dateUtils";
@@ -95,7 +94,6 @@ function TripDetailPage() {
   const { planId } = Route.useParams();
   const { t } = useI18n();
   const { user, loading: authLoading } = useAuth();
-  const subscription = useSubscription();
   const [plan, setPlan] = useState<TravelPlanRow | null>(null);
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
@@ -154,7 +152,7 @@ function TripDetailPage() {
   }, [user, authLoading, planId]);
 
   const handleDownload = async () => {
-    if (!subscription.isActive || !plan) return;
+    if (!plan) return;
     setDownloading(true);
     const requestId =
       typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -280,28 +278,18 @@ function TripDetailPage() {
                   )}
                 </div>
               </div>
-              {subscription.isActive ? (
-                <button
-                  onClick={handleDownload}
-                  disabled={downloading}
-                  className="inline-flex items-center gap-2 rounded-2xl px-5 py-2.5 font-semibold text-primary-foreground shadow-sm hover:opacity-90 disabled:opacity-60 shrink-0"
-                  style={{ background: "var(--gradient-warm)" }}
-                >
-                  {downloading ? (
-                    <><Loader2 className="h-4 w-4 animate-spin" /> {t("tripDetail.preparingPdf")}</>
-                  ) : (
-                    <><Download className="h-4 w-4" /> {t("tripDetail.downloadPdf")}</>
-                  )}
-                </button>
-              ) : (
-                <a
-                  href="/#pricing"
-                  className="inline-flex items-center gap-2 rounded-2xl px-5 py-2.5 font-semibold text-foreground border border-border bg-muted/50 hover:bg-muted transition-colors shrink-0"
-                  title={t("tripDetail.upgradePdfTitle")}
-                >
-                  <Lock className="h-4 w-4" /> {t("tripDetail.unlockPdf")}
-                </a>
-              )}
+              <button
+                onClick={handleDownload}
+                disabled={downloading}
+                className="inline-flex items-center gap-2 rounded-2xl px-5 py-2.5 font-semibold text-primary-foreground shadow-sm hover:opacity-90 disabled:opacity-60 shrink-0"
+                style={{ background: "var(--gradient-warm)" }}
+              >
+                {downloading ? (
+                  <><Loader2 className="h-4 w-4 animate-spin" /> {t("tripDetail.preparingPdf")}</>
+                ) : (
+                  <><Download className="h-4 w-4" /> {t("tripDetail.downloadPdf")}</>
+                )}
+              </button>
             </div>
 
             {plan.itinerary ? (
@@ -309,10 +297,6 @@ function TripDetailPage() {
                 loading={false}
                 plan={plan.itinerary}
                 error={null}
-                isUnlocked={subscription.isActive}
-                onUnlockClick={() => {
-                  window.location.href = "/#pricing";
-                }}
               />
             ) : (
               <div className="rounded-2xl border border-border bg-card p-10 text-center text-muted-foreground">

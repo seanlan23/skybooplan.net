@@ -1,12 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { MapPin, Calendar, Plus, Sparkles, Download, Loader2, Lock } from "lucide-react";
+import { MapPin, Calendar, Plus, Sparkles } from "lucide-react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { useSubscription } from "@/hooks/use-subscription";
-import { generatePlanPdf } from "@/lib/pdf-export";
 import { useT } from "@/lib/i18n";
 import { formatLocalDate } from "@/lib/dateUtils";
 
@@ -27,10 +25,8 @@ type Plan = {
 
 function MyTripsPage() {
   const { user } = useAuth();
-  const subscription = useSubscription();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
-  const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const t = useT();
 
   useEffect(() => {
@@ -44,56 +40,6 @@ function MyTripsPage() {
         setLoading(false);
       });
   }, [user]);
-
-  const handleDownload = async (id: string) => {
-    if (!subscription.isActive) return;
-    setDownloadingId(id);
-    const requestId =
-      typeof crypto !== "undefined" && "randomUUID" in crypto
-        ? crypto.randomUUID()
-        : `pdf-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const referrer = typeof document !== "undefined" ? document.referrer || window.location.href : undefined;
-    const logResult = async (status: "success" | "failed", errorMessage?: string) => {
-      if (!user) return;
-      const { logPdfDownload } = await import("@/lib/pdfDownloads.functions");
-      await logPdfDownload({
-        data: {
-          planId: id,
-          source: "trip_list",
-          status,
-          runtime: "browser",
-          referrer,
-          requestId,
-          errorMessage,
-        },
-      }).catch((err) => console.error("[pdf_downloads] log failed", err));
-    };
-    try {
-      const { data, error } = await supabase
-        .from("travel_plans")
-        .select("title,destination,start_date,end_date,travel_pace,wishes,cover_image_url,itinerary")
-        .eq("id", id)
-        .single();
-      if (error || !data) throw error;
-      await generatePlanPdf({
-        title: data.title,
-        destination: data.destination,
-        start_date: data.start_date,
-        end_date: data.end_date,
-        travel_pace: data.travel_pace,
-        wishes: data.wishes,
-        cover_image_url: data.cover_image_url,
-        itinerary: (data.itinerary ?? {}) as Record<string, unknown>,
-      });
-      await logResult("success");
-    } catch (e) {
-      console.error("PDF export failed", e);
-      await logResult("failed", e instanceof Error ? e.message : String(e));
-      alert(t("trips.pdfError"));
-    } finally {
-      setDownloadingId(null);
-    }
-  };
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: "var(--gradient-hero)" }}>

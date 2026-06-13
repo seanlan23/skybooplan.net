@@ -1,4 +1,4 @@
-import { Plane, MapPin, FileText, CreditCard, type LucideIcon } from "lucide-react";
+import { Plane, MapPin, FileText, Heart, type LucideIcon } from "lucide-react";
 import { useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
@@ -39,10 +39,10 @@ export function FeatureGrid() {
         colSpan: "md:col-span-1",
       },
       {
-        id: "price",
-        icon: CreditCard,
-        title: t("feat.price.title"),
-        desc: t("feat.price.desc"),
+        id: "free",
+        icon: Heart,
+        title: t("feat.free.title"),
+        desc: t("feat.free.desc"),
         colSpan: "md:col-span-1",
       },
     ],
