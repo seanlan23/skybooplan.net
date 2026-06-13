@@ -32,7 +32,13 @@ import {
   buildFinalizedRouteDays,
   buildRouteFetchKey,
   isRouteDrawingReady,
+  type RouteDayStop,
 } from "@/lib/tripMapRouteState";
+import {
+  ROUTE_DRAW_DURATION_MS,
+  progressAlongRoute,
+  resolveSegmentCoordsForDay,
+} from "@/lib/tripMapProgressiveDraw";
 
 export type ActivityMapFocus = {
   lat: number;
@@ -250,6 +256,91 @@ type CityMarkerEntry = {
   stop: CityMapStop;
 };
 
+type DurationMarkerEntry = {
+  marker: mapboxgl.Marker;
+  dayTo: number;
+};
+
+const POI_REVEAL_TRANSITION =
+  "opacity 0.45s ease-out, transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1)";
+
+function clearPoiRevealTimers(timers: { current: number[] }) {
+  for (const id of timers.current) window.clearTimeout(id);
+  timers.current = [];
+}
+
+function setPoiMarkerHidden(el: HTMLElement, hidden: boolean) {
+  el.style.transition = POI_REVEAL_TRANSITION;
+  if (hidden) {
+    el.style.opacity = "0";
+    el.style.transform = "scale(0.55)";
+    el.style.pointerEvents = "none";
+  } else {
+    el.style.opacity = "1";
+    el.style.transform = "scale(1)";
+    el.style.pointerEvents = "auto";
+  }
+}
+
+function setPoiMarkersForDay(
+  store: { current: PoiMarkerEntry[] },
+  activeDay: number,
+  visibleForActiveDay: boolean,
+) {
+  for (const entry of store.current) {
+    const el = entry.marker.getElement();
+    if (entry.day !== activeDay) {
+      setPoiMarkerHidden(el, true);
+    } else {
+      setPoiMarkerHidden(el, !visibleForActiveDay);
+    }
+  }
+}
+
+function setDurationBadgesForDay(
+  store: { current: DurationMarkerEntry[] },
+  activeDay: number,
+  visible: boolean,
+) {
+  for (const { marker, dayTo } of store.current) {
+    const el = marker.getElement();
+    el.style.transition = "opacity 0.35s ease";
+    el.style.opacity = dayTo === activeDay && visible ? "1" : "0";
+    el.style.pointerEvents = dayTo === activeDay && visible ? "auto" : "none";
+  }
+}
+
+function dimInactiveTripSegments(
+  map: mapboxgl.Map,
+  activeDay: number,
+  inactiveOpacity = 0.05,
+) {
+  for (const mode of ROUTE_MODES) {
+    const layerId = `trip-segments-${mode}-line`;
+    if (!map.getLayer(layerId)) continue;
+    map.setPaintProperty(layerId, "line-opacity", [
+      "case",
+      ["==", ["to-number", ["get", "dayTo"]], activeDay],
+      0,
+      inactiveOpacity,
+    ]);
+    map.setPaintProperty(layerId, "line-width", [
+      "case",
+      ["==", ["to-number", ["get", "dayTo"]], activeDay],
+      0,
+      ROUTE_LAYER_STYLE[mode].width,
+    ]);
+  }
+}
+
+function hideAllTripSegmentLayers(map: mapboxgl.Map) {
+  for (const mode of ROUTE_MODES) {
+    const layerId = `trip-segments-${mode}-line`;
+    if (!map.getLayer(layerId)) continue;
+    map.setPaintProperty(layerId, "line-opacity", 0);
+  }
+}
+
 function clearPoiMarkerLayer(store: { current: PoiMarkerEntry[] }) {
   store.current.forEach((m) => {
     unmountReactRoot(m.root);
@@ -260,14 +351,14 @@ function clearPoiMarkerLayer(store: { current: PoiMarkerEntry[] }) {
 
 function clearCityMarkerLayer(
   markers: { current: CityMarkerEntry[] },
-  durationMarkers: { current: mapboxgl.Marker[] },
+  durationMarkers: { current: DurationMarkerEntry[] },
 ) {
   markers.current.forEach((m) => {
     unmountReactRoot(m.root);
     m.marker.remove();
   });
   markers.current = [];
-  durationMarkers.current.forEach((m) => m.remove());
+  durationMarkers.current.forEach((m) => m.marker.remove());
   durationMarkers.current = [];
 }
 
@@ -614,7 +705,7 @@ function ensureActiveDayRouteLayer(map: mapboxgl.Map) {
 function animateRouteProgressiveDraw(
   map: mapboxgl.Map,
   fullCoords: [number, number][],
-  duration = 3200,
+  duration = ROUTE_DRAW_DURATION_MS,
   cancelRef?: { current: number },
 ) {
   if (fullCoords.length < 2) return;
@@ -699,48 +790,77 @@ function easeOutCubic(t: number): number {
   return 1 - (1 - t) ** 3;
 }
 
-function animateRouteLayers(
+function playActiveDayRouteSequence(
   map: mapboxgl.Map,
-  modes: RouteMode[],
-  activeDay: number,
-  duration = 1200,
+  opts: {
+    activeDay: number;
+    routeData: TripRouteSegment[];
+    dayCoords: Map<number, [number, number]>;
+    origin: [number, number] | null;
+    finalizedDays: RouteDayStop[];
+    poiMarkersRef: { current: PoiMarkerEntry[] };
+    durationMarkersRef: { current: DurationMarkerEntry[] };
+    routeDrawAnimRef: { current: number };
+    poiRevealTimersRef: { current: number[] };
+  },
 ) {
-  const start = performance.now();
-  const frame = (now: number) => {
-    const t = easeOutCubic(Math.min(1, (now - start) / duration));
-    for (const mode of modes) {
-      const layerId = `trip-segments-${mode}-line`;
-      if (!map.getLayer(layerId)) continue;
-      const style = ROUTE_LAYER_STYLE[mode];
-      map.setPaintProperty(layerId, "line-opacity", t * style.opacity);
-    }
-    if (t < 1) {
-      requestAnimationFrame(frame);
-    } else {
-      applyActiveDayRouteHighlight(map, activeDay);
-    }
-  };
-  requestAnimationFrame(frame);
-}
+  const {
+    activeDay,
+    routeData,
+    dayCoords,
+    origin,
+    finalizedDays,
+    poiMarkersRef,
+    durationMarkersRef,
+    routeDrawAnimRef,
+    poiRevealTimersRef,
+  } = opts;
 
-function applyActiveDayRouteHighlight(map: mapboxgl.Map, activeDay: number) {
-  for (const mode of ROUTE_MODES) {
-    const layerId = `trip-segments-${mode}-line`;
-    if (!map.getLayer(layerId)) continue;
-    const style = ROUTE_LAYER_STYLE[mode];
-    map.setPaintProperty(layerId, "line-width", [
-      "case",
-      ["==", ["to-number", ["get", "dayTo"]], activeDay],
-      style.width + 1,
-      style.width,
-    ]);
-    map.setPaintProperty(layerId, "line-opacity", [
-      "case",
-      ["==", ["to-number", ["get", "dayTo"]], activeDay],
-      Math.min(1, style.opacity + 0.12),
-      style.opacity * 0.55,
-    ]);
+  clearPoiRevealTimers(poiRevealTimersRef);
+  if (routeDrawAnimRef.current) {
+    cancelAnimationFrame(routeDrawAnimRef.current);
+    routeDrawAnimRef.current = 0;
   }
+
+  ensureActiveDayRouteLayer(map);
+  setActiveDayRouteData(map, []);
+  dimInactiveTripSegments(map, activeDay, 0.04);
+  setPoiMarkersForDay(poiMarkersRef, activeDay, false);
+  setDurationBadgesForDay(durationMarkersRef, activeDay, false);
+
+  const coords = resolveSegmentCoordsForDay(
+    routeData,
+    activeDay,
+    dayCoords,
+    origin,
+    finalizedDays,
+  );
+
+  if (coords.length < 2) {
+    const timer = window.setTimeout(() => {
+      setPoiMarkersForDay(poiMarkersRef, activeDay, true);
+      setDurationBadgesForDay(durationMarkersRef, activeDay, true);
+    }, 350);
+    poiRevealTimersRef.current.push(timer);
+    return;
+  }
+
+  animateRouteProgressiveDraw(map, coords, ROUTE_DRAW_DURATION_MS, routeDrawAnimRef);
+
+  for (const entry of poiMarkersRef.current) {
+    if (entry.day !== activeDay) continue;
+    const ratio = progressAlongRoute(coords, [entry.pin.lng, entry.pin.lat]);
+    const delay = Math.round(ratio * ROUTE_DRAW_DURATION_MS * 0.92);
+    const timer = window.setTimeout(() => {
+      setPoiMarkerHidden(entry.marker.getElement(), false);
+    }, delay);
+    poiRevealTimersRef.current.push(timer);
+  }
+
+  const badgeTimer = window.setTimeout(() => {
+    setDurationBadgesForDay(durationMarkersRef, activeDay, true);
+  }, Math.round(ROUTE_DRAW_DURATION_MS * 0.88));
+  poiRevealTimersRef.current.push(badgeTimer);
 }
 
 function ensureRouteLayer(
@@ -868,8 +988,9 @@ function TripMapInner({
   const [isSatellite, setIsSatellite] = useState(false);
   const [mapStyleEpoch, setMapStyleEpoch] = useState(0);
   const markersRef = useRef<CityMarkerEntry[]>([]);
-  const durationMarkersRef = useRef<mapboxgl.Marker[]>([]);
+  const durationMarkersRef = useRef<DurationMarkerEntry[]>([]);
   const poiMarkersRef = useRef<PoiMarkerEntry[]>([]);
+  const poiRevealTimersRef = useRef<number[]>([]);
   const originMarkerRef = useRef<{ marker: mapboxgl.Marker; root: Root } | null>(null);
   const tokenFn = useServerFn(getMapboxToken);
   const [token, setToken] = useState<string | null>(null);
@@ -1276,6 +1397,11 @@ function TripMapInner({
 
     return () => {
       ro.disconnect();
+      clearPoiRevealTimers(poiRevealTimersRef);
+      if (routeDrawAnimRef.current) {
+        cancelAnimationFrame(routeDrawAnimRef.current);
+        routeDrawAnimRef.current = 0;
+      }
       clearCityMarkerLayer(markersRef, durationMarkersRef);
       clearPoiMarkerLayer(poiMarkersRef);
       if (originMarkerRef.current) {
@@ -1396,6 +1522,7 @@ function TripMapInner({
           poiDetails && openDetails ? () => openDetails(poiDetails) : undefined,
         );
 
+        setPoiMarkerHidden(el, true);
         poiMarkersRef.current.push({ marker, day: pin.day, root, pin, photoEl });
       }
     };
@@ -1451,27 +1578,25 @@ function TripMapInner({
     if (!map || !routeData.length) return;
 
     const drawRoutes = () => {
+      ensureActiveDayRouteLayer(map);
       let hasAnyLayer = false;
-      const shouldAnimate = !routeAnimatedRef.current;
 
       for (const mode of visibleRouteModes) {
         const fc = segmentsToFeatureCollection(routeData, mode);
-        if (ensureRouteLayer(map, mode, fc, !shouldAnimate)) {
+        if (ensureRouteLayer(map, mode, fc, false)) {
           hasAnyLayer = true;
         }
       }
 
       if (hasAnyLayer) {
-        if (shouldAnimate) {
-          routeAnimatedRef.current = true;
-          animateRouteLayers(map, visibleRouteModes, activeDay);
-        }
+        hideAllTripSegmentLayers(map);
+        routeAnimatedRef.current = true;
       }
     };
 
     if (map.isStyleLoaded() && ready.current) drawRoutes();
     else map.once("load", drawRoutes);
-  }, [routeData, origin, visibleRouteModes, mapStyleEpoch, activeDay]);
+  }, [routeData, origin, visibleRouteModes, mapStyleEpoch]);
 
   // Fit the full trip once when route geometry is first available.
   useEffect(() => {
@@ -1509,8 +1634,39 @@ function TripMapInner({
     const map = mapRef.current;
     if (!map || !routeData.length) return;
     if (!map.isStyleLoaded() || !ready.current) return;
-    applyActiveDayRouteHighlight(map, activeDay);
-  }, [activeDay, routeData, mapStyleEpoch]);
+    if (tripRouteBoundsKey && !overviewReady && !isPlaying) return;
+
+    playActiveDayRouteSequence(map, {
+      activeDay,
+      routeData,
+      dayCoords,
+      origin,
+      finalizedDays: finalizedRouteDays,
+      poiMarkersRef,
+      durationMarkersRef,
+      routeDrawAnimRef,
+      poiRevealTimersRef,
+    });
+
+    return () => {
+      clearPoiRevealTimers(poiRevealTimersRef);
+      if (routeDrawAnimRef.current) {
+        cancelAnimationFrame(routeDrawAnimRef.current);
+        routeDrawAnimRef.current = 0;
+      }
+    };
+  }, [
+    activeDay,
+    routeData,
+    mapStyleEpoch,
+    overviewReady,
+    tripRouteBoundsKey,
+    isPlaying,
+    dayCoordsKey,
+    origin,
+    finalizedRouteDays,
+    poiPinsKey,
+  ]);
 
   // Origin airport marker (start of international flight leg).
   useEffect(() => {
@@ -1601,10 +1757,13 @@ function TripMapInner({
           segment,
           segmentBadgeText(segment, plan, t as (key: string) => string),
         );
+        badge.style.opacity = "0";
+        badge.style.pointerEvents = "none";
+        badge.style.transition = "opacity 0.35s ease";
         const m = new mapboxgl.Marker({ element: badge, anchor: "center" })
           .setLngLat(mid)
           .addTo(map);
-        durationMarkersRef.current.push(m);
+        durationMarkersRef.current.push({ marker: m, dayTo: segment.dayTo });
       }
     };
 
