@@ -18,7 +18,7 @@ import { IslandAccessTransferCard } from "@/components/IslandAccessTransferCard"
 import { useI18n } from "@/lib/i18n";
 import { parseLocalDate } from "@/lib/dateUtils";
 import { isHotelRestDay, motorhomeCampingHint, resolveTripAccommodation } from "@/lib/tripMode";
-import { formatDayCardTitle } from "@/lib/dayPlanUi";
+import { formatDayCardTitle, sortActivitiesByTime } from "@/lib/dayPlanUi";
 import { formatStayDateRange } from "@/lib/islandStays";
 import { sanitizeLegacyTemplateLeak } from "@/lib/textSanitize";
 import type { ActivityMapFocus } from "@/components/TripMap";
@@ -77,7 +77,7 @@ function parseActivities(text?: string): Activity[] {
 
 export function getSlotActivities(d: DayPlan, slot: "morning" | "afternoon" | "evening"): Activity[] {
   const fromStruct = d.activities?.[slot];
-  if (fromStruct && fromStruct.length > 0) return fromStruct;
+  if (fromStruct && fromStruct.length > 0) return sortActivitiesByTime(fromStruct);
   return parseActivities(d[slot]);
 }
 
@@ -312,6 +312,7 @@ function IslandStayBlock({
 }) {
   const conf = VARIANT_CONF.island;
   if (activities.length === 0) return null;
+  const sortedActivities = sortActivitiesByTime(activities);
 
   return (
     <div>
@@ -323,7 +324,7 @@ function IslandStayBlock({
       </div>
       <p className="mt-2 text-sm text-slate-600 leading-relaxed line-clamp-2">{hint}</p>
       <ul className="mt-4 space-y-4">
-        {activities.map((a, i) => (
+        {sortedActivities.map((a, i) => (
           <ActivityItem
             key={i}
             activity={a}
@@ -354,6 +355,7 @@ function TimeBlock({
 }) {
   const conf = VARIANT_CONF[variant];
   if (activities.length === 0) return null;
+  const sortedActivities = sortActivitiesByTime(activities);
 
   return (
     <div>
@@ -364,7 +366,7 @@ function TimeBlock({
         </span>
       </div>
       <ul className="mt-4 space-y-4">
-        {activities.map((a, i) => (
+        {sortedActivities.map((a, i) => (
           <ActivityItem
             key={i}
             activity={a}

@@ -13,6 +13,7 @@ import {
   applyHotelRestBudgetFloor,
 } from "@/lib/tripBudget";
 import { addDays } from "@/lib/dateUtils";
+import { sortActivitiesByTime } from "@/lib/dayPlanUi";
 import {
   detectAccommodationMode,
   detectHotelRestInterval,
@@ -154,7 +155,9 @@ function slotActivities(
   const afternoonActs: Activity[] = [];
   const eveningActs: Activity[] = [];
 
-  const acts = activities ?? [];
+  const acts = [...(activities ?? [])].sort((a, b) =>
+    (a.arrivalTime ?? a.time ?? "").localeCompare(b.arrivalTime ?? b.time ?? ""),
+  );
   for (let i = 0; i < acts.length; i++) {
     const act = acts[i]!;
     const slot =
@@ -180,9 +183,9 @@ function slotActivities(
     afternoon: afternoonText || "—",
     evening: join(eveningActs) || "—",
     structured: {
-      morning: morningActs,
-      afternoon: afternoonActs,
-      evening: eveningActs,
+      morning: sortActivitiesByTime(morningActs),
+      afternoon: sortActivitiesByTime(afternoonActs),
+      evening: sortActivitiesByTime(eveningActs),
     },
   };
 }
