@@ -18,6 +18,7 @@ import { ItineraryRouteOverview } from "@/components/ItineraryRouteOverview";
 import { TripTotalBreakdown } from "@/components/TripTotalBreakdown";
 import { TravelRequirements } from "@/components/TravelRequirements";
 import { ReturnHomeCard } from "@/components/ReturnHomeCard";
+import { SupportCard } from "@/components/SupportCard";
 import { TransportDashboard } from "@/components/TransportDashboard";
 import type { AiPlannerSubmit } from "@/components/AiPlannerPreview";
 
@@ -322,6 +323,7 @@ export function AiPlanView({
   const mapPlayLabel = t("aiplan.mapPlay" as never);
   const mapStopLabel = t("aiplan.mapStop" as never);
   const displaySummary = plan ? withPlanTeaser(plan.summary, lang) : "";
+  const isGenerating = streaming || pendingDayNumbers.length > 0;
 
   return (
     <div
@@ -428,6 +430,8 @@ export function AiPlanView({
           </div>
         </div>
       </div>
+
+      <SupportCard isGenerating={isGenerating} />
 
       <div className="flex flex-col lg:grid lg:grid-cols-[1fr_1.3fr] gap-4 sm:gap-5 lg:gap-6 lg:items-start w-full">
         <div className="space-y-4 sm:space-y-5 min-w-0 w-full order-1 lg:h-[calc(100vh-120px)] lg:overflow-y-auto lg:overscroll-contain">
