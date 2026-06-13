@@ -7,6 +7,7 @@ import { AiPlanDayCard } from "@/components/AiPlanDayCard";
 import { GeminiLogisticsCards } from "@/components/GeminiLogisticsCards";
 import { DestinationInsightBanner } from "@/components/DestinationInsightBanner";
 import { PlanIntroInsightBlocks } from "@/components/PlanIntroInsightBlocks";
+import { ItineraryRouteOverview } from "@/components/ItineraryRouteOverview";
 import { useDestinationContext } from "@/hooks/useDestinationContext";
 import { useI18n } from "@/lib/i18n";
 import { parseLocalDate } from "@/lib/dateUtils";
@@ -162,6 +163,7 @@ export default function TripComponent({
             <h2 className="mt-1 text-2xl sm:text-3xl font-bold text-slate-900">
               {meta.destination}
             </h2>
+            <ItineraryRouteOverview plan={mapPlan} />
             <PlannerChoicesSummary form={plannerForm} />
             <PlanIntroInsightBlocks plan={mapPlan} className="mt-3" />
             {meta.season_warning ? (

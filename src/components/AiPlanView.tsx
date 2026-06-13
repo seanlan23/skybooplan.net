@@ -22,6 +22,7 @@ import { parseLocalDate } from "@/lib/dateUtils";
 import type { StayInfo } from "@/components/HotelsSection";
 import { PlannerChoicesSummary } from "@/components/PlannerChoicesSummary";
 import { PlanIntroInsightBlocks } from "@/components/PlanIntroInsightBlocks";
+import { ItineraryRouteOverview } from "@/components/ItineraryRouteOverview";
 import { TripTotalBreakdown } from "@/components/TripTotalBreakdown";
 import { TravelRequirements } from "@/components/TravelRequirements";
 import { ReturnHomeCard } from "@/components/ReturnHomeCard";
@@ -461,6 +462,7 @@ export function AiPlanView({
             <h2 className="mt-1 text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900 leading-tight">
               {plan.destinationName}
             </h2>
+            <ItineraryRouteOverview plan={plan} />
             <PlannerChoicesSummary form={plannerForm} />
             <PlanIntroInsightBlocks plan={plan} className="mt-3" />
             {displaySummary ? (

@@ -29,6 +29,7 @@ import {
 } from "@/lib/tripMode";
 import { withPlanTeaser } from "@/lib/planTeaser";
 import type { Lang } from "@/lib/i18n";
+import type { GroundTransportMode } from "@/lib/aiPlan.functions";
 
 export type GeminiPlanMapOpts = {
   originIata?: string;
@@ -38,6 +39,9 @@ export type GeminiPlanMapOpts = {
   /** Full user wishes blob (custom text + tags) for accommodation detection. */
   wishesText?: string;
   language?: Lang;
+  originPlace?: string;
+  destinationPlace?: string;
+  groundTransportMode?: GroundTransportMode;
 };
 
 function resolveIsoDayDate(raw: string, departDate: string | undefined, dayNumber: number): string {
@@ -561,6 +565,9 @@ export function tripPlanResponseToAiTripPlan(
     days,
     originIata: opts?.originIata,
     destinationIata: opts?.destinationIata,
+    originPlace: opts?.originPlace?.trim() || undefined,
+    destinationPlace: opts?.destinationPlace?.trim() || undefined,
+    groundTransportMode: opts?.groundTransportMode,
     accommodationMode,
     hotelRestEveryNDays,
     returnFlightEu,

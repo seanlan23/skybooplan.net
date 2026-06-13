@@ -33,11 +33,8 @@ export function buildCatalogPlanFromResponse(
     .join(" ");
 
   const catalogPlan = tripPlanResponseToAiTripPlan(parsed.data, {
-    originIata: data.originIata,
-    destinationIata: data.destinationIata,
-    departDate: data.departDate,
+    ...buildGeminiMapOpts(data),
     wishesText,
-    language: (data.language ?? "sl") as Lang,
   });
 
   if (!isCatalogTripPlan(catalogPlan)) {
