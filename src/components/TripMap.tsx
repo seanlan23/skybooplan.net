@@ -10,6 +10,7 @@ import {
   buildSegmentSpecs,
   resolveSegmentGeometries,
   ROUTE_LAYER_STYLE,
+  haversineKm,
   segmentMidpoint,
   segmentsToFeatureCollection,
   type RouteMode,
@@ -304,10 +305,34 @@ function createCityMarkerElement(
   return { el: wrap, root };
 }
 
-function createDurationBadgeElement(segment: TripRouteSegment): HTMLDivElement {
+function routeModeLabel(mode: RouteMode, t: (key: string) => string): string {
+  switch (mode) {
+    case "flight":
+      return t("map.routeFlight");
+    case "ferry":
+      return t("map.routeFerry");
+    case "transit":
+      return t("map.routeTransit");
+    default:
+      return t("map.routeDriving");
+  }
+}
+
+function segmentBadgeText(
+  segment: TripRouteSegment,
+  plan: AiTripPlan,
+  t: (key: string) => string,
+): string {
+  const day = plan.days.find((d) => d.day === segment.dayTo);
+  const leg = day?.transportation?.find((item) => item.type === segment.mode);
+  const duration = leg?.duration?.trim() || segment.durationLabel;
+  return `${routeModeLabel(segment.mode, t)} · ${duration}`;
+}
+
+function createDurationBadgeElement(segment: TripRouteSegment, label: string): HTMLDivElement {
   const wrap = document.createElement("div");
-  wrap.className = "layla-duration-badge";
-  wrap.innerHTML = `${transportIconSvg(segment.mode)}<span>${escapeHtml(segment.durationLabel)}</span>`;
+  wrap.className = `layla-duration-badge${segment.mode === "flight" ? " layla-duration-badge--flight" : ""}`;
+  wrap.innerHTML = `${transportIconSvg(segment.mode)}<span>${escapeHtml(label)}</span>`;
   return wrap;
 }
 
@@ -439,12 +464,56 @@ function collectPlanPoiPins(plan: AiTripPlan): MapPoiPin[] {
   return pins;
 }
 
-const CINEMATIC_CAMERA = {
-  duration: 3800,
-  speed: 0.6,
-  curve: 1.4,
-} as const;
+const DAY_CAMERA_PADDING = { top: 72, bottom: 96, left: 64, right: 64 } as const;
 
+/** Smooth pan/zoom — avoids aggressive flyTo arcs when switching days. */
+function smoothCameraToDay(map: mapboxgl.Map, center: [number, number]) {
+  map.stop();
+  const current = map.getCenter();
+  const distKm = haversineKm([current.lng, current.lat], center);
+  const currentZoom = map.getZoom();
+  const targetZoom =
+    distKm > 700
+      ? Math.min(currentZoom, 7.4)
+      : distKm > 180
+        ? Math.min(Math.max(currentZoom, 8.2), 10)
+        : Math.min(Math.max(currentZoom, 9), 10.8);
+  const duration = distKm > 900 ? 3400 : distKm > 300 ? 2800 : 2000;
+
+  map.easeTo({
+    center,
+    zoom: targetZoom,
+    duration,
+    padding: DAY_CAMERA_PADDING,
+    essential: true,
+  });
+}
+
+function flyToPoiDrone(map: mapboxgl.Map, center: [number, number]) {
+  map.stop();
+  map.easeTo({
+    center,
+    zoom: 14.5,
+    duration: 2200,
+    padding: { top: 56, bottom: 56, left: 56, right: 56 },
+    essential: true,
+  });
+}
+
+function flyToActiveDay(map: mapboxgl.Map, center: [number, number]) {
+  smoothCameraToDay(map, center);
+}
+
+function flyToPlaybackDay(map: mapboxgl.Map, center: [number, number]) {
+  map.stop();
+  map.easeTo({
+    center,
+    zoom: 11,
+    duration: 2800,
+    padding: DAY_CAMERA_PADDING,
+    essential: true,
+  });
+}
 function buildMarkerPopupHtml(opts: {
   title: string;
   description?: string;
@@ -723,43 +792,6 @@ function ensureRouteLayer(
   return true;
 }
 
-function flyToPoiDrone(map: mapboxgl.Map, center: [number, number]) {
-  map.flyTo({
-    center,
-    zoom: 15,
-    duration: 1800,
-    essential: true,
-    padding: { top: 48, bottom: 48, left: 48, right: 48 },
-  });
-}
-
-function flyToActiveDay(
-  map: mapboxgl.Map,
-  center: [number, number],
-) {
-  map.flyTo({
-    center,
-    zoom: 9.5,
-    duration: CINEMATIC_CAMERA.duration,
-    speed: CINEMATIC_CAMERA.speed,
-    curve: CINEMATIC_CAMERA.curve,
-    essential: true,
-    padding: { top: 56, bottom: 56, left: 56, right: 56 },
-  });
-}
-
-function flyToPlaybackDay(map: mapboxgl.Map, center: [number, number]) {
-  map.flyTo({
-    center,
-    zoom: 12,
-    essential: true,
-    duration: 2200,
-    speed: 0.9,
-    curve: 1.2,
-    padding: { top: 48, bottom: 48, left: 48, right: 48 },
-  });
-}
-
 function resolveActiveDayCoord(
   activeDay: number,
   plan: AiTripPlan,
@@ -858,6 +890,7 @@ function TripMapInner({
   const ready = useRef(false);
   const routeAnimatedRef = useRef(false);
   const initialBoundsFitRef = useRef(false);
+  const [overviewReady, setOverviewReady] = useState(false);
   const lastFlyTargetKeyRef = useRef("");
   const segmentGenRef = useRef(0);
   const [tripSegments, setTripSegments] = useState<TripRouteSegment[]>([]);
@@ -1122,6 +1155,7 @@ function TripMapInner({
     const gen = segmentGenRef.current;
     routeAnimatedRef.current = false;
     initialBoundsFitRef.current = false;
+    setOverviewReady(false);
     lastFlyTargetKeyRef.current = "";
     setSegmentsLoading(true);
 
@@ -1439,13 +1473,30 @@ function TripMapInner({
 
     const fit = () => {
       if (initialBoundsFitRef.current || !tripRouteBounds) return;
-      initialBoundsFitRef.current = true;
-      map.fitBounds(tripRouteBounds, { padding: 64, duration: 1600, maxZoom: 7.5 });
+      setOverviewReady(false);
+      map.fitBounds(tripRouteBounds, {
+        padding: 80,
+        duration: 2400,
+        maxZoom: 7.2,
+        essential: true,
+      });
+      const onSettled = () => {
+        initialBoundsFitRef.current = true;
+        setOverviewReady(true);
+        lastFlyTargetKeyRef.current = "";
+        map.off("moveend", onSettled);
+      };
+      map.once("moveend", onSettled);
     };
 
     if (map.isStyleLoaded() && ready.current) fit();
     else map.once("load", fit);
   }, [tripRouteBoundsKey, tripRouteBounds]);
+
+  // Single-city / no route bounds — allow day camera immediately.
+  useEffect(() => {
+    if (!tripRouteBoundsKey) setOverviewReady(true);
+  }, [tripRouteBoundsKey]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -1539,7 +1590,10 @@ function TripMapInner({
 
       for (const segment of routeData) {
         const mid = segmentMidpoint(segment.coordinates);
-        const badge = createDurationBadgeElement(segment);
+        const badge = createDurationBadgeElement(
+          segment,
+          segmentBadgeText(segment, plan, t as (key: string) => string),
+        );
         const m = new mapboxgl.Marker({ element: badge, anchor: "center" })
           .setLngLat(mid)
           .addTo(map);
@@ -1596,6 +1650,8 @@ function TripMapInner({
     if (scrollSpyPaused && !isPlaying) return;
     if (!isPlaying && focusTarget?.mode === "drone" && focusTarget.day === activeDay) return;
     if (!activeDayCoord) return;
+    // Wait for initial trip fitBounds so day camera does not fight the overview animation.
+    if (tripRouteBoundsKey && !overviewReady) return;
 
     const flyKey = `${isPlaying ? "play" : "scroll"}:${activeDay}:${activeDayCoordKey}`;
     if (lastFlyTargetKeyRef.current === flyKey) return;
@@ -1613,7 +1669,16 @@ function TripMapInner({
 
     if (ready.current) schedule();
     else map.once("load", schedule);
-  }, [activeDay, activeDayCoord, activeDayCoordKey, focusTarget, scrollSpyPaused, isPlaying]);
+  }, [
+    activeDay,
+    activeDayCoord,
+    activeDayCoordKey,
+    focusTarget,
+    scrollSpyPaused,
+    isPlaying,
+    tripRouteBoundsKey,
+    overviewReady,
+  ]);
 
   if (error) {
     return (

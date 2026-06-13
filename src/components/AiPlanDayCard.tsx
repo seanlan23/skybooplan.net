@@ -527,11 +527,18 @@ export function AiPlanDayCard({
 
   const dayBadge = day.dayEnd && day.dayEnd > day.day ? `${day.day}–${day.dayEnd}` : String(day.day);
 
+  const handleCardClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!onSelect) return;
+    const target = e.target as HTMLElement;
+    if (target.closest("a, button, [role='button'], input, textarea, select, label")) return;
+    onSelect();
+  };
+
   return (
     <div
       data-day={day.day}
       ref={registerRef}
-      onClick={onSelect}
+      onClick={handleCardClick}
       className={`overflow-hidden rounded-2xl bg-white shadow-sm transition-all animate-fade-in cursor-pointer ${
         isActive
           ? "border-2 border-sky-300 ring-2 ring-sky-100"

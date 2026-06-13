@@ -595,7 +595,7 @@ export const ROUTE_LAYER_STYLE: Record<
   { color: string; width: number; dash?: number[]; opacity: number }
 > = {
   driving: { color: "#1d4ed8", width: 4, opacity: 0.92 },
-  flight: { color: "#4338ca", width: 2.5, dash: [2, 2], opacity: 0.88 },
+  flight: { color: "#4338ca", width: 3, dash: [2, 2], opacity: 0.92 },
   ferry: { color: "#0e7490", width: 3, dash: [1.5, 2.5], opacity: 0.85 },
   transit: { color: "#475569", width: 2.5, dash: [3, 2], opacity: 0.8 },
 };

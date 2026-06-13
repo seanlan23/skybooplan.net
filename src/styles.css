@@ -433,11 +433,17 @@
   color: #111827;
   font-size: 11px;
   font-weight: 600;
-  padding: 5px 12px;
+  padding: 6px 13px;
   border-radius: 9999px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.14);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.16);
   white-space: nowrap;
   pointer-events: none;
+  z-index: 6;
+}
+.layla-duration-badge--flight {
+  border: 1px solid #c7d2fe;
+  color: #312e81;
+  background: #eef2ff;
 }
 .layla-duration-badge svg {
   flex-shrink: 0;

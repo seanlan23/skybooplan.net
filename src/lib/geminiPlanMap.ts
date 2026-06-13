@@ -87,16 +87,10 @@ function isDepartureLogisticsDay(day: DayPlan, totalDays: number): boolean {
 function isGenericTransportTip(tip: string): boolean {
   const t = tip.trim();
   if (!t) return true;
-  if (t.length > 220) return false;
-  const generic =
-    /javni prevoz|metro|taxi|grab|uber|priporočamo|najbolj enostavno|uporabite|prevozite se/i.test(
-      t,
-    );
-  const specific =
-    /avtodom|RV|kamp|parkir|zaprt|poplav|veter|promet|cest\w*\s*\d|route\s*66|zamud|opozoril/i.test(
-      t,
-    );
-  return generic && !specific;
+  // Keep detailed multi-sentence tips (apps, ferries, tuk-tuk warnings, etc.)
+  if (t.length >= 60) return false;
+  // Drop only ultra-short platitudes with no location context
+  return /^(uporab(lj)?ite?\s+(aplikacijo\s+)?(grab|bolt|uber)|javni prevoz|najbolj enostavno)/i.test(t);
 }
 
 function toActivity(
@@ -203,6 +197,7 @@ export function tripPlanResponseToAiTripPlan(
   const logistics = data.logistics_and_tips;
   let lastCity = "";
   const seenTransportTips = new Set<string>();
+  const seenTravelHacks = new Set<string>();
 
   for (const phase of data.itinerar ?? []) {
     const city = phase.city.trim();
@@ -301,8 +296,15 @@ export function tripPlanResponseToAiTripPlan(
       }
 
       const isFirstDay = day.day_number === 1;
-      const travelHack =
-        isFirstDay && meta?.season_warning?.trim() ? meta.season_warning.trim() : "";
+      let travelHack = day.travelHack?.trim() ?? "";
+      if (travelHack) {
+        const hackNorm = travelHack.toLowerCase().replace(/\s+/g, " ").slice(0, 140);
+        if (seenTravelHacks.has(hackNorm)) travelHack = "";
+        else seenTravelHacks.add(hackNorm);
+      }
+      if (!travelHack && isFirstDay && meta?.season_warning?.trim()) {
+        travelHack = meta.season_warning.trim();
+      }
       const transportationTipsRaw = day.transportTip?.trim() || "";
       let transportationTips = isGenericTransportTip(transportationTipsRaw)
         ? ""

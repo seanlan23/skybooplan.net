@@ -73,8 +73,10 @@ const daySchema = z.object({
   drivingDistanceKm: z.number().min(0),
   /** Driving duration label e.g. "3h 45m". */
   drivingDurationHours: z.string().min(1),
-  /** Day-specific transport tip — ONLY if genuinely useful (e.g. wind warning). Omit if none. */
-  transportTip: z.string().optional(),
+  /** Unique, location-specific insider tip for this day — never repeat across days. */
+  travelHack: z.string().min(15).optional(),
+  /** Daily transport guide: apps, A→B tips, ferries, local warnings for this day. */
+  transportTip: z.string().min(20).optional(),
   /** Internal flights, ferries, trains for this day — shown as premium transport cards. */
   transportation: z.array(transportLegSchema).optional(),
   activities: z.array(activitySchema),

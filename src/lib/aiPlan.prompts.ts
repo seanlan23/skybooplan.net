@@ -43,6 +43,8 @@ Rules:
 - Major sights (museums, national parks) often fill half-day or full-day — do not pack 4 big sights same day
 - visitDuration on each highlight (2h, pol dneva, cel dan)
 - description = 2–3 full sentences (120–280 chars): what to see/do, why it matters, one practical tip — unique text per highlight
+- travelTips on each region = unique per region (never copy same tip to every region/day)
+- localTransportTips must name real apps and modes for that city (Grab/Bolt Bangkok, InDrive Phuket, etc.) and ferry/boat notes for islands
 - Inter-city travel days: morning = transport; SAME day still needs real afternoon + evening sights in the new city (e.g. Ayutthaya: Wat Phra Si Sanphet; Chiang Mai: Doi Suthep)
 - Day 1 highlights: only AFTER airport transfer + hotel check-in (UI adds logistics separately — do NOT duplicate airport transfer)
 - Last-day highlights: respect flightScheduling.lastDay — early/afternoon flight = no sights; evening flight = max 1 light morning sight, NO afternoon/evening sights
@@ -120,6 +122,10 @@ Rules:
 - MANDATORY: every day has 2–4 unique activities across morning/afternoon/evening — no blank slots
 - Inter-city travel days: transport in morning + real afternoon/evening sights in the destination city
 - Each activity: name + priceLabel + 2–3 sentence description (unique, practical) — timing in text must match the slot (no sunset label in morning)
+- MANDATORY travelHack per day: unique, location-specific insider tip — NEVER repeat the same hack on two days
+- MANDATORY transportationTips per day: how to get around that city (apps like Grab/Bolt/InDrive where relevant, metro passes, A→B between activities, ferry/speedboat schedules for islands)
+- For Thailand days: rotate tuk-tuk warnings (agree price upfront, temple-closed scams), BTS/Rabbit Card in Bangkok, ferry cancellations in monsoon
+- Activity descriptions MUST include how to reach the next stop (walk/taxi/train/ferry) with rough time and cost
 - Dates must match dateRange; day numbers must match generateDays
 - focusName = real POI name (Mapbox geocodes this for the map pin)
 - Linear routing: finish each region before moving on; no mid-trip city revisit

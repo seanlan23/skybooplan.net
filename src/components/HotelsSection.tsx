@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { ExternalLink, Hotel, Loader2 } from "lucide-react";
@@ -14,6 +14,30 @@ export type StayInfo = {
   childrenAges?: number[];
   rooms: number;
 };
+
+function BookingLink({
+  href,
+  className,
+  children,
+}: {
+  href: string;
+  className?: string;
+  children: ReactNode;
+}) {
+  const safeHref = href.startsWith("http") ? href : "https://www.booking.com/";
+
+  return (
+    <a
+      href={safeHref}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={(e) => e.stopPropagation()}
+      className={className}
+    >
+      {children}
+    </a>
+  );
+}
 
 export function HotelsSection({
   city,
@@ -131,21 +155,19 @@ export function HotelsSection({
   const fmtDate = (iso: string) => formatLocalDate(iso, undefined, { day: "numeric", month: "short" });
 
   return (
-    <div className="pt-2 border-t border-slate-100">
+    <div className="pt-2 border-t border-slate-100" onClick={(e) => e.stopPropagation()}>
       <div className="flex items-center justify-between gap-3 mt-3 mb-3 flex-wrap">
         <div className="flex items-center gap-2 font-bold text-slate-900">
           <Hotel className="h-5 w-5 text-sky-600" />
           {t("aiplan.hotelsIn" as never)} {sourceCity}
         </div>
-        <a
+        <BookingLink
           href={buildBookingUrl(sourceCity)}
-          target="_blank"
-          rel="noopener noreferrer sponsored"
           className="inline-flex items-center gap-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 px-3 py-2 text-xs font-semibold text-white transition-colors"
         >
           {t("aiplan.browseHotels" as never)}
           <ExternalLink className="h-3 w-3" />
-        </a>
+        </BookingLink>
       </div>
 
       {usedFallback && (
@@ -194,15 +216,13 @@ export function HotelsSection({
               ? apiError || t("aiplan.hotelsEmptyErrorSub" as never)
               : t("aiplan.hotelsEmptyDefaultSub" as never)}
           </p>
-          <a
+          <BookingLink
             href={buildBookingUrl(regionFallback || city)}
-            target="_blank"
-            rel="noopener noreferrer sponsored"
             className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 px-3 py-2 text-xs font-semibold text-white"
           >
             {t("aiplan.hotelsEmptyCta" as never)}
             <ExternalLink className="h-3 w-3" />
-          </a>
+          </BookingLink>
         </div>
       ) : (
         <div className="-mx-1 overflow-x-auto pb-2 snap-x snap-mandatory">
@@ -214,9 +234,10 @@ export function HotelsSection({
                 hotelName: h.name,
               });
               return (
-                <div
+                <BookingLink
                   key={h.id}
-                  className="snap-start shrink-0 w-[260px] rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+                  href={bookUrl}
+                  className="snap-start shrink-0 w-[260px] block rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm hover:shadow-md hover:border-sky-200 transition-shadow"
                 >
                   <div className="relative h-36 w-full bg-slate-100">
                     <img src={h.image} alt={h.name} loading="lazy" className="h-full w-full object-cover" />
@@ -241,18 +262,13 @@ export function HotelsSection({
                           {t("aiplan.perNight" as never)}
                         </span>
                       </div>
-                      <a
-                        href={bookUrl}
-                        target="_blank"
-                        rel="noopener noreferrer sponsored"
-                        className="inline-flex items-center gap-1 rounded-md bg-sky-600 hover:bg-sky-700 px-2.5 py-1.5 text-xs font-semibold text-white"
-                      >
+                      <span className="inline-flex items-center gap-1 rounded-md bg-sky-600 px-2.5 py-1.5 text-xs font-semibold text-white">
                         {t("aiplan.book" as never)}
                         <ExternalLink className="h-3 w-3" />
-                      </a>
+                      </span>
                     </div>
                   </div>
-                </div>
+                </BookingLink>
               );
             })}
           </div>

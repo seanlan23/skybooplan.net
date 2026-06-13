@@ -99,6 +99,7 @@ function coercePartialResponse(partial: PartialResponse): TripPlanResponse | nul
             drivingDistanceKm:
               typeof day.drivingDistanceKm === "number" ? day.drivingDistanceKm : 0,
             drivingDurationHours: day.drivingDurationHours?.trim() || "0h",
+            travelHack: day.travelHack?.trim(),
             transportTip: day.transportTip?.trim(),
             transportation: day.transportation,
             activities,

@@ -61,6 +61,43 @@ const PACE_LABELS: Record<NonNullable<GenerateTripPlanParams["pace"]>, string> =
   calm: "miren",
 };
 
+/** Shared LLM rules for per-day travel hacks and transport logic (system + user prompt). */
+export function itineraryHacksAndTransportRules(displayCurrency: PlanCurrency): string {
+  return `
+TRAVEL HACK (days[].travelHack — obvezno vsak dan):
+- Vsak dan MORA imeti polje travelHack z enim unikatnim, lokacijsko specifičnim insider nasvetom za TA dan in TA mesto (ne generičen nasvet za celotno državo).
+- Prepovedano je ponavljati isti ali skoraj enak travel hack na več dneh — vsak dan druga tema (npr. lokalna tržnica, skriti vhod, urnik templja, najboljši kot za fotografijo, lokalna jed, izogibanje vrstam).
+- travelHack mora biti praktičen, konkreten in vezan na aktivnosti tistega dne — ne kopiraj season_warning in ne piši splošnih fraze o vremenu.
+
+TRANSPORT IN PREMIKANJE (obvezno — več plasti):
+
+1) PREMIK MED AKTIVNOSTMI (v activities[].description — obvezno):
+- Za vsako aktivnost (razen zadnje v dnevu) v description vključi jasen stavek: kako se premakneš od TE aktivnosti do NASLEDNJE (peš / metro / BTS / MRT / taxi / tuk-tuk / Grab / vlak / trajekt / speedboat / kombi).
+- Navedi približen čas prevoza in orientacijski strošek v ${displayCurrency} kjer smiselno.
+
+2) DNEVNI PREVOZNI PREGLED (days[].transportTip — obvezno vsak dan):
+- Polje transportTip mora vsak dan vsebovati strukturiran pregled premikanja za tisti dan v 2–4 stavkih:
+  • primarni način prevoza v mestu/regiji,
+  • priporočene lokalne aplikacije (npr. Grab/Bolt v Bangkoku, InDrive na Phuketu, Uber v ZDA, Citymapper v Evropi — izberi realne za lokacijo),
+  • kako rezervirati / kupiti vstopnice za javni prevoz (npr. Rabbit Card, BTS day pass),
+  • opozorila (promet, dež, zaprte ceste) specifična za ta dan.
+- Ne ponavljaj identičnega transportTip na več dneh — prilagodi mesto (Bangkok ≠ Chiang Mai ≠ Phuket).
+
+3) MEDMESTNI / OTOŠKI PREVOZ (days[].transportation[] — obvezno ko relevantno):
+- Ob letu, vlaku, trajektu, speedboatu ali kombiju med mesti obvezno izpolni transportation[] z vsakim korakom (type, from, to, duration, estimatedPrice).
+- Za otoke: navedi urnike trajektov in hitrih čolnov (speedboat), sezonske odpovedi (Andaman dež), rezervacijo vnaprej, pristanišča (jetty) in transfer letališče → pristanišče.
+- Otok z letališčem na celini: 3 koraki (flight → van → ferry) — glej pravilo spodaj.
+
+TAJSKA — POSEBNA OPOZORILA (obvezno ko je destinacija Tajska ali faza v Tajske):
+- V transportTip ali localWarnings na vsakem dnevu v Tajske vključi vsaj eno specifično opozorilo, rotirano po dneh (ne isto vsak dan):
+  • tuk-tuk: ceno dogovori VNAPREJ v bahtih, zavrnite "temple closed" prevare in vlečenje v trgovine,
+  • Grab/Bolt v mestih; na Phuketu/Krabi pogosto InDrive ali lokalni pink taxi z meterjem,
+  • BTS/MRT v Bangkoku — Rabbit Card; izogibaj prometni konici 07–09 in 17–19,
+  • trajekti na otoke: preveri sezonske odpovedi, vihar, dnevne urnike (npr. Phi Phi, Koh Lipe, Koh Samui).
+- Ne piši generičnega "uporabite Grab" brez konteksta mesta in relacije A→B.
+`.trim();
+}
+
 function wishesBlob(params: GenerateTripPlanParams): string {
   return [
     params.customWishes?.trim() ?? "",
@@ -155,6 +192,7 @@ ${roadTrip ? "- Road trip (npr. Route 66): enosmerna pot vzdolž ceste, vsak dan
     : "\n\nZadnji dan logistike: obvezno dodaj aktivnost z category airport z natančno uro odhoda mednarodnega leta nazaj v Evropo (EU) in izpolni trip_metadata.return_flight_eu (departure_time, arrival_time_eu, from_airport, to_airport, summary).";
 
   const lang = (params.language ?? "sl") as Lang;
+  const displayCurrency = normalizePlanCurrency(params.currency);
   const teaser = planTeaserText(lang);
   const teaserBlock = `
 UVODNI TEASER (obvezno — pred 1. dnem):
@@ -190,8 +228,8 @@ ${flightReturnLine}
 - Vsaka aktivnost mora imeti arrivalTime in departureTime v formatu "HH:MM" (npr. "09:00", "11:30") — realen časovni okvir obiska.
 - Vsaka aktivnost mora imeti timeSlot: "dopoldan", "popoldan" ali "vecer".
 - STROGA ČASOVNA STRUKTURA: Vsak dan mora obvezno in brez izjeme vsebovati strukturirane aktivnosti za DOPOLDAN, POPOLDAN in VEČER — noben del dneva ne sme ostati prazen! Ure obiska (arrivalTime, departureTime) morajo biti tekoče in realistične, brez prekrivanj.
-- transportTip / rubriko "Kako se premikati" generiraj SAMO IN IZKLJUČNO, če obstaja kakšen specifičen, edinstven nasvet za tisti konkretni dan (npr. nasvet o parkiranju avtodoma, opozorilo o lokalnem prometu). Če ni posebnosti, rubriko popolnoma izpusti!
-- Za dni z notranjim letom, trajektom, kombijem ali vlakom obvezno izpolni transportation[] (type: flight|ferry|train|van, from, to, duration, estimatedPrice v EUR). Za otok z letališčem na celini (npr. Boracay/MPH) obvezno 3 koraki: let → kombi → trajekt.
+- Vsak dan obvezno izpolni travelHack (unikaten insider nasvet) in transportTip (dnevni pregled prevoza) — glej podrobna pravila spodaj.
+- Za dni z notranjim letom, trajektom, kombijem ali vlakom obvezno izpolni transportation[] (type: flight|ferry|train|van, from, to, duration, estimatedPrice v ${displayCurrency}). Za otok z letališčem na celini (npr. Boracay/MPH) obvezno 3 koraki: let → kombi → trajekt.
 - Vsak dan (days[]) mora imeti dailyBudget (EUR), drivingDistanceKm (km vožnje tistega dne) in drivingDurationHours (npr. "3h 45m").
 - Polje days[].date mora biti vedno v ISO obliki YYYY-MM-DD (npr. "2026-08-14") — ne slovenskega datuma; day_name je lahko "Sobota, 14. avgust".
 - Za vsako fazo (itinerar[]) obvezno generiraj pois[] — vsaj 3–6 znamenitosti z name, description, lat, lng, unsplashQuery, tripAdvisorStyleDetails (highlights, proTip, bestTimeOfDay, rating, reviewSummary).
@@ -199,7 +237,9 @@ ${flightReturnLine}
 - Vsaka aktivnost z ogledom mora imeti tripAdvisorStyleDetails (razen hotel/airport).
 - Vsak dan mora imeti vsaj 2–4 smiselne aktivnosti z opisi — prazni dnevi niso dovoljeni.
 
-Opisi aktivnosti morajo biti izjemno podrobni, zanimivi in dolgi vsaj 3–4 stavke (ne kratki!). Vsaka aktivnost mora imeti estimatedCostEur (realna cifra v EUR). day_name zapisuj s polnimi imeni mesecev (npr. "Sobota, 14. avgust"). season_warning naj bo geografsko natančen za ${params.destination}.
+Opisi aktivnosti morajo biti izjemno podrobni, zanimivi in dolgi vsaj 3–4 stavke (ne kratki!). Vsaka aktivnost mora imeti estimatedCostEur (realna cifra v ${displayCurrency}). day_name zapisuj s polnimi imeni mesecev (npr. "Sobota, 14. avgust"). season_warning naj bo geografsko natančen za ${params.destination}.
+
+${itineraryHacksAndTransportRules(displayCurrency)}
 
 ${lastDayBlock}${flightReturnClosing}`;
 }
@@ -326,14 +366,7 @@ OBVEZNA ČASOVNA STRUKTURA DNEVA (brez izjeme):
 - Noben del dneva ne sme ostati prazen — vsaj ena smiselna aktivnost na vsak časovni okvir.
 - Ure obiska (arrivalTime, departureTime) morajo biti tekoče in realistične, brez prekrivanj (npr. 09:00–11:30 dopoldan, 13:00–16:00 popoldan, 19:00–21:30 večer).
 
-NASVET ZA PREMIK (transportTip / rubrika "Kako se premikati" — izbirno, samo na ravni dneva):
-- Rubriko "Kako se premikati" (polje days[].transportTip) generiraj SAMO IN IZKLJUČNO takrat, ko obstaja kakšen specifičen, edinstven nasvet za tisti konkretni dan (npr. nasvet o parkiranju avtodoma, opozorilo o lokalnem prometu, zaprta cesta, poplave, močan veter).
-- Če ni nobenih posebnosti, to rubriko popolnoma izpusti — ne generiraj generičnih nasvetov o javnem prevozu, taxijih, metrou ali Grabu!
-- Ne ponavljaj istih nasvetov na več dneh — vsak transportTip mora biti edinstven za tisti dan ali ga sploh ne vključi.
-
-LOKALNI PREVOZ DO AKTIVNOSTI (obvezno v opisih):
-- Za vsako znamenitost ali aktivnost obvezno navedi, KAKO najlažje priti do tja (npr. "Uporabi aplikacijo Grab", "Vzemi lokalni TukTuk", "Pojdi z Uberjem", "Uporabi Metro", "Peš 10 min od hotela").
-- Ta lokalni logistični nasvet vključi direktno v polje description aktivnosti — ne v generično ponavljajočo rubriko transportTip!
+${itineraryHacksAndTransportRules(displayCurrency)}
 
 NOTRANJI PREVOZ (transportation[] — obvezno ob letu/trajektu/vlaku):
 - Če dan vključuje notranji let, trajekt ali vlak med mesti, obvezno izpolni days[].transportation[] z natanko enim ali več zapisi:
