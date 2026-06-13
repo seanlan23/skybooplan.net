@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Plane, Hotel, Route, ArrowLeftRight, Search, ChevronDown, Calendar as CalendarIcon, Users, Minus, Plus, BedDouble, Info, Car, Bus, TrainFront } from "lucide-react";
+import { Plane, Hotel, Route, ArrowLeftRight, Search, ChevronDown, Calendar as CalendarIcon, Users, Minus, Plus, BedDouble, Info, Car, Bus, TrainFront, Trash2 } from "lucide-react";
 import type { GroundTransportMode } from "@/lib/aiPlan.functions";
 import { groundTransportLabel } from "@/lib/groundTransport";
 import { format, parseISO, startOfDay } from "date-fns";
@@ -82,12 +82,17 @@ export function SearchPanel({
   onValuesChange,
   loading,
   initialValues,
+  showClear,
+  onClear,
 }: {
   onSearch?: (v: SearchValues) => void;
   /** Called whenever any field changes — used for localStorage draft persistence. */
   onValuesChange?: (v: SearchValues) => void;
   loading?: boolean;
   initialValues?: SearchValues | null;
+  /** Show “Clear / New search” inside the search card header. */
+  showClear?: boolean;
+  onClear?: () => void;
 }) {
   const { t, lang, currency } = useI18n();
   const [tab, setTab] = useState<Tab>("flights");
@@ -277,11 +282,15 @@ export function SearchPanel({
   const loadingLabel =
     tab === "stays" ? t("cta.searchingStays") : tab === "ai" ? t("cta.generating") : t("cta.searchingFlights");
 
+  const searchButton = (
+    <SearchButton onClick={handleSearch} loading={loading} label={ctaLabel} loadingLabel={loadingLabel} />
+  );
+
   return (
-    <div className="w-full rounded-3xl border-2 border-brand/40 bg-card p-5 sm:p-6 shadow-[var(--shadow-search)]">
+    <div className="relative w-full min-w-0 rounded-3xl border-2 border-brand/40 bg-card p-5 sm:p-6 shadow-[var(--shadow-search)]">
       {/* Tabs row */}
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
-        <div className="flex flex-wrap items-center gap-2">
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
           <TabButton active={tab === "flights"} onClick={() => setTab("flights")} variant="primary">
             <Plane className="h-4 w-4" /> {t("tab.flights")}
           </TabButton>
@@ -293,7 +302,19 @@ export function SearchPanel({
           </TabButton>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+          {showClear && onClear ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onClear}
+              className="gap-1.5 text-muted-foreground"
+            >
+              <Trash2 className="h-3.5 w-3.5" aria-hidden />
+              {t("search.clearNew")}
+            </Button>
+          ) : null}
 
           {tab !== "stays" && tab !== "ai" && (
             <Popover open={tripTypeOpen} onOpenChange={setTripTypeOpen}>
@@ -336,14 +357,16 @@ export function SearchPanel({
 
       {/* Fields row — adapts per tab */}
       {tab === "stays" ? (
-        <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr_1fr_auto] gap-3 items-stretch">
-          <AirportAutocomplete
-            label={t("field.destination")}
-            placeholder="npr. Avstrija, Toskana, Bali, Dunaj …"
-            value={destination}
-            onChange={setDestination}
-            kind="place"
-          />
+        <SearchFieldsRow searchButton={searchButton} className="grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+          <div className="min-w-0 md:col-span-2 lg:col-span-1">
+            <AirportAutocomplete
+              label={t("field.destination")}
+              placeholder="npr. Avstrija, Toskana, Bali, Dunaj …"
+              value={destination}
+              onChange={setDestination}
+              kind="place"
+            />
+          </div>
 
           <DateField
             departDate={departDate}
@@ -369,10 +392,12 @@ export function SearchPanel({
             open={travellersOpen}
             onOpenChange={setTravellersOpen}
           />
-          <SearchButton onClick={handleSearch} loading={loading} label={ctaLabel} loadingLabel={loadingLabel} />
-        </div>
+        </SearchFieldsRow>
       ) : tab === "ai" ? (
-        <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_1.2fr_1fr_minmax(15rem,1.25fr)_1fr_auto] gap-x-3 gap-y-3 items-stretch">
+        <SearchFieldsRow
+          searchButton={searchButton}
+          className="grid-cols-1 md:grid-cols-2 lg:grid-cols-5"
+        >
           <AirportAutocomplete
             label={t("field.originPlace" as never) as string}
             placeholder={t("field.originPlacePlaceholder" as never) as string}
@@ -416,68 +441,73 @@ export function SearchPanel({
             open={travellersOpen}
             onOpenChange={setTravellersOpen}
           />
-          <SearchButton onClick={handleSearch} loading={loading} label={ctaLabel} loadingLabel={loadingLabel} />
-        </div>
+        </SearchFieldsRow>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-[1.05fr_1.05fr_minmax(17rem,1.55fr)_minmax(10rem,1fr)_auto] gap-x-3 gap-y-3 items-stretch">
-          <AirportAutocomplete
-            label={t("field.from")}
-            placeholder={t("field.fromPlaceholder")}
-            value={from}
-            onChange={setFrom}
-          />
-          <div className="relative">
-            <AirportAutocomplete
-              label={t("field.to")}
-              placeholder={t("field.toPlaceholder")}
-              value={to}
-              onChange={setTo}
+        <div className="min-w-0 space-y-3">
+          <SearchFieldsRow
+            searchButton={searchButton}
+            className="grid-cols-1 md:grid-cols-2 lg:grid-cols-4"
+          >
+            <div className="relative min-w-0 md:col-span-1">
+              <AirportAutocomplete
+                label={t("field.from")}
+                placeholder={t("field.fromPlaceholder")}
+                value={from}
+                onChange={setFrom}
+              />
+            </div>
+            <div className="relative min-w-0 md:col-span-1">
+              <AirportAutocomplete
+                label={t("field.to")}
+                placeholder={t("field.toPlaceholder")}
+                value={to}
+                onChange={setTo}
+              />
+              {tripType !== "Multi-city" && (
+                <button
+                  type="button"
+                  aria-label={t("search.swapAirports")}
+                  onClick={() => {
+                    const a = from;
+                    setFrom(to);
+                    setTo(a);
+                  }}
+                  className="absolute left-0 top-1/2 z-10 hidden h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-card shadow-sm transition-shadow hover:shadow-md md:flex xl:left-0"
+                >
+                  <ArrowLeftRight className="h-4 w-4 text-muted-foreground" />
+                </button>
+              )}
+            </div>
+
+            <DateField
+              departDate={departDate}
+              returnDate={returnDate}
+              showReturn={showReturnDateField("flights", tripType)}
+              onDepart={setDepartDate}
+              onReturn={setReturnDate}
+              open={dateOpen}
+              onOpenChange={setDateOpen}
+              onComplete={() => {
+                setDateOpen(false);
+                setTimeout(() => setTravellersOpen(true), 80);
+              }}
             />
-            {tripType !== "Multi-city" && (
-              <button
-                aria-label={t("search.swapAirports")}
-                onClick={() => {
-                  const a = from;
-                  setFrom(to);
-                  setTo(a);
-                }}
-                className="hidden lg:flex absolute -left-6 top-1/2 -translate-y-1/2 z-10 h-10 w-10 items-center justify-center rounded-full border border-border bg-card shadow-sm hover:shadow-md transition-shadow"
-              >
-                <ArrowLeftRight className="h-4 w-4 text-muted-foreground" />
-              </button>
-            )}
-          </div>
 
-          <DateField
-            departDate={departDate}
-            returnDate={returnDate}
-            showReturn={showReturnDateField("flights", tripType)}
-            onDepart={setDepartDate}
-            onReturn={setReturnDate}
-            open={dateOpen}
-            onOpenChange={setDateOpen}
-            onComplete={() => {
-              setDateOpen(false);
-              setTimeout(() => setTravellersOpen(true), 80);
-            }}
-          />
-
-          <FlightsTravellersField
-            adults={adults}
-            onAdults={setAdults}
-            childrenAges={childrenAges}
-            onChildrenAges={setChildrenAges}
-            cabinClass={cabinClass}
-            onCabinClass={setCabinClass}
-            open={travellersOpen}
-            onOpenChange={setTravellersOpen}
-          />
-
-          <SearchButton onClick={handleSearch} loading={loading} label={ctaLabel} loadingLabel={loadingLabel} />
+            <FlightsTravellersField
+              adults={adults}
+              onAdults={setAdults}
+              childrenAges={childrenAges}
+              onChildrenAges={setChildrenAges}
+              cabinClass={cabinClass}
+              onCabinClass={setCabinClass}
+              open={travellersOpen}
+              onOpenChange={setTravellersOpen}
+            />
+          </SearchFieldsRow>
 
           {tripType === "Multi-city" && (
-            <>
-              <p className="lg:col-span-5 text-xs font-medium text-muted-foreground -mt-1 mb-0.5">
+            <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <p className="text-xs font-medium text-muted-foreground md:col-span-2 xl:col-span-4">
                 {t("multicity.returnLeg")}
               </p>
               <AirportAutocomplete
@@ -500,9 +530,7 @@ export function SearchPanel({
                 onOpenChange={setLeg2DateOpen}
                 minDate={departDate ? parseISO(departDate) : undefined}
               />
-              <div className="hidden lg:block" aria-hidden />
-              <div className="hidden lg:block" aria-hidden />
-            </>
+            </div>
           )}
         </div>
       )}
@@ -881,6 +909,25 @@ function SingleDateField({
   );
 }
 
+function SearchFieldsRow({
+  children,
+  searchButton,
+  className,
+}: {
+  children: React.ReactNode;
+  searchButton: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className="flex min-w-0 w-full flex-col gap-3 lg:flex-row lg:items-stretch">
+      <div className={cn("grid min-w-0 flex-1 items-stretch gap-3", className)}>{children}</div>
+      <div className="w-full min-w-0 shrink-0 self-stretch lg:w-[9.75rem] xl:w-[10.5rem]">
+        {searchButton}
+      </div>
+    </div>
+  );
+}
+
 function SearchButton({
   onClick,
   loading,
@@ -894,13 +941,14 @@ function SearchButton({
 }) {
   return (
     <button
+      type="button"
       onClick={onClick}
       disabled={loading}
-      className="inline-flex h-full min-h-[76px] shrink-0 items-center justify-center gap-2.5 whitespace-nowrap rounded-2xl px-5 sm:px-6 text-sm sm:text-base font-semibold text-brand-foreground shadow-md hover:shadow-lg transition-all hover:scale-[1.02] active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed"
+      className="inline-flex h-full min-h-[76px] w-full max-w-full items-center justify-center gap-2 rounded-2xl px-3 text-sm font-semibold text-brand-foreground shadow-md transition-shadow hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60"
       style={{ background: "var(--gradient-brand)" }}
     >
       <Search className="h-5 w-5 shrink-0" />
-      <span>{loading ? loadingLabel : label}</span>
+      <span className="truncate">{loading ? loadingLabel : label}</span>
     </button>
   );
 }

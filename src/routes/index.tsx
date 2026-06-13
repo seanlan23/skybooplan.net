@@ -1051,23 +1051,16 @@ function Landing() {
             {t("hero.subtitle")}
           </p>
 
-          <div className="mt-12 max-w-6xl mx-auto text-left" id="flights">
-            {(aiPlan || aiSkeleton || flights.length > 0 || lastSearch || isActiveAiContext(aiContext)) && (
-              <div className="mb-4 flex justify-end">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={resetLanding}
-                >
-                  🗑️ {t("search.clearNew")}
-                </Button>
-              </div>
-            )}
+          <div className="mt-12 max-w-6xl mx-auto min-w-0 text-left" id="flights">
             <SearchPanel
               onSearch={handleSearch}
               onValuesChange={handleSearchDraftChange}
               loading={loading || aiLoading}
               initialValues={prefill}
+              showClear={
+                Boolean(aiPlan || aiSkeleton || flights.length > 0 || lastSearch || isActiveAiContext(aiContext))
+              }
+              onClear={resetLanding}
             />
 
             <FlightSearchHistory refreshKey={historyRefresh} onRepeat={handleRepeat} />

@@ -82,11 +82,11 @@ export function TravelAccessoriesBar() {
   const { t } = useI18n();
 
   return (
-    <div className="mt-5 border-t border-slate-100 pt-4">
-      <span className="mb-2 block text-xs font-medium uppercase tracking-wider text-slate-400">
+    <div className="mt-8 border-t border-slate-100 pt-6">
+      <span className="mb-3 block text-left text-xs font-medium uppercase tracking-wider text-slate-400">
         {t("accessories.sectionTitle")}
       </span>
-      <div className="flex flex-nowrap gap-3 overflow-x-auto pb-2 whitespace-nowrap [-ms-overflow-style:none] [scrollbar-width:none] md:overflow-visible [&::-webkit-scrollbar]:hidden">
+      <div className="flex flex-wrap items-center justify-start gap-3">
         {ACCESSORIES.map((item) => (
           <a
             key={item.labelKey}

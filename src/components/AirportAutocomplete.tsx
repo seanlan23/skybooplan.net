@@ -150,7 +150,7 @@ export function AirportAutocomplete({
   }
 
   return (
-    <div className="relative" ref={boxRef}>
+    <div className="relative h-full min-w-0" ref={boxRef}>
       <div className={cn("relative h-full", FIELD_SHELL)}>
         <div className={FIELD_LABEL}>{label}</div>
         <div className={cn(FIELD_VALUE_ROW, "relative pr-7")}>
