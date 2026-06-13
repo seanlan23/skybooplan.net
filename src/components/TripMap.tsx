@@ -10,7 +10,6 @@ import {
   buildSegmentSpecs,
   resolveSegmentGeometries,
   ROUTE_LAYER_STYLE,
-  haversineKm,
   segmentMidpoint,
   segmentsToFeatureCollection,
   type RouteMode,
@@ -36,8 +35,9 @@ import {
 } from "@/lib/tripMapRouteState";
 import {
   ROUTE_DRAW_DURATION_MS,
+  coordsBoundsKey,
   progressAlongRoute,
-  resolveSegmentCoordsForDay,
+  resolveActiveDayRouteCoords,
 } from "@/lib/tripMapProgressiveDraw";
 
 export type ActivityMapFocus = {
@@ -241,7 +241,10 @@ function unmountReactRoot(root: Root | undefined) {
   queueMicrotask(() => root.unmount());
 }
 
+const MARKER_MOTION_CLASS = "trip-map-marker transition-all duration-500 ease-in-out";
+
 type PoiMarkerEntry = {
+  id: string;
   marker: mapboxgl.Marker;
   day: number;
   root: Root | null;
@@ -249,6 +252,7 @@ type PoiMarkerEntry = {
   photoEl?: HTMLDivElement;
 };
 type CityMarkerEntry = {
+  id: string;
   marker: mapboxgl.Marker;
   startDay: number;
   endDay: number;
@@ -341,6 +345,10 @@ function hideAllTripSegmentLayers(map: mapboxgl.Map) {
   }
 }
 
+function cityMarkerId(stop: CityMapStop): string {
+  return `city:${stop.startDay}:${coordKey(stop.coord)}`;
+}
+
 function clearPoiMarkerLayer(store: { current: PoiMarkerEntry[] }) {
   store.current.forEach((m) => {
     unmountReactRoot(m.root);
@@ -349,17 +357,24 @@ function clearPoiMarkerLayer(store: { current: PoiMarkerEntry[] }) {
   store.current = [];
 }
 
+function clearDurationMarkerLayer(store: { current: DurationMarkerEntry[] }) {
+  store.current.forEach((m) => m.marker.remove());
+  store.current = [];
+}
+
 function clearCityMarkerLayer(
   markers: { current: CityMarkerEntry[] },
-  durationMarkers: { current: DurationMarkerEntry[] },
+  durationMarkers?: { current: DurationMarkerEntry[] },
 ) {
   markers.current.forEach((m) => {
     unmountReactRoot(m.root);
     m.marker.remove();
   });
   markers.current = [];
-  durationMarkers.current.forEach((m) => m.marker.remove());
-  durationMarkers.current = [];
+  if (durationMarkers) {
+    durationMarkers.current.forEach((m) => m.marker.remove());
+    durationMarkers.current = [];
+  }
 }
 
 function cityLabelElement(text: string): HTMLDivElement {
@@ -375,7 +390,7 @@ function createCityMarkerElement(
   isActive: boolean,
 ): { el: HTMLDivElement; root: Root } {
   const wrap = document.createElement("div");
-  wrap.className = `trip-map-city-marker flex flex-col items-center cursor-pointer transition-opacity duration-300 ease-out${
+  wrap.className = `trip-map-city-marker ${MARKER_MOTION_CLASS} flex flex-col items-center cursor-pointer transition-opacity duration-300 ease-out${
     isActive ? "" : " opacity-90"
   }`;
   wrap.appendChild(cityLabelElement(stop.city));
@@ -429,7 +444,7 @@ function createDurationBadgeElement(segment: TripRouteSegment, label: string): H
 
 function createOriginMarkerElement(label: string): { el: HTMLDivElement; root: Root } {
   const wrap = document.createElement("div");
-  wrap.className = "flex flex-col items-center cursor-pointer";
+  wrap.className = `flex flex-col items-center cursor-pointer ${MARKER_MOTION_CLASS}`;
   wrap.appendChild(cityLabelElement(label));
 
   const pinHost = document.createElement("div");
@@ -459,8 +474,7 @@ function createPoiMarkerElement(
   isFocused: boolean,
 ): { el: HTMLDivElement; root: Root | null; photoEl?: HTMLDivElement } {
   const el = document.createElement("div");
-  el.className =
-    "trip-map-poi-marker pointer-events-auto flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center overflow-hidden";
+  el.className = `trip-map-poi-marker ${MARKER_MOTION_CLASS} pointer-events-auto flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center overflow-hidden`;
   el.title = pin.name;
 
   const imageUrl = pin.imageUrl?.trim();
@@ -564,36 +578,57 @@ const SMOOTH_FLY = {
   curve: 1,
 } as const;
 
-/** Smooth cinematic fly — used for every destination / POI camera move. */
-function flyToDestination(
+const DAY_VIEW_PADDING = 50;
+const DAY_VIEW_DURATION_MS = 2000;
+
+function padBoundsIfPoint(bounds: mapboxgl.LngLatBounds) {
+  const ne = bounds.getNorthEast();
+  const sw = bounds.getSouthWest();
+  if (Math.abs(ne.lng - sw.lng) < 0.002 && Math.abs(ne.lat - sw.lat) < 0.002) {
+    const c = bounds.getCenter();
+    bounds.extend([c.lng + 0.06, c.lat + 0.045]);
+    bounds.extend([c.lng - 0.06, c.lat - 0.045]);
+  }
+}
+
+function fitActiveDayView(
   map: mapboxgl.Map,
-  center: [number, number],
-  zoom: number,
-  padding: mapboxgl.PaddingOptions = DAY_CAMERA_PADDING,
+  opts: {
+    coords: [number, number][];
+    activeDay: number;
+    poiMarkers: PoiMarkerEntry[];
+    fallbackCenter: [number, number] | null;
+    maxZoom?: number;
+  },
 ) {
+  const bounds = new mapboxgl.LngLatBounds();
+  for (const c of opts.coords) bounds.extend(c);
+  for (const { day, pin } of opts.poiMarkers) {
+    if (day === opts.activeDay) bounds.extend([pin.lng, pin.lat]);
+  }
+  if (bounds.isEmpty() && opts.fallbackCenter) {
+    bounds.extend(opts.fallbackCenter);
+  }
+  if (bounds.isEmpty()) return;
+
+  padBoundsIfPoint(bounds);
   map.stop();
-  map.flyTo({
-    center,
-    zoom,
-    padding,
-    ...SMOOTH_FLY,
+  map.fitBounds(bounds, {
+    padding: DAY_VIEW_PADDING,
+    duration: DAY_VIEW_DURATION_MS,
+    maxZoom: opts.maxZoom ?? 12,
+    essential: true,
   });
 }
 
-function flyToActiveDay(map: mapboxgl.Map, center: [number, number]) {
-  const current = map.getCenter();
-  const distKm = haversineKm([current.lng, current.lat], center);
-  const zoom =
-    distKm > 700 ? 7.4 : distKm > 180 ? 9.2 : distKm > 40 ? 10.5 : 11.5;
-  flyToDestination(map, center, zoom);
-}
-
 function flyToPoiDrone(map: mapboxgl.Map, center: [number, number]) {
-  flyToDestination(map, center, 12);
-}
-
-function flyToPlaybackDay(map: mapboxgl.Map, center: [number, number]) {
-  flyToDestination(map, center, 11);
+  map.stop();
+  map.flyTo({
+    center,
+    zoom: 12,
+    padding: DAY_CAMERA_PADDING,
+    ...SMOOTH_FLY,
+  });
 }
 function buildMarkerPopupHtml(opts: {
   title: string;
@@ -661,8 +696,8 @@ function attachMarkerPopup(
 
 const ACTIVE_DAY_SOURCE = "active-day-route";
 const ACTIVE_DAY_LAYER = "active-day-route-line";
-const ROUTE_LINE_COLOR = "#4338ca";
-const ROUTE_LINE_WIDTH = 5;
+const ROUTE_LINE_COLOR = "#1d4ed8";
+const ROUTE_LINE_WIDTH = 4;
 
 function setActiveDayRouteData(map: mapboxgl.Map, coordinates: [number, number][]) {
   const src = map.getSource(ACTIVE_DAY_SOURCE) as mapboxgl.GeoJSONSource | undefined;
@@ -790,14 +825,11 @@ function easeOutCubic(t: number): number {
   return 1 - (1 - t) ** 3;
 }
 
-function playActiveDayRouteSequence(
+function runActiveDayRouteDraw(
   map: mapboxgl.Map,
+  coords: [number, number][],
   opts: {
     activeDay: number;
-    routeData: TripRouteSegment[];
-    dayCoords: Map<number, [number, number]>;
-    origin: [number, number] | null;
-    finalizedDays: RouteDayStop[];
     poiMarkersRef: { current: PoiMarkerEntry[] };
     durationMarkersRef: { current: DurationMarkerEntry[] };
     routeDrawAnimRef: { current: number };
@@ -806,10 +838,6 @@ function playActiveDayRouteSequence(
 ) {
   const {
     activeDay,
-    routeData,
-    dayCoords,
-    origin,
-    finalizedDays,
     poiMarkersRef,
     durationMarkersRef,
     routeDrawAnimRef,
@@ -827,14 +855,6 @@ function playActiveDayRouteSequence(
   dimInactiveTripSegments(map, activeDay, 0.04);
   setPoiMarkersForDay(poiMarkersRef, activeDay, false);
   setDurationBadgesForDay(durationMarkersRef, activeDay, false);
-
-  const coords = resolveSegmentCoordsForDay(
-    routeData,
-    activeDay,
-    dayCoords,
-    origin,
-    finalizedDays,
-  );
 
   if (coords.length < 2) {
     const timer = window.setTimeout(() => {
@@ -1296,17 +1316,6 @@ function TripMapInner({
     plan.groundTransportMode,
   ]);
 
-  // Intra-city: markers only — no Mapbox Directions between POIs.
-  useEffect(() => {
-    const map = mapRef.current;
-    if (map?.getSource(ACTIVE_DAY_SOURCE)) {
-      (map.getSource(ACTIVE_DAY_SOURCE) as mapboxgl.GeoJSONSource).setData({
-        type: "FeatureCollection",
-        features: [],
-      });
-    }
-  }, [activeDay, planContentKey]);
-
   // Click-to-zoom: drone view on selected activity.
   useEffect(() => {
     const map = mapRef.current;
@@ -1321,22 +1330,6 @@ function TripMapInner({
     if (map.isStyleLoaded() && ready.current) run();
     else map.once("load", run);
   }, [focusTarget]);
-
-  // Explicit day-card selection — fly even before overview fitBounds settles.
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !focusTarget || focusTarget.mode !== "day") return;
-    if (!activeDayCoord) return;
-
-    const run = () => {
-      lastFlyTargetKeyRef.current = `day-focus:${focusTarget.key}:${activeDayCoordKey}`;
-      if (isPlaying) flyToPlaybackDay(map, activeDayCoord);
-      else flyToActiveDay(map, activeDayCoord);
-    };
-
-    if (map.isStyleLoaded() && ready.current) run();
-    else map.once("load", run);
-  }, [focusTarget, activeDayCoord, activeDayCoordKey, isPlaying]);
 
   // Road trips: one marker per day (don't merge consecutive days into one stop).
   const roadTripMode = preferDriving;
@@ -1457,25 +1450,25 @@ function TripMapInner({
 
     const apply = () => {
       if (disposed) return;
-      clearPoiMarkerLayer(poiMarkersRef);
-      if (poiPins.length === 0) return;
 
-      const focusedKey =
-        focusTargetRef.current?.mode === "drone" && focusTargetRef.current.poiName
-          ? poiFocusKey(
-              focusTargetRef.current.poiName,
-              focusTargetRef.current.lat,
-              focusTargetRef.current.lng,
-            )
-          : null;
+      const existingById = new Map(poiMarkersRef.current.map((e) => [e.id, e]));
+      const nextEntries: PoiMarkerEntry[] = [];
 
       for (const pin of poiPins) {
+        const id = poiFocusKey(pin.name, pin.lat, pin.lng);
+        const existing = existingById.get(id);
+        if (existing) {
+          existing.marker.setLngLat([pin.lng, pin.lat]);
+          existing.pin = pin;
+          existing.day = pin.day;
+          nextEntries.push(existing);
+          continue;
+        }
+
         const isDayActive = pin.day === activeDayRef.current;
-        const isFocused = focusedKey === poiFocusKey(pin.name, pin.lat, pin.lng);
-        const { el, root, photoEl } = createPoiMarkerElement(pin, isDayActive, isFocused);
-        const lngLat: [number, number] = [pin.lng, pin.lat];
+        const { el, root, photoEl } = createPoiMarkerElement(pin, isDayActive, false);
         const marker = new mapboxgl.Marker(el)
-          .setLngLat(lngLat)
+          .setLngLat([pin.lng, pin.lat])
           .addTo(map);
 
         const dayPlan = plan.days.find((d) => d.day === pin.day);
@@ -1523,8 +1516,17 @@ function TripMapInner({
         );
 
         setPoiMarkerHidden(el, true);
-        poiMarkersRef.current.push({ marker, day: pin.day, root, pin, photoEl });
+        nextEntries.push({ id, marker, day: pin.day, root, pin, photoEl });
       }
+
+      for (const entry of poiMarkersRef.current) {
+        if (!nextEntries.some((n) => n.id === entry.id)) {
+          unmountReactRoot(entry.root ?? undefined);
+          entry.marker.remove();
+        }
+      }
+
+      poiMarkersRef.current = nextEntries;
     };
 
     const onReady = () => apply();
@@ -1540,7 +1542,7 @@ function TripMapInner({
       map.off("load", onReady);
       clearPoiMarkerLayer(poiMarkersRef);
     };
-  }, [poiPinsKey, mapStyleEpoch, focusTarget]);
+  }, [poiPinsKey, mapStyleEpoch, plan.days, t, formatMoney]);
 
   // Highlight active POI markers without rebuilding the whole layer.
   useEffect(() => {
@@ -1632,23 +1634,47 @@ function TripMapInner({
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !routeData.length) return;
-    if (!map.isStyleLoaded() || !ready.current) return;
+    if (!map || !map.isStyleLoaded() || !ready.current) return;
     if (tripRouteBoundsKey && !overviewReady && !isPlaying) return;
+    if (focusTarget?.mode === "drone") return;
 
-    playActiveDayRouteSequence(map, {
-      activeDay,
-      routeData,
-      dayCoords,
-      origin,
-      finalizedDays: finalizedRouteDays,
-      poiMarkersRef,
-      durationMarkersRef,
-      routeDrawAnimRef,
-      poiRevealTimersRef,
-    });
+    let cancelled = false;
+    const dayFocusKey = focusTarget?.mode === "day" ? focusTarget.key : 0;
+
+    void (async () => {
+      const coords = await resolveActiveDayRouteCoords({
+        activeDay,
+        routeData,
+        dayCoords,
+        origin,
+        finalizedDays: finalizedRouteDays,
+        token,
+      });
+      if (cancelled) return;
+
+      const camKey = `${isPlaying ? "play" : "scroll"}:${activeDay}:${dayFocusKey}:${coordsBoundsKey(coords)}`;
+      if (lastFlyTargetKeyRef.current !== camKey) {
+        lastFlyTargetKeyRef.current = camKey;
+        fitActiveDayView(map, {
+          coords,
+          activeDay,
+          poiMarkers: poiMarkersRef.current,
+          fallbackCenter: activeDayCoord,
+          maxZoom: isPlaying ? 11 : 12,
+        });
+      }
+
+      runActiveDayRouteDraw(map, coords, {
+        activeDay,
+        poiMarkersRef,
+        durationMarkersRef,
+        routeDrawAnimRef,
+        poiRevealTimersRef,
+      });
+    })();
 
     return () => {
+      cancelled = true;
       clearPoiRevealTimers(poiRevealTimersRef);
       if (routeDrawAnimRef.current) {
         cancelAnimationFrame(routeDrawAnimRef.current);
@@ -1666,6 +1692,10 @@ function TripMapInner({
     origin,
     finalizedRouteDays,
     poiPinsKey,
+    token,
+    focusTarget,
+    activeDayCoord,
+    activeDayCoordKey,
   ]);
 
   // Origin airport marker (start of international flight leg).
@@ -1697,7 +1727,7 @@ function TripMapInner({
     else map.once("load", apply);
   }, [origin, plan.originIata, plan.originPlace, mapStyleEpoch]);
 
-  // Layla-style city markers + duration badges (rebuild when stops/segments change).
+  // Layla-style city markers — sync in place to avoid jump on day change.
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -1706,10 +1736,22 @@ function TripMapInner({
 
     const apply = () => {
       if (disposed) return;
-      clearCityMarkerLayer(markersRef, durationMarkersRef);
-      if (cityStops.length === 0) return;
+
+      const existingById = new Map(markersRef.current.map((m) => [m.id, m]));
+      const nextEntries: CityMarkerEntry[] = [];
 
       for (const stop of cityStops) {
+        const id = cityMarkerId(stop);
+        const existing = existingById.get(id);
+        if (existing) {
+          existing.marker.setLngLat(stop.coord);
+          existing.stop = stop;
+          existing.startDay = stop.startDay;
+          existing.endDay = stop.endDay;
+          nextEntries.push(existing);
+          continue;
+        }
+
         const isActive =
           activeDayRef.current >= stop.startDay && activeDayRef.current <= stop.endDay;
         const { el, root } = createCityMarkerElement(stop, isActive);
@@ -1742,7 +1784,8 @@ function TripMapInner({
           }),
         );
 
-        markersRef.current.push({
+        nextEntries.push({
+          id,
           marker,
           startDay: stop.startDay,
           endDay: stop.endDay,
@@ -1751,12 +1794,49 @@ function TripMapInner({
         });
       }
 
+      for (const entry of markersRef.current) {
+        if (!nextEntries.some((n) => n.id === entry.id)) {
+          unmountReactRoot(entry.root);
+          entry.marker.remove();
+        }
+      }
+
+      markersRef.current = nextEntries;
+    };
+
+    const onReady = () => apply();
+
+    if (map.isStyleLoaded() && ready.current) {
+      apply();
+    } else {
+      map.once("load", onReady);
+    }
+
+    return () => {
+      disposed = true;
+      map.off("load", onReady);
+      clearCityMarkerLayer(markersRef);
+    };
+  }, [cityStopsKey, mapStyleEpoch, plan.days, t, formatMoney]);
+
+  // Duration badges on route midpoints — separate layer so route fetch does not rebuild city pins.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    let disposed = false;
+
+    const apply = () => {
+      if (disposed) return;
+      clearDurationMarkerLayer(durationMarkersRef);
+
       for (const segment of routeData) {
         const mid = segmentMidpoint(segment.coordinates);
         const badge = createDurationBadgeElement(
           segment,
           segmentBadgeText(segment, plan, t as (key: string) => string),
         );
+        badge.className = `${badge.className} ${MARKER_MOTION_CLASS}`;
         badge.style.opacity = "0";
         badge.style.pointerEvents = "none";
         badge.style.transition = "opacity 0.35s ease";
@@ -1778,9 +1858,9 @@ function TripMapInner({
     return () => {
       disposed = true;
       map.off("load", onReady);
-      clearCityMarkerLayer(markersRef, durationMarkersRef);
+      clearDurationMarkerLayer(durationMarkersRef);
     };
-  }, [cityStopsKey, routeDataKey, mapStyleEpoch]);
+  }, [routeDataKey, mapStyleEpoch, plan, t]);
 
   // Highlight active city marker without rebuilding DOM.
   useEffect(() => {
@@ -1794,7 +1874,7 @@ function TripMapInner({
           city={stop.city}
         />,
       );
-      marker.getElement().className = `trip-map-city-marker flex flex-col items-center cursor-pointer transition-opacity duration-300 ease-out${
+      marker.getElement().className = `trip-map-city-marker ${MARKER_MOTION_CLASS} flex flex-col items-center cursor-pointer transition-opacity duration-300 ease-out${
         isActive ? "" : " opacity-90"
       }`;
     }
@@ -1808,43 +1888,6 @@ function TripMapInner({
     }
     wasPlayingRef.current = isPlaying;
   }, [isPlaying]);
-
-  // Scroll-driven / playback camera — when active day or its coordinates change.
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map) return;
-    if (!isPlaying && focusTarget?.mode === "drone" && focusTarget.day === activeDay) return;
-    // User just picked a day card — dedicated effect above handles the fly.
-    if (!isPlaying && focusTarget?.mode === "day") return;
-    if (!activeDayCoord) return;
-    // Wait for initial trip fitBounds unless we're in playback mode.
-    if (tripRouteBoundsKey && !overviewReady && !isPlaying) return;
-
-    const flyKey = `${isPlaying ? "play" : "scroll"}:${activeDay}:${activeDayCoordKey}`;
-    if (lastFlyTargetKeyRef.current === flyKey) return;
-    lastFlyTargetKeyRef.current = flyKey;
-
-    const runFly = () => {
-      if (isPlaying) flyToPlaybackDay(map, activeDayCoord);
-      else flyToActiveDay(map, activeDayCoord);
-    };
-
-    const schedule = () => {
-      if (map.isStyleLoaded()) runFly();
-      else map.once("load", runFly);
-    };
-
-    if (ready.current) schedule();
-    else map.once("load", schedule);
-  }, [
-    activeDay,
-    activeDayCoord,
-    activeDayCoordKey,
-    focusTarget,
-    isPlaying,
-    tripRouteBoundsKey,
-    overviewReady,
-  ]);
 
   if (error) {
     return (
