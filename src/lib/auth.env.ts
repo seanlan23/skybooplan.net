@@ -93,7 +93,6 @@ export function googleClientSecret(): string {
 export function assertAuthEnvReady(): void {
   ensureAuthEnv();
   const missing: string[] = [];
-  if (!authSecret()) missing.push("NEXTAUTH_SECRET (or AUTH_SECRET)");
   if (!googleClientId()) {
     missing.push("GOOGLE_CLIENT_ID (or AUTH_GOOGLE_ID / NEXT_PUBLIC_GOOGLE_CLIENT_ID)");
   }
