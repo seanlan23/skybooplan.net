@@ -364,10 +364,25 @@ export type WeatherSummary = {
   clothingAdvice: string;
 };
 
+export type WeatherWidget = {
+  season: string;
+  avgTemp: string;
+  clothing: string;
+};
+
+export type SafetyWarning = {
+  title?: string;
+  message: string;
+};
+
 export type AiTripPlan = {
   destinationName: string;
   summary: string;
-  /** Structured weather + season card from LLM (itinerary header). */
+  /** Critical safety alert — shown as red card when set. */
+  safetyWarning?: SafetyWarning | null;
+  /** Weather + season + clothing widget from LLM. */
+  weatherWidget?: WeatherWidget;
+  /** @deprecated Legacy — prefer weatherWidget. */
   weatherSummary?: WeatherSummary;
   totalBudgetEur: number;
   centerLat: number;

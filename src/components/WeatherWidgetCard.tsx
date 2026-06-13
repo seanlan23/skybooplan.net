@@ -1,57 +1,49 @@
-import { CloudSun, Shirt, Sun, Thermometer } from "lucide-react";
-import type { WeatherSummary } from "@/lib/aiPlan.functions";
+import { CloudSun, Shirt, Thermometer } from "lucide-react";
+import type { WeatherWidget } from "@/lib/aiPlan.functions";
 import { useI18n } from "@/lib/i18n";
 
-export function WeatherSummaryCard({
-  summary,
+export function WeatherWidgetCard({
+  widget,
   className = "",
 }: {
-  summary: WeatherSummary;
+  widget: WeatherWidget;
   className?: string;
 }) {
   const { t } = useI18n();
 
   const items = [
     {
-      key: "condition",
-      label: t("weather.summaryCondition" as never),
-      value: summary.currentCondition,
-      icon: Sun,
-      iconClass: "text-amber-500",
-      bgClass: "bg-amber-50/80",
+      key: "season",
+      label: t("weather.widgetSeason" as never),
+      value: widget.season,
+      icon: CloudSun,
+      iconClass: "text-sky-600",
+      bgClass: "bg-sky-50/90",
     },
     {
       key: "temperature",
-      label: t("weather.summaryTemperature" as never),
-      value: summary.avgTemperature,
+      label: t("weather.widgetTemperature" as never),
+      value: widget.avgTemp,
       icon: Thermometer,
       iconClass: "text-orange-600",
-      bgClass: "bg-orange-50/80",
-    },
-    {
-      key: "season",
-      label: t("weather.summarySeason" as never),
-      value: summary.seasonType,
-      icon: CloudSun,
-      iconClass: "text-sky-600",
-      bgClass: "bg-sky-50/80",
+      bgClass: "bg-orange-50/90",
     },
     {
       key: "clothing",
-      label: t("weather.summaryClothing" as never),
-      value: summary.clothingAdvice,
+      label: t("weather.widgetClothing" as never),
+      value: widget.clothing,
       icon: Shirt,
       iconClass: "text-violet-600",
-      bgClass: "bg-violet-50/80",
+      bgClass: "bg-violet-50/90",
     },
   ] as const;
 
   return (
     <div
-      className={`rounded-xl border border-sky-200/80 bg-gradient-to-br from-sky-50/90 via-white to-amber-50/60 p-3 sm:p-4 shadow-sm ${className}`}
-      aria-label={t("weather.summaryAria" as never)}
+      className={`rounded-xl border border-sky-200/80 bg-gradient-to-br from-sky-50/90 via-white to-slate-50/80 p-3 sm:p-4 shadow-sm ${className}`}
+      aria-label={t("weather.widgetAria" as never)}
     >
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4 sm:gap-3">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
         {items.map((item) => {
           const Icon = item.icon;
           return (

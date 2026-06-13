@@ -136,7 +136,16 @@ const daySchema = z.object({
   }
 });
 
-/** Structured weather + season block for the itinerary header card. */
+/** Structured weather widget for the itinerary header (season, temp, clothing). */
+export const weatherWidgetSchema = z.object({
+  season: z.string().min(3),
+  avgTemp: z.string().min(2),
+  clothing: z.string().min(3),
+});
+
+export type WeatherWidget = z.infer<typeof weatherWidgetSchema>;
+
+/** @deprecated Legacy shape — mapped to weatherWidget in geminiPlanMap. */
 export const weatherSummarySchema = z.object({
   currentCondition: z.string().min(3),
   avgTemperature: z.string().min(2),
@@ -146,9 +155,21 @@ export const weatherSummarySchema = z.object({
 
 export type WeatherSummary = z.infer<typeof weatherSummarySchema>;
 
+/** Critical destination safety alert — null when no acute internal risk. */
+export const safetyWarningSchema = z.object({
+  title: z.string().min(3).optional(),
+  message: z.string().min(20),
+});
+
+export type SafetyWarningPayload = z.infer<typeof safetyWarningSchema>;
+
 /** Client-safe shared types/constants — no @ai-sdk imports. */
 export const tripPlanSchema = z.object({
-  /** Top-level weather card — shown below planner settings, above trip intro. */
+  /** Red critical alert card when destination has war, unrest, collapse, etc. Otherwise null. */
+  safetyWarning: safetyWarningSchema.nullable().optional(),
+  /** Weather + season + clothing widget below safety (or below planner settings). */
+  weatherWidget: weatherWidgetSchema.optional(),
+  /** @deprecated Prefer weatherWidget — kept for backward compatibility. */
   weatherSummary: weatherSummarySchema.optional(),
   trip_metadata: z.object({
     destination: z.string(),

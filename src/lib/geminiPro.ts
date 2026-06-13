@@ -39,8 +39,17 @@ export type {
   TripPlanResponse,
   TripWishTag,
 } from "@/lib/geminiPro.shared";
-export { TRIP_WISH_TAGS, tripPlanSchema, isTripPlanResponse, normalizeTripPlanPax, normalizeIata, weatherSummarySchema } from "@/lib/geminiPro.shared";
-export type { WeatherSummary } from "@/lib/geminiPro.shared";
+export {
+  TRIP_WISH_TAGS,
+  tripPlanSchema,
+  isTripPlanResponse,
+  normalizeTripPlanPax,
+  normalizeIata,
+  weatherWidgetSchema,
+  safetyWarningSchema,
+  weatherSummarySchema,
+} from "@/lib/geminiPro.shared";
+export type { WeatherSummary, WeatherWidget, SafetyWarningPayload } from "@/lib/geminiPro.shared";
 
 const BUDGET_LABELS: Record<TripBudgetTier, string> = {
   budget: "Budget (nizki proračun)",
@@ -211,7 +220,7 @@ ${roadTrip ? "- Road trip (npr. Route 66): enosmerna pot vzdolž ceste, vsak dan
 UVODNI TEASER (obvezno — pred 1. dnem):
 Na samem začetku polja trip_metadata.season_warning (uvodno besedilo pred dnevnim načrtom) mora biti kot prvi stavek NATANKO ta tekst, v izbranem jeziku uporabnika:
 "${teaser}"
-Takoj za tem nadaljuj s kratkim narativnim uvodom o poti (1–2 stavka). Podrobne vremenske podatke NE piši v season_warning — te gredo izključno v weatherSummary (spodaj).`;
+Takoj za tem nadaljuj s kratkim narativnim uvodom o poti (največ 1–2 stavka — samo vzbudi zanimanje za itinerar). Varnostna opozorila, vreme, sezona in oblačila NE piši v season_warning — gredo v safetyWarning in weatherWidget (spodaj).`;
 
   const travelReqBlock = travelRequirementsPromptBlock({
     originIata: params.originIata,
@@ -343,25 +352,29 @@ HITROST — bogati, privlačni opisi (obvezno):
 ${flightReturnEuRule}
 
 STROGA GEOGRAFSKA NATANČNOST:
-- season_warning mora biti 100 % specifičen za izbrano lokacijo in mesec (vreme, sezona, lokalni dogodki).
+- season_warning je kratek narativni uvod (teaser + največ 1 dodaten stavek o poti) — ne dolg esej in ne podvajanje spodnjih kartic.
 - NE omenjaj pojavov, ki na tej lokaciji ne obstajajo (npr. plimovanje, bioluminiscenca, lagune, tropski monsuni v mestih, kjer tega ni — kot Tokio, Kioto, evropska mesta).
-- Če za lokacijo ni resnega sezonskega tveganja, napiši kratko, realno opozorilo (npr. vročina, dež, sezona turistov) ali nevtralen stavek — brez izmišljanja.
 
-WEATHER SUMMARY CARD (weatherSummary — obvezno na korenu JSON objekta):
-- Obvezno izpolni weatherSummary z natanko štirimi polji (v jeziku uporabnika):
-  • currentCondition — kratko trenutno stanje (npr. "Svetlo in sončno", "Delno oblačno")
-  • avgTemperature — povprečna temperatura (npr. "32°C", "18–24°C")
-  • seasonType — sezona/obdobje (npr. "Prehodno / Monsunsko obdobje (Zaliv je suh)")
-  • clothingAdvice — praktičen nasvet za oblačila (npr. "Lahkotna oblačila in dežnik za popoldanske plohe")
+UVODNI VIZUALNI BLOKI (obvezno na korenu JSON — nad dnevnim načrtom):
+
+1) KRITIČNO VARNOSTNO OPozorilo (safetyWarning — nullable):
+- Če ima destinacijska država resna notranja tveganja (vojna, izgredi, terorizem, ekstremna inflacija, kolaps infrastrukture/elektrike, pomanjkanje zdravil/hrane — npr. Kuba, Jemen, del Afganistana), vrni objekt:
+  "safetyWarning": { "title": "Kritično opozorilo za Kubo", "message": "Država se sooča z izpadi omrežja, pomanjkanjem zdravil in hrane. Potovanje z otroki močno odsvetujemo." }
+- Če akutne notranje nevarnosti NI, vrni natanko null: "safetyWarning": null
+- Ne izmišljaj nevarnosti za varne turistične destinacije (Španija, Tajska, Japonska …).
+
+2) KARTICA VREME + SEZONA (weatherWidget — obvezno):
+- Obvezno izpolni weatherWidget z natanko tremi polji (v jeziku uporabnika):
+  • season — sezona/obdobje v času potovanja (npr. "Prehodno / Monsunsko obdobje (Zaliv je suh)")
+  • avgTemp — povprečna temperatura (npr. "32°C", "18–24°C")
+  • clothing — priporočena oblačila (npr. "Lahkotna oblačila in dežnik za popoldanske plohe")
 - Primer:
-  "weatherSummary": {
-    "currentCondition": "Svetlo in sončno",
-    "avgTemperature": "32°C",
-    "seasonType": "Prehodno / Monsunsko obdobje (Zaliv je suh)",
-    "clothingAdvice": "Lahkotna oblačila in dežnik za popoldanske plohe"
+  "weatherWidget": {
+    "season": "Suha sezona / visoka sezona",
+    "avgTemp": "32°C",
+    "clothing": "Lahkotna oblačila, kapa in voda"
   }
-- UI prikaže weatherSummary kot vizualno kartico pod nastavitvami — brez te strukture vreme ostane skrito v dolgem besedilu!
-- Podrobnosti o vremenu, temperaturi, sezoni in oblačilih piši IZKLJUČNO v weatherSummary, ne v season_warning ali travelHack.
+- UI prikaže weatherWidget kot 3-stolpčno kartico — podatke NE ponavljaj v season_warning, travelHack ali dolgem uvodu!
 
 FORMAT DATUMOV:
 - Polje day_name mora biti v obliki: "Dan v tednu, številka. mesec" z meseci v celoti in pravilno slovensko, npr. "Petek, 11. september" (ne "Sep.", ne angleške okrajšave).

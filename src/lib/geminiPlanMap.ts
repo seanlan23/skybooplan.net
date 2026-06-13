@@ -1,5 +1,12 @@
 import type { Activity, AiTripPlan, DayPlan, DayTransportLeg, ReturnFlightEu } from "@/lib/aiPlan.functions";
-import type { TripAdvisorStyleDetails, TripPlanResponse, TripBudgetTier, WeatherSummary } from "@/lib/geminiPro.shared";
+import type {
+  TripAdvisorStyleDetails,
+  TripPlanResponse,
+  TripBudgetTier,
+  WeatherSummary,
+  WeatherWidget,
+} from "@/lib/geminiPro.shared";
+import type { SafetyWarning } from "@/lib/aiPlan.functions";
 import { ACTIVITY_TRANSPORT_TYPES } from "@/lib/geminiPro.shared";
 import { mapTravelRequirementsFromJson } from "@/lib/travelRequirements";
 import {
@@ -287,6 +294,39 @@ export function normalizeWeatherSummary(raw: unknown): WeatherSummary | undefine
   return { currentCondition, avgTemperature, seasonType, clothingAdvice };
 }
 
+export function normalizeWeatherWidget(
+  raw: unknown,
+  legacySummary?: unknown,
+): WeatherWidget | undefined {
+  if (raw && typeof raw === "object") {
+    const w = raw as Record<string, unknown>;
+    const season = String(w.season ?? "").trim();
+    const avgTemp = String(w.avgTemp ?? w.avgTemperature ?? "").trim();
+    const clothing = String(w.clothing ?? w.clothingAdvice ?? "").trim();
+    if (season && avgTemp && clothing) return { season, avgTemp, clothing };
+  }
+  const legacy = normalizeWeatherSummary(legacySummary);
+  if (legacy) {
+    return {
+      season: legacy.seasonType,
+      avgTemp: legacy.avgTemperature,
+      clothing: legacy.clothingAdvice,
+    };
+  }
+  return undefined;
+}
+
+export function normalizeSafetyWarning(raw: unknown): SafetyWarning | null | undefined {
+  if (raw === null) return null;
+  if (raw === undefined) return undefined;
+  if (typeof raw !== "object") return undefined;
+  const s = raw as Record<string, unknown>;
+  const message = String(s.message ?? s.text ?? s.warning ?? "").trim();
+  if (!message) return null;
+  const title = String(s.title ?? "").trim() || undefined;
+  return { title, message };
+}
+
 /** Map Gemini Pro JSON → catalog `AiTripPlan` (AiPlanView, TripMap, HotelsSection). */
 export function tripPlanResponseToAiTripPlan(
   data: TripPlanResponse,
@@ -507,10 +547,14 @@ export function tripPlanResponseToAiTripPlan(
     logisticsSummary ||
     `Načrt poti: ${meta?.destination ?? ""}`;
 
+  const weatherWidget = normalizeWeatherWidget(data.weatherWidget, data.weatherSummary);
+  const safetyWarning = normalizeSafetyWarning(data.safetyWarning);
+
   return {
     destinationName: meta?.destination ?? "Potovanje",
     summary: withPlanTeaser(rawSummary, lang),
-    weatherSummary: normalizeWeatherSummary(data.weatherSummary),
+    safetyWarning: safetyWarning ?? null,
+    weatherWidget,
     totalBudgetEur: 0,
     centerLat: coordCount > 0 ? latSum / coordCount : 0,
     centerLng: coordCount > 0 ? lngSum / coordCount : 0,

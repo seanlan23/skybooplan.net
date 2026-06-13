@@ -2,7 +2,12 @@ import type { DeepPartial } from "ai";
 import type { AiTripPlan } from "@/lib/aiPlan.functions";
 import type { TripPlanResponse } from "@/lib/geminiPro.shared";
 import { MAP_POI_CATEGORIES } from "@/lib/mapPoiCategory";
-import { tripPlanResponseToAiTripPlan, type GeminiPlanMapOpts, normalizeWeatherSummary } from "@/lib/geminiPlanMap";
+import {
+  tripPlanResponseToAiTripPlan,
+  type GeminiPlanMapOpts,
+  normalizeSafetyWarning,
+  normalizeWeatherWidget,
+} from "@/lib/geminiPlanMap";
 import { withPlanTeaser } from "@/lib/planTeaser";
 
 type PartialResponse = DeepPartial<TripPlanResponse>;
@@ -135,7 +140,8 @@ function coercePartialResponse(partial: PartialResponse): TripPlanResponse | nul
       visa_required: partial.trip_metadata?.visa_required ?? false,
       return_flight_eu: partial.trip_metadata?.return_flight_eu,
     },
-    weatherSummary: normalizeWeatherSummary(partial.weatherSummary),
+    safetyWarning: normalizeSafetyWarning(partial.safetyWarning) ?? null,
+    weatherWidget: normalizeWeatherWidget(partial.weatherWidget, partial.weatherSummary),
     itinerar,
     logistics_and_tips: {
       transport: {
