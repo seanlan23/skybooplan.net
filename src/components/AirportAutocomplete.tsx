@@ -33,6 +33,7 @@ export function AirportAutocomplete({
   const [query, setQuery] = useState(value);
   const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
   const [open, setOpen] = useState(false);
+  const [focused, setFocused] = useState(false);
   const [loading, setLoading] = useState(false);
   const [highlight, setHighlight] = useState(0);
   const justPickedRef = useRef(false);
@@ -57,12 +58,14 @@ export function AirportAutocomplete({
     setQuery(value);
   }, [value]);
 
-  // Debounced fetch
+  // Debounced fetch — only while the field is focused (avoids auto-open on page load).
   useEffect(() => {
     const q = query.trim();
-    if (q.length < 2) {
-      setSuggestions([]);
-      setLoading(false);
+    if (!focused || q.length < 2) {
+      if (q.length < 2) {
+        setSuggestions([]);
+        setLoading(false);
+      }
       return;
     }
     if (justPickedRef.current) {
@@ -92,7 +95,7 @@ export function AirportAutocomplete({
       cancelled = true;
       clearTimeout(t);
     };
-  }, [query, kind]);
+  }, [query, kind, focused]);
 
   // Close on outside click
   useEffect(() => {
@@ -167,10 +170,17 @@ export function AirportAutocomplete({
               const v = kind === "airport" ? raw.toUpperCase() : raw;
               selectedRef.current = null;
               setQuery(v);
-              setOpen(true);
+              if (v.trim().length >= 2) setOpen(true);
               if (kind === "place") onChange(v);
             }}
-            onFocus={() => setOpen(true)}
+            onFocus={() => {
+              setFocused(true);
+              if (query.trim().length >= 2) setOpen(true);
+            }}
+            onBlur={() => {
+              setFocused(false);
+              setOpen(false);
+            }}
             onKeyDown={onKeyDown}
             autoComplete="off"
             className={FIELD_INPUT}
