@@ -108,9 +108,15 @@ The user message is JSON trip parameters. Return ONE JSON object only.
     "travelHack": "insider tip",
     "transportationTips": "how to get around",
     "localWarnings": "scams, dress codes",
+    "transportation": [{ "type": "flight", "from": "Bangkok BKK", "to": "Chiang Mai CNX", "duration": "1h 10min", "estimatedPrice": 45 }],
     "dailyBudgetEur": number
   }]
 }
+
+Each activity that involves movement (internal flight, ferry, train, van) MUST include:
+- transport_type: "flight" | "ferry" | "train" | "van" | "bus" | "taxi"
+- duration: exact travel time (e.g. "1h 10min", "45min")
+Inter-city days MUST also include transportation[] with matching type/from/to/duration/estimatedPrice for transport cards.
 
 Task types (from user JSON):
 - full_plan: generate days generateDays.start..end of totalDays
@@ -124,6 +130,8 @@ Rules:
 - Each activity: name + priceLabel + 2–3 sentence description (unique, practical) — timing in text must match the slot (no sunset label in morning)
 - MANDATORY travelHack per day: unique, location-specific insider tip — NEVER repeat the same hack on two days
 - MANDATORY transportationTips per day: how to get around that city (apps like Grab/Bolt/InDrive where relevant, metro passes, A→B between activities, ferry/speedboat schedules for islands)
+- MANDATORY transportation[] on inter-city travel days: array of legs with type, from, to, duration, estimatedPrice — UI transport cards require this
+- MANDATORY transport_type + duration on every movement activity (airport/flight/ferry/train/van) — UI activity badges require both fields
 - For Thailand days: rotate tuk-tuk warnings (agree price upfront, temple-closed scams), BTS/Rabbit Card in Bangkok, ferry cancellations in monsoon
 - Activity descriptions MUST include how to reach the next stop (walk/taxi/train/ferry) with rough time and cost
 - Dates must match dateRange; day numbers must match generateDays

@@ -39,7 +39,8 @@ export type {
   TripPlanResponse,
   TripWishTag,
 } from "@/lib/geminiPro.shared";
-export { TRIP_WISH_TAGS, tripPlanSchema, isTripPlanResponse, normalizeTripPlanPax, normalizeIata } from "@/lib/geminiPro.shared";
+export { TRIP_WISH_TAGS, tripPlanSchema, isTripPlanResponse, normalizeTripPlanPax, normalizeIata, weatherSummarySchema } from "@/lib/geminiPro.shared";
+export type { WeatherSummary } from "@/lib/geminiPro.shared";
 
 const BUDGET_LABELS: Record<TripBudgetTier, string> = {
   budget: "Budget (nizki proračun)",
@@ -71,6 +72,14 @@ TRAVEL HACK (days[].travelHack — obvezno vsak dan):
 
 TRANSPORT IN PREMIKANJE (obvezno — več plasti):
 
+0) TRANSPORTNE ZNAČKE NA AKTIVNOSTIH (activities[] — obvezno za vsak premik):
+- Vsaka aktivnost, ki predstavlja premik med lokacijami (category "airport", notranji let, trajekt, vlak, speedboat, kombi, taxi), MORA imeti OBVEZNA polja:
+  • transport_type: "flight" | "ferry" | "train" | "van" | "bus" | "taxi"
+  • duration: natančen čas premika (npr. "1h 10min", "45min", "2h 30min") — nikoli prazno
+- Primer aktivnosti z letom:
+  { "title": "Notranji let Bangkok → Chiang Mai", "category": "airport", "transport_type": "flight", "duration": "1h 10min", "timeSlot": "dopoldan", "arrivalTime": "08:00", "departureTime": "09:10", ... }
+- UI prikaže ikono prevoza + trajanje iz teh polj — brez njih značke NE delujejo!
+
 1) PREMIK MED AKTIVNOSTMI (v activities[].description — obvezno):
 - Za vsako aktivnost (razen zadnje v dnevu) v description vključi jasen stavek: kako se premakneš od TE aktivnosti do NASLEDNJE (peš / metro / BTS / MRT / taxi / tuk-tuk / Grab / vlak / trajekt / speedboat / kombi).
 - Navedi približen čas prevoza in orientacijski strošek v ${displayCurrency} kjer smiselno.
@@ -85,6 +94,10 @@ TRANSPORT IN PREMIKANJE (obvezno — več plasti):
 
 3) MEDMESTNI / OTOŠKI PREVOZ (days[].transportation[] — obvezno ko relevantno):
 - Ob letu, vlaku, trajektu, speedboatu ali kombiju med mesti obvezno izpolni transportation[] z vsakim korakom (type, from, to, duration, estimatedPrice).
+- transportation[] je OBVEZNO na vsakem dnevu z medmestnim prevozom — UI kartice z ikono letala/trajekta berejo ta array, ne samo opis aktivnosti!
+- Vsak zapis v transportation[] mora imeti duration (npr. "1h 10min") — enako kot activities[].duration za isti korak.
+- Primer enega dneva z letom:
+  "transportation": [{ "type": "flight", "from": "Bangkok BKK", "to": "Chiang Mai CNX", "duration": "1h 10min", "estimatedPrice": 45 }]
 - Za otoke: navedi urnike trajektov in hitrih čolnov (speedboat), sezonske odpovedi (Andaman dež), rezervacijo vnaprej, pristanišča (jetty) in transfer letališče → pristanišče.
 - Otok z letališčem na celini: 3 koraki (flight → van → ferry) — glej pravilo spodaj.
 
@@ -198,7 +211,7 @@ ${roadTrip ? "- Road trip (npr. Route 66): enosmerna pot vzdolž ceste, vsak dan
 UVODNI TEASER (obvezno — pred 1. dnem):
 Na samem začetku polja trip_metadata.season_warning (uvodno besedilo pred dnevnim načrtom) mora biti kot prvi stavek NATANKO ta tekst, v izbranem jeziku uporabnika:
 "${teaser}"
-Takoj za tem nadaljuj z geografsko natančnim sezonskim opozorilom za destinacijo.`;
+Takoj za tem nadaljuj s kratkim narativnim uvodom o poti (1–2 stavka). Podrobne vremenske podatke NE piši v season_warning — te gredo izključno v weatherSummary (spodaj).`;
 
   const travelReqBlock = travelRequirementsPromptBlock({
     originIata: params.originIata,
@@ -334,6 +347,22 @@ STROGA GEOGRAFSKA NATANČNOST:
 - NE omenjaj pojavov, ki na tej lokaciji ne obstajajo (npr. plimovanje, bioluminiscenca, lagune, tropski monsuni v mestih, kjer tega ni — kot Tokio, Kioto, evropska mesta).
 - Če za lokacijo ni resnega sezonskega tveganja, napiši kratko, realno opozorilo (npr. vročina, dež, sezona turistov) ali nevtralen stavek — brez izmišljanja.
 
+WEATHER SUMMARY CARD (weatherSummary — obvezno na korenu JSON objekta):
+- Obvezno izpolni weatherSummary z natanko štirimi polji (v jeziku uporabnika):
+  • currentCondition — kratko trenutno stanje (npr. "Svetlo in sončno", "Delno oblačno")
+  • avgTemperature — povprečna temperatura (npr. "32°C", "18–24°C")
+  • seasonType — sezona/obdobje (npr. "Prehodno / Monsunsko obdobje (Zaliv je suh)")
+  • clothingAdvice — praktičen nasvet za oblačila (npr. "Lahkotna oblačila in dežnik za popoldanske plohe")
+- Primer:
+  "weatherSummary": {
+    "currentCondition": "Svetlo in sončno",
+    "avgTemperature": "32°C",
+    "seasonType": "Prehodno / Monsunsko obdobje (Zaliv je suh)",
+    "clothingAdvice": "Lahkotna oblačila in dežnik za popoldanske plohe"
+  }
+- UI prikaže weatherSummary kot vizualno kartico pod nastavitvami — brez te strukture vreme ostane skrito v dolgem besedilu!
+- Podrobnosti o vremenu, temperaturi, sezoni in oblačilih piši IZKLJUČNO v weatherSummary, ne v season_warning ali travelHack.
+
 FORMAT DATUMOV:
 - Polje day_name mora biti v obliki: "Dan v tednu, številka. mesec" z meseci v celoti in pravilno slovensko, npr. "Petek, 11. september" (ne "Sep.", ne angleške okrajšave).
 - Dovoljeni meseci: januar, februar, marec, april, maj, junij, julij, avgust, september, oktober, november, december.
@@ -372,8 +401,9 @@ NOTRANJI PREVOZ (transportation[] — obvezno ob letu/trajektu/vlaku):
 - Če dan vključuje notranji let, trajekt ali vlak med mesti, obvezno izpolni days[].transportation[] z natanko enim ali več zapisi:
   • type: "flight" | "ferry" | "train" | "van"
   • from / to: imeni letališč/pristanišč/postaj ali mest
-  • duration: realen čas potovanja (npr. "1h 20m")
-  • estimatedPrice: ocena cene v EUR na osebo
+  • duration: realen čas potovanja (npr. "1h 10min", "1h 20m")
+  • estimatedPrice: ocena cene v ${displayCurrency} na osebo
+- Hkrati mora ustrezna activities[] vsebovati transport_type + duration (0) — oba vira morata biti skladna!
 
 OTOK Z LETALIŠČEM NA CELINI (Boracay/MPH in podobno — obvezno):
 - Ko je destinacija otok, dostopen prek bližnjega letališča na celini (npr. Boracay prek MPH/Caticlan), transportation[] MORA vsebovati 3 zaporedne korake — NE piši enega leta neposredno do otoka:

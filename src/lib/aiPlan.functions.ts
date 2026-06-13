@@ -217,9 +217,15 @@ const Input = z.object({
 
 export type DayCategory = "stay" | "eat" | "activity" | "sight" | "transport" | "beach" | "nature";
 
+export type ActivityTransportType = "flight" | "ferry" | "train" | "van" | "bus" | "taxi";
+
 export type Activity = {
   name: string;
   type?: string;
+  /** Transport mode for movement activities — drives icon + duration badge in UI. */
+  transportType?: ActivityTransportType;
+  /** Exact travel duration label from LLM, e.g. "1h 10min". */
+  transportDuration?: string;
   price?: string;
   priceLabel?: string;
   description?: string;
@@ -351,9 +357,18 @@ export type ReturnFlightEu = {
 
 export type { TravelRequirements, TravelVisaInfo } from "@/lib/travelRequirements";
 
+export type WeatherSummary = {
+  currentCondition: string;
+  avgTemperature: string;
+  seasonType: string;
+  clothingAdvice: string;
+};
+
 export type AiTripPlan = {
   destinationName: string;
   summary: string;
+  /** Structured weather + season card from LLM (itinerary header). */
+  weatherSummary?: WeatherSummary;
   totalBudgetEur: number;
   centerLat: number;
   centerLng: number;

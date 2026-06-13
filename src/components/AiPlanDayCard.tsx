@@ -10,8 +10,12 @@ import {
   Clock,
   Car,
   Route,
+  Plane,
+  Ship,
+  Bus,
+  TrainFront,
 } from "lucide-react";
-import type { Activity, DayPlan, Suggestion } from "@/lib/aiPlan.functions";
+import type { Activity, ActivityTransportType, DayPlan, Suggestion } from "@/lib/aiPlan.functions";
 import { HotelsSection, type StayInfo } from "@/components/HotelsSection";
 import { TransportCard } from "@/components/TransportCard";
 import { IslandAccessTransferCard } from "@/components/IslandAccessTransferCard";
@@ -163,6 +167,59 @@ function ActivityTypePill({ type }: { type?: string }) {
   );
 }
 
+const TRANSPORT_PILL_META: Record<
+  ActivityTransportType,
+  { label: string; icon: typeof Plane; className: string }
+> = {
+  flight: {
+    label: "Let",
+    icon: Plane,
+    className: "bg-indigo-50 text-indigo-700",
+  },
+  ferry: {
+    label: "Trajekt",
+    icon: Ship,
+    className: "bg-cyan-50 text-cyan-800",
+  },
+  train: {
+    label: "Vlak",
+    icon: TrainFront,
+    className: "bg-slate-100 text-slate-700",
+  },
+  van: {
+    label: "Kombi",
+    icon: Bus,
+    className: "bg-amber-50 text-amber-800",
+  },
+  bus: {
+    label: "Avtobus",
+    icon: Bus,
+    className: "bg-amber-50 text-amber-800",
+  },
+  taxi: {
+    label: "Taxi",
+    icon: Car,
+    className: "bg-yellow-50 text-yellow-800",
+  },
+};
+
+function ActivityTransportPill({ activity }: { activity: Activity }) {
+  if (!activity.transportType || !activity.transportDuration) return null;
+  const meta = TRANSPORT_PILL_META[activity.transportType];
+  if (!meta) return null;
+  const Icon = meta.icon;
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-semibold ${meta.className}`}
+    >
+      <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+      <span>{meta.label}</span>
+      <span className="font-medium tabular-nums">{activity.transportDuration}</span>
+    </span>
+  );
+}
+
 function ActivityItem({
   activity,
   day,
@@ -224,6 +281,7 @@ function ActivityItem({
       ) : null}
       <h4 className="font-bold text-slate-900 text-[15px] leading-snug">{activity.name}</h4>
       <div className="mt-2.5 flex flex-wrap gap-2">
+        <ActivityTransportPill activity={activity} />
         <ActivityTimePill activity={activity} />
         <ActivityCostPill activity={activity} />
         <ActivityTypePill type={activity.type} />

@@ -1,5 +1,6 @@
-import type { Activity, AiTripPlan, DayPlan, ReturnFlightEu } from "@/lib/aiPlan.functions";
-import type { TripAdvisorStyleDetails, TripPlanResponse, TripBudgetTier } from "@/lib/geminiPro.shared";
+import type { Activity, AiTripPlan, DayPlan, DayTransportLeg, ReturnFlightEu } from "@/lib/aiPlan.functions";
+import type { TripAdvisorStyleDetails, TripPlanResponse, TripBudgetTier, WeatherSummary } from "@/lib/geminiPro.shared";
+import { ACTIVITY_TRANSPORT_TYPES } from "@/lib/geminiPro.shared";
 import { mapTravelRequirementsFromJson } from "@/lib/travelRequirements";
 import {
   normalizeMapPoiCategory,
@@ -93,6 +94,88 @@ function isGenericTransportTip(tip: string): boolean {
   return /^(uporab(lj)?ite?\s+(aplikacijo\s+)?(grab|bolt|uber)|javni prevoz|najbolj enostavno)/i.test(t);
 }
 
+type RawActivity = TripPlanResponse["itinerar"][number]["days"][number]["activities"][number];
+
+function normalizeLegType(value: unknown): DayTransportLeg["type"] | null {
+  if (typeof value !== "string") return null;
+  const v = value.toLowerCase();
+  if (v === "flight" || v === "ferry" || v === "train") return v;
+  if (v === "van" || v === "bus" || v === "taxi") return "van";
+  return null;
+}
+
+function normalizeActivityTransportType(
+  value: unknown,
+): Activity["transportType"] | undefined {
+  if (typeof value !== "string") return undefined;
+  const v = value.toLowerCase();
+  return (ACTIVITY_TRANSPORT_TYPES as readonly string[]).includes(v)
+    ? (v as Activity["transportType"])
+    : undefined;
+}
+
+function parseRouteFromTitle(title: string): { from?: string; to?: string } {
+  const match = title.match(/(.+?)\s*(?:→|->|—|–|-)\s*(.+)/);
+  if (!match) return {};
+  return { from: match[1]!.trim(), to: match[2]!.trim() };
+}
+
+function sanitizeTransportLegs(legs: DayTransportLeg[] | undefined): DayTransportLeg[] {
+  return (legs ?? []).filter(
+    (leg) =>
+      normalizeLegType(leg.type) &&
+      leg.from?.trim() &&
+      leg.to?.trim() &&
+      leg.duration?.trim(),
+  );
+}
+
+function buildTransportLegsFromActivities(
+  activities: RawActivity[],
+  fallbackFrom: string,
+  fallbackTo: string,
+): DayTransportLeg[] {
+  const legs: DayTransportLeg[] = [];
+
+  for (const act of activities) {
+    const duration = act.duration?.trim();
+    const type =
+      normalizeLegType(act.transport_type) ??
+      (act.category === "airport" ? "flight" : null);
+    if (!type || !duration) continue;
+
+    const route = parseRouteFromTitle(act.title);
+    legs.push({
+      type,
+      from: route.from || fallbackFrom,
+      to: route.to || fallbackTo,
+      duration,
+      estimatedPrice:
+        typeof act.estimatedCostEur === "number" && act.estimatedCostEur >= 0
+          ? act.estimatedCostEur
+          : 0,
+    });
+  }
+
+  return legs;
+}
+
+function resolveDayTransportation(
+  day: TripPlanResponse["itinerar"][number]["days"][number],
+  phaseCity: string,
+  previousCity: string,
+): DayTransportLeg[] | undefined {
+  const explicit = sanitizeTransportLegs(day.transportation as DayTransportLeg[] | undefined);
+  if (explicit.length > 0) return explicit;
+
+  const inferred = buildTransportLegsFromActivities(
+    day.activities ?? [],
+    previousCity || phaseCity,
+    phaseCity,
+  );
+  return inferred.length > 0 ? inferred : undefined;
+}
+
 function toActivity(
   act: {
     title: string;
@@ -102,6 +185,8 @@ function toActivity(
     estimatedCostEur?: number;
     timeSlot?: string;
     category?: string;
+    transport_type?: string;
+    duration?: string;
     coordinates?: { lat: number; lng: number };
     imageUrl?: string;
     unsplashQuery?: string;
@@ -116,6 +201,11 @@ function toActivity(
   const guide =
     act.tripAdvisorStyleDetails ??
     poiGuideByName?.get(act.title.trim().toLowerCase());
+  const transportType =
+    normalizeActivityTransportType(act.transport_type) ??
+    (act.category === "airport" ? "flight" : undefined);
+  const transportDuration = act.duration?.trim() || undefined;
+
   return {
     name: act.title,
     description: act.description?.trim() || undefined,
@@ -125,6 +215,8 @@ function toActivity(
     priceLabel: cost != null ? `€${cost}` : undefined,
     timeSlot: act.timeSlot,
     type: act.category,
+    transportType,
+    transportDuration,
     lat: act.coordinates?.lat,
     lng: act.coordinates?.lng,
     imageUrl: act.imageUrl,
@@ -184,6 +276,17 @@ function slotActivities(
   };
 }
 
+export function normalizeWeatherSummary(raw: unknown): WeatherSummary | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const w = raw as Record<string, unknown>;
+  const currentCondition = String(w.currentCondition ?? "").trim();
+  const avgTemperature = String(w.avgTemperature ?? "").trim();
+  const seasonType = String(w.seasonType ?? "").trim();
+  const clothingAdvice = String(w.clothingAdvice ?? "").trim();
+  if (!currentCondition || !avgTemperature || !seasonType || !clothingAdvice) return undefined;
+  return { currentCondition, avgTemperature, seasonType, clothingAdvice };
+}
+
 /** Map Gemini Pro JSON → catalog `AiTripPlan` (AiPlanView, TripMap, HotelsSection). */
 export function tripPlanResponseToAiTripPlan(
   data: TripPlanResponse,
@@ -196,6 +299,7 @@ export function tripPlanResponseToAiTripPlan(
   const meta = data.trip_metadata;
   const logistics = data.logistics_and_tips;
   let lastCity = "";
+  let previousCity = "";
   const seenTransportTips = new Set<string>();
   const seenTravelHacks = new Set<string>();
 
@@ -287,7 +391,10 @@ export function tripPlanResponseToAiTripPlan(
       const lat = isValidCoord(phaseLat, phaseLng) ? phaseLat : 0;
       const lng = isValidCoord(phaseLat, phaseLng) ? phaseLng : 0;
       const isNewCity = city !== lastCity;
+      if (isNewCity && lastCity) previousCity = lastCity;
       lastCity = city;
+
+      const dayTransportation = resolveDayTransportation(day, city, previousCity);
 
       if (isValidCoord(lat, lng)) {
         latSum += lat;
@@ -327,7 +434,7 @@ export function tripPlanResponseToAiTripPlan(
         afternoon: slots.afternoon,
         evening: slots.evening,
         activities: slots.structured,
-        transportation: day.transportation?.length ? day.transportation : undefined,
+        transportation: dayTransportation,
         travelHack,
         transportationTips,
         localWarnings,
@@ -403,6 +510,7 @@ export function tripPlanResponseToAiTripPlan(
   return {
     destinationName: meta?.destination ?? "Potovanje",
     summary: withPlanTeaser(rawSummary, lang),
+    weatherSummary: normalizeWeatherSummary(data.weatherSummary),
     totalBudgetEur: 0,
     centerLat: coordCount > 0 ? latSum / coordCount : 0,
     centerLng: coordCount > 0 ? lngSum / coordCount : 0,

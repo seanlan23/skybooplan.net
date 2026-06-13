@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { parseLocalDate } from "@/lib/dateUtils";
 import type { StayInfo } from "@/components/HotelsSection";
 import { PlannerChoicesSummary } from "@/components/PlannerChoicesSummary";
+import { WeatherSummaryCard } from "@/components/WeatherSummaryCard";
 import { TripTotalBreakdown } from "@/components/TripTotalBreakdown";
 import { TravelRequirements } from "@/components/TravelRequirements";
 import { ReturnHomeCard } from "@/components/ReturnHomeCard";
@@ -461,6 +462,9 @@ export function AiPlanView({
               {plan.destinationName}
             </h2>
             <PlannerChoicesSummary form={plannerForm} />
+            {plan.weatherSummary ? (
+              <WeatherSummaryCard summary={plan.weatherSummary} className="mt-3" />
+            ) : null}
             <p className="mt-2 text-slate-600 max-w-2xl">{displaySummary}</p>
             <div className="mt-4">
               <TravelRequirements

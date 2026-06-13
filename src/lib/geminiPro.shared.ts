@@ -34,6 +34,15 @@ const poiSchema = z.object({
 
 const DAY_TIME_SLOTS = ["dopoldan", "popoldan", "vecer"] as const;
 
+export const ACTIVITY_TRANSPORT_TYPES = [
+  "flight",
+  "ferry",
+  "train",
+  "van",
+  "bus",
+  "taxi",
+] as const;
+
 const transportLegSchema = z.object({
   type: z.enum(["flight", "ferry", "train", "van"]),
   from: z.string().min(1),
@@ -42,25 +51,56 @@ const transportLegSchema = z.object({
   estimatedPrice: z.number().min(0),
 });
 
-const activitySchema = z.object({
-  time: z.string(),
-  title: z.string(),
-  description: z.string(),
-  category: z.enum(MAP_POI_CATEGORIES),
-  /** Day part — dopoldan | popoldan | vecer (required). */
-  timeSlot: z.enum(DAY_TIME_SLOTS),
-  /** Realistic visit window — e.g. "09:00". */
-  arrivalTime: z.string().min(1),
-  /** Realistic visit end — e.g. "11:30". */
-  departureTime: z.string().min(1),
-  /** Estimated cost for this activity in EUR. */
-  estimatedCostEur: z.number().min(0).optional(),
-  coordinates: coordinatesSchema.optional(),
-  /** English Unsplash search term for this activity (omit for hotel/airport). */
-  unsplashQuery: z.string().min(1).optional(),
-  /** Required for sightseeing activities — omit for hotel/airport only. */
-  tripAdvisorStyleDetails: tripAdvisorStyleDetailsSchema.optional(),
-});
+const activitySchema = z
+  .object({
+    time: z.string(),
+    title: z.string(),
+    description: z.string(),
+    category: z.enum(MAP_POI_CATEGORIES),
+    /** Day part — dopoldan | popoldan | vecer (required). */
+    timeSlot: z.enum(DAY_TIME_SLOTS),
+    /** Realistic visit window — e.g. "09:00". */
+    arrivalTime: z.string().min(1),
+    /** Realistic visit end — e.g. "11:30". */
+    departureTime: z.string().min(1),
+    /** Estimated cost for this activity in EUR. */
+    estimatedCostEur: z.number().min(0).optional(),
+    /**
+     * Required on every activity that represents movement (category airport, ferry ride,
+     * inter-city leg). Drives transport badges in the day card UI.
+     */
+    transport_type: z.enum(ACTIVITY_TRANSPORT_TYPES).optional(),
+    /** Exact travel duration label — e.g. "1h 10min", "45min". Required with transport_type. */
+    duration: z.string().min(1).optional(),
+    coordinates: coordinatesSchema.optional(),
+    /** English Unsplash search term for this activity (omit for hotel/airport). */
+    unsplashQuery: z.string().min(1).optional(),
+    /** Required for sightseeing activities — omit for hotel/airport only. */
+    tripAdvisorStyleDetails: tripAdvisorStyleDetailsSchema.optional(),
+  })
+  .superRefine((act, ctx) => {
+    const isTransportActivity =
+      act.category === "airport" ||
+      act.transport_type != null ||
+      /let|flight|trajekt|ferry|vlak|train|speedboat|kombi|van\b|bus\b|taxi/i.test(act.title);
+
+    if (!isTransportActivity) return;
+
+    if (!act.transport_type) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "transport_type is required on transport/airport activities",
+        path: ["transport_type"],
+      });
+    }
+    if (!act.duration?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "duration is required on transport/airport activities",
+        path: ["duration"],
+      });
+    }
+  });
 
 const daySchema = z.object({
   day_number: z.number().int().min(1),
@@ -80,10 +120,36 @@ const daySchema = z.object({
   /** Internal flights, ferries, trains for this day — shown as premium transport cards. */
   transportation: z.array(transportLegSchema).optional(),
   activities: z.array(activitySchema),
+}).superRefine((day, ctx) => {
+  const hasTransportActivity = day.activities.some(
+    (act) =>
+      act.category === "airport" ||
+      act.transport_type != null ||
+      /let|flight|trajekt|ferry|vlak|train|speedboat|kombi|van\b|bus\b|taxi/i.test(act.title),
+  );
+  if (hasTransportActivity && (day.transportation?.length ?? 0) === 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "transportation[] is required when the day includes inter-city travel",
+      path: ["transportation"],
+    });
+  }
 });
+
+/** Structured weather + season block for the itinerary header card. */
+export const weatherSummarySchema = z.object({
+  currentCondition: z.string().min(3),
+  avgTemperature: z.string().min(2),
+  seasonType: z.string().min(3),
+  clothingAdvice: z.string().min(3),
+});
+
+export type WeatherSummary = z.infer<typeof weatherSummarySchema>;
 
 /** Client-safe shared types/constants — no @ai-sdk imports. */
 export const tripPlanSchema = z.object({
+  /** Top-level weather card — shown below planner settings, above trip intro. */
+  weatherSummary: weatherSummarySchema.optional(),
   trip_metadata: z.object({
     destination: z.string(),
     season_warning: z.string(),
