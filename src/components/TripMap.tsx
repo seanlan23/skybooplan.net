@@ -466,53 +466,43 @@ function collectPlanPoiPins(plan: AiTripPlan): MapPoiPin[] {
 
 const DAY_CAMERA_PADDING = { top: 72, bottom: 96, left: 64, right: 64 } as const;
 
-/** Smooth pan/zoom — avoids aggressive flyTo arcs when switching days. */
-function smoothCameraToDay(map: mapboxgl.Map, center: [number, number]) {
-  map.stop();
-  const current = map.getCenter();
-  const distKm = haversineKm([current.lng, current.lat], center);
-  const currentZoom = map.getZoom();
-  const targetZoom =
-    distKm > 700
-      ? Math.min(currentZoom, 7.4)
-      : distKm > 180
-        ? Math.min(Math.max(currentZoom, 8.2), 10)
-        : Math.min(Math.max(currentZoom, 9), 10.8);
-  const duration = distKm > 900 ? 3400 : distKm > 300 ? 2800 : 2000;
+const SMOOTH_FLY = {
+  essential: true,
+  duration: 2500,
+  speed: 0.8,
+  curve: 1,
+} as const;
 
-  map.easeTo({
-    center,
-    zoom: targetZoom,
-    duration,
-    padding: DAY_CAMERA_PADDING,
-    essential: true,
-  });
-}
-
-function flyToPoiDrone(map: mapboxgl.Map, center: [number, number]) {
+/** Smooth cinematic fly — used for every destination / POI camera move. */
+function flyToDestination(
+  map: mapboxgl.Map,
+  center: [number, number],
+  zoom: number,
+  padding: mapboxgl.PaddingOptions = DAY_CAMERA_PADDING,
+) {
   map.stop();
-  map.easeTo({
+  map.flyTo({
     center,
-    zoom: 14.5,
-    duration: 2200,
-    padding: { top: 56, bottom: 56, left: 56, right: 56 },
-    essential: true,
+    zoom,
+    padding,
+    ...SMOOTH_FLY,
   });
 }
 
 function flyToActiveDay(map: mapboxgl.Map, center: [number, number]) {
-  smoothCameraToDay(map, center);
+  const current = map.getCenter();
+  const distKm = haversineKm([current.lng, current.lat], center);
+  const zoom =
+    distKm > 700 ? 7.4 : distKm > 180 ? 9.2 : distKm > 40 ? 10.5 : 11.5;
+  flyToDestination(map, center, zoom);
+}
+
+function flyToPoiDrone(map: mapboxgl.Map, center: [number, number]) {
+  flyToDestination(map, center, 12);
 }
 
 function flyToPlaybackDay(map: mapboxgl.Map, center: [number, number]) {
-  map.stop();
-  map.easeTo({
-    center,
-    zoom: 11,
-    duration: 2800,
-    padding: DAY_CAMERA_PADDING,
-    essential: true,
-  });
+  flyToDestination(map, center, 11);
 }
 function buildMarkerPopupHtml(opts: {
   title: string;
@@ -1203,12 +1193,29 @@ function TripMapInner({
 
     const run = () => {
       if (!isValidCoord(focusTarget.lat, focusTarget.lng)) return;
+      lastFlyTargetKeyRef.current = `drone:${focusTarget.key}`;
       flyToPoiDrone(map, [focusTarget.lng, focusTarget.lat]);
     };
 
     if (map.isStyleLoaded() && ready.current) run();
     else map.once("load", run);
   }, [focusTarget]);
+
+  // Explicit day-card selection — fly even before overview fitBounds settles.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !focusTarget || focusTarget.mode !== "day") return;
+    if (!activeDayCoord) return;
+
+    const run = () => {
+      lastFlyTargetKeyRef.current = `day-focus:${focusTarget.key}:${activeDayCoordKey}`;
+      if (isPlaying) flyToPlaybackDay(map, activeDayCoord);
+      else flyToActiveDay(map, activeDayCoord);
+    };
+
+    if (map.isStyleLoaded() && ready.current) run();
+    else map.once("load", run);
+  }, [focusTarget, activeDayCoord, activeDayCoordKey, isPlaying]);
 
   // Road trips: one marker per day (don't merge consecutive days into one stop).
   const roadTripMode = preferDriving;
@@ -1643,15 +1650,16 @@ function TripMapInner({
     wasPlayingRef.current = isPlaying;
   }, [isPlaying]);
 
-  // Scroll-driven / playback camera — only when active day or its coordinates change.
+  // Scroll-driven / playback camera — when active day or its coordinates change.
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    if (scrollSpyPaused && !isPlaying) return;
     if (!isPlaying && focusTarget?.mode === "drone" && focusTarget.day === activeDay) return;
+    // User just picked a day card — dedicated effect above handles the fly.
+    if (!isPlaying && focusTarget?.mode === "day") return;
     if (!activeDayCoord) return;
-    // Wait for initial trip fitBounds so day camera does not fight the overview animation.
-    if (tripRouteBoundsKey && !overviewReady) return;
+    // Wait for initial trip fitBounds unless we're in playback mode.
+    if (tripRouteBoundsKey && !overviewReady && !isPlaying) return;
 
     const flyKey = `${isPlaying ? "play" : "scroll"}:${activeDay}:${activeDayCoordKey}`;
     if (lastFlyTargetKeyRef.current === flyKey) return;
@@ -1674,7 +1682,6 @@ function TripMapInner({
     activeDayCoord,
     activeDayCoordKey,
     focusTarget,
-    scrollSpyPaused,
     isPlaying,
     tripRouteBoundsKey,
     overviewReady,

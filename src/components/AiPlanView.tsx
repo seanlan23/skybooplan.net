@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Sparkles } from "lucide-react";
-import type { AiTripPlan } from "@/lib/aiPlan.functions";
+import type { AiTripPlan, DayPlan } from "@/lib/aiPlan.functions";
 import { type ActivityMapFocus, type MapFocusTarget } from "@/components/TripMap";
 import { AiTripMapPanel } from "@/components/AiTripMapPanel";
 import { AiPlanDayCard, StreamingDayPlaceholder } from "@/components/AiPlanDayCard";
@@ -88,6 +88,33 @@ export function AiPlanView({
       clickNavTimerRef.current = null;
     }, ms);
   }, []);
+
+  const handleDaySelect = useCallback(
+    (day: DayPlan) => {
+      isClickNavigatingRef.current = true;
+      setScrollSpyPaused(true);
+      focusKeyRef.current += 1;
+      setActiveDay(day.day);
+      setMapFocus({
+        lat: day.lat ?? 0,
+        lng: day.lng ?? 0,
+        day: day.day,
+        mode: "day",
+        key: focusKeyRef.current,
+      });
+      if (clickNavTimerRef.current) clearTimeout(clickNavTimerRef.current);
+      clickNavTimerRef.current = setTimeout(() => {
+        isClickNavigatingRef.current = false;
+        setScrollSpyPaused(false);
+        setMapFocus(null);
+        clickNavTimerRef.current = null;
+      }, 2600);
+      if (typeof window !== "undefined" && window.innerWidth < 1024) {
+        document.getElementById("ai-trip-map")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    },
+    [],
+  );
 
   const handleActivityFocus = useCallback(
     (coords: ActivityMapFocus) => {
@@ -471,12 +498,7 @@ export function AiPlanView({
                   totalTripDays={plan.days.length}
                   checkOut={checkOut}
                   regionFallback={plan.destinationName}
-                  onSelect={() => {
-                    setActiveDay(d.day);
-                    if (typeof window !== "undefined" && window.innerWidth < 1024) {
-                      document.getElementById("ai-trip-map")?.scrollIntoView({ behavior: "smooth", block: "start" });
-                    }
-                  }}
+                  onSelect={() => handleDaySelect(d)}
                   onActivityFocus={handleActivityFocus}
                   onActivityDetails={handleActivityDetails}
                   registerRef={(el) => {
