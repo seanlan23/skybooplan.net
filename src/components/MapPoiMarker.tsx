@@ -35,10 +35,10 @@ const CATEGORY_ICON_CLASS: Record<MapPoiCategory, string> = {
 };
 
 const MARKER_IMG_CLASS =
-  "h-10 w-10 rounded-full border-2 border-white object-cover shadow-md transition-transform duration-300 ease-out hover:scale-125";
+  "h-11 w-11 rounded-full border-2 border-white object-cover shadow-md transition-transform duration-300 ease-out hover:scale-125";
 
 const MARKER_ICON_SHELL_CLASS =
-  "flex h-10 w-10 items-center justify-center rounded-full border border-white/90 bg-white/75 shadow-md backdrop-blur-sm transition-transform duration-300 ease-out hover:scale-125";
+  "flex h-11 w-11 items-center justify-center rounded-full border-2 border-white bg-white/75 shadow-md backdrop-blur-sm transition-transform duration-300 ease-out hover:scale-125";
 
 type MarkerShellProps = {
   isActive?: boolean;
@@ -49,7 +49,7 @@ type MarkerShellProps = {
 function MarkerShell({ isActive = false, name, children }: MarkerShellProps) {
   return (
     <div
-      className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center"
+      className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center"
       title={name}
     >
       <div
@@ -134,7 +134,7 @@ export function MapCityMarker({
   const hasPhoto = Boolean(imageUrl?.trim()) && !photoFailed;
 
   return (
-    <div className="relative h-10 w-10 shrink-0">
+    <div className="relative h-11 w-11 shrink-0">
       {hasPhoto && imageUrl ? (
         <img
           src={imageUrl}
