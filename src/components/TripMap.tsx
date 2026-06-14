@@ -38,7 +38,6 @@ import {
   coordsBoundsKey,
   progressAlongRoute,
   resolveActiveDayRoute,
-  type ActiveDayLineStyle,
 } from "@/lib/tripMapProgressiveDraw";
 
 export type ActivityMapFocus = {
@@ -242,7 +241,7 @@ function unmountReactRoot(root: Root | undefined) {
   queueMicrotask(() => root.unmount());
 }
 
-const MARKER_MOTION_CLASS = "trip-map-marker transition-all duration-500 ease-in-out";
+const POI_REVEAL_TRANSITION = "opacity 0.4s ease-out";
 
 type PoiMarkerEntry = {
   id: string;
@@ -266,9 +265,6 @@ type DurationMarkerEntry = {
   dayTo: number;
 };
 
-const POI_REVEAL_TRANSITION =
-  "opacity 0.45s ease-out, transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1)";
-
 function clearPoiRevealTimers(timers: { current: number[] }) {
   for (const id of timers.current) window.clearTimeout(id);
   timers.current = [];
@@ -278,11 +274,9 @@ function setPoiMarkerHidden(el: HTMLElement, hidden: boolean) {
   el.style.transition = POI_REVEAL_TRANSITION;
   if (hidden) {
     el.style.opacity = "0";
-    el.style.transform = "scale(0.55)";
     el.style.pointerEvents = "none";
   } else {
     el.style.opacity = "1";
-    el.style.transform = "scale(1)";
     el.style.pointerEvents = "auto";
   }
 }
@@ -376,7 +370,7 @@ function createCityMarkerElement(
   isActive: boolean,
 ): { el: HTMLDivElement; root: Root } {
   const wrap = document.createElement("div");
-  wrap.className = `trip-map-city-marker ${MARKER_MOTION_CLASS} flex flex-col items-center cursor-pointer transition-opacity duration-300 ease-out${
+  wrap.className = `trip-map-city-marker flex flex-col items-center cursor-pointer transition-opacity duration-300 ease-out${
     isActive ? "" : " opacity-90"
   }`;
   wrap.appendChild(cityLabelElement(stop.city));
@@ -430,7 +424,7 @@ function createDurationBadgeElement(segment: TripRouteSegment, label: string): H
 
 function createOriginMarkerElement(label: string): { el: HTMLDivElement; root: Root } {
   const wrap = document.createElement("div");
-  wrap.className = `flex flex-col items-center cursor-pointer ${MARKER_MOTION_CLASS}`;
+  wrap.className = "flex flex-col items-center cursor-pointer";
   wrap.appendChild(cityLabelElement(label));
 
   const pinHost = document.createElement("div");
@@ -442,14 +436,14 @@ function createOriginMarkerElement(label: string): { el: HTMLDivElement; root: R
 }
 
 const POI_PHOTO_MARKER_BASE =
-  "w-10 h-10 rounded-full border-2 border-white shadow-md bg-cover bg-center bg-no-repeat transition-transform duration-300 ease-out";
+  "w-10 h-10 rounded-full border-2 border-white shadow-md bg-cover bg-center bg-no-repeat";
 
 function poiPhotoMarkerClass(isDayActive: boolean, isFocused: boolean): string {
   if (isFocused) {
-    return `${POI_PHOTO_MARKER_BASE} scale-125 border-amber-500 animate-pulse z-[10]`;
+    return `${POI_PHOTO_MARKER_BASE} border-amber-500 ring-2 ring-amber-400/60 z-[10]`;
   }
   return `${POI_PHOTO_MARKER_BASE}${
-    isDayActive ? " ring-2 ring-sky-400/50 ring-offset-1 scale-110 z-[6]" : " opacity-90 hover:scale-110"
+    isDayActive ? " ring-2 ring-sky-400/50 ring-offset-1 z-[6]" : " opacity-90"
   }`;
 }
 
@@ -460,7 +454,8 @@ function createPoiMarkerElement(
   isFocused: boolean,
 ): { el: HTMLDivElement; root: Root | null; photoEl?: HTMLDivElement } {
   const el = document.createElement("div");
-  el.className = `trip-map-poi-marker ${MARKER_MOTION_CLASS} pointer-events-auto flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center overflow-hidden`;
+  el.className =
+    "trip-map-poi-marker pointer-events-auto flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center overflow-hidden";
   el.title = pin.name;
 
   const imageUrl = pin.imageUrl?.trim();
@@ -566,8 +561,6 @@ const SMOOTH_FLY = {
 
 const DAY_VIEW_PADDING = 50;
 const DAY_VIEW_DURATION_MS = 1500;
-const FERRY_LINE_COLOR = "#0e7490";
-const FERRY_LINE_DASH: [number, number] = [1.5, 2.5];
 
 function padBoundsIfPoint(bounds: mapboxgl.LngLatBounds) {
   const ne = bounds.getNorthEast();
@@ -698,13 +691,15 @@ function setActiveDayRouteData(map: mapboxgl.Map, coordinates: [number, number][
   });
 }
 
-function setActiveDayRouteLineStyle(map: mapboxgl.Map, style: ActiveDayLineStyle) {
+function setActiveDayRouteLineStyle(map: mapboxgl.Map, mode: RouteMode) {
   if (!map.getLayer(ACTIVE_DAY_LAYER)) return;
-  if (style === "ferry") {
-    map.setPaintProperty(ACTIVE_DAY_LAYER, "line-color", FERRY_LINE_COLOR);
-    map.setPaintProperty(ACTIVE_DAY_LAYER, "line-dasharray", FERRY_LINE_DASH);
+  const style = ROUTE_LAYER_STYLE[mode];
+  map.setPaintProperty(ACTIVE_DAY_LAYER, "line-color", style.color);
+  map.setPaintProperty(ACTIVE_DAY_LAYER, "line-width", style.width);
+  map.setPaintProperty(ACTIVE_DAY_LAYER, "line-opacity", style.opacity);
+  if (style.dash) {
+    map.setPaintProperty(ACTIVE_DAY_LAYER, "line-dasharray", style.dash);
   } else {
-    map.setPaintProperty(ACTIVE_DAY_LAYER, "line-color", ROUTE_LINE_COLOR);
     map.setPaintProperty(ACTIVE_DAY_LAYER, "line-dasharray", [1, 0]);
   }
 }
@@ -825,7 +820,7 @@ function runActiveDayRouteDraw(
   coords: [number, number][],
   opts: {
     activeDay: number;
-    lineStyle: ActiveDayLineStyle;
+    lineStyle: RouteMode;
     poiMarkersRef: { current: PoiMarkerEntry[] };
     durationMarkersRef: { current: DurationMarkerEntry[] };
     routeDrawAnimRef: { current: number };
@@ -1856,7 +1851,6 @@ function TripMapInner({
           segment,
           segmentBadgeText(segment, plan, t as (key: string) => string),
         );
-        badge.className = `${badge.className} ${MARKER_MOTION_CLASS}`;
         badge.style.opacity = "0";
         badge.style.pointerEvents = "none";
         badge.style.transition = "opacity 0.35s ease";
@@ -1894,7 +1888,7 @@ function TripMapInner({
           city={stop.city}
         />,
       );
-      marker.getElement().className = `trip-map-city-marker ${MARKER_MOTION_CLASS} flex flex-col items-center cursor-pointer transition-opacity duration-300 ease-out${
+      marker.getElement().className = `trip-map-city-marker flex flex-col items-center cursor-pointer transition-opacity duration-300 ease-out${
         isActive ? "" : " opacity-90"
       }`;
     }

@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   buildActiveDayWaypoints,
+  pickPrimarySegment,
   progressAlongRoute,
   resolveSegmentCoordsForDay,
 } from "@/lib/tripMapProgressiveDraw";
@@ -52,5 +53,40 @@ describe("tripMapProgressiveDraw", () => {
     const waypoints = buildActiveDayWaypoints(2, dayPlan, dayCoords, null, []);
     expect(waypoints.length).toBeGreaterThanOrEqual(2);
     expect(waypoints[0]).toEqual([98.0, 7.9]);
+  });
+
+  it("pickPrimarySegment prefers flight over driving on same day", () => {
+    const segments: TripRouteSegment[] = [
+      {
+        id: "drive",
+        mode: "driving",
+        from: [98, 7],
+        to: [98.1, 7.1],
+        coordinates: [
+          [98, 7],
+          [98.05, 7.05],
+          [98.1, 7.1],
+        ],
+        dayTo: 3,
+        durationSeconds: 600,
+        durationLabel: "10m",
+      },
+      {
+        id: "fly",
+        mode: "flight",
+        from: [14, 46],
+        to: [98, 7],
+        coordinates: [
+          [14, 46],
+          [20, 40],
+          [98, 7],
+        ],
+        dayTo: 3,
+        durationSeconds: 36000,
+        durationLabel: "10h",
+      },
+    ];
+    const primary = pickPrimarySegment(segments);
+    expect(primary?.mode).toBe("flight");
   });
 });

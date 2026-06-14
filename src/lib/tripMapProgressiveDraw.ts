@@ -3,6 +3,7 @@ import {
   buildDayWaypointCoords,
   buildGreatCircleCoords,
   fetchDrivingRouteWithWaypoints,
+  type RouteMode,
   type TripRouteSegment,
   haversineKm,
 } from "@/lib/tripMapRoutes";
@@ -10,7 +11,12 @@ import type { RouteDayStop } from "@/lib/tripMapRouteState";
 
 export const ROUTE_DRAW_DURATION_MS = 2000;
 
-export type ActiveDayLineStyle = "driving" | "ferry";
+/** Max km for Mapbox driving Directions — longer legs are drawn as great-circle flights. */
+const MAX_DRIVING_DIRECTIONS_KM = 900;
+
+const MODE_PRIORITY: RouteMode[] = ["flight", "ferry", "driving", "transit"];
+
+export type ActiveDayLineStyle = RouteMode;
 
 export type ActiveDayRoute = {
   coordinates: [number, number][];
@@ -115,8 +121,50 @@ function mergeBoundsPoints(...groups: [number, number][][]): [number, number][] 
   return out;
 }
 
-function ferryArcFallback(from: [number, number], to: [number, number]): [number, number][] {
-  return buildGreatCircleCoords(from, to, 96);
+export function segmentsForDay(
+  routeData: TripRouteSegment[],
+  activeDay: number,
+): TripRouteSegment[] {
+  return routeData.filter((s) => s.dayTo === activeDay);
+}
+
+export function pickPrimarySegment(segments: TripRouteSegment[]): TripRouteSegment | null {
+  for (const mode of MODE_PRIORITY) {
+    const match = segments.find((s) => s.mode === mode && s.coordinates.length >= 2);
+    if (match) return match;
+  }
+  return segments.find((s) => s.coordinates.length >= 2) ?? null;
+}
+
+/** Rich great-circle geometry for flight/ferry when cache is sparse. */
+export function enrichSegmentCoords(seg: TripRouteSegment): [number, number][] {
+  if (seg.mode === "flight" || seg.mode === "ferry") {
+    if (seg.coordinates.length >= 16) return seg.coordinates;
+    return buildGreatCircleCoords(
+      seg.from,
+      seg.to,
+      seg.mode === "flight" ? 128 : 96,
+    );
+  }
+  return seg.coordinates;
+}
+
+function greatCircleForMode(
+  from: [number, number],
+  to: [number, number],
+  mode: RouteMode,
+): [number, number][] {
+  const npoints = mode === "flight" ? 128 : mode === "ferry" ? 96 : 80;
+  return buildGreatCircleCoords(from, to, npoints);
+}
+
+function shouldSkipDrivingDirections(
+  daySegments: TripRouteSegment[],
+  endpoints: { from: [number, number]; to: [number, number] } | null,
+): boolean {
+  if (daySegments.some((s) => s.mode === "flight" || s.mode === "ferry")) return true;
+  if (!endpoints) return false;
+  return haversineKm(endpoints.from, endpoints.to) > MAX_DRIVING_DIRECTIONS_KM;
 }
 
 /** Coordinates for the leg ending on `activeDay` (cached Directions polyline or fallback). */
@@ -127,15 +175,15 @@ export function resolveSegmentCoordsForDay(
   origin: [number, number] | null,
   finalizedDays: RouteDayStop[],
 ): [number, number][] {
-  const seg = routeData.find((s) => s.dayTo === activeDay);
-  if (seg && seg.coordinates.length >= 2) return seg.coordinates;
+  const primary = pickPrimarySegment(segmentsForDay(routeData, activeDay));
+  if (primary) return enrichSegmentCoords(primary);
 
   const endpoints = resolveDayRouteEndpoints(activeDay, dayCoords, origin, finalizedDays);
   if (endpoints) return [endpoints.from, endpoints.to];
   return [];
 }
 
-/** Resolve driving geometry via Mapbox Directions (multi-waypoint) or ferry arc fallback. */
+/** Resolve route geometry — Mapbox driving for ground legs; great-circle for flights/ferries. */
 export async function resolveActiveDayRoute(opts: {
   activeDay: number;
   dayPlan?: DayPlan;
@@ -153,19 +201,42 @@ export async function resolveActiveDayRoute(opts: {
     origin,
     finalizedDays,
   );
-  const seg = routeData.find((s) => s.dayTo === activeDay);
+  const daySegments = segmentsForDay(routeData, activeDay);
+  const primarySeg = pickPrimarySegment(daySegments);
   const endpoints = resolveDayRouteEndpoints(activeDay, dayCoords, origin, finalizedDays);
+  const allSegmentCoords = daySegments.flatMap((s) => s.coordinates);
 
-  if (seg && seg.coordinates.length > 2) {
-    const lineStyle: ActiveDayLineStyle = seg.mode === "ferry" ? "ferry" : "driving";
+  // Flight / ferry — use precomputed great-circle arcs (never Mapbox driving).
+  if (primarySeg && (primarySeg.mode === "flight" || primarySeg.mode === "ferry")) {
+    const coordinates = enrichSegmentCoords(primarySeg);
     return {
-      coordinates: seg.coordinates,
-      lineStyle,
-      boundsPoints: mergeBoundsPoints(waypoints, seg.coordinates),
+      coordinates,
+      lineStyle: primarySeg.mode,
+      boundsPoints: mergeBoundsPoints(waypoints, coordinates, allSegmentCoords),
     };
   }
 
-  if (waypoints.length >= 2 && token) {
+  // Driving / transit polyline already resolved (e.g. Mapbox Directions at plan load).
+  if (primarySeg && primarySeg.coordinates.length > 2) {
+    return {
+      coordinates: primarySeg.coordinates,
+      lineStyle: primarySeg.mode,
+      boundsPoints: mergeBoundsPoints(waypoints, primarySeg.coordinates, allSegmentCoords),
+    };
+  }
+
+  // Long intercontinental hop without cached segment — draw as flight arc.
+  if (endpoints && haversineKm(endpoints.from, endpoints.to) > MAX_DRIVING_DIRECTIONS_KM) {
+    const arc = greatCircleForMode(endpoints.from, endpoints.to, "flight");
+    return {
+      coordinates: arc,
+      lineStyle: "flight",
+      boundsPoints: mergeBoundsPoints(waypoints, arc),
+    };
+  }
+
+  // Ground leg — Mapbox Directions with all day waypoints.
+  if (waypoints.length >= 2 && token && !shouldSkipDrivingDirections(daySegments, endpoints)) {
     const route = await fetchDrivingRouteWithWaypoints(waypoints, token);
     if (route.fromMapboxDirections && route.coordinates.length >= 2) {
       return {
@@ -175,30 +246,33 @@ export async function resolveActiveDayRoute(opts: {
       };
     }
 
-    const from = waypoints[0]!;
-    const to = waypoints[waypoints.length - 1]!;
-    const arc = ferryArcFallback(from, to);
-    return {
-      coordinates: arc,
-      lineStyle: "ferry",
-      boundsPoints: mergeBoundsPoints(waypoints, arc),
-    };
+    if (endpoints) {
+      const arc = greatCircleForMode(endpoints.from, endpoints.to, "ferry");
+      return {
+        coordinates: arc,
+        lineStyle: "ferry",
+        boundsPoints: mergeBoundsPoints(waypoints, arc),
+      };
+    }
   }
 
   if (endpoints) {
-    const arc = ferryArcFallback(endpoints.from, endpoints.to);
+    const distKm = haversineKm(endpoints.from, endpoints.to);
+    const mode: RouteMode = distKm > MAX_DRIVING_DIRECTIONS_KM ? "flight" : "ferry";
+    const arc = greatCircleForMode(endpoints.from, endpoints.to, mode);
     return {
       coordinates: arc,
-      lineStyle: "ferry",
+      lineStyle: mode,
       boundsPoints: mergeBoundsPoints(waypoints, arc),
     };
   }
 
-  if (seg && seg.coordinates.length >= 2) {
+  if (primarySeg && primarySeg.coordinates.length >= 2) {
+    const coordinates = enrichSegmentCoords(primarySeg);
     return {
-      coordinates: seg.coordinates,
-      lineStyle: seg.mode === "ferry" ? "ferry" : "driving",
-      boundsPoints: mergeBoundsPoints(waypoints, seg.coordinates),
+      coordinates,
+      lineStyle: primarySeg.mode,
+      boundsPoints: mergeBoundsPoints(waypoints, coordinates, allSegmentCoords),
     };
   }
 
