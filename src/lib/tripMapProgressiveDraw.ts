@@ -2,7 +2,7 @@ import type { DayPlan } from "@/lib/aiPlan.functions";
 import {
   buildDayWaypointCoords,
   buildGreatCircleCoords,
-  fetchDrivingRouteWithWaypoints,
+  fetchDrivingRoute,
   type RouteMode,
   type TripRouteSegment,
   haversineKm,
@@ -10,6 +10,9 @@ import {
 import type { RouteDayStop } from "@/lib/tripMapRouteState";
 
 export const ROUTE_DRAW_DURATION_MS = 2000;
+
+/** Min distance (km) before we draw a driving line on road-trip plans. */
+export const MIN_ROAD_TRIP_DRAW_KM = 30;
 
 /** Max km for Mapbox driving Directions — longer legs are drawn as great-circle flights. */
 const MAX_DRIVING_DIRECTIONS_KM = 900;
@@ -23,6 +26,8 @@ export type ActiveDayRoute = {
   lineStyle: ActiveDayLineStyle;
   /** All geographic points for fitBounds (stops + route). */
   boundsPoints: [number, number][];
+  /** Whether a route line should be animated (false = markers + bounds only). */
+  drawRoute: boolean;
 };
 
 /** Closest-vertex progress along a polyline (0 = start, 1 = end). */
@@ -65,48 +70,6 @@ export function resolveDayRouteEndpoints(
   return { from, to };
 }
 
-function appendUniqueWaypoint(
-  list: [number, number][],
-  seen: Set<string>,
-  coord: [number, number],
-) {
-  const key = `${coord[0].toFixed(5)},${coord[1].toFixed(5)}`;
-  if (seen.has(key)) return;
-  seen.add(key);
-  list.push(coord);
-}
-
-/** Ordered stops for the active day — previous anchor, POIs/activities, day destination. */
-export function buildActiveDayWaypoints(
-  activeDay: number,
-  dayPlan: DayPlan | undefined,
-  dayCoords: Map<number, [number, number]>,
-  origin: [number, number] | null,
-  finalizedDays: RouteDayStop[],
-): [number, number][] {
-  const waypoints: [number, number][] = [];
-  const seen = new Set<string>();
-  const endpoints = resolveDayRouteEndpoints(activeDay, dayCoords, origin, finalizedDays);
-  const dayCoord =
-    dayCoords.get(activeDay) ??
-    finalizedDays.find((d) => d.day.day === activeDay)?.coord ??
-    null;
-
-  if (endpoints) appendUniqueWaypoint(waypoints, seen, endpoints.from);
-
-  if (dayPlan) {
-    for (const c of buildDayWaypointCoords(dayPlan, dayCoord)) {
-      appendUniqueWaypoint(waypoints, seen, c);
-    }
-  } else if (dayCoord) {
-    appendUniqueWaypoint(waypoints, seen, dayCoord);
-  }
-
-  if (endpoints) appendUniqueWaypoint(waypoints, seen, endpoints.to);
-
-  return waypoints;
-}
-
 function mergeBoundsPoints(...groups: [number, number][][]): [number, number][] {
   const out: [number, number][] = [];
   const seen = new Set<string>();
@@ -119,6 +82,17 @@ function mergeBoundsPoints(...groups: [number, number][][]): [number, number][] 
     }
   }
   return out;
+}
+
+/** POI / activity coords for fitBounds on sightseeing days (no road line). */
+export function buildPoiBoundsPoints(
+  dayPlan: DayPlan | undefined,
+  dayCoord: [number, number] | null,
+): [number, number][] {
+  if (!dayPlan && !dayCoord) return [];
+  const coords = dayPlan ? buildDayWaypointCoords(dayPlan, dayCoord) : [];
+  if (coords.length === 0 && dayCoord) return [dayCoord];
+  return coords;
 }
 
 export function segmentsForDay(
@@ -158,13 +132,15 @@ function greatCircleForMode(
   return buildGreatCircleCoords(from, to, npoints);
 }
 
-function shouldSkipDrivingDirections(
-  daySegments: TripRouteSegment[],
+/** Driving lines only on road-trip plans for inter-city legs above MIN_ROAD_TRIP_DRAW_KM. */
+export function shouldDrawDrivingRoute(
+  preferDriving: boolean,
   endpoints: { from: [number, number]; to: [number, number] } | null,
+  primarySeg: TripRouteSegment | null,
 ): boolean {
-  if (daySegments.some((s) => s.mode === "flight" || s.mode === "ferry")) return true;
-  if (!endpoints) return false;
-  return haversineKm(endpoints.from, endpoints.to) > MAX_DRIVING_DIRECTIONS_KM;
+  if (!preferDriving || !endpoints) return false;
+  if (primarySeg?.mode === "flight" || primarySeg?.mode === "ferry") return false;
+  return haversineKm(endpoints.from, endpoints.to) >= MIN_ROAD_TRIP_DRAW_KM;
 }
 
 /** Coordinates for the leg ending on `activeDay` (cached Directions polyline or fallback). */
@@ -183,7 +159,24 @@ export function resolveSegmentCoordsForDay(
   return [];
 }
 
-/** Resolve route geometry — Mapbox driving for ground legs; great-circle for flights/ferries. */
+function sightseeingRoute(
+  dayPlan: DayPlan | undefined,
+  dayCoord: [number, number] | null,
+  endpoints: { from: [number, number]; to: [number, number] } | null,
+): ActiveDayRoute {
+  const poiBounds = buildPoiBoundsPoints(dayPlan, dayCoord);
+  const boundsPoints = endpoints
+    ? mergeBoundsPoints(poiBounds, [endpoints.from, endpoints.to])
+    : poiBounds;
+  return {
+    coordinates: [],
+    lineStyle: "driving",
+    boundsPoints,
+    drawRoute: false,
+  };
+}
+
+/** Resolve route geometry — driving lines only on road-trip inter-city legs. */
 export async function resolveActiveDayRoute(opts: {
   activeDay: number;
   dayPlan?: DayPlan;
@@ -192,95 +185,89 @@ export async function resolveActiveDayRoute(opts: {
   origin: [number, number] | null;
   finalizedDays: RouteDayStop[];
   token: string | null;
+  preferDriving: boolean;
 }): Promise<ActiveDayRoute> {
-  const { activeDay, dayPlan, routeData, dayCoords, origin, finalizedDays, token } = opts;
-  const waypoints = buildActiveDayWaypoints(
+  const {
     activeDay,
     dayPlan,
+    routeData,
     dayCoords,
     origin,
     finalizedDays,
-  );
+    token,
+    preferDriving,
+  } = opts;
+
+  const dayCoord =
+    dayCoords.get(activeDay) ??
+    finalizedDays.find((d) => d.day.day === activeDay)?.coord ??
+    null;
   const daySegments = segmentsForDay(routeData, activeDay);
   const primarySeg = pickPrimarySegment(daySegments);
   const endpoints = resolveDayRouteEndpoints(activeDay, dayCoords, origin, finalizedDays);
+  const poiBounds = buildPoiBoundsPoints(dayPlan, dayCoord);
   const allSegmentCoords = daySegments.flatMap((s) => s.coordinates);
 
-  // Flight / ferry — use precomputed great-circle arcs (never Mapbox driving).
+  // Flight / ferry — always show great-circle arc.
   if (primarySeg && (primarySeg.mode === "flight" || primarySeg.mode === "ferry")) {
     const coordinates = enrichSegmentCoords(primarySeg);
     return {
       coordinates,
       lineStyle: primarySeg.mode,
-      boundsPoints: mergeBoundsPoints(waypoints, coordinates, allSegmentCoords),
+      boundsPoints: mergeBoundsPoints(poiBounds, coordinates, allSegmentCoords),
+      drawRoute: true,
     };
   }
 
-  // Driving / transit polyline already resolved (e.g. Mapbox Directions at plan load).
-  if (primarySeg && primarySeg.coordinates.length > 2) {
-    return {
-      coordinates: primarySeg.coordinates,
-      lineStyle: primarySeg.mode,
-      boundsPoints: mergeBoundsPoints(waypoints, primarySeg.coordinates, allSegmentCoords),
-    };
-  }
-
-  // Long intercontinental hop without cached segment — draw as flight arc.
+  // Long intercontinental hop — flight arc.
   if (endpoints && haversineKm(endpoints.from, endpoints.to) > MAX_DRIVING_DIRECTIONS_KM) {
     const arc = greatCircleForMode(endpoints.from, endpoints.to, "flight");
     return {
       coordinates: arc,
       lineStyle: "flight",
-      boundsPoints: mergeBoundsPoints(waypoints, arc),
+      boundsPoints: mergeBoundsPoints(poiBounds, arc),
+      drawRoute: true,
     };
   }
 
-  // Ground leg — Mapbox Directions with all day waypoints.
-  if (waypoints.length >= 2 && token && !shouldSkipDrivingDirections(daySegments, endpoints)) {
-    const route = await fetchDrivingRouteWithWaypoints(waypoints, token);
-    if (route.fromMapboxDirections && route.coordinates.length >= 2) {
+  const drawDriving = shouldDrawDrivingRoute(preferDriving, endpoints, primarySeg);
+
+  // Road-trip inter-city leg — Mapbox driving between previous stop and today's city (2 points).
+  if (drawDriving && endpoints) {
+    if (primarySeg?.mode === "driving" && primarySeg.coordinates.length > 2) {
       return {
-        coordinates: route.coordinates,
+        coordinates: primarySeg.coordinates,
         lineStyle: "driving",
-        boundsPoints: mergeBoundsPoints(waypoints, route.coordinates),
+        boundsPoints: mergeBoundsPoints(poiBounds, primarySeg.coordinates),
+        drawRoute: true,
       };
     }
 
-    if (endpoints) {
-      const arc = greatCircleForMode(endpoints.from, endpoints.to, "ferry");
+    if (token) {
+      const route = await fetchDrivingRoute(endpoints.from, endpoints.to, token);
+      if (route.fromMapboxDirections && route.coordinates.length >= 2) {
+        return {
+          coordinates: route.coordinates,
+          lineStyle: "driving",
+          boundsPoints: mergeBoundsPoints(poiBounds, route.coordinates),
+          drawRoute: true,
+        };
+      }
+    }
+
+    if (primarySeg && primarySeg.coordinates.length >= 2) {
+      const coordinates = enrichSegmentCoords(primarySeg);
       return {
-        coordinates: arc,
-        lineStyle: "ferry",
-        boundsPoints: mergeBoundsPoints(waypoints, arc),
+        coordinates,
+        lineStyle: primarySeg.mode,
+        boundsPoints: mergeBoundsPoints(poiBounds, coordinates),
+        drawRoute: true,
       };
     }
   }
 
-  if (endpoints) {
-    const distKm = haversineKm(endpoints.from, endpoints.to);
-    const mode: RouteMode = distKm > MAX_DRIVING_DIRECTIONS_KM ? "flight" : "ferry";
-    const arc = greatCircleForMode(endpoints.from, endpoints.to, mode);
-    return {
-      coordinates: arc,
-      lineStyle: mode,
-      boundsPoints: mergeBoundsPoints(waypoints, arc),
-    };
-  }
-
-  if (primarySeg && primarySeg.coordinates.length >= 2) {
-    const coordinates = enrichSegmentCoords(primarySeg);
-    return {
-      coordinates,
-      lineStyle: primarySeg.mode,
-      boundsPoints: mergeBoundsPoints(waypoints, coordinates, allSegmentCoords),
-    };
-  }
-
-  return {
-    coordinates: [],
-    lineStyle: "driving",
-    boundsPoints: waypoints,
-  };
+  // Sightseeing / same-city day / non-road-trip — markers + bounds, no road line.
+  return sightseeingRoute(dayPlan, dayCoord, endpoints);
 }
 
 /** @deprecated Use resolveActiveDayRoute — kept for tests. */
@@ -292,8 +279,12 @@ export async function resolveActiveDayRouteCoords(opts: {
   finalizedDays: RouteDayStop[];
   token: string | null;
   dayPlan?: DayPlan;
+  preferDriving?: boolean;
 }): Promise<[number, number][]> {
-  const route = await resolveActiveDayRoute(opts);
+  const route = await resolveActiveDayRoute({
+    ...opts,
+    preferDriving: opts.preferDriving ?? false,
+  });
   return route.coordinates;
 }
 
@@ -302,4 +293,23 @@ export function coordsBoundsKey(coords: [number, number][]): string {
   const first = coords[0]!;
   const last = coords[coords.length - 1]!;
   return `${coords.length}:${first[0].toFixed(4)},${first[1].toFixed(4)}:${last[0].toFixed(4)},${last[1].toFixed(4)}`;
+}
+
+/** @deprecated Use buildPoiBoundsPoints */
+export function buildActiveDayWaypoints(
+  activeDay: number,
+  dayPlan: DayPlan | undefined,
+  dayCoords: Map<number, [number, number]>,
+  origin: [number, number] | null,
+  finalizedDays: RouteDayStop[],
+): [number, number][] {
+  const endpoints = resolveDayRouteEndpoints(activeDay, dayCoords, origin, finalizedDays);
+  const dayCoord =
+    dayCoords.get(activeDay) ??
+    finalizedDays.find((d) => d.day.day === activeDay)?.coord ??
+    null;
+  const poiBounds = buildPoiBoundsPoints(dayPlan, dayCoord);
+  return endpoints
+    ? mergeBoundsPoints(poiBounds, [endpoints.from, endpoints.to])
+    : poiBounds;
 }

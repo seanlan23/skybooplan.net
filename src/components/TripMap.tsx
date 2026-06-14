@@ -550,17 +550,11 @@ function collectPlanPoiPins(plan: AiTripPlan): MapPoiPin[] {
   return pins;
 }
 
-const DAY_CAMERA_PADDING = { top: 72, bottom: 96, left: 64, right: 64 } as const;
-
-const SMOOTH_FLY = {
-  essential: true,
-  duration: 2500,
-  speed: 0.8,
-  curve: 1,
-} as const;
-
-const DAY_VIEW_PADDING = 50;
-const DAY_VIEW_DURATION_MS = 1500;
+/** Shared camera timing — synced with route draw (~2s). */
+const MAP_CAMERA_DURATION_MS = 2000;
+const DAY_VIEW_PADDING = 56;
+const POI_VIEW_PADDING = 72;
+const POI_MAX_ZOOM = 15;
 
 function padBoundsIfPoint(bounds: mapboxgl.LngLatBounds) {
   const ne = bounds.getNorthEast();
@@ -590,18 +584,21 @@ function fitActiveDayView(
   map.stop();
   map.fitBounds(bounds, {
     padding: DAY_VIEW_PADDING,
-    duration: DAY_VIEW_DURATION_MS,
+    duration: MAP_CAMERA_DURATION_MS,
     essential: true,
   });
 }
 
-function flyToPoiDrone(map: mapboxgl.Map, center: [number, number]) {
+function flyToPoiFocus(map: mapboxgl.Map, center: [number, number]) {
+  const bounds = new mapboxgl.LngLatBounds();
+  bounds.extend(center);
+  padBoundsIfPoint(bounds);
   map.stop();
-  map.flyTo({
-    center,
-    zoom: 12,
-    padding: DAY_CAMERA_PADDING,
-    ...SMOOTH_FLY,
+  map.fitBounds(bounds, {
+    padding: POI_VIEW_PADDING,
+    duration: MAP_CAMERA_DURATION_MS,
+    maxZoom: POI_MAX_ZOOM,
+    essential: true,
   });
 }
 function buildMarkerPopupHtml(opts: {
@@ -1326,7 +1323,7 @@ function TripMapInner({
     const run = () => {
       if (!isValidCoord(focusTarget.lat, focusTarget.lng)) return;
       lastFlyTargetKeyRef.current = `drone:${focusTarget.key}`;
-      flyToPoiDrone(map, [focusTarget.lng, focusTarget.lat]);
+      flyToPoiFocus(map, [focusTarget.lng, focusTarget.lat]);
     };
 
     if (map.isStyleLoaded() && ready.current) run();
@@ -1638,7 +1635,6 @@ function TripMapInner({
     const map = mapRef.current;
     if (!map || !map.isStyleLoaded() || !ready.current) return;
     if (tripRouteBoundsKey && !overviewReady && !isPlaying) return;
-    if (focusTarget?.mode === "drone") return;
 
     clearPoiRevealTimers(poiRevealTimersRef);
     if (routeDrawAnimRef.current) {
@@ -1649,7 +1645,9 @@ function TripMapInner({
     clearAllRouteDisplay(map);
 
     let cancelled = false;
-    const dayFocusKey = focusTarget?.mode === "day" ? focusTarget.key : 0;
+    const dayFocusKey =
+      focusTargetRef.current?.mode === "day" ? focusTargetRef.current.key : 0;
+    const skipDayCamera = focusTargetRef.current?.mode === "drone";
 
     void (async () => {
       const dayPlan = plan.days.find((d) => d.day === activeDay);
@@ -1661,12 +1659,13 @@ function TripMapInner({
         origin,
         finalizedDays: finalizedRouteDays,
         token,
+        preferDriving,
       });
       if (cancelled) return;
 
-      const { coordinates: coords, boundsPoints, lineStyle } = activeRoute;
-      const camKey = `${isPlaying ? "play" : "scroll"}:${activeDay}:${dayFocusKey}:${coordsBoundsKey(coords)}`;
-      if (lastFlyTargetKeyRef.current !== camKey) {
+      const { coordinates: coords, boundsPoints, lineStyle, drawRoute } = activeRoute;
+      const camKey = `${isPlaying ? "play" : "scroll"}:${activeDay}:${dayFocusKey}:${coordsBoundsKey(coords)}:${drawRoute}`;
+      if (!skipDayCamera && lastFlyTargetKeyRef.current !== camKey) {
         lastFlyTargetKeyRef.current = camKey;
         fitActiveDayView(map, {
           boundsPoints,
@@ -1674,7 +1673,7 @@ function TripMapInner({
         });
       }
 
-      runActiveDayRouteDraw(map, coords, {
+      runActiveDayRouteDraw(map, drawRoute ? coords : [], {
         activeDay,
         lineStyle,
         poiMarkersRef,
@@ -1693,7 +1692,6 @@ function TripMapInner({
         cancelAnimationFrame(routeDrawAnimRef.current);
         routeDrawAnimRef.current = 0;
       }
-      if (mapRef.current) clearAllRouteDisplay(mapRef.current);
     };
   }, [
     activeDay,
@@ -1708,7 +1706,7 @@ function TripMapInner({
     poiPinsKey,
     token,
     planContentKey,
-    focusTarget,
+    preferDriving,
     activeDayCoord,
     activeDayCoordKey,
   ]);

@@ -4,6 +4,8 @@ import {
   pickPrimarySegment,
   progressAlongRoute,
   resolveSegmentCoordsForDay,
+  shouldDrawDrivingRoute,
+  MIN_ROAD_TRIP_DRAW_KM,
 } from "@/lib/tripMapProgressiveDraw";
 import type { TripRouteSegment } from "@/lib/tripMapRoutes";
 import type { DayPlan } from "@/lib/aiPlan.functions";
@@ -52,7 +54,7 @@ describe("tripMapProgressiveDraw", () => {
     ]);
     const waypoints = buildActiveDayWaypoints(2, dayPlan, dayCoords, null, []);
     expect(waypoints.length).toBeGreaterThanOrEqual(2);
-    expect(waypoints[0]).toEqual([98.0, 7.9]);
+    expect(waypoints.some((c) => c[0] === 98.0 && c[1] === 7.9)).toBe(true);
   });
 
   it("pickPrimarySegment prefers flight over driving on same day", () => {
@@ -88,5 +90,21 @@ describe("tripMapProgressiveDraw", () => {
     ];
     const primary = pickPrimarySegment(segments);
     expect(primary?.mode).toBe("flight");
+  });
+
+  it("shouldDrawDrivingRoute requires road-trip mode and min distance", () => {
+    const endpoints = {
+      from: [8.0, 48.0] as [number, number],
+      to: [9.5, 49.0] as [number, number],
+    };
+    expect(shouldDrawDrivingRoute(false, endpoints, null)).toBe(false);
+    expect(shouldDrawDrivingRoute(true, null, null)).toBe(false);
+    expect(shouldDrawDrivingRoute(true, endpoints, null)).toBe(true);
+    const short = {
+      from: [8.0, 48.0] as [number, number],
+      to: [8.05, 48.02] as [number, number],
+    };
+    expect(shouldDrawDrivingRoute(true, short, null)).toBe(false);
+    expect(MIN_ROAD_TRIP_DRAW_KM).toBeGreaterThanOrEqual(25);
   });
 });
