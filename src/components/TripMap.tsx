@@ -57,6 +57,24 @@ export function poiFocusKey(name: string, lat: number, lng: number): string {
   return `${name.trim().toLowerCase()}@${lat.toFixed(5)},${lng.toFixed(5)}`;
 }
 
+/** Match plan click to map pin — coords first (handles name variants). */
+export function matchesPoiFocus(
+  pin: { name: string; lat: number; lng: number },
+  target: { poiName?: string; lat: number; lng: number },
+): boolean {
+  if (
+    Math.abs(pin.lat - target.lat) < 0.00025 &&
+    Math.abs(pin.lng - target.lng) < 0.00025
+  ) {
+    return true;
+  }
+  if (!target.poiName) return false;
+  return (
+    poiFocusKey(pin.name, pin.lat, pin.lng) ===
+    poiFocusKey(target.poiName, target.lat, target.lng)
+  );
+}
+
 type Props = {
   plan: AiTripPlan;
   activeDay: number;
@@ -438,9 +456,16 @@ function createOriginMarkerElement(label: string): { el: HTMLDivElement; root: R
 const POI_PHOTO_MARKER_BASE =
   "w-10 h-10 rounded-full border-2 border-white shadow-md bg-cover bg-center bg-no-repeat";
 
-function poiPhotoMarkerClass(isDayActive: boolean, isFocused: boolean): string {
+function poiPhotoMarkerClass(
+  isDayActive: boolean,
+  isFocused: boolean,
+  isDimmed = false,
+): string {
   if (isFocused) {
-    return `${POI_PHOTO_MARKER_BASE} border-amber-500 ring-2 ring-amber-400/60 z-[10]`;
+    return `${POI_PHOTO_MARKER_BASE} border-amber-500 ring-[3px] ring-amber-400 ring-offset-2 shadow-lg z-[10] scale-[1.28]`;
+  }
+  if (isDimmed) {
+    return `${POI_PHOTO_MARKER_BASE} opacity-35 scale-[0.88]`;
   }
   return `${POI_PHOTO_MARKER_BASE}${
     isDayActive ? " ring-2 ring-sky-400/50 ring-offset-1 z-[6]" : " opacity-90"
@@ -451,7 +476,6 @@ function poiPhotoMarkerClass(isDayActive: boolean, isFocused: boolean): string {
 function createPoiMarkerElement(
   pin: MapPoiPin,
   isDayActive: boolean,
-  isFocused: boolean,
 ): { el: HTMLDivElement; root: Root | null; photoEl?: HTMLDivElement } {
   const el = document.createElement("div");
   el.className =
@@ -461,7 +485,7 @@ function createPoiMarkerElement(
   const imageUrl = pin.imageUrl?.trim();
   if (imageUrl) {
     const photo = document.createElement("div");
-    photo.className = poiPhotoMarkerClass(isDayActive, isFocused);
+    photo.className = poiPhotoMarkerClass(isDayActive, false);
     photo.style.backgroundImage = `url("${imageUrl.replace(/"/g, "%22")}")`;
     photo.setAttribute("role", "img");
     photo.setAttribute("aria-label", pin.name);
@@ -471,7 +495,7 @@ function createPoiMarkerElement(
     probe.onerror = () => {
       const visual = mapPoiVisual(pin.category);
       photo.style.backgroundImage = "";
-      photo.className = `${poiPhotoMarkerClass(isDayActive, isFocused)} flex items-center justify-center text-base leading-none`;
+      photo.className = `${poiPhotoMarkerClass(isDayActive, false)} flex items-center justify-center text-base leading-none`;
       photo.style.backgroundColor = visual.bg;
       photo.textContent = visual.emoji;
     };
@@ -484,7 +508,7 @@ function createPoiMarkerElement(
   el.appendChild(iconHost);
   const root = createRoot(iconHost);
   root.render(
-    <MapPoiMarker category={pin.category} isActive={isDayActive || isFocused} name={pin.name} />,
+    <MapPoiMarker category={pin.category} isActive={isDayActive} name={pin.name} />,
   );
   return { el, root };
 }
@@ -554,7 +578,7 @@ function collectPlanPoiPins(plan: AiTripPlan): MapPoiPin[] {
 const MAP_CAMERA_DURATION_MS = 2000;
 const DAY_VIEW_PADDING = 56;
 const POI_VIEW_PADDING = 72;
-const POI_MAX_ZOOM = 15;
+const POI_FOCUS_ZOOM = 16.5;
 
 function padBoundsIfPoint(bounds: mapboxgl.LngLatBounds) {
   const ne = bounds.getNorthEast();
@@ -590,16 +614,84 @@ function fitActiveDayView(
 }
 
 function flyToPoiFocus(map: mapboxgl.Map, center: [number, number]) {
-  const bounds = new mapboxgl.LngLatBounds();
-  bounds.extend(center);
-  padBoundsIfPoint(bounds);
   map.stop();
-  map.fitBounds(bounds, {
-    padding: POI_VIEW_PADDING,
+  map.easeTo({
+    center,
+    zoom: POI_FOCUS_ZOOM,
     duration: MAP_CAMERA_DURATION_MS,
-    maxZoom: POI_MAX_ZOOM,
+    padding: {
+      top: POI_VIEW_PADDING,
+      bottom: POI_VIEW_PADDING,
+      left: POI_VIEW_PADDING,
+      right: POI_VIEW_PADDING,
+    },
     essential: true,
   });
+}
+
+function applyPoiMarkerVisualState(
+  entry: PoiMarkerEntry,
+  state: { isDayActive: boolean; isFocused: boolean; isDimmed: boolean },
+) {
+  const { marker, pin, root, photoEl } = entry;
+  const el = marker.getElement();
+  const isDayActiveOnly = state.isDayActive && !state.isFocused && !state.isDimmed;
+
+  el.style.zIndex = state.isFocused ? "20" : state.isDimmed ? "1" : "5";
+
+  if (photoEl) {
+    const hasEmojiFallback = Boolean(photoEl.textContent?.trim());
+    photoEl.className = hasEmojiFallback
+      ? `${poiPhotoMarkerClass(isDayActiveOnly, state.isFocused, state.isDimmed)} flex items-center justify-center text-base leading-none`
+      : poiPhotoMarkerClass(isDayActiveOnly, state.isFocused, state.isDimmed);
+    if (hasEmojiFallback && state.isFocused) {
+      photoEl.style.backgroundColor = mapPoiVisual(pin.category).bg;
+    }
+  } else if (root) {
+    root.render(
+      <MapPoiMarker
+        category={pin.category}
+        isActive={isDayActiveOnly}
+        isFocused={state.isFocused}
+        isDimmed={state.isDimmed}
+        name={pin.name}
+      />,
+    );
+  }
+
+  let labelEl = el.querySelector<HTMLElement>("[data-poi-focus-label]");
+  if (state.isFocused) {
+    if (!labelEl) {
+      labelEl = document.createElement("span");
+      labelEl.dataset.poiFocusLabel = "1";
+      labelEl.className =
+        "mb-1.5 max-w-[148px] truncate rounded-full bg-slate-900/90 px-2.5 py-1 text-[10px] font-semibold leading-tight text-white shadow-lg text-center pointer-events-none";
+      el.prepend(labelEl);
+      el.className =
+        "trip-map-poi-marker pointer-events-auto flex shrink-0 cursor-pointer flex-col items-center overflow-visible";
+    }
+    labelEl.textContent = pin.name;
+    labelEl.style.display = "";
+  } else if (labelEl) {
+    labelEl.style.display = "none";
+  }
+}
+
+function openFocusedPoiPopup(
+  map: mapboxgl.Map,
+  entries: PoiMarkerEntry[],
+  target: MapFocusTarget,
+) {
+  for (const entry of entries) {
+    entry.marker.getPopup()?.remove();
+  }
+  for (const entry of entries) {
+    if (!matchesPoiFocus(entry.pin, target)) continue;
+    entry.marker.addTo(map);
+    const popup = entry.marker.getPopup();
+    if (popup) popup.addTo(map);
+    break;
+  }
 }
 function buildMarkerPopupHtml(opts: {
   title: string;
@@ -1320,14 +1412,28 @@ function TripMapInner({
     const map = mapRef.current;
     if (!map || !focusTarget || focusTarget.mode !== "drone") return;
 
+    let onSettled: (() => void) | null = null;
+
     const run = () => {
       if (!isValidCoord(focusTarget.lat, focusTarget.lng)) return;
       lastFlyTargetKeyRef.current = `drone:${focusTarget.key}`;
       flyToPoiFocus(map, [focusTarget.lng, focusTarget.lat]);
+
+      onSettled = () => {
+        if (onSettled) map.off("moveend", onSettled);
+        onSettled = null;
+        openFocusedPoiPopup(map, poiMarkersRef.current, focusTarget);
+      };
+      map.once("moveend", onSettled);
     };
 
     if (map.isStyleLoaded() && ready.current) run();
     else map.once("load", run);
+
+    return () => {
+      if (onSettled) map.off("moveend", onSettled);
+      map.off("load", run);
+    };
   }, [focusTarget]);
 
   // Road trips: one marker per day (don't merge consecutive days into one stop).
@@ -1465,7 +1571,7 @@ function TripMapInner({
         }
 
         const isDayActive = pin.day === activeDayRef.current;
-        const { el, root, photoEl } = createPoiMarkerElement(pin, isDayActive, false);
+        const { el, root, photoEl } = createPoiMarkerElement(pin, isDayActive);
         const marker = new mapboxgl.Marker(el)
           .setLngLat([pin.lng, pin.lat])
           .addTo(map);
@@ -1543,33 +1649,16 @@ function TripMapInner({
     };
   }, [poiPinsKey, mapStyleEpoch, plan.days, t, formatMoney]);
 
-  // Highlight active POI markers without rebuilding the whole layer.
+  // Highlight focused POI — dim siblings, show label, open popup after camera.
   useEffect(() => {
-    const focusedKey =
-      focusTarget?.mode === "drone" && focusTarget.poiName
-        ? poiFocusKey(focusTarget.poiName, focusTarget.lat, focusTarget.lng)
-        : null;
+    const inPoiFocus = focusTarget?.mode === "drone";
+    const focusCoords = inPoiFocus && focusTarget ? focusTarget : null;
 
-    for (const { root, pin, day, photoEl } of poiMarkersRef.current) {
-      const isDayActive = day === activeDay;
-      const isFocused = focusedKey === poiFocusKey(pin.name, pin.lat, pin.lng);
-      if (photoEl) {
-        const hasEmojiFallback = Boolean(photoEl.textContent?.trim());
-        photoEl.className = hasEmojiFallback
-          ? `${poiPhotoMarkerClass(isDayActive, isFocused)} flex items-center justify-center text-base leading-none`
-          : poiPhotoMarkerClass(isDayActive, isFocused);
-        if (hasEmojiFallback && isFocused) {
-          photoEl.style.backgroundColor = mapPoiVisual(pin.category).bg;
-        }
-      } else if (root) {
-        root.render(
-          <MapPoiMarker
-            category={pin.category}
-            isActive={isDayActive || isFocused}
-            name={pin.name}
-          />,
-        );
-      }
+    for (const entry of poiMarkersRef.current) {
+      const isDayActive = entry.day === activeDay;
+      const isFocused = focusCoords ? matchesPoiFocus(entry.pin, focusCoords) : false;
+      const isDimmed = Boolean(inPoiFocus && !isFocused);
+      applyPoiMarkerVisualState(entry, { isDayActive, isFocused, isDimmed });
     }
   }, [activeDay, focusTarget]);
 

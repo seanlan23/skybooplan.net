@@ -35,28 +35,51 @@ const CATEGORY_ICON_CLASS: Record<MapPoiCategory, string> = {
 };
 
 const MARKER_IMG_CLASS =
-  "h-11 w-11 rounded-full border-2 border-white object-cover shadow-md transition-transform duration-300 ease-out hover:scale-125";
+  "h-11 w-11 rounded-full border-2 border-white object-cover shadow-md transition-all duration-300 ease-out";
 
 const MARKER_ICON_SHELL_CLASS =
-  "flex h-11 w-11 items-center justify-center rounded-full border-2 border-white bg-white/75 shadow-md backdrop-blur-sm transition-transform duration-300 ease-out hover:scale-125";
+  "flex h-11 w-11 items-center justify-center rounded-full border-2 border-white bg-white/75 shadow-md backdrop-blur-sm transition-all duration-300 ease-out";
 
 type MarkerShellProps = {
   isActive?: boolean;
+  isFocused?: boolean;
+  isDimmed?: boolean;
   name?: string;
   children: React.ReactNode;
 };
 
-function MarkerShell({ isActive = false, name, children }: MarkerShellProps) {
+function MarkerShell({
+  isActive = false,
+  isFocused = false,
+  isDimmed = false,
+  name,
+  children,
+}: MarkerShellProps) {
+  const shellClass = isFocused
+    ? "relative z-20 scale-[1.28]"
+    : isDimmed
+      ? "opacity-35 scale-[0.88]"
+      : isActive
+        ? "z-[6] scale-110 opacity-100"
+        : "opacity-90 hover:opacity-100";
+
   return (
     <div
-      className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center"
+      className="pointer-events-auto flex shrink-0 cursor-pointer flex-col items-center"
       title={name}
     >
-      <div
-        className={`group/marker transition-transform duration-300 ease-out ${
-          isActive ? "z-[6] scale-110" : "opacity-90 hover:opacity-100"
-        }`}
-      >
+      {isFocused && name ? (
+        <span className="mb-1.5 max-w-[148px] truncate rounded-full bg-slate-900/90 px-2.5 py-1 text-[10px] font-semibold leading-tight text-white shadow-lg backdrop-blur-sm">
+          {name}
+        </span>
+      ) : null}
+      <div className={`relative transition-all duration-300 ease-out ${shellClass}`}>
+        {isFocused ? (
+          <span
+            className="pointer-events-none absolute -inset-1.5 rounded-full border-2 border-amber-400/70"
+            aria-hidden
+          />
+        ) : null}
         {children}
       </div>
     </div>
@@ -66,19 +89,33 @@ function MarkerShell({ isActive = false, name, children }: MarkerShellProps) {
 type IconMarkerProps = {
   category: MapPoiCategory;
   isActive?: boolean;
+  isFocused?: boolean;
+  isDimmed?: boolean;
   name?: string;
 };
 
-function IconMarker({ category, isActive = false, name }: IconMarkerProps) {
+function IconMarker({
+  category,
+  isActive = false,
+  isFocused = false,
+  isDimmed = false,
+  name,
+}: IconMarkerProps) {
   const Icon = POI_ICONS[category] ?? MapPin;
+  const ringClass = isFocused
+    ? " ring-[3px] ring-amber-400 ring-offset-2 bg-white shadow-lg"
+    : isActive
+      ? " ring-2 ring-sky-400/40 ring-offset-1 bg-white/90"
+      : "";
 
   return (
-    <MarkerShell isActive={isActive} name={name}>
-      <div
-        className={`${MARKER_ICON_SHELL_CLASS}${
-          isActive ? " ring-2 ring-sky-400/40 ring-offset-1 bg-white/90" : ""
-        }`}
-      >
+    <MarkerShell
+      isActive={isActive}
+      isFocused={isFocused}
+      isDimmed={isDimmed}
+      name={name}
+    >
+      <div className={`${MARKER_ICON_SHELL_CLASS}${ringClass}`}>
         <Icon
           className={`pointer-events-none h-[18px] w-[18px] ${CATEGORY_ICON_CLASS[category]}`}
           strokeWidth={2}
@@ -92,30 +129,58 @@ function IconMarker({ category, isActive = false, name }: IconMarkerProps) {
 export type MapPoiMarkerProps = {
   category: MapPoiCategory;
   isActive?: boolean;
+  isFocused?: boolean;
+  isDimmed?: boolean;
   name?: string;
   imageUrl?: string;
 };
 
-export function MapPoiMarker({ category, isActive = false, name, imageUrl }: MapPoiMarkerProps) {
+export function MapPoiMarker({
+  category,
+  isActive = false,
+  isFocused = false,
+  isDimmed = false,
+  name,
+  imageUrl,
+}: MapPoiMarkerProps) {
   const [photoFailed, setPhotoFailed] = useState(false);
   const hasPhoto = Boolean(imageUrl?.trim()) && !photoFailed;
 
+  const photoRingClass = isFocused
+    ? " ring-[3px] ring-amber-400 ring-offset-2 shadow-lg"
+    : isActive
+      ? " ring-2 ring-sky-400/50 ring-offset-1"
+      : "";
+
   if (hasPhoto && imageUrl) {
     return (
-      <MarkerShell isActive={isActive} name={name}>
+      <MarkerShell
+        isActive={isActive}
+        isFocused={isFocused}
+        isDimmed={isDimmed}
+        name={name}
+      >
         <img
           src={imageUrl}
           alt=""
           loading="lazy"
           decoding="async"
           onError={() => setPhotoFailed(true)}
-          className={`${MARKER_IMG_CLASS}${isActive ? " ring-2 ring-sky-400/50 ring-offset-1" : ""}`}
+          className={`${MARKER_IMG_CLASS}${photoRingClass}`}
         />
       </MarkerShell>
     );
   }
 
-  return <IconMarker category={category} isActive={isActive} name={name} />;
+  return (
+    <IconMarker
+      category={category}
+      isActive={isActive}
+      isFocused={isFocused}
+      isDimmed={isDimmed}
+      name={name}
+    />
+  );
 }
 
 /** City / day stop marker — photo thumbnail or minimal pin. */
@@ -169,4 +234,3 @@ export function MapOriginMarker() {
     </div>
   );
 }
-
