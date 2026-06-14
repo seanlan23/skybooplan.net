@@ -56,11 +56,11 @@ function MarkerShell({
   children,
 }: MarkerShellProps) {
   const shellClass = isFocused
-    ? "relative z-20 scale-[1.28]"
+    ? "relative z-20 scale-[1.14]"
     : isDimmed
-      ? "opacity-35 scale-[0.88]"
+      ? "opacity-35 scale-[0.92]"
       : isActive
-        ? "z-[6] scale-110 opacity-100"
+        ? "z-[6] scale-105 opacity-100"
         : "opacity-90 hover:opacity-100";
 
   return (

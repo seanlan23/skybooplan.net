@@ -12,6 +12,7 @@ import {
   ROUTE_LAYER_STYLE,
   segmentMidpoint,
   segmentsToFeatureCollection,
+  haversineKm,
   type RouteMode,
   type TripRouteSegment,
 } from "@/lib/tripMapRoutes";
@@ -269,6 +270,48 @@ type PoiMarkerEntry = {
   pin: MapPoiPin;
   photoEl?: HTMLDivElement;
 };
+
+/** Pick a single marker when several pins share the same coords (e.g. mapPin + activity). */
+export function pickFocusedPoiEntryId(
+  entries: PoiMarkerEntry[],
+  target: { poiName?: string; lat: number; lng: number },
+): string | null {
+  const candidates = entries.filter((e) => matchesPoiFocus(e.pin, target));
+  if (candidates.length === 0) return null;
+  if (candidates.length === 1) return candidates[0]!.id;
+
+  const targetName = target.poiName?.trim().toLowerCase() ?? "";
+  let best = candidates[0]!;
+  let bestScore = Number.NEGATIVE_INFINITY;
+
+  for (const entry of candidates) {
+    const pinName = entry.pin.name.trim().toLowerCase();
+    let score = 0;
+    if (targetName && pinName === targetName) score = 100;
+    else if (
+      targetName &&
+      (pinName.includes(targetName) || targetName.includes(pinName))
+    ) {
+      score = 80;
+    } else {
+      score = 40;
+    }
+    score -= haversineKm([entry.pin.lng, entry.pin.lat], [target.lng, target.lat]) * 10;
+    if (score > bestScore) {
+      bestScore = score;
+      best = entry;
+    }
+  }
+  return best.id;
+}
+
+function coordsNearPin(
+  a: { lat: number; lng: number },
+  b: { lat: number; lng: number },
+  maxKm = 0.12,
+): boolean {
+  return haversineKm([a.lng, a.lat], [b.lng, b.lat]) < maxKm;
+}
 type CityMarkerEntry = {
   id: string;
   marker: mapboxgl.Marker;
@@ -462,7 +505,7 @@ function poiPhotoMarkerClass(
   isDimmed = false,
 ): string {
   if (isFocused) {
-    return `${POI_PHOTO_MARKER_BASE} border-amber-500 ring-[3px] ring-amber-400 ring-offset-2 shadow-lg z-[10] scale-[1.28]`;
+    return `${POI_PHOTO_MARKER_BASE} border-amber-500 ring-[3px] ring-amber-400 ring-offset-2 shadow-lg z-[10] scale-[1.14]`;
   }
   if (isDimmed) {
     return `${POI_PHOTO_MARKER_BASE} opacity-35 scale-[0.88]`;
@@ -515,7 +558,7 @@ function createPoiMarkerElement(
 
 function collectPlanPoiPins(plan: AiTripPlan): MapPoiPin[] {
   const pins: MapPoiPin[] = [];
-  const seen = new Set<string>();
+  const COLOCATE_KM = 0.12;
 
   const pushPin = (day: number, pin: {
     name: string;
@@ -530,9 +573,24 @@ function collectPlanPoiPins(plan: AiTripPlan): MapPoiPin[] {
     unsplashQuery?: string;
   }) => {
     if (!isValidCoord(pin.lat, pin.lng)) return;
-    const key = `${pin.lat.toFixed(4)}:${pin.lng.toFixed(4)}:${day}`;
-    if (seen.has(key)) return;
-    seen.add(key);
+
+    const existing = pins.find(
+      (p) =>
+        p.day === day &&
+        haversineKm([p.lng, p.lat], [pin.lng, pin.lat]) < COLOCATE_KM,
+    );
+    if (existing) {
+      if (pin.name.trim().length > existing.name.trim().length) {
+        existing.name = pin.name;
+        existing.description = pin.description ?? existing.description;
+        existing.imageUrl = normalizeImageUrl(pin.imageUrl) ?? existing.imageUrl;
+      }
+      existing.arrivalTime = pin.arrivalTime ?? existing.arrivalTime;
+      existing.departureTime = pin.departureTime ?? existing.departureTime;
+      existing.estimatedCostEur = pin.estimatedCostEur ?? existing.estimatedCostEur;
+      return;
+    }
+
     pins.push({
       day,
       name: pin.name,
@@ -577,8 +635,15 @@ function collectPlanPoiPins(plan: AiTripPlan): MapPoiPin[] {
 /** Shared camera timing — synced with route draw (~2s). */
 const MAP_CAMERA_DURATION_MS = 2000;
 const DAY_VIEW_PADDING = 56;
-const POI_VIEW_PADDING = 72;
-const POI_FOCUS_ZOOM = 16.5;
+const POI_VIEW_PADDING = 80;
+/** Comfortable street-level context — never microscope zoom. */
+const POI_FOCUS_ZOOM = 14.1;
+const POI_FOCUS_ZOOM_MAX = 14.5;
+const POI_FOCUS_MS = 2200;
+const POI_FOCUS_MS_NEAR = 1800;
+const POI_FOCUS_MS_FAR = 2600;
+const POI_NEAR_KM = 1.2;
+const POI_MID_KM = 8;
 
 function padBoundsIfPoint(bounds: mapboxgl.LngLatBounds) {
   const ne = bounds.getNorthEast();
@@ -613,12 +678,44 @@ function fitActiveDayView(
   });
 }
 
-function flyToPoiFocus(map: mapboxgl.Map, center: [number, number]) {
+function flyToPoiFocus(
+  map: mapboxgl.Map,
+  center: [number, number],
+  fromCenter: [number, number] | null,
+) {
   map.stop();
-  map.easeTo({
+
+  const currentZoom = map.getZoom();
+  const distKm = fromCenter ? haversineKm(fromCenter, center) : 0;
+
+  let targetZoom = POI_FOCUS_ZOOM;
+  let curve = 1.28;
+  let duration = POI_FOCUS_MS;
+
+  if (distKm > 0 && distKm < POI_NEAR_KM) {
+    // Same neighbourhood — glide, don't punch in.
+    targetZoom = Math.min(Math.max(currentZoom, POI_FOCUS_ZOOM), POI_FOCUS_ZOOM_MAX);
+    curve = 1.08;
+    duration = POI_FOCUS_MS_NEAR;
+  } else if (distKm >= POI_NEAR_KM && distKm < POI_MID_KM) {
+    // Same city — gentle zoom-out arc then settle.
+    targetZoom = POI_FOCUS_ZOOM;
+    curve = 1.32;
+  } else if (distKm >= POI_MID_KM) {
+    // Different area — wider breathe during flight.
+    targetZoom = Math.min(POI_FOCUS_ZOOM, 13.7);
+    curve = 1.52;
+    duration = POI_FOCUS_MS_FAR;
+  }
+
+  targetZoom = Math.min(targetZoom, POI_FOCUS_ZOOM_MAX);
+
+  map.flyTo({
     center,
-    zoom: POI_FOCUS_ZOOM,
-    duration: MAP_CAMERA_DURATION_MS,
+    zoom: targetZoom,
+    speed: 0.82,
+    curve,
+    duration,
     padding: {
       top: POI_VIEW_PADDING,
       bottom: POI_VIEW_PADDING,
@@ -681,17 +778,15 @@ function openFocusedPoiPopup(
   map: mapboxgl.Map,
   entries: PoiMarkerEntry[],
   target: MapFocusTarget,
+  focusedId: string | null,
 ) {
   for (const entry of entries) {
     entry.marker.getPopup()?.remove();
   }
-  for (const entry of entries) {
-    if (!matchesPoiFocus(entry.pin, target)) continue;
-    entry.marker.addTo(map);
-    const popup = entry.marker.getPopup();
-    if (popup) popup.addTo(map);
-    break;
-  }
+  if (!focusedId) return;
+  const entry = entries.find((e) => e.id === focusedId);
+  if (!entry || !matchesPoiFocus(entry.pin, target)) return;
+  entry.marker.addTo(map);
 }
 function buildMarkerPopupHtml(opts: {
   title: string;
@@ -1113,6 +1208,7 @@ function TripMapInner({
   const initialBoundsFitRef = useRef(false);
   const [overviewReady, setOverviewReady] = useState(false);
   const lastFlyTargetKeyRef = useRef("");
+  const lastPoiFocusCenterRef = useRef<[number, number] | null>(null);
   const segmentGenRef = useRef(0);
   const [tripSegments, setTripSegments] = useState<TripRouteSegment[]>([]);
   const [segmentsLoading, setSegmentsLoading] = useState(false);
@@ -1407,7 +1503,7 @@ function TripMapInner({
     plan.groundTransportMode,
   ]);
 
-  // Click-to-zoom: drone view on selected activity.
+  // Click-to-zoom: smooth fly between selected activities.
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !focusTarget || focusTarget.mode !== "drone") return;
@@ -1416,13 +1512,17 @@ function TripMapInner({
 
     const run = () => {
       if (!isValidCoord(focusTarget.lat, focusTarget.lng)) return;
+      const center: [number, number] = [focusTarget.lng, focusTarget.lat];
+      const prev = lastPoiFocusCenterRef.current;
       lastFlyTargetKeyRef.current = `drone:${focusTarget.key}`;
-      flyToPoiFocus(map, [focusTarget.lng, focusTarget.lat]);
+      flyToPoiFocus(map, center, prev);
+      lastPoiFocusCenterRef.current = center;
 
       onSettled = () => {
         if (onSettled) map.off("moveend", onSettled);
         onSettled = null;
-        openFocusedPoiPopup(map, poiMarkersRef.current, focusTarget);
+        const focusedId = pickFocusedPoiEntryId(poiMarkersRef.current, focusTarget);
+        openFocusedPoiPopup(map, poiMarkersRef.current, focusTarget, focusedId);
       };
       map.once("moveend", onSettled);
     };
@@ -1435,6 +1535,12 @@ function TripMapInner({
       map.off("load", run);
     };
   }, [focusTarget]);
+
+  useEffect(() => {
+    if (focusTarget?.mode !== "drone") {
+      lastPoiFocusCenterRef.current = null;
+    }
+  }, [focusTarget?.mode]);
 
   // Road trips: one marker per day (don't merge consecutive days into one stop).
   const roadTripMode = preferDriving;
@@ -1649,14 +1755,35 @@ function TripMapInner({
     };
   }, [poiPinsKey, mapStyleEpoch, plan.days, t, formatMoney]);
 
-  // Highlight focused POI — dim siblings, show label, open popup after camera.
+  // Highlight focused POI — one marker, dim siblings, hide co-located duplicates.
   useEffect(() => {
     const inPoiFocus = focusTarget?.mode === "drone";
     const focusCoords = inPoiFocus && focusTarget ? focusTarget : null;
+    const focusedId = focusCoords
+      ? pickFocusedPoiEntryId(poiMarkersRef.current, focusCoords)
+      : null;
+    const focusedEntry = poiMarkersRef.current.find((e) => e.id === focusedId);
 
     for (const entry of poiMarkersRef.current) {
+      const el = entry.marker.getElement();
+      const isFocused = entry.id === focusedId;
+      const isColocatedDup = Boolean(
+        inPoiFocus &&
+          focusedEntry &&
+          !isFocused &&
+          coordsNearPin(entry.pin, focusedEntry.pin),
+      );
+
+      if (isColocatedDup) {
+        el.style.opacity = "0";
+        el.style.pointerEvents = "none";
+        continue;
+      }
+
+      el.style.opacity = "";
+      el.style.pointerEvents = "";
+
       const isDayActive = entry.day === activeDay;
-      const isFocused = focusCoords ? matchesPoiFocus(entry.pin, focusCoords) : false;
       const isDimmed = Boolean(inPoiFocus && !isFocused);
       applyPoiMarkerVisualState(entry, { isDayActive, isFocused, isDimmed });
     }
