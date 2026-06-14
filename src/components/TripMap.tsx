@@ -37,7 +37,8 @@ import {
   ROUTE_DRAW_DURATION_MS,
   coordsBoundsKey,
   progressAlongRoute,
-  resolveActiveDayRouteCoords,
+  resolveActiveDayRoute,
+  type ActiveDayLineStyle,
 } from "@/lib/tripMapProgressiveDraw";
 
 export type ActivityMapFocus = {
@@ -314,35 +315,20 @@ function setDurationBadgesForDay(
   }
 }
 
-function dimInactiveTripSegments(
-  map: mapboxgl.Map,
-  activeDay: number,
-  inactiveOpacity = 0.05,
-) {
-  for (const mode of ROUTE_MODES) {
-    const layerId = `trip-segments-${mode}-line`;
-    if (!map.getLayer(layerId)) continue;
-    map.setPaintProperty(layerId, "line-opacity", [
-      "case",
-      ["==", ["to-number", ["get", "dayTo"]], activeDay],
-      0,
-      inactiveOpacity,
-    ]);
-    map.setPaintProperty(layerId, "line-width", [
-      "case",
-      ["==", ["to-number", ["get", "dayTo"]], activeDay],
-      0,
-      ROUTE_LAYER_STYLE[mode].width,
-    ]);
-  }
-}
-
 function hideAllTripSegmentLayers(map: mapboxgl.Map) {
   for (const mode of ROUTE_MODES) {
     const layerId = `trip-segments-${mode}-line`;
     if (!map.getLayer(layerId)) continue;
+    map.setLayoutProperty(layerId, "visibility", "none");
     map.setPaintProperty(layerId, "line-opacity", 0);
   }
+}
+
+/** Wipe every route line — only the active-day layer is redrawn afterward. */
+function clearAllRouteDisplay(map: mapboxgl.Map) {
+  hideAllTripSegmentLayers(map);
+  ensureActiveDayRouteLayer(map);
+  setActiveDayRouteData(map, []);
 }
 
 function cityMarkerId(stop: CityMapStop): string {
@@ -579,7 +565,9 @@ const SMOOTH_FLY = {
 } as const;
 
 const DAY_VIEW_PADDING = 50;
-const DAY_VIEW_DURATION_MS = 2000;
+const DAY_VIEW_DURATION_MS = 1500;
+const FERRY_LINE_COLOR = "#0e7490";
+const FERRY_LINE_DASH: [number, number] = [1.5, 2.5];
 
 function padBoundsIfPoint(bounds: mapboxgl.LngLatBounds) {
   const ne = bounds.getNorthEast();
@@ -594,18 +582,12 @@ function padBoundsIfPoint(bounds: mapboxgl.LngLatBounds) {
 function fitActiveDayView(
   map: mapboxgl.Map,
   opts: {
-    coords: [number, number][];
-    activeDay: number;
-    poiMarkers: PoiMarkerEntry[];
+    boundsPoints: [number, number][];
     fallbackCenter: [number, number] | null;
-    maxZoom?: number;
   },
 ) {
   const bounds = new mapboxgl.LngLatBounds();
-  for (const c of opts.coords) bounds.extend(c);
-  for (const { day, pin } of opts.poiMarkers) {
-    if (day === opts.activeDay) bounds.extend([pin.lng, pin.lat]);
-  }
+  for (const c of opts.boundsPoints) bounds.extend(c);
   if (bounds.isEmpty() && opts.fallbackCenter) {
     bounds.extend(opts.fallbackCenter);
   }
@@ -616,7 +598,6 @@ function fitActiveDayView(
   map.fitBounds(bounds, {
     padding: DAY_VIEW_PADDING,
     duration: DAY_VIEW_DURATION_MS,
-    maxZoom: opts.maxZoom ?? 12,
     essential: true,
   });
 }
@@ -717,6 +698,17 @@ function setActiveDayRouteData(map: mapboxgl.Map, coordinates: [number, number][
   });
 }
 
+function setActiveDayRouteLineStyle(map: mapboxgl.Map, style: ActiveDayLineStyle) {
+  if (!map.getLayer(ACTIVE_DAY_LAYER)) return;
+  if (style === "ferry") {
+    map.setPaintProperty(ACTIVE_DAY_LAYER, "line-color", FERRY_LINE_COLOR);
+    map.setPaintProperty(ACTIVE_DAY_LAYER, "line-dasharray", FERRY_LINE_DASH);
+  } else {
+    map.setPaintProperty(ACTIVE_DAY_LAYER, "line-color", ROUTE_LINE_COLOR);
+    map.setPaintProperty(ACTIVE_DAY_LAYER, "line-dasharray", [1, 0]);
+  }
+}
+
 function ensureActiveDayRouteLayer(map: mapboxgl.Map) {
   if (map.getSource(ACTIVE_DAY_SOURCE)) return;
 
@@ -742,6 +734,8 @@ function animateRouteProgressiveDraw(
   fullCoords: [number, number][],
   duration = ROUTE_DRAW_DURATION_MS,
   cancelRef?: { current: number },
+  generationRef?: { current: number },
+  generation?: number,
 ) {
   if (fullCoords.length < 2) return;
 
@@ -752,6 +746,7 @@ function animateRouteProgressiveDraw(
 
   const start = performance.now();
   const tick = (now: number) => {
+    if (generationRef && generation !== generationRef.current) return;
     const t = easeOutCubic(Math.min(1, (now - start) / duration));
     const n = Math.max(2, Math.ceil(t * fullCoords.length));
     setActiveDayRouteData(map, fullCoords.slice(0, n));
@@ -830,17 +825,21 @@ function runActiveDayRouteDraw(
   coords: [number, number][],
   opts: {
     activeDay: number;
+    lineStyle: ActiveDayLineStyle;
     poiMarkersRef: { current: PoiMarkerEntry[] };
     durationMarkersRef: { current: DurationMarkerEntry[] };
     routeDrawAnimRef: { current: number };
+    routeDrawGenerationRef: { current: number };
     poiRevealTimersRef: { current: number[] };
   },
 ) {
   const {
     activeDay,
+    lineStyle,
     poiMarkersRef,
     durationMarkersRef,
     routeDrawAnimRef,
+    routeDrawGenerationRef,
     poiRevealTimersRef,
   } = opts;
 
@@ -850,9 +849,8 @@ function runActiveDayRouteDraw(
     routeDrawAnimRef.current = 0;
   }
 
-  ensureActiveDayRouteLayer(map);
-  setActiveDayRouteData(map, []);
-  dimInactiveTripSegments(map, activeDay, 0.04);
+  clearAllRouteDisplay(map);
+  setActiveDayRouteLineStyle(map, lineStyle);
   setPoiMarkersForDay(poiMarkersRef, activeDay, false);
   setDurationBadgesForDay(durationMarkersRef, activeDay, false);
 
@@ -865,7 +863,15 @@ function runActiveDayRouteDraw(
     return;
   }
 
-  animateRouteProgressiveDraw(map, coords, ROUTE_DRAW_DURATION_MS, routeDrawAnimRef);
+  const generation = ++routeDrawGenerationRef.current;
+  animateRouteProgressiveDraw(
+    map,
+    coords,
+    ROUTE_DRAW_DURATION_MS,
+    routeDrawAnimRef,
+    routeDrawGenerationRef,
+    generation,
+  );
 
   for (const entry of poiMarkersRef.current) {
     if (entry.day !== activeDay) continue;
@@ -899,7 +905,7 @@ function ensureRouteLayer(
     if (fc.features.length === 0 && map.getLayer(layerId)) {
       map.setLayoutProperty(layerId, "visibility", "none");
     } else if (map.getLayer(layerId)) {
-      map.setLayoutProperty(layerId, "visibility", "visible");
+      map.setLayoutProperty(layerId, "visibility", visible ? "visible" : "none");
     }
     return fc.features.length > 0;
   }
@@ -1028,6 +1034,7 @@ function TripMapInner({
   const [segmentsLoading, setSegmentsLoading] = useState(false);
   const [showBootLoader, setShowBootLoader] = useState(true);
   const routeDrawAnimRef = useRef(0);
+  const routeDrawGenerationRef = useRef(0);
 
   const planContentKey = useMemo(() => buildTripMapPlanKey(plan), [plan]);
 
@@ -1638,12 +1645,22 @@ function TripMapInner({
     if (tripRouteBoundsKey && !overviewReady && !isPlaying) return;
     if (focusTarget?.mode === "drone") return;
 
+    clearPoiRevealTimers(poiRevealTimersRef);
+    if (routeDrawAnimRef.current) {
+      cancelAnimationFrame(routeDrawAnimRef.current);
+      routeDrawAnimRef.current = 0;
+    }
+    routeDrawGenerationRef.current += 1;
+    clearAllRouteDisplay(map);
+
     let cancelled = false;
     const dayFocusKey = focusTarget?.mode === "day" ? focusTarget.key : 0;
 
     void (async () => {
-      const coords = await resolveActiveDayRouteCoords({
+      const dayPlan = plan.days.find((d) => d.day === activeDay);
+      const activeRoute = await resolveActiveDayRoute({
         activeDay,
+        dayPlan,
         routeData,
         dayCoords,
         origin,
@@ -1652,34 +1669,36 @@ function TripMapInner({
       });
       if (cancelled) return;
 
+      const { coordinates: coords, boundsPoints, lineStyle } = activeRoute;
       const camKey = `${isPlaying ? "play" : "scroll"}:${activeDay}:${dayFocusKey}:${coordsBoundsKey(coords)}`;
       if (lastFlyTargetKeyRef.current !== camKey) {
         lastFlyTargetKeyRef.current = camKey;
         fitActiveDayView(map, {
-          coords,
-          activeDay,
-          poiMarkers: poiMarkersRef.current,
+          boundsPoints,
           fallbackCenter: activeDayCoord,
-          maxZoom: isPlaying ? 11 : 12,
         });
       }
 
       runActiveDayRouteDraw(map, coords, {
         activeDay,
+        lineStyle,
         poiMarkersRef,
         durationMarkersRef,
         routeDrawAnimRef,
+        routeDrawGenerationRef,
         poiRevealTimersRef,
       });
     })();
 
     return () => {
       cancelled = true;
+      routeDrawGenerationRef.current += 1;
       clearPoiRevealTimers(poiRevealTimersRef);
       if (routeDrawAnimRef.current) {
         cancelAnimationFrame(routeDrawAnimRef.current);
         routeDrawAnimRef.current = 0;
       }
+      if (mapRef.current) clearAllRouteDisplay(mapRef.current);
     };
   }, [
     activeDay,
@@ -1693,6 +1712,7 @@ function TripMapInner({
     finalizedRouteDays,
     poiPinsKey,
     token,
+    planContentKey,
     focusTarget,
     activeDayCoord,
     activeDayCoordKey,

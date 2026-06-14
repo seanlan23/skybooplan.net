@@ -151,6 +151,7 @@ const DIRECTIONS_TIMEOUT_MS = Math.min(HTTP_API_TIMEOUT_MS, 15_000);
 type DrivingRouteResult = {
   coordinates: [number, number][];
   durationSeconds: number;
+  fromMapboxDirections: boolean;
 };
 
 async function fetchMapboxDrivingGeometry(
@@ -185,6 +186,7 @@ async function fetchMapboxDrivingGeometry(
       return {
         coordinates,
         durationSeconds: route.duration ?? straightFallback.durationSeconds,
+        fromMapboxDirections: true,
       };
     }
   } catch (err) {
@@ -199,7 +201,7 @@ export async function fetchDrivingRouteWithWaypoints(
   token: string,
 ): Promise<DrivingRouteResult> {
   if (waypoints.length < 2) {
-    return { coordinates: waypoints, durationSeconds: 0 };
+    return { coordinates: waypoints, durationSeconds: 0, fromMapboxDirections: false };
   }
 
   let totalDist = 0;
@@ -207,8 +209,9 @@ export async function fetchDrivingRouteWithWaypoints(
     totalDist += haversineKm(waypoints[i - 1]!, waypoints[i]!);
   }
   const straightFallback: DrivingRouteResult = {
-    coordinates: waypoints,
+    coordinates: [waypoints[0]!, waypoints[waypoints.length - 1]!],
     durationSeconds: estimateDrivingDurationSeconds(totalDist),
+    fromMapboxDirections: false,
   };
 
   const coords = waypoints.map((w) => `${w[0]},${w[1]}`).join(";");
@@ -271,6 +274,7 @@ export async function fetchDrivingRoute(
   const straightFallback: DrivingRouteResult = {
     coordinates: [from, to],
     durationSeconds: estimateDrivingDurationSeconds(distKm),
+    fromMapboxDirections: false,
   };
 
   const coords = `${from[0]},${from[1]};${to[0]},${to[1]}`;

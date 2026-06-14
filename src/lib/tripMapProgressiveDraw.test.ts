@@ -1,6 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { progressAlongRoute, resolveSegmentCoordsForDay } from "@/lib/tripMapProgressiveDraw";
+import {
+  buildActiveDayWaypoints,
+  progressAlongRoute,
+  resolveSegmentCoordsForDay,
+} from "@/lib/tripMapProgressiveDraw";
 import type { TripRouteSegment } from "@/lib/tripMapRoutes";
+import type { DayPlan } from "@/lib/aiPlan.functions";
 
 describe("tripMapProgressiveDraw", () => {
   it("progressAlongRoute returns 0 at start and 1 at end", () => {
@@ -33,5 +38,19 @@ describe("tripMapProgressiveDraw", () => {
     const coords = resolveSegmentCoordsForDay(route, 2, new Map(), null, []);
     expect(coords).toHaveLength(3);
     expect(coords[0]).toEqual([12, 45]);
+  });
+
+  it("buildActiveDayWaypoints chains inter-day anchor with day POIs", () => {
+    const dayPlan = {
+      day: 2,
+      mapPins: [{ name: "Temple", lat: 8.1, lng: 98.3 }],
+    } as unknown as DayPlan;
+    const dayCoords = new Map<number, [number, number]>([
+      [1, [98.0, 7.9]],
+      [2, [98.5, 8.2]],
+    ]);
+    const waypoints = buildActiveDayWaypoints(2, dayPlan, dayCoords, null, []);
+    expect(waypoints.length).toBeGreaterThanOrEqual(2);
+    expect(waypoints[0]).toEqual([98.0, 7.9]);
   });
 });
