@@ -586,6 +586,7 @@ const en: Dict = {
   "error.invalidSearchContext": "Invalid search context. Select airports and dates in the search bar first.",
   "error.planInvalidFormat": "The plan was not generated in a valid format.",
   "error.planGenerationFailed": "AI plan could not be generated.",
+  "error.networkFetch": "Could not reach the server. Check your connection and try again, or restart the dev server locally.",
   "error.planUnexpectedFormat": "Plan is not in the expected format — try generating again.",
   // Trip detail page
   "tripDetail.backToTrips": "Back to my trips",
@@ -1181,6 +1182,7 @@ const dicts: Record<Lang, Dict> = {
     "error.invalidSearchContext": "Nevelaven kontekst iskanja. Najprej izberi letališči in datume v iskalniku.",
     "error.planInvalidFormat": "Načrt ni bil generiran v veljavni obliki.",
     "error.planGenerationFailed": "AI načrt se ni uspel generirati.",
+    "error.networkFetch": "Strežnika ni bilo mogoče doseči. Preveri povezavo in poskusi znova (lokalno: ponovno zaženi npm run dev).",
     "error.planUnexpectedFormat": "Načrt ni v pričakovani obliki — poskusi znova generirati.",
     "tripDetail.backToTrips": "Nazaj na moja potovanja",
     "tripDetail.createNewTrip": "Ustvari novo potovanje",
@@ -1632,6 +1634,17 @@ export function translate(lang: Lang, key: keyof typeof en): string {
   return lookupTranslation(lang, key);
 }
 
+function isNetworkFetchError(message: string): boolean {
+  const m = message.trim().toLowerCase();
+  return (
+    m === "load failed" ||
+    m === "failed to fetch" ||
+    m.includes("networkerror") ||
+    m.includes("network request failed") ||
+    m.includes("fetch failed")
+  );
+}
+
 export function resolveErrorMessage(
   t: (key: keyof typeof en) => string,
   code: string,
@@ -1640,6 +1653,7 @@ export function resolveErrorMessage(
     const status = code.slice("error.duffelApi:".length);
     return t("error.duffelApi").replace("{status}", status);
   }
+  if (isNetworkFetchError(code)) return t("error.networkFetch");
   if (code in dicts.en) return t(code as keyof typeof en);
   return code;
 }

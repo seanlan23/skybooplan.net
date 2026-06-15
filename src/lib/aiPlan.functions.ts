@@ -116,7 +116,7 @@ import {
   buildCuratedRoutePayload,
   lookupCuratedTransportLeg,
   resolveCuratedBlueprint,
-  templateToBlueprintBlocks,
+  templateToBlueprintBlocks as scaleCuratedRouteDays,
   type RegionBlueprintBlock,
 } from "@/lib/curatedRoutes";
 import {
@@ -806,13 +806,13 @@ function buildRegionBlueprint(nDays: number, destinationIata: string): RegionBlu
   const iata = destinationIata.toUpperCase();
 
   if (iata === "BKK") {
-    return templateToBlueprintBlocks(
+    return scaleCuratedRouteDays(
       [["Bangkok", 3], ["Ayutthaya", 1], ["Chiang Mai", 4], ["Phuket", 0], ["Bangkok", 2]],
       nDays,
     );
   }
   if (iata === "SGN" || iata === "DAD") {
-    return templateToBlueprintBlocks(
+    return scaleCuratedRouteDays(
       [
         ["Ho Chi Minh City", 3],
         ["Mekong Delta", 1],
@@ -826,7 +826,7 @@ function buildRegionBlueprint(nDays: number, destinationIata: string): RegionBlu
     );
   }
   if (iata === "HAN") {
-    return templateToBlueprintBlocks(
+    return scaleCuratedRouteDays(
       [
         ["Hanoi", 4],
         ["Ha Long Bay", 2],
@@ -838,41 +838,41 @@ function buildRegionBlueprint(nDays: number, destinationIata: string): RegionBlu
     );
   }
   if (iata === "MXP" || iata === "ROM" || iata === "FCO") {
-    return templateToBlueprintBlocks(
+    return scaleCuratedRouteDays(
       [["Rome", 4], ["Florence", 3], ["Venice", 3], ["Milan", 0]],
       nDays,
     );
   }
   if (iata === "PAR") {
-    return templateToBlueprintBlocks([["Paris", 0], ["Lyon", 3], ["Paris", 2]], nDays);
+    return scaleCuratedRouteDays([["Paris", 0], ["Lyon", 3], ["Paris", 2]], nDays);
   }
   if (iata === "LON") {
-    return templateToBlueprintBlocks([["London", 0], ["Edinburgh", 3], ["London", 2]], nDays);
+    return scaleCuratedRouteDays([["London", 0], ["Edinburgh", 3], ["London", 2]], nDays);
   }
   if (iata === "BCN") {
-    return templateToBlueprintBlocks([["Barcelona", 0], ["Madrid", 3], ["Barcelona", 2]], nDays);
+    return scaleCuratedRouteDays([["Barcelona", 0], ["Madrid", 3], ["Barcelona", 2]], nDays);
   }
   if (iata === "MAD") {
-    return templateToBlueprintBlocks([["Madrid", 0], ["Barcelona", 3], ["Madrid", 2]], nDays);
+    return scaleCuratedRouteDays([["Madrid", 0], ["Barcelona", 3], ["Madrid", 2]], nDays);
   }
   if (iata === "AGP") {
-    return templateToBlueprintBlocks([["Málaga", 0], ["Seville", 3], ["Málaga", 2]], nDays);
+    return scaleCuratedRouteDays([["Málaga", 0], ["Seville", 3], ["Málaga", 2]], nDays);
   }
   if (iata === "JFK" || iata === "LAX") {
     const city = iata === "JFK" ? "New York" : "Los Angeles";
-    return templateToBlueprintBlocks([[city, 0]], nDays);
+    return scaleCuratedRouteDays([[city, 0]], nDays);
   }
   if (iata === "JRO" || iata === "ZNZ") {
-    return templateToBlueprintBlocks(
+    return scaleCuratedRouteDays(
       [["Arusha", 2], ["Serengeti", 5], ["Zanzibar", 0]],
       nDays,
     );
   }
   if (iata === "NRT" || iata === "HND") {
-    return templateToBlueprintBlocks([["Tokyo", 0], ["Kyoto", 4], ["Tokyo", 2]], nDays);
+    return scaleCuratedRouteDays([["Tokyo", 0], ["Kyoto", 4], ["Tokyo", 2]], nDays);
   }
   if (iata === "YYZ" || iata === "YVR" || iata === "YOW" || iata === "YYC") {
-    return templateToBlueprintBlocks(
+    return scaleCuratedRouteDays(
       [
         ["Toronto", 3],
         ["Niagara Falls", 2],
@@ -903,7 +903,7 @@ function resolveRegionBlueprint(
   const curatedRoute = resolveCuratedBlueprint(
     nDays,
     destinationIata,
-    templateToBlueprintBlocks,
+    scaleCuratedRouteDays,
     priorities,
     wishes,
     returnFromIata,
@@ -928,7 +928,7 @@ function resolveRegionBlueprint(
       nDays,
       destinationIata,
       priorities,
-      templateToBlueprintBlocks,
+      scaleCuratedRouteDays,
     );
     if (interestRoute?.length) return interestRoute;
   }
@@ -943,7 +943,7 @@ function resolveRegionBlueprint(
 
   if (hub && (iata === "BCN" || iata === "MAD" || iata === "AGP") && wantsGibraltar) {
     if (iata === "MAD" && wantsBarcelona) {
-      return templateToBlueprintBlocks(
+      return scaleCuratedRouteDays(
         [
           ["Madrid", 2],
           ["Barcelona", 3],
@@ -963,7 +963,7 @@ function resolveRegionBlueprint(
       blocks.push(["Madrid", 2]);
     }
     blocks.push([hub, 0]);
-    return templateToBlueprintBlocks(blocks, nDays);
+    return scaleCuratedRouteDays(blocks, nDays);
   }
 
   if (/route\s*66|rt\s*66|mother road/i.test(w)) {
@@ -981,7 +981,7 @@ function resolveRegionBlueprint(
       ["Flagstaff", 2],
       ["Los Angeles", 0],
     );
-    return templateToBlueprintBlocks(blocks, nDays);
+    return scaleCuratedRouteDays(blocks, nDays);
   }
 
   return buildRegionBlueprint(nDays, destinationIata);

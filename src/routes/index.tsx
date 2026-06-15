@@ -409,7 +409,7 @@ function Landing() {
           }, 300);
         }
       }
-      if (s.aiError) setAiError(s.aiError);
+      if (s.aiError && (s.aiPlan || s.aiSkeleton)) setAiError(s.aiError);
       if (s.aiContext) {
         setAiContext(s.aiContext as Partial<AiPlannerContext & { language?: string }>);
       }
