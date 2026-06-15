@@ -24,6 +24,21 @@ import type { AiPlannerSubmit } from "@/components/AiPlannerPreview";
 
 export type { StayInfo };
 
+function scrollElementIntoPlanColumn(
+  container: HTMLElement,
+  el: HTMLElement,
+  behavior: ScrollBehavior = "smooth",
+) {
+  const cr = container.getBoundingClientRect();
+  const er = el.getBoundingClientRect();
+  const targetTop = er.top - cr.top + container.scrollTop - cr.height * 0.12;
+  container.scrollTo({ top: Math.max(0, targetTop), behavior });
+}
+
+function planUsesColumnScroll(): boolean {
+  return typeof window !== "undefined" && window.innerWidth >= 1024;
+}
+
 export function AiPlanView({
   loading,
   plan,
@@ -54,6 +69,7 @@ export function AiPlanView({
   const { t, lang, formatMoney } = useI18n();
   const [activeDay, setActiveDay] = useState<number>(1);
   const dayRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  const planScrollRef = useRef<HTMLDivElement>(null);
   const focusKeyRef = useRef(0);
   const [mapFocus, setMapFocus] = useState<MapFocusTarget | null>(null);
   const [poiModal, setPoiModal] = useState<PoiDetailsData | null>(null);
@@ -89,6 +105,17 @@ export function AiPlanView({
     }, ms);
   }, []);
 
+  const scrollDayIntoView = useCallback((dayNum: number) => {
+    const el = dayRefs.current.get(dayNum);
+    if (!el) return;
+    const scrollRoot = planScrollRef.current;
+    if (scrollRoot && planUsesColumnScroll()) {
+      scrollElementIntoPlanColumn(scrollRoot, el);
+      return;
+    }
+    el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, []);
+
   const handleDaySelect = useCallback(
     (day: DayPlan) => {
       isClickNavigatingRef.current = true;
@@ -102,18 +129,26 @@ export function AiPlanView({
         mode: "day",
         key: focusKeyRef.current,
       });
+      scrollDayIntoView(day.day);
       if (clickNavTimerRef.current) clearTimeout(clickNavTimerRef.current);
       clickNavTimerRef.current = setTimeout(() => {
         isClickNavigatingRef.current = false;
         setScrollSpyPaused(false);
-        setMapFocus(null);
         clickNavTimerRef.current = null;
       }, 2600);
-      if (typeof window !== "undefined" && window.innerWidth < 1024) {
+      if (typeof window !== "undefined" && !planUsesColumnScroll()) {
         document.getElementById("ai-trip-map")?.scrollIntoView({ behavior: "smooth", block: "start" });
       }
     },
-    [],
+    [scrollDayIntoView],
+  );
+
+  const handleMapCitySelect = useCallback(
+    (dayNum: number) => {
+      const day = plan?.days.find((d) => d.day === dayNum);
+      if (day) handleDaySelect(day);
+    },
+    [plan?.days, handleDaySelect],
   );
 
   const handleActivityFocus = useCallback(
@@ -217,17 +252,31 @@ export function AiPlanView({
     return () => window.clearInterval(timer);
   }, [isPlaying, sortedDayNumbers]);
 
+  const tripSessionKey = useMemo(() => {
+    if (!plan?.days.length) return "";
+    return [
+      plan.destinationIata ?? plan.destinationName ?? "",
+      plan.originIata ?? plan.originPlace ?? "",
+    ].join("|");
+  }, [
+    plan?.destinationIata,
+    plan?.destinationName,
+    plan?.originIata,
+    plan?.originPlace,
+    plan?.days.length,
+  ]);
+
   // Keep sidebar in sync while the map plays through days.
   useEffect(() => {
     if (!isPlaying) return;
-    dayRefs.current.get(activeDay)?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-  }, [activeDay, isPlaying]);
+    scrollDayIntoView(activeDay);
+  }, [activeDay, isPlaying, scrollDayIntoView]);
 
   useEffect(() => {
-    if (plan?.days?.length) {
-      setActiveDay(plan.days[0].day);
-    }
-  }, [plan]);
+    if (!plan?.days?.length || !tripSessionKey) return;
+    setActiveDay(plan.days[0].day);
+    setMapFocus(null);
+  }, [tripSessionKey]);
 
   // Track active day while scrolling — IntersectionObserver + scroll fallback.
   useEffect(() => {
@@ -237,6 +286,12 @@ export function AiPlanView({
     let observer: IntersectionObserver | null = null;
     let retryTimer = 0;
     let rafId = 0;
+    let scrollTarget: HTMLElement | Window = window;
+
+    const scrollRoot = () => {
+      if (planUsesColumnScroll()) return planScrollRef.current;
+      return null;
+    };
 
     const pickActiveDay = () => {
       if (isClickNavigatingRef.current || isPlayingRef.current) return;
@@ -244,7 +299,11 @@ export function AiPlanView({
       const els = Array.from(dayRefs.current.entries());
       if (els.length === 0) return;
 
-      const lineY = window.innerHeight * 0.38;
+      const root = scrollRoot();
+      const rootRect = root?.getBoundingClientRect();
+      const lineY = rootRect
+        ? rootRect.top + rootRect.height * 0.38
+        : window.innerHeight * 0.38;
       let bestDay: number | null = null;
       let bestScore = Number.POSITIVE_INFINITY;
 
@@ -277,6 +336,8 @@ export function AiPlanView({
       if (els.length === 0) return false;
 
       observer?.disconnect();
+      const root = scrollRoot();
+      scrollTarget = root ?? window;
       observer = new IntersectionObserver(
         (entries) => {
           if (isClickNavigatingRef.current || isPlayingRef.current) return;
@@ -295,7 +356,7 @@ export function AiPlanView({
           if (bestDay != null) setActiveDay((prev) => (prev === bestDay ? prev : bestDay));
         },
         {
-          root: null,
+          root,
           threshold: [0, 0.2, 0.4, 0.6, 0.8, 1],
           rootMargin: "-18% 0px -38% 0px",
         },
@@ -306,20 +367,24 @@ export function AiPlanView({
       return true;
     };
 
-    if (!attach()) {
-      retryTimer = window.setTimeout(attach, 120);
-    }
+    const bindScroll = () => {
+      scrollTarget.removeEventListener("scroll", onScroll);
+      if (!attach()) {
+        retryTimer = window.setTimeout(bindScroll, 120);
+        return;
+      }
+      scrollTarget.addEventListener("scroll", onScroll, { passive: true });
+    };
 
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll);
+    bindScroll();
+    window.addEventListener("resize", bindScroll);
 
     return () => {
       if (retryTimer) window.clearTimeout(retryTimer);
-      if (clickNavTimerRef.current) clearTimeout(clickNavTimerRef.current);
       if (rafId) cancelAnimationFrame(rafId);
       observer?.disconnect();
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
+      scrollTarget.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", bindScroll);
     };
   }, [plan, plan?.days.length]);
 
@@ -461,7 +526,10 @@ export function AiPlanView({
       <SupportCard isGenerating={isGenerating} />
 
       <div className="flex flex-col lg:grid lg:grid-cols-[1fr_1.3fr] gap-4 sm:gap-5 lg:gap-6 lg:items-start w-full">
-        <div className="space-y-4 sm:space-y-5 min-w-0 w-full order-1 lg:h-[calc(100vh-120px)] lg:overflow-y-auto lg:overscroll-contain">
+        <div
+          ref={planScrollRef}
+          className="space-y-4 sm:space-y-5 min-w-0 w-full order-1 lg:h-[calc(100vh-120px)] lg:overflow-y-auto lg:overscroll-contain"
+        >
           {plan.groundJourney && <TransportDashboard plan={plan} />}
           {plan.days.map((d, idx) => {
             let checkOut = d.date;
@@ -524,6 +592,7 @@ export function AiPlanView({
             hasCoords={hasCoords}
             focusTarget={mapFocus}
             scrollSpyPaused={scrollSpyPaused || isPlaying}
+            onDaySelect={handleMapCitySelect}
             onOpenPoiDetails={handleActivityDetails}
             streaming={streaming}
             expectedDayCount={totalExpectedDays}

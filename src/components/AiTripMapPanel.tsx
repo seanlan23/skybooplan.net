@@ -11,6 +11,7 @@ type Props = {
   hasCoords: boolean;
   focusTarget: MapFocusTarget | null;
   scrollSpyPaused: boolean;
+  onDaySelect: (day: number) => void;
   onOpenPoiDetails: (poi: PoiDetailsData) => void;
   streaming: boolean;
   expectedDayCount: number;
@@ -31,6 +32,7 @@ export const AiTripMapPanel = memo(function AiTripMapPanel({
   hasCoords,
   focusTarget,
   scrollSpyPaused,
+  onDaySelect,
   onOpenPoiDetails,
   streaming,
   expectedDayCount,
@@ -84,6 +86,7 @@ export const AiTripMapPanel = memo(function AiTripMapPanel({
           activeDay={activeDay}
           focusTarget={focusTarget}
           scrollSpyPaused={scrollSpyPaused}
+          onDaySelect={onDaySelect}
           onOpenPoiDetails={onOpenPoiDetails}
           streaming={streaming}
           expectedDayCount={expectedDayCount}

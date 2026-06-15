@@ -87,6 +87,8 @@ type Props = {
   focusTarget?: MapFocusTarget | null;
   /** When true, skip scroll-driven camera moves (click navigation in progress). */
   scrollSpyPaused?: boolean;
+  /** City marker click — sync plan list to this day. */
+  onDaySelect?: (day: number) => void;
   onOpenPoiDetails?: (poi: PoiDetailsData) => void;
   /** Gemini stream still producing days — defer route drawing until finalized. */
   streaming?: boolean;
@@ -434,11 +436,16 @@ function cityLabelElement(text: string): HTMLDivElement {
 function createCityMarkerElement(
   stop: CityMapStop,
   isActive: boolean,
+  onSelect?: (startDay: number) => void,
 ): { el: HTMLDivElement; root: Root } {
   const wrap = document.createElement("div");
   wrap.className = `trip-map-city-marker flex flex-col items-center cursor-pointer transition-opacity duration-300 ease-out${
     isActive ? "" : " opacity-90"
   }`;
+  wrap.addEventListener("click", (e) => {
+    e.stopPropagation();
+    onSelect?.(stop.startDay);
+  });
   wrap.appendChild(cityLabelElement(stop.city));
 
   const pinHost = document.createElement("div");
@@ -1200,6 +1207,7 @@ function TripMapInner({
   activeDay,
   focusTarget,
   scrollSpyPaused = false,
+  onDaySelect,
   onOpenPoiDetails,
   streaming = false,
   expectedDayCount = 0,
@@ -1210,6 +1218,10 @@ function TripMapInner({
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const onOpenPoiDetailsRef = useRef(onOpenPoiDetails);
   onOpenPoiDetailsRef.current = onOpenPoiDetails;
+  const onDaySelectRef = useRef(onDaySelect);
+  onDaySelectRef.current = onDaySelect;
+  const scrollSpyPausedRef = useRef(scrollSpyPaused);
+  scrollSpyPausedRef.current = scrollSpyPaused;
   const activeDayRef = useRef(activeDay);
   activeDayRef.current = activeDay;
   const focusTargetRef = useRef(focusTarget);
@@ -1876,6 +1888,13 @@ function TripMapInner({
     const map = mapRef.current;
     if (!map || !map.isStyleLoaded() || !ready.current) return;
     if (tripRouteBoundsKey && !overviewReady && !isPlaying) return;
+    if (
+      scrollSpyPausedRef.current &&
+      !isPlaying &&
+      focusTargetRef.current?.mode !== "day"
+    ) {
+      return;
+    }
 
     clearPoiRevealTimers(poiRevealTimersRef);
     if (routeDrawAnimRef.current) {
@@ -1950,6 +1969,7 @@ function TripMapInner({
     preferDriving,
     activeDayCoord,
     activeDayCoordKey,
+    scrollSpyPaused,
   ]);
 
   // Origin airport marker (start of international flight leg).
@@ -2008,7 +2028,9 @@ function TripMapInner({
 
         const isActive =
           activeDayRef.current >= stop.startDay && activeDayRef.current <= stop.endDay;
-        const { el, root } = createCityMarkerElement(stop, isActive);
+        const { el, root } = createCityMarkerElement(stop, isActive, (day) => {
+          onDaySelectRef.current?.(day);
+        });
         const marker = new mapboxgl.Marker({ element: el, anchor: "bottom" })
           .setLngLat(stop.coord)
           .addTo(map);
