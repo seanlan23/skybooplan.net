@@ -18,11 +18,16 @@ import {
 } from "@/lib/tripMapRoutes";
 import {
   normalizeMapPoiCategory,
-  inferMapPoiCategoryFromText,
   mapPoiVisual,
   type MapPoiCategory,
   type MapPoiPin,
 } from "@/lib/mapPoiCategory";
+import {
+  findActivityPinFuzzy,
+  resolveActivityCoordinates,
+  resolveActivityMapCategory,
+  shouldShowActivityOnMap,
+} from "@/lib/mapPoiResolver";
 import { MapCityMarker, MapOriginMarker, MapPoiMarker } from "@/components/MapPoiMarker";
 import { normalizeImageUrl } from "@/lib/unsplashPhotos";
 
@@ -560,11 +565,11 @@ function collectPlanPoiPins(plan: AiTripPlan): MapPoiPin[] {
   const pins: MapPoiPin[] = [];
   const COLOCATE_KM = 0.12;
 
-  const pushPin = (day: number, pin: {
+  const pushResolved = (day: DayPlan, source: {
     name: string;
     lat: number;
     lng: number;
-    category?: string;
+    category: MapPoiCategory;
     description?: string;
     arrivalTime?: string;
     departureTime?: string;
@@ -572,54 +577,74 @@ function collectPlanPoiPins(plan: AiTripPlan): MapPoiPin[] {
     imageUrl?: string;
     unsplashQuery?: string;
   }) => {
-    if (!isValidCoord(pin.lat, pin.lng)) return;
+    if (!isValidCoord(source.lat, source.lng)) return;
 
     const existing = pins.find(
       (p) =>
-        p.day === day &&
-        haversineKm([p.lng, p.lat], [pin.lng, pin.lat]) < COLOCATE_KM,
+        p.day === day.day &&
+        haversineKm([p.lng, p.lat], [source.lng, source.lat]) < COLOCATE_KM,
     );
     if (existing) {
-      if (pin.name.trim().length > existing.name.trim().length) {
-        existing.name = pin.name;
-        existing.description = pin.description ?? existing.description;
-        existing.imageUrl = normalizeImageUrl(pin.imageUrl) ?? existing.imageUrl;
+      if (source.name.trim().length > existing.name.trim().length) {
+        existing.name = source.name;
+        existing.description = source.description ?? existing.description;
+        existing.imageUrl = normalizeImageUrl(source.imageUrl) ?? existing.imageUrl;
       }
-      existing.arrivalTime = pin.arrivalTime ?? existing.arrivalTime;
-      existing.departureTime = pin.departureTime ?? existing.departureTime;
-      existing.estimatedCostEur = pin.estimatedCostEur ?? existing.estimatedCostEur;
+      existing.category = source.category;
+      existing.arrivalTime = source.arrivalTime ?? existing.arrivalTime;
+      existing.departureTime = source.departureTime ?? existing.departureTime;
+      existing.estimatedCostEur = source.estimatedCostEur ?? existing.estimatedCostEur;
       return;
     }
 
     pins.push({
-      day,
-      name: pin.name,
-      lat: pin.lat,
-      lng: pin.lng,
-      category: normalizeMapPoiCategory(pin.category) as MapPoiCategory,
-      description: pin.description,
-      arrivalTime: pin.arrivalTime,
-      departureTime: pin.departureTime,
-      estimatedCostEur: pin.estimatedCostEur,
-      imageUrl: normalizeImageUrl(pin.imageUrl),
-      unsplashQuery: pin.unsplashQuery,
+      day: day.day,
+      name: source.name,
+      lat: source.lat,
+      lng: source.lng,
+      category: source.category,
+      description: source.description,
+      arrivalTime: source.arrivalTime,
+      departureTime: source.departureTime,
+      estimatedCostEur: source.estimatedCostEur,
+      imageUrl: normalizeImageUrl(source.imageUrl),
+      unsplashQuery: source.unsplashQuery,
     });
   };
 
   for (const day of plan.days) {
     for (const pin of day.mapPins ?? []) {
-      pushPin(day.day, pin);
+      if (!isValidCoord(pin.lat, pin.lng)) continue;
+      const coords = resolveActivityCoordinates(
+        { name: pin.name, lat: pin.lat, lng: pin.lng },
+        day,
+      );
+      if (!coords) continue;
+      pushResolved(day, {
+        name: pin.name,
+        lat: coords.lat,
+        lng: coords.lng,
+        category: normalizeMapPoiCategory(pin.category),
+        description: pin.description,
+        arrivalTime: pin.arrivalTime,
+        departureTime: pin.departureTime,
+        estimatedCostEur: pin.estimatedCostEur,
+        imageUrl: pin.imageUrl,
+      });
     }
 
     const slots = day.activities;
     if (!slots) continue;
     for (const act of [...slots.morning, ...slots.afternoon, ...slots.evening]) {
-      if (act.lat == null || act.lng == null) continue;
-      pushPin(day.day, {
+      if (!shouldShowActivityOnMap(act)) continue;
+      const coords = resolveActivityCoordinates(act, day);
+      if (!coords) continue;
+      const fuzzyPin = findActivityPinFuzzy(day, act);
+      pushResolved(day, {
         name: act.name,
-        lat: act.lat,
-        lng: act.lng,
-        category: inferMapPoiCategoryFromText(`${act.name} ${act.description ?? ""}`),
+        lat: coords.lat,
+        lng: coords.lng,
+        category: resolveActivityMapCategory(act, fuzzyPin),
         description: act.description,
         arrivalTime: act.arrivalTime,
         departureTime: act.departureTime,
@@ -757,7 +782,7 @@ function applyPoiMarkerVisualState(
   }
 
   let labelEl = el.querySelector<HTMLElement>("[data-poi-focus-label]");
-  if (state.isFocused) {
+  if (state.isFocused && photoEl) {
     if (!labelEl) {
       labelEl = document.createElement("span");
       labelEl.dataset.poiFocusLabel = "1";
@@ -770,7 +795,7 @@ function applyPoiMarkerVisualState(
     labelEl.textContent = pin.name;
     labelEl.style.display = "";
   } else if (labelEl) {
-    labelEl.style.display = "none";
+    labelEl.remove();
   }
 }
 

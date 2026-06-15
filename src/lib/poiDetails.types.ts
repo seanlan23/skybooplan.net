@@ -68,7 +68,13 @@ export function splitDescriptionParagraphs(text?: string): string[] {
 
 export function findActivityPin(day: DayPlan, activity: Activity) {
   const key = activity.name.trim().toLowerCase();
-  return day.mapPins?.find((p) => p.name.trim().toLowerCase() === key);
+  const exact = day.mapPins?.find((p) => p.name.trim().toLowerCase() === key);
+  if (exact) return exact;
+  const short = key.slice(0, Math.min(24, key.length));
+  return day.mapPins?.find((p) => {
+    const pk = p.name.trim().toLowerCase();
+    return pk.includes(short) || key.includes(pk.slice(0, Math.min(24, pk.length)));
+  });
 }
 
 function resolveGuideDetails(

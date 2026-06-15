@@ -116,7 +116,45 @@ const POI_COORDS: Record<string, { lat: number; lng: number }> = {
   "niagara|falls": { lat: 43.096, lng: -79.037 },
   "sunset|crater": { lat: 35.364, lng: -111.501 },
   "cadillac|ranch": { lat: 35.187, lng: -101.987 },
+  // Thailand
+  "grand|palace": { lat: 13.75, lng: 100.4915 },
+  "wat|phra|kaew": { lat: 13.751, lng: 100.4925 },
+  "wat|pho": { lat: 13.7465, lng: 100.493 },
+  "wat|arun": { lat: 13.7437, lng: 100.4888 },
+  "wat|plai|laem": { lat: 9.571, lng: 100.005 },
+  "big|buddha": { lat: 9.571, lng: 100.005 },
+  "khao|san": { lat: 13.7589, lng: 100.4974 },
+  "wat|mahathat": { lat: 14.357, lng: 100.567 },
+  "ayutthaya": { lat: 14.353, lng: 100.569 },
+  "khao|sok": { lat: 8.915, lng: 98.529 },
+  "cheow|lan": { lat: 8.97, lng: 98.82 },
+  "ratchaprapha": { lat: 8.97, lng: 98.82 },
+  "koh|phangan": { lat: 9.731, lng: 100.013 },
+  "haad|rIn": { lat: 9.974, lng: 100.069 },
+  "full|moon|party": { lat: 9.974, lng: 100.069 },
+  "secret|beach": { lat: 9.775, lng: 99.975 },
+  "zen|beach": { lat: 9.762, lng: 99.989 },
+  "coral|cove": { lat: 9.512, lng: 100.055 },
+  "chaweng": { lat: 9.535, lng: 100.062 },
+  "iconsiam|icon|siam": { lat: 13.726, lng: 100.51 },
+  "floating|market": { lat: 13.517, lng: 100.143 },
+  "chatuchak": { lat: 13.799, lng: 100.553 },
+  "yaowarat|chinatown": { lat: 13.741, lng: 100.508 },
+  "koh|ma": { lat: 9.998, lng: 99.789 },
+  "mae|haad": { lat: 9.998, lng: 99.789 },
+  "phaeng|waterfall": { lat: 9.745, lng: 100.015 },
+  "seen|beach|club": { lat: 9.558, lng: 100.031 },
+  "don|sak|pier|donsak": { lat: 9.318, lng: 99.694 },
+  "ton|toey|rafthouse": { lat: 8.97, lng: 98.82 },
 };
+
+const TH_ZONE_KEYWORDS: Array<{ test: RegExp; coords: { lat: number; lng: number } }> = [
+  { test: /bangkok|khao san|grand palace|wat pho|wat arun|chinatown|yaowarat/i, coords: { lat: 13.756, lng: 100.502 } },
+  { test: /ayutthaya|wat mahathat/i, coords: { lat: 14.353, lng: 100.569 } },
+  { test: /khao sok|cheow lan|ratchaprapha/i, coords: { lat: 8.97, lng: 98.82 } },
+  { test: /koh phangan|ko pha-ngan|haad rin|zen beach|secret beach/i, coords: { lat: 9.731, lng: 100.013 } },
+  { test: /koh samui|ko samui|chaweng|coral cove|wat plai laem/i, coords: { lat: 9.512, lng: 100.013 } },
+];
 
 const ZANZIBAR_ZONE_KEYWORDS: Array<{ test: RegExp; coords: { lat: number; lng: number } }> = [
   { test: /kendwa|nungwi|north/i, coords: { lat: -5.72, lng: 39.28 } },
@@ -158,6 +196,9 @@ export function lookupPoiCoords(name: string): { lat: number; lng: number } | nu
     if (zone.test.test(name)) return zone.coords;
   }
   for (const zone of ZANZIBAR_ZONE_KEYWORDS) {
+    if (zone.test.test(name)) return zone.coords;
+  }
+  for (const zone of TH_ZONE_KEYWORDS) {
     if (zone.test.test(name)) return zone.coords;
   }
   return null;

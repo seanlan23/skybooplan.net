@@ -32,6 +32,7 @@ import {
   type PoiDetailsData,
 } from "@/lib/poiDetails.types";
 import { normalizeImageUrl } from "@/lib/unsplashPhotos";
+import { resolveActivityCoordinates } from "@/lib/mapPoiResolver";
 
 const PRICE_REGEX = /\(([^)]*(?:€|EUR|THB|USD|\$|£|JPY|¥|brezplačno|free|varies)[^)]*)\)/i;
 const BOLD_REGEX = /\*\*([^*]+)\*\*/;
@@ -158,11 +159,24 @@ function ActivityCostPill({ activity }: { activity: Activity }) {
   );
 }
 
-function ActivityTypePill({ type }: { type?: string }) {
-  if (!type) return null;
+function ActivityTypePill({ type, activity }: { type?: string; activity?: Activity }) {
+  if (!type || activity?.transportType) return null;
+  const labels: Record<string, string> = {
+    SIGHT: "Znamenitost",
+    SIGHTSEEING: "Ogled",
+    ACTIVITY: "Aktivnost",
+    EAT: "Hrana",
+    FOOD: "Hrana",
+    TRANSPORT: "Prevoz",
+    AIRPORT: "Let",
+    NATURE: "Narava",
+    BEACH: "Plaža",
+    ENTERTAINMENT: "Zabava",
+  };
+  const label = labels[type.toUpperCase()] ?? type;
   return (
     <span className="inline-flex items-center rounded-full bg-slate-100 text-slate-600 px-3 py-1 text-xs font-semibold uppercase tracking-wide">
-      {type}
+      {label}
     </span>
   );
 }
@@ -235,8 +249,9 @@ function ActivityItem({
   const bullets = activityDescriptionBullets(activity.description);
   const pin = findActivityPin(day, activity);
   const imageUrl = normalizeImageUrl(activity.imageUrl ?? pin?.imageUrl);
-  const lat = activity.lat ?? pin?.lat;
-  const lng = activity.lng ?? pin?.lng;
+  const resolvedCoords = resolveActivityCoordinates(activity, day);
+  const lat = resolvedCoords?.lat;
+  const lng = resolvedCoords?.lng;
   const hasCoords =
     typeof lat === "number" &&
     typeof lng === "number" &&
@@ -246,7 +261,7 @@ function ActivityItem({
     Number.isFinite(lng);
 
   const handleFocus = () => {
-    if (hasCoords && onFocus) {
+    if (hasCoords && onFocus && lat != null && lng != null) {
       onFocus({ lat, lng, day: day.day, poiName: activity.name });
     }
   };
@@ -284,7 +299,7 @@ function ActivityItem({
         <ActivityTransportPill activity={activity} />
         <ActivityTimePill activity={activity} />
         <ActivityCostPill activity={activity} />
-        <ActivityTypePill type={activity.type} />
+        <ActivityTypePill type={activity.type} activity={activity} />
       </div>
       {bullets.length > 0 && (
         <ul className="mt-3 space-y-2">

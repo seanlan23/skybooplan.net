@@ -1,11 +1,14 @@
 import { useState } from "react";
 import {
   Building2,
+  Bus,
   FerrisWheel,
   Hotel,
   Landmark,
   MapPin,
   Plane,
+  Ship,
+  TrainFront,
   TreePine,
   UtensilsCrossed,
   Waves,
@@ -21,6 +24,9 @@ const POI_ICONS: Record<MapPoiCategory, LucideIcon> = {
   entertainment: FerrisWheel,
   hotel: Hotel,
   airport: Plane,
+  train: TrainFront,
+  ferry: Ship,
+  transport: Bus,
 };
 
 /** Subtle icon tint — no heavy filled badge backgrounds. */
@@ -32,6 +38,9 @@ const CATEGORY_ICON_CLASS: Record<MapPoiCategory, string> = {
   entertainment: "text-violet-600",
   hotel: "text-amber-700",
   airport: "text-sky-600",
+  train: "text-slate-700",
+  ferry: "text-cyan-700",
+  transport: "text-amber-700",
 };
 
 const MARKER_IMG_CLASS =

@@ -11,7 +11,9 @@ import { ACTIVITY_TRANSPORT_TYPES } from "@/lib/geminiPro.shared";
 import { mapTravelRequirementsFromJson } from "@/lib/travelRequirements";
 import {
   normalizeMapPoiCategory,
+  resolveMapPoiCategory,
 } from "@/lib/mapPoiCategory";
+import { attachActivityCoordinates } from "@/lib/mapPoiResolver";
 import {
   classifyDayBudgetKind,
   computeTripTotalBudgetEur,
@@ -404,7 +406,12 @@ export function tripPlanResponseToAiTripPlan(
             name: a.title,
             lat: a.coordinates.lat,
             lng: a.coordinates.lng,
-            category: normalizeMapPoiCategory(a.category),
+            category: resolveMapPoiCategory({
+              name: a.title,
+              description: a.description,
+              type: a.category,
+              transportType: normalizeActivityTransportType(a.transport_type),
+            }),
             description: a.description,
             arrivalTime: a.arrivalTime,
             departureTime: a.departureTime,
@@ -470,7 +477,8 @@ export function tripPlanResponseToAiTripPlan(
           ? "Preveri vizne zahteve pred odhodom."
           : "";
 
-      days.push({
+      days.push(
+        attachActivityCoordinates({
         day: day.day_number,
         date: resolveIsoDayDate(day.date, opts?.departDate, day.day_number),
         title: day.title,
@@ -502,7 +510,8 @@ export function tripPlanResponseToAiTripPlan(
         imageUrl: undefined,
         category: "activity",
         mapPins: mapPins.length > 0 ? mapPins : undefined,
-      });
+        }),
+      );
     }
   }
 

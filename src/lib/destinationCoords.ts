@@ -12,6 +12,8 @@ export const DESTINATION_BY_IATA: Record<string, DestinationMeta> = {
   HKT: { name: "Phuket", lat: 8.113, lng: 98.317, country: "TH" },
   CNX: { name: "Chiang Mai", lat: 18.767, lng: 98.963, country: "TH" },
   USM: { name: "Koh Samui", lat: 9.548, lng: 100.062, country: "TH" },
+  DMK: { name: "Don Mueang", lat: 13.9126, lng: 100.6068, country: "TH" },
+  URT: { name: "Surat Thani", lat: 9.1326, lng: 99.1356, country: "TH" },
   KBV: { name: "Krabi", lat: 8.099, lng: 98.986, country: "TH" },
   SGN: { name: "Ho Chi Minh City", lat: 10.823, lng: 106.629, country: "VN" },
   HAN: { name: "Hanoi", lat: 21.028, lng: 105.854, country: "VN" },

@@ -127,6 +127,7 @@ import {
   resolveMultiCountryBlueprint,
 } from "@/lib/multiCountryRoutes";
 import { extractTripIntent, tripIntentPromptRule } from "@/lib/tripIntent";
+import { attachActivityCoordinates } from "@/lib/mapPoiResolver";
 import { lookupDestination } from "@/lib/destinationCoords";
 import { buildPrioritiesPayload, PLANNER_INTEREST_KEYS } from "@/lib/plannerInterests";
 import {
@@ -3368,7 +3369,8 @@ export function buildSkeletonDayPlans(
           ? { lat: regionLat, lng: regionLng }
           : null;
 
-    days.push({
+    days.push(
+      attachActivityCoordinates({
       day: d,
       date: isoDateAtOffset(skeleton.departDate, d - 1),
       title: skeletonDayTitle(region, d, dayHighlights, activities, {
@@ -3447,7 +3449,8 @@ export function buildSkeletonDayPlans(
       category: dayCategoryFromHighlights(dayHighlights),
       transport,
       mapPins: mapPins.length ? mapPins : undefined,
-    });
+      }),
+    );
   }
 
   return collapseSmallIslandStays(days, skeleton, opts?.lang ?? "sl");
