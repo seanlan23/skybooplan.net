@@ -1,7 +1,8 @@
 import type { Activity, DayPlan } from "@/lib/aiPlan.functions";
 import { DESTINATION_BY_IATA } from "@/lib/destinationCoords";
 import { resolveMapPoiCategory, type MapPoiCategory } from "@/lib/mapPoiCategory";
-import { lookupPoiCoords, lookupRegionCoords } from "@/lib/tripGeo";
+import { lookupPoiCoords } from "@/lib/tripGeo";
+import { lookupRegionCoords } from "@/lib/regionCoords";
 import { haversineKm } from "@/lib/tripMapRoutes";
 
 const MAX_DAY_PIN_KM = 45;
