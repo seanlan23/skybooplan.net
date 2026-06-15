@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Sparkles } from "lucide-react";
 import type { AiTripPlan, DayPlan } from "@/lib/aiPlan.functions";
 import { type ActivityMapFocus, type MapFocusTarget } from "@/components/TripMap";
 import { AiTripMapPanel } from "@/components/AiTripMapPanel";
-import { AiPlanDayCard, StreamingDayPlaceholder } from "@/components/AiPlanDayCard";
+import { AiPlanDayCard, StreamingDayPlaceholder, activityFocusKey } from "@/components/AiPlanDayCard";
 import { POIDetailsModal } from "@/components/POIDetailsModal";
 import { refreshPoiDetailsImage, type PoiDetailsData } from "@/lib/poiDetails.types";
 import { DayScrollDebug } from "@/components/DayScrollDebug";
@@ -89,6 +88,7 @@ export function AiPlanView({
   const [poiModal, setPoiModal] = useState<PoiDetailsData | null>(null);
   const [poiModalOpen, setPoiModalOpen] = useState(false);
   const [scrollSpyPaused, setScrollSpyPaused] = useState(false);
+  const [focusedActivityKey, setFocusedActivityKey] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const isClickNavigatingRef = useRef(false);
   const isPlayingRef = useRef(false);
@@ -181,6 +181,7 @@ export function AiPlanView({
     (day: DayPlan) => {
       isClickNavigatingRef.current = true;
       setScrollSpyPaused(true);
+      setFocusedActivityKey(null);
       focusKeyRef.current += 1;
       setActiveDay(day.day);
       setMapFocus({
@@ -214,9 +215,12 @@ export function AiPlanView({
 
   const handleActivityFocus = useCallback(
     (coords: ActivityMapFocus) => {
-      pauseScrollSpy(3000);
+      pauseScrollSpy(4000);
       focusKeyRef.current += 1;
       setActiveDay(coords.day);
+      if (coords.poiName) {
+        setFocusedActivityKey(activityFocusKey(coords.day, coords.poiName));
+      }
       setMapFocus({
         lat: coords.lat,
         lng: coords.lng,
@@ -537,17 +541,16 @@ export function AiPlanView({
         </div>
       )}
 
-      <div className="rounded-2xl border border-sky-200 bg-white p-4 sm:p-6 shadow-sm">
+      <div className="rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-6 shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
           <div>
-            <div className="flex items-center gap-2 text-xs font-bold text-sky-600 uppercase tracking-wider">
-              <Sparkles className="h-4 w-4" /> {t("aiplan.badge" as never)}
-            </div>
-            <h2 className="mt-1 text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900 leading-tight">
+            <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
+              {t("aiplan.badge" as never)}
+            </p>
+            <h2 className="mt-0.5 text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900 leading-tight tracking-tight">
               {plan.destinationName}
             </h2>
             <ItineraryRouteOverview plan={plan} />
-            <PlannerChoicesSummary form={plannerForm} />
             <DestinationInsightBanner
               context={destCtx}
               flights={flights}
@@ -558,17 +561,17 @@ export function AiPlanView({
               weatherFallback={weatherFallback}
               className="mt-3"
             />
-            {displaySummary ? (
-              <p className="mt-2 text-slate-600 max-w-2xl text-sm leading-relaxed">{displaySummary}</p>
-            ) : null}
             <div className="mt-4">
               <TravelRequirements
                 requirements={plan.travelRequirements}
                 originIata={plan.originIata}
                 destinationIata={plan.destinationIata}
-                preview={!plan.travelRequirements?.visaInfo?.length}
               />
             </div>
+            <PlannerChoicesSummary form={plannerForm} className="mt-4" />
+            {displaySummary ? (
+              <p className="mt-2 text-slate-600 max-w-2xl text-sm leading-relaxed">{displaySummary}</p>
+            ) : null}
             {streaming && (
               <p className="mt-2 inline-flex items-center gap-2 text-sm font-medium text-sky-600">
                 <span className="relative flex h-2 w-2">
@@ -639,6 +642,7 @@ export function AiPlanView({
                   onSelect={() => handleDaySelect(d)}
                   onActivityFocus={handleActivityFocus}
                   onActivityDetails={handleActivityDetails}
+                  focusedActivityKey={focusedActivityKey}
                   registerRef={(el) => {
                     if (el) dayRefs.current.set(d.day, el);
                     else dayRefs.current.delete(d.day);

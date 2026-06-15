@@ -7,8 +7,6 @@ import { AiPlanDayCard } from "@/components/AiPlanDayCard";
 import { AiPlanLoader } from "@/components/AiPlanLoader";
 import { resolveErrorMessage, useI18n } from "@/lib/i18n";
 import { parseLocalDate } from "@/lib/dateUtils";
-import { DestinationInsightBanner } from "@/components/DestinationInsightBanner";
-import { useDestinationContext } from "@/hooks/useDestinationContext";
 import { PlannerChoicesSummary } from "@/components/PlannerChoicesSummary";
 import { TripTotalBreakdown } from "@/components/TripTotalBreakdown";
 import type { AiPlannerSubmit } from "@/components/AiPlannerPreview";
@@ -49,16 +47,6 @@ export function AiPlanSkeletonView({
   plannerForm?: AiPlannerSubmit | null;
 }) {
   const { t, lang, formatMoney } = useI18n();
-  const { ctx: destCtx, loading: destLoading } = useDestinationContext(
-    destinationIata ?? skeleton?.destinationIata,
-    departDate ?? skeleton?.departDate,
-    language ?? lang,
-    {
-      returnDate: skeleton?.returnDate,
-      priorities: plannerForm?.tags,
-      wishes: plannerWishes ?? plannerForm?.wishes,
-    },
-  );
   const [activeDay, setActiveDay] = useState(1);
   const dayRefs = useRef<Map<number, HTMLDivElement>>(new Map());
 
@@ -203,10 +191,6 @@ export function AiPlanSkeletonView({
           )}
         </button>
       </div>
-
-      {(destCtx || destLoading || flights) && (
-        <DestinationInsightBanner context={destCtx} loading={destLoading} flights={flights} />
-      )}
 
       <div className="rounded-2xl border border-sky-200 bg-white p-4 sm:p-6 shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">

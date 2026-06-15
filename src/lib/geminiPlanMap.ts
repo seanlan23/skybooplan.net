@@ -21,9 +21,13 @@ import {
   estimateDayBudgetEur,
   applyMotorhomeBudgetFloor,
   applyHotelRestBudgetFloor,
+  normalizeGeminiDailyBudgetPerPerson,
+  sumListedActivityEur,
 } from "@/lib/tripBudget";
 import { addDays } from "@/lib/dateUtils";
 import { sortActivitiesByTime } from "@/lib/dayPlanUi";
+import { enrichDayActivities } from "@/lib/dayEnrichers";
+import { resolveTripLocale } from "@/lib/tripLocale";
 import {
   detectAccommodationMode,
   detectHotelRestInterval,
@@ -257,12 +261,43 @@ function toActivity(
   };
 }
 
+function normalizeSlotToken(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "");
+}
+
 function slotFromTimeSlot(timeSlot: string | undefined): DaySlot {
-  const t = (timeSlot ?? "").toLowerCase();
-  if (t === "vecer" || t === "evening") return "evening";
-  if (t === "popoldan" || t === "afternoon") return "afternoon";
-  if (t === "dopoldan" || t === "morning") return "morning";
+  const t = normalizeSlotToken(timeSlot ?? "");
+  if (/vecer|evening|night|zvecer|noč|noc/.test(t)) return "evening";
+  if (/popoldan|afternoon/.test(t)) return "afternoon";
+  if (/dopoldan|morning|jutro/.test(t)) return "morning";
   return "morning";
+}
+
+function joinSlotActivities(items: Activity[]): string {
+  return items
+    .map((a) => (a.description ? `${a.name}: ${a.description}` : a.name))
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+function syncDayActivitySlots(
+  day: DayPlan,
+  slots: { morning: Activity[]; afternoon: Activity[]; evening: Activity[] },
+): void {
+  day.activities = {
+    morning: sortActivitiesByTime(slots.morning),
+    afternoon: sortActivitiesByTime(slots.afternoon),
+    evening: sortActivitiesByTime(slots.evening),
+  };
+  const afternoonText = joinSlotActivities(slots.afternoon);
+  day.morning =
+    joinSlotActivities(slots.morning) ||
+    (afternoonText ? "" : "Prosti dan / raziskovanje okolice.");
+  day.afternoon = afternoonText;
+  day.evening = joinSlotActivities(slots.evening);
 }
 
 function slotActivities(
@@ -297,9 +332,9 @@ function slotActivities(
   const afternoonText = join(afternoonActs);
 
   return {
-    morning: morningText || (afternoonText ? "—" : "Prosti dan / raziskovanje okolice."),
-    afternoon: afternoonText || "—",
-    evening: join(eveningActs) || "—",
+    morning: morningText || (afternoonText ? "" : "Prosti dan / raziskovanje okolice."),
+    afternoon: afternoonText,
+    evening: join(eveningActs),
     structured: {
       morning: sortActivitiesByTime(morningActs),
       afternoon: sortActivitiesByTime(afternoonActs),
@@ -657,10 +692,52 @@ export function enrichGeminiCatalogPlan(
 
   const motorhome = plan.accommodationMode === "motorhome";
   const hotelRestInterval = plan.hotelRestEveryNDays;
+  const locale = resolveTripLocale(
+    plan.destinationIata ?? "",
+    plan.destinationName,
+    "sl",
+  );
+  const usedEveningVenues = new Set<string>();
+  const cityDayIndex = new Map<string, number>();
+  let priorScheduledText = "";
 
   for (const day of plan.days) {
     const isArrival = day.day === 1;
     const isDeparture = isDepartureLogisticsDay(day, totalDays);
+
+    if (day.activities && day.city && !isDeparture && !day.inFlightDay) {
+      const city = day.city;
+      const dayInRegion = (cityDayIndex.get(city) ?? 0) + 1;
+      cityDayIndex.set(city, dayInRegion);
+
+      const enriched = enrichDayActivities(
+        {
+          morning: [...day.activities.morning],
+          afternoon: [...day.activities.afternoon],
+          evening: [...day.activities.evening],
+        },
+        city,
+        dayInRegion,
+        locale,
+        {
+          destinationIata: plan.destinationIata,
+          isTripDay1: isArrival,
+          isArrivalDay: isArrival,
+          usedEveningVenues,
+          tripDate: day.date,
+          priorScheduledText,
+        },
+      );
+      syncDayActivitySlots(day, enriched);
+      priorScheduledText += [
+        ...enriched.morning,
+        ...enriched.afternoon,
+        ...enriched.evening,
+      ]
+        .map((a) => `${a.name} ${a.description ?? ""}`)
+        .join(" ");
+    }
+
     if (isDeparture) {
       day.inFlightDay = true;
       day.category = "transport";
@@ -672,24 +749,20 @@ export function enrichGeminiCatalogPlan(
       regionCity: day.city,
     });
 
-    if (day.dailyBudgetEur > 0) {
-      if (motorhome) {
-        day.dailyBudgetEur = applyMotorhomeBudgetFloor(day.dailyBudgetEur, kind, travelers);
-        if (
-          hotelRestInterval &&
-          isHotelRestDay(day.day, hotelRestInterval, { totalDays })
-        ) {
-          day.dailyBudgetEur = applyHotelRestBudgetFloor(day.dailyBudgetEur, true, travelers);
-        }
-      }
-      continue;
-    }
-
     let daily = estimateDayBudgetEur(
       day.activities,
       undefined,
       { ...dayBudgetParams(tier, kind, true, mealsFullDay), pax: travelers },
     );
+
+    if (day.dailyBudgetEur > 0) {
+      daily = normalizeGeminiDailyBudgetPerPerson(
+        day.dailyBudgetEur,
+        daily,
+        sumListedActivityEur(day.activities),
+        travelers,
+      );
+    }
 
     if (motorhome) {
       daily = applyMotorhomeBudgetFloor(daily, kind, travelers);

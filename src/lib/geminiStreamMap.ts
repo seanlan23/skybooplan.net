@@ -153,6 +153,7 @@ function coercePartialResponse(partial: PartialResponse): TripPlanResponse | nul
       internet: partial.logistics_and_tips?.internet?.trim() || "",
     },
     hotels: partial.hotels ?? [],
+    travel_requirements: partial.travel_requirements as TripPlanResponse["travel_requirements"],
   };
 }
 

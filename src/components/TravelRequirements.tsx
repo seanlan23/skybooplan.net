@@ -1,44 +1,32 @@
 import { FileText, Globe2, Pill, Wallet } from "lucide-react";
 import type { TravelRequirements } from "@/lib/travelRequirements";
-import { previewTravelRequirements } from "@/lib/travelRequirements";
+import { resolveTravelRequirements } from "@/lib/travelRequirements";
 import { useI18n } from "@/lib/i18n";
 
 type TravelRequirementsProps = {
   /** Full AI-generated requirements from plan JSON. */
   requirements?: TravelRequirements | null;
-  /** Departure hub — used for pre-plan resident preview. */
   originIata?: string;
   destinationIata?: string;
-  /** When true, only resident countries are shown until plan is generated. */
-  preview?: boolean;
 };
 
 export function TravelRequirements({
   requirements,
   originIata,
   destinationIata,
-  preview = false,
 }: TravelRequirementsProps) {
   const { t } = useI18n();
 
-  const previewData =
-    preview && !requirements?.visaInfo?.length
-      ? previewTravelRequirements(originIata, destinationIata)
-      : null;
+  const resolved = resolveTravelRequirements(requirements, originIata, destinationIata);
+  if (!resolved?.targetResidents.length) return null;
 
-  const targetResidents =
-    requirements?.targetResidents ?? previewData?.targetResidents ?? [];
-
-  if (targetResidents.length === 0) return null;
-
-  const visaCards = requirements?.visaInfo ?? [];
-  const showDetails = !preview && visaCards.length > 0;
-  const hasVaccinations = Boolean(requirements?.vaccinations?.trim());
-  const hasCosts = Boolean(requirements?.estimatedCosts?.trim());
+  const visaCards = resolved.visaInfo ?? [];
+  const hasVaccinations = Boolean(resolved.vaccinations?.trim());
+  const hasCosts = Boolean(resolved.estimatedCosts?.trim());
 
   return (
     <section
-      className="rounded-xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50/90 to-teal-50/50 px-4 py-4 space-y-3"
+      className="rounded-xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50/90 to-teal-50/50 px-4 py-4 space-y-4"
       aria-label={t("travelReq.title")}
     >
       <div className="flex items-start gap-2">
@@ -50,7 +38,7 @@ export function TravelRequirements({
       </div>
 
       <div className="flex flex-wrap gap-1.5">
-        {targetResidents.map((country) => (
+        {resolved.targetResidents.map((country) => (
           <span
             key={country}
             className="inline-flex items-center rounded-full bg-white/80 border border-emerald-200 px-2.5 py-0.5 text-xs font-semibold text-emerald-900"
@@ -60,24 +48,20 @@ export function TravelRequirements({
         ))}
       </div>
 
-      {preview && !showDetails && (
-        <p className="text-xs text-emerald-800/80 leading-snug">{t("travelReq.previewHint")}</p>
-      )}
-
-      {showDetails && (
-        <div className="grid gap-2 sm:grid-cols-2">
+      {visaCards.length > 0 && (
+        <div className="space-y-3">
           {visaCards.map((visa) => (
             <article
               key={visa.country}
-              className="rounded-lg border border-white/70 bg-white/90 p-3 shadow-sm"
+              className="rounded-lg border border-white/70 bg-white/90 p-4 shadow-sm"
             >
-              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 mb-1.5">
-                <FileText className="h-3.5 w-3.5 text-emerald-600" />
-                {visa.country}
+              <div className="flex flex-wrap items-center gap-1.5 text-sm font-bold text-slate-800 mb-2">
+                <FileText className="h-4 w-4 text-emerald-600 shrink-0" />
+                <span>{visa.country}</span>
               </div>
-              <p className="text-xs text-slate-700 leading-snug">{visa.requirement}</p>
-              <p className="mt-2 text-[11px] text-slate-500 leading-snug">
-                <span className="font-semibold text-slate-600">{t("travelReq.howToApply")}: </span>
+              <p className="text-sm text-slate-700 leading-relaxed">{visa.requirement}</p>
+              <p className="mt-2.5 text-sm text-slate-600 leading-relaxed">
+                <span className="font-semibold text-slate-800">{t("travelReq.howToApply")}: </span>
                 {visa.howToApply}
               </p>
             </article>
@@ -86,23 +70,23 @@ export function TravelRequirements({
       )}
 
       {(hasVaccinations || hasCosts) && (
-        <div className="grid gap-2 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2">
           {hasVaccinations && (
-            <div className="rounded-lg border border-white/70 bg-white/90 p-3 shadow-sm">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 mb-1">
-                <Pill className="h-3.5 w-3.5 text-teal-600" />
+            <div className="rounded-lg border border-white/70 bg-white/90 p-4 shadow-sm">
+              <div className="flex items-center gap-1.5 text-sm font-bold text-slate-800 mb-2">
+                <Pill className="h-4 w-4 text-teal-600 shrink-0" />
                 {t("travelReq.vaccinations")}
               </div>
-              <p className="text-xs text-slate-700 leading-snug">{requirements!.vaccinations}</p>
+              <p className="text-sm text-slate-700 leading-relaxed">{resolved.vaccinations}</p>
             </div>
           )}
           {hasCosts && (
-            <div className="rounded-lg border border-white/70 bg-white/90 p-3 shadow-sm">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 mb-1">
-                <Wallet className="h-3.5 w-3.5 text-amber-600" />
+            <div className="rounded-lg border border-white/70 bg-white/90 p-4 shadow-sm">
+              <div className="flex items-center gap-1.5 text-sm font-bold text-slate-800 mb-2">
+                <Wallet className="h-4 w-4 text-amber-600 shrink-0" />
                 {t("travelReq.costs")}
               </div>
-              <p className="text-xs text-slate-700 leading-snug">{requirements!.estimatedCosts}</p>
+              <p className="text-sm text-slate-700 leading-relaxed">{resolved.estimatedCosts}</p>
             </div>
           )}
         </div>

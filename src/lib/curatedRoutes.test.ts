@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildCuratedRoutePromptBlock,
   lookupCuratedTransportLeg,
   matchCuratedRoute,
   resolveCuratedBlueprint,
@@ -181,6 +182,41 @@ describe("curatedRoutes ID", () => {
 });
 
 describe("curatedRoutes global defaults", () => {
+  it("buildCuratedRoutePromptBlock limits Bangkok stretch on 12d TH", () => {
+    const block = buildCuratedRoutePromptBlock({
+      nDays: 12,
+      destinationIata: "BKK",
+      priorities: ["sights"],
+      wishes: "templji tajska",
+    });
+    expect(block).toMatch(/KURIRANA POT/i);
+    expect(block).toMatch(/Chiang Mai|Kanchanaburi|Krabi/i);
+    expect(block).toMatch(/Dan 1–[23]: Bangkok/i);
+    expect(block).not.toMatch(/Dan 1–[5-9]: Bangkok/i);
+  });
+
+  it("buildCuratedRoutePromptBlock covers Vietnam north-south", () => {
+    const block = buildCuratedRoutePromptBlock({
+      nDays: 10,
+      destinationIata: "HAN",
+      priorities: ["sights"],
+      wishes: "vietnam",
+    });
+    expect(block).toMatch(/Hanoi/i);
+    expect(block).toMatch(/Hoi An|Ho Chi Minh/i);
+  });
+
+  it("buildCuratedRoutePromptBlock covers Manila hub routes", () => {
+    const block = buildCuratedRoutePromptBlock({
+      nDays: 10,
+      destinationIata: "MNL",
+      priorities: ["beaches"],
+      wishes: "filipini",
+    });
+    expect(block).toMatch(/Manila/i);
+    expect(block).toMatch(/Puerto Princesa|El Nido|Palawan/i);
+  });
+
   it("resolves Italy hub route for FCO", () => {
     const route = matchCuratedRoute(12, "FCO", ["sights"], "italija");
     expect(route?.id).toMatch(/hub-fco|it/i);

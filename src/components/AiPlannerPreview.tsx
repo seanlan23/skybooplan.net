@@ -3,9 +3,6 @@ import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 import type { TripFlightContext } from "@/lib/flightScheduling";
-import { useDestinationContext } from "@/hooks/useDestinationContext";
-import { DestinationInsightBanner } from "@/components/DestinationInsightBanner";
-import { TravelRequirements } from "@/components/TravelRequirements";
 import { AttractionPicker } from "@/components/AttractionPicker";
 import {
   catalogSupportedForIata,
@@ -111,17 +108,6 @@ export function AiPlannerPreview({
     if (mode !== "manual" || !routeCities.length) return;
     setPickedIds(defaultPicksForCities(routeCities));
   }, [mode, routeCities.join("|")]);
-
-  const { ctx: destCtx, loading: destLoading } = useDestinationContext(
-    context?.to,
-    context?.departDate,
-    lang,
-    {
-      returnDate: context?.returnDate,
-      priorities: selectedInterests,
-      wishes,
-    },
-  );
 
   const paces = [
     { key: "intensive" as const, label: t("ai.paceIntensive") },
@@ -238,21 +224,6 @@ export function AiPlannerPreview({
               <div className="rounded-2xl border border-dashed border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
                 {t("ai.contextHint")}
               </div>
-            )}
-
-            {hasContext && (
-              <>
-                <DestinationInsightBanner
-                  context={destCtx}
-                  flights={context?.flights}
-                  loading={destLoading}
-                />
-                <TravelRequirements
-                  originIata={context?.from}
-                  destinationIata={context?.to}
-                  preview
-                />
-              </>
             )}
 
             <div>

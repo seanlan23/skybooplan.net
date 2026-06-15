@@ -34,6 +34,10 @@ import {
 import { normalizeImageUrl } from "@/lib/unsplashPhotos";
 import { resolveActivityCoordinates } from "@/lib/mapPoiResolver";
 
+export function activityFocusKey(day: number, name: string): string {
+  return `${day}:${name.trim().toLowerCase()}`;
+}
+
 const PRICE_REGEX = /\(([^)]*(?:€|EUR|THB|USD|\$|£|JPY|¥|brezplačno|free|varies)[^)]*)\)/i;
 const BOLD_REGEX = /\*\*([^*]+)\*\*/;
 
@@ -80,10 +84,15 @@ function parseActivities(text?: string): Activity[] {
   });
 }
 
+function isPlaceholderSlotText(text?: string): boolean {
+  const t = text?.trim();
+  return !t || t === "—" || t === "–" || t === "-";
+}
+
 export function getSlotActivities(d: DayPlan, slot: "morning" | "afternoon" | "evening"): Activity[] {
-  const fromStruct = d.activities?.[slot];
-  if (fromStruct && fromStruct.length > 0) return sortActivitiesByTime(fromStruct);
-  return parseActivities(d[slot]);
+  const fromStruct = (d.activities?.[slot] ?? []).filter((a) => !isPlaceholderSlotText(a.name));
+  if (fromStruct.length > 0) return sortActivitiesByTime(fromStruct);
+  return parseActivities(d[slot]).filter((a) => !isPlaceholderSlotText(a.name));
 }
 
 const VARIANT_CONF = {
@@ -239,11 +248,13 @@ function ActivityItem({
   day,
   onFocus,
   onDetails,
+  isFocused = false,
 }: {
   activity: Activity;
   day: DayPlan;
   onFocus?: (coords: ActivityMapFocus) => void;
   onDetails?: (poi: PoiDetailsData) => void;
+  isFocused?: boolean;
 }) {
   const { t } = useI18n();
   const bullets = activityDescriptionBullets(activity.description);
@@ -268,9 +279,13 @@ function ActivityItem({
 
   return (
     <li
-      className={`rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-3 sm:px-4 sm:py-4 shadow-sm transition-all ${
+      className={`rounded-xl border bg-white px-3 py-3 sm:px-4 sm:py-3.5 shadow-sm transition-all ${
+        isFocused
+          ? "border-2 border-sky-500 ring-2 ring-sky-200 shadow-md"
+          : "border-slate-200"
+      } ${
         hasCoords
-          ? "cursor-pointer hover:border-sky-200 hover:bg-sky-50/50 hover:shadow-md active:scale-[0.99]"
+          ? "cursor-pointer hover:border-slate-300 hover:shadow-md active:scale-[0.995]"
           : ""
       }`}
       onClick={(e) => {
@@ -286,49 +301,52 @@ function ActivityItem({
       role={hasCoords ? "button" : undefined}
       tabIndex={hasCoords ? 0 : undefined}
     >
-      {imageUrl ? (
-        <img
-          src={imageUrl}
-          alt=""
-          loading="lazy"
-          className="mb-3 h-28 w-full rounded-xl object-cover"
-        />
-      ) : null}
-      <h4 className="font-bold text-slate-900 text-[15px] leading-snug">{activity.name}</h4>
-      <div className="mt-2.5 flex flex-wrap gap-2">
-        <ActivityTransportPill activity={activity} />
-        <ActivityTimePill activity={activity} />
-        <ActivityCostPill activity={activity} />
-        <ActivityTypePill type={activity.type} activity={activity} />
+      <div className={imageUrl ? "flex gap-3 sm:gap-4" : undefined}>
+        {imageUrl ? (
+          <img
+            src={imageUrl}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            className="h-20 w-20 sm:h-[88px] sm:w-[88px] shrink-0 rounded-xl object-cover"
+          />
+        ) : null}
+        <div className="min-w-0 flex-1">
+          <h4 className="font-bold text-slate-900 text-[15px] leading-snug">{activity.name}</h4>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            <ActivityTransportPill activity={activity} />
+            <ActivityTimePill activity={activity} />
+            <ActivityCostPill activity={activity} />
+            <ActivityTypePill type={activity.type} activity={activity} />
+          </div>
+          {bullets.length > 0 && (
+            <ul className="mt-2.5 space-y-1.5">
+              {bullets.map((line, i) => (
+                <li key={i} className="flex gap-2 text-sm text-slate-600 leading-relaxed">
+                  <span className="shrink-0 text-slate-400 mt-0.5" aria-hidden="true">
+                    ·
+                  </span>
+                  <span className={bullets.length === 1 ? "line-clamp-3" : "line-clamp-2"}>
+                    {line}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {onDetails && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDetails(activityToPoiDetails(activity, day));
+              }}
+              className="mt-2.5 inline-flex items-center rounded-full border border-slate-300 bg-white px-3.5 py-1 text-xs font-semibold text-slate-800 shadow-sm hover:bg-slate-50 transition-colors"
+            >
+              {t("poi.moreInfo")}
+            </button>
+          )}
+        </div>
       </div>
-      {bullets.length > 0 && (
-        <ul className="mt-3 space-y-2">
-          {bullets.map((line, i) => (
-            <li key={i} className="flex gap-2.5 text-sm text-slate-600 leading-relaxed">
-              <span className="shrink-0 text-sky-400 font-bold mt-0.5" aria-hidden="true">
-                ▸
-              </span>
-              <span className={bullets.length === 1 ? "line-clamp-3" : "line-clamp-2"}>
-                {line}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
-      {onDetails && (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onDetails(
-              activityToPoiDetails(activity, day),
-            );
-          }}
-          className="mt-3 inline-flex items-center rounded-full bg-sky-600 px-4 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-sky-700 transition-colors"
-        >
-          {t("poi.moreInfo")}
-        </button>
-      )}
     </li>
   );
 }
@@ -375,6 +393,7 @@ function IslandStayBlock({
   day,
   onActivityFocus,
   onActivityDetails,
+  focusedActivityKey,
 }: {
   label: string;
   hint: string;
@@ -382,6 +401,7 @@ function IslandStayBlock({
   day: DayPlan;
   onActivityFocus?: (coords: ActivityMapFocus) => void;
   onActivityDetails?: (poi: PoiDetailsData) => void;
+  focusedActivityKey?: string | null;
 }) {
   const conf = VARIANT_CONF.island;
   if (activities.length === 0) return null;
@@ -404,6 +424,7 @@ function IslandStayBlock({
             day={day}
             onFocus={onActivityFocus}
             onDetails={onActivityDetails}
+            isFocused={focusedActivityKey === activityFocusKey(day.day, a.name)}
           />
         ))}
       </ul>
@@ -418,6 +439,7 @@ function TimeBlock({
   day,
   onActivityFocus,
   onActivityDetails,
+  focusedActivityKey,
 }: {
   variant: keyof typeof VARIANT_CONF;
   label: string;
@@ -425,6 +447,7 @@ function TimeBlock({
   day: DayPlan;
   onActivityFocus?: (coords: ActivityMapFocus) => void;
   onActivityDetails?: (poi: PoiDetailsData) => void;
+  focusedActivityKey?: string | null;
 }) {
   const conf = VARIANT_CONF[variant];
   if (activities.length === 0) return null;
@@ -446,6 +469,7 @@ function TimeBlock({
             day={day}
             onFocus={onActivityFocus}
             onDetails={onActivityDetails}
+            isFocused={focusedActivityKey === activityFocusKey(day.day, a.name)}
           />
         ))}
       </ul>
@@ -538,6 +562,7 @@ export function AiPlanDayCard({
   plannerWishes,
   onActivityFocus,
   onActivityDetails,
+  focusedActivityKey,
 }: {
   day: DayPlan;
   isActive: boolean;
@@ -557,6 +582,8 @@ export function AiPlanDayCard({
   plannerWishes?: string;
   onActivityFocus?: (coords: ActivityMapFocus) => void;
   onActivityDetails?: (poi: PoiDetailsData) => void;
+  /** `${day}:${activityName}` — highlights clicked map/plan POI */
+  focusedActivityKey?: string | null;
 }) {
   const { t, formatMoney } = useI18n();
   const slo = lang === "sl" || lang?.startsWith("sl");
@@ -599,6 +626,12 @@ export function AiPlanDayCard({
   }, [day.date, day.dateEnd, day.day, day.dayEnd, lang]);
 
   const dayBadge = day.dayEnd && day.dayEnd > day.day ? `${day.day}–${day.dayEnd}` : String(day.day);
+  const heroImage = normalizeImageUrl(day.imageUrl);
+  const dayTitle = formatDayCardTitle(day, t("aiplan.day" as never) as string);
+  const hasLogisticsBar =
+    (typeof day.dailyBudgetEur === "number" && day.dailyBudgetEur > 0) ||
+    (typeof day.drivingDistanceKm === "number" && day.drivingDistanceKm > 0) ||
+    Boolean(day.drivingDurationHours?.trim() && day.drivingDurationHours !== "0h");
 
   const handleCardClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!onSelect) return;
@@ -614,35 +647,73 @@ export function AiPlanDayCard({
       onClick={handleCardClick}
       className={`overflow-hidden rounded-2xl bg-white shadow-sm transition-all animate-fade-in cursor-pointer ${
         isActive
-          ? "border-2 border-sky-300 ring-2 ring-sky-100"
-          : "border border-slate-100 hover:shadow-md"
+          ? "border-2 border-slate-900 ring-1 ring-slate-200 shadow-md"
+          : "border border-slate-200/90 hover:shadow-md"
       }`}
     >
-      <div className="bg-gradient-to-br from-sky-50 via-slate-50 to-slate-100 px-4 py-4 sm:px-5 sm:py-5 md:px-6 md:py-6">
-        <div className="flex items-start gap-3 sm:gap-4">
-          <div className="flex h-10 min-w-10 shrink-0 items-center justify-center rounded-full bg-sky-600 px-2 text-white font-bold text-sm shadow-sm">
-            {dayBadge}
-          </div>
-          <div className="min-w-0 flex-1">
-            <h3 className="text-base sm:text-lg md:text-xl font-bold text-slate-900 leading-tight">
-              {formatDayCardTitle(day, t("aiplan.day" as never) as string)}
-            </h3>
-            <div className="mt-1.5 flex flex-wrap items-center gap-2">
-              <span className="text-sm text-slate-500 capitalize">{dateLabel}</span>
-              {day.city && (
-                <button
-                  type="button"
-                  className="inline-flex items-center gap-1.5 rounded-full bg-sky-600 px-3 py-1 text-xs font-semibold text-white shadow-sm hover:bg-sky-700 transition-colors"
-                >
-                  <MapPin className="h-3 w-3" />
-                  {day.city}
-                </button>
-              )}
+      {heroImage ? (
+        <div className="relative h-36 sm:h-40 w-full">
+          <img
+            src={heroImage}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+          <div
+            className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-black/5"
+            aria-hidden
+          />
+          <div className="absolute inset-x-0 bottom-0 p-4 sm:p-5">
+            <div className="flex items-end gap-3">
+              <span className="inline-flex h-9 min-w-9 shrink-0 items-center justify-center rounded-full bg-white/95 px-2 text-sm font-bold text-slate-900 shadow-sm">
+                {dayBadge}
+              </span>
+              <div className="min-w-0 flex-1">
+                <h3 className="text-base sm:text-lg font-bold text-white leading-tight drop-shadow-sm">
+                  {dayTitle}
+                </h3>
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  <span className="text-xs sm:text-sm text-white/90 capitalize">{dateLabel}</span>
+                  {day.city && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-0.5 text-xs font-semibold text-white backdrop-blur-sm">
+                      <MapPin className="h-3 w-3" aria-hidden />
+                      {day.city}
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </div>
-        <DayLogisticsBar day={day} pax={pax} />
-      </div>
+      ) : (
+        <div className="border-b border-slate-100 bg-slate-50/80 px-4 py-4 sm:px-5 sm:py-5 md:px-6 md:py-5">
+          <div className="flex items-start gap-3 sm:gap-4">
+            <div className="flex h-10 min-w-10 shrink-0 items-center justify-center rounded-full bg-slate-900 px-2 text-sm font-bold text-white shadow-sm">
+              {dayBadge}
+            </div>
+            <div className="min-w-0 flex-1">
+              <h3 className="text-base sm:text-lg md:text-xl font-bold text-slate-900 leading-tight">
+                {dayTitle}
+              </h3>
+              <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                <span className="text-sm text-slate-500 capitalize">{dateLabel}</span>
+                {day.city && (
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-800 shadow-sm">
+                    <MapPin className="h-3 w-3 text-slate-500" aria-hidden />
+                    {day.city}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {hasLogisticsBar ? (
+        <div className="border-b border-slate-100 px-4 py-3 sm:px-5 md:px-6">
+          <DayLogisticsBar day={day} pax={pax} />
+        </div>
+      ) : null}
 
       <div className="px-4 py-4 sm:px-5 sm:py-5 md:px-6 md:py-6 space-y-4 sm:space-y-6">
         {day.transportation && day.transportation.length > 0 && (
@@ -672,6 +743,7 @@ export function AiPlanDayCard({
             day={day}
             onActivityFocus={onActivityFocus}
             onActivityDetails={onActivityDetails}
+            focusedActivityKey={focusedActivityKey}
           />
         ) : (
           <>
@@ -682,6 +754,7 @@ export function AiPlanDayCard({
               day={day}
               onActivityFocus={onActivityFocus}
               onActivityDetails={onActivityDetails}
+              focusedActivityKey={focusedActivityKey}
             />
             <TimeBlock
               variant="afternoon"
@@ -690,6 +763,7 @@ export function AiPlanDayCard({
               day={day}
               onActivityFocus={onActivityFocus}
               onActivityDetails={onActivityDetails}
+              focusedActivityKey={focusedActivityKey}
             />
             <TimeBlock
               variant="evening"
@@ -698,6 +772,7 @@ export function AiPlanDayCard({
               day={day}
               onActivityFocus={onActivityFocus}
               onActivityDetails={onActivityDetails}
+              focusedActivityKey={focusedActivityKey}
             />
           </>
         )}

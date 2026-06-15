@@ -9,7 +9,13 @@ function paceLabel(pace: AiPlannerSubmit["pace"], t: (k: string) => string): str
   return t("ai.paceRelaxed");
 }
 
-export function PlannerChoicesSummary({ form }: { form?: AiPlannerSubmit | null }) {
+export function PlannerChoicesSummary({
+  form,
+  className = "",
+}: {
+  form?: AiPlannerSubmit | null;
+  className?: string;
+}) {
   const { t, lang } = useI18n();
   if (!form) return null;
 
@@ -19,7 +25,7 @@ export function PlannerChoicesSummary({ form }: { form?: AiPlannerSubmit | null 
   const paceText = t("aiplan.paceChip").replace("{pace}", paceLabel(form.pace, t));
 
   return (
-    <div className="mt-3 rounded-xl border border-sky-100 bg-sky-50/60 px-4 py-3">
+    <div className={`mt-3 rounded-xl border border-sky-100 bg-sky-50/60 px-4 py-3 ${className}`.trim()}>
       <div className="text-[10px] font-bold uppercase tracking-wider text-sky-600">
         {t("aiplan.yourChoices")}
       </div>

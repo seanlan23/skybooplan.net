@@ -192,7 +192,7 @@ export function MapPoiMarker({
   );
 }
 
-/** City / day stop marker — photo thumbnail or minimal pin. */
+/** City / day stop marker — Layla-style photo pin + day badge. */
 export function MapCityMarker({
   isActive = false,
   dayCount,
@@ -208,28 +208,24 @@ export function MapCityMarker({
   const hasPhoto = Boolean(imageUrl?.trim()) && !photoFailed;
 
   return (
-    <div className="relative h-11 w-11 shrink-0">
-      {hasPhoto && imageUrl ? (
+    <div
+      className={`layla-city-pin${hasPhoto ? "" : " layla-city-pin--fallback"}${isActive ? " layla-city-pin--active" : ""}`}
+      style={hasPhoto && imageUrl ? { backgroundImage: `url("${imageUrl}")` } : undefined}
+      title={city}
+    >
+      {imageUrl ? (
         <img
           src={imageUrl}
           alt=""
-          loading="lazy"
-          decoding="async"
+          className="hidden"
           onError={() => setPhotoFailed(true)}
-          className={`${MARKER_IMG_CLASS}${isActive ? " ring-2 ring-sky-400/50 ring-offset-1" : ""}`}
         />
-      ) : (
-        <div
-          className={`${MARKER_ICON_SHELL_CLASS}${isActive ? " ring-2 ring-sky-400/40 ring-offset-1 bg-white/90" : ""}`}
-          title={city}
-        >
-          <MapPin className="pointer-events-none h-[18px] w-[18px] text-slate-500" strokeWidth={2} aria-hidden />
-        </div>
-      )}
+      ) : null}
+      {!hasPhoto ? (
+        <MapPin className="pointer-events-none h-[18px] w-[18px] text-slate-500" strokeWidth={2} aria-hidden />
+      ) : null}
       {dayCount != null && dayCount > 0 ? (
-        <span className="absolute -bottom-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-sky-600 px-1 text-[9px] font-bold leading-none text-white shadow-sm">
-          {dayCount}
-        </span>
+        <span className="layla-day-badge">{dayCount}</span>
       ) : null}
     </div>
   );

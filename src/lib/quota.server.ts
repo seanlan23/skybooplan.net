@@ -1,12 +1,27 @@
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'node:crypto';
 
-let _supabase: any = null;
+let _supabase: ReturnType<typeof createClient> | null = null;
+let _quotaSkipLogged = false;
+
+function supabaseConfigured(): boolean {
+  return Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
+}
+
 function svc() {
+  if (!supabaseConfigured()) return null;
   if (!_supabase) {
     _supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
   }
   return _supabase;
+}
+
+function logQuotaSkippedOnce(): void {
+  if (_quotaSkipLogged) return;
+  _quotaSkipLogged = true;
+  console.warn(
+    "[quota] Supabase not configured — skipping anon/user quota checks (local dev only).",
+  );
 }
 
 export function hashIp(ip: string): string {
@@ -44,8 +59,13 @@ export function checkPlacesSearchRateLimit(ip: string): { allowed: boolean } {
 
 /** Returns { allowed, plansUsed }. Anonymous users get exactly 1 free plan. */
 export async function checkAnonQuota(ip: string): Promise<{ allowed: boolean; plansUsed: number }> {
+  const db = svc();
+  if (!db) {
+    logQuotaSkippedOnce();
+    return { allowed: true, plansUsed: 0 };
+  }
   const ipHash = hashIp(ip);
-  const { data } = await svc()
+  const { data } = await db
     .from('anonymous_plan_attempts')
     .select('plan_count')
     .eq('ip_hash', ipHash)
@@ -55,19 +75,21 @@ export async function checkAnonQuota(ip: string): Promise<{ allowed: boolean; pl
 }
 
 export async function bumpAnonQuota(ip: string, userAgent?: string): Promise<void> {
+  const db = svc();
+  if (!db) return;
   const ipHash = hashIp(ip);
-  const { data } = await svc()
+  const { data } = await db
     .from('anonymous_plan_attempts')
     .select('id,plan_count')
     .eq('ip_hash', ipHash)
     .maybeSingle();
   if (data) {
-    await svc()
+    await db
       .from('anonymous_plan_attempts')
       .update({ plan_count: (data.plan_count ?? 0) + 1, last_seen_at: new Date().toISOString() })
       .eq('id', data.id);
   } else {
-    await svc().from('anonymous_plan_attempts').insert({
+    await db.from('anonymous_plan_attempts').insert({
       ip_hash: ipHash,
       plan_count: 1,
       user_agent: userAgent ?? null,
@@ -83,7 +105,12 @@ export type QuotaCheck = {
 };
 
 export async function checkUserQuota(userId: string): Promise<QuotaCheck> {
-  const { data, error } = await svc().rpc('can_user_create_plan', { _user_id: userId });
+  const db = svc();
+  if (!db) {
+    logQuotaSkippedOnce();
+    return { allowed: true, reason: 'ok', tier: 'free', remaining: 999 };
+  }
+  const { data, error } = await db.rpc('can_user_create_plan', { _user_id: userId });
   if (error) {
     console.error('can_user_create_plan failed', error);
     return { allowed: false, reason: 'no_subscription', tier: 'free', remaining: 0 };
@@ -92,20 +119,22 @@ export async function checkUserQuota(userId: string): Promise<QuotaCheck> {
 }
 
 export async function bumpUserDailyUsage(userId: string): Promise<void> {
+  const db = svc();
+  if (!db) return;
   const today = new Date().toISOString().slice(0, 10);
-  const { data } = await svc()
+  const { data } = await db
     .from('daily_plan_usage')
     .select('id,plans_generated')
     .eq('user_id', userId)
     .eq('usage_date', today)
     .maybeSingle();
   if (data) {
-    await svc()
+    await db
       .from('daily_plan_usage')
       .update({ plans_generated: (data.plans_generated ?? 0) + 1, updated_at: new Date().toISOString() })
       .eq('id', data.id);
   } else {
-    await svc().from('daily_plan_usage').insert({
+    await db.from('daily_plan_usage').insert({
       user_id: userId,
       usage_date: today,
       plans_generated: 1,
@@ -165,7 +194,9 @@ export async function enforceItineraryQuota(
 
 /** For one_time tier: decrement plans_remaining after a plan is generated. */
 export async function decrementOneTimePlan(userId: string): Promise<void> {
-  const { data } = await svc()
+  const db = svc();
+  if (!db) return;
+  const { data } = await db
     .from('subscriptions')
     .select('id,plans_remaining')
     .eq('user_id', userId)
@@ -175,7 +206,7 @@ export async function decrementOneTimePlan(userId: string): Promise<void> {
     .limit(1)
     .maybeSingle();
   if (data && (data.plans_remaining ?? 0) > 0) {
-    await svc()
+    await db
       .from('subscriptions')
       .update({ plans_remaining: data.plans_remaining - 1, updated_at: new Date().toISOString() })
       .eq('id', data.id);

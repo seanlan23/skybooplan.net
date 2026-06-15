@@ -296,7 +296,8 @@ const AGENCY_ROUTES: CuratedRoute[] = [
   TH_BEACHES_ANDAMAN,
 ];
 
-function vnDefaultRoute(keys: string[]): CuratedRoute | null {
+function vnDefaultRoute(nDays: number, keys: string[]): CuratedRoute | null {
+  if (nDays >= 9 && !keys.includes("beaches")) return VN_NORTH_SOUTH;
   const anchor = getInterestAnchor("VN", "beaches");
   if (!anchor || !keys.includes("beaches")) return null;
   return {
@@ -309,6 +310,23 @@ function vnDefaultRoute(keys: string[]): CuratedRoute | null {
     mustIncludeHighlights: anchor.mustIncludeHighlights,
     steer: anchor.steer,
     interests: ["beaches"],
+  };
+}
+
+function phDefaultRoute(nDays: number, keys: string[]): CuratedRoute | null {
+  if (nDays >= 9) return PH_PALAWAN_CLASSIC;
+  const anchor = getInterestAnchor("PH", keys.includes("beaches") ? "beaches" : "sights");
+  if (!anchor) return null;
+  return {
+    id: "ph-default",
+    country: "PH",
+    minDays: 7,
+    maxDays: 21,
+    priority: 6,
+    segments: anchor.routeTemplate,
+    mustIncludeHighlights: anchor.mustIncludeHighlights,
+    steer: anchor.steer,
+    interests: keys.includes("beaches") ? ["beaches"] : ["sights"],
   };
 }
 
@@ -464,8 +482,9 @@ export function matchCuratedRoute(
     const destCountry = lookupDestination(destinationIata)?.country;
     if (destCountry === "TH") return thDefaultRoute(nDays, keys);
     if (destCountry === "VN" && !tripCountries.includes("KH")) {
-      return vnDefaultRoute(keys);
+      return vnDefaultRoute(nDays, keys);
     }
+    if (destCountry === "PH") return phDefaultRoute(nDays, keys);
     if (destCountry === "ID") return idDefaultRoute(nDays, keys, w);
     return null;
   }
@@ -550,5 +569,82 @@ export function buildCuratedRoutePayload(
     curatedRoute: curatedRouteMeta(route),
     curatedRouteRule:
       "curatedRoute je globalni logistični graf (vse destinacije). Sledi vrstnemu redu regij in prevoznim nogam; AI prilagodi dolžine segmentov na totalDays — brez teleporta. Izhodišče (LJU/MXP/…) je izven grafa.",
+    regionBlueprint: templateToBlueprintBlocks(route.segments, nDays),
   };
+}
+
+export type RegionBlueprintBlock = { city: string; startDay: number; endDay: number };
+
+/** Scale agency segment template to total trip days (same logic as aiPlan skeleton). */
+export function templateToBlueprintBlocks(
+  template: Array<[string, number]>,
+  nDays: number,
+): RegionBlueprintBlock[] {
+  const segments: Array<{ city: string; days: number }> = [];
+  const fixedDays = template.filter(([, d]) => d > 0).reduce((sum, [, d]) => sum + d, 0);
+  const flexCities = template.filter(([, d]) => d === 0);
+  const flexTotal = Math.max(0, nDays - fixedDays);
+  const flexEach = flexCities.length ? Math.max(1, Math.floor(flexTotal / flexCities.length)) : 0;
+
+  for (const [city, days] of template) {
+    segments.push({ city, days: days > 0 ? days : flexEach });
+  }
+
+  let day = 1;
+  const blocks: RegionBlueprintBlock[] = [];
+  for (let i = 0; i < segments.length; i++) {
+    const seg = segments[i]!;
+    const span = i === segments.length - 1 ? nDays - day + 1 : seg.days;
+    const endDay = Math.min(nDays, day + Math.max(1, span) - 1);
+    blocks.push({ city: seg.city, startDay: day, endDay });
+    day = endDay + 1;
+    if (day > nDays) break;
+  }
+
+  const last = blocks[blocks.length - 1];
+  if (last && last.endDay !== nDays) {
+    last.endDay = nDays;
+  }
+  return blocks;
+}
+
+/** Prompt block for Gemini catalog — mirrors curatedRoute in legacy aiPlan JSON payload. */
+export function buildCuratedRoutePromptBlock(opts: {
+  nDays: number;
+  destinationIata: string;
+  priorities?: string[];
+  wishes?: string;
+  returnFromIata?: string;
+}): string | undefined {
+  const route = matchCuratedRoute(
+    opts.nDays,
+    opts.destinationIata,
+    opts.priorities,
+    opts.wishes,
+    opts.returnFromIata,
+  );
+  if (!route) return undefined;
+
+  const meta = curatedRouteMeta(route);
+  const blueprint = templateToBlueprintBlocks(meta.segments, opts.nDays);
+  const blueprintLines = blueprint
+    .map((b) => `  • Dan ${b.startDay}–${b.endDay}: ${b.city}`)
+    .join("\n");
+
+  return `
+=== KURIRANA POT (OBVEZNO — ima prednost pred splošnimi pravili o mestih) ===
+${meta.steer}
+
+regionBlueprint — vsaka faza itinerar[] = ena baza; city mora ustrezati (NE podaljšuj enega mesta dlje):
+${blueprintLines}
+
+mustIncludeHighlights (vključi kot realne POI / aktivnosti):
+${meta.mustIncludeHighlights.map((h) => `- ${h}`).join("\n")}
+
+Pravila kurirane poti:
+- Strogo sledi vrstnemu redu mest iz regionBlueprint — enosmerna pot, brez teleporta.
+- Med fazami obvezno transportation[] (let/trajekt/vlak/kombi) in aktivnosti prevoza.
+- Hub mesto (npr. Bangkok, Manila) na začetku/koncu: kratka postavka za prilet/odlet — ne zapolni celotnega dopusta v enem mestu.
+- Število dni na mesto prilagodi na ${opts.nDays} dni skupaj, a NE spreminjaj vrstnega reda regij.
+===`;
 }

@@ -30,6 +30,7 @@ import {
   type PlanCurrency,
 } from "@/lib/planCurrency";
 import { languageWritingRule } from "@/lib/tripLocale";
+import { buildCuratedRoutePromptBlock } from "@/lib/curatedRoutes";
 import type { Lang } from "@/lib/i18n";
 
 export type {
@@ -228,9 +229,18 @@ Takoj za tem nadaljuj s kratkim narativnim uvodom o poti (največ 1–2 stavka �
     destinationLabel: params.destination,
   });
 
+  const curatedRouteBlock = buildCuratedRoutePromptBlock({
+    nDays: params.days,
+    destinationIata: params.destinationIata,
+    priorities: params.priorities,
+    wishes: wishesBlob(params),
+    returnFromIata: params.returnFromIata,
+  });
+
   return `Ustvari ${params.days}-dnevni načrt potovanja za lokacijo: ${params.destination} v mesecu ${params.month}.
 ${teaserBlock}
 ${travelReqBlock}
+${curatedRouteBlock ?? ""}
 ${tvojeZeljeBlock}${motorhomeBlock}${groundTransportBlock}
 
 Let: ${route}.
@@ -266,8 +276,9 @@ ${itineraryHacksAndTransportRules(displayCurrency)}
 ${lastDayBlock}${flightReturnClosing}`;
 }
 
-/** Fast, cost-efficient model for structured trip-plan JSON. */
-export const GEMINI_TRIP_PLAN_MODEL = "gemini-3.5-flash";
+/** Structured trip-plan JSON — override via GEMINI_TRIP_PLAN_MODEL in .env / Vercel. */
+export const GEMINI_TRIP_PLAN_MODEL =
+  process.env.GEMINI_TRIP_PLAN_MODEL?.trim() || "gemini-2.5-flash";
 
 /** Enough headroom for multi-day catalog JSON — prevents truncated streams. */
 export const GEMINI_TRIP_PLAN_MAX_OUTPUT_TOKENS = 8192;
@@ -485,7 +496,7 @@ PRILAGODITEV POTNIKOM IN PRORAČUNU (obvezno):
 
 /** Streaming Gemini generation — keeps HTTP connection alive (avoids serverless timeout). */
 export function createTripPlanStream(params: GenerateTripPlanParams) {
-  pipelineLog("gemini:streamObject START");
+  pipelineLog("gemini:streamObject START", GEMINI_TRIP_PLAN_MODEL);
   return streamObject({
     model: google(GEMINI_TRIP_PLAN_MODEL),
     system: tripPlanSystemPrompt(params),

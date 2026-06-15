@@ -116,6 +116,8 @@ import {
   buildCuratedRoutePayload,
   lookupCuratedTransportLeg,
   resolveCuratedBlueprint,
+  templateToBlueprintBlocks,
+  type RegionBlueprintBlock,
 } from "@/lib/curatedRoutes";
 import {
   enrichPrioritiesPayload,
@@ -623,8 +625,6 @@ function buildTripUserMessage(opts: {
   return JSON.stringify(payload, null, 2);
 }
 
-type RegionBlueprintBlock = { city: string; startDay: number; endDay: number };
-
 function buildSkeletonUserMessage(opts: {
   originIata: string;
   destinationIata: string;
@@ -799,38 +799,6 @@ function buildSchedulingHint(paceLabel: string, nDays: number) {
       "Descriptions 120–280 chars — unique practical tips, timing must match slot (no sunset label in morning)",
     ],
   };
-}
-
-function templateToBlueprintBlocks(
-  template: Array<[string, number]>,
-  nDays: number,
-): RegionBlueprintBlock[] {
-  const segments: Array<{ city: string; days: number }> = [];
-  const fixedDays = template.filter(([, d]) => d > 0).reduce((sum, [, d]) => sum + d, 0);
-  const flexCities = template.filter(([, d]) => d === 0);
-  const flexTotal = Math.max(0, nDays - fixedDays);
-  const flexEach = flexCities.length ? Math.max(1, Math.floor(flexTotal / flexCities.length)) : 0;
-
-  for (const [city, days] of template) {
-    segments.push({ city, days: days > 0 ? days : flexEach });
-  }
-
-  let day = 1;
-  const blocks: RegionBlueprintBlock[] = [];
-  for (let i = 0; i < segments.length; i++) {
-    const seg = segments[i]!;
-    const span = i === segments.length - 1 ? nDays - day + 1 : seg.days;
-    const endDay = Math.min(nDays, day + Math.max(1, span) - 1);
-    blocks.push({ city: seg.city, startDay: day, endDay });
-    day = endDay + 1;
-    if (day > nDays) break;
-  }
-
-  const last = blocks[blocks.length - 1];
-  if (last && last.endDay !== nDays) {
-    last.endDay = nDays;
-  }
-  return blocks;
 }
 
 /** Suggested city/day split — steers the model on long trips and powers programmatic fallback. */

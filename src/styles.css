@@ -345,7 +345,11 @@
   }
 }
 
-/* Layla-style map markers */
+/* Layla-style plan day cards (phase 1 — presentation only) */
+.layla-plan-day--active {
+  box-shadow: 0 8px 30px rgba(15, 23, 42, 0.08);
+}
+
 .layla-city-marker {
   display: flex;
   flex-direction: column;

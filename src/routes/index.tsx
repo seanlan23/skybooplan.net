@@ -742,7 +742,7 @@ function Landing() {
       start_date: startDate,
       end_date: endDate,
       itinerary: plan as never,
-      ai_model: "google:gemini-flash-latest",
+      ai_model: "google:gemini-2.5-flash",
       is_paid: false,
     };
 

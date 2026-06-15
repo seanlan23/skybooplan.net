@@ -288,17 +288,24 @@ export async function enrichPlanPoiPhotos(plan: AiTripPlan): Promise<void> {
     return;
   }
 
-  console.log(`[unsplash] fetching ${pending.length} photos in parallel`);
+  console.log(`[unsplash] fetching ${pending.length} photos (batched)`);
 
   const cache = new Map<string, string | null>();
+  const concurrency = 4;
 
-  await Promise.all(
-    pending.map(async (job) => {
-      if (cache.has(job.key)) return;
-      const url = await fetchUnsplashByQuery(job.unsplashQuery);
-      cache.set(job.key, url);
-    }),
-  );
+  for (let i = 0; i < pending.length; i += concurrency) {
+    const batch = pending.slice(i, i + concurrency);
+    await Promise.all(
+      batch.map(async (job) => {
+        if (cache.has(job.key)) return;
+        const url = await fetchUnsplashByQuery(job.unsplashQuery);
+        cache.set(job.key, url);
+      }),
+    );
+  }
+
+  const hitCount = [...cache.values()].filter(Boolean).length;
+  console.log(`[unsplash] resolved ${hitCount}/${pending.length} photos`);
 
   applyPhotoCache(plan, cache);
 }

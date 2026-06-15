@@ -274,6 +274,49 @@ export function applyHotelRestBudgetFloor(
   return Math.max(eur, hotelShare + 90, 200);
 }
 
+/**
+ * Gemini often returns dailyBudget as a household/day total (not per person).
+ * Normalize to per-person for UI that multiplies by pax again.
+ */
+export function normalizeGeminiDailyBudgetPerPerson(
+  geminiDaily: number,
+  computedPerPerson: number,
+  activityTotalEur: number,
+  travelers: number,
+): number {
+  if (geminiDaily <= 0) return computedPerPerson;
+  const pax = Math.max(1, travelers);
+  const asGroupPerPerson = Math.round(geminiDaily / pax);
+
+  // Household total (e.g. 380 € / 4 ≈ 95 € na osebo)
+  if (geminiDaily >= activityTotalEur * 0.8 && asGroupPerPerson >= 15 && asGroupPerPerson <= 180) {
+    return asGroupPerPerson;
+  }
+
+  // Already per-person but inflated vs listed activities
+  if (geminiDaily <= 180) {
+    const floor = Math.max(computedPerPerson, Math.round(activityTotalEur / pax) + 8);
+    return Math.min(geminiDaily, Math.max(floor, computedPerPerson));
+  }
+
+  return computedPerPerson > 0 ? computedPerPerson : asGroupPerPerson;
+}
+
+/** Sum listed activity EUR (group costs, not per-person). */
+export function sumListedActivityEur(
+  activities: { morning: ActivityLike[]; afternoon: ActivityLike[]; evening: ActivityLike[] } | undefined,
+): number {
+  if (!activities) return 0;
+  let sum = 0;
+  for (const slot of ["morning", "afternoon", "evening"] as const) {
+    for (const a of activities[slot]) {
+      if (a.type === "STAY") continue;
+      sum += parsePriceLabelToEur(a.priceLabel || a.price);
+    }
+  }
+  return sum;
+}
+
 /** Sum daily per-person budgets × travelers — replaces AI guess for trip total. */
 export function computeTripTotalBudgetEur(
   days: Array<{ dailyBudgetEur?: number }>,

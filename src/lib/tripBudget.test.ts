@@ -5,6 +5,7 @@ import {
   computeTripTotalBudgetEur,
   dayBudgetParams,
   estimateDayBudgetEur,
+  normalizeGeminiDailyBudgetPerPerson,
   parsePriceLabelToEur,
 } from "@/lib/tripBudget";
 
@@ -35,6 +36,17 @@ describe("classifyDayBudgetKind", () => {
         { isArrival: false, isDeparture: false },
       ),
     ).toBe("ticket-heavy");
+  });
+});
+
+describe("normalizeGeminiDailyBudgetPerPerson", () => {
+  it("treats Gemini dailyBudget as household total when divided by pax is sane", () => {
+    expect(normalizeGeminiDailyBudgetPerPerson(380, 88, 90, 4)).toBe(95);
+    expect(normalizeGeminiDailyBudgetPerPerson(420, 100, 120, 4)).toBe(105);
+  });
+
+  it("keeps per-person value when already reasonable", () => {
+    expect(normalizeGeminiDailyBudgetPerPerson(75, 70, 50, 2)).toBe(75);
   });
 });
 

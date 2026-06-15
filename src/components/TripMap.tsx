@@ -427,8 +427,7 @@ function clearCityMarkerLayer(
 
 function cityLabelElement(text: string): HTMLDivElement {
   const label = document.createElement("div");
-  label.className =
-    "mb-1 whitespace-nowrap rounded-md bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-900 shadow-sm";
+  label.className = "layla-city-label";
   label.textContent = text;
   return label;
 }
@@ -439,9 +438,7 @@ function createCityMarkerElement(
   onSelect?: (startDay: number) => void,
 ): { el: HTMLDivElement; root: Root } {
   const wrap = document.createElement("div");
-  wrap.className = `trip-map-city-marker flex flex-col items-center cursor-pointer transition-opacity duration-300 ease-out${
-    isActive ? "" : " opacity-90"
-  }`;
+  wrap.className = `layla-city-marker${isActive ? " layla-city-marker--active" : ""}`;
   wrap.addEventListener("click", (e) => {
     e.stopPropagation();
     onSelect?.(stop.startDay);
@@ -449,7 +446,6 @@ function createCityMarkerElement(
   wrap.appendChild(cityLabelElement(stop.city));
 
   const pinHost = document.createElement("div");
-  pinHost.className = "flex h-10 w-10 shrink-0 items-center justify-center";
   wrap.appendChild(pinHost);
 
   const root = createRoot(pinHost);
@@ -1924,7 +1920,10 @@ function TripMapInner({
       if (cancelled) return;
 
       const { coordinates: coords, boundsPoints, lineStyle, drawRoute } = activeRoute;
-      const camKey = `${isPlaying ? "play" : "scroll"}:${activeDay}:${dayFocusKey}:${coordsBoundsKey(coords)}:${drawRoute}`;
+      const focusKey = focusTargetRef.current?.key ?? 0;
+      const camKey = streaming
+        ? `${isPlaying ? "play" : "scroll"}:${activeDay}:${dayFocusKey}:${focusKey}`
+        : `${isPlaying ? "play" : "scroll"}:${activeDay}:${dayFocusKey}:${coordsBoundsKey(coords)}:${drawRoute}:${focusKey}`;
       if (!skipDayCamera && lastFlyTargetKeyRef.current !== camKey) {
         lastFlyTargetKeyRef.current = camKey;
         fitActiveDayView(map, {
@@ -1970,6 +1969,7 @@ function TripMapInner({
     activeDayCoord,
     activeDayCoordKey,
     scrollSpyPaused,
+    streaming,
   ]);
 
   // Origin airport marker (start of international flight leg).
@@ -2149,9 +2149,7 @@ function TripMapInner({
           city={stop.city}
         />,
       );
-      marker.getElement().className = `trip-map-city-marker flex flex-col items-center cursor-pointer transition-opacity duration-300 ease-out${
-        isActive ? "" : " opacity-90"
-      }`;
+      marker.getElement().className = `layla-city-marker${isActive ? " layla-city-marker--active" : ""}`;
     }
   }, [activeDay]);
 
