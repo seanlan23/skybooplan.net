@@ -7,8 +7,8 @@ import {
   type GeminiPlanMapOpts,
   normalizeSafetyWarning,
   normalizeWeatherWidget,
+  enrichGeminiCatalogPlan,
 } from "@/lib/geminiPlanMap";
-import { withPlanTeaser } from "@/lib/planTeaser";
 
 type PartialResponse = DeepPartial<TripPlanResponse>;
 
@@ -165,12 +165,14 @@ export function partialTripPlanToPreviewPlan(
   if (!coerced) return null;
   try {
     const plan = tripPlanResponseToAiTripPlan(coerced, opts);
-    const lang = opts.language ?? "sl";
-    const rawSummary = partial.trip_metadata?.season_warning?.trim() || plan.summary;
-    return {
-      ...plan,
-      summary: withPlanTeaser(rawSummary, lang),
-    };
+    if (opts.budget && opts.pax) {
+      enrichGeminiCatalogPlan(plan, {
+        budget: opts.budget,
+        pax: opts.pax,
+        wishesText: opts.wishesText,
+      });
+    }
+    return plan;
   } catch (err) {
     console.warn("[geminiStreamMap] preview mapping failed:", err);
     return null;

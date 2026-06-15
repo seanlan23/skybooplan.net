@@ -1164,6 +1164,10 @@ function Landing() {
                     lastPlannerForm ? buildWishes(lastPlannerForm) || undefined : undefined
                   }
                   plannerForm={normalizeLastPlannerForm(lastPlannerForm)}
+                  destinationIata={aiContext?.to}
+                  departDate={aiContext?.departDate}
+                  returnDate={aiContext?.returnDate}
+                  flights={aiContext?.flights}
                 />
                 ) : aiLoading || aiExpandingFull ? (
                 <AiPlanLoader

@@ -29,9 +29,9 @@ import {
   detectHotelRestInterval,
   isHotelRestDay,
 } from "@/lib/tripMode";
-import { withPlanTeaser } from "@/lib/planTeaser";
 import type { Lang } from "@/lib/i18n";
 import type { GroundTransportMode } from "@/lib/aiPlan.functions";
+import { repairTransportLegs } from "@/lib/transportLegRepair";
 
 export type GeminiPlanMapOpts = {
   originIata?: string;
@@ -44,6 +44,8 @@ export type GeminiPlanMapOpts = {
   originPlace?: string;
   destinationPlace?: string;
   groundTransportMode?: GroundTransportMode;
+  budget?: TripBudgetTier;
+  pax?: number;
 };
 
 function resolveIsoDayDate(raw: string, departDate: string | undefined, dayNumber: number): string {
@@ -177,16 +179,33 @@ function resolveDayTransportation(
   day: TripPlanResponse["itinerar"][number]["days"][number],
   phaseCity: string,
   previousCity: string,
+  ctx: {
+    dayNumber: number;
+    destinationIata?: string;
+    activities?: {
+      morning: Activity[];
+      afternoon: Activity[];
+      evening: Activity[];
+    };
+  },
 ): DayTransportLeg[] | undefined {
   const explicit = sanitizeTransportLegs(day.transportation as DayTransportLeg[] | undefined);
-  if (explicit.length > 0) return explicit;
+  const base =
+    explicit.length > 0
+      ? explicit
+      : buildTransportLegsFromActivities(
+          day.activities ?? [],
+          previousCity || phaseCity,
+          phaseCity,
+        );
 
-  const inferred = buildTransportLegsFromActivities(
-    day.activities ?? [],
-    previousCity || phaseCity,
-    phaseCity,
-  );
-  return inferred.length > 0 ? inferred : undefined;
+  return repairTransportLegs(base.length > 0 ? base : undefined, {
+    dayNumber: ctx.dayNumber,
+    city: phaseCity,
+    destinationIata: ctx.destinationIata,
+    previousCity,
+    activities: ctx.activities,
+  });
 }
 
 function toActivity(
@@ -445,7 +464,11 @@ export function tripPlanResponseToAiTripPlan(
       if (isNewCity && lastCity) previousCity = lastCity;
       lastCity = city;
 
-      const dayTransportation = resolveDayTransportation(day, city, previousCity);
+      const dayTransportation = resolveDayTransportation(day, city, previousCity, {
+        dayNumber: day.day_number,
+        destinationIata: opts?.destinationIata,
+        activities: slots.structured,
+      });
 
       if (isValidCoord(lat, lng)) {
         latSum += lat;
@@ -565,7 +588,7 @@ export function tripPlanResponseToAiTripPlan(
 
   return {
     destinationName: meta?.destination ?? "Potovanje",
-    summary: withPlanTeaser(rawSummary, lang),
+    summary: rawSummary,
     safetyWarning: safetyWarning ?? null,
     weatherWidget,
     totalBudgetEur: 0,

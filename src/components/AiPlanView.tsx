@@ -9,7 +9,13 @@ import { refreshPoiDetailsImage, type PoiDetailsData } from "@/lib/poiDetails.ty
 import { DayScrollDebug } from "@/components/DayScrollDebug";
 import { AiPlanLoader } from "@/components/AiPlanLoader";
 import { resolveErrorMessage, useI18n } from "@/lib/i18n";
-import { withPlanTeaser } from "@/lib/planTeaser";
+import { stripPlanTeaser } from "@/lib/planTeaser";
+import { computeTripTotalBudgetEur } from "@/lib/tripBudget";
+import { buildWeatherWidgetFallback } from "@/lib/weatherWidgetFallback";
+import { useDestinationContext } from "@/hooks/useDestinationContext";
+import { DestinationInsightBanner } from "@/components/DestinationInsightBanner";
+import type { TripFlightContext } from "@/lib/flightScheduling";
+import { parsePlannerInterestKeys } from "@/lib/plannerInterests";
 import { parseLocalDate } from "@/lib/dateUtils";
 import type { StayInfo } from "@/components/HotelsSection";
 import { PlannerChoicesSummary } from "@/components/PlannerChoicesSummary";
@@ -51,6 +57,10 @@ export function AiPlanView({
   plannerForm,
   streaming = false,
   expectedDayCount = 0,
+  destinationIata,
+  departDate,
+  returnDate,
+  flights,
 }: {
   loading: boolean;
   plan: AiTripPlan | null;
@@ -65,6 +75,10 @@ export function AiPlanView({
   streaming?: boolean;
   /** Total trip days — used to render placeholders for not-yet-streamed days. */
   expectedDayCount?: number;
+  destinationIata?: string;
+  departDate?: string;
+  returnDate?: string;
+  flights?: TripFlightContext | null;
 }) {
   const { t, lang, formatMoney } = useI18n();
   const [activeDay, setActiveDay] = useState<number>(1);
@@ -93,6 +107,53 @@ export function AiPlanView({
       ),
     [plan?.days],
   );
+
+  const plannerPriorities = useMemo(
+    () => parsePlannerInterestKeys(plannerForm?.tags),
+    [plannerForm?.tags],
+  );
+  const { ctx: destCtx, loading: destLoading } = useDestinationContext(
+    destinationIata ?? plan?.destinationIata,
+    departDate ?? plan?.days[0]?.date,
+    lang,
+    {
+      returnDate,
+      priorities: plannerPriorities,
+      wishes: plannerWishes,
+    },
+  );
+
+  const weatherFallback = useMemo(
+    () =>
+      plan
+        ? buildWeatherWidgetFallback({
+            destinationIata: destinationIata ?? plan.destinationIata,
+            departDate: departDate ?? plan.days[0]?.date,
+            returnDate,
+            lang,
+            priorities: plannerPriorities,
+            wishes: plannerWishes,
+            context: destCtx,
+            planSummary: stripPlanTeaser(plan.summary, lang),
+          })
+        : null,
+    [
+      plan,
+      destinationIata,
+      departDate,
+      returnDate,
+      lang,
+      plannerPriorities,
+      plannerWishes,
+      destCtx,
+    ],
+  );
+
+  const displayTotalBudget = useMemo(() => {
+    if (!plan?.days.length) return 0;
+    if (plan.totalBudgetEur > 0) return plan.totalBudgetEur;
+    return computeTripTotalBudgetEur(plan.days, Math.max(1, pax));
+  }, [plan?.totalBudgetEur, plan?.days, pax]);
 
   const pauseScrollSpy = useCallback((ms = 3000) => {
     isClickNavigatingRef.current = true;
@@ -414,7 +475,7 @@ export function AiPlanView({
   const mapHint = t("aiplan.mapHint" as never);
   const mapPlayLabel = t("aiplan.mapPlay" as never);
   const mapStopLabel = t("aiplan.mapStop" as never);
-  const displaySummary = plan ? withPlanTeaser(plan.summary, lang) : "";
+  const displaySummary = stripPlanTeaser(plan.summary, lang);
   const isGenerating = streaming || pendingDayNumbers.length > 0;
 
   return (
@@ -487,7 +548,16 @@ export function AiPlanView({
             </h2>
             <ItineraryRouteOverview plan={plan} />
             <PlannerChoicesSummary form={plannerForm} />
-            <PlanIntroInsightBlocks plan={plan} className="mt-3" />
+            <DestinationInsightBanner
+              context={destCtx}
+              flights={flights}
+              loading={destLoading}
+            />
+            <PlanIntroInsightBlocks
+              plan={plan}
+              weatherFallback={weatherFallback}
+              className="mt-3"
+            />
             {displaySummary ? (
               <p className="mt-2 text-slate-600 max-w-2xl text-sm leading-relaxed">{displaySummary}</p>
             ) : null}
@@ -516,7 +586,7 @@ export function AiPlanView({
               {t("aiplan.total" as never)}
             </div>
             <div className="text-2xl sm:text-3xl font-bold text-slate-900">
-              {formatMoney(plan.totalBudgetEur)}
+              {formatMoney(displayTotalBudget)}
             </div>
             <TripTotalBreakdown pax={pax} />
           </div>

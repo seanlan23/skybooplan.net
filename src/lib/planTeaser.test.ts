@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { withPlanTeaser } from "@/lib/planTeaser";
+import { withPlanTeaser, stripPlanTeaser } from "@/lib/planTeaser";
 import { translate } from "@/lib/i18n";
 
 describe("planTeaser", () => {
@@ -14,5 +14,12 @@ describe("planTeaser", () => {
     const teaser = translate("en", "plan.teaser");
     const out = withPlanTeaser(`${teaser} Monsoon season note.`, "en");
     expect(out).toBe(`${teaser} Monsoon season note.`);
+  });
+
+  it("stripPlanTeaser removes marketing opener", () => {
+    const teaser = translate("sl", "plan.teaser");
+    const out = stripPlanTeaser(`${teaser} Julij prinaša bujno zeleno naravo.`, "sl");
+    expect(out).toBe("Julij prinaša bujno zeleno naravo.");
+    expect(out.includes("AI načrt je pripravljen")).toBe(false);
   });
 });

@@ -82,5 +82,7 @@ export function buildGeminiMapOpts(data: GenerateGeminiProTripInput) {
     originPlace: data.originPlace,
     destinationPlace: data.destinationPlace,
     language: (data.language ?? "sl") as Lang,
+    budget: data.budget,
+    pax: data.pax.adults + data.pax.childrenAges.length,
   };
 }
