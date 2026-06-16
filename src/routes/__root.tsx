@@ -91,13 +91,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:site", content: "@Lovable" },
       { name: "twitter:title", content: "Skybooplan - Your Dream Trip, Crafted" },
       { name: "twitter:description", content: "AI-powered travel platform designed to automate itinerary planning and booking." },
-      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/D9YKqqFPxgQHlaLNnZRs82SyN622/social-images/social-1780422320306-ad807300-4c4d-441b-b93a-1d6ea146802d.webp" },
-      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/D9YKqqFPxgQHlaLNnZRs82SyN622/social-images/social-1780422320306-ad807300-4c4d-441b-b93a-1d6ea146802d.webp" },
+      { property: "og:image", content: "/og-image.svg" },
+      { name: "twitter:image", content: "/og-image.svg" },
     ],
     links: [
       {
         rel: "stylesheet",
         href: appCss,
+      },
+      {
+        rel: "icon",
+        type: "image/svg+xml",
+        href: "/favicon.svg",
       },
     ],
   }),

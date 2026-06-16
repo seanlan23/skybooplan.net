@@ -1,10 +1,42 @@
 import { cn } from "@/lib/utils";
 
-/** Shared search-form field chrome — keep all row fields visually aligned. */
+/**
+ * Shared search CTA blue — matches hero "Išči →" (#2563eb / #1d4ed8 hover).
+ * Defined in src/styles.css as --search-cta / --search-cta-hover.
+ */
+export const SEARCH_CTA_BG = "bg-search-cta";
+export const SEARCH_CTA_HOVER = "hover:bg-search-cta-hover";
+export const SEARCH_CTA_TEXT = "text-white";
+
+export const SEARCH_CTA_BUTTON = cn(
+  SEARCH_CTA_BG,
+  SEARCH_CTA_HOVER,
+  SEARCH_CTA_TEXT,
+);
+
+/** Primary CTA — same blue pill as hero "Search →" button. */
+export const SEARCH_PRIMARY_BTN = cn(
+  "inline-flex items-center justify-center gap-2 rounded-full px-5",
+  SEARCH_CTA_BUTTON,
+  "text-sm font-semibold shadow-xl",
+  "transition-colors",
+  "disabled:cursor-not-allowed disabled:opacity-60",
+);
+
+/** Active tab / pill — identical fill to hero button. */
+export const SEARCH_TAB_ACTIVE = cn(SEARCH_CTA_BG, SEARCH_CTA_TEXT, "shadow-md");
+
+export const SEARCH_TAB_INACTIVE =
+  "text-muted-foreground hover:bg-slate-100 hover:text-foreground";
+
+/** Selected option in popovers. */
+export const SEARCH_OPTION_ACTIVE = "bg-blue-50 font-semibold text-blue-700";
+
+/** Shared search-form field chrome — aligned with hero input styling. */
 export const FIELD_SHELL = cn(
-  "flex h-full min-h-[76px] flex-col justify-center rounded-2xl border border-border",
-  "bg-background/60 px-4 py-2.5 hover:border-brand/40 transition-colors",
-  "focus-within:border-brand focus-within:bg-card",
+  "flex h-full min-h-[76px] flex-col justify-center rounded-xl border border-border/80",
+  "bg-white px-4 py-2.5 shadow-sm transition-colors",
+  "hover:border-blue-200 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100",
 );
 
 export const FIELD_LABEL =

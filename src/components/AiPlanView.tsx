@@ -15,6 +15,12 @@ import { useDestinationContext } from "@/hooks/useDestinationContext";
 import { DestinationInsightBanner } from "@/components/DestinationInsightBanner";
 import type { TripFlightContext } from "@/lib/flightScheduling";
 import { parsePlannerInterestKeys } from "@/lib/plannerInterests";
+
+/** Hold at each stop during "Predvajaj pot" after the fly animation settles. */
+const PLAY_ROUTE_HOLD_MS = 2000;
+/** Approximate flyTo duration (speed 0.8) — keeps step timing aligned with the map. */
+const PLAY_ROUTE_FLY_ESTIMATE_MS = 3500;
+const PLAY_ROUTE_STEP_MS = PLAY_ROUTE_HOLD_MS + PLAY_ROUTE_FLY_ESTIMATE_MS;
 import { parseLocalDate } from "@/lib/dateUtils";
 import type { StayInfo } from "@/components/HotelsSection";
 import { PlannerChoicesSummary } from "@/components/PlannerChoicesSummary";
@@ -294,7 +300,7 @@ export function AiPlanView({
     });
   }, [sortedDayNumbers]);
 
-  // Auto-advance days during route playback (every 3 s).
+  // Auto-advance during route playback — fly animation + hold per stop.
   useEffect(() => {
     if (!isPlaying || sortedDayNumbers.length < 2) return;
 
@@ -312,7 +318,7 @@ export function AiPlanView({
         }
         return sortedDayNumbers[nextIdx]!;
       });
-    }, 3000);
+    }, PLAY_ROUTE_STEP_MS);
 
     return () => window.clearInterval(timer);
   }, [isPlaying, sortedDayNumbers]);

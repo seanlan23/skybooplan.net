@@ -9,6 +9,11 @@
 export type LlmProvider = "openai" | "anthropic" | "google";
 export type LlmRole = "skeleton" | "full_plan";
 
+export type LlmImagePart = {
+  mimeType: string;
+  base64: string;
+};
+
 export type GenerateJsonOptions = {
   role: LlmRole;
   system: string;
@@ -19,6 +24,7 @@ export type GenerateJsonOptions = {
   timeoutMs?: number;
   provider?: LlmProvider;
   model?: string;
+  images?: LlmImagePart[];
 };
 
 const OPENAI_BASE = "https://api.openai.com/v1";
@@ -122,7 +128,19 @@ async function callOpenAi(
   user: string,
   maxTokens: number,
   signal: AbortSignal,
+  images?: LlmImagePart[],
 ): Promise<LlmCallResult> {
+  const userContent =
+    images && images.length > 0
+      ? [
+          { type: "text", text: user },
+          ...images.map((img) => ({
+            type: "image_url",
+            image_url: { url: `data:${img.mimeType};base64,${img.base64}` },
+          })),
+        ]
+      : user;
+
   const res = await fetch(`${OPENAI_BASE}/chat/completions`, {
     method: "POST",
     signal,
@@ -137,7 +155,7 @@ async function callOpenAi(
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: system },
-        { role: "user", content: user },
+        { role: "user", content: userContent },
       ],
     }),
   });
@@ -380,7 +398,7 @@ export async function generateJson<T>(opts: GenerateJsonOptions): Promise<JsonGe
         allowModelFallback,
       );
     } else {
-      result = await callOpenAi(key!, actualModel, opts.system, opts.user, maxTokens, controller.signal);
+      result = await callOpenAi(key!, actualModel, opts.system, opts.user, maxTokens, controller.signal, opts.images);
     }
 
     if (!result.ok) {

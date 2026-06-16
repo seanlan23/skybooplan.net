@@ -31,6 +31,7 @@ import {
 } from "@/lib/planCurrency";
 import { languageWritingRule } from "@/lib/tripLocale";
 import { buildCuratedRoutePromptBlock } from "@/lib/curatedRoutes";
+import { DISTANCE_TRANSPORT_RULES } from "@/lib/transportPromptRules";
 import type { Lang } from "@/lib/i18n";
 
 export type {
@@ -75,6 +76,8 @@ const PACE_LABELS: Record<NonNullable<GenerateTripPlanParams["pace"]>, string> =
 /** Shared LLM rules for per-day travel hacks and transport logic (system + user prompt). */
 export function itineraryHacksAndTransportRules(displayCurrency: PlanCurrency): string {
   return `
+${DISTANCE_TRANSPORT_RULES}
+
 TRAVEL HACK (days[].travelHack — obvezno vsak dan):
 - Vsak dan MORA imeti polje travelHack z enim unikatnim, lokacijsko specifičnim insider nasvetom za TA dan in TA mesto (ne generičen nasvet za celotno državo).
 - Prepovedano je ponavljati isti ali skoraj enak travel hack na več dneh — vsak dan druga tema (npr. lokalna tržnica, skriti vhod, urnik templja, najboljši kot za fotografijo, lokalna jed, izogibanje vrstam).
@@ -497,10 +500,31 @@ PRILAGODITEV POTNIKOM IN PRORAČUNU (obvezno):
 /** Streaming Gemini generation — keeps HTTP connection alive (avoids serverless timeout). */
 export function createTripPlanStream(params: GenerateTripPlanParams) {
   pipelineLog("gemini:streamObject START", GEMINI_TRIP_PLAN_MODEL);
+  const prompt = buildTripPlanPrompt(params);
+  const image = params.sharedImage;
+
+  if (image) {
+    return streamObject({
+      model: google(GEMINI_TRIP_PLAN_MODEL),
+      system: tripPlanSystemPrompt(params),
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: prompt },
+            { type: "image", image: `data:${image.mimeType};base64,${image.base64}` },
+          ],
+        },
+      ],
+      schema: tripPlanSchema,
+      ...tripPlanGenerationConfig,
+    });
+  }
+
   return streamObject({
     model: google(GEMINI_TRIP_PLAN_MODEL),
     system: tripPlanSystemPrompt(params),
-    prompt: buildTripPlanPrompt(params),
+    prompt,
     schema: tripPlanSchema,
     ...tripPlanGenerationConfig,
   });

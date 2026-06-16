@@ -42,7 +42,21 @@ describe("i18n strict fallback", () => {
   it("never returns raw key for core homepage strings", () => {
     for (const lang of SUPPORTED_LANGS) {
       expect(translate(lang, "hero.title.c")).not.toBe("hero.title.c");
+      expect(translate(lang, "hero.chatHeadline")).not.toBe("hero.chatHeadline");
+      expect(translate(lang, "faq.title")).not.toBe("faq.title");
       expect(translate(lang, "paywall.unlockPlanCta").trim().length).toBeGreaterThan(10);
     }
+  });
+
+  it("fr homepage strings are French, not Slovenian", () => {
+    expect(translate("fr", "hero.chatHeadline")).toContain("voyage");
+    expect(translate("fr", "hero.cta")).toBe("Rechercher →");
+    expect(translate("fr", "faq.title")).toBe("Questions fréquentes");
+  });
+
+  it("de never falls back to Slovenian for untranslated keys", () => {
+    expect(translate("de", "nav.signIn")).toBe("Sign in");
+    expect(translate("de", "error.networkFetch")).not.toBe("Težava s povezavo");
+    expect(translate("de", "error.networkFetch")).toMatch(/connection|server/i);
   });
 });

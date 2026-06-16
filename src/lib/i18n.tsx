@@ -1,4 +1,5 @@
 import { planUiByLang } from "@/lib/i18n.planUi";
+import { homepageUiByLang } from "@/lib/i18n.homepage";
 import {
   currencySymbol,
   formatPlanMoney,
@@ -55,6 +56,118 @@ const en: Dict = {
   "hero.title.b": "next",
   "hero.title.c": "trip take you?",
   "hero.subtitle": "Find flights, plan your route, book accommodation — all guided by AI.",
+  "hero.sectionLabel": "Trip planning hero",
+  "hero.badge": "✨ AI travel planner",
+  "hero.chatHeadline": "Where will your next trip take you?",
+  "hero.chatSubtitle": "Describe your dream trip — AI handles the rest.",
+  "hero.inputLabel": "Describe your dream trip",
+  "hero.inputPlaceholder":
+    "e.g. Cheapest flight to Japan, Oct 20–Nov 15 2026, 2 adults + 1 child (10), 14 nights, see Mount Fuji & Tokyo, budget €3000",
+  "hero.placeholder.ex1":
+    "e.g. Flight to Japan Oct 20–Nov 15, 2 adults + child, 14 nights, Mount Fuji & Tokyo, budget €3000",
+  "hero.placeholder.ex2":
+    "e.g. Romantic weekend in Paris for 2, Feb 14–16 2027, central hotel, budget €800",
+  "hero.placeholder.ex3":
+    "e.g. Cheap flight from Ljubljana to New York, July 2027, 10 days, Times Square & Central Park",
+  "hero.cta": "Search →",
+  "hero.chip.paris.label": "🗼 Paris",
+  "hero.chip.paris.name": "Paris",
+  "hero.chip.paris.query": "Plan a trip to Paris",
+  "hero.chip.croatia.label": "🌊 Croatia",
+  "hero.chip.croatia.name": "Croatia",
+  "hero.chip.croatia.query": "Plan a road trip through Croatia",
+  "hero.chip.bali.label": "🌴 Bali",
+  "hero.chip.bali.name": "Bali",
+  "hero.chip.bali.query": "Plan a trip to Bali",
+  "hero.chip.newyork.label": "🗽 New York",
+  "hero.chip.newyork.name": "New York",
+  "hero.chip.newyork.query": "Plan a trip to New York",
+  "hero.chip.japan.label": "🏯 Japan",
+  "hero.chip.japan.name": "Japan",
+  "hero.chip.japan.query": "Plan a trip through Japan",
+  "heroChat.welcome": "Hi! I'm Sky, your personal travel agent. 🌍\nWhere would you like to go?",
+  "heroChat.agentName": "Sky",
+  "heroChat.dreamPlaceholder": "Where would you like to go? Describe your dream trip…",
+  "heroChat.searchPlaceholder": "Describe your dream trip…",
+  "heroChat.suggest.plan": "🗺️ Create a plan",
+  "heroChat.suggest.inspire": "✨ Inspire me",
+  "heroChat.suggest.roadtrip": "🚗 Road trip",
+  "heroChat.suggest.budget": "💸 Budget escape",
+  "heroChat.inputPlaceholder": "Message Sky…",
+  "heroChat.typeDestination": "Type your destination…",
+  "heroChat.destinationPlaceholder": "e.g. New York, Bali, Paris…",
+  "heroChat.send": "Send",
+  "heroChat.fileTooLarge": "File is too large (max 5 MB).",
+  "heroChat.fileTypeInvalid": "Only images and PDF files are supported.",
+  "heroChat.fileReadError": "Could not read the file. Try again.",
+  "heroChat.fileProcessing": "Processing file…",
+  "heroChat.removeFile": "Remove file",
+  "heroChat.attachFile": "Attach file",
+  "heroChat.fileOnlyDestination": "Trip from attached file",
+  "heroChat.start": "Start →",
+  "heroChat.confirm": "Confirm",
+  "heroChat.progress": "Step {current}/{total}",
+  "heroChat.step1.ai": "Great choice! 🎉 When would you like to fly?",
+  "heroChat.step2.ai": "How many nights are you planning?",
+  "heroChat.step3.ai": "Which city are you flying from? I'll search airports within 600 km.",
+  "heroChat.step4.ai": "How many travellers?",
+  "heroChat.step5.ai": "What's your budget per person?",
+  "heroChat.step6.loading": "Perfect! Searching for the best options for you… ✈️",
+  "heroChat.dates.july": "July 2027",
+  "heroChat.dates.august": "August 2027",
+  "heroChat.dates.september": "September 2027",
+  "heroChat.dates.custom": "Pick a date",
+  "heroChat.nights.3-5": "3–5 nights",
+  "heroChat.nights.7": "7 nights",
+  "heroChat.nights.10-14": "10–14 nights",
+  "heroChat.nights.2weeks": "2+ weeks",
+  "heroChat.origin.ljubljana": "Ljubljana",
+  "heroChat.origin.zagreb": "Zagreb",
+  "heroChat.origin.vienna": "Vienna",
+  "heroChat.origin.venice": "Venice",
+  "heroChat.origin.other": "Other",
+  "heroChat.origin.otherPlaceholder": "Enter your city…",
+  "heroChat.passengers.1adult": "1 adult",
+  "heroChat.passengers.2adults": "2 adults",
+  "heroChat.passengers.2adults1child": "2 adults + 1 child",
+  "heroChat.passengers.2adults2children": "2 adults + 2 children",
+  "heroChat.budget.under500": "Up to €500",
+  "heroChat.budget.500-1000": "€500–1000",
+  "heroChat.budget.1000-2000": "€1000–2000",
+  "heroChat.budget.2000plus": "€2000+",
+  "heroSearch.title": "Flight results",
+  "heroTrip.planTitle": "Your AI itinerary",
+  "heroSearch.empty": "No flights found for this search.",
+  "heroSearch.error": "Search failed. Please try again.",
+  "heroSearch.asyncPending":
+    "Make.com returned “Accepted” without flight data. Set the scenario webhook to synchronous mode: “Immediately as data arrives” and add a Webhook response module that returns JSON (e.g. { \"flights\": [...] }).",
+  "flightCard.departure": "Departure",
+  "flightCard.stops": "Stops",
+  "flightCard.book": "Book →",
+  "hero.photoCredit": "Photo: {name} / Unsplash",
+  "hero.searchSectionTitle": "Flights & stays",
+  "hero.searchSectionHint": "Search flights, hotels or set airports and dates manually.",
+  "social.trustedBy": "Trusted by travelers · powered by",
+  "social.feat.ai.title": "AI itinerary in minutes",
+  "social.feat.ai.desc": "Describe your dream trip — get a day-by-day plan with map and tips.",
+  "social.feat.flights.title": "Real-time flights",
+  "social.feat.flights.desc": "Live prices from hundreds of carriers via Duffel and Skyscanner.",
+  "social.feat.free.title": "Free for everyone",
+  "social.feat.free.desc": "Full AI plans, maps and PDF — no paywall, no hidden fees.",
+  "inspiration.title": "Trip inspiration",
+  "inspiration.subtitle": "Pick an idea — text flows into the AI planner where you add dates and preferences.",
+  "inspiration.cta": "Start planning",
+  "faq.title": "Frequently asked questions",
+  "faq.what.q": "What is Skybooplan?",
+  "faq.what.a": "Skybooplan is an AI travel planner that builds a full itinerary and finds flights and stays in minutes.",
+  "faq.free.q": "Is planning free?",
+  "faq.free.a": "Yes — full AI itineraries, interactive maps and PDF export are free for everyone.",
+  "faq.how.q": "How does AI planning work?",
+  "faq.how.a": "Describe your trip; AI parses your preferences and builds a day-by-day plan with activities, food and transport.",
+  "faq.pdf.q": "Can I download a PDF?",
+  "faq.pdf.a": "Yes — every plan can be exported as a formatted PDF for offline reading.",
+  "faq.flights.q": "Which flights are included?",
+  "faq.flights.a": "We search live fares from hundreds of carriers via Duffel — always up to date for your dates.",
   "trav.adults": "Adults",
   "trav.adultsAge": "Aged 18+",
   "trav.children": "Children",
@@ -621,6 +734,11 @@ const en: Dict = {
 };
 
 
+/** Partial locale packs inherit missing keys from English (never Slovenian). */
+function withEnglishFallback(overrides: Dict): Dict {
+  return { ...en, ...overrides };
+}
+
 const dicts: Record<Lang, Dict> = {
   en,
   sl: {
@@ -662,6 +780,118 @@ const dicts: Record<Lang, Dict> = {
     "hero.title.b": "naslednje",
     "hero.title.c": "potovanje?",
     "hero.subtitle": "Najdi lete, načrtuj pot in rezerviraj nastanitev — vse vodeno z AI.",
+    "hero.sectionLabel": "Uvodni hero načrtovanja",
+    "hero.badge": "✨ AI potovalni planer",
+    "hero.chatHeadline": "Kam te bo popeljalo naslednje potovanje?",
+    "hero.chatSubtitle": "Opiši svoje sanjsko potovanje — AI naredi vse ostalo.",
+    "hero.inputLabel": "Opiši svoje sanjsko potovanje",
+    "hero.inputPlaceholder":
+      "npr. Najcenejši let za Japonsko, 20.10–15.11.2026, 2 odrasla + 1 otrok (10 let), 14 nočitev, videti Mount Fuji in Tokyo, proračun 3000€",
+    "hero.placeholder.ex1":
+      "npr. Let za Japonsko 20.10–15.11, 2 odrasla + otrok, 14 noči, Mount Fuji in Tokyo, proračun 3000€",
+    "hero.placeholder.ex2":
+      "npr. Romantični vikend v Parizu za 2, 14–16.2.2027, hotel v centru, proračun 800€",
+    "hero.placeholder.ex3":
+      "npr. Poceni let iz Ljubljane v New York, julij 2027, 10 dni, videti Times Square in Central Park",
+    "hero.cta": "Išči →",
+    "hero.chip.paris.label": "🗼 Pariz",
+    "hero.chip.paris.name": "Pariz",
+    "hero.chip.paris.query": "Načrtuj mi trip v Pariz",
+    "hero.chip.croatia.label": "🌊 Hrvaška",
+    "hero.chip.croatia.name": "Hrvaška",
+    "hero.chip.croatia.query": "Načrtuj roadtrip po Hrvaški",
+    "hero.chip.bali.label": "🌴 Bali",
+    "hero.chip.bali.name": "Bali",
+    "hero.chip.bali.query": "Načrtuj mi potovanje na Bali",
+    "hero.chip.newyork.label": "🗽 New York",
+    "hero.chip.newyork.name": "New York",
+    "hero.chip.newyork.query": "Načrtuj mi trip v New York",
+    "hero.chip.japan.label": "🏯 Japonska",
+    "hero.chip.japan.name": "Japonska",
+    "hero.chip.japan.query": "Načrtuj mi potovanje po Japonski",
+    "heroChat.welcome": "Živjo! Sem Sky, tvoj osebni potovalni agent. 🌍\nKam bi rad potoval?",
+    "heroChat.agentName": "Sky",
+    "heroChat.dreamPlaceholder": "Kam bi rad potoval? Opiši sanjsko potovanje…",
+    "heroChat.searchPlaceholder": "Opiši svoje sanjsko potovanje…",
+    "heroChat.suggest.plan": "🗺️ Ustvari načrt",
+    "heroChat.suggest.inspire": "✨ Navdihni me",
+    "heroChat.suggest.roadtrip": "🚗 Roadtrip",
+    "heroChat.suggest.budget": "💸 Poceni pobeg",
+    "heroChat.inputPlaceholder": "Napiši Sky…",
+    "heroChat.typeDestination": "Vpiši destinacijo…",
+    "heroChat.destinationPlaceholder": "npr. New York, Bali, Pariz…",
+    "heroChat.send": "Pošlji",
+    "heroChat.fileTooLarge": "Datoteka je prevelika (največ 5 MB).",
+    "heroChat.fileTypeInvalid": "Podprte so samo slike in PDF datoteke.",
+    "heroChat.fileReadError": "Datoteke ni bilo mogoče prebrati. Poskusi znova.",
+    "heroChat.fileProcessing": "Obdelujem datoteko…",
+    "heroChat.removeFile": "Odstrani datoteko",
+    "heroChat.attachFile": "Priloži datoteko",
+    "heroChat.fileOnlyDestination": "Potovanje iz priložene datoteke",
+    "heroChat.start": "Začni →",
+    "heroChat.confirm": "Potrdi",
+    "heroChat.progress": "Korak {current}/{total}",
+    "heroChat.step1.ai": "Odlična izbira! 🎉 Kdaj bi rad letel?",
+    "heroChat.step2.ai": "Koliko noči načrtuješ?",
+    "heroChat.step3.ai": "Iz katerega mesta letiš? Poiščem letališča v krogu 600 km.",
+    "heroChat.step4.ai": "Koliko potnikov bo?",
+    "heroChat.step5.ai": "Kakšen je vaš proračun na osebo?",
+    "heroChat.step6.loading": "Perfektno! Iščem najboljše možnosti za vas… ✈️",
+    "heroChat.dates.july": "Julij 2027",
+    "heroChat.dates.august": "Avgust 2027",
+    "heroChat.dates.september": "September 2027",
+    "heroChat.dates.custom": "Izberi datum",
+    "heroChat.nights.3-5": "3–5 noči",
+    "heroChat.nights.7": "7 noči",
+    "heroChat.nights.10-14": "10–14 noči",
+    "heroChat.nights.2weeks": "2+ tedna",
+    "heroChat.origin.ljubljana": "Ljubljana",
+    "heroChat.origin.zagreb": "Zagreb",
+    "heroChat.origin.vienna": "Dunaj",
+    "heroChat.origin.venice": "Benetke",
+    "heroChat.origin.other": "Drugo",
+    "heroChat.origin.otherPlaceholder": "Vpišite mesto…",
+    "heroChat.passengers.1adult": "1 odrasel",
+    "heroChat.passengers.2adults": "2 odrasla",
+    "heroChat.passengers.2adults1child": "2 odrasla + 1 otrok",
+    "heroChat.passengers.2adults2children": "2 odrasla + 2 otroka",
+    "heroChat.budget.under500": "Do 500€",
+    "heroChat.budget.500-1000": "500–1000€",
+    "heroChat.budget.1000-2000": "1000–2000€",
+    "heroChat.budget.2000plus": "2000€+",
+    "heroSearch.title": "Rezultati iskanja",
+    "heroTrip.planTitle": "Vaš AI načrt poti",
+    "heroSearch.empty": "Za to iskanje ni bilo najdenih letov.",
+    "heroSearch.error": "Iskanje ni uspelo. Poskusi znova.",
+    "heroSearch.asyncPending":
+      "Make.com je vrnil samo “Accepted” brez rezultatov. Make.com scenarij mora biti nastavljen na sinhroni način: sprožilec “Immediately as data arrives” in modul Webhook response, ki vrne JSON (npr. { \"flights\": [...] }).",
+    "flightCard.departure": "Odhod",
+    "flightCard.stops": "Postanki",
+    "flightCard.book": "Rezerviraj →",
+    "hero.photoCredit": "Foto: {name} / Unsplash",
+    "hero.searchSectionTitle": "Leti in nastanitve",
+    "hero.searchSectionHint": "Iskanje letov, hotelov ali ročno nastavi letališča in datume.",
+    "social.trustedBy": "Zaupajo nam",
+    "social.feat.ai.title": "AI itinerar v minutah",
+    "social.feat.ai.desc": "Opiši sanjsko potovanje — dobiš dnevni načrt z zemljevidom in nasveti.",
+    "social.feat.flights.title": "Leti v realnem času",
+    "social.feat.flights.desc": "Cene v živo od več sto prevoznikov prek Duffel in Skyscanner.",
+    "social.feat.free.title": "Brezplačno za vse",
+    "social.feat.free.desc": "Celoten AI načrt, zemljevid in PDF — brez plačilnega zidu.",
+    "inspiration.title": "Navdih za naslednje potovanje",
+    "inspiration.subtitle": "Izberi idejo — besedilo se prenese v AI načrtovalec, kjer dodaš datume in preference.",
+    "inspiration.cta": "Začni načrt",
+    "faq.title": "Pogosta vprašanja",
+    "faq.what.q": "Kaj je Skybooplan?",
+    "faq.what.a": "Skybooplan je AI potovalni planer, ki v minutah naredi celoten itinerar, poišče lete in nastanitve.",
+    "faq.free.q": "Je načrtovanje brezplačno?",
+    "faq.free.a": "Da — celoten AI itinerar, interaktivni zemljevid in PDF so brezplačni za vse.",
+    "faq.how.q": "Kako AI načrtuje itinerar?",
+    "faq.how.a": "Opišeš potovanje, AI razčleni tvoje preference in sestavi plan dan za dnem z aktivnostmi, restavracijami in prevozom.",
+    "faq.pdf.q": "Ali lahko prenesem PDF načrt?",
+    "faq.pdf.a": "Da, vsak načrt lahko preneseš kot lepo oblikovan PDF, ki ga bereš brez povezave.",
+    "faq.flights.q": "Kateri leti so vključeni?",
+    "faq.flights.a": "Iščemo lete v realnem času od več sto prevoznikov prek Duffel — vedno aktualne cene za tvoje datume.",
     "trav.adults": "Odrasli",
     "trav.adultsAge": "Stari 18+",
     "trav.children": "Otroci",
@@ -1212,7 +1442,7 @@ const dicts: Record<Lang, Dict> = {
     "spotlight.hint": "Klikni gumb in AI bo pripravil personaliziran načrt.",
     "spotlight.closeGuide": "Zapri vodnik",
   },
-  es: {
+  es: withEnglishFallback({
     "tab.flights": "Vuelos","tab.stays": "Solo alojamiento","tab.ai": "Planificador IA",
     "trip.return": "Ida y vuelta","trip.oneway": "Solo ida",
     "field.from": "Desde","field.to": "Hasta",
@@ -1274,9 +1504,10 @@ const dicts: Record<Lang, Dict> = {
     "accessories.discount10": "-10% DESCUENTO",
     "accessories.discount5": "-5% DESCUENTO",
     "accessories.insurance": "Seguro de viaje al extranjero",
+    ...homepageUiByLang.es,
     ...planUiByLang.es,
-  },
-  fr: {
+  }),
+  fr: withEnglishFallback({
     "tab.flights": "Vols","tab.stays": "Hébergements","tab.ai": "Planificateur IA",
     "trip.return": "Aller-retour","trip.oneway": "Aller simple",
     "field.from": "De","field.to": "À",
@@ -1437,9 +1668,10 @@ const dicts: Record<Lang, Dict> = {
     "common.cancel": "Annuler",
     "common.ok": "OK",
     "common.signUp": "S'inscrire",
+    ...homepageUiByLang.fr,
     ...planUiByLang.fr,
-  },
-  de: {
+  }),
+  de: withEnglishFallback({
     "tab.flights": "Flüge","tab.stays": "Nur Unterkünfte","tab.ai": "KI-Planer",
     "trip.return": "Hin & Zurück","trip.oneway": "Nur Hinflug",
     "field.from": "Von","field.to": "Nach",
@@ -1501,9 +1733,10 @@ const dicts: Record<Lang, Dict> = {
     "accessories.discount10": "-10% RABATT",
     "accessories.discount5": "-5% RABATT",
     "accessories.insurance": "Auslandsreiseversicherung",
+    ...homepageUiByLang.de,
     ...planUiByLang.de,
-  },
-  it: {
+  }),
+  it: withEnglishFallback({
     "tab.flights": "Voli","tab.stays": "Solo alloggi","tab.ai": "Planner IA",
     "trip.return": "Andata e ritorno","trip.oneway": "Solo andata",
     "field.from": "Da","field.to": "A",
@@ -1565,30 +1798,27 @@ const dicts: Record<Lang, Dict> = {
     "accessories.discount10": "-10% SCONTO",
     "accessories.discount5": "-5% SCONTO",
     "accessories.insurance": "Assicurazione viaggio all'estero",
+    ...homepageUiByLang.it,
     ...planUiByLang.it,
-  },
+  }),
 };
 
 const RTL: Lang[] = [];
 
 const STORAGE_KEY = "skybooplan.lang";
 
-/** Only these locales have a complete dictionary — others must not mix partial strings into the UI. */
-const EU_UI_LANGS: ReadonlySet<Lang> = new Set(["es", "fr", "it", "de"]);
-
 function isUsableTranslation(value: string | undefined): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
 
 /**
- * Strict fallback chain: incomplete locale packs (e.g. de at ~15% coverage) never
- * contribute strings — the UI stays fully sl, en, or en→sl without a mixed language.
+ * Fallback chain for lookup. Non-SL locales never fall back to Slovenian.
+ * Partial locale packs (es/fr/it/de) are merged with EN at build time via withEnglishFallback.
  */
 export function translationFallbackChain(lang: Lang): Lang[] {
   if (lang === "sl") return ["sl", "en"];
-  if (lang === "en") return ["en", "sl"];
-  if (EU_UI_LANGS.has(lang)) return [lang, "en"];
-  return ["en", "sl"];
+  if (lang === "en") return ["en"];
+  return [lang, "en"];
 }
 
 /** Normalize persisted / picked codes so incomplete packs do not stick as UI language. */
@@ -1624,6 +1854,8 @@ function lookupTranslation(lang: Lang, key: keyof typeof en): string {
     const v = dicts[code]?.[key];
     if (isUsableTranslation(v)) return v;
   }
+  const master = en[key];
+  if (isUsableTranslation(master)) return master;
   if (import.meta.env.DEV) {
     console.warn(`[i18n] Missing translation for "${String(key)}" (lang=${lang})`);
   }

@@ -15,6 +15,12 @@ import {
   FIELD_SUBTEXT,
   FIELD_TEXT,
   FIELD_VALUE_ROW,
+  SEARCH_OPTION_ACTIVE,
+  SEARCH_PRIMARY_BTN,
+  SEARCH_CTA_BG,
+  SEARCH_CTA_TEXT,
+  SEARCH_TAB_ACTIVE,
+  SEARCH_TAB_INACTIVE,
 } from "@/components/searchFieldStyles";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
@@ -287,17 +293,17 @@ export function SearchPanel({
   );
 
   return (
-    <div className="relative w-full min-w-0 rounded-3xl border-2 border-brand/40 bg-card p-5 sm:p-6 shadow-[var(--shadow-search)]">
+    <div className="relative w-full min-w-0">
       {/* Tabs row */}
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <TabButton active={tab === "flights"} onClick={() => setTab("flights")} variant="primary">
+          <TabButton active={tab === "flights"} onClick={() => setTab("flights")}>
             <Plane className="h-4 w-4" /> {t("tab.flights")}
           </TabButton>
-          <TabButton active={tab === "stays"} onClick={() => setTab("stays")} variant="primary">
+          <TabButton active={tab === "stays"} onClick={() => setTab("stays")}>
             <Hotel className="h-4 w-4" /> {t("tab.stays")}
           </TabButton>
-          <TabButton active={tab === "ai"} onClick={() => setTab("ai")} variant="primary">
+          <TabButton active={tab === "ai"} onClick={() => setTab("ai")}>
             <Route className="h-4 w-4 shrink-0" /> {t("tab.ai")}
           </TabButton>
         </div>
@@ -342,8 +348,8 @@ export function SearchPanel({
                       }
                     }}
                     className={cn(
-                      "w-full rounded-lg px-3 py-2 text-left text-sm transition-colors",
-                      tripType === opt ? "bg-brand-soft text-brand font-semibold" : "hover:bg-muted",
+                      "w-full rounded-xl px-3 py-2 text-left text-sm transition-colors",
+                      tripType === opt ? SEARCH_OPTION_ACTIVE : "hover:bg-muted",
                     )}
                   >
                     {opt === "Return" ? t("trip.return") : opt === "One-way" ? t("trip.oneway") : t("trip.multicity")}
@@ -594,8 +600,8 @@ function TransportModeField({
                 onOpenChange?.(false);
               }}
               className={cn(
-                "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors",
-                value === opt.key ? "bg-brand-soft text-brand font-semibold" : "hover:bg-muted",
+                "flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm transition-colors",
+                value === opt.key ? SEARCH_OPTION_ACTIVE : "hover:bg-muted",
               )}
             >
               <OptIcon className="h-4 w-4" />
@@ -612,22 +618,18 @@ function TabButton({
   children,
   active,
   onClick,
-  variant = "default",
 }: {
   children: React.ReactNode;
   active: boolean;
   onClick: () => void;
-  variant?: "default" | "primary";
 }) {
   return (
     <button
+      type="button"
       onClick={onClick}
       className={cn(
         "inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-all",
-        active && variant === "primary" && "text-primary-foreground shadow-md",
-        active && variant === "primary" && "[background:var(--gradient-warm)]",
-        active && variant === "default" && "bg-brand text-brand-foreground shadow-md",
-        !active && "text-foreground/70 hover:text-foreground hover:bg-muted",
+        active ? SEARCH_TAB_ACTIVE : SEARCH_TAB_INACTIVE,
       )}
     >
       {children}
@@ -769,7 +771,7 @@ function DateField({
               <div className="flex min-w-0 items-center gap-2.5">
                 <div className={FIELD_ICON_SLOT}>
                   <CalendarIcon
-                    className={cn(FIELD_ICON, "group-hover:text-brand transition-colors")}
+                    className={cn(FIELD_ICON, "transition-colors group-hover:text-blue-600")}
                   />
                 </div>
                 <div className="grid min-w-0 flex-1 grid-cols-2 gap-x-3">
@@ -796,7 +798,7 @@ function DateField({
               <div className={FIELD_VALUE_ROW}>
                 <div className={FIELD_ICON_SLOT}>
                   <CalendarIcon
-                    className={cn(FIELD_ICON, "group-hover:text-brand transition-colors")}
+                    className={cn(FIELD_ICON, "transition-colors group-hover:text-blue-600")}
                   />
                 </div>
                 <span className={cn(FIELD_TEXT, !departSel && "text-muted-foreground/60")}>
@@ -876,7 +878,7 @@ function SingleDateField({
           <div className={FIELD_LABEL}>{label}</div>
           <div className={FIELD_VALUE_ROW}>
             <div className={FIELD_ICON_SLOT}>
-              <CalendarIcon className={cn(FIELD_ICON, "group-hover:text-brand transition-colors")} />
+              <CalendarIcon className={cn(FIELD_ICON, "transition-colors group-hover:text-blue-600")} />
             </div>
             <span className={cn(FIELD_TEXT, !selected && "text-muted-foreground/60")}>
               {selected ? format(selected, "d MMM yyyy") : t("field.selectDate")}
@@ -944,8 +946,7 @@ function SearchButton({
       type="button"
       onClick={onClick}
       disabled={loading}
-      className="inline-flex h-full min-h-[76px] w-full max-w-full items-center justify-center gap-2 rounded-2xl px-3 text-sm font-semibold text-brand-foreground shadow-md transition-shadow hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60"
-      style={{ background: "var(--gradient-brand)" }}
+      className={cn(SEARCH_PRIMARY_BTN, "h-full min-h-[76px] w-full max-w-full")}
     >
       <Search className="h-5 w-5 shrink-0" />
       <span className="truncate">{loading ? loadingLabel : label}</span>
@@ -976,7 +977,7 @@ function DatePickerCell({
           <div className={FIELD_LABEL}>{label}</div>
           <div className={FIELD_VALUE_ROW}>
             <div className={FIELD_ICON_SLOT}>
-              <CalendarIcon className={cn(FIELD_ICON, "group-hover:text-brand transition-colors")} />
+              <CalendarIcon className={cn(FIELD_ICON, "transition-colors group-hover:text-blue-600")} />
             </div>
             <span className={cn(FIELD_TEXT, !selected && "text-muted-foreground/60")}>
               {selected ? format(selected, "d MMM yyyy") : t("field.selectDate")}
@@ -1140,8 +1141,8 @@ function FlightsTravellersField({
                   className={cn(
                     "rounded-xl border px-3 py-2 text-sm font-medium transition-colors text-center",
                     draftCabinClass === c
-                      ? "bg-sky-500 text-white border-sky-500"
-                      : "bg-card text-foreground border-border hover:border-sky-300",
+                      ? cn(SEARCH_CTA_BG, SEARCH_CTA_TEXT, "border-search-cta")
+                      : "border-border bg-white text-foreground hover:border-blue-200",
                   )}
                 >
                   {t(CABIN_KEY[c])}
@@ -1182,7 +1183,7 @@ function FlightsTravellersField({
                   <select
                     value={age}
                     onChange={(e) => setDraftChildAge(i, Number(e.target.value))}
-                    className="rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-sky-400/40"
+                    className="rounded-xl border border-border bg-white px-3 py-1.5 text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-blue-100"
                     aria-label={`${t("trav.ageOf")} ${i + 1}`}
                   >
                     {Array.from({ length: 18 }, (_, n) => (
@@ -1313,7 +1314,7 @@ function StaysGuestsField({
                   <select
                     value={age}
                     onChange={(e) => setDraftChildAge(i, Number(e.target.value))}
-                    className="rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-sky-400/40"
+                    className="rounded-xl border border-border bg-white px-3 py-1.5 text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-blue-100"
                     aria-label={`${t("trav.ageOf")} ${i + 1}`}
                   >
                     {Array.from({ length: 18 }, (_, n) => (

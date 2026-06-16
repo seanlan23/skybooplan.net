@@ -108,8 +108,25 @@ type CityMapStop = {
 
 const EMPTY_TRIP_SEGMENTS: TripRouteSegment[] = [];
 
-const MAP_STYLE_DEFAULT = "mapbox://styles/mapbox/outdoors-v12";
+const MAP_STYLE_DEFAULT = "mapbox://styles/mapbox/streets-v12";
 const MAP_STYLE_SATELLITE = "mapbox://styles/mapbox/satellite-streets-v12";
+
+/** Ensure Mapbox native POI / place labels stay visible on the basemap. */
+function enableMapPoiLayers(map: mapboxgl.Map) {
+  const style = map.getStyle();
+  if (!style?.layers) return;
+  for (const layer of style.layers) {
+    if (layer.type !== "symbol") continue;
+    const id = layer.id;
+    if (!/(poi|place-label|road-label|transit-label|landmark|national-park)/i.test(id)) continue;
+    try {
+      map.setLayoutProperty(id, "visibility", "visible");
+      map.setLayerZoomRange(id, 0, 24);
+    } catch {
+      /* layer may not support layout or zoom range */
+    }
+  }
+}
 
 function coordKey(c: [number, number]): string {
   return `${c[0].toFixed(6)},${c[1].toFixed(6)}`;
@@ -452,7 +469,8 @@ function createCityMarkerElement(
   root.render(
     <MapCityMarker
       isActive={isActive}
-      dayCount={stop.dayCount}
+      dayNumber={stop.startDay}
+      dayEnd={stop.endDay}
       imageUrl={stop.imageUrl}
       city={stop.city}
     />,
@@ -663,15 +681,6 @@ function collectPlanPoiPins(plan: AiTripPlan): MapPoiPin[] {
 /** Shared camera timing — synced with route draw (~2s). */
 const MAP_CAMERA_DURATION_MS = 2000;
 const DAY_VIEW_PADDING = 56;
-const POI_VIEW_PADDING = 80;
-/** Comfortable street-level context — never microscope zoom. */
-const POI_FOCUS_ZOOM = 14.1;
-const POI_FOCUS_ZOOM_MAX = 14.5;
-const POI_FOCUS_MS = 2200;
-const POI_FOCUS_MS_NEAR = 1800;
-const POI_FOCUS_MS_FAR = 2600;
-const POI_NEAR_KM = 1.2;
-const POI_MID_KM = 8;
 
 function padBoundsIfPoint(bounds: mapboxgl.LngLatBounds) {
   const ne = bounds.getNorthEast();
@@ -706,52 +715,20 @@ function fitActiveDayView(
   });
 }
 
-function flyToPoiFocus(
-  map: mapboxgl.Map,
-  center: [number, number],
-  fromCenter: [number, number] | null,
-) {
+function flyToDayCenter(map: mapboxgl.Map, center: [number, number]) {
   map.stop();
-
-  const currentZoom = map.getZoom();
-  const distKm = fromCenter ? haversineKm(fromCenter, center) : 0;
-
-  let targetZoom = POI_FOCUS_ZOOM;
-  let curve = 1.28;
-  let duration = POI_FOCUS_MS;
-
-  if (distKm > 0 && distKm < POI_NEAR_KM) {
-    // Same neighbourhood — glide, don't punch in.
-    targetZoom = Math.min(Math.max(currentZoom, POI_FOCUS_ZOOM), POI_FOCUS_ZOOM_MAX);
-    curve = 1.08;
-    duration = POI_FOCUS_MS_NEAR;
-  } else if (distKm >= POI_NEAR_KM && distKm < POI_MID_KM) {
-    // Same city — gentle zoom-out arc then settle.
-    targetZoom = POI_FOCUS_ZOOM;
-    curve = 1.32;
-  } else if (distKm >= POI_MID_KM) {
-    // Different area — wider breathe during flight.
-    targetZoom = Math.min(POI_FOCUS_ZOOM, 13.7);
-    curve = 1.52;
-    duration = POI_FOCUS_MS_FAR;
-  }
-
-  targetZoom = Math.min(targetZoom, POI_FOCUS_ZOOM_MAX);
-
   map.flyTo({
     center,
-    zoom: targetZoom,
-    speed: 0.82,
-    curve,
-    duration,
-    padding: {
-      top: POI_VIEW_PADDING,
-      bottom: POI_VIEW_PADDING,
-      left: POI_VIEW_PADDING,
-      right: POI_VIEW_PADDING,
-    },
+    zoom: 14,
+    speed: 0.8,
+    curve: 1.5,
+    easing: (t) => t,
     essential: true,
   });
+}
+
+function flyToPoiFocus(map: mapboxgl.Map, center: [number, number]) {
+  flyToDayCenter(map, center);
 }
 
 function applyPoiMarkerVisualState(
@@ -1470,8 +1447,8 @@ function TripMapInner({
 
   /** City stop geometry only — stable across re-renders. */
   const cityStopCoords = useMemo(
-    () => buildCityStops(validDays, plan.days.length, preferDriving),
-    [validDays, plan.days.length, preferDriving],
+    () => buildCityStops(validDays, plan.days.length, true),
+    [validDays, plan.days.length],
   );
 
   const activeDayCoord = useMemo((): [number, number] | null => {
@@ -1546,9 +1523,8 @@ function TripMapInner({
     const run = () => {
       if (!isValidCoord(focusTarget.lat, focusTarget.lng)) return;
       const center: [number, number] = [focusTarget.lng, focusTarget.lat];
-      const prev = lastPoiFocusCenterRef.current;
       lastFlyTargetKeyRef.current = `drone:${focusTarget.key}`;
-      flyToPoiFocus(map, center, prev);
+      flyToPoiFocus(map, center);
       lastPoiFocusCenterRef.current = center;
 
       onSettled = () => {
@@ -1575,12 +1551,10 @@ function TripMapInner({
     }
   }, [focusTarget?.mode]);
 
-  // Road trips: one marker per day (don't merge consecutive days into one stop).
-  const roadTripMode = preferDriving;
-
+  // One marker per itinerary day so badge numbers match the day list.
   const cityStops = useMemo(
-    () => buildCityStops(validDays, plan.days.length, roadTripMode),
-    [validDays, plan.days.length, roadTripMode],
+    () => buildCityStops(validDays, plan.days.length, true),
+    [validDays, plan.days.length],
   );
 
   const cityStopsKey = useMemo(() => buildCityStopsKey(cityStops), [cityStops]);
@@ -1623,6 +1597,7 @@ function TripMapInner({
 
     map.on("load", () => {
       ready.current = true;
+      enableMapPoiLayers(map);
     });
 
     mapRef.current = map;
@@ -1677,6 +1652,7 @@ function TripMapInner({
       map.setStyle(nextStyle);
       map.once("style.load", () => {
         ready.current = true;
+        enableMapPoiLayers(map);
         setMapStyleEpoch((epoch) => epoch + 1);
       });
     };
@@ -1926,10 +1902,15 @@ function TripMapInner({
         : `${isPlaying ? "play" : "scroll"}:${activeDay}:${dayFocusKey}:${coordsBoundsKey(coords)}:${drawRoute}:${focusKey}`;
       if (!skipDayCamera && lastFlyTargetKeyRef.current !== camKey) {
         lastFlyTargetKeyRef.current = camKey;
-        fitActiveDayView(map, {
-          boundsPoints,
-          fallbackCenter: activeDayCoord,
-        });
+        const center = boundsPoints[0] ?? activeDayCoord;
+        if (isPlaying && center) {
+          flyToDayCenter(map, center);
+        } else {
+          fitActiveDayView(map, {
+            boundsPoints,
+            fallbackCenter: activeDayCoord,
+          });
+        }
       }
 
       runActiveDayRouteDraw(map, drawRoute ? coords : [], {
@@ -2144,7 +2125,8 @@ function TripMapInner({
       root.render(
         <MapCityMarker
           isActive={isActive}
-          dayCount={stop.dayCount}
+          dayNumber={stop.startDay}
+          dayEnd={stop.endDay}
           imageUrl={stop.imageUrl}
           city={stop.city}
         />,

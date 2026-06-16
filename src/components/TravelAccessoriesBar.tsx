@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { Shield } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 
 const BADGE_CLASS =
@@ -52,10 +51,9 @@ function DiscountTag({ label }: { label: string }) {
 
 type AccessoryLink = {
   href: string;
-  labelKey: "accessories.airalo" | "accessories.holafly" | "accessories.insurance";
+  labelKey: "accessories.airalo" | "accessories.holafly";
   discountKey?: "accessories.discount10" | "accessories.discount5";
   logo?: ReactNode;
-  icon?: ReactNode;
 };
 
 const ACCESSORIES: AccessoryLink[] = [
@@ -70,11 +68,6 @@ const ACCESSORIES: AccessoryLink[] = [
     labelKey: "accessories.holafly",
     discountKey: "accessories.discount5",
     logo: <HolaflyLogo />,
-  },
-  {
-    href: "https://www.google.com/search?q=travel+insurance+abroad",
-    labelKey: "accessories.insurance",
-    icon: <Shield className="h-4 w-4 shrink-0 text-slate-500" aria-hidden />,
   },
 ];
 
@@ -96,7 +89,6 @@ export function TravelAccessoriesBar() {
             className={BADGE_CLASS}
           >
             {item.logo}
-            {item.icon}
             <span className="font-medium text-slate-700">{t(item.labelKey)}</span>
             {item.discountKey ? <DiscountTag label={t(item.discountKey)} /> : null}
           </a>

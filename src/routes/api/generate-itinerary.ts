@@ -4,6 +4,7 @@ import { geminiApiKey } from "@/lib/llm";
 import {
   tripDayCount,
   buildGeminiTripPlanParams,
+  buildGeminiTripPlanParamsWithAttachment,
   formatGenerateTripInputError,
   generateGeminiProTripInputSchema,
   type GenerateGeminiProTripInput,
@@ -78,7 +79,8 @@ export const Route = createFileRoute("/api/generate-itinerary")({
             try {
               pipelineLog("stream:generate-itinerary START", `${data.originIata}→${data.destinationIata}`);
 
-              const result = createTripPlanStream(buildGeminiTripPlanParams(data, expectedDays));
+              const planParams = await buildGeminiTripPlanParamsWithAttachment(data, expectedDays);
+              const result = createTripPlanStream(planParams);
 
               let lastDayCount = 0;
               for await (const partial of result.partialObjectStream) {

@@ -11,6 +11,12 @@ import {
   purgeLegacySessionCache,
 } from "@/lib/sessionStore";
 import { SiteHeader } from "@/components/SiteHeader";
+import { HeroSection } from "@/components/HeroSection";
+import { HeroFlightResults } from "@/components/HeroFlightResults";
+import { HeroAiPlanResults } from "@/components/HeroAiPlanResults";
+import { SocialProofSection } from "@/components/SocialProofSection";
+import { TripInspiration } from "@/components/TripInspiration";
+import { FAQSection } from "@/components/FAQSection";
 import { SearchPanel, type SearchValues } from "@/components/SearchPanel";
 import { FlightResults } from "@/components/FlightResults";
 import { SpotlightOverlay } from "@/components/SpotlightOverlay";
@@ -47,6 +53,10 @@ import { flightContextFromLegs } from "@/lib/flightScheduling";
 import { isClassicRoundTrip } from "@/lib/flightSearch";
 import { formatPlannerInterests } from "@/lib/plannerInterests";
 import { Button } from "@/components/ui/button";
+import { addDays } from "@/lib/dateUtils";
+import { parseMakeSearchFlights, type MakeSearchFlight } from "@/lib/makeSearch";
+import { heroChatToPlannerPayload } from "@/lib/heroChatPlanner";
+import type { HeroChatCollected } from "@/lib/heroChatFlow";
 
 /** Full-screen fatal error — visible without devtools. */
 function FatalErrorScreen({ error }: { error: Error }) {
@@ -278,6 +288,13 @@ function Landing() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiExpandingFull, setAiExpandingFull] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+  const [heroDreamPrompt, setHeroDreamPrompt] = useState("");
+  const [heroChatSeed, setHeroChatSeed] = useState<string | null>(null);
+  const [heroFlights, setHeroFlights] = useState<MakeSearchFlight[]>([]);
+  const [heroSearchLoading, setHeroSearchLoading] = useState(false);
+  const [heroSearchError, setHeroSearchError] = useState<string | null>(null);
+  const [heroSearchAttempted, setHeroSearchAttempted] = useState(false);
+  const [heroPlannerActive, setHeroPlannerActive] = useState(false);
   const [lastPlannerForm, setLastPlannerForm] = useState<AiPlannerSubmit | null>(null);
   const [aiGenStartedAt, setAiGenStartedAt] = useState<number | null>(null);
   const [genInterrupted, setGenInterrupted] = useState(false);
@@ -326,6 +343,12 @@ function Landing() {
     setSavedPlanId(null);
     setError(null);
     setShowSpotlight(false);
+    setHeroDreamPrompt("");
+    setHeroChatSeed(null);
+    setHeroPlannerActive(false);
+    setHeroSearchAttempted(false);
+    setHeroFlights([]);
+    setHeroSearchError(null);
     streamItinerary.reset();
   }, [queryClient, streamItinerary]);
 
@@ -474,6 +497,109 @@ function Landing() {
     setGenInterrupted(false);
     setSavedPlanId(null);
     streamItinerary.reset();
+  }
+
+  function handleInspirationSelect(destination: string) {
+    setHeroChatSeed(destination);
+    window.setTimeout(() => {
+      document.getElementById("hero-chat-window")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 80);
+  }
+
+  async function handleHeroDreamSubmit(prompt: string, collected: HeroChatCollected) {
+    const trimmed = prompt.trim();
+    if (!trimmed || heroSearchLoading) return;
+
+    setHeroSearchAttempted(true);
+    setHeroPlannerActive(true);
+    setHeroSearchLoading(true);
+    setHeroSearchError(null);
+    setHeroFlights([]);
+    setError(null);
+    beginNewSearch();
+    setHeroDreamPrompt(trimmed);
+
+    let flightSearchOk = false;
+
+    try {
+      const res = await fetch("/api/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query: trimmed,
+          attachment: collected.attachment ?? undefined,
+        }),
+      });
+
+      const rawText = await res.text();
+      let data: unknown = null;
+      if (rawText.trim()) {
+        try {
+          data = JSON.parse(rawText) as unknown;
+        } catch {
+          setHeroSearchError("heroSearch.error");
+        }
+      }
+
+      if (!res.ok) {
+        const record =
+          data != null && typeof data === "object" && !Array.isArray(data)
+            ? (data as Record<string, unknown>)
+            : null;
+        const message =
+          record && typeof record.error === "string"
+            ? record.error
+            : "heroSearch.error";
+        setHeroSearchError(message);
+      } else {
+        const parsed = parseMakeSearchFlights(data);
+        setHeroFlights(parsed);
+        flightSearchOk = true;
+        if (parsed.length === 0) {
+          setHeroSearchError("heroSearch.empty");
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message.trim().toLowerCase() : "";
+      const network =
+        msg === "load failed" ||
+        msg === "failed to fetch" ||
+        msg.includes("networkerror") ||
+        msg.includes("fetch failed");
+      setHeroSearchError(network ? "error.networkFetch" : "heroSearch.error");
+    } finally {
+      setHeroSearchLoading(false);
+    }
+
+    const { ctx, form } = heroChatToPlannerPayload(collected, lang);
+    setAiContext(ctx);
+    setPlannerMode("trip");
+    setLastSearch({
+      mode: "ai",
+      from: ctx.from,
+      to: ctx.to,
+      originPlace: ctx.originPlace,
+      destinationPlace: ctx.destinationPlace,
+      departDate: ctx.departDate,
+      returnDate: ctx.returnDate ?? "",
+      tripType: "return",
+      pax: ctx.pax,
+      adults: ctx.adults,
+      children: ctx.childrenAges.length,
+      childrenAges: ctx.childrenAges,
+      language: lang,
+    });
+
+    void handleGeneratePlan(form, ctx, "trip", "hero-ai-plan-anchor", collected.attachment);
+
+    if (flightSearchOk) {
+      window.setTimeout(() => {
+        document.getElementById("hero-flight-results")?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }, 120);
+    }
   }
 
   async function handleSearch(v: SearchValues) {
@@ -777,6 +903,8 @@ function Landing() {
     form: AiPlannerSubmit,
     ctxOverride?: AiPlannerContext & { language?: string },
     modeOverride?: "trip" | "stays",
+    scrollAnchorId = "ai-plan-anchor",
+    heroAttachment?: HeroChatCollected["attachment"],
   ) {
     const rawCtx = ctxOverride ?? aiContext;
     if (!isActiveAiContext(rawCtx)) {
@@ -796,7 +924,7 @@ function Landing() {
     setAiGenStartedAt(Date.now());
     setAiLoading(true);
     setTimeout(() => {
-      document.getElementById("ai-plan-anchor")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      document.getElementById(scrollAnchorId)?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 100);
     try {
       const lang = ctx.language || "sl";
@@ -842,6 +970,7 @@ function Landing() {
           customWishes: buildWishes(safeForm) || safeForm.wishes?.trim() || undefined,
           pace: safeForm.pace,
           priorities,
+          attachment: heroAttachment ?? undefined,
           ...groundTrip,
           language: ctx.language || lang,
           currency: planCurrency,
@@ -1038,20 +1167,68 @@ function Landing() {
 
   try {
     return (
-    <div className="min-h-screen flex flex-col w-full max-w-full overflow-x-hidden" style={{ background: "var(--gradient-hero)" }}>
-      <SiteHeader />
+    <div className="min-h-screen flex flex-col w-full max-w-full overflow-x-hidden bg-background">
+      <div className="relative">
+        <SiteHeader variant="hero" className="absolute inset-x-0 top-0 border-b-0 bg-transparent backdrop-blur-none" />
+        <HeroSection
+          onSearch={handleHeroDreamSubmit}
+          loading={heroSearchLoading}
+          seedDestination={heroChatSeed}
+          onSeedConsumed={() => setHeroChatSeed(null)}
+        />
+      </div>
+
+      <HeroFlightResults
+        flights={heroFlights}
+        loading={heroSearchLoading}
+        error={heroSearchError}
+        visible={heroSearchAttempted}
+      />
+
+      <HeroAiPlanResults
+        visible={heroPlannerActive}
+        aiLoading={aiLoading}
+        aiExpandingFull={aiExpandingFull}
+        isGeminiStreaming={isGeminiStreaming}
+        displayPlan={displayPlan}
+        aiSkeleton={aiSkeleton}
+        aiError={aiError}
+        aiContext={aiContext}
+        aiPlan={aiPlan}
+        lastPlannerForm={lastPlannerForm}
+        aiGenStartedAt={aiGenStartedAt}
+        streamExpectedDays={streamItinerary.expectedDays}
+        savedPlanId={savedPlanId}
+        user={user}
+        buildWishes={buildWishes}
+        normalizeLastPlannerForm={normalizeLastPlannerForm}
+        onExpandFull={handleExpandFullPlan}
+        lastSearchPax={{
+          adults: lastSearch?.adults ?? aiContext?.adults,
+          childrenAges: lastSearch?.childrenAges ?? aiContext?.childrenAges,
+          rooms: lastSearch?.rooms,
+        }}
+      />
+
+      <SocialProofSection />
+      <TripInspiration onSelectDestination={handleInspirationSelect} />
+      <FAQSection />
 
       <main className="flex-1">
-        {/* Hero */}
-        <section className="mx-auto max-w-7xl px-6 pt-16 sm:pt-24 pb-12 text-center">
-          <h1 className="overflow-visible bg-gradient-to-r from-slate-950 via-blue-900 to-indigo-800 bg-clip-text pb-2 text-4xl font-bold leading-tight tracking-tight text-transparent sm:text-6xl lg:text-7xl">
-            {t("hero.title.a")} {t("hero.title.b")} {t("hero.title.c")}
-          </h1>
-          <p className="mx-auto mt-5 max-w-2xl text-lg text-slate-500 sm:text-xl">
-            {t("hero.subtitle")}
-          </p>
-
-          <div className="mt-12 max-w-6xl mx-auto min-w-0 text-left" id="flights">
+        <section
+          id="travel-search"
+          className="relative z-20 mx-auto mt-6 max-w-6xl px-6 pb-4"
+        >
+          <div className="rounded-2xl bg-white p-5 shadow-xl sm:p-6">
+            <div className="mb-4 text-left">
+              <h2 className="text-lg font-semibold text-foreground">
+                {t("hero.searchSectionTitle" as never)}
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {t("hero.searchSectionHint" as never)}
+              </p>
+            </div>
+            <div className="min-w-0 text-left" id="flights">
             <SearchPanel
               onSearch={handleSearch}
               onValuesChange={handleSearchDraftChange}
@@ -1062,8 +1239,12 @@ function Landing() {
               }
               onClear={resetLanding}
             />
+            </div>
+          </div>
+          <FlightSearchHistory refreshKey={historyRefresh} onRepeat={handleRepeat} />
+        </section>
 
-            <FlightSearchHistory refreshKey={historyRefresh} onRepeat={handleRepeat} />
+        <section className="mx-auto max-w-6xl px-6 pb-12">
 
             {error && (
               <div className="mt-4 rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
@@ -1116,16 +1297,18 @@ function Landing() {
               </div>
             )}
 
-            {isActiveAiContext(aiContext) && !aiLoading && !displayPlan && !aiSkeleton && (
+            {isActiveAiContext(aiContext) && !heroPlannerActive && !aiLoading && !displayPlan && !aiSkeleton && (
               <AiPlannerPreview
                 context={aiContext}
+                initialWishes={heroDreamPrompt}
                 onGenerate={(f) => handleGeneratePlan(f, undefined, plannerMode)}
                 loading={aiLoading || isGeminiStreaming}
               />
             )}
 
             <div id="ai-plan-anchor" />
-            {(aiLoading || isGeminiStreaming || aiSkeleton || displayPlan || aiError || aiExpandingFull) && (
+            {!heroPlannerActive &&
+            (aiLoading || isGeminiStreaming || aiSkeleton || displayPlan || aiError || aiExpandingFull) && (
               <>
                 {displayPlan ? (
                 <AiPlanView
@@ -1242,7 +1425,6 @@ function Landing() {
                 )}
               </>
             )}
-          </div>
         </section>
 
         {/* Bottom planner removed — only the inline planner above renders to avoid form duplication. */}

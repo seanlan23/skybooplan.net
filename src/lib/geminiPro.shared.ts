@@ -271,6 +271,11 @@ export type GenerateTripPlanParams = {
   language?: string;
   /** Display currency for all plan costs (EUR or USD). */
   currency?: "EUR" | "USD";
+  /** Optional user-uploaded image for Gemini Vision. */
+  sharedImage?: {
+    mimeType: string;
+    base64: string;
+  };
 };
 
 export const TRIP_WISH_TAGS = [

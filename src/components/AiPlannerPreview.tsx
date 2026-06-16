@@ -69,15 +69,18 @@ export function AiPlannerPreview({
   context,
   onGenerate,
   loading,
+  initialWishes,
 }: {
   context?: AiPlannerContext | null;
   onGenerate?: (v: AiPlannerSubmit) => void;
   loading?: boolean;
+  /** Pre-fill from hero conversational input */
+  initialWishes?: string;
 } = {}) {
   const { t, lang } = useI18n();
   const [mode, setMode] = useState<"ai" | "manual">("ai");
   const [pace, setPace] = useState<"intensive" | "relaxed" | "calm">("relaxed");
-  const [wishes, setWishes] = useState("");
+  const [wishes, setWishes] = useState(initialWishes?.trim() ?? "");
   const [customPrompt] = useState("");
   const [budget, setBudget] = useState<TripBudgetTier>("standard");
   const [wishTags, setWishTags] = useState<(typeof TRIP_WISH_TAGS)[number][]>([]);
@@ -103,6 +106,10 @@ export function AiPlannerPreview({
     selectedInterests,
     wishes,
   ]);
+
+  useEffect(() => {
+    if (initialWishes?.trim()) setWishes(initialWishes.trim());
+  }, [initialWishes]);
 
   useEffect(() => {
     if (mode !== "manual" || !routeCities.length) return;

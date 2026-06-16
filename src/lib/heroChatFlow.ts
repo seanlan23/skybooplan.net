@@ -1,0 +1,97 @@
+export const HERO_CHAT_TOTAL_STEPS = 5;
+
+export type HeroChatStep =
+  | "destination"
+  | "dates"
+  | "nights"
+  | "origin"
+  | "passengers"
+  | "budget"
+  | "searching";
+
+export type HeroChatCollected = {
+  destination: string;
+  dates: string;
+  nights: string;
+  origin: string;
+  passengers: string;
+  budget: string;
+  attachment?: import("@/lib/heroChatAttachment").HeroChatAttachmentPayload;
+};
+
+export type HeroChatMessage = {
+  id: string;
+  role: "ai" | "user";
+  text: string;
+};
+
+export type HeroDestinationChip = {
+  id: string;
+  destination: string;
+  emoji: string;
+  labelKey: string;
+  nameKey: string;
+};
+
+export const HERO_DESTINATION_CHIPS: HeroDestinationChip[] = [
+  { id: "paris", destination: "Pariz", emoji: "🗼", labelKey: "hero.chip.paris.label", nameKey: "hero.chip.paris.name" },
+  { id: "croatia", destination: "Hrvaška", emoji: "🌊", labelKey: "hero.chip.croatia.label", nameKey: "hero.chip.croatia.name" },
+  { id: "bali", destination: "Bali", emoji: "🌴", labelKey: "hero.chip.bali.label", nameKey: "hero.chip.bali.name" },
+  { id: "newyork", destination: "New York", emoji: "🗽", labelKey: "hero.chip.newyork.label", nameKey: "hero.chip.newyork.name" },
+  { id: "japan", destination: "Japonska", emoji: "🏯", labelKey: "hero.chip.japan.label", nameKey: "hero.chip.japan.name" },
+];
+
+/** Full chip label e.g. "🗼 Pariz" — never emoji-only. */
+export function resolveDestinationChipLabel(
+  chip: HeroDestinationChip,
+  translate: (key: string) => string,
+): string {
+  const label = translate(chip.labelKey);
+  if (label && !label.startsWith("hero.chip.")) return label;
+  return `${chip.emoji} ${chip.destination}`;
+}
+
+/** Split display for chip UI — emoji + localized name always separate. */
+export function getDestinationChipDisplay(
+  chip: HeroDestinationChip,
+  translate: (key: string) => string,
+): { emoji: string; name: string; label: string } {
+  const translatedName = translate(chip.nameKey);
+  const name =
+    translatedName && !translatedName.startsWith("hero.chip.")
+      ? translatedName
+      : chip.destination;
+  return { emoji: chip.emoji, name, label: `${chip.emoji} ${name}` };
+}
+
+export function heroChatStepNumber(step: HeroChatStep): number {
+  switch (step) {
+    case "dates":
+      return 1;
+    case "nights":
+      return 2;
+    case "origin":
+      return 3;
+    case "passengers":
+      return 4;
+    case "budget":
+      return 5;
+    default:
+      return 0;
+  }
+}
+
+export function buildHeroSearchQuery(data: HeroChatCollected): string {
+  return [
+    `Potovanje v ${data.destination}`,
+    `odhod ${data.dates}`,
+    data.nights,
+    `iz ${data.origin}`,
+    data.passengers,
+    `proračun ${data.budget} na osebo`,
+  ].join(", ");
+}
+
+export function createChatMessage(role: "ai" | "user", text: string): HeroChatMessage {
+  return { id: `${role}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, role, text };
+}

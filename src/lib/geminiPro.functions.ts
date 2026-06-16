@@ -2,11 +2,14 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { pipelineLog, pipelineStep } from "@/lib/asyncTimeout";
 import { geminiApiKey } from "@/lib/llm";
+import { parseHeroChatAttachment } from "@/lib/heroChatAttachment";
+import { buildHeroAttachmentContext } from "@/lib/heroChatAttachment.server";
 import {
   TRIP_WISH_TAGS,
   normalizeIata,
   normalizeTripPlanPax,
   tripPlanSchema,
+  type GenerateTripPlanParams,
 } from "@/lib/geminiPro.shared";
 import {
   buildCatalogPlanFromResponse,
@@ -101,6 +104,14 @@ export const generateGeminiProTripInputSchema = z
     originPlace: z.string().trim().min(2).max(120).optional(),
     destinationPlace: z.string().trim().min(2).max(120).optional(),
     language: z.string().min(2).max(5).optional(),
+    attachment: z
+      .object({
+        filename: z.string().trim().min(1).max(200),
+        mimeType: z.string().trim().min(3).max(100),
+        kind: z.enum(["image", "pdf"]),
+        base64: z.string().trim().min(1).max(7_000_000),
+      })
+      .optional(),
   })
   .superRefine((data, ctx) => {
     if (data.groundTransportMode) {
@@ -214,6 +225,27 @@ export function buildGeminiTripPlanParams(data: GenerateGeminiProTripInput, days
     originPlace: data.originPlace,
     destinationPlace: data.destinationPlace,
     language: data.language ?? "sl",
+  };
+}
+
+/** Merge optional hero chat attachment (image/PDF) into Gemini trip plan params. */
+export async function buildGeminiTripPlanParamsWithAttachment(
+  data: GenerateGeminiProTripInput,
+  days: number,
+): Promise<GenerateTripPlanParams> {
+  const base = buildGeminiTripPlanParams(data, days);
+  if (!data.attachment) return base;
+
+  const attachment = parseHeroChatAttachment(data.attachment);
+  if (!attachment) return base;
+
+  const ctx = await buildHeroAttachmentContext(attachment);
+  const customWishes = [base.customWishes, ctx.plannerWishesAppend].filter(Boolean).join("\n\n");
+
+  return {
+    ...base,
+    customWishes,
+    sharedImage: ctx.geminiImage,
   };
 }
 

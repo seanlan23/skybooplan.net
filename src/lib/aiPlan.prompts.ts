@@ -1,5 +1,6 @@
 import { STRICT_LLM_CURRENCY_RULE } from "@/lib/planCurrency";
 import { STRICT_LLM_LANGUAGE_RULE } from "@/lib/planLanguages";
+import { DISTANCE_TRANSPORT_RULES } from "@/lib/transportPromptRules";
 
 /** System prompts for LLM calls — user messages are JSON trip parameters only. */
 
@@ -31,6 +32,8 @@ The user message is JSON trip parameters. Return ONE JSON object only.
     "transportToNext": { "type": "train", "duration": "2h", "costLabel": "35 €", "howTo": "short booking tip" }
   }]
 }
+
+${DISTANCE_TRANSPORT_RULES}
 
 Rules:
 - Works for ANY country/city — adapt sights, transport, and prices to destinationCountry in user JSON
@@ -122,6 +125,8 @@ Task types (from user JSON):
 - full_plan: generate days generateDays.start..end of totalDays
 - continue_plan: continue from handoff.lastCity, only generateDays range
 - repair_plan / continue_plan_repair: fix routingRepair.violations, regenerate regenerateDays range
+
+${DISTANCE_TRANSPORT_RULES}
 
 Rules:
 - Output exactly (generateDays.end - generateDays.start + 1) day objects

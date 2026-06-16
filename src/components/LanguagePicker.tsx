@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Globe, Check } from "lucide-react";
+import { Check, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 
@@ -32,11 +32,11 @@ export function getLanguageName(code: string): string {
 export function LanguagePicker({
   value,
   onChange,
-  compact = false,
+  variant = "default",
 }: {
   value?: string;
   onChange?: (code: string) => void;
-  compact?: boolean;
+  variant?: "default" | "hero";
 } = {}) {
   const i18n = useI18n();
   const current = value ?? i18n.lang;
@@ -46,7 +46,7 @@ export function LanguagePicker({
   };
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  const selected = getLanguageByCode(current);
+  const isHero = variant === "hero";
 
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
@@ -59,48 +59,55 @@ export function LanguagePicker({
   }, []);
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className="relative shrink-0">
       <button
+        type="button"
         onClick={() => setOpen((o) => !o)}
+        aria-label="Language"
+        aria-expanded={open}
+        aria-haspopup="listbox"
         className={cn(
-          "inline-flex items-center shrink-0 rounded-full text-sm font-medium transition-all border",
-          compact ? "gap-1.5 px-2.5 py-1" : "gap-2 px-3 py-1.5",
-          open
-            ? "border-brand bg-brand/10 text-brand"
-            : "border-border bg-card text-foreground hover:border-brand/40"
+          "inline-flex items-center gap-0.5 border-0 bg-transparent p-0 text-sm font-medium transition-colors",
+          isHero ? "text-white/70 hover:text-white" : "text-muted-foreground hover:text-foreground",
         )}
       >
-        {!compact && <Globe className="h-3.5 w-3.5" />}
-        <span className="text-base leading-none">{selected?.flag}</span>
-        <span className="font-semibold tracking-wide">{selected?.code.toUpperCase()}</span>
+        <span className="text-base leading-none" aria-hidden>
+          🌐
+        </span>
+        <ChevronDown
+          className={cn("h-3 w-3 opacity-60 transition-transform", open && "rotate-180")}
+          aria-hidden
+        />
       </button>
 
-      {open && (
-        <div className="absolute right-0 top-full z-50 mt-2 w-60 rounded-lg border border-border bg-white shadow-xl p-1.5 max-h-72 overflow-y-auto">
+      {open ? (
+        <div className="absolute right-0 top-full z-50 mt-2 w-56 rounded-lg border border-border bg-card py-1 shadow-lg max-h-72 overflow-y-auto">
           {LANGUAGES.map((lang) => (
             <button
               key={lang.code}
+              type="button"
+              role="option"
+              aria-selected={current === lang.code}
               onClick={() => {
                 handleChange(lang.code);
                 setOpen(false);
               }}
               className={cn(
-                "w-full flex items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors",
+                "flex w-full items-center justify-between gap-2 px-3 py-2 text-sm transition-colors",
                 current === lang.code
-                  ? "bg-brand/10 text-brand font-semibold"
-                  : "text-foreground hover:bg-muted"
+                  ? "bg-brand/10 font-medium text-brand"
+                  : "text-foreground hover:bg-muted",
               )}
             >
               <span className="flex items-center gap-2">
                 <span className="text-base leading-none">{lang.flag}</span>
                 <span>{lang.native}</span>
-                <span className="text-muted-foreground text-xs uppercase">{lang.code}</span>
               </span>
-              {current === lang.code && <Check className="h-3.5 w-3.5" />}
+              {current === lang.code ? <Check className="h-3.5 w-3.5 shrink-0" /> : null}
             </button>
           ))}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

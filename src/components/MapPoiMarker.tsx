@@ -195,17 +195,26 @@ export function MapPoiMarker({
 /** City / day stop marker — Layla-style photo pin + day badge. */
 export function MapCityMarker({
   isActive = false,
-  dayCount,
+  dayNumber,
+  dayEnd,
   imageUrl,
   city,
 }: {
   isActive?: boolean;
-  dayCount?: number;
+  /** Itinerary day number shown on the pin badge. */
+  dayNumber?: number;
+  dayEnd?: number;
   imageUrl?: string;
   city?: string;
 }) {
   const [photoFailed, setPhotoFailed] = useState(false);
   const hasPhoto = Boolean(imageUrl?.trim()) && !photoFailed;
+  const badgeText =
+    dayNumber != null && dayEnd != null && dayEnd > dayNumber
+      ? `${dayNumber}–${dayEnd}`
+      : dayNumber != null
+        ? String(dayNumber)
+        : null;
 
   return (
     <div
@@ -224,8 +233,8 @@ export function MapCityMarker({
       {!hasPhoto ? (
         <MapPin className="pointer-events-none h-[18px] w-[18px] text-slate-500" strokeWidth={2} aria-hidden />
       ) : null}
-      {dayCount != null && dayCount > 0 ? (
-        <span className="layla-day-badge">{dayCount}</span>
+      {badgeText ? (
+        <span className="layla-day-badge">{badgeText}</span>
       ) : null}
     </div>
   );

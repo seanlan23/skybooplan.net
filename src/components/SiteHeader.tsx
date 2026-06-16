@@ -2,14 +2,14 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { LayoutGrid, User as UserIcon, LogOut } from "lucide-react";
 import { CurrencyPicker } from "@/components/CurrencyPicker";
 import { LanguagePicker } from "@/components/LanguagePicker";
-import { GoogleIcon } from "@/components/GoogleIcon";
+import { Logo } from "@/components/Logo";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useState, useRef, useEffect, type MouseEvent } from "react";
-import logo from "@/assets/skybooplan-logo-transparent-v2.png";
 import { useAuth } from "@/hooks/use-auth";
 import { useT } from "@/lib/i18n";
 import { googleSignInHref, GOOGLE_SIGN_IN_PATH } from "@/lib/auth.urls";
 import { HOME_RESET_EVENT, requestHomeReset } from "@/lib/sessionStore";
+import { cn } from "@/lib/utils";
 
 function userAvatarUrl(user: NonNullable<ReturnType<typeof useAuth>["user"]>): string | undefined {
   const meta = user.user_metadata ?? {};
@@ -26,12 +26,19 @@ function userDisplayName(user: NonNullable<ReturnType<typeof useAuth>["user"]>):
   );
 }
 
-export function SiteHeader() {
+export function SiteHeader({
+  variant = "default",
+  className,
+}: {
+  variant?: "default" | "hero";
+  className?: string;
+} = {}) {
   const t = useT();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { user, loading, signOut } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const isHero = variant === "hero";
 
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
@@ -52,134 +59,155 @@ export function SiteHeader() {
     }
   }
 
+  const navLinkClass = cn(
+    "transition-colors whitespace-nowrap",
+    isHero ? "text-white/85 hover:text-white" : "text-foreground/80 hover:text-foreground",
+  );
+
+  const subtleTextClass = cn(
+    "text-sm font-medium transition-colors whitespace-nowrap",
+    isHero ? "text-white/70 hover:text-white" : "text-foreground/80 hover:text-foreground",
+  );
+
   return (
-    <header className="sticky top-0 z-40 w-full max-w-full overflow-visible bg-background/80 backdrop-blur-md border-b border-border/60">
-      <div className="mx-auto max-w-7xl w-full min-w-0 overflow-visible px-4 sm:px-6">
-        <div className="flex items-center justify-between gap-2 overflow-visible py-3 lg:h-28 lg:py-0">
-          <Link to="/" onClick={handleLogoClick} className="flex items-center shrink-0 min-w-0">
-            <img
-              src={logo}
-              alt="Skybooplan"
-              className="h-11 w-auto sm:h-14 lg:h-[4.6rem] max-w-[min(11rem,42vw)]"
-            />
+    <header
+      className={cn(
+        "sticky top-0 z-40 w-full max-w-full overflow-visible border-b backdrop-blur-md",
+        isHero ? "border-white/10 bg-black/25 text-white" : "border-border/60 bg-background/80 text-foreground",
+        className,
+      )}
+    >
+      <div className="relative h-16 w-full">
+        {/* Left — logo */}
+        <div className="absolute left-0 top-1/2 z-10 -translate-y-1/2 pl-6">
+          <Link
+            to="/"
+            onClick={handleLogoClick}
+            className="flex h-11 items-center"
+            aria-label="Skybooplan"
+          >
+            <Logo size="md" />
           </Link>
-
-          <nav className="hidden md:flex flex-1 items-center justify-center gap-6 lg:gap-10 px-2 text-[15px] font-medium text-foreground/80 min-w-0">
-            <a href="#flights" className="hover:text-foreground transition-colors whitespace-nowrap">
-              {t("nav.flights")}
-            </a>
-            <a href="#stays" className="hover:text-foreground transition-colors whitespace-nowrap">
-              {t("nav.stays")}
-            </a>
-            <a href="#ai-planner" className="hover:text-foreground transition-colors whitespace-nowrap">
-              {t("nav.ai")}
-            </a>
-          </nav>
-
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            {loading ? (
-              <div className="h-9 w-9 sm:w-24 rounded-full bg-muted/60 animate-pulse" />
-            ) : user ? (
-              <>
-                <Link
-                  to="/dashboard"
-                  className="hidden sm:inline-flex items-center gap-2 text-sm font-medium text-foreground/80 hover:text-foreground transition-colors"
-                >
-                  <LayoutGrid className="h-4 w-4" />
-                  {t("dashboard.badge")}
-                </Link>
-                <div ref={menuRef} className="relative flex items-center gap-1.5 sm:gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setMenuOpen(!menuOpen)}
-                    className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2 sm:pr-3 hover:bg-muted/60 transition-colors"
-                    aria-label={displayName}
-                  >
-                    <Avatar className="h-8 w-8 sm:h-9 sm:w-9 border border-border">
-                      {avatarUrl ? <AvatarImage src={avatarUrl} alt={displayName} /> : null}
-                      <AvatarFallback className="bg-brand text-brand-foreground text-sm font-semibold">
-                        {displayName[0]?.toUpperCase() ?? "U"}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="hidden md:inline max-w-[140px] truncate text-sm font-medium text-foreground">
-                      {displayName}
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void signOut()}
-                    className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-sm font-medium text-foreground/80 hover:bg-muted/60 transition-colors"
-                  >
-                    <LogOut className="h-4 w-4" />
-                    {t("nav.logout")}
-                  </button>
-                  {menuOpen && (
-                    <div className="absolute right-0 top-full mt-2 w-56 rounded-2xl border border-border bg-card shadow-lg overflow-hidden z-50">
-                      <div className="px-4 py-3 border-b border-border">
-                        <p className="text-sm font-medium text-foreground truncate">{displayName}</p>
-                        <p className="text-xs text-muted-foreground truncate">{user.email}</p>
-                      </div>
-                      <Link
-                        to="/dashboard"
-                        onClick={() => setMenuOpen(false)}
-                        className="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-muted"
-                      >
-                        <LayoutGrid className="h-4 w-4" /> {t("dashboard.badge")}
-                      </Link>
-                      <Link
-                        to="/profile"
-                        onClick={() => setMenuOpen(false)}
-                        className="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-muted"
-                      >
-                        <UserIcon className="h-4 w-4" /> {t("nav.profile")}
-                      </Link>
-                      <Link
-                        to="/my-trips"
-                        onClick={() => setMenuOpen(false)}
-                        className="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-muted"
-                      >
-                        <LayoutGrid className="h-4 w-4" /> {t("nav.myTrips")}
-                      </Link>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          void signOut();
-                          setMenuOpen(false);
-                        }}
-                        className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-destructive hover:bg-muted sm:hidden"
-                      >
-                        <LogOut className="h-4 w-4" /> {t("nav.logout")}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </>
-            ) : (
-              <a
-                href={googleSignInHref()}
-                aria-label={t("nav.signInGoogle")}
-                data-sign-in-path={GOOGLE_SIGN_IN_PATH}
-                className="inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-background px-2.5 py-1.5 text-xs font-semibold shadow-sm transition-all hover:border-brand/30 hover:shadow-md shrink-0"
-              >
-                <GoogleIcon className="h-4 w-4 shrink-0" />
-                <span>{t("nav.signIn")}</span>
-              </a>
-            )}
-
-            <div className="hidden lg:flex items-center gap-2">
-              <CurrencyPicker />
-              <div className="relative">
-                <LanguagePicker />
-              </div>
-            </div>
-          </div>
         </div>
 
-        <div className="flex lg:hidden items-center justify-end gap-2 pb-3 border-t border-border/40 pt-2 overflow-visible">
-          <CurrencyPicker compact />
-          <div className="relative">
-            <LanguagePicker compact />
-          </div>
+        {/* Center — navigation */}
+        <nav className="absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 md:flex items-center gap-6 lg:gap-10 text-[15px] font-medium">
+          <a href="#travel-search" className={navLinkClass}>
+            {t("nav.flights")}
+          </a>
+          <a href="#travel-search" className={navLinkClass}>
+            {t("nav.stays")}
+          </a>
+          <a href="#ai-planner" className={navLinkClass}>
+            {t("nav.ai")}
+          </a>
+        </nav>
+
+        {/* Right — currency, language, auth */}
+        <div className="absolute right-0 top-1/2 z-10 flex -translate-y-1/2 items-center gap-3 pr-6 sm:gap-4">
+          <CurrencyPicker variant={variant} />
+          <LanguagePicker variant={variant} />
+
+          {loading ? (
+            <div className="h-5 w-16 animate-pulse rounded bg-muted/40" aria-hidden />
+          ) : user ? (
+            <>
+              <Link to="/dashboard" className={cn("hidden sm:inline-flex items-center gap-2", subtleTextClass)}>
+                <LayoutGrid className="h-4 w-4" />
+                {t("dashboard.badge")}
+              </Link>
+              <div ref={menuRef} className="relative flex items-center gap-1.5 sm:gap-2">
+                <button
+                  type="button"
+                  onClick={() => setMenuOpen(!menuOpen)}
+                  className={cn(
+                    "flex items-center gap-2 rounded-full py-1 pl-1 pr-2 transition-colors",
+                    isHero ? "hover:bg-white/10" : "hover:bg-muted/60",
+                  )}
+                  aria-label={displayName}
+                >
+                  <Avatar
+                    className={cn(
+                      "h-8 w-8 sm:h-9 sm:w-9 border",
+                      isHero ? "border-white/25" : "border-border",
+                    )}
+                  >
+                    {avatarUrl ? <AvatarImage src={avatarUrl} alt={displayName} /> : null}
+                    <AvatarFallback className="bg-brand text-brand-foreground text-sm font-semibold">
+                      {displayName[0]?.toUpperCase() ?? "U"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span
+                    className={cn(
+                      "hidden md:inline max-w-[120px] truncate text-sm font-medium",
+                      isHero ? "text-white/90" : "text-foreground",
+                    )}
+                  >
+                    {displayName}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void signOut()}
+                  className={cn(
+                    "hidden sm:inline-flex items-center gap-1.5 text-sm font-medium transition-colors",
+                    subtleTextClass,
+                  )}
+                >
+                  <LogOut className="h-4 w-4" />
+                  {t("nav.logout")}
+                </button>
+                {menuOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-56 rounded-2xl border border-border bg-card shadow-lg overflow-hidden z-50">
+                    <div className="px-4 py-3 border-b border-border">
+                      <p className="text-sm font-medium text-foreground truncate">{displayName}</p>
+                      <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                    </div>
+                    <Link
+                      to="/dashboard"
+                      onClick={() => setMenuOpen(false)}
+                      className="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-muted"
+                    >
+                      <LayoutGrid className="h-4 w-4" /> {t("dashboard.badge")}
+                    </Link>
+                    <Link
+                      to="/profile"
+                      onClick={() => setMenuOpen(false)}
+                      className="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-muted"
+                    >
+                      <UserIcon className="h-4 w-4" /> {t("nav.profile")}
+                    </Link>
+                    <Link
+                      to="/my-trips"
+                      onClick={() => setMenuOpen(false)}
+                      className="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-muted"
+                    >
+                      <LayoutGrid className="h-4 w-4" /> {t("nav.myTrips")}
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void signOut();
+                        setMenuOpen(false);
+                      }}
+                      className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-destructive hover:bg-muted sm:hidden"
+                    >
+                      <LogOut className="h-4 w-4" /> {t("nav.logout")}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <a
+              href={googleSignInHref()}
+              aria-label={t("nav.signInGoogle")}
+              data-sign-in-path={GOOGLE_SIGN_IN_PATH}
+              className={subtleTextClass}
+            >
+              {t("nav.signIn")} →
+            </a>
+          )}
         </div>
       </div>
     </header>

@@ -231,15 +231,15 @@ export function AirportAutocomplete({
                     }`}
                   >
                     {s.type === "city" ? (
-                      <MapPin className="h-4 w-4 mt-0.5 text-brand shrink-0" />
+                      <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
                     ) : (
-                      <Plane className="h-4 w-4 mt-0.5 text-brand shrink-0" />
+                      <Plane className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
                     )}
                     <div className="min-w-0 flex-1">
                       <div className="text-sm font-semibold text-foreground truncate">
                         {kind === "airport" ? (
                           <>
-                            <span className="text-brand">{s.iata}</span>
+                            <span className="text-blue-600">{s.iata}</span>
                             <span className="ml-1.5">
                               {s.city && s.city !== s.name ? s.city : s.name.replace(/ Airport$/i, "")}
                             </span>
@@ -265,7 +265,7 @@ export function AirportAutocomplete({
                       </div>
                     </div>
                     {kind === "airport" && (
-                      <span className="text-xs font-bold text-brand shrink-0 mt-0.5">{s.iata}</span>
+                      <span className="mt-0.5 shrink-0 text-xs font-bold text-blue-600">{s.iata}</span>
                     )}
                   </button>
                 </li>

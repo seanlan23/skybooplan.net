@@ -259,8 +259,9 @@ async function createDuffelOfferRequest(
   slices: ReturnType<typeof buildDuffelSlices>,
   passengers: Array<{ type: "adult" }>,
   cabinClass: string,
+  supplierTimeoutMs = DUFFEL_SUPPLIER_TIMEOUT_MS,
 ): Promise<{ offerRequestId: string } | { error: string }> {
-  const url = `${DUFFEL_API_BASE}/air/offer_requests?return_offers=false&supplier_timeout=${DUFFEL_SUPPLIER_TIMEOUT_MS}`;
+  const url = `${DUFFEL_API_BASE}/air/offer_requests?return_offers=false&supplier_timeout=${supplierTimeoutMs}`;
   const createRes = await fetch(url, {
     method: "POST",
     headers: duffelHeaders(token),
@@ -312,6 +313,79 @@ async function listDuffelOffers(
 
   const json = (await listRes.json()) as { data?: DuffelOffer[] };
   return { offers: json.data ?? [] };
+}
+
+export type SimpleDuffelSearchInput = {
+  origin: string;
+  destination: string;
+  departDate: string;
+  returnDate?: string;
+  pax: number;
+  cabinClass?: FlightSearchInput["cabinClass"];
+  supplierTimeoutMs?: number;
+  maxOffers?: number;
+};
+
+/** Duffel offer search for hero / API routes (no TanStack server fn). */
+export async function searchDuffelOffers(
+  input: SimpleDuffelSearchInput,
+): Promise<{ flights: DuffelFlight[] } | { error: string }> {
+  const token = getDuffelApiKey();
+  if (!token) {
+    return { error: "error.duffelNotConfigured" };
+  }
+
+  const flightInput: FlightSearchInput = {
+    from: input.origin.toUpperCase(),
+    to: input.destination.toUpperCase(),
+    departDate: input.departDate,
+    returnDate: input.returnDate ?? "",
+    tripType: input.returnDate ? "return" : "oneway",
+    pax: input.pax,
+    cabinClass: input.cabinClass ?? "economy",
+  };
+
+  const slices = buildDuffelSlices(flightInput);
+  const passengers = Array.from({ length: input.pax }, () => ({ type: "adult" as const }));
+  const cabinClass = flightInput.cabinClass ?? "economy";
+
+  try {
+    const created = await createDuffelOfferRequest(
+      token,
+      slices,
+      passengers,
+      cabinClass,
+      input.supplierTimeoutMs,
+    );
+    if ("error" in created) {
+      return { error: created.error };
+    }
+
+    const listed = await listDuffelOffers(
+      token,
+      created.offerRequestId,
+      input.maxOffers ?? DUFFEL_MAX_OFFERS,
+    );
+    if ("error" in listed) {
+      return { error: listed.error };
+    }
+
+    let flights = listed.offers
+      .map(mapDuffelOfferToFlight)
+      .filter((flight): flight is DuffelFlight => flight !== null);
+
+    const filtered = filterFlightsForTripType(flights, flightInput);
+    if (filtered.error) {
+      return { error: filtered.error };
+    }
+    flights = filtered.flights;
+
+    flights.sort((a, b) => a.price - b.price || a.durationMin - b.durationMin);
+    return { flights };
+  } catch (err) {
+    console.error("[Duffel] searchDuffelOffers failed:", err);
+    return { error: "error.flightsUnavailable" };
+  }
 }
 
 export const searchFlights = createServerFn({ method: "POST" })

@@ -34,6 +34,8 @@
   --color-brand: var(--brand);
   --color-brand-foreground: var(--brand-foreground);
   --color-brand-soft: var(--brand-soft);
+  --color-search-cta: var(--search-cta);
+  --color-search-cta-hover: var(--search-cta-hover);
   --color-sky-tint: var(--sky-tint);
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
@@ -91,6 +93,10 @@
   --gradient-warm: linear-gradient(135deg, oklch(0.72 0.18 48), oklch(0.78 0.16 60));
   --shadow-card: 0 10px 30px -12px oklch(0.5 0.18 245 / 0.18);
   --shadow-search: 0 20px 60px -20px oklch(0.5 0.18 245 / 0.25);
+
+  /* Hero + flights search CTA — single source of truth (Tailwind blue-600 / blue-700) */
+  --search-cta: #2563eb;
+  --search-cta-hover: #1d4ed8;
 
   --animate-diff-flash: diff-flash 1.2s ease-out forwards;
   --animate-diff-slide-left: diff-slide-left 0.8s ease-out forwards;
