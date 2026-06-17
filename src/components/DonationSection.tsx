@@ -4,7 +4,9 @@ import { useI18n } from "@/lib/i18n";
 import { DONATION_TIERS } from "@/lib/donationLinks";
 
 const tierButtonClass =
-  "inline-flex min-h-[2.75rem] items-center justify-center rounded-full border border-white/20 bg-white/10 px-6 py-3 text-sm font-semibold text-white backdrop-blur-md transition-colors hover:bg-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950";
+  "inline-flex min-h-[2.75rem] items-center justify-center whitespace-nowrap rounded-full border border-white/20 bg-white/10 px-6 py-3 text-sm font-semibold text-white backdrop-blur-md transition-colors hover:bg-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent";
+
+const buttonTextStyle = { color: "#fff", WebkitTextFillColor: "#fff" } as const;
 
 function DonationButton({
   label,
@@ -29,6 +31,7 @@ function DonationButton({
         target="_blank"
         rel="noopener noreferrer"
         className={className}
+        style={buttonTextStyle}
       >
         {label}
       </a>
@@ -36,7 +39,7 @@ function DonationButton({
   }
 
   return (
-    <Link to={href} className={className}>
+    <Link to={href} className={className} style={buttonTextStyle}>
       {label}
     </Link>
   );
@@ -47,7 +50,7 @@ export function DonationSection() {
 
   return (
     <section
-      className="relative overflow-hidden border-y border-white/10 bg-slate-950 py-14 sm:py-16"
+      className="relative overflow-hidden bg-gradient-to-b from-slate-950 to-slate-900/50 py-14 sm:py-16"
       aria-labelledby="donation-heading"
     >
       <div className="mx-auto max-w-4xl px-6">
@@ -63,22 +66,15 @@ export function DonationSection() {
           </p>
 
           <div className="mt-6 grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:justify-center">
-            {DONATION_TIERS.map((tier) => {
-              const label =
-                tier.label === "contact"
-                  ? t("donation.contact" as never)
-                  : tier.label;
-
-              return (
-                <DonationButton
-                  key={tier.id}
-                  label={label}
-                  href={tier.href}
-                  external={tier.external}
-                  fullWidthMobile={tier.fullWidthMobile}
-                />
-              );
-            })}
+            {DONATION_TIERS.map((tier) => (
+              <DonationButton
+                key={tier.id}
+                label={t(tier.labelKey as never)}
+                href={tier.href}
+                external={tier.external}
+                fullWidthMobile={tier.fullWidthMobile}
+              />
+            ))}
           </div>
 
           <p className="mt-5 text-center text-xs text-white/40">
