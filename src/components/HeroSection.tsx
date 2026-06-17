@@ -1,6 +1,6 @@
 import { useI18n } from "@/lib/i18n";
-import { useHeroPhoto } from "@/hooks/useHeroPhoto";
 import { HeroChatFlow } from "@/components/HeroChatFlow";
+import { HeroRotatingBackground } from "@/components/HeroRotatingBackground";
 import type { HeroChatCollected } from "@/lib/heroChatFlow";
 
 export function HeroSection({
@@ -15,21 +15,15 @@ export function HeroSection({
   onSeedConsumed?: () => void;
 }) {
   const { t } = useI18n();
-  const { url, photographer } = useHeroPhoto();
 
   return (
     <section
       className="relative isolate flex min-h-screen w-full flex-col items-center justify-center overflow-hidden pb-10"
       aria-label={t("hero.sectionLabel" as never)}
     >
-      <div
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: `url(${url})`, backgroundSize: "cover", backgroundPosition: "center" }}
-        role="img"
-        aria-hidden
-      />
+      <HeroRotatingBackground />
 
-      <div className="absolute inset-0 bg-black/50" aria-hidden />
+      <div className="absolute inset-0 bg-black/40" aria-hidden />
 
       <div
         className="pointer-events-none absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-background to-transparent"
@@ -55,12 +49,6 @@ export function HeroSection({
           seedDestination={seedDestination}
           onSeedConsumed={onSeedConsumed}
         />
-
-        {photographer ? (
-          <p className="mt-6 text-[11px] text-white/40">
-            {t("hero.photoCredit" as never).replace("{name}", photographer)}
-          </p>
-        ) : null}
       </div>
     </section>
   );

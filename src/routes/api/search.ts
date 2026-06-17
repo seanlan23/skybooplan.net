@@ -20,9 +20,16 @@ export const Route = createFileRoute("/api/search")({
 
         console.log("[api/search] Hero search query:", parsed.query.slice(0, 120), {
           attachment: parsed.attachment?.kind ?? null,
+          latitude: parsed.latitude ?? null,
+          longitude: parsed.longitude ?? null,
         });
 
-        const result = await searchHeroFlights(parsed.query, parsed.attachment);
+        const location =
+          parsed.latitude != null && parsed.longitude != null
+            ? { latitude: parsed.latitude, longitude: parsed.longitude }
+            : undefined;
+
+        const result = await searchHeroFlights(parsed.query, parsed.attachment, location);
 
         if (!result.ok) {
           console.warn("[api/search] Search failed:", result.error);

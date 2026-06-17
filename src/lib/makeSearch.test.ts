@@ -37,6 +37,20 @@ describe("parseSearchRequestBody", () => {
       },
     });
   });
+
+  it("accepts optional coordinates", () => {
+    expect(
+      parseSearchRequestBody({
+        query: "Pariz",
+        latitude: 46.0569,
+        longitude: 14.5058,
+      }),
+    ).toEqual({
+      query: "Pariz",
+      latitude: 46.0569,
+      longitude: 14.5058,
+    });
+  });
 });
 
 describe("parseMakeWebhookBody", () => {

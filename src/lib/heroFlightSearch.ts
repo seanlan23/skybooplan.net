@@ -8,7 +8,12 @@ import {
   type DuffelFlight,
 } from "@/lib/flights.functions";
 import { generateJson } from "@/lib/llm";
-import type { MakeSearchFlight } from "@/lib/makeSearch";
+import {
+  callMakeSearchWebhook,
+  isMakeAsyncAccepted,
+  parseMakeSearchFlights,
+  type MakeSearchFlight,
+} from "@/lib/makeSearch";
 
 export const HERO_SEARCH_TIMEOUT_MS = 30_000;
 
@@ -345,14 +350,66 @@ async function rankFlightsWithOpenAI(
   return output.slice(0, 3);
 }
 
+export type HeroFlightSearchLocation = {
+  latitude: number;
+  longitude: number;
+};
+
 export type HeroFlightSearchResult =
   | { ok: true; flights: MakeSearchFlight[]; parsed: ParsedHeroQuery }
   | { ok: false; error: string; status: number };
 
+async function searchViaMakeWebhook(
+  query: string,
+  attachment?: HeroChatAttachmentPayload,
+  location?: HeroFlightSearchLocation,
+): Promise<HeroFlightSearchResult> {
+  const webhook = await callMakeSearchWebhook(
+    {
+      userMessage: query,
+      latitude: location?.latitude,
+      longitude: location?.longitude,
+      attachment,
+    },
+    { timeoutMs: HERO_SEARCH_TIMEOUT_MS - 2_000 },
+  );
+
+  if (!webhook.ok) {
+    return { ok: false, error: webhook.error, status: webhook.status };
+  }
+
+  if (isMakeAsyncAccepted(webhook.data)) {
+    return {
+      ok: false,
+      error:
+        "Make.com je sprejel zahtevo brez podatkov o letih. Nastavite sinhron webhook z odgovorom JSON.",
+      status: 502,
+    };
+  }
+
+  const flights = parseMakeSearchFlights(webhook.data);
+  const stubParsed: ParsedHeroQuery = {
+    origin_iata: "LJU",
+    destination_iata: "LJU",
+    depart_date: defaultDateFrom(),
+    return_date: defaultDateTo(defaultDateFrom()),
+    adults: 1,
+    children: 0,
+    trip_type: "return",
+  };
+
+  return { ok: true, flights, parsed: stubParsed };
+}
+
 async function runHeroFlightSearch(
   query: string,
   attachment?: HeroChatAttachmentPayload,
+  location?: HeroFlightSearchLocation,
 ): Promise<HeroFlightSearchResult> {
+  if (process.env.MAKE_WEBHOOK_URL?.trim()) {
+    return searchViaMakeWebhook(query, attachment, location);
+  }
+
   const parsedResult = await parseQueryWithOpenAI(query, attachment);
   if ("error" in parsedResult) {
     return { ok: false, error: parsedResult.error, status: 502 };
@@ -389,14 +446,15 @@ async function runHeroFlightSearch(
   return { ok: true, flights, parsed };
 }
 
-/** Natural-language hero search: OpenAI parse → Duffel offers → OpenAI top 3. */
+/** Natural-language hero search: Make.com webhook or OpenAI parse → Duffel offers → OpenAI top 3. */
 export async function searchHeroFlights(
   query: string,
   attachment?: HeroChatAttachmentPayload,
+  location?: HeroFlightSearchLocation,
 ): Promise<HeroFlightSearchResult> {
   try {
     return await withTimeout(
-      runHeroFlightSearch(query, attachment),
+      runHeroFlightSearch(query, attachment, location),
       HERO_SEARCH_TIMEOUT_MS,
       "hero-flight-search",
     );

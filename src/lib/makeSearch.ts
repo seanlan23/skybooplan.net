@@ -99,6 +99,15 @@ export function parseMakeSearchFlights(data: unknown): MakeSearchFlight[] {
 export type SearchRequestBody = {
   query: string;
   attachment?: HeroChatAttachmentPayload;
+  latitude?: number;
+  longitude?: number;
+};
+
+export type MakeSearchWebhookBody = {
+  userMessage: string;
+  latitude?: number;
+  longitude?: number;
+  attachment?: HeroChatAttachmentPayload;
 };
 
 export function parseSearchRequestBody(body: unknown): SearchRequestBody | null {
@@ -114,7 +123,26 @@ export function parseSearchRequestBody(body: unknown): SearchRequestBody | null 
     attachment = parsed;
   }
 
-  return { query: query.trim(), attachment };
+  let latitude: number | undefined;
+  let longitude: number | undefined;
+
+  const latRaw = record.latitude;
+  const lonRaw = record.longitude;
+  if (latRaw != null && lonRaw != null) {
+    const lat = typeof latRaw === "number" ? latRaw : Number.parseFloat(String(latRaw));
+    const lon = typeof lonRaw === "number" ? lonRaw : Number.parseFloat(String(lonRaw));
+    if (Number.isFinite(lat) && Number.isFinite(lon)) {
+      latitude = lat;
+      longitude = lon;
+    }
+  }
+
+  return {
+    query: query.trim(),
+    attachment,
+    latitude,
+    longitude,
+  };
 }
 
 export type MakeWebhookParseResult =
@@ -181,4 +209,64 @@ export function isMakeAsyncAccepted(data: unknown): boolean {
   if (record.code === MAKE_WEBHOOK_ASYNC_CODE) return true;
   if (record.async === true) return true;
   return record.accepted === true && !Array.isArray(record.flights);
+}
+
+export async function callMakeSearchWebhook(
+  body: MakeSearchWebhookBody,
+  options?: { timeoutMs?: number },
+): Promise<
+  | { ok: true; data: unknown; httpStatus: number }
+  | { ok: false; error: string; status: number }
+> {
+  const url = process.env.MAKE_WEBHOOK_URL?.trim();
+  if (!url) {
+    return { ok: false, error: "MAKE_WEBHOOK_URL ni nastavljen.", status: 503 };
+  }
+
+  const controller = new AbortController();
+  const timeoutMs = options?.timeoutMs ?? 28_000;
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const payload: Record<string, unknown> = {
+      userMessage: body.userMessage,
+    };
+
+    if (body.latitude != null && Number.isFinite(body.latitude)) {
+      payload.latitude = body.latitude;
+    }
+    if (body.longitude != null && Number.isFinite(body.longitude)) {
+      payload.longitude = body.longitude;
+    }
+    if (body.attachment) {
+      payload.attachment = body.attachment;
+    }
+
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+
+    const text = await res.text();
+    const parsed = parseMakeWebhookBody(text, res.status);
+    if (!parsed.ok) {
+      return { ok: false, error: parsed.error, status: 502 };
+    }
+
+    if (!res.ok) {
+      return { ok: false, error: "Make webhook ni vrnil uspešnega odgovora.", status: res.status };
+    }
+
+    return { ok: true, data: parsed.data, httpStatus: res.status };
+  } catch (err) {
+    if (err instanceof Error && err.name === "AbortError") {
+      return { ok: false, error: "Make webhook je potekel (timeout).", status: 504 };
+    }
+    const message = err instanceof Error ? err.message : "Make webhook klic ni uspel.";
+    return { ok: false, error: message, status: 502 };
+  } finally {
+    clearTimeout(timeout);
+  }
 }

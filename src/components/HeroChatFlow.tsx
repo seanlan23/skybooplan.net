@@ -33,7 +33,7 @@ const ORIGIN_CHIP_IDS = ["ljubljana", "zagreb", "vienna", "venice", "other"] as 
 const PASSENGER_CHIP_IDS = ["1adult", "2adults", "2adults1child", "2adults2children"] as const;
 const BUDGET_CHIP_IDS = ["under500", "500-1000", "1000-2000", "2000plus"] as const;
 
-const HERO_SUGGESTION_CHIP_IDS = ["plan", "inspire", "roadtrip", "budget"] as const;
+const HERO_FEATURE_BADGE_IDS = ["itinerary", "flights", "pdf"] as const;
 
 type ChipOption = {
   id: string;
@@ -181,38 +181,59 @@ function QuickReplyChips({
   options,
   onSelect,
   disabled,
-  variant = "conversation",
 }: {
   options: ChipOption[];
   onSelect: (id: string, label: string) => void;
   disabled?: boolean;
-  variant?: "hero" | "conversation";
 }) {
-  const isHero = variant === "hero";
-
   return (
-    <div className={isHero ? "" : "hero-chips-enter pl-10 pr-1"}>
-      <div
-        className={
-          isHero
-            ? "flex flex-wrap items-center justify-center gap-2"
-            : "flex flex-wrap gap-2 pb-1 sm:flex-nowrap sm:overflow-x-auto sm:[-ms-overflow-style:none] sm:[scrollbar-width:none] sm:[&::-webkit-scrollbar]:hidden"
-        }
-      >
+    <div className="hero-chips-enter pl-10 pr-1">
+      <div className="flex flex-wrap gap-2 pb-1 sm:flex-nowrap sm:overflow-x-auto sm:[-ms-overflow-style:none] sm:[scrollbar-width:none] sm:[&::-webkit-scrollbar]:hidden">
         {options.map(({ id, label }) => (
           <button
             key={id}
             type="button"
             disabled={disabled}
             onClick={() => onSelect(id, label)}
-            className={
-              isHero
-                ? "inline-flex shrink-0 items-center rounded-full border border-white/20 bg-white/15 px-4 py-2 text-sm font-medium text-white backdrop-blur-sm transition-colors hover:bg-white/25 disabled:opacity-50"
-                : "inline-flex shrink-0 items-center rounded-full border border-white/40 bg-white px-3.5 py-1.5 text-sm font-medium text-gray-800 shadow-sm transition-colors hover:bg-white/90 disabled:opacity-50"
-            }
+            className="inline-flex shrink-0 items-center rounded-full border border-white/40 bg-white px-3.5 py-1.5 text-sm font-medium text-gray-800 shadow-sm transition-colors hover:bg-white/90 disabled:opacity-50"
           >
             <span className="whitespace-nowrap">{label}</span>
           </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function HeroCtaArea({
+  onStartPlanning,
+  disabled,
+  featureBadges,
+  ctaLabel,
+}: {
+  onStartPlanning: () => void;
+  disabled?: boolean;
+  featureBadges: string[];
+  ctaLabel: string;
+}) {
+  return (
+    <div className="mt-6 flex flex-col items-center gap-4">
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={onStartPlanning}
+        className="inline-flex items-center justify-center rounded-full bg-blue-600 px-8 py-3 text-base font-semibold text-white shadow-lg transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {ctaLabel}
+      </button>
+      <div className="flex flex-wrap items-center justify-center gap-2">
+        {featureBadges.map((label) => (
+          <span
+            key={label}
+            className="inline-flex items-center rounded-full bg-white/10 px-3 py-1 text-sm text-white/80 backdrop-blur-sm"
+          >
+            {label}
+          </span>
         ))}
       </div>
     </div>
@@ -492,12 +513,15 @@ export function HeroChatFlow({
     setStep("searching");
   }
 
-  function handleSuggestionChipSelect(_id: string, label: string) {
-    if (!attachment && !textInput.trim()) {
-      startFlow(label, label);
+  function handleStartPlanning() {
+    if (inputDisabled || fileProcessing) return;
+    const trimmed = textInput.trim();
+    if (!trimmed && !attachment) {
+      inputRef.current?.focus();
       return;
     }
-    startFlow(textInput.trim() || label, label);
+    startFlow(trimmed);
+    setTextInput("");
   }
 
   function handleTextSubmit(e?: FormEvent) {
@@ -539,12 +563,8 @@ export function HeroChatFlow({
     }
   }
 
-  const suggestionChips = useMemo(
-    () =>
-      HERO_SUGGESTION_CHIP_IDS.map((id) => ({
-        id,
-        label: t(`heroChat.suggest.${id}` as never),
-      })),
+  const featureBadges = useMemo(
+    () => HERO_FEATURE_BADGE_IDS.map((id) => t(`heroChat.feature.${id}` as never)),
     [t],
   );
 
@@ -629,14 +649,12 @@ export function HeroChatFlow({
             </div>
           </form>
 
-          <div className="mt-4">
-            <QuickReplyChips
-              variant="hero"
-              disabled={loading}
-              options={suggestionChips}
-              onSelect={handleSuggestionChipSelect}
-            />
-          </div>
+          <HeroCtaArea
+            ctaLabel={t("heroChat.startPlanningCta" as never)}
+            featureBadges={featureBadges}
+            disabled={loading || inputDisabled || fileProcessing || !canSubmit}
+            onStartPlanning={handleStartPlanning}
+          />
         </>
       ) : (
         <form

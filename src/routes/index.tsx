@@ -16,6 +16,7 @@ import { HeroFlightResults } from "@/components/HeroFlightResults";
 import { HeroAiPlanResults } from "@/components/HeroAiPlanResults";
 import { SocialProofSection } from "@/components/SocialProofSection";
 import { TripInspiration } from "@/components/TripInspiration";
+import { TestimonialsSection } from "@/components/TestimonialsSection";
 import { FAQSection } from "@/components/FAQSection";
 import { SearchPanel, type SearchValues } from "@/components/SearchPanel";
 import { FlightResults } from "@/components/FlightResults";
@@ -57,6 +58,7 @@ import { addDays } from "@/lib/dateUtils";
 import { parseMakeSearchFlights, type MakeSearchFlight } from "@/lib/makeSearch";
 import { heroChatToPlannerPayload } from "@/lib/heroChatPlanner";
 import type { HeroChatCollected } from "@/lib/heroChatFlow";
+import { useUserLocation } from "@/lib/hooks/useUserLocation";
 
 /** Full-screen fatal error — visible without devtools. */
 function FatalErrorScreen({ error }: { error: Error }) {
@@ -320,6 +322,7 @@ function Landing() {
   const planFn = useServerFn(generateAiPlan);
   const skeletonFn = useServerFn(generateAiPlanSkeleton);
   const streamItinerary = useStreamItinerary();
+  const { location: userLocation } = useUserLocation();
 
   usePlanPhotoEnrichment(aiPlan, setAiPlan);
 
@@ -528,6 +531,12 @@ function Landing() {
         body: JSON.stringify({
           query: trimmed,
           attachment: collected.attachment ?? undefined,
+          ...(userLocation
+            ? {
+                latitude: userLocation.latitude,
+                longitude: userLocation.longitude,
+              }
+            : {}),
         }),
       });
 
@@ -1212,6 +1221,7 @@ function Landing() {
 
       <SocialProofSection />
       <TripInspiration onSelectDestination={handleInspirationSelect} />
+      <TestimonialsSection />
       <FAQSection />
 
       <main className="flex-1">
