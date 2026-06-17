@@ -64,15 +64,25 @@ export function getDestinationChipDisplay(
   return { emoji: chip.emoji, name, label: `${chip.emoji} ${name}` };
 }
 
+export const HERO_CHAT_SHOW_CALENDAR_MARKER = "[SHOW_CALENDAR]";
+
+export function stripSkyCalendarMarker(text: string): string {
+  return text.replace(HERO_CHAT_SHOW_CALENDAR_MARKER, "").trim();
+}
+
+export function skyMessageShowsCalendar(text: string): boolean {
+  return text.includes(HERO_CHAT_SHOW_CALENDAR_MARKER);
+}
+
 export function heroChatStepNumber(step: HeroChatStep): number {
   switch (step) {
-    case "dates":
-      return 1;
-    case "nights":
-      return 2;
-    case "origin":
-      return 3;
     case "passengers":
+      return 1;
+    case "dates":
+      return 2;
+    case "nights":
+      return 3;
+    case "origin":
       return 4;
     case "budget":
       return 5;

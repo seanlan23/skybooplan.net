@@ -22,6 +22,8 @@ import { HeroDateRangeCalendar } from "@/components/HeroDateRangeCalendar";
 import {
   buildHeroSearchQuery,
   createChatMessage,
+  stripSkyCalendarMarker,
+  skyMessageShowsCalendar,
   type HeroChatCollected,
   type HeroChatMessage,
   type HeroChatStep,
@@ -78,7 +80,7 @@ function SkyMessage({
       <div className="flex items-end gap-2">
         {!showHeader ? <SkyAvatar /> : null}
         <div className="rounded-2xl rounded-tl-sm bg-white px-4 py-2.5 text-sm leading-relaxed text-gray-800 shadow-md sm:text-[15px] whitespace-pre-line">
-          {message.text}
+          {stripSkyCalendarMarker(message.text)}
         </div>
       </div>
     </div>
@@ -256,7 +258,7 @@ function inputPlaceholderForStep(
     case "origin":
       return t("heroChat.origin.otherPlaceholder" as never);
     case "passengers":
-      return t("heroChat.step4.ai" as never);
+      return t("heroChat.step1.ai" as never);
     case "budget":
       return t("heroChat.step5.ai" as never);
     default:
@@ -343,7 +345,7 @@ export function HeroChatFlow({
         createChatMessage("user", userMessage),
         createChatMessage("ai", t("heroChat.step1.ai" as never)),
       );
-      setStep("dates");
+      setStep("passengers");
     },
     [appendMessages, attachment, step, t],
   );
@@ -431,12 +433,16 @@ export function HeroChatFlow({
   }, [step]);
 
   useEffect(() => {
-    if (step === "dates") {
-      setShowDatePicker(true);
-    } else {
+    if (step !== "dates") {
       setShowDatePicker(false);
+      return;
     }
-  }, [step]);
+
+    const lastAi = [...messages].reverse().find((message) => message.role === "ai");
+    if (lastAi && skyMessageShowsCalendar(lastAi.text)) {
+      setShowDatePicker(true);
+    }
+  }, [step, messages]);
 
   function advanceFromDates(label: string) {
     setShowDatePicker(false);
@@ -452,10 +458,20 @@ export function HeroChatFlow({
     setOriginFreeText(false);
     appendMessages(
       createChatMessage("user", label),
-      createChatMessage("ai", t("heroChat.step4.ai" as never)),
+      createChatMessage("ai", t("heroChat.step5.ai" as never)),
     );
     setCollected((prev) => ({ ...prev, origin: label }));
-    setStep("passengers");
+    setStep("budget");
+  }
+
+  function advanceToDatesFromPassengers(label: string) {
+    appendMessages(
+      createChatMessage("user", label),
+      createChatMessage("ai", t("heroChat.stepDates.ai" as never)),
+    );
+    setCollected((prev) => ({ ...prev, passengers: label }));
+    setStep("dates");
+    setShowDatePicker(true);
   }
 
   function handleDateSelect(id: string, label: string) {
@@ -492,12 +508,7 @@ export function HeroChatFlow({
   }
 
   function handlePassengersSelect(_id: string, label: string) {
-    appendMessages(
-      createChatMessage("user", label),
-      createChatMessage("ai", t("heroChat.step5.ai" as never)),
-    );
-    setCollected((prev) => ({ ...prev, passengers: label }));
-    setStep("budget");
+    advanceToDatesFromPassengers(label);
   }
 
   function handleBudgetSelect(_id: string, label: string) {
@@ -545,7 +556,7 @@ export function HeroChatFlow({
         advanceFromOrigin(trimmed);
         break;
       case "passengers":
-        handlePassengersSelect("custom", trimmed);
+        advanceToDatesFromPassengers(trimmed);
         break;
       case "budget":
         handleBudgetSelect("custom", trimmed);
@@ -718,6 +729,17 @@ export function HeroChatFlow({
             </div>
           ) : null}
 
+          {showConversationChips && step === "passengers" ? (
+            <QuickReplyChips
+              disabled={loading}
+              options={PASSENGER_CHIP_IDS.map((id) => ({
+                id,
+                label: chipLabel("heroChat.passengers", id),
+              }))}
+              onSelect={handlePassengersSelect}
+            />
+          ) : null}
+
           {showConversationChips && step === "dates" ? (
             <QuickReplyChips
               disabled={loading}
@@ -759,17 +781,6 @@ export function HeroChatFlow({
                 label: chipLabel("heroChat.origin", id),
               }))}
               onSelect={handleOriginSelect}
-            />
-          ) : null}
-
-          {showConversationChips && step === "passengers" ? (
-            <QuickReplyChips
-              disabled={loading}
-              options={PASSENGER_CHIP_IDS.map((id) => ({
-                id,
-                label: chipLabel("heroChat.passengers", id),
-              }))}
-              onSelect={handlePassengersSelect}
             />
           ) : null}
 

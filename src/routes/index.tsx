@@ -18,7 +18,7 @@ import { SocialProofSection } from "@/components/SocialProofSection";
 import { TripInspiration } from "@/components/TripInspiration";
 import { TestimonialsSection } from "@/components/TestimonialsSection";
 import { FAQSection } from "@/components/FAQSection";
-import { SearchPanel, type SearchValues } from "@/components/SearchPanel";
+import type { SearchValues } from "@/components/SearchPanel";
 import { FlightResults } from "@/components/FlightResults";
 import { SpotlightOverlay } from "@/components/SpotlightOverlay";
 import { AiPlannerPreview, type AiPlannerContext, type AiPlannerSubmit } from "@/components/AiPlannerPreview";
@@ -44,7 +44,6 @@ import { AiPlanView } from "@/components/AiPlanView";
 import { AiPlanLoader } from "@/components/AiPlanLoader";
 import { AiPlanSkeletonView } from "@/components/AiPlanSkeletonView";
 import { ConfirmModal } from "@/components/ConfirmModal";
-import { FlightSearchHistory } from "@/components/FlightSearchHistory";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { resolveErrorMessage, useI18n } from "@/lib/i18n";
@@ -300,7 +299,6 @@ function Landing() {
   const [lastPlannerForm, setLastPlannerForm] = useState<AiPlannerSubmit | null>(null);
   const [aiGenStartedAt, setAiGenStartedAt] = useState<number | null>(null);
   const [genInterrupted, setGenInterrupted] = useState(false);
-  const [historyRefresh, setHistoryRefresh] = useState(0);
   const [prefill, setPrefill] = useState<SearchValues | null>(null);
   const [searchDraft, setSearchDraft] = useState<SearchValues | null>(null);
   const [sessionReady, setSessionReady] = useState(false);
@@ -782,7 +780,6 @@ function Landing() {
           pax: v.pax,
           results_count: res.flights.length,
         });
-        setHistoryRefresh((n) => n + 1);
       }
     } catch (e) {
       console.error(e);
@@ -798,11 +795,6 @@ function Landing() {
       setLoading(false);
       setFlightSearchDone(true);
     }
-  }
-
-  function handleRepeat(v: SearchValues) {
-    setPrefill(v);
-    handleSearch(v);
   }
 
   function handleSelect(f: DuffelFlight) {
@@ -1225,35 +1217,6 @@ function Landing() {
       <FAQSection />
 
       <main className="flex-1">
-        <section
-          id="travel-search"
-          className="relative z-20 mx-auto mt-6 max-w-6xl px-6 pb-4"
-        >
-          <div className="rounded-2xl bg-white p-5 shadow-xl sm:p-6">
-            <div className="mb-4 text-left">
-              <h2 className="text-lg font-semibold text-foreground">
-                {t("hero.searchSectionTitle" as never)}
-              </h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {t("hero.searchSectionHint" as never)}
-              </p>
-            </div>
-            <div className="min-w-0 text-left" id="flights">
-            <SearchPanel
-              onSearch={handleSearch}
-              onValuesChange={handleSearchDraftChange}
-              loading={loading || aiLoading}
-              initialValues={prefill}
-              showClear={
-                Boolean(aiPlan || aiSkeleton || flights.length > 0 || lastSearch || isActiveAiContext(aiContext))
-              }
-              onClear={resetLanding}
-            />
-            </div>
-          </div>
-          <FlightSearchHistory refreshKey={historyRefresh} onRepeat={handleRepeat} />
-        </section>
-
         <section className="mx-auto max-w-6xl px-6 pb-12">
 
             {error && (
