@@ -22,14 +22,12 @@ import { HeroDateRangeCalendar } from "@/components/HeroDateRangeCalendar";
 import {
   buildHeroSearchQuery,
   createChatMessage,
-  stripSkyCalendarMarker,
-  skyMessageShowsCalendar,
   type HeroChatCollected,
   type HeroChatMessage,
   type HeroChatStep,
 } from "@/lib/heroChatFlow";
+import { extractHeroChatDates } from "@/lib/heroChatDates";
 
-const DATE_CHIP_IDS = ["july", "august", "september", "custom"] as const;
 const NIGHT_CHIP_IDS = ["3-5", "7", "10-14", "2weeks"] as const;
 const ORIGIN_CHIP_IDS = ["ljubljana", "zagreb", "vienna", "venice", "other"] as const;
 const PASSENGER_CHIP_IDS = ["1adult", "2adults", "2adults1child", "2adults2children"] as const;
@@ -80,7 +78,7 @@ function SkyMessage({
       <div className="flex items-end gap-2">
         {!showHeader ? <SkyAvatar /> : null}
         <div className="rounded-2xl rounded-tl-sm bg-white px-4 py-2.5 text-sm leading-relaxed text-gray-800 shadow-md sm:text-[15px] whitespace-pre-line">
-          {stripSkyCalendarMarker(message.text)}
+          {message.text}
         </div>
       </div>
     </div>
@@ -242,28 +240,38 @@ function HeroCtaArea({
   );
 }
 
-function inputPlaceholderForStep(
-  step: HeroChatStep,
-  conversationStarted: boolean,
-  t: (key: never) => string,
-): string {
-  if (!conversationStarted || step === "destination") {
-    return t("heroChat.searchPlaceholder" as never);
-  }
-  switch (step) {
-    case "dates":
-      return t("heroChat.dates.custom" as never);
-    case "nights":
-      return t("heroChat.step2.ai" as never);
-    case "origin":
-      return t("heroChat.origin.otherPlaceholder" as never);
-    case "passengers":
-      return t("heroChat.step1.ai" as never);
-    case "budget":
-      return t("heroChat.step5.ai" as never);
-    default:
-      return t("heroChat.inputPlaceholder" as never);
-  }
+function PickExactDatesButton({
+  label,
+  onClick,
+  disabled,
+}: {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="hero-chips-enter pl-10 pr-1">
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={onClick}
+        className="inline-flex items-center rounded-full border border-white/40 bg-white px-3.5 py-1.5 text-sm font-medium text-gray-800 shadow-sm transition-colors hover:bg-white/90 disabled:opacity-50"
+      >
+        {label}
+      </button>
+    </div>
+  );
+}
+
+function skyMessageWithVars(template: string, vars: Record<string, string>): string {
+  return Object.entries(vars).reduce(
+    (text, [key, value]) => text.replace(`{{${key}}}`, value),
+    template,
+  );
+}
+
+function chatPlaceholder(t: (key: never) => string): string {
+  return t("heroChat.searchPlaceholder" as never);
 }
 
 export function HeroChatFlow({
@@ -432,25 +440,22 @@ export function HeroChatFlow({
     }
   }, [step]);
 
-  useEffect(() => {
-    if (step !== "dates") {
-      setShowDatePicker(false);
-      return;
-    }
-
-    const lastAi = [...messages].reverse().find((message) => message.role === "ai");
-    if (lastAi && skyMessageShowsCalendar(lastAi.text)) {
-      setShowDatePicker(true);
-    }
-  }, [step, messages]);
-
-  function advanceFromDates(label: string) {
-    setShowDatePicker(false);
-    appendMessages(
-      createChatMessage("user", label),
-      createChatMessage("ai", t("heroChat.step2.ai" as never)),
+  function clearDatePickerOffers() {
+    setMessages((prev) =>
+      prev.map((message) =>
+        message.offerDatePicker ? { ...message, offerDatePicker: false } : message,
+      ),
     );
-    setCollected((prev) => ({ ...prev, dates: label }));
+  }
+
+  function advanceFromDates(label: string, options?: { silent?: boolean }) {
+    setShowDatePicker(false);
+    clearDatePickerOffers();
+    if (!options?.silent && label.trim()) {
+      appendMessages(createChatMessage("user", label.trim()));
+    }
+    appendMessages(createChatMessage("ai", t("heroChat.step2.ai" as never)));
+    setCollected((prev) => ({ ...prev, dates: label.trim() || prev.dates || "" }));
     setStep("nights");
   }
 
@@ -465,26 +470,51 @@ export function HeroChatFlow({
   }
 
   function advanceToDatesFromPassengers(label: string) {
-    appendMessages(
-      createChatMessage("user", label),
-      createChatMessage("ai", t("heroChat.stepDates.ai" as never)),
-    );
-    setCollected((prev) => ({ ...prev, passengers: label }));
-    setStep("dates");
-    setShowDatePicker(true);
-  }
+    const destination = collected.destination ?? "";
+    const parsed = extractHeroChatDates(destination, lang);
 
-  function handleDateSelect(id: string, label: string) {
-    if (id === "custom") {
-      setShowDatePicker(true);
-      scrollToBottom();
+    appendMessages(createChatMessage("user", label));
+    setCollected((prev) => ({ ...prev, passengers: label }));
+
+    if (parsed.precision === "exact") {
+      appendMessages(
+        createChatMessage(
+          "ai",
+          skyMessageWithVars(t("heroChat.stepDates.exact" as never), { dates: parsed.label }),
+        ),
+        createChatMessage("ai", t("heroChat.step2.ai" as never)),
+      );
+      setCollected((prev) => ({ ...prev, dates: parsed.label }));
+      setStep("nights");
       return;
     }
-    advanceFromDates(label);
+
+    if (parsed.precision === "vague") {
+      appendMessages(
+        createChatMessage(
+          "ai",
+          skyMessageWithVars(t("heroChat.stepDates.vague" as never), { period: parsed.label }),
+          { offerDatePicker: true },
+        ),
+      );
+      setCollected((prev) => ({ ...prev, dates: parsed.label }));
+      setStep("dates");
+      return;
+    }
+
+    appendMessages(
+      createChatMessage("ai", t("heroChat.stepDates.ask" as never), { offerDatePicker: true }),
+    );
+    setStep("dates");
+  }
+
+  function handleOpenDatePicker() {
+    setShowDatePicker(true);
+    clearDatePickerOffers();
+    scrollToBottom();
   }
 
   function handleDateRangeConfirm(label: string) {
-    setShowDatePicker(false);
     advanceFromDates(label);
   }
 
@@ -539,15 +569,27 @@ export function HeroChatFlow({
     e?.preventDefault();
     const trimmed = textInput.trim();
     const canSendDestination = step === "destination" && (trimmed || attachment);
-    if ((!trimmed && !canSendDestination) || inputDisabled || fileProcessing) return;
-    if (step !== "destination" && !trimmed) return;
+    const canSendDates =
+      step === "dates" && !showDatePicker && Boolean(collected.dates?.trim());
+    if ((!trimmed && !canSendDestination && !canSendDates) || inputDisabled || fileProcessing) {
+      return;
+    }
+    if (step !== "destination" && !trimmed && !canSendDates) return;
 
     switch (step) {
       case "destination":
         startFlow(trimmed);
         break;
       case "dates":
-        advanceFromDates(trimmed);
+        if (showDatePicker) return;
+        {
+          const parsed = trimmed ? extractHeroChatDates(trimmed, lang) : null;
+          const dateLabel =
+            parsed && parsed.precision !== "none"
+              ? parsed.label
+              : trimmed || collected.dates || "";
+          advanceFromDates(dateLabel, { silent: !trimmed && Boolean(collected.dates?.trim()) });
+        }
         break;
       case "nights":
         handleNightsSelect("custom", trimmed);
@@ -584,11 +626,15 @@ export function HeroChatFlow({
     !isSearching &&
     !(step === "origin" && originFreeText);
 
-  const placeholder = inputPlaceholderForStep(step, conversationStarted, t);
+  const placeholder = chatPlaceholder(t);
   const canSubmit =
     !inputDisabled &&
     !fileProcessing &&
-    (step === "destination" ? Boolean(textInput.trim() || attachment) : Boolean(textInput.trim()));
+    (step === "destination"
+      ? Boolean(textInput.trim() || attachment)
+      : step === "dates"
+        ? !showDatePicker && Boolean(textInput.trim() || collected.dates?.trim())
+        : Boolean(textInput.trim()));
 
   return (
     <div
@@ -710,18 +756,29 @@ export function HeroChatFlow({
           ref={scrollRef}
           className="mt-6 max-h-[min(420px,50vh)] space-y-3 overflow-x-hidden overflow-y-auto px-1 py-1"
         >
-          {messages.map((message) =>
-            message.role === "ai" ? (
-              <SkyMessage
-                key={message.id}
-                message={message}
-                showHeader={message.id === firstSkyMessageId}
-                agentName={agentName}
-              />
-            ) : (
-              <UserMessage key={message.id} message={message} />
-            ),
-          )}
+          {messages.map((message) => (
+            <div key={message.id} className="space-y-2">
+              {message.role === "ai" ? (
+                <SkyMessage
+                  message={message}
+                  showHeader={message.id === firstSkyMessageId}
+                  agentName={agentName}
+                />
+              ) : (
+                <UserMessage message={message} />
+              )}
+              {message.role === "ai" &&
+              message.offerDatePicker &&
+              step === "dates" &&
+              !showDatePicker ? (
+                <PickExactDatesButton
+                  label={t("heroChat.pickExactDates" as never)}
+                  disabled={loading}
+                  onClick={handleOpenDatePicker}
+                />
+              ) : null}
+            </div>
+          ))}
 
           {isSearching && loading ? (
             <div className="flex items-center gap-2 pl-10 text-sm text-white/80">
@@ -740,18 +797,7 @@ export function HeroChatFlow({
             />
           ) : null}
 
-          {showConversationChips && step === "dates" ? (
-            <QuickReplyChips
-              disabled={loading}
-              options={DATE_CHIP_IDS.map((id) => ({
-                id,
-                label: chipLabel("heroChat.dates", id),
-              }))}
-              onSelect={handleDateSelect}
-            />
-          ) : null}
-
-          {step === "dates" && showDatePicker ? (
+          {showDatePicker && step === "dates" ? (
             <div className="hero-chips-enter pl-0 sm:pl-2">
               <HeroDateRangeCalendar
                 lang={lang}

@@ -23,6 +23,7 @@ import { FlightResults } from "@/components/FlightResults";
 import { SpotlightOverlay } from "@/components/SpotlightOverlay";
 import { AiPlannerPreview, type AiPlannerContext, type AiPlannerSubmit } from "@/components/AiPlannerPreview";
 import { FeatureGrid } from "@/components/FeatureGrid";
+import { DonationSection } from "@/components/DonationSection";
 import { SiteFooter } from "@/components/SiteFooter";
 import { searchFlights, type DuffelFlight } from "@/lib/flights.functions";
 import { airportConfusionHint } from "@/lib/airportRank";
@@ -1214,6 +1215,7 @@ function Landing() {
       <SocialProofSection />
       <TripInspiration onSelectDestination={handleInspirationSelect} />
       <TestimonialsSection />
+      <DonationSection />
       <FAQSection />
 
       <main className="flex-1">
