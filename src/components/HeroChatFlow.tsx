@@ -30,6 +30,7 @@ import {
 } from "@/lib/heroChatFlow";
 import { extractHeroChatDates } from "@/lib/heroChatDates";
 import { FlightCard } from "@/components/FlightCard";
+import { RotatingTextareaPlaceholder } from "@/components/RotatingTextareaPlaceholder";
 import type { MakeSearchFlight } from "@/lib/makeSearch";
 
 const NIGHT_CHIP_IDS = ["3-5", "7", "10-14", "2weeks"] as const;
@@ -38,6 +39,15 @@ const PASSENGER_CHIP_IDS = ["1adult", "2adults", "2adults1child", "2adults2child
 const BUDGET_CHIP_IDS = ["under500", "500-1000", "1000-2000", "2000plus"] as const;
 
 const HERO_FEATURE_BADGE_IDS = ["itinerary", "flights", "pdf"] as const;
+
+const HERO_PLACEHOLDER_EXAMPLE_KEYS = [
+  "heroChat.placeholder.example1",
+  "heroChat.placeholder.example2",
+  "heroChat.placeholder.example3",
+  "heroChat.placeholder.example4",
+  "heroChat.placeholder.example5",
+  "heroChat.placeholder.example6",
+] as const;
 
 type ChipOption = {
   id: string;
@@ -671,6 +681,15 @@ export function HeroChatFlow({
     !(step === "origin" && originFreeText);
 
   const placeholder = chatPlaceholder(t);
+  const rotatingPlaceholderItems = useMemo(
+    () => [
+      placeholder,
+      ...HERO_PLACEHOLDER_EXAMPLE_KEYS.map((key) => t(key as never)),
+    ],
+    [placeholder, t],
+  );
+  const showRotatingPlaceholder =
+    !conversationStarted && !textInput.trim() && !inputDisabled && !fileProcessing;
   const canSubmit =
     !inputDisabled &&
     !fileProcessing &&
@@ -705,19 +724,26 @@ export function HeroChatFlow({
               </p>
             ) : null}
 
-            <textarea
-              ref={inputRef}
-              value={textInput}
-              onChange={(e) => setTextInput(e.target.value)}
-              onKeyDown={handleInputKeyDown}
-              disabled={inputDisabled || fileProcessing}
-              autoComplete="off"
-              rows={3}
-              placeholder={placeholder}
-              aria-label={placeholder}
-              className="min-h-[4.5rem] w-full flex-1 resize-none border-0 bg-transparent text-base leading-relaxed text-white placeholder:text-white/60 focus:outline-none focus:ring-0 disabled:cursor-not-allowed disabled:opacity-60 sm:text-[17px]"
-              style={{ color: "#fff", WebkitTextFillColor: "#fff" }}
-            />
+            <div className="relative min-h-[4.5rem] w-full flex-1">
+              <RotatingTextareaPlaceholder
+                items={rotatingPlaceholderItems}
+                active={showRotatingPlaceholder}
+                className="text-base leading-relaxed sm:text-[17px]"
+              />
+              <textarea
+                ref={inputRef}
+                value={textInput}
+                onChange={(e) => setTextInput(e.target.value)}
+                onKeyDown={handleInputKeyDown}
+                disabled={inputDisabled || fileProcessing}
+                autoComplete="off"
+                rows={3}
+                placeholder={showRotatingPlaceholder ? "" : placeholder}
+                aria-label={placeholder}
+                className="relative z-10 min-h-[4.5rem] w-full flex-1 resize-none border-0 bg-transparent text-base leading-relaxed text-white placeholder:text-white/60 focus:outline-none focus:ring-0 disabled:cursor-not-allowed disabled:opacity-60 sm:text-[17px]"
+                style={{ color: "#fff", WebkitTextFillColor: "#fff" }}
+              />
+            </div>
 
             <div className="mt-3 flex items-center justify-between">
               <AttachmentToolbar
