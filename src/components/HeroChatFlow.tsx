@@ -20,10 +20,12 @@ import {
 } from "@/lib/heroChatAttachment";
 import { HeroDateRangeCalendar } from "@/components/HeroDateRangeCalendar";
 import {
+  buildHeroFlightsSearchQuery,
   buildHeroSearchQuery,
   createChatMessage,
   type HeroChatCollected,
   type HeroChatMessage,
+  type HeroChatMode,
   type HeroChatStep,
 } from "@/lib/heroChatFlow";
 import { extractHeroChatDates } from "@/lib/heroChatDates";
@@ -43,7 +45,8 @@ type ChipOption = {
 };
 
 type HeroChatFlowProps = {
-  onSearch: (query: string, collected: HeroChatCollected) => void;
+  mode: HeroChatMode;
+  onSearch: (query: string, collected: HeroChatCollected, mode: HeroChatMode) => void;
   loading?: boolean;
   flights?: MakeSearchFlight[];
   searchError?: string | null;
@@ -279,6 +282,7 @@ function chatPlaceholder(t: (key: never) => string): string {
 }
 
 export function HeroChatFlow({
+  mode,
   onSearch,
   loading = false,
   flights = [],
@@ -287,6 +291,7 @@ export function HeroChatFlow({
   onSeedConsumed,
 }: HeroChatFlowProps) {
   const { t, lang } = useI18n();
+  const isFlightsOnly = mode === "flights";
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -438,8 +443,10 @@ export function HeroChatFlow({
       ...(collected as HeroChatCollected),
       attachment: attachment ?? collected.attachment,
     } satisfies HeroChatCollected;
-    onSearch(buildHeroSearchQuery(data), data);
-  }, [step, collected, attachment, onSearch]);
+    const query =
+      mode === "flights" ? buildHeroFlightsSearchQuery(data) : buildHeroSearchQuery(data);
+    onSearch(query, data, mode);
+  }, [step, collected, attachment, onSearch, mode]);
 
   useEffect(() => {
     if (step === "destination") {
@@ -469,6 +476,12 @@ export function HeroChatFlow({
     if (!options?.silent && label.trim()) {
       appendMessages(createChatMessage("user", label.trim()));
     }
+    if (isFlightsOnly) {
+      appendMessages(createChatMessage("ai", t("heroChat.step3.ai" as never)));
+      setCollected((prev) => ({ ...prev, dates: label.trim() || prev.dates || "" }));
+      setStep("origin");
+      return;
+    }
     appendMessages(createChatMessage("ai", t("heroChat.step2.ai" as never)));
     setCollected((prev) => ({ ...prev, dates: label.trim() || prev.dates || "" }));
     setStep("nights");
@@ -476,6 +489,19 @@ export function HeroChatFlow({
 
   function advanceFromOrigin(label: string) {
     setOriginFreeText(false);
+    if (isFlightsOnly) {
+      appendMessages(
+        createChatMessage("user", label),
+        createChatMessage("ai", t("heroChat.step6.loading" as never)),
+      );
+      setCollected((prev) => ({
+        ...prev,
+        origin: label,
+        attachment: attachment ?? prev.attachment,
+      }));
+      setStep("searching");
+      return;
+    }
     appendMessages(
       createChatMessage("user", label),
       createChatMessage("ai", t("heroChat.step5.ai" as never)),
@@ -497,10 +523,13 @@ export function HeroChatFlow({
           "ai",
           skyMessageWithVars(t("heroChat.stepDates.exact" as never), { dates: parsed.label }),
         ),
-        createChatMessage("ai", t("heroChat.step2.ai" as never)),
+        createChatMessage(
+          "ai",
+          t((isFlightsOnly ? "heroChat.step3.ai" : "heroChat.step2.ai") as never),
+        ),
       );
       setCollected((prev) => ({ ...prev, dates: parsed.label }));
-      setStep("nights");
+      setStep(isFlightsOnly ? "origin" : "nights");
       return;
     }
 
@@ -842,7 +871,7 @@ export function HeroChatFlow({
             </div>
           ) : null}
 
-          {showConversationChips && step === "nights" ? (
+          {showConversationChips && step === "nights" && !isFlightsOnly ? (
             <QuickReplyChips
               disabled={loading}
               options={NIGHT_CHIP_IDS.map((id) => ({
@@ -864,7 +893,7 @@ export function HeroChatFlow({
             />
           ) : null}
 
-          {showConversationChips && step === "budget" ? (
+          {showConversationChips && step === "budget" && !isFlightsOnly ? (
             <QuickReplyChips
               disabled={loading}
               options={BUDGET_CHIP_IDS.map((id) => ({

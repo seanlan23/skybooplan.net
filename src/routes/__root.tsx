@@ -15,6 +15,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AuthProvider } from "@/hooks/use-auth";
 
 import { I18nProvider } from "@/lib/i18n";
+import { CookieConsentBanner } from "@/components/CookieConsentBanner";
 
 function NotFoundComponent() {
   return (
@@ -136,6 +137,7 @@ function RootComponent() {
           
           {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
           <Outlet />
+          <CookieConsentBanner />
           <Toaster richColors position="top-center" />
         </AuthProvider>
       </I18nProvider>

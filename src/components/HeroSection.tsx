@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { HeroChatFlow } from "@/components/HeroChatFlow";
+import { HeroModeTabs } from "@/components/HeroModeTabs";
 import { HeroRotatingBackground } from "@/components/HeroRotatingBackground";
-import type { HeroChatCollected } from "@/lib/heroChatFlow";
+import type { HeroChatCollected, HeroChatMode } from "@/lib/heroChatFlow";
 
 export function HeroSection({
   onSearch,
@@ -10,15 +12,23 @@ export function HeroSection({
   searchError = null,
   seedDestination = null,
   onSeedConsumed,
+  onModeChange,
 }: {
-  onSearch: (query: string, collected: HeroChatCollected) => void;
+  onSearch: (query: string, collected: HeroChatCollected, mode: HeroChatMode) => void;
   loading?: boolean;
   flights?: import("@/lib/makeSearch").MakeSearchFlight[];
   searchError?: string | null;
   seedDestination?: string | null;
   onSeedConsumed?: () => void;
+  onModeChange?: (mode: HeroChatMode) => void;
 }) {
   const { t } = useI18n();
+  const [mode, setMode] = useState<HeroChatMode>("all");
+
+  function handleModeChange(next: HeroChatMode) {
+    setMode(next);
+    onModeChange?.(next);
+  }
 
   return (
     <section
@@ -47,7 +57,11 @@ export function HeroSection({
           {t("hero.chatSubtitle" as never)}
         </p>
 
+        <HeroModeTabs value={mode} onChange={handleModeChange} />
+
         <HeroChatFlow
+          key={mode}
+          mode={mode}
           onSearch={onSearch}
           loading={loading}
           flights={flights}

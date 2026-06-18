@@ -1,5 +1,9 @@
 export const HERO_CHAT_TOTAL_STEPS = 5;
 
+export type HeroChatMode = "all" | "flights" | "stays" | "plan";
+
+export const HERO_CHAT_MODES: HeroChatMode[] = ["flights", "stays", "plan", "all"];
+
 export type HeroChatStep =
   | "destination"
   | "dates"
@@ -91,6 +95,15 @@ export function buildHeroSearchQuery(data: HeroChatCollected): string {
     `iz ${data.origin}`,
     data.passengers,
     `proračun ${data.budget} na osebo`,
+  ].join(", ");
+}
+
+export function buildHeroFlightsSearchQuery(data: HeroChatCollected): string {
+  return [
+    `Leti v ${data.destination}`,
+    `odhod ${data.dates}`,
+    `iz ${data.origin}`,
+    data.passengers,
   ].join(", ");
 }
 

@@ -12,6 +12,7 @@ import {
 } from "@/lib/sessionStore";
 import { SiteHeader } from "@/components/SiteHeader";
 import { HeroSection } from "@/components/HeroSection";
+import type { HeroChatMode } from "@/lib/heroChatFlow";
 import { HeroAiPlanResults } from "@/components/HeroAiPlanResults";
 import { SocialProofSection } from "@/components/SocialProofSection";
 import { TripInspiration } from "@/components/TripInspiration";
@@ -507,12 +508,16 @@ function Landing() {
     }, 80);
   }
 
-  async function handleHeroDreamSubmit(prompt: string, collected: HeroChatCollected) {
+  async function handleHeroDreamSubmit(
+    prompt: string,
+    collected: HeroChatCollected,
+    mode: HeroChatMode = "all",
+  ) {
     const trimmed = prompt.trim();
     if (!trimmed || heroSearchLoading) return;
 
     setHeroSearchAttempted(true);
-    setHeroPlannerActive(true);
+    setHeroPlannerActive(mode === "all");
     setHeroSearchLoading(true);
     setHeroSearchError(null);
     setHeroFlights([]);
@@ -597,7 +602,9 @@ function Landing() {
       language: lang,
     });
 
-    void handleGeneratePlan(form, ctx, "trip", "hero-ai-plan-anchor", collected.attachment);
+    if (mode === "all") {
+      void handleGeneratePlan(form, ctx, "trip", "hero-ai-plan-anchor", collected.attachment);
+    }
 
     if (flightSearchOk) {
       window.setTimeout(() => {
@@ -1178,6 +1185,12 @@ function Landing() {
           searchError={heroSearchError}
           seedDestination={heroChatSeed}
           onSeedConsumed={() => setHeroChatSeed(null)}
+          onModeChange={() => {
+            setHeroFlights([]);
+            setHeroSearchError(null);
+            setHeroSearchAttempted(false);
+            setHeroPlannerActive(false);
+          }}
         />
       </div>
 
