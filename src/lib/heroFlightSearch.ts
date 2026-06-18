@@ -356,7 +356,7 @@ export type HeroFlightSearchLocation = {
 };
 
 export type HeroFlightSearchResult =
-  | { ok: true; flights: MakeSearchFlight[]; parsed: ParsedHeroQuery }
+  | { ok: true; flights: MakeSearchFlight[]; parsed: ParsedHeroQuery; makeResponse?: unknown }
   | { ok: false; error: string; status: number };
 
 async function searchViaMakeWebhook(
@@ -398,7 +398,7 @@ async function searchViaMakeWebhook(
     trip_type: "return",
   };
 
-  return { ok: true, flights, parsed: stubParsed };
+  return { ok: true, flights, parsed: stubParsed, makeResponse: webhook.data };
 }
 
 async function runHeroFlightSearch(

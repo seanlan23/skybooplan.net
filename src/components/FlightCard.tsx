@@ -49,6 +49,12 @@ export function FlightCard({
         className,
       )}
     >
+      {flight.badge ? (
+        <span className="mb-3 inline-flex w-fit rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
+          {flight.badge}
+        </span>
+      ) : null}
+
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">

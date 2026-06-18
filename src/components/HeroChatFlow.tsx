@@ -27,6 +27,8 @@ import {
   type HeroChatStep,
 } from "@/lib/heroChatFlow";
 import { extractHeroChatDates } from "@/lib/heroChatDates";
+import { FlightCard } from "@/components/FlightCard";
+import type { MakeSearchFlight } from "@/lib/makeSearch";
 
 const NIGHT_CHIP_IDS = ["3-5", "7", "10-14", "2weeks"] as const;
 const ORIGIN_CHIP_IDS = ["ljubljana", "zagreb", "vienna", "venice", "other"] as const;
@@ -43,6 +45,8 @@ type ChipOption = {
 type HeroChatFlowProps = {
   onSearch: (query: string, collected: HeroChatCollected) => void;
   loading?: boolean;
+  flights?: MakeSearchFlight[];
+  searchError?: string | null;
   seedDestination?: string | null;
   onSeedConsumed?: () => void;
 };
@@ -277,6 +281,8 @@ function chatPlaceholder(t: (key: never) => string): string {
 export function HeroChatFlow({
   onSearch,
   loading = false,
+  flights = [],
+  searchError = null,
   seedDestination,
   onSeedConsumed,
 }: HeroChatFlowProps) {
@@ -285,6 +291,7 @@ export function HeroChatFlow({
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const searchSentRef = useRef(false);
+  const flightsAnnouncedRef = useRef(false);
 
   const [step, setStep] = useState<HeroChatStep>("destination");
   const [conversationStarted, setConversationStarted] = useState(false);
@@ -437,8 +444,16 @@ export function HeroChatFlow({
   useEffect(() => {
     if (step === "destination") {
       searchSentRef.current = false;
+      flightsAnnouncedRef.current = false;
     }
   }, [step]);
+
+  useEffect(() => {
+    if (loading || flights.length === 0 || flightsAnnouncedRef.current) return;
+    flightsAnnouncedRef.current = true;
+    appendMessages(createChatMessage("ai", t("heroChat.flightResultsIntro" as never)));
+    scrollToBottom();
+  }, [loading, flights, appendMessages, t, scrollToBottom]);
 
   function clearDatePickerOffers() {
     setMessages((prev) =>
@@ -783,6 +798,25 @@ export function HeroChatFlow({
           {isSearching && loading ? (
             <div className="flex items-center gap-2 pl-10 text-sm text-white/80">
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+            </div>
+          ) : null}
+
+          {!loading && searchError ? (
+            <div className="hero-sky-enter pl-10 pr-1">
+              <p className="rounded-2xl border border-red-300/30 bg-red-500/10 px-4 py-3 text-sm text-red-100">
+                {searchError.startsWith("heroSearch.") ||
+                searchError.startsWith("error.")
+                  ? t(searchError as never)
+                  : searchError}
+              </p>
+            </div>
+          ) : null}
+
+          {!loading && flights.length > 0 ? (
+            <div className="hero-sky-enter space-y-3 pl-0 pr-1 sm:pl-10">
+              {flights.map((flight) => (
+                <FlightCard key={flight.id} flight={flight} />
+              ))}
             </div>
           ) : null}
 

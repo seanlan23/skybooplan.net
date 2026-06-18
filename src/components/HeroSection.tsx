@@ -6,11 +6,15 @@ import type { HeroChatCollected } from "@/lib/heroChatFlow";
 export function HeroSection({
   onSearch,
   loading = false,
+  flights = [],
+  searchError = null,
   seedDestination = null,
   onSeedConsumed,
 }: {
   onSearch: (query: string, collected: HeroChatCollected) => void;
   loading?: boolean;
+  flights?: import("@/lib/makeSearch").MakeSearchFlight[];
+  searchError?: string | null;
   seedDestination?: string | null;
   onSeedConsumed?: () => void;
 }) {
@@ -46,6 +50,8 @@ export function HeroSection({
         <HeroChatFlow
           onSearch={onSearch}
           loading={loading}
+          flights={flights}
+          searchError={searchError}
           seedDestination={seedDestination}
           onSeedConsumed={onSeedConsumed}
         />

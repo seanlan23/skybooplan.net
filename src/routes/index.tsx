@@ -12,7 +12,6 @@ import {
 } from "@/lib/sessionStore";
 import { SiteHeader } from "@/components/SiteHeader";
 import { HeroSection } from "@/components/HeroSection";
-import { HeroFlightResults } from "@/components/HeroFlightResults";
 import { HeroAiPlanResults } from "@/components/HeroAiPlanResults";
 import { SocialProofSection } from "@/components/SocialProofSection";
 import { TripInspiration } from "@/components/TripInspiration";
@@ -602,9 +601,9 @@ function Landing() {
 
     if (flightSearchOk) {
       window.setTimeout(() => {
-        document.getElementById("hero-flight-results")?.scrollIntoView({
+        document.getElementById("hero-chat-window")?.scrollIntoView({
           behavior: "smooth",
-          block: "start",
+          block: "center",
         });
       }, 120);
     }
@@ -1175,17 +1174,12 @@ function Landing() {
         <HeroSection
           onSearch={handleHeroDreamSubmit}
           loading={heroSearchLoading}
+          flights={heroFlights}
+          searchError={heroSearchError}
           seedDestination={heroChatSeed}
           onSeedConsumed={() => setHeroChatSeed(null)}
         />
       </div>
-
-      <HeroFlightResults
-        flights={heroFlights}
-        loading={heroSearchLoading}
-        error={heroSearchError}
-        visible={heroSearchAttempted}
-      />
 
       <HeroAiPlanResults
         visible={heroPlannerActive}

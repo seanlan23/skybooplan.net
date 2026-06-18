@@ -9,6 +9,7 @@ export type MakeSearchFlight = {
   prevoznik: string;
   postanki: string;
   ai_povzetek: string;
+  badge?: string;
   booking_url?: string;
 };
 
@@ -53,39 +54,79 @@ function extractFlightArray(data: unknown): unknown[] {
   const record = asRecord(data);
   if (!record) return [];
 
-  for (const key of ["flights", "results", "data", "items", "body", "output"]) {
+  for (const key of ["offers", "flights", "results", "data", "items", "body", "output"]) {
     const value = record[key];
     if (Array.isArray(value)) return value;
   }
 
-  if (readString(record, "destinacija", "destination")) {
+  if (
+    readString(record, "destinacija", "destination", "destination_iata") ||
+    readString(record, "prevoznik", "carrier", "airline", "airline_name")
+  ) {
     return [record];
   }
 
   return [];
 }
 
+function formatDepartureDatetime(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return new Intl.DateTimeFormat("sl-SI", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(d);
+}
+
+function formatMakeRoute(origin: string, destination: string): string {
+  if (origin && destination) return `${origin} → ${destination}`;
+  return destination || origin || "—";
+}
+
 function parseFlightItem(item: unknown, index: number): MakeSearchFlight | null {
   const record = asRecord(item);
   if (!record) return null;
 
-  const destinacija = readString(record, "destinacija", "destination", "dest");
-  const prevoznik = readString(record, "prevoznik", "carrier", "airline");
-  const odhod = readString(record, "odhod", "departure", "depart");
-  const ai_povzetek = readString(record, "ai_povzetek", "summary", "ai_summary", "povzetek");
+  const originIata = readString(record, "origin_iata", "origin").toUpperCase();
+  const destIata = readString(record, "destination_iata", "destination_iata", "destination").toUpperCase();
+  const destinacija =
+    readString(record, "destinacija", "destination", "dest") ||
+    formatMakeRoute(originIata, destIata);
+  const prevoznik = readString(record, "prevoznik", "carrier", "airline", "airline_name");
+  const departureIso = readString(record, "departure_datetime", "departure", "depart_datetime");
+  const odhod =
+    readString(record, "odhod", "departure", "depart") ||
+    (departureIso ? formatDepartureDatetime(departureIso) : "");
+  const badge = readString(record, "badge", "rank_label") || undefined;
+  const ai_povzetek =
+    readString(record, "ai_povzetek", "summary", "ai_summary", "povzetek") || badge || "";
 
   if (!destinacija && !prevoznik && !odhod) return null;
 
   const booking_url = readString(record, "booking_url", "url", "link", "rezervacija_url") || undefined;
+  const rank = readString(record, "rank", "id");
+  const priceCurrency = readString(record, "price_currency", "currency").toUpperCase();
+  const priceTotal = readNumber(record, "price_total", "cena_eur", "price_eur", "price", "cena");
+  const cena_eur =
+    priceCurrency && priceCurrency !== "EUR" && priceTotal > 0
+      ? priceTotal
+      : readNumber(record, "cena_eur", "price_eur", "price_total", "price", "cena");
+
+  const stopsRaw =
+    record.stops_outbound ?? record.stops ?? record.stop_count ?? record.postanki;
 
   return {
-    id: readString(record, "id") || `flight-${index}`,
+    id: rank || readString(record, "id") || `flight-${index}`,
     destinacija: destinacija || "—",
-    cena_eur: readNumber(record, "cena_eur", "price_eur", "price", "cena"),
+    cena_eur,
     odhod: odhod || "—",
     prevoznik: prevoznik || "—",
-    postanki: formatPostanki(record),
+    postanki: formatPostanki({ ...record, postanki: stopsRaw }),
     ai_povzetek,
+    badge,
     booking_url,
   };
 }
@@ -208,7 +249,11 @@ export function isMakeAsyncAccepted(data: unknown): boolean {
   if (!record) return false;
   if (record.code === MAKE_WEBHOOK_ASYNC_CODE) return true;
   if (record.async === true) return true;
-  return record.accepted === true && !Array.isArray(record.flights);
+  return (
+    record.accepted === true &&
+    !Array.isArray(record.flights) &&
+    !Array.isArray(record.offers)
+  );
 }
 
 export async function callMakeSearchWebhook(

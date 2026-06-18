@@ -36,6 +36,15 @@ export const Route = createFileRoute("/api/search")({
           return Response.json({ error: result.error, flights: [] }, { status: result.status });
         }
 
+        if (result.makeResponse != null) {
+          console.log("[api/search] Returning Make webhook JSON:", {
+            offers: Array.isArray((result.makeResponse as { offers?: unknown }).offers)
+              ? (result.makeResponse as { offers: unknown[] }).offers.length
+              : null,
+          });
+          return Response.json(result.makeResponse);
+        }
+
         console.log("[api/search] Returning flights:", result.flights.length, {
           origin: result.parsed.origin_iata,
           destination: result.parsed.destination_iata,
