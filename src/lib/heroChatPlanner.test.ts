@@ -30,6 +30,11 @@ describe("heroChatPlanner", () => {
   it("resolves city names to IATA", () => {
     expect(resolveOriginIata("Zagreb")).toBe("ZAG");
     expect(resolveDestinationIata("Bali")).toBe("DPS");
+    expect(resolveDestinationIata("🏯 Japonska")).toBe("NRT");
+  });
+
+  it("does not invent IATA codes from arbitrary city names", () => {
+    expect(resolveDestinationIata("Narava")).toBe("");
   });
 
   it("parses Slovenian month labels", () => {

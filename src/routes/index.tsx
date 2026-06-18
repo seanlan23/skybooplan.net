@@ -296,6 +296,8 @@ function Landing() {
   const [heroSearchLoading, setHeroSearchLoading] = useState(false);
   const [heroSearchError, setHeroSearchError] = useState<string | null>(null);
   const [heroSearchAttempted, setHeroSearchAttempted] = useState(false);
+  const [heroSkyChatComplete, setHeroSkyChatComplete] = useState(false);
+  const [heroChatMode, setHeroChatMode] = useState<HeroChatMode>("all");
   const [heroPlannerActive, setHeroPlannerActive] = useState(false);
   const [lastPlannerForm, setLastPlannerForm] = useState<AiPlannerSubmit | null>(null);
   const [aiGenStartedAt, setAiGenStartedAt] = useState<number | null>(null);
@@ -349,6 +351,8 @@ function Landing() {
     setHeroChatSeed(null);
     setHeroPlannerActive(false);
     setHeroSearchAttempted(false);
+    setHeroSkyChatComplete(false);
+    setHeroChatMode("all");
     setHeroFlights([]);
     setHeroSearchError(null);
     streamItinerary.reset();
@@ -435,11 +439,15 @@ function Landing() {
         }
       }
       if (s.aiError && (s.aiPlan || s.aiSkeleton)) setAiError(s.aiError);
-      if (s.aiContext) {
+      if (s.aiContext && (s.aiPlan || s.aiSkeleton || s.lastPlannerForm)) {
         setAiContext(s.aiContext as Partial<AiPlannerContext & { language?: string }>);
       }
       if (s.lastPlannerForm) {
         setLastPlannerForm(normalizeLastPlannerForm(s.lastPlannerForm));
+      }
+      if (s.aiPlan || s.aiSkeleton || s.lastPlannerForm) {
+        setHeroSkyChatComplete(true);
+        setHeroPlannerActive(true);
       }
       if (s.plannerMode) setPlannerMode(s.plannerMode);
       if (s.savedPlanId) setSavedPlanId(s.savedPlanId);
@@ -517,7 +525,9 @@ function Landing() {
     if (!trimmed || heroSearchLoading) return;
 
     setHeroSearchAttempted(true);
-    setHeroPlannerActive(mode === "all");
+    setHeroSkyChatComplete(true);
+    setHeroChatMode(mode);
+    setHeroPlannerActive(false);
     setHeroSearchLoading(true);
     setHeroSearchError(null);
     setHeroFlights([]);
@@ -583,7 +593,7 @@ function Landing() {
       setHeroSearchLoading(false);
     }
 
-    const { ctx, form } = heroChatToPlannerPayload(collected, lang);
+    const { ctx } = heroChatToPlannerPayload(collected, lang);
     setAiContext(ctx);
     setPlannerMode("trip");
     setLastSearch({
@@ -603,10 +613,13 @@ function Landing() {
     });
 
     if (mode === "all") {
-      void handleGeneratePlan(form, ctx, "trip", "hero-ai-plan-anchor", collected.attachment);
-    }
-
-    if (flightSearchOk) {
+      window.setTimeout(() => {
+        document.getElementById("hero-ai-planner")?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }, 120);
+    } else if (flightSearchOk) {
       window.setTimeout(() => {
         document.getElementById("hero-chat-window")?.scrollIntoView({
           behavior: "smooth",
@@ -924,6 +937,7 @@ function Landing() {
 
     const safeForm = normalizeLastPlannerForm(form) ?? form;
     setLastPlannerForm(safeForm);
+    setHeroPlannerActive(true);
     setAiPlan(null);
     setAiSkeleton(null);
     setAiError(null);
@@ -1173,6 +1187,17 @@ function Landing() {
   const displayPlan = aiPlan ?? streamPreviewPlan;
   const isGeminiStreaming = streamItinerary.isStreaming && !aiPlan;
 
+  const showHeroPlannerForm =
+    heroSkyChatComplete &&
+    heroChatMode === "all" &&
+    isActiveAiContext(aiContext) &&
+    !lastPlannerForm &&
+    !aiLoading &&
+    !displayPlan &&
+    !aiSkeleton &&
+    !aiExpandingFull &&
+    !isGeminiStreaming;
+
   try {
     return (
     <div className="min-h-screen flex flex-col w-full max-w-full overflow-x-hidden bg-background">
@@ -1189,10 +1214,24 @@ function Landing() {
             setHeroFlights([]);
             setHeroSearchError(null);
             setHeroSearchAttempted(false);
+            setHeroSkyChatComplete(false);
             setHeroPlannerActive(false);
           }}
         />
       </div>
+
+      {showHeroPlannerForm ? (
+        <div id="hero-ai-planner" className="relative z-10 border-b border-border/60 bg-background">
+          <AiPlannerPreview
+            context={aiContext}
+            initialWishes={heroDreamPrompt}
+            onGenerate={(f) =>
+              handleGeneratePlan(f, undefined, plannerMode, "hero-ai-plan-anchor")
+            }
+            loading={aiLoading || isGeminiStreaming}
+          />
+        </div>
+      ) : null}
 
       <HeroAiPlanResults
         visible={heroPlannerActive}
@@ -1266,7 +1305,13 @@ function Landing() {
               </div>
             )}
 
-            {genInterrupted && !aiLoading && !aiPlan && !aiSkeleton && isActiveAiContext(aiContext) && lastPlannerForm && (
+            {genInterrupted &&
+              heroSkyChatComplete &&
+              !aiLoading &&
+              !aiPlan &&
+              !aiSkeleton &&
+              isActiveAiContext(aiContext) &&
+              lastPlannerForm && (
               <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-900 flex flex-wrap items-center justify-between gap-3">
                 <span>{t("skeleton.genInterrupted")}</span>
                 <Button
@@ -1277,15 +1322,6 @@ function Landing() {
                   {t("skeleton.retry")}
                 </Button>
               </div>
-            )}
-
-            {isActiveAiContext(aiContext) && !heroPlannerActive && !aiLoading && !displayPlan && !aiSkeleton && (
-              <AiPlannerPreview
-                context={aiContext}
-                initialWishes={heroDreamPrompt}
-                onGenerate={(f) => handleGeneratePlan(f, undefined, plannerMode)}
-                loading={aiLoading || isGeminiStreaming}
-              />
             )}
 
             <div id="ai-plan-anchor" />

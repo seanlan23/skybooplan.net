@@ -58,7 +58,11 @@ const MONTH_INDEX: Record<string, number> = {
 };
 
 function normalizeKey(value: string): string {
-  return value.trim().toLowerCase();
+  return value
+    .replace(/[\p{Extended_Pictographic}\u{FE0F}]/gu, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
 }
 
 export function resolveOriginIata(origin: string): string {
@@ -74,7 +78,7 @@ export function resolveDestinationIata(destination: string): string {
   if (DESTINATION_IATA[key]) return DESTINATION_IATA[key]!;
   const iata = normalizeIata(destination);
   if (iata) return iata;
-  return destination.trim().toUpperCase().slice(0, 3);
+  return "";
 }
 
 function addDays(isoDate: string, days: number): string {
@@ -167,10 +171,12 @@ export function heroChatToPlannerPayload(
   language = "sl",
 ): HeroChatPlannerPayload {
   const departDate = parseChatDepartDate(collected.dates, language);
-  const nights = parseChatNights(collected.nights);
+  const nightsLabel = collected.nights?.trim() || "7 noči";
+  const budgetLabel = collected.budget?.trim() || "500–1000€";
+  const nights = parseChatNights(nightsLabel);
   const returnDate = nights > 0 ? addDays(departDate, nights) : defaultDateTo(departDate);
   const { adults, childrenAges } = parseChatPassengers(collected.passengers);
-  const originPlace = collected.origin.trim();
+  const originPlace = collected.origin?.trim() || "Ljubljana";
   const destinationPlace = collected.destination.trim();
 
   const ctx: AiPlannerContext & { language?: string; currency?: "EUR" | "USD" } = {
@@ -192,12 +198,12 @@ export function heroChatToPlannerPayload(
     wishes: [
       `Destinacija: ${destinationPlace}`,
       `Datumi: ${collected.dates}`,
-      collected.nights,
-      `Proračun: ${collected.budget} na osebo`,
+      nightsLabel,
+      `Proračun: ${budgetLabel} na osebo`,
     ].join(". "),
     tags: [],
     customPrompt: "",
-    budget: mapChatBudget(collected.budget),
+    budget: mapChatBudget(budgetLabel),
     wishTags: [],
   };
 

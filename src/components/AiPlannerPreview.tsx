@@ -15,7 +15,7 @@ import {
   PLANNER_INTEREST_KEYS,
   type PlannerInterestKey,
 } from "@/lib/plannerInterests";
-import { TRIP_WISH_TAGS, type TripBudgetTier, type TripWishTag } from "@/lib/geminiPro.shared";
+import { TRIP_WISH_TAGS, type TripBudgetTier, type TripWishTag, normalizeIata } from "@/lib/geminiPro.shared";
 import { formatTravellersSummary } from "@/lib/travellersFormat";
 import { groundTransportLabel } from "@/lib/groundTransport";
 
@@ -199,9 +199,13 @@ export function AiPlannerPreview({
                     <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-brand sm:mt-0" />
                     <div className="min-w-0 leading-snug">
                       <p className="font-semibold text-foreground">
-                        {context!.originPlace && context!.destinationPlace
+                        {context!.originPlace?.trim() && context!.destinationPlace?.trim()
                           ? `${context!.originPlace} → ${context!.destinationPlace}`
-                          : `${context!.from} → ${context!.to}`}
+                          : normalizeIata(context!.from) && normalizeIata(context!.to)
+                            ? `${context!.from} → ${context!.to}`
+                            : context!.destinationPlace?.trim() ||
+                              context!.originPlace?.trim() ||
+                              `${context!.from} → ${context!.to}`}
                         {context!.returnFromIata && context!.returnFromIata !== context!.from
                           ? ` · ${context!.returnFromIata} → ${context!.from}`
                           : context!.returnDate

@@ -20,8 +20,7 @@ import {
 } from "@/lib/heroChatAttachment";
 import { HeroDateRangeCalendar } from "@/components/HeroDateRangeCalendar";
 import {
-  buildHeroFlightsSearchQuery,
-  buildHeroSearchQuery,
+  buildHeroMakeSearchQuery,
   createChatMessage,
   type HeroChatCollected,
   type HeroChatMessage,
@@ -33,6 +32,7 @@ import { FlightCard } from "@/components/FlightCard";
 import { RotatingTextareaPlaceholder } from "@/components/RotatingTextareaPlaceholder";
 import type { MakeSearchFlight } from "@/lib/makeSearch";
 
+const DATE_CHIP_IDS = ["endOctober", "startNovember", "octNov", "flexible"] as const;
 const NIGHT_CHIP_IDS = ["3-5", "7", "10-14", "2weeks"] as const;
 const ORIGIN_CHIP_IDS = ["ljubljana", "zagreb", "vienna", "venice", "other"] as const;
 const PASSENGER_CHIP_IDS = ["1adult", "2adults", "2adults1child", "2adults2children"] as const;
@@ -453,8 +453,7 @@ export function HeroChatFlow({
       ...(collected as HeroChatCollected),
       attachment: attachment ?? collected.attachment,
     } satisfies HeroChatCollected;
-    const query =
-      mode === "flights" ? buildHeroFlightsSearchQuery(data) : buildHeroSearchQuery(data);
+    const query = buildHeroMakeSearchQuery(data, mode);
     onSearch(query, data, mode);
   }, [step, collected, attachment, onSearch, mode]);
 
@@ -480,21 +479,19 @@ export function HeroChatFlow({
     );
   }
 
+  function startFlightSearch(dateLabel: string) {
+    appendMessages(createChatMessage("ai", t("heroChat.searchingFlights" as never)));
+    setCollected((prev) => ({ ...prev, dates: dateLabel.trim() || prev.dates || "" }));
+    setStep("searching");
+  }
+
   function advanceFromDates(label: string, options?: { silent?: boolean }) {
     setShowDatePicker(false);
     clearDatePickerOffers();
     if (!options?.silent && label.trim()) {
       appendMessages(createChatMessage("user", label.trim()));
     }
-    if (isFlightsOnly) {
-      appendMessages(createChatMessage("ai", t("heroChat.step3.ai" as never)));
-      setCollected((prev) => ({ ...prev, dates: label.trim() || prev.dates || "" }));
-      setStep("origin");
-      return;
-    }
-    appendMessages(createChatMessage("ai", t("heroChat.step2.ai" as never)));
-    setCollected((prev) => ({ ...prev, dates: label.trim() || prev.dates || "" }));
-    setStep("nights");
+    startFlightSearch(label);
   }
 
   function advanceFromOrigin(label: string) {
@@ -533,13 +530,9 @@ export function HeroChatFlow({
           "ai",
           skyMessageWithVars(t("heroChat.stepDates.exact" as never), { dates: parsed.label }),
         ),
-        createChatMessage(
-          "ai",
-          t((isFlightsOnly ? "heroChat.step3.ai" : "heroChat.step2.ai") as never),
-        ),
       );
-      setCollected((prev) => ({ ...prev, dates: parsed.label }));
-      setStep(isFlightsOnly ? "origin" : "nights");
+      setCollected((prev) => ({ ...prev, dates: parsed.label, passengers: label }));
+      startFlightSearch(parsed.label);
       return;
     }
 
@@ -562,10 +555,17 @@ export function HeroChatFlow({
     setStep("dates");
   }
 
-  function handleOpenDatePicker() {
-    setShowDatePicker(true);
-    clearDatePickerOffers();
+  function handleToggleDatePicker() {
+    setShowDatePicker((open) => {
+      const next = !open;
+      if (next) clearDatePickerOffers();
+      return next;
+    });
     scrollToBottom();
+  }
+
+  function handleDateSelect(_id: string, label: string) {
+    advanceFromDates(label);
   }
 
   function handleDateRangeConfirm(label: string) {
@@ -623,8 +623,7 @@ export function HeroChatFlow({
     e?.preventDefault();
     const trimmed = textInput.trim();
     const canSendDestination = step === "destination" && (trimmed || attachment);
-    const canSendDates =
-      step === "dates" && !showDatePicker && Boolean(collected.dates?.trim());
+    const canSendDates = step === "dates" && !showDatePicker && Boolean(textInput.trim());
     if ((!trimmed && !canSendDestination && !canSendDates) || inputDisabled || fileProcessing) {
       return;
     }
@@ -641,8 +640,8 @@ export function HeroChatFlow({
           const dateLabel =
             parsed && parsed.precision !== "none"
               ? parsed.label
-              : trimmed || collected.dates || "";
-          advanceFromDates(dateLabel, { silent: !trimmed && Boolean(collected.dates?.trim()) });
+              : trimmed;
+          if (dateLabel.trim()) advanceFromDates(dateLabel.trim());
         }
         break;
       case "nights":
@@ -696,7 +695,7 @@ export function HeroChatFlow({
     (step === "destination"
       ? Boolean(textInput.trim() || attachment)
       : step === "dates"
-        ? !showDatePicker && Boolean(textInput.trim() || collected.dates?.trim())
+        ? !showDatePicker && Boolean(textInput.trim())
         : Boolean(textInput.trim()));
 
   return (
@@ -837,16 +836,6 @@ export function HeroChatFlow({
               ) : (
                 <UserMessage message={message} />
               )}
-              {message.role === "ai" &&
-              message.offerDatePicker &&
-              step === "dates" &&
-              !showDatePicker ? (
-                <PickExactDatesButton
-                  label={t("heroChat.pickExactDates" as never)}
-                  disabled={loading}
-                  onClick={handleOpenDatePicker}
-                />
-              ) : null}
             </div>
           ))}
 
@@ -886,14 +875,39 @@ export function HeroChatFlow({
             />
           ) : null}
 
+          {showConversationChips && step === "dates" && !showDatePicker ? (
+            <>
+              <QuickReplyChips
+                disabled={loading}
+                options={DATE_CHIP_IDS.map((id) => ({
+                  id,
+                  label: chipLabel("heroChat.dates", id),
+                }))}
+                onSelect={handleDateSelect}
+              />
+              <PickExactDatesButton
+                label={t("heroChat.pickExactDates" as never)}
+                disabled={loading}
+                onClick={handleToggleDatePicker}
+              />
+            </>
+          ) : null}
+
           {showDatePicker && step === "dates" ? (
-            <div className="hero-chips-enter pl-0 sm:pl-2">
+            <div className="hero-chips-enter space-y-2 pl-0 sm:pl-2">
               <HeroDateRangeCalendar
                 lang={lang}
                 confirmLabel={t("heroChat.confirm" as never)}
                 disabled={loading}
                 onConfirm={handleDateRangeConfirm}
               />
+              <div className="pl-10">
+                <PickExactDatesButton
+                  label={t("heroChat.pickExactDates" as never)}
+                  disabled={loading}
+                  onClick={handleToggleDatePicker}
+                />
+              </div>
             </div>
           ) : null}
 

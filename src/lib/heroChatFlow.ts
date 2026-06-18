@@ -99,12 +99,25 @@ export function buildHeroSearchQuery(data: HeroChatCollected): string {
 }
 
 export function buildHeroFlightsSearchQuery(data: HeroChatCollected): string {
-  return [
-    `Leti v ${data.destination}`,
-    `odhod ${data.dates}`,
-    `iz ${data.origin}`,
-    data.passengers,
-  ].join(", ");
+  return buildHeroMakeSearchQuery(data, "flights");
+}
+
+/** Natural-language query for Make.com / hero search from whatever the chat collected. */
+export function buildHeroMakeSearchQuery(
+  data: HeroChatCollected,
+  mode: HeroChatMode = "all",
+): string {
+  const dest = data.destination?.trim();
+  const parts: string[] = [];
+  if (dest) {
+    parts.push(mode === "flights" ? `Leti v ${dest}` : `Potovanje v ${dest}`);
+  }
+  if (data.dates?.trim()) parts.push(`termin ${data.dates.trim()}`);
+  if (data.passengers?.trim()) parts.push(data.passengers.trim());
+  if (data.nights?.trim()) parts.push(data.nights.trim());
+  if (data.origin?.trim()) parts.push(`iz ${data.origin.trim()}`);
+  if (data.budget?.trim()) parts.push(`proračun ${data.budget.trim()} na osebo`);
+  return parts.join(", ");
 }
 
 export function createChatMessage(

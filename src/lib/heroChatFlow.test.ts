@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { translate } from "@/lib/i18n";
 import {
   HERO_DESTINATION_CHIPS,
+  buildHeroMakeSearchQuery,
   buildHeroSearchQuery,
   getDestinationChipDisplay,
 } from "@/lib/heroChatFlow";
@@ -20,6 +21,27 @@ describe("getDestinationChipDisplay", () => {
     const display = getDestinationChipDisplay(japan, (key) => translate("en", key as never));
     expect(display.name).toBe("Japan");
     expect(display.label).toBe("🏯 Japan");
+  });
+});
+
+describe("buildHeroMakeSearchQuery", () => {
+  it("builds a query from destination, dates, and passengers only", () => {
+    const query = buildHeroMakeSearchQuery(
+      {
+        destination: "Tajska",
+        dates: "Konec oktobra",
+        nights: "",
+        origin: "",
+        passengers: "2 odrasla, 1 otrok",
+        budget: "",
+      },
+      "all",
+    );
+
+    expect(query).toContain("Tajska");
+    expect(query).toContain("Konec oktobra");
+    expect(query).toContain("2 odrasla");
+    expect(query).not.toContain("proračun");
   });
 });
 
