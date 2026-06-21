@@ -36,6 +36,16 @@ export const Route = createFileRoute("/api/search")({
           return Response.json({ error: result.error, flights: [] }, { status: result.status });
         }
 
+        if ("pending" in result && result.pending) {
+          console.log("[api/search] Async Make search started:", result.searchId);
+          return Response.json({
+            status: "pending",
+            searchId: result.searchId,
+            flights: [],
+            offers: [],
+          });
+        }
+
         if (result.makeResponse != null) {
           console.log("[api/search] Returning Make webhook JSON:", {
             offers: Array.isArray((result.makeResponse as { offers?: unknown }).offers)

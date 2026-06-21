@@ -28,6 +28,7 @@ import { Route as ApiEnrichPlanPhotosRouteImport } from './routes/api/enrich-pla
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated.profile'
 import { Route as AuthenticatedMyTripsRouteImport } from './routes/_authenticated.my-trips'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated.dashboard'
+import { Route as ApiSearchStatusRouteImport } from './routes/api/search/status'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as AuthenticatedMyTripsPlanIdRouteImport } from './routes/_authenticated.my-trips.$planId'
 import { Route as AuthenticatedAdminWebhooksRouteImport } from './routes/_authenticated.admin.webhooks'
@@ -128,6 +129,11 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const ApiSearchStatusRoute = ApiSearchStatusRouteImport.update({
+  id: '/status',
+  path: '/status',
+  getParentRoute: () => ApiSearchRoute,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
@@ -174,13 +180,14 @@ export interface FileRoutesByFullPath {
   '/api/enrich-plan-photos': typeof ApiEnrichPlanPhotosRoute
   '/api/generate-itinerary': typeof ApiGenerateItineraryRoute
   '/api/hero-photo': typeof ApiHeroPhotoRoute
-  '/api/search': typeof ApiSearchRoute
+  '/api/search': typeof ApiSearchRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
   '/checkout/return': typeof CheckoutReturnRoute
   '/admin/pdf-downloads': typeof AuthenticatedAdminPdfDownloadsRoute
   '/admin/webhooks': typeof AuthenticatedAdminWebhooksRoute
   '/my-trips/$planId': typeof AuthenticatedMyTripsPlanIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/search/status': typeof ApiSearchStatusRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
 export interface FileRoutesByTo {
@@ -199,13 +206,14 @@ export interface FileRoutesByTo {
   '/api/enrich-plan-photos': typeof ApiEnrichPlanPhotosRoute
   '/api/generate-itinerary': typeof ApiGenerateItineraryRoute
   '/api/hero-photo': typeof ApiHeroPhotoRoute
-  '/api/search': typeof ApiSearchRoute
+  '/api/search': typeof ApiSearchRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
   '/checkout/return': typeof CheckoutReturnRoute
   '/admin/pdf-downloads': typeof AuthenticatedAdminPdfDownloadsRoute
   '/admin/webhooks': typeof AuthenticatedAdminWebhooksRoute
   '/my-trips/$planId': typeof AuthenticatedMyTripsPlanIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/search/status': typeof ApiSearchStatusRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
 export interface FileRoutesById {
@@ -226,13 +234,14 @@ export interface FileRoutesById {
   '/api/enrich-plan-photos': typeof ApiEnrichPlanPhotosRoute
   '/api/generate-itinerary': typeof ApiGenerateItineraryRoute
   '/api/hero-photo': typeof ApiHeroPhotoRoute
-  '/api/search': typeof ApiSearchRoute
+  '/api/search': typeof ApiSearchRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
   '/checkout/return': typeof CheckoutReturnRoute
   '/_authenticated/admin/pdf-downloads': typeof AuthenticatedAdminPdfDownloadsRoute
   '/_authenticated/admin/webhooks': typeof AuthenticatedAdminWebhooksRoute
   '/_authenticated/my-trips/$planId': typeof AuthenticatedMyTripsPlanIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/search/status': typeof ApiSearchStatusRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
 export interface FileRouteTypes {
@@ -260,6 +269,7 @@ export interface FileRouteTypes {
     | '/admin/webhooks'
     | '/my-trips/$planId'
     | '/api/auth/$'
+    | '/api/search/status'
     | '/api/public/payments/webhook'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -285,6 +295,7 @@ export interface FileRouteTypes {
     | '/admin/webhooks'
     | '/my-trips/$planId'
     | '/api/auth/$'
+    | '/api/search/status'
     | '/api/public/payments/webhook'
   id:
     | '__root__'
@@ -311,6 +322,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/webhooks'
     | '/_authenticated/my-trips/$planId'
     | '/api/auth/$'
+    | '/api/search/status'
     | '/api/public/payments/webhook'
   fileRoutesById: FileRoutesById
 }
@@ -328,7 +340,7 @@ export interface RootRouteChildren {
   ApiEnrichPlanPhotosRoute: typeof ApiEnrichPlanPhotosRoute
   ApiGenerateItineraryRoute: typeof ApiGenerateItineraryRoute
   ApiHeroPhotoRoute: typeof ApiHeroPhotoRoute
-  ApiSearchRoute: typeof ApiSearchRoute
+  ApiSearchRoute: typeof ApiSearchRouteWithChildren
   AuthCallbackRoute: typeof AuthCallbackRoute
   CheckoutReturnRoute: typeof CheckoutReturnRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
@@ -470,6 +482,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/api/search/status': {
+      id: '/api/search/status'
+      path: '/status'
+      fullPath: '/api/search/status'
+      preLoaderRoute: typeof ApiSearchStatusRouteImport
+      parentRoute: typeof ApiSearchRoute
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -539,6 +558,18 @@ const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
   AuthenticatedRouteChildren,
 )
 
+interface ApiSearchRouteChildren {
+  ApiSearchStatusRoute: typeof ApiSearchStatusRoute
+}
+
+const ApiSearchRouteChildren: ApiSearchRouteChildren = {
+  ApiSearchStatusRoute: ApiSearchStatusRoute,
+}
+
+const ApiSearchRouteWithChildren = ApiSearchRoute._addFileChildren(
+  ApiSearchRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
@@ -553,7 +584,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiEnrichPlanPhotosRoute: ApiEnrichPlanPhotosRoute,
   ApiGenerateItineraryRoute: ApiGenerateItineraryRoute,
   ApiHeroPhotoRoute: ApiHeroPhotoRoute,
-  ApiSearchRoute: ApiSearchRoute,
+  ApiSearchRoute: ApiSearchRouteWithChildren,
   AuthCallbackRoute: AuthCallbackRoute,
   CheckoutReturnRoute: CheckoutReturnRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,

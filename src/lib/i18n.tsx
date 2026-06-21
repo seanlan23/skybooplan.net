@@ -165,6 +165,7 @@ const en: Dict = {
   "heroTrip.planTitle": "Your AI itinerary",
   "heroSearch.empty": "No flights found for this search.",
   "heroSearch.error": "Search failed. Please try again.",
+  "heroSearch.timeout": "Flight search is taking longer than expected. Please try again.",
   "heroSearch.asyncPending":
     "Make.com returned “Accepted” without flight data. Set the scenario webhook to synchronous mode: “Immediately as data arrives” and add a Webhook response module that returns JSON (e.g. { \"flights\": [...] }).",
   "flightCard.departure": "Departure",
@@ -938,6 +939,7 @@ const dicts: Record<Lang, Dict> = {
     "heroTrip.planTitle": "Vaš AI načrt poti",
     "heroSearch.empty": "Za to iskanje ni bilo najdenih letov.",
     "heroSearch.error": "Iskanje ni uspelo. Poskusi znova.",
+    "heroSearch.timeout": "Iskanje letov traja predolgo. Poskusi znova.",
     "heroSearch.asyncPending":
       "Make.com je vrnil samo “Accepted” brez rezultatov. Make.com scenarij mora biti nastavljen na sinhroni način: sprožilec “Immediately as data arrives” in modul Webhook response, ki vrne JSON (npr. { \"flights\": [...] }).",
     "flightCard.departure": "Odhod",

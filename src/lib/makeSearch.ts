@@ -162,9 +162,20 @@ export type MakeSearchWebhookBody = {
   userMessage: string;
   latitude?: number;
   longitude?: number;
+  searchId?: string;
   parsedData?: MakeSearchParsedData;
   attachment?: HeroChatAttachmentPayload;
 };
+
+export const MAKE_SEARCH_POLL_INTERVAL_MS = 2_500;
+export const MAKE_SEARCH_POLL_MAX_ATTEMPTS = 18;
+
+export function createMakeSearchId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `search-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
 
 const NEAREST_AIRPORT_LIMIT = 3;
 const NEAREST_AIRPORT_LOOKUP_TIMEOUT_MS = 6_000;
@@ -696,6 +707,7 @@ export function buildMakeAsyncPayload(message: string): Record<string, unknown> 
 export function isMakeAsyncAccepted(data: unknown): boolean {
   const record = asRecord(data);
   if (!record) return false;
+  if (parseMakeSearchFlights(data).length > 0) return false;
   if (record.code === MAKE_WEBHOOK_ASYNC_CODE) return true;
   if (record.async === true) return true;
   return (
@@ -705,17 +717,139 @@ export function isMakeAsyncAccepted(data: unknown): boolean {
   );
 }
 
+export function extractMakeSearchId(data: unknown): string | null {
+  const record = asRecord(data);
+  if (!record) return null;
+  const id = readString(record, "searchId", "search_id", "key", "id");
+  return id || null;
+}
+
+function tryParseJsonString(value: string): unknown | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  try {
+    return JSON.parse(trimmed) as unknown;
+  } catch {
+    return null;
+  }
+}
+
+/** Unwrap Make Data Store / Gemini payloads where offers may be a JSON string. */
+export function unwrapMakeSearchOffersPayload(data: unknown): unknown {
+  if (parseMakeSearchFlights(data).length > 0) return data;
+
+  const record = asRecord(data);
+  if (!record) return data;
+
+  const offersRaw = record.offers ?? record.Offers;
+  if (typeof offersRaw === "string") {
+    const parsed = tryParseJsonString(offersRaw);
+    if (parsed != null) {
+      return Array.isArray(parsed) ? { offers: parsed } : parsed;
+    }
+  }
+
+  for (const key of ["value", "data", "record", "body", "output"]) {
+    const nested = record[key];
+    if (nested == null) continue;
+    const unwrapped = unwrapMakeSearchOffersPayload(nested);
+    if (parseMakeSearchFlights(unwrapped).length > 0) return unwrapped;
+  }
+
+  return data;
+}
+
+export type MakeSearchStatusResult =
+  | { status: "ready"; flights: MakeSearchFlight[]; raw: unknown }
+  | { status: "pending"; flights: MakeSearchFlight[]; raw: unknown }
+  | { status: "error"; flights: MakeSearchFlight[]; error: string; raw: unknown };
+
+export function parseMakeSearchStatus(data: unknown): MakeSearchStatusResult {
+  const payload = unwrapMakeSearchOffersPayload(data);
+  const flights = parseMakeSearchFlights(payload);
+  if (flights.length > 0) {
+    return { status: "ready", flights, raw: data };
+  }
+
+  const record = asRecord(data);
+  const errorMessage = record
+    ? readString(record, "error", "message", "detail")
+    : "";
+  if (record?.status === "error" || errorMessage) {
+    return {
+      status: "error",
+      flights: [],
+      error: errorMessage || "Iskanje letov ni uspelo.",
+      raw: data,
+    };
+  }
+
+  return { status: "pending", flights: [], raw: data };
+}
+
+export async function callMakeSearchStatusWebhook(
+  searchId: string,
+  options?: { timeoutMs?: number },
+): Promise<
+  | { ok: true; data: unknown; httpStatus: number }
+  | { ok: false; error: string; status: number }
+> {
+  const url = process.env.MAKE_STATUS_WEBHOOK_URL?.trim();
+  if (!url) {
+    return {
+      ok: false,
+      error: "MAKE_STATUS_WEBHOOK_URL ni nastavljen.",
+      status: 503,
+    };
+  }
+
+  const controller = new AbortController();
+  const timeoutMs = options?.timeoutMs ?? 12_000;
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ searchId }),
+      signal: controller.signal,
+    });
+
+    const text = await res.text();
+    const parsed = parseMakeWebhookBody(text, res.status);
+    if (!parsed.ok) {
+      return { ok: false, error: parsed.error, status: 502 };
+    }
+
+    if (!res.ok) {
+      return { ok: false, error: "Status webhook ni vrnil uspešnega odgovora.", status: res.status };
+    }
+
+    return { ok: true, data: parsed.data, httpStatus: res.status };
+  } catch (err) {
+    if (err instanceof Error && err.name === "AbortError") {
+      return { ok: false, error: "Status webhook je potekel (timeout).", status: 504 };
+    }
+    const message = err instanceof Error ? err.message : "Status webhook klic ni uspel.";
+    return { ok: false, error: message, status: 502 };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 export async function callMakeSearchWebhook(
   body: MakeSearchWebhookBody,
   options?: { timeoutMs?: number },
 ): Promise<
-  | { ok: true; data: unknown; httpStatus: number }
+  | { ok: true; data: unknown; httpStatus: number; searchId: string }
   | { ok: false; error: string; status: number }
 > {
   const url = process.env.MAKE_WEBHOOK_URL?.trim();
   if (!url) {
     return { ok: false, error: "MAKE_WEBHOOK_URL ni nastavljen.", status: 503 };
   }
+
+  const searchId = body.searchId?.trim() || createMakeSearchId();
 
   const controller = new AbortController();
   const timeoutMs = options?.timeoutMs ?? 28_000;
@@ -724,6 +858,7 @@ export async function callMakeSearchWebhook(
   try {
     const payload: Record<string, unknown> = {
       userMessage: body.userMessage,
+      searchId,
     };
 
     if (body.latitude != null && Number.isFinite(body.latitude)) {
@@ -768,7 +903,7 @@ export async function callMakeSearchWebhook(
       return { ok: false, error: "Make webhook ni vrnil uspešnega odgovora.", status: res.status };
     }
 
-    return { ok: true, data: parsed.data, httpStatus: res.status };
+    return { ok: true, data: parsed.data, httpStatus: res.status, searchId };
   } catch (err) {
     if (err instanceof Error && err.name === "AbortError") {
       return { ok: false, error: "Make webhook je potekel (timeout).", status: 504 };

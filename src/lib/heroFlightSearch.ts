@@ -9,9 +9,14 @@ import {
 } from "@/lib/flights.functions";
 import { generateJson } from "@/lib/llm";
 import {
+  callMakeSearchStatusWebhook,
   callMakeSearchWebhook,
+  createMakeSearchId,
+  extractMakeSearchId,
   isMakeAsyncAccepted,
   parseMakeSearchFlights,
+  parseMakeSearchStatus,
+  unwrapMakeSearchOffersPayload,
   type MakeSearchFlight,
 } from "@/lib/makeSearch";
 
@@ -357,6 +362,7 @@ export type HeroFlightSearchLocation = {
 
 export type HeroFlightSearchResult =
   | { ok: true; flights: MakeSearchFlight[]; parsed: ParsedHeroQuery; makeResponse?: unknown }
+  | { ok: true; pending: true; searchId: string }
   | { ok: false; error: string; status: number };
 
 async function searchViaMakeWebhook(
@@ -364,9 +370,11 @@ async function searchViaMakeWebhook(
   attachment?: HeroChatAttachmentPayload,
   location?: HeroFlightSearchLocation,
 ): Promise<HeroFlightSearchResult> {
+  const searchId = createMakeSearchId();
   const webhook = await callMakeSearchWebhook(
     {
       userMessage: query,
+      searchId,
       latitude: location?.latitude,
       longitude: location?.longitude,
       attachment,
@@ -378,16 +386,36 @@ async function searchViaMakeWebhook(
     return { ok: false, error: webhook.error, status: webhook.status };
   }
 
+  const syncFlights = parseMakeSearchFlights(unwrapMakeSearchOffersPayload(webhook.data));
+  if (syncFlights.length > 0) {
+    const stubParsed: ParsedHeroQuery = {
+      origin_iata: "LJU",
+      destination_iata: "LJU",
+      depart_date: defaultDateFrom(),
+      return_date: defaultDateTo(defaultDateFrom()),
+      adults: 1,
+      children: 0,
+      trip_type: "return",
+    };
+    return { ok: true, flights: syncFlights, parsed: stubParsed, makeResponse: webhook.data };
+  }
+
+  const resolvedSearchId = extractMakeSearchId(webhook.data) ?? webhook.searchId;
+  const statusUrlConfigured = Boolean(process.env.MAKE_STATUS_WEBHOOK_URL?.trim());
+
+  if (statusUrlConfigured && resolvedSearchId) {
+    return { ok: true, pending: true, searchId: resolvedSearchId };
+  }
+
   if (isMakeAsyncAccepted(webhook.data)) {
     return {
       ok: false,
       error:
-        "Make.com je sprejel zahtevo brez podatkov o letih. Nastavite sinhron webhook z odgovorom JSON.",
+        "Make.com je sprejel zahtevo brez podatkov o letih. Nastavite MAKE_STATUS_WEBHOOK_URL za polling ali sinhron webhook odgovor z offers.",
       status: 502,
     };
   }
 
-  const flights = parseMakeSearchFlights(webhook.data);
   const stubParsed: ParsedHeroQuery = {
     origin_iata: "LJU",
     destination_iata: "LJU",
@@ -398,7 +426,40 @@ async function searchViaMakeWebhook(
     trip_type: "return",
   };
 
-  return { ok: true, flights, parsed: stubParsed, makeResponse: webhook.data };
+  return { ok: true, flights: [], parsed: stubParsed, makeResponse: webhook.data };
+}
+
+/** Poll Make.com Data Store once for async flight search results. */
+export async function checkHeroFlightSearchStatus(searchId: string): Promise<
+  | { ok: true; status: "ready"; flights: MakeSearchFlight[]; makeResponse: unknown }
+  | { ok: true; status: "pending" }
+  | { ok: false; error: string; status: number }
+> {
+  const trimmed = searchId.trim();
+  if (!trimmed) {
+    return { ok: false, error: "Manjka searchId.", status: 400 };
+  }
+
+  const webhook = await callMakeSearchStatusWebhook(trimmed, { timeoutMs: 12_000 });
+  if (!webhook.ok) {
+    return { ok: false, error: webhook.error, status: webhook.status };
+  }
+
+  const parsed = parseMakeSearchStatus(webhook.data);
+  if (parsed.status === "ready") {
+    return {
+      ok: true,
+      status: "ready",
+      flights: parsed.flights,
+      makeResponse: unwrapMakeSearchOffersPayload(webhook.data),
+    };
+  }
+
+  if (parsed.status === "error") {
+    return { ok: false, error: parsed.error, status: 502 };
+  }
+
+  return { ok: true, status: "pending" };
 }
 
 async function runHeroFlightSearch(

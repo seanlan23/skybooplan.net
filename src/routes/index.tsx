@@ -55,7 +55,8 @@ import { isClassicRoundTrip } from "@/lib/flightSearch";
 import { formatPlannerInterests } from "@/lib/plannerInterests";
 import { Button } from "@/components/ui/button";
 import { addDays } from "@/lib/dateUtils";
-import { parseMakeSearchFlights, type MakeSearchFlight } from "@/lib/makeSearch";
+import { type MakeSearchFlight } from "@/lib/makeSearch";
+import { resolveHeroSearchData } from "@/lib/heroSearchPoll";
 import { heroChatToPlannerPayload } from "@/lib/heroChatPlanner";
 import type { HeroChatCollected } from "@/lib/heroChatFlow";
 import { useUserLocation } from "@/lib/hooks/useUserLocation";
@@ -573,13 +574,19 @@ function Landing() {
             ? record.error
             : "heroSearch.error";
         setHeroSearchError(message);
-      } else {
-        const parsed = parseMakeSearchFlights(data);
-        setHeroFlights(parsed);
-        flightSearchOk = true;
-        if (parsed.length === 0) {
-          setHeroSearchError("heroSearch.empty");
+      } else if (data != null) {
+        const resolved = await resolveHeroSearchData(data);
+        if (resolved.error) {
+          setHeroSearchError(resolved.error);
+        } else {
+          setHeroFlights(resolved.flights);
+          flightSearchOk = true;
+          if (resolved.flights.length === 0) {
+            setHeroSearchError("heroSearch.empty");
+          }
         }
+      } else {
+        setHeroSearchError("heroSearch.error");
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message.trim().toLowerCase() : "";

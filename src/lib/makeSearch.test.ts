@@ -7,9 +7,11 @@ import {
   parseMakeSearchDestination,
   parseMakeSearchFlights,
   parseMakeSearchPassengers,
+  parseMakeSearchStatus,
   parseMakeSearchUserMessage,
   parseMakeWebhookBody,
   parseSearchRequestBody,
+  unwrapMakeSearchOffersPayload,
 } from "./makeSearch";
 
 describe("parseSearchRequestBody", () => {
@@ -254,6 +256,7 @@ describe("callMakeSearchWebhook", () => {
       }
       if (url === "https://example.com/make-webhook") {
         const body = JSON.parse(String(init?.body));
+        expect(body.searchId).toEqual(expect.any(String));
         expect(body).toMatchObject({
           userMessage: "Potovanje v Tajska, termin oktober, 2 odrasla, 1 otrok",
           latitude: 46.05,
@@ -280,5 +283,33 @@ describe("callMakeSearchWebhook", () => {
 
     expect(result.ok).toBe(true);
     expect(fetchMock).toHaveBeenCalled();
+  });
+});
+
+describe("parseMakeSearchStatus", () => {
+  it("parses offers stored as a JSON string in Data Store", () => {
+    const offers = [
+      {
+        rank: "rank1",
+        origin_iata: "LJU",
+        destination_iata: "BKK",
+        airline_name: "Turkish Airlines",
+        price_total: 669.91,
+        price_currency: "EUR",
+        stops_outbound: 0,
+      },
+    ];
+    const result = parseMakeSearchStatus({
+      key: "abc-123",
+      offers: JSON.stringify(offers),
+    });
+    expect(result.status).toBe("ready");
+    expect(result.flights).toHaveLength(1);
+    expect(result.flights[0]?.prevoznik).toBe("Turkish Airlines");
+  });
+
+  it("returns pending when offers are still empty", () => {
+    const result = parseMakeSearchStatus({ key: "abc-123", offers: "" });
+    expect(result.status).toBe("pending");
   });
 });
