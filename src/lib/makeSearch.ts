@@ -168,7 +168,10 @@ export type MakeSearchWebhookBody = {
 };
 
 export const MAKE_SEARCH_POLL_INTERVAL_MS = 2_500;
-export const MAKE_SEARCH_POLL_MAX_ATTEMPTS = 24;
+/** Initial wait before first status poll — Make Duffel loop + Gemini often needs 30–90s. */
+export const MAKE_SEARCH_POLL_INITIAL_DELAY_MS = 5_000;
+/** 48 × 2.5s ≈ 2 min of polling after the initial delay. */
+export const MAKE_SEARCH_POLL_MAX_ATTEMPTS = 48;
 
 export function createMakeSearchId(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
@@ -777,6 +780,16 @@ export function parseMakeSearchStatus(data: unknown): MakeSearchStatusResult {
   }
 
   const record = asRecord(data);
+  const storeStatus = readString(record ?? {}, "status", "state").toLowerCase();
+  if (storeStatus === "done" || storeStatus === "ready" || storeStatus === "complete") {
+    return {
+      status: "error",
+      flights: [],
+      error: "Make.com je shranil iskanje brez letov. Preveri Data store (offers = {{21.cleanOffers}}).",
+      raw: data,
+    };
+  }
+
   const errorMessage = record ? readString(record, "error", "detail") : "";
   if (record?.status === "error" || errorMessage) {
     return {

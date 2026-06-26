@@ -1,4 +1,5 @@
 import {
+  MAKE_SEARCH_POLL_INITIAL_DELAY_MS,
   MAKE_SEARCH_POLL_INTERVAL_MS,
   MAKE_SEARCH_POLL_MAX_ATTEMPTS,
   parseMakeSearchFlights,
@@ -35,6 +36,8 @@ export async function resolveHeroSearchData(data: unknown): Promise<{
   }
 
   const searchId = record.searchId;
+  await sleep(MAKE_SEARCH_POLL_INITIAL_DELAY_MS);
+
   for (let attempt = 0; attempt < MAKE_SEARCH_POLL_MAX_ATTEMPTS; attempt++) {
     if (attempt > 0) {
       await sleep(MAKE_SEARCH_POLL_INTERVAL_MS);
