@@ -727,14 +727,26 @@ export function extractMakeSearchId(data: unknown): string | null {
   return id || null;
 }
 
+function stripGeminiMarkdownJson(value: string): string {
+  return value
+    .trim()
+    .replace(/^```json\s*/i, "")
+    .replace(/^```\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
+}
+
 function tryParseJsonString(value: string): unknown | null {
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-  try {
-    return JSON.parse(trimmed) as unknown;
-  } catch {
-    return null;
+  const candidates = [value.trim(), stripGeminiMarkdownJson(value)];
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    try {
+      return JSON.parse(candidate) as unknown;
+    } catch {
+      // try next candidate
+    }
   }
+  return null;
 }
 
 /** Unwrap Make Data Store / Gemini payloads where offers may be a JSON string. */

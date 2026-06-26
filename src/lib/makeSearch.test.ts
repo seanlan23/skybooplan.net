@@ -325,4 +325,26 @@ describe("parseMakeSearchStatus", () => {
     expect(result.status).toBe("error");
     expect(result.error).toContain("brez letov");
   });
+
+  it("parses Gemini markdown-fenced offers stored as a string", () => {
+    const offers = [
+      {
+        rank: 1,
+        badge: "Najboljša vrednost",
+        origin_iata: "HAJ",
+        destination_iata: "SAW",
+        departure_datetime: "2026-08-04T01:25:00",
+        airline_name: "Pegasus Airlines",
+        price_total: 141.48,
+        price_currency: "EUR",
+        stops_outbound: 0,
+      },
+    ];
+    const fenced = "```json\n" + JSON.stringify(offers) + "\n```";
+    const result = parseMakeSearchStatus({ key: "abc-123", status: "done", offers: fenced });
+    expect(result.status).toBe("ready");
+    expect(result.flights).toHaveLength(1);
+    expect(result.flights[0]?.prevoznik).toBe("Pegasus Airlines");
+    expect(result.flights[0]?.cena_eur).toBe(141.48);
+  });
 });
