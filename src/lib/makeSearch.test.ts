@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
 import {
+  buildMakeAsyncPayload,
   callMakeSearchWebhook,
   fetchNearestAirports,
   isMakeAsyncAccepted,
@@ -311,5 +312,11 @@ describe("parseMakeSearchStatus", () => {
   it("returns pending when offers are still empty", () => {
     const result = parseMakeSearchStatus({ key: "abc-123", offers: "" });
     expect(result.status).toBe("pending");
+  });
+
+  it("treats Make async Accepted acknowledgement as pending, not error", () => {
+    const result = parseMakeSearchStatus(buildMakeAsyncPayload("Accepted"));
+    expect(result.status).toBe("pending");
+    expect(result.flights).toHaveLength(0);
   });
 });

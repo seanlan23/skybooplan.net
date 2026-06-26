@@ -168,7 +168,7 @@ export type MakeSearchWebhookBody = {
 };
 
 export const MAKE_SEARCH_POLL_INTERVAL_MS = 2_500;
-export const MAKE_SEARCH_POLL_MAX_ATTEMPTS = 18;
+export const MAKE_SEARCH_POLL_MAX_ATTEMPTS = 24;
 
 export function createMakeSearchId(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
@@ -771,10 +771,13 @@ export function parseMakeSearchStatus(data: unknown): MakeSearchStatusResult {
     return { status: "ready", flights, raw: data };
   }
 
+  // Make instant webhooks return { message: "Accepted" } while the scenario still runs.
+  if (isMakeAsyncAccepted(data)) {
+    return { status: "pending", flights: [], raw: data };
+  }
+
   const record = asRecord(data);
-  const errorMessage = record
-    ? readString(record, "error", "message", "detail")
-    : "";
+  const errorMessage = record ? readString(record, "error", "detail") : "";
   if (record?.status === "error" || errorMessage) {
     return {
       status: "error",
@@ -852,7 +855,7 @@ export async function callMakeSearchWebhook(
   const searchId = body.searchId?.trim() || createMakeSearchId();
 
   const controller = new AbortController();
-  const timeoutMs = options?.timeoutMs ?? 28_000;
+  const timeoutMs = options?.timeoutMs ?? 100_000;
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {

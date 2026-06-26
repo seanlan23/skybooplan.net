@@ -14,6 +14,11 @@ function asRecord(value: unknown): Record<string, unknown> | null {
   return value as Record<string, unknown>;
 }
 
+function isTransientMakeStatusError(message: string): boolean {
+  const normalized = message.trim().toLowerCase();
+  return normalized === "accepted" || normalized === "ok";
+}
+
 /** Resolve sync offers or poll /api/search/status until Make async search completes. */
 export async function resolveHeroSearchData(data: unknown): Promise<{
   flights: MakeSearchFlight[];
@@ -52,6 +57,9 @@ export async function resolveHeroSearchData(data: unknown): Promise<{
         errRecord && typeof errRecord.error === "string"
           ? errRecord.error
           : "heroSearch.error";
+      if (isTransientMakeStatusError(message)) {
+        continue;
+      }
       return { flights: [], error: message };
     }
 

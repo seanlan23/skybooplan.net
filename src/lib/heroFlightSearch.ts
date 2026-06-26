@@ -20,7 +20,8 @@ import {
   type MakeSearchFlight,
 } from "@/lib/makeSearch";
 
-export const HERO_SEARCH_TIMEOUT_MS = 30_000;
+/** Hero search including Make.com scenario runtime (Duffel loop + Gemini can take 60s+). */
+export const HERO_SEARCH_TIMEOUT_MS = 120_000;
 
 const ParsedQuerySchema = z.object({
   origin_iata: z.string().regex(/^[A-Z]{3}$/),
@@ -379,7 +380,7 @@ async function searchViaMakeWebhook(
       longitude: location?.longitude,
       attachment,
     },
-    { timeoutMs: HERO_SEARCH_TIMEOUT_MS - 2_000 },
+    { timeoutMs: 100_000 },
   );
 
   if (!webhook.ok) {
@@ -523,7 +524,7 @@ export async function searchHeroFlights(
     if (err instanceof OperationTimeoutError) {
       return {
         ok: false,
-        error: "Iskanje je trajalo predolgo (30 s). Poskusite znova z bolj specifičnim nizom.",
+        error: "Iskanje je trajalo predolgo (2 min). Poskusite znova z bolj specifičnim nizom.",
         status: 504,
       };
     }
