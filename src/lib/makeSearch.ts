@@ -170,8 +170,8 @@ export type MakeSearchWebhookBody = {
 export const MAKE_SEARCH_POLL_INTERVAL_MS = 2_500;
 /** Initial wait before first status poll — Make Duffel loop + Gemini often needs 30–90s. */
 export const MAKE_SEARCH_POLL_INITIAL_DELAY_MS = 5_000;
-/** 48 × 2.5s ≈ 2 min of polling after the initial delay. */
-export const MAKE_SEARCH_POLL_MAX_ATTEMPTS = 48;
+/** 72 × 2.5s ≈ 3 min of polling after the initial delay. */
+export const MAKE_SEARCH_POLL_MAX_ATTEMPTS = 72;
 
 export function createMakeSearchId(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
@@ -736,6 +736,30 @@ function stripGeminiMarkdownJson(value: string): string {
     .trim();
 }
 
+/** Flatten Make Data Store Get record shapes: { key, data: { offers, status } }. */
+export function flattenMakeDataStoreRecord(data: unknown): Record<string, unknown> | null {
+  const record = asRecord(data);
+  if (!record) return null;
+
+  const nested = asRecord(
+    record.data ?? record.Data ?? record.record ?? record.Record ?? record.value,
+  );
+
+  if (!nested) return record;
+
+  const key = readString(record, "key", "Key", "searchId", "search_id") || readString(nested, "key", "Key");
+  const offers = nested.offers ?? nested.Offers ?? record.offers ?? record.Offers;
+  const status = nested.status ?? nested.Status ?? record.status ?? record.Status;
+
+  return {
+    ...record,
+    ...nested,
+    ...(key ? { key } : {}),
+    ...(offers !== undefined ? { offers } : {}),
+    ...(status !== undefined ? { status } : {}),
+  };
+}
+
 function tryParseJsonString(value: string): unknown | null {
   const candidates = [value.trim(), stripGeminiMarkdownJson(value)];
   for (const candidate of candidates) {
@@ -753,7 +777,7 @@ function tryParseJsonString(value: string): unknown | null {
 export function unwrapMakeSearchOffersPayload(data: unknown): unknown {
   if (parseMakeSearchFlights(data).length > 0) return data;
 
-  const record = asRecord(data);
+  const record = flattenMakeDataStoreRecord(data) ?? asRecord(data);
   if (!record) return data;
 
   const offersRaw = record.offers ?? record.Offers;
@@ -791,8 +815,8 @@ export function parseMakeSearchStatus(data: unknown): MakeSearchStatusResult {
     return { status: "pending", flights: [], raw: data };
   }
 
-  const record = asRecord(data);
-  const storeStatus = readString(record ?? {}, "status", "state").toLowerCase();
+  const record = flattenMakeDataStoreRecord(data) ?? asRecord(data);
+  const storeStatus = readString(record ?? {}, "status", "state", "Status").toLowerCase();
   if (storeStatus === "done" || storeStatus === "ready" || storeStatus === "complete") {
     return {
       status: "error",

@@ -8,6 +8,7 @@ import {
   parseMakeSearchDestination,
   parseMakeSearchFlights,
   parseMakeSearchPassengers,
+  flattenMakeDataStoreRecord,
   parseMakeSearchStatus,
   parseMakeSearchUserMessage,
   parseMakeWebhookBody,
@@ -324,6 +325,40 @@ describe("parseMakeSearchStatus", () => {
     const result = parseMakeSearchStatus({ key: "abc-123", status: "done", offers: "" });
     expect(result.status).toBe("error");
     expect(result.error).toContain("brez letov");
+  });
+
+  it("parses Make Get record shape with nested data.offers", () => {
+    const offers = [
+      {
+        rank: 1,
+        origin_iata: "HAJ",
+        destination_iata: "IST",
+        airline_name: "Turkish Airlines",
+        price_total: 187.23,
+        price_currency: "EUR",
+        stops_outbound: 0,
+      },
+    ];
+    const result = parseMakeSearchStatus({
+      key: "abc-123",
+      data: {
+        offers: JSON.stringify(offers),
+        status: "done",
+      },
+    });
+    expect(result.status).toBe("ready");
+    expect(result.flights).toHaveLength(1);
+    expect(result.flights[0]?.prevoznik).toBe("Turkish Airlines");
+  });
+
+  it("flattenMakeDataStoreRecord merges nested data fields", () => {
+    const flat = flattenMakeDataStoreRecord({
+      key: "search-1",
+      data: { offers: "[]", status: "done" },
+    });
+    expect(flat?.key).toBe("search-1");
+    expect(flat?.status).toBe("done");
+    expect(flat?.offers).toBe("[]");
   });
 
   it("parses Gemini markdown-fenced offers stored as a string", () => {
