@@ -69,6 +69,11 @@ function extractFlightArray(data: unknown): unknown[] {
       const nested = extractFlightArray(value);
       if (nested.length > 0) return nested;
     }
+    // Make status often returns Duffel list shape: offers: { meta, data: [...] }
+    if (value && typeof value === "object") {
+      const nested = extractFlightArray(value);
+      if (nested.length > 0) return nested;
+    }
   }
 
   // Duffel / Make often nests as data → data → offers (sometimes stringified).

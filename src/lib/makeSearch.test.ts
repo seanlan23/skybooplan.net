@@ -423,6 +423,63 @@ describe("parseMakeSearchStatus", () => {
     ]);
   });
 
+  it("parses Duffel GET offers list shape from status webhook (offers.data)", () => {
+    const result = parseMakeSearchStatus({
+      key: "live-test",
+      status: "done",
+      offers: {
+        meta: { limit: 8, before: null, after: "g2EI" },
+        data: [
+          {
+            id: "off_lh",
+            total_amount: "243.60",
+            total_currency: "EUR",
+            owner: { name: "Lufthansa", iata_code: "LH" },
+            slices: [
+              {
+                origin: { iata_code: "LJU" },
+                destination: { iata_code: "CDG" },
+                segments: [
+                  {
+                    departing_at: "2026-08-15T08:00:00+02:00",
+                    origin: { iata_code: "LJU" },
+                    destination: { iata_code: "CDG" },
+                    marketing_carrier: { name: "Lufthansa", iata_code: "LH" },
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            id: "off_af",
+            total_amount: "199.00",
+            total_currency: "EUR",
+            owner: { name: "Air France", iata_code: "AF" },
+            slices: [
+              {
+                origin: { iata_code: "LJU" },
+                destination: { iata_code: "CDG" },
+                segments: [
+                  {
+                    departing_at: "2026-08-15T06:30:00+02:00",
+                    origin: { iata_code: "LJU" },
+                    destination: { iata_code: "CDG" },
+                    marketing_carrier: { name: "Air France", iata_code: "AF" },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    expect(result.status).toBe("ready");
+    expect(result.flights).toHaveLength(2);
+    expect(result.flights[0]?.prevoznik).toBe("Air France");
+    expect(result.flights[0]?.cena_eur).toBe(199);
+  });
+
   it("returns pending when offers are still empty", () => {
     const result = parseMakeSearchStatus({ key: "abc-123", offers: "" });
     expect(result.status).toBe("pending");
