@@ -310,6 +310,119 @@ describe("parseMakeSearchStatus", () => {
     expect(result.flights[0]?.prevoznik).toBe("Turkish Airlines");
   });
 
+  it("parses raw Duffel offers from Make Data Store without Gemini", () => {
+    const duffelPayload = {
+      data: {
+        data: {
+          id: "orq_test",
+          offers: [
+            {
+              id: "off_expensive",
+              total_amount: "320.00",
+              total_currency: "EUR",
+              owner: { name: "Lufthansa", iata_code: "LH" },
+              slices: [
+                {
+                  origin: { iata_code: "LJU" },
+                  destination: { iata_code: "CDG" },
+                  segments: [
+                    {
+                      departing_at: "2026-08-15T08:00:00+02:00",
+                      arriving_at: "2026-08-15T10:00:00+02:00",
+                      origin: { iata_code: "LJU" },
+                      destination: { iata_code: "CDG" },
+                      marketing_carrier: { name: "Lufthansa", iata_code: "LH" },
+                    },
+                  ],
+                },
+              ],
+            },
+            {
+              id: "off_cheap",
+              total_amount: "149.50",
+              total_currency: "EUR",
+              owner: { name: "Air France", iata_code: "AF" },
+              slices: [
+                {
+                  origin: { iata_code: "LJU" },
+                  destination: { iata_code: "CDG" },
+                  segments: [
+                    {
+                      departing_at: "2026-08-15T06:30:00+02:00",
+                      arriving_at: "2026-08-15T08:40:00+02:00",
+                      origin: { iata_code: "LJU" },
+                      destination: { iata_code: "CDG" },
+                      marketing_carrier: { name: "Air France", iata_code: "AF" },
+                    },
+                  ],
+                },
+              ],
+            },
+            {
+              id: "off_mid",
+              total_amount: "210.00",
+              total_currency: "EUR",
+              owner: { name: "KLM", iata_code: "KL" },
+              slices: [
+                {
+                  origin: { iata_code: "LJU" },
+                  destination: { iata_code: "CDG" },
+                  segments: [
+                    {
+                      departing_at: "2026-08-15T12:00:00+02:00",
+                      arriving_at: "2026-08-15T14:10:00+02:00",
+                      origin: { iata_code: "LJU" },
+                      destination: { iata_code: "CDG" },
+                      marketing_carrier: { name: "KLM", iata_code: "KL" },
+                    },
+                  ],
+                },
+              ],
+            },
+            {
+              id: "off_skip",
+              total_amount: "400.00",
+              total_currency: "EUR",
+              owner: { name: "Swiss", iata_code: "LX" },
+              slices: [
+                {
+                  origin: { iata_code: "LJU" },
+                  destination: { iata_code: "CDG" },
+                  segments: [
+                    {
+                      departing_at: "2026-08-15T18:00:00+02:00",
+                      arriving_at: "2026-08-15T20:00:00+02:00",
+                      origin: { iata_code: "LJU" },
+                      destination: { iata_code: "CDG" },
+                      marketing_carrier: { name: "Swiss", iata_code: "LX" },
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      },
+    };
+
+    const result = parseMakeSearchStatus({
+      key: "abc-123",
+      status: "done",
+      offers: JSON.stringify(duffelPayload),
+    });
+
+    expect(result.status).toBe("ready");
+    expect(result.flights).toHaveLength(3);
+    expect(result.flights[0]?.prevoznik).toBe("Air France");
+    expect(result.flights[0]?.cena_eur).toBe(149.5);
+    expect(result.flights[0]?.badge).toBe("Najcenejši");
+    expect(result.flights.map((f) => f.id)).toEqual([
+      "off_cheap",
+      "off_mid",
+      "off_expensive",
+    ]);
+  });
+
   it("returns pending when offers are still empty", () => {
     const result = parseMakeSearchStatus({ key: "abc-123", offers: "" });
     expect(result.status).toBe("pending");
@@ -319,6 +432,12 @@ describe("parseMakeSearchStatus", () => {
     const result = parseMakeSearchStatus(buildMakeAsyncPayload("Accepted"));
     expect(result.status).toBe("pending");
     expect(result.flights).toHaveLength(0);
+  });
+
+  it("returns error when status webhook returns bare module id 2", () => {
+    const result = parseMakeSearchStatus("2");
+    expect(result.status).toBe("error");
+    expect(result.error).toContain("Status webhook");
   });
 
   it("returns error when Data Store status is done but offers are empty", () => {

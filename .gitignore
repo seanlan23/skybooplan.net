@@ -18,6 +18,8 @@ dist-ssr
 .env
 .env.*
 !.env.example
+make/secrets.local.json
+make/ready/
 
 # Wrangler / Cloudflare
 .wrangler/

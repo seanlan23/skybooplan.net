@@ -52,22 +52,106 @@ function formatPostanki(record: Record<string, unknown>): string {
 
 function extractFlightArray(data: unknown): unknown[] {
   if (Array.isArray(data)) return data;
+
+  if (typeof data === "string") {
+    const parsed = tryParseJsonString(data);
+    if (parsed != null) return extractFlightArray(parsed);
+    return [];
+  }
+
   const record = asRecord(data);
   if (!record) return [];
 
-  for (const key of ["offers", "flights", "results", "data", "items", "body", "output"]) {
+  for (const key of ["offers", "flights", "results", "items", "body", "output"]) {
     const value = record[key];
     if (Array.isArray(value)) return value;
+    if (typeof value === "string") {
+      const nested = extractFlightArray(value);
+      if (nested.length > 0) return nested;
+    }
+  }
+
+  // Duffel / Make often nests as data → data → offers (sometimes stringified).
+  for (const key of ["data", "Data"]) {
+    const nested = extractFlightArray(record[key]);
+    if (nested.length > 0) return nested;
   }
 
   if (
     readString(record, "destinacija", "destination", "destination_iata") ||
-    readString(record, "prevoznik", "carrier", "airline", "airline_name")
+    readString(record, "prevoznik", "carrier", "airline", "airline_name") ||
+    Array.isArray(record.slices)
   ) {
     return [record];
   }
 
   return [];
+}
+
+function readNestedIata(value: unknown): string {
+  const record = asRecord(value);
+  if (!record) return "";
+  return readString(record, "iata_code", "iata", "code").toUpperCase();
+}
+
+/** Map a raw Duffel offer into the Make flight card shape (no Gemini needed). */
+function parseDuffelOfferAsMakeFlight(item: unknown, index: number): MakeSearchFlight | null {
+  const record = asRecord(item);
+  if (!record || !Array.isArray(record.slices) || record.slices.length === 0) return null;
+
+  const firstSlice = asRecord(record.slices[0]);
+  if (!firstSlice) return null;
+  const segments = Array.isArray(firstSlice.segments) ? firstSlice.segments : [];
+  const firstSeg = asRecord(segments[0]);
+  const lastSeg = asRecord(segments[segments.length - 1]) ?? firstSeg;
+
+  const origin =
+    readNestedIata(firstSlice.origin) || readNestedIata(firstSeg?.origin);
+  const destination =
+    readNestedIata(firstSlice.destination) || readNestedIata(lastSeg?.destination);
+  const owner = asRecord(record.owner);
+  const carrier =
+    readString(owner ?? {}, "name") ||
+    readString(
+      asRecord(firstSeg?.marketing_carrier ?? firstSeg?.operating_carrier) ?? {},
+      "name",
+    );
+  const departing = readString(firstSeg ?? {}, "departing_at");
+  const price = readNumber(record, "total_amount", "price_total", "cena_eur");
+  if (!origin && !destination && price <= 0) return null;
+
+  return {
+    id: readString(record, "id") || `duffel-${index}`,
+    destinacija: formatMakeRoute(origin, destination),
+    cena_eur: price,
+    odhod: departing ? formatDepartureDatetime(departing) : "—",
+    prevoznik: carrier || "—",
+    postanki: String(Math.max(0, segments.length - 1)),
+    ai_povzetek: "",
+  };
+}
+
+const TOP_MAKE_FLIGHT_BADGES = ["Najcenejši", "Najboljša vrednost", "Alternativa"] as const;
+
+function selectTopMakeSearchFlights(flights: MakeSearchFlight[]): MakeSearchFlight[] {
+  if (flights.length <= 3 && flights.every((f) => f.badge)) return flights;
+
+  const ranked = [...flights]
+    .filter((f) => f.cena_eur > 0 || f.destinacija !== "—")
+    .sort((a, b) => {
+      if (a.cena_eur !== b.cena_eur) return a.cena_eur - b.cena_eur;
+      return a.odhod.localeCompare(b.odhod);
+    })
+    .slice(0, 3);
+
+  return ranked.map((flight, index) => {
+    const badge = flight.badge || TOP_MAKE_FLIGHT_BADGES[index] || `Možnost ${index + 1}`;
+    return {
+      ...flight,
+      badge,
+      ai_povzetek: flight.ai_povzetek || badge,
+    };
+  });
 }
 
 function formatDepartureDatetime(iso: string): string {
@@ -105,16 +189,28 @@ function parseFlightItem(item: unknown, index: number): MakeSearchFlight | null 
   const ai_povzetek =
     readString(record, "ai_povzetek", "summary", "ai_summary", "povzetek") || badge || "";
 
+  // Duffel offers are handled by parseDuffelOfferAsMakeFlight (slices + total_amount).
+  if (Array.isArray(record.slices)) return null;
+
   if (!destinacija && !prevoznik && !odhod) return null;
+  if (destinacija === "—" && !prevoznik && !odhod) return null;
 
   const booking_url = readString(record, "booking_url", "url", "link", "rezervacija_url") || undefined;
   const rank = readString(record, "rank", "id");
   const priceCurrency = readString(record, "price_currency", "currency").toUpperCase();
-  const priceTotal = readNumber(record, "price_total", "cena_eur", "price_eur", "price", "cena");
+  const priceTotal = readNumber(
+    record,
+    "price_total",
+    "total_amount",
+    "cena_eur",
+    "price_eur",
+    "price",
+    "cena",
+  );
   const cena_eur =
     priceCurrency && priceCurrency !== "EUR" && priceTotal > 0
       ? priceTotal
-      : readNumber(record, "cena_eur", "price_eur", "price_total", "price", "cena");
+      : readNumber(record, "cena_eur", "price_eur", "price_total", "total_amount", "price", "cena");
 
   const stopsRaw =
     record.stops_outbound ?? record.stops ?? record.stop_count ?? record.postanki;
@@ -133,9 +229,11 @@ function parseFlightItem(item: unknown, index: number): MakeSearchFlight | null 
 }
 
 export function parseMakeSearchFlights(data: unknown): MakeSearchFlight[] {
-  return extractFlightArray(data)
-    .map((item, index) => parseFlightItem(item, index))
+  const flights = extractFlightArray(data)
+    .slice(0, 80)
+    .map((item, index) => parseDuffelOfferAsMakeFlight(item, index) ?? parseFlightItem(item, index))
     .filter((item): item is MakeSearchFlight => item != null);
+  return selectTopMakeSearchFlights(flights);
 }
 
 export type SearchRequestBody = {
@@ -804,6 +902,16 @@ export type MakeSearchStatusResult =
   | { status: "error"; flights: MakeSearchFlight[]; error: string; raw: unknown };
 
 export function parseMakeSearchStatus(data: unknown): MakeSearchStatusResult {
+  if (data === 2 || data === "2") {
+    return {
+      status: "error",
+      flights: [],
+      error:
+        "Status webhook vrača samo \"2\" — v Make popravi Webhook response Body (ne {{2}}, uporabi key/status/offers iz Data store).",
+      raw: data,
+    };
+  }
+
   const payload = unwrapMakeSearchOffersPayload(data);
   const flights = parseMakeSearchFlights(payload);
   if (flights.length > 0) {
