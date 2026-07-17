@@ -16,6 +16,12 @@ function formatPrice(eur: number): string {
 function formatStops(postanki: string, directLabel: string, stopLabel: string, stopsLabel: string): string {
   const trimmed = postanki.trim();
   if (!trimmed) return "—";
+  if (trimmed.includes("/")) {
+    return trimmed
+      .split("/")
+      .map((part) => formatStops(part, directLabel, stopLabel, stopsLabel))
+      .join(" · ");
+  }
   if (trimmed === "0") return directLabel;
   const asNumber = Number.parseInt(trimmed, 10);
   if (Number.isFinite(asNumber)) {
@@ -41,6 +47,12 @@ export function FlightCard({
     t("results.stop" as never),
     t("results.stops" as never),
   );
+
+  const summary =
+    flight.ai_povzetek?.trim() &&
+    flight.ai_povzetek.trim().toLowerCase() !== flight.badge?.trim().toLowerCase()
+      ? flight.ai_povzetek.trim()
+      : "";
 
   return (
     <article
@@ -69,21 +81,30 @@ export function FlightCard({
         </div>
       </div>
 
-      <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
+      <dl
+        className={cn(
+          "mt-4 grid gap-3 text-sm",
+          flight.povratek ? "grid-cols-1 sm:grid-cols-3" : "grid-cols-2",
+        )}
+      >
         <div>
           <dt className="text-muted-foreground">{t("flightCard.departure" as never)}</dt>
           <dd className="font-semibold text-foreground">{flight.odhod}</dd>
         </div>
+        {flight.povratek ? (
+          <div>
+            <dt className="text-muted-foreground">{t("flightCard.return" as never)}</dt>
+            <dd className="font-semibold text-foreground">{flight.povratek}</dd>
+          </div>
+        ) : null}
         <div>
           <dt className="text-muted-foreground">{t("flightCard.stops" as never)}</dt>
           <dd className="font-semibold text-foreground">{stopsText}</dd>
         </div>
       </dl>
 
-      {flight.ai_povzetek ? (
-        <p className="mt-4 rounded-xl bg-muted/60 px-3 py-2.5 text-sm leading-relaxed text-muted-foreground">
-          {flight.ai_povzetek}
-        </p>
+      {summary ? (
+        <p className="mt-4 text-sm leading-relaxed text-muted-foreground">{summary}</p>
       ) : null}
 
       <div className="mt-5">

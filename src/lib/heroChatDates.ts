@@ -8,39 +8,49 @@ export type HeroChatDateParseResult = {
 };
 
 const MONTH_PATTERN =
-  "januar|februar|marec|april|maj|junij|julij|avgust|september|oktober|november|december|january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|avg|aug|sep|okt|oct|nov|dec";
-
-const MONTH_RE = new RegExp(MONTH_PATTERN, "i");
+  "januarja|februarja|marca|aprila|maja|junija|julija|avgusta|septembra|oktobra|novembra|decembra|januar|februar|marec|april|maj|junij|julij|avgust|september|oktober|november|december|january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|avg|aug|sep|okt|oct|nov|dec";
 
 const SL_MONTHS: Record<string, number> = {
   jan: 0,
   januar: 0,
+  januarja: 0,
   feb: 1,
   februar: 1,
+  februarja: 1,
   mar: 2,
   marec: 2,
+  marca: 2,
   apr: 3,
   april: 3,
+  aprila: 3,
   maj: 4,
+  maja: 4,
   may: 4,
   jun: 5,
   junij: 5,
+  junija: 5,
   jul: 6,
   julij: 6,
+  julija: 6,
   avg: 7,
   avgust: 7,
+  avgusta: 7,
   aug: 7,
   august: 7,
   sep: 8,
   september: 8,
+  septembra: 8,
   okt: 9,
   oktober: 9,
+  oktobra: 9,
   oct: 9,
   october: 9,
   nov: 10,
   november: 10,
+  novembra: 10,
   dec: 11,
   december: 11,
+  decembra: 11,
 };
 
 function pad2(n: number): string {
@@ -191,6 +201,56 @@ function extractSingleDay(text: string, lang: string): HeroChatDateParseResult |
   return null;
 }
 
+/** "konec oktobra začetek novembra" → concrete depart/return for search without re-asking. */
+function extractEndStartMonthRange(text: string, lang: string): HeroChatDateParseResult | null {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  const range = normalized.match(
+    new RegExp(
+      `(?:konec|end\\s+of)\\s+(${MONTH_PATTERN})\\s+(?:(?:-|–|—|/|in)\\s*)?(?:začetek|zacetek|start\\s+of)\\s+(${MONTH_PATTERN})`,
+      "i",
+    ),
+  );
+  if (!range) return null;
+
+  const monthFrom = resolveMonthIndex(range[1]!);
+  const monthTo = resolveMonthIndex(range[2]!);
+  if (monthFrom == null || monthTo == null) return null;
+
+  const yearFrom = inferYear(monthFrom);
+  const yearTo = monthTo < monthFrom ? yearFrom + 1 : yearFrom;
+  const departDate = toIsoDate(yearFrom, monthFrom, 26);
+  const returnDate = toIsoDate(yearTo, monthTo, 5);
+  const label =
+    lang === "sl"
+      ? `konec ${range[1]!.toLowerCase()} → začetek ${range[2]!.toLowerCase()} ${yearFrom}`
+      : `late ${range[1]!.toLowerCase()} → early ${range[2]!.toLowerCase()} ${yearFrom}`;
+
+  return { precision: "exact", label, departDate, returnDate };
+}
+
+function extractMonthDashRange(text: string, lang: string): HeroChatDateParseResult | null {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  const range = normalized.match(
+    new RegExp(`\\b(${MONTH_PATTERN})\\s*(?:-|–|—|/)\\s*(${MONTH_PATTERN})\\b`, "i"),
+  );
+  if (!range) return null;
+
+  const monthFrom = resolveMonthIndex(range[1]!);
+  const monthTo = resolveMonthIndex(range[2]!);
+  if (monthFrom == null || monthTo == null || monthFrom === monthTo) return null;
+
+  const yearFrom = inferYear(monthFrom);
+  const yearTo = monthTo < monthFrom ? yearFrom + 1 : yearFrom;
+  const departDate = toIsoDate(yearFrom, monthFrom, 15);
+  const returnDate = toIsoDate(yearTo, monthTo, 15);
+  const label =
+    lang === "sl"
+      ? `${range[1]!.toLowerCase()} – ${range[2]!.toLowerCase()} ${yearFrom}`
+      : `${range[1]!.toLowerCase()} – ${range[2]!.toLowerCase()} ${yearFrom}`;
+
+  return { precision: "exact", label, departDate, returnDate };
+}
+
 function extractVague(text: string, lang: string): HeroChatDateParseResult | null {
   const normalized = text.toLowerCase();
 
@@ -216,17 +276,64 @@ function extractVague(text: string, lang: string): HeroChatDateParseResult | nul
     }
   }
 
+  const endMonth = normalized.match(new RegExp(`(?:konec|end\\s+of)\\s+(${MONTH_PATTERN})`, "i"));
+  if (endMonth) {
+    const monthIndex = resolveMonthIndex(endMonth[1]!);
+    if (monthIndex != null) {
+      const year = inferYear(monthIndex);
+      return {
+        precision: "exact",
+        label:
+          lang === "sl"
+            ? `konec ${endMonth[1]!.toLowerCase()} ${year}`
+            : `late ${endMonth[1]!.toLowerCase()} ${year}`,
+        departDate: toIsoDate(year, monthIndex, 26),
+        returnDate: addDaysSafe(year, monthIndex, 26, 14),
+      };
+    }
+  }
+
+  const startMonth = normalized.match(
+    new RegExp(`(?:začetek|zacetek|start\\s+of)\\s+(${MONTH_PATTERN})`, "i"),
+  );
+  if (startMonth) {
+    const monthIndex = resolveMonthIndex(startMonth[1]!);
+    if (monthIndex != null) {
+      const year = inferYear(monthIndex);
+      const departDate = toIsoDate(year, monthIndex, 5);
+      return {
+        precision: "exact",
+        label:
+          lang === "sl"
+            ? `začetek ${startMonth[1]!.toLowerCase()} ${year}`
+            : `early ${startMonth[1]!.toLowerCase()} ${year}`,
+        departDate,
+        returnDate: addDaysSafe(year, monthIndex, 5, 14),
+      };
+    }
+  }
+
   const monthOnly = normalized.match(new RegExp(`\\b(${MONTH_PATTERN})\\b`, "i"));
   if (monthOnly && !normalized.match(new RegExp(`\\d{1,2}\\.?\\s*${monthOnly[1]}`, "i"))) {
     const monthLabel = monthOnly[1]!.replace(/\./g, "");
-    const year = inferYear(resolveMonthIndex(monthOnly[1]!) ?? 0);
+    const monthIndex = resolveMonthIndex(monthOnly[1]!) ?? 0;
+    const year = inferYear(monthIndex);
+    const departDate = toIsoDate(year, monthIndex, 15);
     return {
       precision: "vague",
-      label: lang === "sl" ? `${monthLabel} ${year}` : `${monthLabel} ${year}`,
+      label: `${monthLabel} ${year}`,
+      departDate,
+      returnDate: addDaysSafe(year, monthIndex, 15, 14),
     };
   }
 
   return null;
+}
+
+function addDaysSafe(year: number, monthIndex: number, day: number, days: number): string {
+  const d = new Date(year, monthIndex, day, 12);
+  d.setDate(d.getDate() + days);
+  return toIsoDate(d.getFullYear(), d.getMonth(), d.getDate());
 }
 
 /** Detect exact vs vague travel dates mentioned in natural language. */
@@ -237,6 +344,8 @@ export function extractHeroChatDates(text: string, lang = "sl"): HeroChatDatePar
   return (
     extractIsoRange(trimmed) ??
     extractDayRange(trimmed, lang) ??
+    extractEndStartMonthRange(trimmed, lang) ??
+    extractMonthDashRange(trimmed, lang) ??
     extractSingleDay(trimmed, lang) ??
     extractVague(trimmed, lang) ?? { precision: "none", label: "" }
   );

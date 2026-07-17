@@ -7,6 +7,8 @@ export type MakeSearchFlight = {
   destinacija: string;
   cena_eur: number;
   odhod: string;
+  /** Return-leg departure when the offer has a second Duffel slice. */
+  povratek?: string;
   prevoznik: string;
   postanki: string;
   ai_povzetek: string;
@@ -110,6 +112,11 @@ function parseDuffelOfferAsMakeFlight(item: unknown, index: number): MakeSearchF
   const firstSeg = asRecord(segments[0]);
   const lastSeg = asRecord(segments[segments.length - 1]) ?? firstSeg;
 
+  const returnSlice = record.slices.length > 1 ? asRecord(record.slices[1]) : null;
+  const returnSegments =
+    returnSlice && Array.isArray(returnSlice.segments) ? returnSlice.segments : [];
+  const returnFirstSeg = asRecord(returnSegments[0]);
+
   const origin =
     readNestedIata(firstSlice.origin) || readNestedIata(firstSeg?.origin);
   const destination =
@@ -122,16 +129,25 @@ function parseDuffelOfferAsMakeFlight(item: unknown, index: number): MakeSearchF
       "name",
     );
   const departing = readString(firstSeg ?? {}, "departing_at");
+  const returning = readString(returnFirstSeg ?? {}, "departing_at");
   const price = readNumber(record, "total_amount", "price_total", "cena_eur");
   if (!origin && !destination && price <= 0) return null;
+
+  const outboundStops = Math.max(0, segments.length - 1);
+  const returnStops = returnSegments.length > 0 ? Math.max(0, returnSegments.length - 1) : 0;
+  const postanki =
+    returnSegments.length > 0
+      ? `${outboundStops}/${returnStops}`
+      : String(outboundStops);
 
   return {
     id: readString(record, "id") || `duffel-${index}`,
     destinacija: formatMakeRoute(origin, destination),
     cena_eur: price,
     odhod: departing ? formatDepartureDatetime(departing) : "—",
+    ...(returning ? { povratek: formatDepartureDatetime(returning) } : {}),
     prevoznik: carrier || "—",
-    postanki: String(Math.max(0, segments.length - 1)),
+    postanki,
     ai_povzetek: "",
   };
 }
@@ -154,7 +170,8 @@ function selectTopMakeSearchFlights(flights: MakeSearchFlight[]): MakeSearchFlig
     return {
       ...flight,
       badge,
-      ai_povzetek: flight.ai_povzetek || badge,
+      // Keep summary empty unless Make/Gemini provided a real one (don't echo the badge).
+      ai_povzetek: flight.ai_povzetek?.trim() || "",
     };
   });
 }
@@ -190,9 +207,18 @@ function parseFlightItem(item: unknown, index: number): MakeSearchFlight | null 
   const odhod =
     readString(record, "odhod", "departure", "depart") ||
     (departureIso ? formatDepartureDatetime(departureIso) : "");
+  const returnIso = readString(
+    record,
+    "return_departure_datetime",
+    "return_datetime",
+    "return_depart",
+    "povratek",
+  );
+  const povratek =
+    readString(record, "povratek", "return_odhod") ||
+    (returnIso ? formatDepartureDatetime(returnIso) : "");
   const badge = readString(record, "badge", "rank_label") || undefined;
-  const ai_povzetek =
-    readString(record, "ai_povzetek", "summary", "ai_summary", "povzetek") || badge || "";
+  const ai_povzetek = readString(record, "ai_povzetek", "summary", "ai_summary", "povzetek");
 
   // Duffel offers are handled by parseDuffelOfferAsMakeFlight (slices + total_amount).
   if (Array.isArray(record.slices)) return null;
@@ -225,6 +251,7 @@ function parseFlightItem(item: unknown, index: number): MakeSearchFlight | null 
     destinacija: destinacija || "—",
     cena_eur,
     odhod: odhod || "—",
+    ...(povratek ? { povratek } : {}),
     prevoznik: prevoznik || "—",
     postanki: formatPostanki({ ...record, postanki: stopsRaw }),
     ai_povzetek,
@@ -289,42 +316,54 @@ const IATAGEO_FANOUT_KM = 150;
 const DEFAULT_TRIP_DAYS = 14;
 
 const MONTH_PATTERN =
-  "januar|februar|marec|april|maj|junij|julij|avgust|september|oktober|november|december|january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|avg|aug|sep|okt|oct|nov|dec";
+  "januarja|februarja|marca|aprila|maja|junija|julija|avgusta|septembra|oktobra|novembra|decembra|januar|februar|marec|april|maj|junij|julij|avgust|september|oktober|november|december|january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|avg|aug|sep|okt|oct|nov|dec";
 
 const MONTH_INDEX: Record<string, number> = {
   jan: 0,
   januar: 0,
+  januarja: 0,
   january: 0,
   feb: 1,
   februar: 1,
+  februarja: 1,
   february: 1,
   mar: 2,
   marec: 2,
+  marca: 2,
   march: 2,
   apr: 3,
   april: 3,
+  aprila: 3,
   maj: 4,
+  maja: 4,
   may: 4,
   jun: 5,
   junij: 5,
+  junija: 5,
   june: 5,
   jul: 6,
   julij: 6,
+  julija: 6,
   july: 6,
   avg: 7,
   avgust: 7,
+  avgusta: 7,
   aug: 7,
   august: 7,
   sep: 8,
   september: 8,
+  septembra: 8,
   okt: 9,
   oktober: 9,
+  oktobra: 9,
   oct: 9,
   october: 9,
   nov: 10,
   november: 10,
+  novembra: 10,
   dec: 11,
   december: 11,
+  decembra: 11,
 };
 
 /** Region/city aliases → primary international airport (more specific patterns first). */
@@ -550,7 +589,8 @@ export function parseMakeSearchUserMessage(
     .slice(0, NEAREST_AIRPORT_LIMIT);
 
   return {
-    origin_airports,
+    // Default LJU when geo lookup is unavailable — Make must not invent CDG/August.
+    origin_airports: origin_airports.length > 0 ? origin_airports : ["LJU"],
     destination_airport,
     departure_date,
     return_date,

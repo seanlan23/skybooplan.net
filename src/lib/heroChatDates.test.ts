@@ -27,6 +27,14 @@ describe("extractHeroChatDates", () => {
     const result = extractHeroChatDates("Mehika oktober", "sl");
     expect(result.precision).toBe("vague");
     expect(result.label.toLowerCase()).toMatch(/okt/);
+    expect(result.departDate).toMatch(/^\d{4}-10-15$/);
+  });
+
+  it("parses Slovenian genitive end/start month range without re-asking", () => {
+    const result = extractHeroChatDates("tajska konec oktobra začetek novembra", "sl");
+    expect(result.precision).toBe("exact");
+    expect(result.departDate).toMatch(/^\d{4}-10-26$/);
+    expect(result.returnDate).toMatch(/^\d{4}-11-05$/);
   });
 
   it("detects vague relative period", () => {

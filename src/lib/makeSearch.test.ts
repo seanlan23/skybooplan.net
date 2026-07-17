@@ -139,7 +139,7 @@ describe("parseMakeSearchFlights", () => {
       prevoznik: "Turkish Airlines",
       postanki: "0",
       badge: "Najboljsa vrednost",
-      ai_povzetek: "Najboljsa vrednost",
+      ai_povzetek: "",
     });
     expect(result[0]?.odhod).toContain("2026");
   });
@@ -167,6 +167,14 @@ describe("parseMakeSearchUserMessage", () => {
     const parsed = parseMakeSearchDates("Leti v Mehiko, konec oktobra", ref);
     expect(parsed.departure_date).toBe("2026-10-26");
     expect(parsed.return_date).toBe("2026-11-09");
+  });
+
+  it("defaults origin to LJU when none provided", () => {
+    const parsed = parseMakeSearchUserMessage("Leti v Tajska, konec oktobra začetek novembra");
+    expect(parsed.origin_airports).toEqual(["LJU"]);
+    expect(parsed.destination_airport).toBe("BKK");
+    expect(parsed.departure_date).toBe("2026-10-26");
+    expect(parsed.return_date).toBe("2026-11-05");
   });
 });
 

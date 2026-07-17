@@ -168,7 +168,8 @@ const en: Dict = {
   "heroSearch.timeout": "Flight search is taking longer than expected. Please try again.",
   "heroSearch.asyncPending":
     "Make.com returned “Accepted” without flight data. Set the scenario webhook to synchronous mode: “Immediately as data arrives” and add a Webhook response module that returns JSON (e.g. { \"flights\": [...] }).",
-  "flightCard.departure": "Departure",
+  "flightCard.departure": "Outbound",
+  "flightCard.return": "Return",
   "flightCard.stops": "Stops",
   "flightCard.book": "Book →",
   "hero.photoCredit": "Photo: {name} / Unsplash",
@@ -943,6 +944,7 @@ const dicts: Record<Lang, Dict> = {
     "heroSearch.asyncPending":
       "Make.com je vrnil samo “Accepted” brez rezultatov. Make.com scenarij mora biti nastavljen na sinhroni način: sprožilec “Immediately as data arrives” in modul Webhook response, ki vrne JSON (npr. { \"flights\": [...] }).",
     "flightCard.departure": "Odhod",
+    "flightCard.return": "Povratek",
     "flightCard.stops": "Postanki",
     "flightCard.book": "Rezerviraj →",
     "hero.photoCredit": "Foto: {name} / Unsplash",

@@ -524,7 +524,8 @@ export function HeroChatFlow({
     appendMessages(createChatMessage("user", label));
     setCollected((prev) => ({ ...prev, passengers: label }));
 
-    if (parsed.precision === "exact") {
+    // If the first message already had usable dates (incl. "konec oktobra…"), search — don't re-ask.
+    if (parsed.departDate || parsed.precision === "exact") {
       appendMessages(
         createChatMessage(
           "ai",
