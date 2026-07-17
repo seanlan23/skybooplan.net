@@ -23,14 +23,17 @@ export const Route = createFileRoute("/api/search/status")({
           return Response.json({ status: "pending", searchId, flights: [], offers: [] });
         }
 
+        // Spread Make payload first so its `status: "done"` cannot overwrite our ready signal.
+        const makeExtras =
+          result.makeResponse != null && typeof result.makeResponse === "object"
+            ? (result.makeResponse as Record<string, unknown>)
+            : {};
         return Response.json({
+          ...makeExtras,
           status: "ready",
           searchId,
           flights: result.flights,
           offers: result.flights,
-          ...(result.makeResponse != null && typeof result.makeResponse === "object"
-            ? (result.makeResponse as Record<string, unknown>)
-            : {}),
         });
       },
     },

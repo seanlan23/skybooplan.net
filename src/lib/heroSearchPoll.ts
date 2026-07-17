@@ -67,8 +67,10 @@ export async function resolveHeroSearchData(data: unknown): Promise<{
     }
 
     const statusRecord = asRecord(statusData);
-    if (statusRecord?.status === "ready") {
-      return { flights: parseMakeSearchFlights(statusData) };
+    const flights = parseMakeSearchFlights(statusData);
+    // Flights win even if Make's `status: "done"` overwrote our API's `ready`.
+    if (flights.length > 0 || statusRecord?.status === "ready") {
+      return { flights };
     }
 
     if (statusRecord?.status === "error") {
