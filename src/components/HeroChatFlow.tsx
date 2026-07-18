@@ -28,6 +28,7 @@ import {
   type HeroChatStep,
 } from "@/lib/heroChatFlow";
 import { extractHeroChatDates } from "@/lib/heroChatDates";
+import { resolveHeroChatBootstrap } from "@/lib/heroChatExtract";
 import { FlightCard } from "@/components/FlightCard";
 import { RotatingTextareaPlaceholder } from "@/components/RotatingTextareaPlaceholder";
 import type { MakeSearchFlight } from "@/lib/makeSearch";
@@ -366,18 +367,70 @@ export function HeroChatFlow({
             ? `${userLabel}\n📎 ${attachment.filename}`
             : userLabel;
 
-      setConversationStarted(true);
-      setCollected({
+      const boot = resolveHeroChatBootstrap(resolved, lang);
+      const baseCollected = {
         destination: resolved,
         attachment: attachment ?? undefined,
-      });
-      appendMessages(
-        createChatMessage("user", userMessage),
-        createChatMessage("ai", t("heroChat.step1.ai" as never)),
-      );
+        ...(boot.passengers ? { passengers: boot.passengers.label } : {}),
+        ...(boot.dates.departDate ? { dates: boot.dates.label } : {}),
+      };
+
+      setConversationStarted(true);
+      setCollected(baseCollected);
+      appendMessages(createChatMessage("user", userMessage));
+
+      // Smart wizard: skip questions the first message already answered.
+      if (boot.nextStep === "search" && boot.passengers && boot.dates.label) {
+        appendMessages(
+          createChatMessage(
+            "ai",
+            skyMessageWithVars(t("heroChat.bootstrap.ready" as never), {
+              passengers: boot.passengers.label,
+              dates: boot.dates.label,
+            }),
+          ),
+          createChatMessage("ai", t("heroChat.searchingFlights" as never)),
+        );
+        setCollected((prev) => ({
+          ...prev,
+          ...baseCollected,
+          passengers: boot.passengers!.label,
+          dates: boot.dates.label,
+        }));
+        setStep("searching");
+        return;
+      }
+
+      if (boot.nextStep === "dates" && boot.passengers) {
+        if (boot.dates.precision === "vague" && !boot.dates.departDate) {
+          appendMessages(
+            createChatMessage(
+              "ai",
+              skyMessageWithVars(t("heroChat.stepDates.vague" as never), {
+                period: boot.dates.label,
+              }),
+              { offerDatePicker: true },
+            ),
+          );
+        } else {
+          appendMessages(
+            createChatMessage(
+              "ai",
+              skyMessageWithVars(t("heroChat.bootstrap.gotPassengers" as never), {
+                passengers: boot.passengers.label,
+              }),
+              { offerDatePicker: true },
+            ),
+          );
+        }
+        setStep("dates");
+        return;
+      }
+
+      appendMessages(createChatMessage("ai", t("heroChat.step1.ai" as never)));
       setStep("passengers");
     },
-    [appendMessages, attachment, step, t],
+    [appendMessages, attachment, lang, step, t],
   );
 
   useEffect(() => {
