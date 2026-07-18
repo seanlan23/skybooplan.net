@@ -50,7 +50,11 @@ export function HeroSection({
     >
       <HeroRotatingBackground />
 
-      <div className="absolute inset-0 bg-black/40" aria-hidden />
+      {/* Soft vignette so white UI stays readable on bright daytime photos */}
+      <div
+        className="absolute inset-0 bg-gradient-to-b from-black/45 via-black/30 to-black/40"
+        aria-hidden
+      />
 
       <div
         className="pointer-events-none absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-background to-transparent"
