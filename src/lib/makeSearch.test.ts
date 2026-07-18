@@ -11,6 +11,8 @@ import {
   skyscannerUrlForMakeFlight,
   buildSkyscannerFlightUrl,
   formatTravelDuration,
+  parseDurationMinutes,
+  pickTravelDurationRaw,
   parseMakeSearchPassengers,
   flattenMakeDataStoreRecord,
   parseMakeSearchStatus,
@@ -639,6 +641,55 @@ describe("parseMakeSearchStatus", () => {
     expect(result.flights).toHaveLength(1);
     expect(result.flights[0]?.prevoznik).toBe("Pegasus Airlines");
     expect(result.flights[0]?.cena_eur).toBe(141.48);
+  });
+});
+
+describe("pickTravelDurationRaw / long-haul", () => {
+  it("prefers Duffel slice duration over naive local-clock gap", () => {
+    // Wall clock MXP→HKT without TZ looks like ~7h; real slice is ~14h+.
+    const picked = pickTravelDurationRaw("PT7H20M", "PT14H35M", "7h 20m");
+    expect(formatTravelDuration(picked)).toBe("14h 35m");
+  });
+
+  it("computes MXP→HKT elapsed from offset timestamps, not wall clocks", () => {
+    const result = parseMakeSearchFlights({
+      flights: [
+        {
+          id: "off_ey",
+          total_amount: "603.00",
+          total_currency: "EUR",
+          owner: { name: "Etihad", iata_code: "EY" },
+          slices: [
+            {
+              origin: { iata_code: "MXP" },
+              destination: { iata_code: "HKT" },
+              duration: "PT14H35M",
+              segments: [
+                {
+                  departing_at: "2026-10-26T10:30:00+01:00",
+                  arriving_at: "2026-10-26T19:10:00+04:00",
+                  origin: { iata_code: "MXP" },
+                  destination: { iata_code: "AUH" },
+                  marketing_carrier: { name: "Etihad", iata_code: "EY" },
+                },
+                {
+                  departing_at: "2026-10-26T22:40:00+04:00",
+                  arriving_at: "2026-10-27T09:05:00+07:00",
+                  origin: { iata_code: "AUH" },
+                  destination: { iata_code: "HKT" },
+                  marketing_carrier: { name: "Etihad", iata_code: "EY" },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+
+    // Prefer first→last segment elapsed (incl. layover), not a short wall-clock / bad slice claim.
+    expect(result[0]?.outbound_duration).toBe("16h 35m");
+    expect(result[0]?.outbound_arrive_day_offset).toBe(1);
+    expect(parseDurationMinutes(result[0]?.outbound_duration ?? "")).toBeGreaterThan(12 * 60);
   });
 });
 

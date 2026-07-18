@@ -34,6 +34,11 @@ export type MakeSearchFlight = {
   inbound_duration?: string;
   /** Total minutes for ranking (outbound + inbound). */
   duration_minutes?: number;
+  /** Full offer timestamps (with offset when available) — source of truth for duration. */
+  outbound_depart_iso?: string;
+  outbound_arrive_iso?: string;
+  inbound_depart_iso?: string;
+  inbound_arrive_iso?: string;
 };
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -166,12 +171,18 @@ function parseDuffelOfferAsMakeFlight(item: unknown, index: number): MakeSearchF
       ? `${formatStopsWithLayovers(outboundStops, outLayovers)}/${formatStopsWithLayovers(returnStops, inLayovers)}`
       : formatStopsWithLayovers(outboundStops, outLayovers);
 
-  const outDurationRaw =
-    readString(firstSlice, "duration") ||
-    (departing && arriving ? isoDurationBetween(departing, arriving) : "");
-  const inDurationRaw =
-    readString(returnSlice ?? {}, "duration") ||
-    (returning && returnArriving ? isoDurationBetween(returning, returnArriving) : "");
+  // Prefer longest of slice.duration / first→last segment timestamps.
+  // Never trust a short wall-clock gap when Duffel reports a longer slice duration.
+  const outDurationRaw = pickTravelDurationRaw(
+    readString(firstSlice, "duration"),
+    durationFromSegments(segments),
+    departing && arriving ? isoDurationBetween(departing, arriving) : "",
+  );
+  const inDurationRaw = pickTravelDurationRaw(
+    readString(returnSlice ?? {}, "duration"),
+    durationFromSegments(returnSegments),
+    returning && returnArriving ? isoDurationBetween(returning, returnArriving) : "",
+  );
   const outbound_duration = formatTravelDuration(outDurationRaw);
   const inbound_duration = formatTravelDuration(inDurationRaw);
   const outMins = parseDurationMinutes(outDurationRaw);
@@ -200,6 +211,10 @@ function parseDuffelOfferAsMakeFlight(item: unknown, index: number): MakeSearchF
       : {}),
     ...(returning ? { inbound_depart: timeHmFromIso(returning) } : {}),
     ...(returnArriving ? { inbound_arrive: timeHmFromIso(returnArriving) } : {}),
+    ...(departing ? { outbound_depart_iso: departing } : {}),
+    ...(arriving ? { outbound_arrive_iso: arriving } : {}),
+    ...(returning ? { inbound_depart_iso: returning } : {}),
+    ...(returnArriving ? { inbound_arrive_iso: returnArriving } : {}),
     ...(outbound_duration ? { outbound_duration } : {}),
     ...(inbound_duration ? { inbound_duration } : {}),
     ...(duration_minutes != null ? { duration_minutes } : {}),
@@ -319,17 +334,52 @@ function timeHmFromIso(iso: string): string {
   return match ? `${match[1]}:${match[2]}` : "";
 }
 
-/** Build ISO-8601 duration from two timestamps. */
-function isoDurationBetween(departIso: string, arriveIso: string): string {
+/** Elapsed minutes between two timestamps (timezone-aware when offsets present). */
+export function elapsedMinutesBetween(departIso: string, arriveIso: string): number {
   const a = Date.parse(departIso);
   const b = Date.parse(arriveIso);
-  if (!Number.isFinite(a) || !Number.isFinite(b) || b <= a) return "";
-  const mins = Math.round((b - a) / 60_000);
+  if (!Number.isFinite(a) || !Number.isFinite(b) || b <= a) return 0;
+  return Math.round((b - a) / 60_000);
+}
+
+/** Build ISO-8601 duration from two timestamps. */
+function isoDurationBetween(departIso: string, arriveIso: string): string {
+  const mins = elapsedMinutesBetween(departIso, arriveIso);
+  if (mins <= 0) return "";
   const h = Math.floor(mins / 60);
   const m = mins % 60;
   if (h > 0 && m > 0) return `PT${h}H${m}M`;
   if (h > 0) return `PT${h}H`;
   return `PT${m}M`;
+}
+
+/**
+ * Pick the most trustworthy duration. Naive local-clock math (no TZ) underestimates
+ * long-haul (e.g. MXP 10:30 → HKT 17:50 = "7h20m" F-35). Prefer the longer of
+ * Duffel slice duration vs timestamp elapsed when both exist.
+ */
+export function pickTravelDurationRaw(...candidates: Array<string | undefined | null>): string {
+  let bestRaw = "";
+  let bestMins = 0;
+  for (const raw of candidates) {
+    if (!raw?.trim()) continue;
+    const mins = parseDurationMinutes(raw.trim());
+    if (mins > bestMins) {
+      bestMins = mins;
+      bestRaw = raw.trim();
+    }
+  }
+  return bestRaw;
+}
+
+/** Connection + flight time across segments when slice.duration is missing. */
+function durationFromSegments(segments: unknown[]): string {
+  if (segments.length === 0) return "";
+  const first = asRecord(segments[0]);
+  const last = asRecord(segments[segments.length - 1]) ?? first;
+  const depart = readString(first ?? {}, "departing_at");
+  const arrive = readString(last ?? {}, "arriving_at");
+  return isoDurationBetween(depart, arrive);
 }
 
 /** Parse PT14H30M or "14h 30m" → minutes. */
@@ -482,23 +532,31 @@ function parseFlightItem(item: unknown, index: number): MakeSearchFlight | null 
   const returnArrivalIso = readString(record, "return_arrival_datetime");
   const airlineIata = readString(record, "airline_iata", "carrier_iata").toUpperCase();
 
-  const outDurationRaw =
-    readString(record, "outbound_duration", "duration_outbound", "duration") ||
-    (departureIso && arrivalIso ? isoDurationBetween(departureIso, arrivalIso) : "");
-  const inDurationRaw =
-    readString(record, "inbound_duration", "duration_inbound") ||
-    (returnIso && returnArrivalIso ? isoDurationBetween(returnIso, returnArrivalIso) : "");
+  // Timestamps first — never let a short Gemini "duration" beat real elapsed time.
+  const outDurationRaw = pickTravelDurationRaw(
+    departureIso && arrivalIso ? isoDurationBetween(departureIso, arrivalIso) : "",
+    readString(record, "outbound_duration", "duration_outbound"),
+    // Generic "duration" last — often a single-segment value from Make/Gemini.
+    readString(record, "duration"),
+  );
+  const inDurationRaw = pickTravelDurationRaw(
+    returnIso && returnArrivalIso ? isoDurationBetween(returnIso, returnArrivalIso) : "",
+    readString(record, "inbound_duration", "duration_inbound"),
+  );
   const outbound_duration = formatTravelDuration(outDurationRaw);
   const inbound_duration = formatTravelDuration(inDurationRaw);
   const outMins = parseDurationMinutes(outDurationRaw);
   const inMins = parseDurationMinutes(inDurationRaw);
-  const duration_minutes = readNumber(record, "duration_minutes");
+  const claimedTotal = readNumber(record, "duration_minutes");
+  const computedTotal = outMins > 0 || inMins > 0 ? outMins + inMins : 0;
   const totalMins =
-    duration_minutes > 0
-      ? duration_minutes
-      : outMins > 0 || inMins > 0
-        ? outMins + inMins
-        : undefined;
+    claimedTotal > 0 && computedTotal > 0
+      ? Math.max(claimedTotal, computedTotal)
+      : claimedTotal > 0
+        ? claimedTotal
+        : computedTotal > 0
+          ? computedTotal
+          : undefined;
 
   return {
     id: rank || readString(record, "id") || `flight-${index}`,
@@ -533,6 +591,10 @@ function parseFlightItem(item: unknown, index: number): MakeSearchFlight | null 
     ...(returnArrivalIso && timeHmFromIso(returnArrivalIso)
       ? { inbound_arrive: timeHmFromIso(returnArrivalIso) }
       : {}),
+    ...(departureIso ? { outbound_depart_iso: departureIso } : {}),
+    ...(arrivalIso ? { outbound_arrive_iso: arrivalIso } : {}),
+    ...(returnIso ? { inbound_depart_iso: returnIso } : {}),
+    ...(returnArrivalIso ? { inbound_arrive_iso: returnArrivalIso } : {}),
     ...(outbound_duration ? { outbound_duration } : {}),
     ...(inbound_duration ? { inbound_duration } : {}),
     ...(totalMins != null ? { duration_minutes: totalMins } : {}),

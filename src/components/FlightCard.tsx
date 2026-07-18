@@ -1,7 +1,11 @@
 import { ExternalLink, Sparkles, Plane, Check } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import {
+  elapsedMinutesBetween,
+  formatTravelDuration,
+  parseDurationMinutes,
   parseMakeFlightRoute,
+  pickTravelDurationRaw,
   skyscannerUrlForMakeFlight,
   type MakeSearchFlight,
 } from "@/lib/makeSearch";
@@ -107,29 +111,37 @@ function displayDate(isoDate?: string, humanFallback = "", lang = "en"): string 
   return match?.[1]?.trim() ?? "";
 }
 
-/** Estimate duration from HH:mm + optional +N day offset when Make omitted ISO duration. */
-function estimateDurationLabel(
-  departHm?: string,
-  arriveHm?: string,
-  dayOffset = 0,
-): string | undefined {
-  if (!departHm || !arriveHm) return undefined;
-  const parse = (hm: string) => {
-    const m = hm.match(/^(\d{1,2}):(\d{2})$/);
-    if (!m) return null;
-    return Number.parseInt(m[1]!, 10) * 60 + Number.parseInt(m[2]!, 10);
-  };
-  const a = parse(departHm);
-  const b = parse(arriveHm);
-  if (a == null || b == null) return undefined;
-  let mins = b - a + dayOffset * 24 * 60;
-  if (mins <= 0) mins += 24 * 60;
-  if (mins <= 0 || mins > 60 * 48) return undefined;
+function minutesToDurationLabel(mins: number): string {
+  if (mins <= 0) return "";
   const h = Math.floor(mins / 60);
   const m = mins % 60;
   if (h > 0 && m > 0) return `${h}h ${m}m`;
   if (h > 0) return `${h}h`;
   return `${m}m`;
+}
+
+/**
+ * Resolve display duration. Prefer timezone-aware ISO timestamps.
+ * Never show naive HH:mm gaps (MXP 10:30 → HKT 17:50 ≠ 7h20m on a real airliner).
+ */
+function resolveDurationLabel(
+  stored: string | undefined,
+  departIso?: string,
+  arriveIso?: string,
+  hasStops = false,
+): string | undefined {
+  const isoMins =
+    departIso && arriveIso ? elapsedMinutesBetween(departIso, arriveIso) : 0;
+  const isoLabel = minutesToDurationLabel(isoMins);
+  const best = pickTravelDurationRaw(isoLabel, stored);
+  const bestMins = parseDurationMinutes(best);
+
+  // With stops, reject absurdly short claims left over from wall-clock math.
+  if (hasStops && bestMins > 0 && bestMins < 8 * 60 && !isoLabel) {
+    return undefined;
+  }
+
+  return best ? formatTravelDuration(best) || best : undefined;
 }
 
 function AirlineMark({ name, code }: { name: string; code?: string }) {
@@ -283,11 +295,20 @@ export function FlightCard({
   const inArrive = displayTime(flight.inbound_arrive);
   const outDate = displayDate(flight.depart_date, flight.odhod, lang);
   const inDate = displayDate(flight.return_date, flight.povratek ?? "", lang);
-  const outDuration =
-    flight.outbound_duration ||
-    estimateDurationLabel(outDepart, outArrive, flight.outbound_arrive_day_offset ?? 0);
-  const inDuration =
-    flight.inbound_duration || estimateDurationLabel(inDepart, inArrive, 0);
+  const outHasStops = !/^0(?:\||$)/.test(outStopsRaw.trim()) && outStopsRaw.trim() !== "0";
+  const inHasStops = Boolean(inStopsRaw) && !/^0(?:\||$)/.test(inStopsRaw.trim());
+  const outDuration = resolveDurationLabel(
+    flight.outbound_duration,
+    flight.outbound_depart_iso,
+    flight.outbound_arrive_iso,
+    outHasStops,
+  );
+  const inDuration = resolveDurationLabel(
+    flight.inbound_duration,
+    flight.inbound_depart_iso,
+    flight.inbound_arrive_iso,
+    inHasStops,
+  );
   const badgeLabel = flight.badge ? localizeBadge(flight.badge, t) : "";
 
   return (
