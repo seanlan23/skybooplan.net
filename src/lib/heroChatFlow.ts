@@ -10,6 +10,7 @@ export type HeroChatStep =
   | "nights"
   | "origin"
   | "passengers"
+  | "pace"
   | "budget"
   | "searching";
 
@@ -19,6 +20,7 @@ export type HeroChatCollected = {
   nights: string;
   origin: string;
   passengers: string;
+  pace: string;
   budget: string;
   attachment?: import("@/lib/heroChatAttachment").HeroChatAttachmentPayload;
 };
@@ -76,11 +78,13 @@ export function heroChatStepNumber(step: HeroChatStep): number {
       return 1;
     case "dates":
       return 2;
-    case "nights":
+    case "pace":
       return 3;
-    case "origin":
-      return 4;
     case "budget":
+      return 4;
+    case "nights":
+      return 5;
+    case "origin":
       return 5;
     default:
       return 0;
@@ -116,6 +120,7 @@ export function buildHeroMakeSearchQuery(
   if (data.passengers?.trim()) parts.push(data.passengers.trim());
   if (data.nights?.trim()) parts.push(data.nights.trim());
   if (data.origin?.trim()) parts.push(`iz ${data.origin.trim()}`);
+  if (data.pace?.trim()) parts.push(`tempo ${data.pace.trim()}`);
   if (data.budget?.trim()) parts.push(`proračun ${data.budget.trim()} na osebo`);
   return parts.join(", ");
 }

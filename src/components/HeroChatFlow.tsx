@@ -30,13 +30,16 @@ import {
 import { extractHeroChatDates } from "@/lib/heroChatDates";
 import { resolveHeroChatBootstrap } from "@/lib/heroChatExtract";
 import { FlightCard } from "@/components/FlightCard";
+import { HeroTripChecklist } from "@/components/HeroTripChecklist";
 import { RotatingTextareaPlaceholder } from "@/components/RotatingTextareaPlaceholder";
 import type { MakeSearchFlight } from "@/lib/makeSearch";
+import { cn } from "@/lib/utils";
 
 const DATE_CHIP_IDS = ["endOctober", "startNovember", "octNov", "flexible"] as const;
 const NIGHT_CHIP_IDS = ["3-5", "7", "10-14", "2weeks"] as const;
 const ORIGIN_CHIP_IDS = ["ljubljana", "zagreb", "vienna", "venice", "other"] as const;
 const PASSENGER_CHIP_IDS = ["1adult", "2adults", "2adults1child", "2adults2children"] as const;
+const PACE_CHIP_IDS = ["intensive", "relaxed", "calm"] as const;
 const BUDGET_CHIP_IDS = ["under500", "500-1000", "1000-2000", "2000plus"] as const;
 
 const HERO_FEATURE_BADGE_IDS = ["itinerary", "flights", "pdf"] as const;
@@ -320,10 +323,13 @@ export function HeroChatFlow({
   const [fileError, setFileError] = useState<string | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [originFreeText, setOriginFreeText] = useState(false);
+  const [adultsCount, setAdultsCount] = useState(2);
+  const [childrenCount, setChildrenCount] = useState(0);
 
   const agentName = t("heroChat.agentName" as never);
   const isSearching = step === "searching";
   const inputDisabled = isSearching;
+  const showTripChecklist = conversationStarted && mode === "all";
 
   const firstSkyMessageId = useMemo(
     () => messages.find((m) => m.role === "ai")?.id,
@@ -381,23 +387,37 @@ export function HeroChatFlow({
 
       // Smart wizard: skip questions the first message already answered.
       if (boot.nextStep === "search" && boot.passengers && boot.dates.label) {
-        appendMessages(
-          createChatMessage(
-            "ai",
-            skyMessageWithVars(t("heroChat.bootstrap.ready" as never), {
-              passengers: boot.passengers.label,
-              dates: boot.dates.label,
-            }),
-          ),
-          createChatMessage("ai", t("heroChat.searchingFlights" as never)),
-        );
         setCollected((prev) => ({
           ...prev,
           ...baseCollected,
           passengers: boot.passengers!.label,
           dates: boot.dates.label,
         }));
-        setStep("searching");
+        if (isFlightsOnly) {
+          appendMessages(
+            createChatMessage(
+              "ai",
+              skyMessageWithVars(t("heroChat.bootstrap.ready" as never), {
+                passengers: boot.passengers.label,
+                dates: boot.dates.label,
+              }),
+            ),
+            createChatMessage("ai", t("heroChat.searchingFlights" as never)),
+          );
+          setStep("searching");
+          return;
+        }
+        // Layla-style “Vse skupaj”: still ask pace + budget before generating.
+        appendMessages(
+          createChatMessage(
+            "ai",
+            skyMessageWithVars(t("heroChat.stepDates.exact" as never), {
+              dates: boot.dates.label,
+            }),
+          ),
+          createChatMessage("ai", t("heroChat.pace.ask" as never)),
+        );
+        setStep("pace");
         return;
       }
 
@@ -430,7 +450,7 @@ export function HeroChatFlow({
       appendMessages(createChatMessage("ai", t("heroChat.step1.ai" as never)));
       setStep("passengers");
     },
-    [appendMessages, attachment, lang, step, t],
+    [appendMessages, attachment, isFlightsOnly, lang, step, t],
   );
 
   useEffect(() => {
@@ -538,13 +558,44 @@ export function HeroChatFlow({
     setStep("searching");
   }
 
+  function continueAfterDates(dateLabel: string) {
+    setCollected((prev) => ({ ...prev, dates: dateLabel.trim() || prev.dates || "" }));
+    if (isFlightsOnly) {
+      startFlightSearch(dateLabel);
+      return;
+    }
+    appendMessages(createChatMessage("ai", t("heroChat.pace.ask" as never)));
+    setStep("pace");
+  }
+
   function advanceFromDates(label: string, options?: { silent?: boolean }) {
     setShowDatePicker(false);
     clearDatePickerOffers();
     if (!options?.silent && label.trim()) {
       appendMessages(createChatMessage("user", label.trim()));
     }
-    startFlightSearch(label);
+    continueAfterDates(label);
+  }
+
+  function handlePaceSelect(_id: string, label: string) {
+    appendMessages(
+      createChatMessage("user", label),
+      createChatMessage("ai", t("heroChat.budget.ask" as never)),
+    );
+    setCollected((prev) => ({ ...prev, pace: label }));
+    setStep("budget");
+  }
+
+  function confirmPassengerCounts() {
+    const label =
+      lang === "sl"
+        ? childrenCount > 0
+          ? `${adultsCount} ${adultsCount === 1 ? "odrasel" : adultsCount === 2 ? "odrasla" : "odraslih"} + ${childrenCount} ${childrenCount === 1 ? "otrok" : childrenCount === 2 ? "otroka" : "otrok"}`
+          : `${adultsCount} ${adultsCount === 1 ? "odrasel" : adultsCount === 2 ? "odrasla" : "odraslih"}`
+        : childrenCount > 0
+          ? `${adultsCount} adult${adultsCount === 1 ? "" : "s"} + ${childrenCount} child${childrenCount === 1 ? "" : "ren"}`
+          : `${adultsCount} adult${adultsCount === 1 ? "" : "s"}`;
+    advanceToDatesFromPassengers(label);
   }
 
   function advanceFromOrigin(label: string) {
@@ -577,7 +628,7 @@ export function HeroChatFlow({
     appendMessages(createChatMessage("user", label));
     setCollected((prev) => ({ ...prev, passengers: label }));
 
-    // If the first message already had usable dates (incl. "konec oktobra…"), search — don't re-ask.
+    // If the first message already had usable dates, continue — don't re-ask.
     if (parsed.departDate || parsed.precision === "exact") {
       appendMessages(
         createChatMessage(
@@ -586,7 +637,7 @@ export function HeroChatFlow({
         ),
       );
       setCollected((prev) => ({ ...prev, dates: parsed.label, passengers: label }));
-      startFlightSearch(parsed.label);
+      continueAfterDates(parsed.label);
       return;
     }
 
@@ -707,6 +758,9 @@ export function HeroChatFlow({
       case "passengers":
         advanceToDatesFromPassengers(trimmed);
         break;
+      case "pace":
+        handlePaceSelect("custom", trimmed);
+        break;
       case "budget":
         handleBudgetSelect("custom", trimmed);
         break;
@@ -755,8 +809,17 @@ export function HeroChatFlow({
   return (
     <div
       id="hero-chat-window"
-      className="relative z-20 mx-auto mt-10 w-full min-w-0 max-w-2xl text-left pointer-events-auto sm:max-w-3xl"
+      className={cn(
+        "relative z-20 mx-auto mt-10 w-full min-w-0 text-left pointer-events-auto",
+        showTripChecklist ? "max-w-4xl sm:max-w-5xl" : "max-w-2xl sm:max-w-3xl",
+      )}
     >
+      <div
+        className={cn(
+          showTripChecklist && "grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(240px,0.8fr)] lg:items-start",
+        )}
+      >
+      <div className="min-w-0">
       {!conversationStarted ? (
         <>
           <form
@@ -919,13 +982,53 @@ export function HeroChatFlow({
           ) : null}
 
           {showConversationChips && step === "passengers" ? (
+            <div className="hero-chips-enter space-y-3 pl-0 sm:pl-10">
+              <p className="text-sm text-white/80">{t("heroChat.passengers.askDetail" as never)}</p>
+              <div className="flex flex-wrap gap-3">
+                <PassengerStepper
+                  label={t("heroChat.passengers.adults" as never)}
+                  value={adultsCount}
+                  min={1}
+                  max={9}
+                  disabled={loading}
+                  onChange={setAdultsCount}
+                />
+                <PassengerStepper
+                  label={t("heroChat.passengers.children" as never)}
+                  value={childrenCount}
+                  min={0}
+                  max={8}
+                  disabled={loading}
+                  onChange={setChildrenCount}
+                />
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={confirmPassengerCounts}
+                  className="self-end rounded-full bg-white px-4 py-2 text-sm font-semibold text-gray-900 shadow-md transition hover:bg-white/90 disabled:opacity-50"
+                >
+                  {t("heroChat.passengers.confirm" as never)}
+                </button>
+              </div>
+              <QuickReplyChips
+                disabled={loading}
+                options={PASSENGER_CHIP_IDS.map((id) => ({
+                  id,
+                  label: chipLabel("heroChat.passengers", id),
+                }))}
+                onSelect={handlePassengersSelect}
+              />
+            </div>
+          ) : null}
+
+          {showConversationChips && step === "pace" && !isFlightsOnly ? (
             <QuickReplyChips
               disabled={loading}
-              options={PASSENGER_CHIP_IDS.map((id) => ({
+              options={PACE_CHIP_IDS.map((id) => ({
                 id,
-                label: chipLabel("heroChat.passengers", id),
+                label: t(`heroChat.pace.${id}` as never),
               }))}
-              onSelect={handlePassengersSelect}
+              onSelect={handlePaceSelect}
             />
           ) : null}
 
@@ -999,6 +1102,12 @@ export function HeroChatFlow({
           ) : null}
         </div>
       ) : null}
+      </div>
+
+      {showTripChecklist ? (
+        <HeroTripChecklist collected={collected} className="lg:sticky lg:top-4" />
+      ) : null}
+      </div>
 
       <style>{`
         @keyframes heroSkyEnter {
@@ -1016,6 +1125,49 @@ export function HeroChatFlow({
           animation: heroChipsEnter 0.35s ease-out 0.15s both;
         }
       `}</style>
+    </div>
+  );
+}
+
+function PassengerStepper({
+  label,
+  value,
+  min,
+  max,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  disabled?: boolean;
+  onChange: (n: number) => void;
+}) {
+  return (
+    <div className="rounded-2xl border border-white/25 bg-white/10 px-3 py-2">
+      <p className="text-xs font-medium text-white/70">{label}</p>
+      <div className="mt-1 flex items-center gap-2">
+        <button
+          type="button"
+          disabled={disabled || value <= min}
+          onClick={() => onChange(Math.max(min, value - 1))}
+          className="flex h-8 w-8 items-center justify-center rounded-full bg-white/15 text-white disabled:opacity-40"
+          aria-label={`− ${label}`}
+        >
+          −
+        </button>
+        <span className="min-w-[1.5rem] text-center text-base font-semibold text-white">{value}</span>
+        <button
+          type="button"
+          disabled={disabled || value >= max}
+          onClick={() => onChange(Math.min(max, value + 1))}
+          className="flex h-8 w-8 items-center justify-center rounded-full bg-white/15 text-white disabled:opacity-40"
+          aria-label={`+ ${label}`}
+        >
+          +
+        </button>
+      </div>
     </div>
   );
 }

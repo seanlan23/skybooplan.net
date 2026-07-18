@@ -193,14 +193,25 @@ export function heroChatToPlannerPayload(
     currency: "EUR",
   };
 
+  const paceLabel = collected.pace?.toLowerCase() ?? "";
+  const pace =
+    /intensiv|intensive/.test(paceLabel)
+      ? ("intensive" as const)
+      : /umir|calm/.test(paceLabel)
+        ? ("calm" as const)
+        : ("relaxed" as const);
+
   const form: AiPlannerSubmit = {
-    pace: "relaxed",
+    pace,
     wishes: [
       `Destinacija: ${destinationPlace}`,
       `Datumi: ${collected.dates}`,
       nightsLabel,
+      collected.pace ? `Tempo: ${collected.pace}` : "",
       `Proračun: ${budgetLabel} na osebo`,
-    ].join(". "),
+    ]
+      .filter(Boolean)
+      .join(". "),
     tags: [],
     customPrompt: "",
     budget: mapChatBudget(budgetLabel),

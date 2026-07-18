@@ -16,6 +16,7 @@ describe("heroChatPlanner", () => {
       nights: "7 noči",
       origin: "Ljubljana",
       passengers: "2 odrasla",
+      pace: "Sproščen",
       budget: "500–1000€",
     });
 

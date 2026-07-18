@@ -33,6 +33,7 @@ describe("buildHeroMakeSearchQuery", () => {
         nights: "",
         origin: "",
         passengers: "2 odrasla, 1 otrok",
+        pace: "",
         budget: "",
       },
       "all",
@@ -53,6 +54,7 @@ describe("buildHeroSearchQuery", () => {
       nights: "7 noči",
       origin: "Ljubljana",
       passengers: "2 odrasla",
+      pace: "Sproščen",
       budget: "500–1000€",
     });
 

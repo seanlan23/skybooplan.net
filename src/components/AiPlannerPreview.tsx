@@ -182,8 +182,12 @@ export function AiPlannerPreview({
         </div>
 
         <div className="rounded-3xl bg-card border border-border shadow-[var(--shadow-card)] overflow-hidden">
-          <div className="grid grid-cols-2 p-2 gap-2 bg-muted/40">
-            <ModeBtn active={mode === "ai"} onClick={() => setMode("ai")} variant="primary">
+          <div
+            className="m-3 grid grid-cols-2 gap-1 rounded-2xl bg-muted/70 p-1 ring-1 ring-border/60"
+            role="tablist"
+            aria-label={`${t("ai.modeAi")} / ${t("ai.modeManual")}`}
+          >
+            <ModeBtn active={mode === "ai"} onClick={() => setMode("ai")}>
               <Sparkles className="h-4 w-4" /> {t("ai.modeAi")}
             </ModeBtn>
             <ModeBtn active={mode === "manual"} onClick={() => setMode("manual")}>
@@ -410,24 +414,22 @@ function ModeBtn({
   children,
   active,
   onClick,
-  variant = "default",
 }: {
   children: React.ReactNode;
   active: boolean;
   onClick: () => void;
-  variant?: "default" | "primary";
 }) {
   return (
     <button
       type="button"
+      role="tab"
+      aria-selected={active}
       onClick={onClick}
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-2xl py-2.5 text-sm font-semibold transition-all",
-        active &&
-          variant === "primary" &&
-          "text-primary-foreground shadow-sm [background:var(--gradient-warm)]",
-        active && variant === "default" && "bg-card text-foreground shadow-sm",
-        !active && "text-foreground/60 hover:text-foreground",
+        "inline-flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-all",
+        active
+          ? "bg-brand text-brand-foreground shadow-sm"
+          : "bg-transparent text-muted-foreground hover:bg-card/80 hover:text-foreground",
       )}
     >
       {children}
