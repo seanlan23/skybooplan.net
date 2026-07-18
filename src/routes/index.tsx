@@ -55,7 +55,7 @@ import { isClassicRoundTrip } from "@/lib/flightSearch";
 import { formatPlannerInterests } from "@/lib/plannerInterests";
 import { Button } from "@/components/ui/button";
 import { addDays } from "@/lib/dateUtils";
-import { type MakeSearchFlight } from "@/lib/makeSearch";
+import { parseMakeFlightRoute, type MakeSearchFlight } from "@/lib/makeSearch";
 import { resolveHeroSearchData } from "@/lib/heroSearchPoll";
 import { heroChatToPlannerPayload } from "@/lib/heroChatPlanner";
 import type { HeroChatCollected } from "@/lib/heroChatFlow";
@@ -294,6 +294,7 @@ function Landing() {
   const [heroDreamPrompt, setHeroDreamPrompt] = useState("");
   const [heroChatSeed, setHeroChatSeed] = useState<string | null>(null);
   const [heroFlights, setHeroFlights] = useState<MakeSearchFlight[]>([]);
+  const [selectedHeroFlightId, setSelectedHeroFlightId] = useState<string | null>(null);
   const [heroSearchLoading, setHeroSearchLoading] = useState(false);
   const [heroSearchError, setHeroSearchError] = useState<string | null>(null);
   const [heroSearchAttempted, setHeroSearchAttempted] = useState(false);
@@ -532,6 +533,7 @@ function Landing() {
     setHeroSearchLoading(true);
     setHeroSearchError(null);
     setHeroFlights([]);
+    setSelectedHeroFlightId(null);
     setError(null);
     beginNewSearch();
     setHeroDreamPrompt(trimmed);
@@ -828,6 +830,52 @@ function Landing() {
     setConfirmFlight(f);
     setShowConfirm(true);
     setShowSpotlight(false);
+  }
+
+  function handleSelectHeroFlightForAi(flight: MakeSearchFlight) {
+    setSelectedHeroFlightId(flight.id);
+    setShowSpotlight(false);
+    setHeroChatMode("all");
+    setHeroSkyChatComplete(true);
+    setLastPlannerForm(null);
+    setAiPlan(null);
+    setAiError(null);
+    setHeroPlannerActive(false);
+
+    const route = parseMakeFlightRoute(flight.destinacija);
+    const from = flight.origin_iata || route.from || aiContext.from || lastSearch?.from || "LJU";
+    const to = flight.destination_iata || route.to || aiContext.to || lastSearch?.to || "";
+    const departDate =
+      flight.depart_date || aiContext.departDate || lastSearch?.departDate || "";
+    const returnDate =
+      flight.return_date || aiContext.returnDate || lastSearch?.returnDate || undefined;
+
+    const flightCtx =
+      flight.outbound_depart && flight.outbound_arrive
+        ? {
+            outboundDepart: flight.outbound_depart,
+            outboundArrive: flight.outbound_arrive,
+            outboundArriveDayOffset: flight.outbound_arrive_day_offset ?? 0,
+            ...(flight.inbound_depart ? { inboundDepart: flight.inbound_depart } : {}),
+            ...(flight.inbound_arrive ? { inboundArrive: flight.inbound_arrive } : {}),
+          }
+        : aiContext.flights;
+
+    setAiContext({
+      ...aiContext,
+      from,
+      to,
+      departDate: departDate || aiContext.departDate,
+      returnDate: returnDate || undefined,
+      flights: flightCtx,
+    });
+
+    window.setTimeout(() => {
+      document.getElementById("hero-ai-planner")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 120);
   }
 
   async function handleConfirm() {
@@ -1217,8 +1265,29 @@ function Landing() {
           searchError={heroSearchError}
           seedDestination={heroChatSeed}
           onSeedConsumed={() => setHeroChatSeed(null)}
+          selectedFlightId={selectedHeroFlightId}
+          onSelectFlightForAiPlan={handleSelectHeroFlightForAi}
+          flightAdults={lastSearch?.adults ?? aiContext.adults ?? 1}
+          flightSearchMeta={
+            lastSearch
+              ? {
+                  from: lastSearch.from,
+                  to: lastSearch.to,
+                  departDate: lastSearch.departDate,
+                  returnDate: lastSearch.returnDate || undefined,
+                }
+              : aiContext.from && aiContext.to
+                ? {
+                    from: aiContext.from,
+                    to: aiContext.to,
+                    departDate: aiContext.departDate,
+                    returnDate: aiContext.returnDate,
+                  }
+                : null
+          }
           onModeChange={() => {
             setHeroFlights([]);
+            setSelectedHeroFlightId(null);
             setHeroSearchError(null);
             setHeroSearchAttempted(false);
             setHeroSkyChatComplete(false);

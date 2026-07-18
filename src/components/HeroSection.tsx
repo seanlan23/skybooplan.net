@@ -13,6 +13,10 @@ export function HeroSection({
   seedDestination = null,
   onSeedConsumed,
   onModeChange,
+  selectedFlightId = null,
+  onSelectFlightForAiPlan,
+  flightSearchMeta = null,
+  flightAdults = 1,
 }: {
   onSearch: (query: string, collected: HeroChatCollected, mode: HeroChatMode) => void;
   loading?: boolean;
@@ -21,6 +25,15 @@ export function HeroSection({
   seedDestination?: string | null;
   onSeedConsumed?: () => void;
   onModeChange?: (mode: HeroChatMode) => void;
+  selectedFlightId?: string | null;
+  onSelectFlightForAiPlan?: (flight: import("@/lib/makeSearch").MakeSearchFlight) => void;
+  flightSearchMeta?: {
+    from?: string;
+    to?: string;
+    departDate?: string;
+    returnDate?: string;
+  } | null;
+  flightAdults?: number;
 }) {
   const { t } = useI18n();
   const [mode, setMode] = useState<HeroChatMode>("all");
@@ -68,6 +81,10 @@ export function HeroSection({
           searchError={searchError}
           seedDestination={seedDestination}
           onSeedConsumed={onSeedConsumed}
+          selectedFlightId={selectedFlightId}
+          onSelectFlightForAiPlan={onSelectFlightForAiPlan}
+          flightSearchMeta={flightSearchMeta}
+          flightAdults={flightAdults}
         />
       </div>
     </section>

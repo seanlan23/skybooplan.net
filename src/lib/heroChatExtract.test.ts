@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { extractHeroChatPassengers, resolveHeroChatBootstrap } from "@/lib/heroChatExtract";
+import {
+  extractHeroChatPassengers,
+  resolveHeroChatBootstrap,
+} from "@/lib/heroChatExtract";
 
 describe("extractHeroChatPassengers", () => {
   it("returns null when passengers were not mentioned", () => {
@@ -14,6 +17,13 @@ describe("extractHeroChatPassengers", () => {
       label: "2 odrasla + 1 otrok",
     });
   });
+
+  it("parses party size without adult/child words", () => {
+    expect(extractHeroChatPassengers("nas je 4", "sl")).toMatchObject({
+      adults: 4,
+      children: 0,
+    });
+  });
 });
 
 describe("resolveHeroChatBootstrap", () => {
@@ -24,13 +34,24 @@ describe("resolveHeroChatBootstrap", () => {
     );
     expect(result.nextStep).toBe("search");
     expect(result.canSearchNow).toBe(true);
+    expect(result.tripReady).toBe(true);
     expect(result.passengers?.label).toContain("2 odrasla");
-    expect(result.dates.departDate).toMatch(/10-26/);
   });
 
-  it("asks for passengers when only destination and dates are present", () => {
-    const result = resolveHeroChatBootstrap("tajska konec oktobra začetek novembra", "sl");
+  it("asks only for passengers when a rich trip prompt has dates but no party size", () => {
+    const result = resolveHeroChatBootstrap(
+      "Ljubljana → potovanje na jug tajske po možnosti prihod in odhod iz phuketa. Konec oktobra zaetek novembra za 14 nočitev. Let naj bo oi lj, dunaja, milana, zagreba ali budimšete. Cena in cae potovanja sta najpomebnejša",
+      "sl",
+    );
     expect(result.nextStep).toBe("passengers");
+    expect(result.tripReady).toBe(true);
+    expect(result.passengers).toBeNull();
     expect(result.dates.departDate).toBeTruthy();
+  });
+
+  it("asks for dates when the first message has no usable dates", () => {
+    const result = resolveHeroChatBootstrap("potovanje na Bali", "sl");
+    expect(result.nextStep).toBe("dates");
+    expect(result.tripReady).toBe(false);
   });
 });

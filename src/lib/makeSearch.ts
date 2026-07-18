@@ -10,10 +10,25 @@ export type MakeSearchFlight = {
   /** Return-leg departure when the offer has a second Duffel slice. */
   povratek?: string;
   prevoznik: string;
+  /** IATA airline code when available (for logo). */
+  airline_iata?: string;
   postanki: string;
   ai_povzetek: string;
   badge?: string;
   booking_url?: string;
+  /** Structured fields for Skyscanner deep-links + AI plan scheduling. */
+  origin_iata?: string;
+  destination_iata?: string;
+  /** YYYY-MM-DD */
+  depart_date?: string;
+  /** YYYY-MM-DD */
+  return_date?: string;
+  /** HH:mm local from offer ISO */
+  outbound_depart?: string;
+  outbound_arrive?: string;
+  outbound_arrive_day_offset?: number;
+  inbound_depart?: string;
+  inbound_arrive?: string;
 };
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -122,14 +137,18 @@ function parseDuffelOfferAsMakeFlight(item: unknown, index: number): MakeSearchF
   const destination =
     readNestedIata(firstSlice.destination) || readNestedIata(lastSeg?.destination);
   const owner = asRecord(record.owner);
+  const marketing = asRecord(firstSeg?.marketing_carrier ?? firstSeg?.operating_carrier);
   const carrier =
-    readString(owner ?? {}, "name") ||
-    readString(
-      asRecord(firstSeg?.marketing_carrier ?? firstSeg?.operating_carrier) ?? {},
-      "name",
-    );
+    readString(owner ?? {}, "name") || readString(marketing ?? {}, "name");
+  const airlineIata =
+    readString(owner ?? {}, "iata_code", "iata").toUpperCase() ||
+    readString(marketing ?? {}, "iata_code", "iata").toUpperCase();
   const departing = readString(firstSeg ?? {}, "departing_at");
+  const arriving = readString(lastSeg ?? {}, "arriving_at");
   const returning = readString(returnFirstSeg ?? {}, "departing_at");
+  const returnLastSeg =
+    asRecord(returnSegments[returnSegments.length - 1]) ?? returnFirstSeg;
+  const returnArriving = readString(returnLastSeg ?? {}, "arriving_at");
   const price = readNumber(record, "total_amount", "price_total", "cena_eur");
   if (!origin && !destination && price <= 0) return null;
 
@@ -147,8 +166,20 @@ function parseDuffelOfferAsMakeFlight(item: unknown, index: number): MakeSearchF
     odhod: departing ? formatDepartureDatetime(departing) : "—",
     ...(returning ? { povratek: formatDepartureDatetime(returning) } : {}),
     prevoznik: carrier || "—",
+    ...(airlineIata ? { airline_iata: airlineIata } : {}),
     postanki,
     ai_povzetek: "",
+    ...(origin ? { origin_iata: origin } : {}),
+    ...(destination ? { destination_iata: destination } : {}),
+    ...(departing ? { depart_date: isoDatePart(departing) } : {}),
+    ...(returning ? { return_date: isoDatePart(returning) } : {}),
+    ...(departing ? { outbound_depart: timeHmFromIso(departing) } : {}),
+    ...(arriving ? { outbound_arrive: timeHmFromIso(arriving) } : {}),
+    ...(departing && arriving
+      ? { outbound_arrive_day_offset: calendarDayOffset(departing, arriving) }
+      : {}),
+    ...(returning ? { inbound_depart: timeHmFromIso(returning) } : {}),
+    ...(returnArriving ? { inbound_arrive: timeHmFromIso(returnArriving) } : {}),
   };
 }
 
@@ -188,9 +219,72 @@ function formatDepartureDatetime(iso: string): string {
   }).format(d);
 }
 
+function isoDatePart(iso: string): string {
+  const match = iso.match(/^(\d{4}-\d{2}-\d{2})/);
+  return match?.[1] ?? "";
+}
+
+function timeHmFromIso(iso: string): string {
+  const match = iso.match(/T(\d{2}):(\d{2})/);
+  return match ? `${match[1]}:${match[2]}` : "";
+}
+
+function calendarDayOffset(departIso: string, arriveIso: string): number {
+  const from = isoDatePart(departIso);
+  const to = isoDatePart(arriveIso);
+  if (!from || !to) return 0;
+  const a = Date.parse(`${from}T12:00:00Z`);
+  const b = Date.parse(`${to}T12:00:00Z`);
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return 0;
+  return Math.max(0, Math.round((b - a) / 86_400_000));
+}
+
 function formatMakeRoute(origin: string, destination: string): string {
   if (origin && destination) return `${origin} → ${destination}`;
   return destination || origin || "—";
+}
+
+/** Parse "LJU → HKT" style route labels. */
+export function parseMakeFlightRoute(destinacija: string): { from?: string; to?: string } {
+  const match = destinacija
+    .toUpperCase()
+    .match(/\b([A-Z]{3})\s*(?:→|->|–|-)\s*([A-Z]{3})\b/);
+  if (!match) return {};
+  return { from: match[1], to: match[2] };
+}
+
+export function buildSkyscannerFlightUrl(opts: {
+  from: string;
+  to: string;
+  departDate: string;
+  returnDate?: string;
+  adults?: number;
+}): string | null {
+  const from = opts.from.trim().toLowerCase();
+  const to = opts.to.trim().toLowerCase();
+  if (!/^[a-z]{3}$/.test(from) || !/^[a-z]{3}$/.test(to)) return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(opts.departDate)) return null;
+  const fmt = (d: string) => d.replace(/-/g, "").slice(2);
+  const seg =
+    opts.returnDate && /^\d{4}-\d{2}-\d{2}$/.test(opts.returnDate)
+      ? `${fmt(opts.departDate)}/${fmt(opts.returnDate)}`
+      : fmt(opts.departDate);
+  const adults = Math.max(1, Math.min(9, opts.adults ?? 1));
+  return `https://www.skyscanner.net/transport/flights/${from}/${to}/${seg}/?adults=${adults}`;
+}
+
+export function skyscannerUrlForMakeFlight(
+  flight: MakeSearchFlight,
+  adults = 1,
+  fallback?: { from?: string; to?: string; departDate?: string; returnDate?: string },
+): string | null {
+  const route = parseMakeFlightRoute(flight.destinacija);
+  const from = flight.origin_iata || route.from || fallback?.from;
+  const to = flight.destination_iata || route.to || fallback?.to;
+  const departDate = flight.depart_date || fallback?.departDate;
+  const returnDate = flight.return_date || fallback?.returnDate;
+  if (!from || !to || !departDate) return null;
+  return buildSkyscannerFlightUrl({ from, to, departDate, returnDate, adults });
 }
 
 function parseFlightItem(item: unknown, index: number): MakeSearchFlight | null {
@@ -246,6 +340,14 @@ function parseFlightItem(item: unknown, index: number): MakeSearchFlight | null 
   const stopsRaw =
     record.stops_outbound ?? record.stops ?? record.stop_count ?? record.postanki;
 
+  const route = parseMakeFlightRoute(destinacija);
+  const origin =
+    (/^[A-Z]{3}$/.test(originIata) ? originIata : "") || route.from || "";
+  const destination =
+    (/^[A-Z]{3}$/.test(destIata) ? destIata : "") || route.to || "";
+  const arrivalIso = readString(record, "arrival_datetime", "arrival");
+  const returnArrivalIso = readString(record, "return_arrival_datetime");
+
   return {
     id: rank || readString(record, "id") || `flight-${index}`,
     destinacija: destinacija || "—",
@@ -257,6 +359,27 @@ function parseFlightItem(item: unknown, index: number): MakeSearchFlight | null 
     ai_povzetek,
     badge,
     booking_url,
+    ...(origin ? { origin_iata: origin } : {}),
+    ...(destination ? { destination_iata: destination } : {}),
+    ...(departureIso ? { depart_date: isoDatePart(departureIso) } : {}),
+    ...(returnIso && isoDatePart(returnIso)
+      ? { return_date: isoDatePart(returnIso) }
+      : {}),
+    ...(departureIso && timeHmFromIso(departureIso)
+      ? { outbound_depart: timeHmFromIso(departureIso) }
+      : {}),
+    ...(arrivalIso && timeHmFromIso(arrivalIso)
+      ? { outbound_arrive: timeHmFromIso(arrivalIso) }
+      : {}),
+    ...(departureIso && arrivalIso
+      ? { outbound_arrive_day_offset: calendarDayOffset(departureIso, arrivalIso) }
+      : {}),
+    ...(returnIso && timeHmFromIso(returnIso)
+      ? { inbound_depart: timeHmFromIso(returnIso) }
+      : {}),
+    ...(returnArrivalIso && timeHmFromIso(returnArrivalIso)
+      ? { inbound_arrive: timeHmFromIso(returnArrivalIso) }
+      : {}),
   };
 }
 
@@ -265,7 +388,15 @@ export function parseMakeSearchFlights(data: unknown): MakeSearchFlight[] {
     .slice(0, 80)
     .map((item, index) => parseDuffelOfferAsMakeFlight(item, index) ?? parseFlightItem(item, index))
     .filter((item): item is MakeSearchFlight => item != null);
-  return selectTopMakeSearchFlights(flights);
+  const deduped: MakeSearchFlight[] = [];
+  const seen = new Set<string>();
+  for (const flight of flights) {
+    const key = flight.id || `${flight.destinacija}|${flight.odhod}|${flight.cena_eur}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(flight);
+  }
+  return selectTopMakeSearchFlights(deduped);
 }
 
 export type SearchRequestBody = {
@@ -379,7 +510,11 @@ const DESTINATION_ALIASES: Array<{ pattern: RegExp; iata: string }> = [
   { pattern: /\bnew york\b|\bnyc\b|\bmanhattan\b|\bjfk\b/i, iata: "JFK" },
   { pattern: /\blos angeles\b|\bla\b|\blax\b/i, iata: "LAX" },
   { pattern: /\bsan francisco\b|\bsfo\b/i, iata: "SFO" },
-  { pattern: /\bphuket\b|\bhkt\b/i, iata: "HKT" },
+  // Southern Thailand / Phuket before generic Thailand → Bangkok.
+  {
+    pattern: /\bphuket\b|\bhkt\b|\bju[zž]n[aeo]?\s+tajsk|\bsouth(?:ern)?\s+thailand\b/i,
+    iata: "HKT",
+  },
   { pattern: /\bkuala lumpur\b|\bkul\b/i, iata: "KUL" },
   { pattern: /\bcape town\b|\bcpt\b/i, iata: "CPT" },
   { pattern: /\bho chi minh city\b/i, iata: "SGN" },
@@ -504,14 +639,48 @@ export function parseMakeSearchPassengers(text: string): MakeSearchPassengers {
   };
 }
 
+/** Slovenian/English tokens that look like IATA but are not airports. */
+const FALSE_IATA_TOKENS = new Set([
+  "LJU",
+  "ZAG",
+  "VIE",
+  "VCE",
+  "MXP",
+  "BUD",
+  "LET",
+  "AND",
+  "THE",
+  "FOR",
+  "ALI", // sl. "or"
+  "STA", // sl. "are"
+  "DNI", // sl. "days"
+  "POT", // from "Potovanje v POT…" false match
+  "NAJ",
+  "ZAJ",
+  "TER",
+  "OBI",
+  "KOT",
+  "SAM",
+  "VSE",
+  "BRE",
+  "MED",
+  "PRI",
+  "OUR",
+  "YOU",
+  "ARE",
+  "DAY",
+  "THE",
+]);
+
 export function parseMakeSearchDestination(text: string): string | null {
   const upper = text.toUpperCase();
 
-  const arrowMatch = upper.match(/\b(?:→|->|DO|TO)\s*([A-Z]{3})\b/);
-  if (arrowMatch && arrowMatch[1] !== "LJU") return arrowMatch[1]!;
+  const arrowMatch = upper.match(/\b(?:→|->)\s*([A-Z]{3})\b/);
+  if (arrowMatch && !FALSE_IATA_TOKENS.has(arrowMatch[1]!)) return arrowMatch[1]!;
 
-  const explicitIata = upper.match(/\b(?:DESTINACIJ[AO]|DESTINATION|V|TO|IN)\s+([A-Z]{3})\b/);
-  if (explicitIata) return explicitIata[1]!;
+  // Do NOT match bare "V/TO/IN + XXX" — Slovenian "Potovanje v …" false-positives (e.g. POT).
+  const explicitIata = upper.match(/\b(?:DESTINACIJ[AO]|DESTINATION)\s+([A-Z]{3})\b/);
+  if (explicitIata && !FALSE_IATA_TOKENS.has(explicitIata[1]!)) return explicitIata[1]!;
 
   for (const alias of DESTINATION_ALIASES) {
     if (alias.pattern.test(text)) return alias.iata;
@@ -519,12 +688,23 @@ export function parseMakeSearchDestination(text: string): string | null {
 
   const looseIata = upper.match(/\b([A-Z]{3})\b/g);
   if (looseIata) {
-    const skip = new Set(["LJU", "ZAG", "VIE", "VCE", "LET", "AND", "THE", "FOR"]);
-    const found = looseIata.find((code) => !skip.has(code));
+    const found = looseIata.find((code) => !FALSE_IATA_TOKENS.has(code));
     if (found) return found;
   }
 
   return null;
+}
+
+/** Prefer major hubs when user lists several origins (Make still uses first()). */
+const ORIGIN_HUB_PRIORITY = ["VIE", "MXP", "BUD", "ZAG", "LJU", "MUC", "FRA", "VCE"] as const;
+
+export function pickPrimaryOriginAirport(origins: string[]): string {
+  if (origins.length === 0) return "LJU";
+  if (origins.length === 1) return origins[0]!;
+  for (const hub of ORIGIN_HUB_PRIORITY) {
+    if (origins.includes(hub)) return hub;
+  }
+  return origins[0]!;
 }
 
 /** Departure airports mentioned in chat (Lj, Dunaj, Milano…). */
@@ -616,10 +796,16 @@ export function parseMakeSearchUserMessage(
     if (!merged.includes(code)) merged.push(code);
   }
   const resolvedOrigins = merged.length > 0 ? merged.slice(0, NEAREST_AIRPORT_LIMIT) : ["LJU"];
+  // Put the preferred hub first so Make `first(origin_airports)` / origin_airport hit a sensible airport.
+  const primary = pickPrimaryOriginAirport(resolvedOrigins);
+  const orderedOrigins = [
+    primary,
+    ...resolvedOrigins.filter((code) => code !== primary),
+  ];
 
   return {
-    origin_airports: resolvedOrigins,
-    origin_airport: resolvedOrigins[0]!,
+    origin_airports: orderedOrigins,
+    origin_airport: primary,
     destination_airport,
     departure_date,
     return_date,

@@ -10,7 +10,7 @@ function clamp(n: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, Math.round(n)));
 }
 
-function formatPassengersLabel(adults: number, children: number, lang: string): string {
+export function formatPassengersLabel(adults: number, children: number, lang: string): string {
   if (lang === "sl") {
     const adultPart =
       adults === 1 ? "1 odrasel" : adults === 2 ? "2 odrasla" : `${adults} odraslih`;
@@ -62,13 +62,34 @@ export function extractHeroChatPassengers(
     mentioned = true;
   }
 
-  if (/\b(?:za\s+dva|couple|pair|2\s*oseb[ie]?)\b/i.test(normalized) && adults == null) {
+  // "3 osebe", "4 potniki", "5 people"
+  const partyMatch = normalized.match(
+    /\b(\d+)\s*(?:oseb[aei]?|potnik(?:ov|a|i)?|people|persons?|travelers?|travellers?)\b/i,
+  );
+  if (partyMatch && adults == null) {
+    adults = clamp(Number.parseInt(partyMatch[1]!, 10), 1, 9);
+    mentioned = true;
+  }
+
+  // "nas je 4", "smo 3"
+  const nasJeMatch = normalized.match(/\b(?:nas\s+je|smo)\s+(\d+)\b/i);
+  if (nasJeMatch && adults == null) {
+    adults = clamp(Number.parseInt(nasJeMatch[1]!, 10), 1, 9);
+    mentioned = true;
+  }
+
+  if (/\b(?:za\s+dva|midva|naju|couple|pair|2\s*oseb[ie]?)\b/i.test(normalized) && adults == null) {
     adults = 2;
     mentioned = true;
   }
 
   if (/\b(?:sam|samo\s+jaz|alone|solo|1\s*oseb[ae]?)\b/i.test(normalized) && adults == null) {
     adults = 1;
+    mentioned = true;
+  }
+
+  if (/\b(?:trojica|za\s+tri|3\s*oseb[ie]?)\b/i.test(normalized) && adults == null) {
+    adults = 3;
     mentioned = true;
   }
 
@@ -84,22 +105,47 @@ export function extractHeroChatPassengers(
 export type HeroChatBootstrap = {
   passengers: HeroChatPassengersExtract | null;
   dates: HeroChatDateParseResult;
-  /** Enough to run flight search without more questions. */
+  /** Destination + dates parsed — only party size still needed. */
+  tripReady: boolean;
   canSearchNow: boolean;
   nextStep: "passengers" | "dates" | "search";
 };
 
-/** Decide what the wizard still needs after the first free-text message. */
+/**
+ * After a rich first message (destination + dates), only ask who travels.
+ * If passengers are already in the text, go straight to search.
+ */
 export function resolveHeroChatBootstrap(text: string, lang = "sl"): HeroChatBootstrap {
   const passengers = extractHeroChatPassengers(text, lang);
   const dates = extractHeroChatDates(text, lang);
   const hasDates = Boolean(dates.departDate);
+  const tripReady = hasDates;
 
-  if (passengers && hasDates) {
-    return { passengers, dates, canSearchNow: true, nextStep: "search" };
+  if (hasDates && passengers) {
+    return {
+      passengers,
+      dates,
+      tripReady,
+      canSearchNow: true,
+      nextStep: "search",
+    };
   }
-  if (!passengers) {
-    return { passengers, dates, canSearchNow: false, nextStep: "passengers" };
+
+  if (hasDates && !passengers) {
+    return {
+      passengers: null,
+      dates,
+      tripReady: true,
+      canSearchNow: false,
+      nextStep: "passengers",
+    };
   }
-  return { passengers, dates, canSearchNow: false, nextStep: "dates" };
+
+  return {
+    passengers,
+    dates,
+    tripReady: false,
+    canSearchNow: false,
+    nextStep: "dates",
+  };
 }

@@ -7,6 +7,8 @@ import {
   parseMakeSearchDates,
   parseMakeSearchDestination,
   parseMakeSearchFlights,
+  skyscannerUrlForMakeFlight,
+  buildSkyscannerFlightUrl,
   parseMakeSearchPassengers,
   flattenMakeDataStoreRecord,
   parseMakeSearchStatus,
@@ -140,8 +142,30 @@ describe("parseMakeSearchFlights", () => {
       postanki: "0",
       badge: "Najboljsa vrednost",
       ai_povzetek: "",
+      origin_iata: "LJU",
+      destination_iata: "BKK",
+      depart_date: "2026-10-15",
     });
     expect(result[0]?.odhod).toContain("2026");
+    expect(
+      skyscannerUrlForMakeFlight(result[0]!, 2),
+    ).toBe(
+      "https://www.skyscanner.net/transport/flights/lju/bkk/261015/?adults=2",
+    );
+  });
+
+  it("builds round-trip Skyscanner URLs", () => {
+    expect(
+      buildSkyscannerFlightUrl({
+        from: "VIE",
+        to: "HKT",
+        departDate: "2026-10-26",
+        returnDate: "2026-11-09",
+        adults: 2,
+      }),
+    ).toBe(
+      "https://www.skyscanner.net/transport/flights/vie/hkt/261026/261109/?adults=2",
+    );
   });
 });
 
@@ -155,8 +179,8 @@ describe("parseMakeSearchUserMessage", () => {
     );
 
     expect(parsed).toMatchObject({
-      origin_airports: ["LJU", "ZAG", "VIE"],
-      origin_airport: "LJU",
+      origin_airports: ["VIE", "LJU", "ZAG"],
+      origin_airport: "VIE",
       destination_airport: "BKK",
       departure_date: "2026-10-15",
       return_date: "2026-10-29",
@@ -184,10 +208,24 @@ describe("parseMakeSearchUserMessage", () => {
       "tajska 14 dni konec oktobra začetek novembra. Glej letališča Lj, Dunaj, Milano, Budimpešta",
     );
     expect(parsed.destination_airport).toBe("BKK");
-    expect(parsed.origin_airports).toEqual(["LJU", "VIE", "MXP", "BUD"]);
-    expect(parsed.origin_airport).toBe("LJU");
+    // Prefer a major hub first (VIE) so Make first()/origin_airport is not stuck on LJU.
+    expect(parsed.origin_airport).toBe("VIE");
+    expect(parsed.origin_airports[0]).toBe("VIE");
+    expect(parsed.origin_airports).toEqual(expect.arrayContaining(["LJU", "VIE", "MXP", "BUD"]));
     expect(parsed.departure_date).toBe("2026-10-26");
     expect(parsed.return_date).toBe("2026-11-09");
+  });
+
+  it("maps južna tajska / phuket to HKT not BKK", () => {
+    expect(parseMakeSearchDestination("potovanje na južno tajsko (phuket)")).toBe("HKT");
+    expect(parseMakeSearchDestination("južna tajska")).toBe("HKT");
+  });
+
+  it("does not treat Potovanje v … as destination IATA POT", () => {
+    const parsed = parseMakeSearchUserMessage(
+      "Potovanje v potovanje na južno tajsko (phuket), konec oktobra",
+    );
+    expect(parsed.destination_airport).toBe("HKT");
   });
 });
 

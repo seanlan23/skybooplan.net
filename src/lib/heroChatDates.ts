@@ -231,7 +231,7 @@ function extractEndStartMonthRange(text: string, lang: string): HeroChatDatePars
   // Include common typos: "onec" / "konc" for "konec".
   const range = normalized.match(
     new RegExp(
-      `(?:konec|onec|konc|end\\s+of)\\s+(${MONTH_PATTERN})\\s+(?:(?:-|–|—|/|in)\\s*)?(?:začetek|zacetek|start\\s+of)\\s+(${MONTH_PATTERN})`,
+      `(?:konec|onec|konc|end\\s+of)\\s+(${MONTH_PATTERN})\\s+(?:(?:-|–|—|/|in)\\s*)?(?:začetek|zacetek|zaetek|start\\s+of)\\s+(${MONTH_PATTERN})`,
       "i",
     ),
   );
@@ -321,7 +321,7 @@ function extractVague(text: string, lang: string): HeroChatDateParseResult | nul
   }
 
   const startMonth = normalized.match(
-    new RegExp(`(?:začetek|zacetek|start\\s+of)\\s+(${MONTH_PATTERN})`, "i"),
+    new RegExp(`(?:začetek|zacetek|zaetek|start\\s+of)\\s+(${MONTH_PATTERN})`, "i"),
   );
   if (startMonth) {
     const monthIndex = resolveMonthIndex(startMonth[1]!);

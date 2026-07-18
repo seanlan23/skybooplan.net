@@ -45,7 +45,7 @@ export function HeroFlightResults({
         ) : null}
 
         {!loading && !error && flights.length > 0 ? (
-          <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <div className="mx-auto mt-5 w-full max-w-xl space-y-2">
             {flights.map((flight) => (
               <FlightCard key={flight.id} flight={flight} />
             ))}

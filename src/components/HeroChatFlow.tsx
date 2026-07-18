@@ -28,8 +28,12 @@ import {
   type HeroChatStep,
 } from "@/lib/heroChatFlow";
 import { extractHeroChatDates } from "@/lib/heroChatDates";
-import { resolveHeroChatBootstrap } from "@/lib/heroChatExtract";
+import {
+  extractHeroChatPassengers,
+  resolveHeroChatBootstrap,
+} from "@/lib/heroChatExtract";
 import { FlightCard } from "@/components/FlightCard";
+import { HeroPassengerBrowser } from "@/components/HeroPassengerBrowser";
 import { HeroTripChecklist } from "@/components/HeroTripChecklist";
 import { RotatingTextareaPlaceholder } from "@/components/RotatingTextareaPlaceholder";
 import type { MakeSearchFlight } from "@/lib/makeSearch";
@@ -38,7 +42,6 @@ import { cn } from "@/lib/utils";
 const DATE_CHIP_IDS = ["endOctober", "startNovember", "octNov", "flexible"] as const;
 const NIGHT_CHIP_IDS = ["3-5", "7", "10-14", "2weeks"] as const;
 const ORIGIN_CHIP_IDS = ["ljubljana", "zagreb", "vienna", "venice", "other"] as const;
-const PASSENGER_CHIP_IDS = ["1adult", "2adults", "2adults1child", "2adults2children"] as const;
 const PACE_CHIP_IDS = ["intensive", "relaxed", "calm"] as const;
 const BUDGET_CHIP_IDS = ["under500", "500-1000", "1000-2000", "2000plus"] as const;
 
@@ -66,6 +69,15 @@ type HeroChatFlowProps = {
   searchError?: string | null;
   seedDestination?: string | null;
   onSeedConsumed?: () => void;
+  selectedFlightId?: string | null;
+  onSelectFlightForAiPlan?: (flight: MakeSearchFlight) => void;
+  flightSearchMeta?: {
+    from?: string;
+    to?: string;
+    departDate?: string;
+    returnDate?: string;
+  } | null;
+  flightAdults?: number;
 };
 
 function SkyAvatar() {
@@ -303,6 +315,10 @@ export function HeroChatFlow({
   searchError = null,
   seedDestination,
   onSeedConsumed,
+  selectedFlightId = null,
+  onSelectFlightForAiPlan,
+  flightSearchMeta = null,
+  flightAdults = 1,
 }: HeroChatFlowProps) {
   const { t, lang } = useI18n();
   const isFlightsOnly = mode === "flights";
@@ -323,8 +339,6 @@ export function HeroChatFlow({
   const [fileError, setFileError] = useState<string | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [originFreeText, setOriginFreeText] = useState(false);
-  const [adultsCount, setAdultsCount] = useState(2);
-  const [childrenCount, setChildrenCount] = useState(0);
 
   const agentName = t("heroChat.agentName" as never);
   const isSearching = step === "searching";
@@ -378,14 +392,35 @@ export function HeroChatFlow({
         destination: resolved,
         attachment: attachment ?? undefined,
         ...(boot.passengers ? { passengers: boot.passengers.label } : {}),
-        ...(boot.dates.departDate ? { dates: boot.dates.label } : {}),
+        ...(boot.dates.departDate || boot.dates.precision !== "none"
+          ? { dates: boot.dates.label }
+          : {}),
       };
 
       setConversationStarted(true);
       setCollected(baseCollected);
       appendMessages(createChatMessage("user", userMessage));
 
-      // Smart wizard: skip questions the first message already answered.
+      // Rich prompt with dates but no party size → modern passenger cards only.
+      if (boot.nextStep === "passengers" && boot.dates.label) {
+        setCollected((prev) => ({
+          ...prev,
+          ...baseCollected,
+          dates: boot.dates.label,
+        }));
+        appendMessages(
+          createChatMessage(
+            "ai",
+            skyMessageWithVars(t("heroChat.passengers.tripReady" as never), {
+              dates: boot.dates.label,
+            }),
+          ),
+        );
+        setStep("passengers");
+        return;
+      }
+
+      // Everything including passengers → search (or pace for full trip mode).
       if (boot.nextStep === "search" && boot.passengers && boot.dates.label) {
         setCollected((prev) => ({
           ...prev,
@@ -407,7 +442,6 @@ export function HeroChatFlow({
           setStep("searching");
           return;
         }
-        // Layla-style “Vse skupaj”: still ask pace + budget before generating.
         appendMessages(
           createChatMessage(
             "ai",
@@ -421,34 +455,35 @@ export function HeroChatFlow({
         return;
       }
 
-      if (boot.nextStep === "dates" && boot.passengers) {
-        if (boot.dates.precision === "vague" && !boot.dates.departDate) {
-          appendMessages(
-            createChatMessage(
-              "ai",
-              skyMessageWithVars(t("heroChat.stepDates.vague" as never), {
-                period: boot.dates.label,
-              }),
-              { offerDatePicker: true },
-            ),
-          );
-        } else {
-          appendMessages(
-            createChatMessage(
-              "ai",
-              skyMessageWithVars(t("heroChat.bootstrap.gotPassengers" as never), {
-                passengers: boot.passengers.label,
-              }),
-              { offerDatePicker: true },
-            ),
-          );
-        }
-        setStep("dates");
-        return;
+      // Still need dates.
+      if (boot.dates.precision === "vague" && !boot.dates.departDate) {
+        appendMessages(
+          createChatMessage(
+            "ai",
+            skyMessageWithVars(t("heroChat.stepDates.vague" as never), {
+              period: boot.dates.label,
+            }),
+            { offerDatePicker: true },
+          ),
+        );
+      } else if (boot.passengers) {
+        appendMessages(
+          createChatMessage(
+            "ai",
+            skyMessageWithVars(t("heroChat.bootstrap.gotPassengers" as never), {
+              passengers: boot.passengers.label,
+            }),
+            { offerDatePicker: true },
+          ),
+        );
+      } else {
+        appendMessages(
+          createChatMessage("ai", t("heroChat.stepDates.ask" as never), {
+            offerDatePicker: true,
+          }),
+        );
       }
-
-      appendMessages(createChatMessage("ai", t("heroChat.step1.ai" as never)));
-      setStep("passengers");
+      setStep("dates");
     },
     [appendMessages, attachment, isFlightsOnly, lang, step, t],
   );
@@ -586,18 +621,6 @@ export function HeroChatFlow({
     setStep("budget");
   }
 
-  function confirmPassengerCounts() {
-    const label =
-      lang === "sl"
-        ? childrenCount > 0
-          ? `${adultsCount} ${adultsCount === 1 ? "odrasel" : adultsCount === 2 ? "odrasla" : "odraslih"} + ${childrenCount} ${childrenCount === 1 ? "otrok" : childrenCount === 2 ? "otroka" : "otrok"}`
-          : `${adultsCount} ${adultsCount === 1 ? "odrasel" : adultsCount === 2 ? "odrasla" : "odraslih"}`
-        : childrenCount > 0
-          ? `${adultsCount} adult${adultsCount === 1 ? "" : "s"} + ${childrenCount} child${childrenCount === 1 ? "" : "ren"}`
-          : `${adultsCount} adult${adultsCount === 1 ? "" : "s"}`;
-    advanceToDatesFromPassengers(label);
-  }
-
   function advanceFromOrigin(label: string) {
     setOriginFreeText(false);
     if (isFlightsOnly) {
@@ -624,20 +647,19 @@ export function HeroChatFlow({
   function advanceToDatesFromPassengers(label: string) {
     const destination = collected.destination ?? "";
     const parsed = extractHeroChatDates(destination, lang);
+    const knownDates =
+      collected.dates?.trim() ||
+      (parsed.departDate || parsed.precision === "exact" ? parsed.label : "");
 
     appendMessages(createChatMessage("user", label));
     setCollected((prev) => ({ ...prev, passengers: label }));
 
-    // If the first message already had usable dates, continue — don't re-ask.
-    if (parsed.departDate || parsed.precision === "exact") {
-      appendMessages(
-        createChatMessage(
-          "ai",
-          skyMessageWithVars(t("heroChat.stepDates.exact" as never), { dates: parsed.label }),
-        ),
-      );
-      setCollected((prev) => ({ ...prev, dates: parsed.label, passengers: label }));
-      continueAfterDates(parsed.label);
+    // Rich first message already had dates → search immediately after party size.
+    if (knownDates && (parsed.departDate || collected.dates || parsed.precision === "exact")) {
+      const dateLabel = knownDates;
+      setCollected((prev) => ({ ...prev, dates: dateLabel, passengers: label }));
+      appendMessages(createChatMessage("ai", t("heroChat.searchingFlights" as never)));
+      setStep("searching");
       return;
     }
 
@@ -696,10 +718,6 @@ export function HeroChatFlow({
     setStep("origin");
   }
 
-  function handlePassengersSelect(_id: string, label: string) {
-    advanceToDatesFromPassengers(label);
-  }
-
   function handleBudgetSelect(_id: string, label: string) {
     appendMessages(
       createChatMessage("user", label),
@@ -755,9 +773,11 @@ export function HeroChatFlow({
       case "origin":
         advanceFromOrigin(trimmed);
         break;
-      case "passengers":
-        advanceToDatesFromPassengers(trimmed);
+      case "passengers": {
+        const parsed = extractHeroChatPassengers(trimmed, lang);
+        advanceToDatesFromPassengers(parsed?.label ?? trimmed);
         break;
+      }
       case "pace":
         handlePaceSelect("custom", trimmed);
         break;
@@ -974,51 +994,26 @@ export function HeroChatFlow({
           ) : null}
 
           {!loading && flights.length > 0 ? (
-            <div className="hero-sky-enter space-y-3 pl-0 pr-1 sm:pl-10">
-              {flights.map((flight) => (
-                <FlightCard key={flight.id} flight={flight} />
+            <div className="hero-sky-enter mx-auto w-full max-w-xl space-y-2 pl-0 pr-1 sm:pl-10">
+              {flights.map((flight, index) => (
+                <FlightCard
+                  key={flight.id}
+                  flight={flight}
+                  adults={flightAdults}
+                  searchMeta={flightSearchMeta}
+                  selectedForAi={selectedFlightId === flight.id}
+                  onSelectForAiPlan={onSelectFlightForAiPlan}
+                  isFirst={index === 0}
+                />
               ))}
             </div>
           ) : null}
 
           {showConversationChips && step === "passengers" ? (
-            <div className="hero-chips-enter space-y-3 pl-0 sm:pl-10">
-              <p className="text-sm text-white/80">{t("heroChat.passengers.askDetail" as never)}</p>
-              <div className="flex flex-wrap gap-3">
-                <PassengerStepper
-                  label={t("heroChat.passengers.adults" as never)}
-                  value={adultsCount}
-                  min={1}
-                  max={9}
-                  disabled={loading}
-                  onChange={setAdultsCount}
-                />
-                <PassengerStepper
-                  label={t("heroChat.passengers.children" as never)}
-                  value={childrenCount}
-                  min={0}
-                  max={8}
-                  disabled={loading}
-                  onChange={setChildrenCount}
-                />
-                <button
-                  type="button"
-                  disabled={loading}
-                  onClick={confirmPassengerCounts}
-                  className="self-end rounded-full bg-white px-4 py-2 text-sm font-semibold text-gray-900 shadow-md transition hover:bg-white/90 disabled:opacity-50"
-                >
-                  {t("heroChat.passengers.confirm" as never)}
-                </button>
-              </div>
-              <QuickReplyChips
-                disabled={loading}
-                options={PASSENGER_CHIP_IDS.map((id) => ({
-                  id,
-                  label: chipLabel("heroChat.passengers", id),
-                }))}
-                onSelect={handlePassengersSelect}
-              />
-            </div>
+            <HeroPassengerBrowser
+              disabled={loading}
+              onSelect={(label) => advanceToDatesFromPassengers(label)}
+            />
           ) : null}
 
           {showConversationChips && step === "pace" && !isFlightsOnly ? (
@@ -1125,49 +1120,6 @@ export function HeroChatFlow({
           animation: heroChipsEnter 0.35s ease-out 0.15s both;
         }
       `}</style>
-    </div>
-  );
-}
-
-function PassengerStepper({
-  label,
-  value,
-  min,
-  max,
-  disabled,
-  onChange,
-}: {
-  label: string;
-  value: number;
-  min: number;
-  max: number;
-  disabled?: boolean;
-  onChange: (n: number) => void;
-}) {
-  return (
-    <div className="rounded-2xl border border-white/25 bg-white/10 px-3 py-2">
-      <p className="text-xs font-medium text-white/70">{label}</p>
-      <div className="mt-1 flex items-center gap-2">
-        <button
-          type="button"
-          disabled={disabled || value <= min}
-          onClick={() => onChange(Math.max(min, value - 1))}
-          className="flex h-8 w-8 items-center justify-center rounded-full bg-white/15 text-white disabled:opacity-40"
-          aria-label={`− ${label}`}
-        >
-          −
-        </button>
-        <span className="min-w-[1.5rem] text-center text-base font-semibold text-white">{value}</span>
-        <button
-          type="button"
-          disabled={disabled || value >= max}
-          onClick={() => onChange(Math.min(max, value + 1))}
-          className="flex h-8 w-8 items-center justify-center rounded-full bg-white/15 text-white disabled:opacity-40"
-          aria-label={`+ ${label}`}
-        >
-          +
-        </button>
-      </div>
     </div>
   );
 }
