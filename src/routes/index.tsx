@@ -910,7 +910,7 @@ function Landing() {
     try {
       const safe = form ? normalizeLastPlannerForm(form) : null;
       if (!safe) return "";
-      const lang = aiContext?.language || lastSearch?.language || "sl";
+      const lang = aiContext?.language || lastSearch?.language || "en";
       const tags = safe.tags ?? [];
       const interests =
         tags.length > 0 ? `Prioritete: ${formatPlannerInterests(tags, lang)}.` : "";
@@ -1004,7 +1004,7 @@ function Landing() {
       document.getElementById(scrollAnchorId)?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 100);
     try {
-      const lang = ctx.language || "sl";
+      const lang = ctx.language || "en";
       const planCurrency = normalizePlanCurrency(ctx.currency ?? lastSearch?.currency ?? uiCurrency);
       const tags = safeForm.tags ?? [];
       const priorities =

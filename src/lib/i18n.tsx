@@ -167,10 +167,10 @@ const en: Dict = {
   "heroChat.step6.loading": "Perfect! Searching for the best options for you… ✈️",
   "heroChat.searchingFlights": "Searching for the best flights for you… 🔍",
   "heroChat.searchingFlightsFrom":
-    "Searching from {{origin}} (among your airports). Showing the best options from that hub… 🔍",
+    "Comparing flights from {{origins}} — I’ll pick the best overall options… 🔍",
   "heroChat.flightResultsIntro": "Here are the best flights I found for you:",
   "heroChat.flightResultsIntroFrom":
-    "Best options from {{origin}} (one origin per search for now — not compared across all your airports yet):",
+    "Best options across {{origins}} (cheapest / best value / alternative — badge shows the airport):",
   "heroChat.dates.july": "July 2027",
   "heroChat.dates.august": "August 2027",
   "heroChat.dates.september": "September 2027",
@@ -983,10 +983,10 @@ const dicts: Record<Lang, Dict> = {
     "heroChat.step6.loading": "Perfektno! Iščem najboljše možnosti za vas… ✈️",
     "heroChat.searchingFlights": "Iščem najboljše lete zate… 🔍",
     "heroChat.searchingFlightsFrom":
-      "Iščem iz {{origin}} (med tvojimi letališči). To ni primerjava vseh — samo to izhodišče… 🔍",
+      "Primerjam lete iz {{origins}} — izberem najboljše skupne možnosti… 🔍",
     "heroChat.flightResultsIntro": "Našel sem te najboljše lete za vas:",
     "heroChat.flightResultsIntroFrom":
-      "Najboljše možnosti iz {{origin}} (trenutno eno letališče na iskanje — še ni primerjave LJU/VIE/MXP…):",
+      "Najboljše možnosti med {{origins}} (najcenejši / najboljša vrednost / alternativa — značka pokaže letališče):",
     "heroChat.dates.july": "Julij 2027",
     "heroChat.dates.august": "Avgust 2027",
     "heroChat.dates.september": "September 2027",
@@ -2006,17 +2006,17 @@ export function translationFallbackChain(lang: Lang): Lang[] {
 
 /** Normalize persisted / picked codes so incomplete packs do not stick as UI language. */
 export function normalizeAppLang(code: string): Lang {
-  if (!(SUPPORTED_LANGS as readonly string[]).includes(code)) return "sl";
+  if (!(SUPPORTED_LANGS as readonly string[]).includes(code)) return "en";
   return code as Lang;
 }
 
 export function readStoredLang(): Lang {
-  if (typeof window === "undefined") return "sl";
+  if (typeof window === "undefined") return "en";
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) return normalizeAppLang(stored);
   } catch {}
-  return "sl";
+  return "en";
 }
 
 type I18nCtx = {

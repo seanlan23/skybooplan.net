@@ -30,13 +30,13 @@ describe("i18n strict fallback", () => {
     expect(translate("es", "poi.moreInfo")).toBe("Más información");
   });
 
-  it("normalizeAppLang keeps allowed locales and maps unknown to sl", () => {
+  it("normalizeAppLang keeps allowed locales and maps unknown to en", () => {
     expect(normalizeAppLang("de")).toBe("de");
     expect(normalizeAppLang("fr")).toBe("fr");
     expect(normalizeAppLang("sl")).toBe("sl");
     expect(normalizeAppLang("en")).toBe("en");
-    expect(normalizeAppLang("zh")).toBe("sl");
-    expect(normalizeAppLang("xx")).toBe("sl");
+    expect(normalizeAppLang("zh")).toBe("en");
+    expect(normalizeAppLang("xx")).toBe("en");
   });
 
   it("never returns raw key for core homepage strings", () => {

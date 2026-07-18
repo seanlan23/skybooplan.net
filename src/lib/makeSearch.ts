@@ -206,8 +206,20 @@ function parseDuffelOfferAsMakeFlight(item: unknown, index: number): MakeSearchF
 
 const TOP_MAKE_FLIGHT_BADGES = ["Najcenejši", "Najboljša vrednost", "Alternativa"] as const;
 
-function selectTopMakeSearchFlights(flights: MakeSearchFlight[]): MakeSearchFlight[] {
-  if (flights.length <= 3 && flights.every((f) => f.badge)) return flights;
+/** Max parallel Make/Duffel searches when user lists several departure airports. */
+export const MAX_MULTI_ORIGIN_SEARCHES = 5;
+
+export function selectTopMakeSearchFlights(
+  flights: MakeSearchFlight[],
+  opts?: { showOriginBadge?: boolean; keepExistingBadges?: boolean },
+): MakeSearchFlight[] {
+  if (
+    opts?.keepExistingBadges &&
+    flights.length <= 3 &&
+    flights.every((f) => f.badge)
+  ) {
+    return flights;
+  }
 
   const ranked = [...flights]
     .filter((f) => f.cena_eur > 0 || f.destinacija !== "—")
@@ -222,13 +234,43 @@ function selectTopMakeSearchFlights(flights: MakeSearchFlight[]): MakeSearchFlig
     .slice(0, 3);
 
   return ranked.map((flight, index) => {
-    const badge = flight.badge || TOP_MAKE_FLIGHT_BADGES[index] || `Možnost ${index + 1}`;
+    const base = TOP_MAKE_FLIGHT_BADGES[index] || `Možnost ${index + 1}`;
+    const badge =
+      opts?.showOriginBadge && flight.origin_iata
+        ? `${base} · ${flight.origin_iata}`
+        : base;
     return {
       ...flight,
       badge,
       // Keep summary empty unless Make/Gemini provided a real one (don't echo the badge).
       ai_povzetek: flight.ai_povzetek?.trim() || "",
     };
+  });
+}
+
+function flightDedupeKey(flight: MakeSearchFlight): string {
+  return (
+    flight.id ||
+    `${flight.origin_iata ?? ""}|${flight.destinacija}|${flight.odhod}|${flight.cena_eur}`
+  );
+}
+
+/** Merge offers from several origin searches, then pick global top 3. */
+export function mergeAndRankMakeSearchFlights(
+  flights: MakeSearchFlight[],
+  opts?: { showOriginBadge?: boolean },
+): MakeSearchFlight[] {
+  const deduped: MakeSearchFlight[] = [];
+  const seen = new Set<string>();
+  for (const flight of flights) {
+    const key = flightDedupeKey(flight);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    // Drop per-origin badges so global ranking can re-label.
+    deduped.push({ ...flight, badge: undefined });
+  }
+  return selectTopMakeSearchFlights(deduped, {
+    showOriginBadge: opts?.showOriginBadge ?? true,
   });
 }
 
@@ -451,7 +493,10 @@ function parseFlightItem(item: unknown, index: number): MakeSearchFlight | null 
   };
 }
 
-export function parseMakeSearchFlights(data: unknown): MakeSearchFlight[] {
+export function parseMakeSearchFlights(
+  data: unknown,
+  opts?: { rank?: boolean },
+): MakeSearchFlight[] {
   const flights = extractFlightArray(data)
     .slice(0, 80)
     .map((item, index) => parseDuffelOfferAsMakeFlight(item, index) ?? parseFlightItem(item, index))
@@ -459,12 +504,13 @@ export function parseMakeSearchFlights(data: unknown): MakeSearchFlight[] {
   const deduped: MakeSearchFlight[] = [];
   const seen = new Set<string>();
   for (const flight of flights) {
-    const key = flight.id || `${flight.destinacija}|${flight.odhod}|${flight.cena_eur}`;
+    const key = flightDedupeKey(flight);
     if (seen.has(key)) continue;
     seen.add(key);
     deduped.push(flight);
   }
-  return selectTopMakeSearchFlights(deduped);
+  if (opts?.rank === false) return deduped;
+  return selectTopMakeSearchFlights(deduped, { keepExistingBadges: true });
 }
 
 export type SearchRequestBody = {
@@ -509,6 +555,30 @@ export function createMakeSearchId(): string {
     return crypto.randomUUID();
   }
   return `search-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+/** Ensure each offer carries the hub we searched from (for multi-origin badges). */
+export function tagMakeSearchFlightsWithOrigin(
+  flights: MakeSearchFlight[],
+  origin: string,
+): MakeSearchFlight[] {
+  const hub = origin.trim().toUpperCase();
+  if (!/^[A-Z]{3}$/.test(hub)) return flights;
+  return flights.map((flight) => {
+    if (flight.origin_iata && /^[A-Z]{3}$/.test(flight.origin_iata)) {
+      return flight;
+    }
+    const route = parseMakeFlightRoute(flight.destinacija);
+    const destinacija =
+      route.from && route.to
+        ? flight.destinacija
+        : formatMakeRoute(hub, flight.destination_iata || route.to || "");
+    return {
+      ...flight,
+      origin_iata: hub,
+      destinacija: destinacija || flight.destinacija,
+    };
+  });
 }
 
 const NEAREST_AIRPORT_LIMIT = 4;

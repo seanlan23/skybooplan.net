@@ -433,6 +433,7 @@ export function HeroChatFlow({
           dates: boot.dates.label,
         }));
         if (isFlightsOnly) {
+          const bootOrigins = parseMakeSearchUserMessage(userMessage).origin_airports;
           appendMessages(
             createChatMessage(
               "ai",
@@ -441,7 +442,14 @@ export function HeroChatFlow({
                 dates: boot.dates.label,
               }),
             ),
-            createChatMessage("ai", t("heroChat.searchingFlights" as never)),
+            createChatMessage(
+              "ai",
+              bootOrigins.length > 1
+                ? skyMessageWithVars(t("heroChat.searchingFlightsFrom" as never), {
+                    origins: bootOrigins.join(", "),
+                  })
+                : t("heroChat.searchingFlights" as never),
+            ),
           );
           setStep("searching");
           return;
@@ -579,12 +587,24 @@ export function HeroChatFlow({
   useEffect(() => {
     if (loading || flights.length === 0 || flightsAnnouncedRef.current) return;
     flightsAnnouncedRef.current = true;
-    const originFromResults = flights[0]?.origin_iata;
     const namedOrigins = parseMakeSearchOriginAirports(collected.destination ?? "");
+    const resultOrigins = [
+      ...new Set(
+        flights
+          .map((f) => f.origin_iata?.trim().toUpperCase())
+          .filter((o): o is string => Boolean(o && /^[A-Z]{3}$/.test(o))),
+      ),
+    ];
+    const originsLabel =
+      namedOrigins.length > 1
+        ? namedOrigins.join(", ")
+        : resultOrigins.length > 1
+          ? resultOrigins.join(", ")
+          : "";
     const intro =
-      originFromResults && namedOrigins.length > 1
+      originsLabel
         ? skyMessageWithVars(t("heroChat.flightResultsIntroFrom" as never), {
-            origin: originFromResults,
+            origins: originsLabel,
           })
         : t("heroChat.flightResultsIntro" as never);
     appendMessages(createChatMessage("ai", intro));
@@ -671,14 +691,13 @@ export function HeroChatFlow({
       const dateLabel = knownDates;
       setCollected((prev) => ({ ...prev, dates: dateLabel, passengers: label }));
       const parsedSearch = parseMakeSearchUserMessage(destination);
-      const searchOrigin = parsedSearch.origin_airport;
       const multiOrigin = parsedSearch.origin_airports.length > 1;
       appendMessages(
         createChatMessage(
           "ai",
           multiOrigin
             ? skyMessageWithVars(t("heroChat.searchingFlightsFrom" as never), {
-                origin: searchOrigin,
+                origins: parsedSearch.origin_airports.join(", "),
               })
             : t("heroChat.searchingFlights" as never),
         ),

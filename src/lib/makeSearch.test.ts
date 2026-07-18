@@ -4,6 +4,7 @@ import {
   callMakeSearchWebhook,
   fetchNearestAirports,
   isMakeAsyncAccepted,
+  mergeAndRankMakeSearchFlights,
   parseMakeSearchDates,
   parseMakeSearchDestination,
   parseMakeSearchFlights,
@@ -16,7 +17,9 @@ import {
   parseMakeSearchUserMessage,
   parseMakeWebhookBody,
   parseSearchRequestBody,
+  tagMakeSearchFlightsWithOrigin,
   unwrapMakeSearchOffersPayload,
+  type MakeSearchFlight,
 } from "./makeSearch";
 
 describe("parseSearchRequestBody", () => {
@@ -636,5 +639,66 @@ describe("parseMakeSearchStatus", () => {
     expect(result.flights).toHaveLength(1);
     expect(result.flights[0]?.prevoznik).toBe("Pegasus Airlines");
     expect(result.flights[0]?.cena_eur).toBe(141.48);
+  });
+});
+
+describe("mergeAndRankMakeSearchFlights", () => {
+  const flight = (
+    partial: Partial<MakeSearchFlight> & Pick<MakeSearchFlight, "id" | "cena_eur" | "origin_iata">,
+  ): MakeSearchFlight => ({
+    destinacija: `${partial.origin_iata} → HKT`,
+    odhod: "1. avg. 2026, 10:00",
+    prevoznik: "Test Air",
+    postanki: "1",
+    ai_povzetek: "",
+    ...partial,
+  });
+
+  it("picks the global cheapest across origins and badges with hub codes", () => {
+    const merged = mergeAndRankMakeSearchFlights(
+      [
+        flight({ id: "vie-cheap", cena_eur: 420, origin_iata: "VIE", duration_minutes: 900 }),
+        flight({ id: "lju-mid", cena_eur: 510, origin_iata: "LJU", duration_minutes: 800 }),
+        flight({ id: "mxp-best", cena_eur: 390, origin_iata: "MXP", duration_minutes: 950 }),
+        flight({ id: "vie-alt", cena_eur: 450, origin_iata: "VIE", duration_minutes: 700 }),
+      ],
+      { showOriginBadge: true },
+    );
+
+    expect(merged).toHaveLength(3);
+    expect(merged.map((f) => f.id)).toEqual(["mxp-best", "vie-cheap", "vie-alt"]);
+    expect(merged[0]?.badge).toBe("Najcenejši · MXP");
+    expect(merged[1]?.badge).toBe("Najboljša vrednost · VIE");
+    expect(merged[2]?.badge).toBe("Alternativa · VIE");
+  });
+
+  it("dedupes identical offers before ranking", () => {
+    const merged = mergeAndRankMakeSearchFlights([
+      flight({ id: "same", cena_eur: 400, origin_iata: "VIE" }),
+      flight({ id: "same", cena_eur: 400, origin_iata: "VIE" }),
+      flight({ id: "other", cena_eur: 410, origin_iata: "LJU" }),
+    ]);
+    expect(merged).toHaveLength(2);
+    expect(merged[0]?.id).toBe("same");
+  });
+
+  it("tagMakeSearchFlightsWithOrigin fills missing hub codes", () => {
+    const tagged = tagMakeSearchFlightsWithOrigin(
+      [
+        {
+          id: "1",
+          destinacija: "HKT",
+          cena_eur: 500,
+          odhod: "—",
+          prevoznik: "X",
+          postanki: "1",
+          ai_povzetek: "",
+          destination_iata: "HKT",
+        },
+      ],
+      "VIE",
+    );
+    expect(tagged[0]?.origin_iata).toBe("VIE");
+    expect(tagged[0]?.destinacija).toContain("VIE");
   });
 });

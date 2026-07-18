@@ -13,11 +13,17 @@ import {
   callMakeSearchWebhook,
   createMakeSearchId,
   extractMakeSearchId,
+  fetchNearestAirports,
   isMakeAsyncAccepted,
+  MAX_MULTI_ORIGIN_SEARCHES,
+  mergeAndRankMakeSearchFlights,
   parseMakeSearchFlights,
   parseMakeSearchStatus,
+  parseMakeSearchUserMessage,
+  tagMakeSearchFlightsWithOrigin,
   unwrapMakeSearchOffersPayload,
   type MakeSearchFlight,
+  type MakeSearchParsedData,
 } from "@/lib/makeSearch";
 
 /** Hero search including Make.com scenario runtime (Duffel loop + Gemini can take 60s+). */
@@ -363,13 +369,35 @@ export type HeroFlightSearchLocation = {
 
 export type HeroFlightSearchResult =
   | { ok: true; flights: MakeSearchFlight[]; parsed: ParsedHeroQuery; makeResponse?: unknown }
-  | { ok: true; pending: true; searchId: string }
+  | {
+      ok: true;
+      pending: true;
+      searchId: string;
+      /** Parallel Make searches (one per origin). */
+      searchIds?: string[];
+      origins?: string[];
+      /** Sync offers already returned while other origins still pending. */
+      seedFlights?: MakeSearchFlight[];
+    }
   | { ok: false; error: string; status: number };
 
-async function searchViaMakeWebhook(
+function stubParsedFromMake(parsed: MakeSearchParsedData): ParsedHeroQuery {
+  return {
+    origin_iata: parsed.origin_airport || "LJU",
+    destination_iata: parsed.destination_airport || "LJU",
+    depart_date: parsed.departure_date || defaultDateFrom(),
+    return_date: parsed.return_date || defaultDateTo(defaultDateFrom()),
+    adults: parsed.passengers.adults,
+    children: parsed.passengers.children,
+    trip_type: "return",
+  };
+}
+
+async function searchSingleOriginViaMake(
   query: string,
-  attachment?: HeroChatAttachmentPayload,
-  location?: HeroFlightSearchLocation,
+  parsedData: MakeSearchParsedData,
+  attachment: HeroChatAttachmentPayload | undefined,
+  location: HeroFlightSearchLocation | undefined,
 ): Promise<HeroFlightSearchResult> {
   const searchId = createMakeSearchId();
   const webhook = await callMakeSearchWebhook(
@@ -379,6 +407,7 @@ async function searchViaMakeWebhook(
       latitude: location?.latitude,
       longitude: location?.longitude,
       attachment,
+      parsedData,
     },
     { timeoutMs: 100_000 },
   );
@@ -389,23 +418,25 @@ async function searchViaMakeWebhook(
 
   const syncFlights = parseMakeSearchFlights(unwrapMakeSearchOffersPayload(webhook.data));
   if (syncFlights.length > 0) {
-    const stubParsed: ParsedHeroQuery = {
-      origin_iata: "LJU",
-      destination_iata: "LJU",
-      depart_date: defaultDateFrom(),
-      return_date: defaultDateTo(defaultDateFrom()),
-      adults: 1,
-      children: 0,
-      trip_type: "return",
+    return {
+      ok: true,
+      flights: syncFlights,
+      parsed: stubParsedFromMake(parsedData),
+      makeResponse: webhook.data,
     };
-    return { ok: true, flights: syncFlights, parsed: stubParsed, makeResponse: webhook.data };
   }
 
   const resolvedSearchId = extractMakeSearchId(webhook.data) ?? webhook.searchId;
   const statusUrlConfigured = Boolean(process.env.MAKE_STATUS_WEBHOOK_URL?.trim());
 
   if (statusUrlConfigured && resolvedSearchId) {
-    return { ok: true, pending: true, searchId: resolvedSearchId };
+    return {
+      ok: true,
+      pending: true,
+      searchId: resolvedSearchId,
+      searchIds: [resolvedSearchId],
+      origins: [parsedData.origin_airport],
+    };
   }
 
   if (isMakeAsyncAccepted(webhook.data)) {
@@ -417,21 +448,176 @@ async function searchViaMakeWebhook(
     };
   }
 
-  const stubParsed: ParsedHeroQuery = {
-    origin_iata: "LJU",
-    destination_iata: "LJU",
-    depart_date: defaultDateFrom(),
-    return_date: defaultDateTo(defaultDateFrom()),
-    adults: 1,
-    children: 0,
-    trip_type: "return",
+  return {
+    ok: true,
+    flights: [],
+    parsed: stubParsedFromMake(parsedData),
+    makeResponse: webhook.data,
   };
+}
 
-  return { ok: true, flights: [], parsed: stubParsed, makeResponse: webhook.data };
+async function searchViaMakeWebhook(
+  query: string,
+  attachment?: HeroChatAttachmentPayload,
+  location?: HeroFlightSearchLocation,
+): Promise<HeroFlightSearchResult> {
+  const geoOrigins =
+    location != null
+      ? await fetchNearestAirports(location.latitude, location.longitude)
+      : [];
+  const baseParsed = parseMakeSearchUserMessage(query, geoOrigins);
+  const dest = baseParsed.destination_airport?.trim().toUpperCase() ?? "";
+  if (!/^[A-Z]{3}$/.test(dest)) {
+    return { ok: false, error: "heroSearch.destinationUnclear", status: 422 };
+  }
+
+  const origins = baseParsed.origin_airports
+    .map((o) => o.trim().toUpperCase())
+    .filter((o) => /^[A-Z]{3}$/.test(o))
+    .slice(0, MAX_MULTI_ORIGIN_SEARCHES);
+
+  const uniqueOrigins = [...new Set(origins.length > 0 ? origins : [baseParsed.origin_airport])];
+
+  if (uniqueOrigins.length <= 1) {
+    const origin = uniqueOrigins[0] || baseParsed.origin_airport || "LJU";
+    return searchSingleOriginViaMake(
+      query,
+      {
+        ...baseParsed,
+        destination_airport: dest,
+        origin_airport: origin,
+        origin_airports: [origin],
+      },
+      attachment,
+      location,
+    );
+  }
+
+  const statusUrlConfigured = Boolean(process.env.MAKE_STATUS_WEBHOOK_URL?.trim());
+  console.log("[heroFlightSearch] Multi-origin Make fan-out:", uniqueOrigins.join(", "));
+
+  const started = await Promise.all(
+    uniqueOrigins.map(async (origin) => {
+      const searchId = createMakeSearchId();
+      const webhook = await callMakeSearchWebhook(
+        {
+          userMessage: query,
+          searchId,
+          latitude: location?.latitude,
+          longitude: location?.longitude,
+          attachment,
+          parsedData: {
+            ...baseParsed,
+            destination_airport: dest,
+            origin_airport: origin,
+            origin_airports: [origin],
+          },
+        },
+        { timeoutMs: 35_000 },
+      );
+
+      if (!webhook.ok) {
+        return {
+          origin,
+          searchId,
+          ok: false as const,
+          error: webhook.error,
+          flights: [] as MakeSearchFlight[],
+        };
+      }
+
+      const syncFlights = tagMakeSearchFlightsWithOrigin(
+        parseMakeSearchFlights(unwrapMakeSearchOffersPayload(webhook.data), {
+          rank: false,
+        }),
+        origin,
+      );
+      return {
+        origin,
+        searchId: extractMakeSearchId(webhook.data) ?? webhook.searchId,
+        ok: true as const,
+        flights: syncFlights,
+      };
+    }),
+  );
+
+  const successful = started.filter((s) => s.ok);
+  const seedFlights = started.flatMap((s) => s.flights);
+  const syncFlights = mergeAndRankMakeSearchFlights(seedFlights, { showOriginBadge: true });
+
+  // Every origin returned offers synchronously — done.
+  const allSync =
+    successful.length > 0 &&
+    successful.every((s) => s.flights.length > 0) &&
+    successful.length === started.length;
+  if (allSync) {
+    return {
+      ok: true,
+      flights: syncFlights,
+      parsed: stubParsedFromMake({
+        ...baseParsed,
+        destination_airport: dest,
+        origin_airport: uniqueOrigins[0]!,
+        origin_airports: uniqueOrigins,
+      }),
+      makeResponse: { flights: syncFlights, origins: uniqueOrigins },
+    };
+  }
+
+  // Poll origins that have no sync offers yet; keep seed flights from the rest.
+  const pollEntries = successful.filter((s) => s.flights.length === 0 && s.searchId);
+  const pollIds = pollEntries.map((s) => s.searchId);
+  const pollOrigins = pollEntries.map((s) => s.origin);
+
+  if (statusUrlConfigured && pollIds.length > 0) {
+    return {
+      ok: true,
+      pending: true,
+      searchId: pollIds[0]!,
+      searchIds: pollIds,
+      origins: pollOrigins,
+      // Cap payload size for the client poll merge.
+      seedFlights: seedFlights.slice(0, 40),
+    };
+  }
+
+  // No status webhook — return whatever sync offers we got.
+  if (syncFlights.length > 0) {
+    return {
+      ok: true,
+      flights: syncFlights,
+      parsed: stubParsedFromMake({
+        ...baseParsed,
+        destination_airport: dest,
+        origin_airport: uniqueOrigins[0]!,
+        origin_airports: uniqueOrigins,
+      }),
+      makeResponse: { flights: syncFlights, origins: uniqueOrigins },
+    };
+  }
+
+  if (successful.length > 0) {
+    return {
+      ok: false,
+      error:
+        "Make.com je sprejel zahtevo brez podatkov o letih. Nastavite MAKE_STATUS_WEBHOOK_URL za polling ali sinhron webhook odgovor z offers.",
+      status: 502,
+    };
+  }
+
+  const firstError = started.find((s) => !s.ok);
+  return {
+    ok: false,
+    error: firstError && !firstError.ok ? firstError.error : "heroSearch.error",
+    status: 502,
+  };
 }
 
 /** Poll Make.com Data Store once for async flight search results. */
-export async function checkHeroFlightSearchStatus(searchId: string): Promise<
+export async function checkHeroFlightSearchStatus(
+  searchId: string,
+  opts?: { rank?: boolean },
+): Promise<
   | { ok: true; status: "ready"; flights: MakeSearchFlight[]; makeResponse: unknown }
   | { ok: true; status: "pending" }
   | { ok: false; error: string; status: number }
@@ -446,13 +632,28 @@ export async function checkHeroFlightSearchStatus(searchId: string): Promise<
     return { ok: false, error: webhook.error, status: webhook.status };
   }
 
+  const payload = unwrapMakeSearchOffersPayload(webhook.data);
+  const unranked = parseMakeSearchFlights(payload, { rank: false });
+  if (unranked.length > 0) {
+    const flights =
+      opts?.rank === false
+        ? unranked
+        : mergeAndRankMakeSearchFlights(unranked, { showOriginBadge: false });
+    return {
+      ok: true,
+      status: "ready",
+      flights,
+      makeResponse: payload,
+    };
+  }
+
   const parsed = parseMakeSearchStatus(webhook.data);
   if (parsed.status === "ready") {
     return {
       ok: true,
       status: "ready",
       flights: parsed.flights,
-      makeResponse: unwrapMakeSearchOffersPayload(webhook.data),
+      makeResponse: payload,
     };
   }
 
@@ -461,6 +662,76 @@ export async function checkHeroFlightSearchStatus(searchId: string): Promise<
   }
 
   return { ok: true, status: "pending" };
+}
+
+/** Poll several origin searches and merge into a global top 3. */
+export async function checkHeroMultiOriginSearchStatus(
+  searchIds: string[],
+  opts?: { origins?: string[] },
+): Promise<
+  | { ok: true; status: "ready"; flights: MakeSearchFlight[] }
+  | { ok: true; status: "pending"; readyOrigins: number; total: number }
+  | { ok: false; error: string; status: number }
+> {
+  const ids = [...new Set(searchIds.map((id) => id.trim()).filter(Boolean))];
+  const origins = (opts?.origins ?? []).map((o) => o.trim().toUpperCase());
+
+  if (ids.length === 0) {
+    return { ok: false, error: "Manjka searchId.", status: 400 };
+  }
+
+  if (ids.length === 1) {
+    const single = await checkHeroFlightSearchStatus(ids[0]!);
+    if (!single.ok) return single;
+    if (single.status === "pending") {
+      return { ok: true, status: "pending", readyOrigins: 0, total: 1 };
+    }
+    const tagged = tagMakeSearchFlightsWithOrigin(single.flights, origins[0] ?? "");
+    return {
+      ok: true,
+      status: "ready",
+      flights: mergeAndRankMakeSearchFlights(tagged, {
+        showOriginBadge: Boolean(origins[0]),
+      }),
+    };
+  }
+
+  const results = await Promise.all(
+    ids.map((id) => checkHeroFlightSearchStatus(id, { rank: false })),
+  );
+
+  let pendingCount = 0;
+  let errorCount = 0;
+  const collected: MakeSearchFlight[] = [];
+
+  results.forEach((result, index) => {
+    if (!result.ok) {
+      errorCount += 1;
+      return;
+    }
+    if (result.status === "pending") {
+      pendingCount += 1;
+      return;
+    }
+    const origin = origins[index] ?? "";
+    collected.push(...tagMakeSearchFlightsWithOrigin(result.flights, origin));
+  });
+
+  if (pendingCount > 0) {
+    return {
+      ok: true,
+      status: "pending",
+      readyOrigins: ids.length - pendingCount - errorCount,
+      total: ids.length,
+    };
+  }
+
+  const merged = mergeAndRankMakeSearchFlights(collected, { showOriginBadge: true });
+  if (merged.length === 0 && errorCount === ids.length) {
+    return { ok: false, error: "heroSearch.error", status: 502 };
+  }
+
+  return { ok: true, status: "ready", flights: merged };
 }
 
 async function runHeroFlightSearch(

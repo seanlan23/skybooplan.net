@@ -37,10 +37,20 @@ export const Route = createFileRoute("/api/search")({
         }
 
         if ("pending" in result && result.pending) {
-          console.log("[api/search] Async Make search started:", result.searchId);
+          const searchIds = result.searchIds?.length
+            ? result.searchIds
+            : [result.searchId];
+          console.log("[api/search] Async Make search started:", {
+            searchId: result.searchId,
+            searchIds,
+            origins: result.origins ?? null,
+          });
           return Response.json({
             status: "pending",
             searchId: result.searchId,
+            searchIds,
+            origins: result.origins ?? [],
+            seedFlights: result.seedFlights ?? [],
             flights: [],
             offers: [],
           });
