@@ -156,6 +156,7 @@ describe("parseMakeSearchUserMessage", () => {
 
     expect(parsed).toMatchObject({
       origin_airports: ["LJU", "ZAG", "VIE"],
+      origin_airport: "LJU",
       destination_airport: "BKK",
       departure_date: "2026-10-15",
       return_date: "2026-10-29",
@@ -172,6 +173,7 @@ describe("parseMakeSearchUserMessage", () => {
   it("defaults origin to LJU when none provided", () => {
     const parsed = parseMakeSearchUserMessage("Leti v Tajska, konec oktobra začetek novembra");
     expect(parsed.origin_airports).toEqual(["LJU"]);
+    expect(parsed.origin_airport).toBe("LJU");
     expect(parsed.destination_airport).toBe("BKK");
     expect(parsed.departure_date).toBe("2026-10-26");
     expect(parsed.return_date).toBe("2026-11-05");
@@ -273,6 +275,7 @@ describe("callMakeSearchWebhook", () => {
           longitude: 14.5,
           parsedData: {
             origin_airports: ["LJU"],
+            origin_airport: "LJU",
             destination_airport: "BKK",
             departure_date: "2026-10-15",
             return_date: "2026-10-29",

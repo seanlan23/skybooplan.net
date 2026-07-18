@@ -282,6 +282,8 @@ export type MakeSearchPassengers = {
 
 export type MakeSearchParsedData = {
   origin_airports: string[];
+  /** First origin IATA — flat string for Make.com mapping (arrays often break). */
+  origin_airport: string;
   destination_airport: string | null;
   departure_date: string;
   return_date: string;
@@ -588,9 +590,12 @@ export function parseMakeSearchUserMessage(
     .filter((code) => /^[A-Z]{3}$/.test(code))
     .slice(0, NEAREST_AIRPORT_LIMIT);
 
+  // Default LJU when geo lookup is unavailable — Make must not invent CDG/August.
+  const resolvedOrigins = origin_airports.length > 0 ? origin_airports : ["LJU"];
+
   return {
-    // Default LJU when geo lookup is unavailable — Make must not invent CDG/August.
-    origin_airports: origin_airports.length > 0 ? origin_airports : ["LJU"],
+    origin_airports: resolvedOrigins,
+    origin_airport: resolvedOrigins[0]!,
     destination_airport,
     departure_date,
     return_date,
