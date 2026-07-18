@@ -491,7 +491,7 @@ describe("parseMakeSearchStatus", () => {
     expect(result.flights).toHaveLength(3);
     expect(result.flights[0]?.prevoznik).toBe("Air France");
     expect(result.flights[0]?.cena_eur).toBe(149.5);
-    expect(result.flights[0]?.badge).toBe("Najcenejši");
+    expect(result.flights[0]?.badge).toBe("cheapest");
     expect(result.flights.map((f) => f.id)).toEqual([
       "off_cheap",
       "off_mid",
@@ -667,9 +667,9 @@ describe("mergeAndRankMakeSearchFlights", () => {
 
     expect(merged).toHaveLength(3);
     expect(merged.map((f) => f.id)).toEqual(["mxp-best", "vie-cheap", "vie-alt"]);
-    expect(merged[0]?.badge).toBe("Najcenejši · MXP");
-    expect(merged[1]?.badge).toBe("Najboljša vrednost · VIE");
-    expect(merged[2]?.badge).toBe("Alternativa · VIE");
+    expect(merged[0]?.badge).toBe("cheapest · MXP");
+    expect(merged[1]?.badge).toBe("best_value · VIE");
+    expect(merged[2]?.badge).toBe("alternative · VIE");
   });
 
   it("dedupes identical offers before ranking", () => {

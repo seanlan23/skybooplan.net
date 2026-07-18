@@ -74,6 +74,41 @@ function inferYear(monthIndex: number, reference = new Date()): number {
   return monthIndex < monthNow ? year + 1 : year;
 }
 
+const EN_MONTH_NAMES = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+] as const;
+
+const SL_MONTH_NAMES = [
+  "januar",
+  "februar",
+  "marec",
+  "april",
+  "maj",
+  "junij",
+  "julij",
+  "avgust",
+  "september",
+  "oktober",
+  "november",
+  "december",
+] as const;
+
+function monthNameForLang(monthIndex: number, lang: string): string {
+  const idx = Math.min(11, Math.max(0, monthIndex));
+  return lang === "sl" ? SL_MONTH_NAMES[idx]! : EN_MONTH_NAMES[idx]!;
+}
+
 function formatDayMonth(day: number, monthIndex: number, lang: string): string {
   const locale = lang === "sl" ? "sl-SI" : "en-GB";
   const d = new Date(2026, monthIndex, day, 12);
@@ -213,14 +248,16 @@ export function extractTripLengthDays(text: string): number | null {
 function applyTripLength(
   result: HeroChatDateParseResult,
   tripDays: number | null,
+  lang = "en",
 ): HeroChatDateParseResult {
   if (!tripDays || !result.departDate) return result;
   const [y, m, d] = result.departDate.split("-").map((x) => Number.parseInt(x, 10));
   if (!y || !m || !d) return result;
   const returnDate = addDaysSafe(y, m - 1, d, tripDays);
+  const unit = lang === "sl" ? "dni" : "days";
   const label =
-    result.label && !/\d+\s*dni/i.test(result.label)
-      ? `${result.label} · ${tripDays} dni`
+    result.label && !/\d+\s*(?:dni|days)\b/i.test(result.label)
+      ? `${result.label} · ${tripDays} ${unit}`
       : result.label;
   return { ...result, returnDate, label: label || result.label };
 }
@@ -247,8 +284,8 @@ function extractEndStartMonthRange(text: string, lang: string): HeroChatDatePars
   const returnDate = toIsoDate(yearTo, monthTo, 5);
   const label =
     lang === "sl"
-      ? `konec ${range[1]!.toLowerCase()} → začetek ${range[2]!.toLowerCase()} ${yearFrom}`
-      : `late ${range[1]!.toLowerCase()} → early ${range[2]!.toLowerCase()} ${yearFrom}`;
+      ? `konec ${monthNameForLang(monthFrom, "sl")} → začetek ${monthNameForLang(monthTo, "sl")} ${yearFrom}`
+      : `late ${monthNameForLang(monthFrom, "en")} → early ${monthNameForLang(monthTo, "en")} ${yearFrom}`;
 
   return { precision: "exact", label, departDate, returnDate };
 }
@@ -270,8 +307,8 @@ function extractMonthDashRange(text: string, lang: string): HeroChatDateParseRes
   const returnDate = toIsoDate(yearTo, monthTo, 15);
   const label =
     lang === "sl"
-      ? `${range[1]!.toLowerCase()} – ${range[2]!.toLowerCase()} ${yearFrom}`
-      : `${range[1]!.toLowerCase()} – ${range[2]!.toLowerCase()} ${yearFrom}`;
+      ? `${monthNameForLang(monthFrom, "sl")} – ${monthNameForLang(monthTo, "sl")} ${yearFrom}`
+      : `${monthNameForLang(monthFrom, "en")} – ${monthNameForLang(monthTo, "en")} ${yearFrom}`;
 
   return { precision: "exact", label, departDate, returnDate };
 }
@@ -312,8 +349,8 @@ function extractVague(text: string, lang: string): HeroChatDateParseResult | nul
         precision: "exact",
         label:
           lang === "sl"
-            ? `konec ${endMonth[1]!.toLowerCase()} ${year}`
-            : `late ${endMonth[1]!.toLowerCase()} ${year}`,
+            ? `konec ${monthNameForLang(monthIndex, "sl")} ${year}`
+            : `late ${monthNameForLang(monthIndex, "en")} ${year}`,
         departDate: toIsoDate(year, monthIndex, 26),
         returnDate: addDaysSafe(year, monthIndex, 26, 14),
       };
@@ -332,8 +369,8 @@ function extractVague(text: string, lang: string): HeroChatDateParseResult | nul
         precision: "exact",
         label:
           lang === "sl"
-            ? `začetek ${startMonth[1]!.toLowerCase()} ${year}`
-            : `early ${startMonth[1]!.toLowerCase()} ${year}`,
+            ? `začetek ${monthNameForLang(monthIndex, "sl")} ${year}`
+            : `early ${monthNameForLang(monthIndex, "en")} ${year}`,
         departDate,
         returnDate: addDaysSafe(year, monthIndex, 5, 14),
       };
@@ -342,13 +379,12 @@ function extractVague(text: string, lang: string): HeroChatDateParseResult | nul
 
   const monthOnly = normalized.match(new RegExp(`\\b(${MONTH_PATTERN})\\b`, "i"));
   if (monthOnly && !normalized.match(new RegExp(`\\d{1,2}\\.?\\s*${monthOnly[1]}`, "i"))) {
-    const monthLabel = monthOnly[1]!.replace(/\./g, "");
     const monthIndex = resolveMonthIndex(monthOnly[1]!) ?? 0;
     const year = inferYear(monthIndex);
     const departDate = toIsoDate(year, monthIndex, 15);
     return {
       precision: "vague",
-      label: `${monthLabel} ${year}`,
+      label: `${monthNameForLang(monthIndex, lang)} ${year}`,
       departDate,
       returnDate: addDaysSafe(year, monthIndex, 15, 14),
     };
@@ -364,7 +400,7 @@ function addDaysSafe(year: number, monthIndex: number, day: number, days: number
 }
 
 /** Detect exact vs vague travel dates mentioned in natural language. */
-export function extractHeroChatDates(text: string, lang = "sl"): HeroChatDateParseResult {
+export function extractHeroChatDates(text: string, lang = "en"): HeroChatDateParseResult {
   const trimmed = text.trim();
   if (!trimmed) return { precision: "none", label: "" };
 
@@ -376,5 +412,5 @@ export function extractHeroChatDates(text: string, lang = "sl"): HeroChatDatePar
     extractSingleDay(trimmed, lang) ??
     extractVague(trimmed, lang) ?? { precision: "none" as const, label: "" };
 
-  return applyTripLength(parsed, extractTripLengthDays(trimmed));
+  return applyTripLength(parsed, extractTripLengthDays(trimmed), lang);
 }

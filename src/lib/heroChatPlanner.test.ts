@@ -34,6 +34,14 @@ describe("heroChatPlanner", () => {
     expect(resolveDestinationIata("🏯 Japonska")).toBe("NRT");
   });
 
+  it("resolves south Thailand / Phuket prompts to HKT", () => {
+    expect(
+      resolveDestinationIata(
+        "potovanje na jug tajske po možnosti prihod in odhod iz phuketa",
+      ),
+    ).toBe("HKT");
+  });
+
   it("does not invent IATA codes from arbitrary city names", () => {
     expect(resolveDestinationIata("Narava")).toBe("");
   });

@@ -7,9 +7,9 @@ import {
 } from "@/lib/makeSearch";
 import { cn } from "@/lib/utils";
 
-function formatPrice(eur: number): string {
+function formatPrice(eur: number, lang: string): string {
   if (!Number.isFinite(eur) || eur <= 0) return "—";
-  return new Intl.NumberFormat("sl-SI", {
+  return new Intl.NumberFormat(lang === "sl" ? "sl-SI" : "en-GB", {
     style: "currency",
     currency: "EUR",
     maximumFractionDigits: 0,
@@ -21,11 +21,23 @@ function formatStopPart(
   directLabel: string,
   stopLabel: string,
   stopsLabel: string,
+  viaLabel: string,
 ): string {
   const trimmed = part.trim();
   if (trimmed === "0") return directLabel;
+
+  // "1|PEK" or "2|IST,DXB"
+  const withVia = trimmed.match(/^(\d+)\|([A-Z]{3}(?:,[A-Z]{3})*)$/i);
+  if (withVia) {
+    const count = Number.parseInt(withVia[1]!, 10);
+    const airports = withVia[2]!.toUpperCase();
+    const countLabel =
+      count === 0 ? directLabel : count === 1 ? `1 ${stopLabel}` : `${count} ${stopsLabel}`;
+    return `${countLabel} · ${viaLabel} ${airports}`;
+  }
+
   const asNumber = Number.parseInt(trimmed, 10);
-  if (Number.isFinite(asNumber)) {
+  if (Number.isFinite(asNumber) && String(asNumber) === trimmed) {
     if (asNumber === 0) return directLabel;
     if (asNumber === 1) return `1 ${stopLabel}`;
     return `${asNumber} ${stopsLabel}`;
@@ -33,16 +45,36 @@ function formatStopPart(
   return trimmed || "—";
 }
 
-function formatStops(postanki: string, directLabel: string, stopLabel: string, stopsLabel: string): string {
+function formatStops(
+  postanki: string,
+  directLabel: string,
+  stopLabel: string,
+  stopsLabel: string,
+  viaLabel: string,
+): string {
   const trimmed = postanki.trim();
   if (!trimmed) return "—";
   if (trimmed.includes("/")) {
     return trimmed
       .split("/")
-      .map((part) => formatStopPart(part, directLabel, stopLabel, stopsLabel))
+      .map((part) => formatStopPart(part, directLabel, stopLabel, stopsLabel, viaLabel))
       .join(" · ");
   }
-  return formatStopPart(trimmed, directLabel, stopLabel, stopsLabel);
+  return formatStopPart(trimmed, directLabel, stopLabel, stopsLabel, viaLabel);
+}
+
+function localizeBadge(badge: string, t: (key: never) => string): string {
+  const [keyPart, origin] = badge.split(" · ").map((s) => s.trim());
+  const key = (keyPart || "").toLowerCase();
+  const label =
+    key === "cheapest" || key.includes("najcenej")
+      ? t("results.cheapestBadge" as never)
+      : key === "best_value" || key.includes("vrednost") || key.includes("best value")
+        ? t("results.bestValueBadge" as never)
+        : key === "alternative" || key.includes("alternativa")
+          ? t("results.alternativeBadge" as never)
+          : keyPart || badge;
+  return origin ? `${label} · ${origin}` : label;
 }
 
 function badgeClasses(badge: string): string {
@@ -60,16 +92,44 @@ function displayTime(preferred?: string, fallback = ""): string {
   return match?.[1] ?? fallback;
 }
 
-function displayDate(isoDate?: string, humanFallback = ""): string {
+function displayDate(isoDate?: string, humanFallback = "", lang = "en"): string {
   if (isoDate && /^\d{4}-\d{2}-\d{2}$/.test(isoDate)) {
     const d = new Date(`${isoDate}T12:00:00`);
     if (!Number.isNaN(d.getTime())) {
-      return new Intl.DateTimeFormat("sl-SI", { day: "numeric", month: "short" }).format(d);
+      return new Intl.DateTimeFormat(lang === "sl" ? "sl-SI" : "en-GB", {
+        day: "numeric",
+        month: "short",
+      }).format(d);
     }
   }
-  // "26. okt. 2026, 06:35" → "26. okt."
-  const match = humanFallback.match(/^(\d{1,2}\.\s*\p{L}+\.?)/u);
+  // "26. okt. 2026, 06:35" / "26 Oct 2026, 06:35"
+  const match = humanFallback.match(/^(\d{1,2}[.\s]\s*\p{L}+\.?)/u);
   return match?.[1]?.trim() ?? "";
+}
+
+/** Estimate duration from HH:mm + optional +N day offset when Make omitted ISO duration. */
+function estimateDurationLabel(
+  departHm?: string,
+  arriveHm?: string,
+  dayOffset = 0,
+): string | undefined {
+  if (!departHm || !arriveHm) return undefined;
+  const parse = (hm: string) => {
+    const m = hm.match(/^(\d{1,2}):(\d{2})$/);
+    if (!m) return null;
+    return Number.parseInt(m[1]!, 10) * 60 + Number.parseInt(m[2]!, 10);
+  };
+  const a = parse(departHm);
+  const b = parse(arriveHm);
+  if (a == null || b == null) return undefined;
+  let mins = b - a + dayOffset * 24 * 60;
+  if (mins <= 0) mins += 24 * 60;
+  if (mins <= 0 || mins > 60 * 48) return undefined;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  if (h > 0 && m > 0) return `${h}h ${m}m`;
+  if (h > 0) return `${h}h`;
+  return `${m}m`;
 }
 
 function AirlineMark({ name, code }: { name: string; code?: string }) {
@@ -193,11 +253,12 @@ export function FlightCard({
   onSelectForAiPlan?: (flight: MakeSearchFlight) => void;
   isFirst?: boolean;
 }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
 
   const directLabel = t("results.direct" as never);
   const stopLabel = t("results.stop" as never);
   const stopsLabel = t("results.stops" as never);
+  const viaLabel = t("results.via" as never);
 
   const route = parseMakeFlightRoute(flight.destinacija);
   const from = flight.origin_iata || route.from || searchMeta?.from || "—";
@@ -208,9 +269,9 @@ export function FlightCard({
     : flight.postanki;
   const inStopsRaw = flight.postanki.includes("/") ? flight.postanki.split("/")[1]! : "";
 
-  const outboundStops = formatStopPart(outStopsRaw, directLabel, stopLabel, stopsLabel);
+  const outboundStops = formatStopPart(outStopsRaw, directLabel, stopLabel, stopsLabel, viaLabel);
   const inboundStops = inStopsRaw
-    ? formatStopPart(inStopsRaw, directLabel, stopLabel, stopsLabel)
+    ? formatStopPart(inStopsRaw, directLabel, stopLabel, stopsLabel, viaLabel)
     : "";
 
   const skyscannerUrl = skyscannerUrlForMakeFlight(flight, adults, searchMeta ?? undefined);
@@ -220,8 +281,14 @@ export function FlightCard({
   const outArrive = displayTime(flight.outbound_arrive);
   const inDepart = displayTime(flight.inbound_depart, flight.povratek);
   const inArrive = displayTime(flight.inbound_arrive);
-  const outDate = displayDate(flight.depart_date, flight.odhod);
-  const inDate = displayDate(flight.return_date, flight.povratek ?? "");
+  const outDate = displayDate(flight.depart_date, flight.odhod, lang);
+  const inDate = displayDate(flight.return_date, flight.povratek ?? "", lang);
+  const outDuration =
+    flight.outbound_duration ||
+    estimateDurationLabel(outDepart, outArrive, flight.outbound_arrive_day_offset ?? 0);
+  const inDuration =
+    flight.inbound_duration || estimateDurationLabel(inDepart, inArrive, 0);
+  const badgeLabel = flight.badge ? localizeBadge(flight.badge, t) : "";
 
   return (
     <article
@@ -235,15 +302,15 @@ export function FlightCard({
     >
       <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_118px]">
         <div className="divide-y divide-border px-3 py-1.5 sm:px-3.5">
-          {flight.badge ? (
+          {badgeLabel ? (
             <div className="pb-1.5 pt-1">
               <span
                 className={cn(
                   "inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold",
-                  badgeClasses(flight.badge),
+                  badgeClasses(flight.badge || badgeLabel),
                 )}
               >
-                {flight.badge}
+                {badgeLabel}
               </span>
             </div>
           ) : null}
@@ -256,7 +323,7 @@ export function FlightCard({
               departTime={outDepart}
               arriveTime={outArrive}
               dateLabel={outDate}
-              durationLabel={flight.outbound_duration}
+              durationLabel={outDuration}
               stopsLabel={outboundStops}
               dayOffset={flight.outbound_arrive_day_offset}
             />
@@ -271,8 +338,11 @@ export function FlightCard({
                 departTime={inDepart}
                 arriveTime={inArrive}
                 dateLabel={inDate}
-                durationLabel={flight.inbound_duration}
-                stopsLabel={inboundStops || formatStops(flight.postanki, directLabel, stopLabel, stopsLabel)}
+                durationLabel={inDuration}
+                stopsLabel={
+                  inboundStops ||
+                  formatStops(flight.postanki, directLabel, stopLabel, stopsLabel, viaLabel)
+                }
               />
             </div>
           ) : null}
@@ -281,7 +351,7 @@ export function FlightCard({
         <div className="flex flex-row items-center justify-between gap-3 border-t border-border bg-muted/20 px-3 py-2.5 sm:flex-col sm:items-end sm:justify-center sm:border-l sm:border-t-0 sm:px-2.5 sm:py-3 sm:text-right">
           <div>
             <p className="text-xl font-bold tabular-nums leading-none text-foreground">
-              {formatPrice(flight.cena_eur)}
+              {formatPrice(flight.cena_eur, lang)}
             </p>
             <p className="mt-0.5 text-[10px] text-muted-foreground">
               {t("results.perAdult" as never)}

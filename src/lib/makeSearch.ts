@@ -159,10 +159,12 @@ function parseDuffelOfferAsMakeFlight(item: unknown, index: number): MakeSearchF
 
   const outboundStops = Math.max(0, segments.length - 1);
   const returnStops = returnSegments.length > 0 ? Math.max(0, returnSegments.length - 1) : 0;
+  const outLayovers = layoverIatasFromSegments(segments);
+  const inLayovers = layoverIatasFromSegments(returnSegments);
   const postanki =
     returnSegments.length > 0
-      ? `${outboundStops}/${returnStops}`
-      : String(outboundStops);
+      ? `${formatStopsWithLayovers(outboundStops, outLayovers)}/${formatStopsWithLayovers(returnStops, inLayovers)}`
+      : formatStopsWithLayovers(outboundStops, outLayovers);
 
   const outDurationRaw =
     readString(firstSlice, "duration") ||
@@ -204,7 +206,8 @@ function parseDuffelOfferAsMakeFlight(item: unknown, index: number): MakeSearchF
   };
 }
 
-const TOP_MAKE_FLIGHT_BADGES = ["Najcenejši", "Najboljša vrednost", "Alternativa"] as const;
+/** Stable badge keys — UI translates via i18n. */
+const TOP_MAKE_FLIGHT_BADGES = ["cheapest", "best_value", "alternative"] as const;
 
 /** Max parallel Make/Duffel searches when user lists several departure airports. */
 export const MAX_MULTI_ORIGIN_SEARCHES = 5;
@@ -234,7 +237,7 @@ export function selectTopMakeSearchFlights(
     .slice(0, 3);
 
   return ranked.map((flight, index) => {
-    const base = TOP_MAKE_FLIGHT_BADGES[index] || `Možnost ${index + 1}`;
+    const base = TOP_MAKE_FLIGHT_BADGES[index] || `option_${index + 1}`;
     const badge =
       opts?.showOriginBadge && flight.origin_iata
         ? `${base} · ${flight.origin_iata}`
@@ -246,6 +249,26 @@ export function selectTopMakeSearchFlights(
       ai_povzetek: flight.ai_povzetek?.trim() || "",
     };
   });
+}
+
+function layoverIatasFromSegments(segments: unknown[]): string[] {
+  if (segments.length < 2) return [];
+  const layovers: string[] = [];
+  for (let i = 0; i < segments.length - 1; i++) {
+    const seg = asRecord(segments[i]);
+    const next = asRecord(segments[i + 1]);
+    const via =
+      readNestedIata(seg?.destination) ||
+      readNestedIata(next?.origin);
+    if (via && !layovers.includes(via)) layovers.push(via);
+  }
+  return layovers;
+}
+
+function formatStopsWithLayovers(stops: number, layovers: string[]): string {
+  if (stops <= 0) return "0";
+  if (layovers.length === 0) return String(stops);
+  return `${stops}|${layovers.slice(0, 2).join(",")}`;
 }
 
 function flightDedupeKey(flight: MakeSearchFlight): string {
@@ -277,7 +300,7 @@ export function mergeAndRankMakeSearchFlights(
 function formatDepartureDatetime(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
-  return new Intl.DateTimeFormat("sl-SI", {
+  return new Intl.DateTimeFormat("en-GB", {
     day: "numeric",
     month: "short",
     year: "numeric",
@@ -457,6 +480,25 @@ function parseFlightItem(item: unknown, index: number): MakeSearchFlight | null 
     (/^[A-Z]{3}$/.test(destIata) ? destIata : "") || route.to || "";
   const arrivalIso = readString(record, "arrival_datetime", "arrival");
   const returnArrivalIso = readString(record, "return_arrival_datetime");
+  const airlineIata = readString(record, "airline_iata", "carrier_iata").toUpperCase();
+
+  const outDurationRaw =
+    readString(record, "outbound_duration", "duration_outbound", "duration") ||
+    (departureIso && arrivalIso ? isoDurationBetween(departureIso, arrivalIso) : "");
+  const inDurationRaw =
+    readString(record, "inbound_duration", "duration_inbound") ||
+    (returnIso && returnArrivalIso ? isoDurationBetween(returnIso, returnArrivalIso) : "");
+  const outbound_duration = formatTravelDuration(outDurationRaw);
+  const inbound_duration = formatTravelDuration(inDurationRaw);
+  const outMins = parseDurationMinutes(outDurationRaw);
+  const inMins = parseDurationMinutes(inDurationRaw);
+  const duration_minutes = readNumber(record, "duration_minutes");
+  const totalMins =
+    duration_minutes > 0
+      ? duration_minutes
+      : outMins > 0 || inMins > 0
+        ? outMins + inMins
+        : undefined;
 
   return {
     id: rank || readString(record, "id") || `flight-${index}`,
@@ -465,6 +507,7 @@ function parseFlightItem(item: unknown, index: number): MakeSearchFlight | null 
     odhod: odhod || "—",
     ...(povratek ? { povratek } : {}),
     prevoznik: prevoznik || "—",
+    ...(airlineIata && /^[A-Z0-9]{2}$/.test(airlineIata) ? { airline_iata: airlineIata } : {}),
     postanki: formatPostanki({ ...record, postanki: stopsRaw }),
     ai_povzetek,
     badge,
@@ -490,6 +533,9 @@ function parseFlightItem(item: unknown, index: number): MakeSearchFlight | null 
     ...(returnArrivalIso && timeHmFromIso(returnArrivalIso)
       ? { inbound_arrive: timeHmFromIso(returnArrivalIso) }
       : {}),
+    ...(outbound_duration ? { outbound_duration } : {}),
+    ...(inbound_duration ? { inbound_duration } : {}),
+    ...(totalMins != null ? { duration_minutes: totalMins } : {}),
   };
 }
 

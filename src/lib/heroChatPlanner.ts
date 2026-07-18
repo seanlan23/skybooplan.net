@@ -3,6 +3,7 @@ import { defaultDateFrom, defaultDateTo } from "@/lib/heroFlightSearch";
 import { parseHeroDateRangeStart } from "@/lib/heroDateRange";
 import type { HeroChatCollected } from "@/lib/heroChatFlow";
 import { normalizeIata, type TripBudgetTier } from "@/lib/geminiPro.shared";
+import { parseMakeSearchDestination, parseMakeSearchOriginAirports } from "@/lib/makeSearch";
 
 const ORIGIN_IATA: Record<string, string> = {
   ljubljana: "LJU",
@@ -66,6 +67,8 @@ function normalizeKey(value: string): string {
 }
 
 export function resolveOriginIata(origin: string): string {
+  const fromList = parseMakeSearchOriginAirports(origin);
+  if (fromList[0]) return fromList[0];
   const key = normalizeKey(origin);
   if (ORIGIN_IATA[key]) return ORIGIN_IATA[key]!;
   const iata = normalizeIata(origin);
@@ -74,6 +77,8 @@ export function resolveOriginIata(origin: string): string {
 }
 
 export function resolveDestinationIata(destination: string): string {
+  const fromMake = parseMakeSearchDestination(destination);
+  if (fromMake) return fromMake;
   const key = normalizeKey(destination);
   if (DESTINATION_IATA[key]) return DESTINATION_IATA[key]!;
   const iata = normalizeIata(destination);
@@ -168,7 +173,7 @@ export type HeroChatPlannerPayload = {
 /** Map hero chat answers to AI planner context + submit form. */
 export function heroChatToPlannerPayload(
   collected: HeroChatCollected,
-  language = "sl",
+  language = "en",
 ): HeroChatPlannerPayload {
   const departDate = parseChatDepartDate(collected.dates, language);
   const nightsLabel = collected.nights?.trim() || "7 noči";

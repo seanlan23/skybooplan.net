@@ -35,6 +35,14 @@ describe("extractHeroChatDates", () => {
     expect(result.precision).toBe("exact");
     expect(result.departDate).toMatch(/^\d{4}-10-26$/);
     expect(result.returnDate).toMatch(/^\d{4}-11-05$/);
+    expect(result.label.toLowerCase()).toMatch(/konec oktober/);
+  });
+
+  it("labels end/start month range in English when UI lang is en", () => {
+    const result = extractHeroChatDates("tajska 14 dni konec oktobra začetek novembra", "en");
+    expect(result.precision).toBe("exact");
+    expect(result.label).toMatch(/late October → early November/i);
+    expect(result.label).toMatch(/14 days/i);
   });
 
   it("tolerates typo onec + applies 14 dni trip length", () => {

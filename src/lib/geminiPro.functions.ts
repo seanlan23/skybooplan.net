@@ -123,10 +123,14 @@ export const generateGeminiProTripInputSchema = z
       }
     } else {
       if (!data.originIata) {
-        ctx.addIssue({ code: "custom", path: ["originIata"], message: "IATA odhoda je obvezen." });
+        ctx.addIssue({ code: "custom", path: ["originIata"], message: "Origin IATA is required." });
       }
       if (!data.destinationIata) {
-        ctx.addIssue({ code: "custom", path: ["destinationIata"], message: "IATA destinacije je obvezen." });
+        ctx.addIssue({
+          code: "custom",
+          path: ["destinationIata"],
+          message: "Destination IATA is required.",
+        });
       }
     }
   });

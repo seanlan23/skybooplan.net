@@ -57,7 +57,7 @@ import { Button } from "@/components/ui/button";
 import { addDays } from "@/lib/dateUtils";
 import { parseMakeFlightRoute, type MakeSearchFlight } from "@/lib/makeSearch";
 import { resolveHeroSearchData } from "@/lib/heroSearchPoll";
-import { heroChatToPlannerPayload } from "@/lib/heroChatPlanner";
+import { heroChatToPlannerPayload, resolveDestinationIata } from "@/lib/heroChatPlanner";
 import type { HeroChatCollected } from "@/lib/heroChatFlow";
 import { useUserLocation } from "@/lib/hooks/useUserLocation";
 
@@ -539,6 +539,7 @@ function Landing() {
     setHeroDreamPrompt(trimmed);
 
     let flightSearchOk = false;
+    let resolvedFlights: MakeSearchFlight[] = [];
 
     try {
       const res = await fetch("/api/search", {
@@ -581,6 +582,7 @@ function Landing() {
         if (resolved.error) {
           setHeroSearchError(resolved.error);
         } else {
+          resolvedFlights = resolved.flights;
           setHeroFlights(resolved.flights);
           flightSearchOk = true;
           if (resolved.flights.length === 0) {
@@ -603,12 +605,23 @@ function Landing() {
     }
 
     const { ctx } = heroChatToPlannerPayload(collected, lang);
-    setAiContext(ctx);
+    const flightDest = resolvedFlights
+      .map((f) => f.destination_iata || parseMakeFlightRoute(f.destinacija).to)
+      .find((code): code is string => Boolean(code && /^[A-Z]{3}$/.test(code)));
+    const enrichedCtx = {
+      ...ctx,
+      to: ctx.to || flightDest || "",
+      from:
+        ctx.from ||
+        resolvedFlights.find((f) => f.origin_iata)?.origin_iata ||
+        ctx.from,
+    };
+    setAiContext(enrichedCtx);
     setPlannerMode("trip");
     setLastSearch({
       mode: "ai",
-      from: ctx.from,
-      to: ctx.to,
+      from: enrichedCtx.from,
+      to: enrichedCtx.to,
       originPlace: ctx.originPlace,
       destinationPlace: ctx.destinationPlace,
       departDate: ctx.departDate,
@@ -844,7 +857,13 @@ function Landing() {
 
     const route = parseMakeFlightRoute(flight.destinacija);
     const from = flight.origin_iata || route.from || aiContext.from || lastSearch?.from || "LJU";
-    const to = flight.destination_iata || route.to || aiContext.to || lastSearch?.to || "";
+    const to =
+      flight.destination_iata ||
+      route.to ||
+      aiContext.to ||
+      lastSearch?.to ||
+      resolveDestinationIata(aiContext.destinationPlace || heroDreamPrompt || "") ||
+      "";
     const departDate =
       flight.depart_date || aiContext.departDate || lastSearch?.departDate || "";
     const returnDate =
