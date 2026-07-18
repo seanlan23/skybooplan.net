@@ -166,7 +166,11 @@ const en: Dict = {
   "heroChat.step5.ai": "What's your budget per person?",
   "heroChat.step6.loading": "Perfect! Searching for the best options for you… ✈️",
   "heroChat.searchingFlights": "Searching for the best flights for you… 🔍",
+  "heroChat.searchingFlightsFrom":
+    "Searching from {{origin}} (among your airports). Showing the best options from that hub… 🔍",
   "heroChat.flightResultsIntro": "Here are the best flights I found for you:",
+  "heroChat.flightResultsIntroFrom":
+    "Best options from {{origin}} (one origin per search for now — not compared across all your airports yet):",
   "heroChat.dates.july": "July 2027",
   "heroChat.dates.august": "August 2027",
   "heroChat.dates.september": "September 2027",
@@ -978,7 +982,11 @@ const dicts: Record<Lang, Dict> = {
     "heroChat.step5.ai": "Kakšen je vaš proračun na osebo?",
     "heroChat.step6.loading": "Perfektno! Iščem najboljše možnosti za vas… ✈️",
     "heroChat.searchingFlights": "Iščem najboljše lete zate… 🔍",
+    "heroChat.searchingFlightsFrom":
+      "Iščem iz {{origin}} (med tvojimi letališči). To ni primerjava vseh — samo to izhodišče… 🔍",
     "heroChat.flightResultsIntro": "Našel sem te najboljše lete za vas:",
+    "heroChat.flightResultsIntroFrom":
+      "Najboljše možnosti iz {{origin}} (trenutno eno letališče na iskanje — še ni primerjave LJU/VIE/MXP…):",
     "heroChat.dates.july": "Julij 2027",
     "heroChat.dates.august": "Avgust 2027",
     "heroChat.dates.september": "September 2027",

@@ -9,6 +9,7 @@ import {
   parseMakeSearchFlights,
   skyscannerUrlForMakeFlight,
   buildSkyscannerFlightUrl,
+  formatTravelDuration,
   parseMakeSearchPassengers,
   flattenMakeDataStoreRecord,
   parseMakeSearchStatus,
@@ -511,9 +512,11 @@ describe("parseMakeSearchStatus", () => {
               {
                 origin: { iata_code: "LJU" },
                 destination: { iata_code: "CDG" },
+                duration: "PT2H15M",
                 segments: [
                   {
                     departing_at: "2026-08-15T08:00:00+02:00",
+                    arriving_at: "2026-08-15T10:15:00+02:00",
                     origin: { iata_code: "LJU" },
                     destination: { iata_code: "CDG" },
                     marketing_carrier: { name: "Lufthansa", iata_code: "LH" },
@@ -531,9 +534,11 @@ describe("parseMakeSearchStatus", () => {
               {
                 origin: { iata_code: "LJU" },
                 destination: { iata_code: "CDG" },
+                duration: "PT1H55M",
                 segments: [
                   {
                     departing_at: "2026-08-15T06:30:00+02:00",
+                    arriving_at: "2026-08-15T08:25:00+02:00",
                     origin: { iata_code: "LJU" },
                     destination: { iata_code: "CDG" },
                     marketing_carrier: { name: "Air France", iata_code: "AF" },
@@ -550,6 +555,8 @@ describe("parseMakeSearchStatus", () => {
     expect(result.flights).toHaveLength(2);
     expect(result.flights[0]?.prevoznik).toBe("Air France");
     expect(result.flights[0]?.cena_eur).toBe(199);
+    expect(result.flights[0]?.outbound_duration).toBe("1h 55m");
+    expect(formatTravelDuration("PT23H15M")).toBe("23h 15m");
   });
 
   it("returns pending when offers are still empty", () => {

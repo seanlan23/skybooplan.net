@@ -36,7 +36,11 @@ import { FlightCard } from "@/components/FlightCard";
 import { HeroPassengerBrowser } from "@/components/HeroPassengerBrowser";
 import { HeroTripChecklist } from "@/components/HeroTripChecklist";
 import { RotatingTextareaPlaceholder } from "@/components/RotatingTextareaPlaceholder";
-import type { MakeSearchFlight } from "@/lib/makeSearch";
+import {
+  parseMakeSearchOriginAirports,
+  parseMakeSearchUserMessage,
+  type MakeSearchFlight,
+} from "@/lib/makeSearch";
 import { cn } from "@/lib/utils";
 
 const DATE_CHIP_IDS = ["endOctober", "startNovember", "octNov", "flexible"] as const;
@@ -575,9 +579,17 @@ export function HeroChatFlow({
   useEffect(() => {
     if (loading || flights.length === 0 || flightsAnnouncedRef.current) return;
     flightsAnnouncedRef.current = true;
-    appendMessages(createChatMessage("ai", t("heroChat.flightResultsIntro" as never)));
+    const originFromResults = flights[0]?.origin_iata;
+    const namedOrigins = parseMakeSearchOriginAirports(collected.destination ?? "");
+    const intro =
+      originFromResults && namedOrigins.length > 1
+        ? skyMessageWithVars(t("heroChat.flightResultsIntroFrom" as never), {
+            origin: originFromResults,
+          })
+        : t("heroChat.flightResultsIntro" as never);
+    appendMessages(createChatMessage("ai", intro));
     scrollToBottom();
-  }, [loading, flights, appendMessages, t, scrollToBottom]);
+  }, [loading, flights, collected.destination, appendMessages, t, scrollToBottom]);
 
   function clearDatePickerOffers() {
     setMessages((prev) =>
@@ -658,7 +670,19 @@ export function HeroChatFlow({
     if (knownDates && (parsed.departDate || collected.dates || parsed.precision === "exact")) {
       const dateLabel = knownDates;
       setCollected((prev) => ({ ...prev, dates: dateLabel, passengers: label }));
-      appendMessages(createChatMessage("ai", t("heroChat.searchingFlights" as never)));
+      const parsedSearch = parseMakeSearchUserMessage(destination);
+      const searchOrigin = parsedSearch.origin_airport;
+      const multiOrigin = parsedSearch.origin_airports.length > 1;
+      appendMessages(
+        createChatMessage(
+          "ai",
+          multiOrigin
+            ? skyMessageWithVars(t("heroChat.searchingFlightsFrom" as never), {
+                origin: searchOrigin,
+              })
+            : t("heroChat.searchingFlights" as never),
+        ),
+      );
       setStep("searching");
       return;
     }

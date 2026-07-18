@@ -29,6 +29,11 @@ export type MakeSearchFlight = {
   outbound_arrive_day_offset?: number;
   inbound_depart?: string;
   inbound_arrive?: string;
+  /** Human duration e.g. "14h 30m" (Skyscanner-style). */
+  outbound_duration?: string;
+  inbound_duration?: string;
+  /** Total minutes for ranking (outbound + inbound). */
+  duration_minutes?: number;
 };
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -159,6 +164,19 @@ function parseDuffelOfferAsMakeFlight(item: unknown, index: number): MakeSearchF
       ? `${outboundStops}/${returnStops}`
       : String(outboundStops);
 
+  const outDurationRaw =
+    readString(firstSlice, "duration") ||
+    (departing && arriving ? isoDurationBetween(departing, arriving) : "");
+  const inDurationRaw =
+    readString(returnSlice ?? {}, "duration") ||
+    (returning && returnArriving ? isoDurationBetween(returning, returnArriving) : "");
+  const outbound_duration = formatTravelDuration(outDurationRaw);
+  const inbound_duration = formatTravelDuration(inDurationRaw);
+  const outMins = parseDurationMinutes(outDurationRaw);
+  const inMins = parseDurationMinutes(inDurationRaw);
+  const duration_minutes =
+    outMins > 0 || inMins > 0 ? outMins + inMins : undefined;
+
   return {
     id: readString(record, "id") || `duffel-${index}`,
     destinacija: formatMakeRoute(origin, destination),
@@ -180,6 +198,9 @@ function parseDuffelOfferAsMakeFlight(item: unknown, index: number): MakeSearchF
       : {}),
     ...(returning ? { inbound_depart: timeHmFromIso(returning) } : {}),
     ...(returnArriving ? { inbound_arrive: timeHmFromIso(returnArriving) } : {}),
+    ...(outbound_duration ? { outbound_duration } : {}),
+    ...(inbound_duration ? { inbound_duration } : {}),
+    ...(duration_minutes != null ? { duration_minutes } : {}),
   };
 }
 
@@ -191,7 +212,11 @@ function selectTopMakeSearchFlights(flights: MakeSearchFlight[]): MakeSearchFlig
   const ranked = [...flights]
     .filter((f) => f.cena_eur > 0 || f.destinacija !== "—")
     .sort((a, b) => {
+      // Price first, then shorter total travel time (user often cares about both).
       if (a.cena_eur !== b.cena_eur) return a.cena_eur - b.cena_eur;
+      const da = a.duration_minutes ?? Number.POSITIVE_INFINITY;
+      const db = b.duration_minutes ?? Number.POSITIVE_INFINITY;
+      if (da !== db) return da - db;
       return a.odhod.localeCompare(b.odhod);
     })
     .slice(0, 3);
@@ -227,6 +252,49 @@ function isoDatePart(iso: string): string {
 function timeHmFromIso(iso: string): string {
   const match = iso.match(/T(\d{2}):(\d{2})/);
   return match ? `${match[1]}:${match[2]}` : "";
+}
+
+/** Build ISO-8601 duration from two timestamps. */
+function isoDurationBetween(departIso: string, arriveIso: string): string {
+  const a = Date.parse(departIso);
+  const b = Date.parse(arriveIso);
+  if (!Number.isFinite(a) || !Number.isFinite(b) || b <= a) return "";
+  const mins = Math.round((b - a) / 60_000);
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  if (h > 0 && m > 0) return `PT${h}H${m}M`;
+  if (h > 0) return `PT${h}H`;
+  return `PT${m}M`;
+}
+
+/** Parse PT14H30M or "14h 30m" → minutes. */
+export function parseDurationMinutes(raw: string): number {
+  const trimmed = raw.trim();
+  if (!trimmed) return 0;
+  const iso = trimmed.match(/^PT(?:(\d+)H)?(?:(\d+)M)?$/i);
+  if (iso) {
+    return Number.parseInt(iso[1] || "0", 10) * 60 + Number.parseInt(iso[2] || "0", 10);
+  }
+  const human = trimmed.match(/(\d+)\s*h(?:\s*(\d+)\s*m)?/i);
+  if (human) {
+    return Number.parseInt(human[1]!, 10) * 60 + Number.parseInt(human[2] || "0", 10);
+  }
+  return 0;
+}
+
+/** PT14H30M → "14h 30m" (Skyscanner-style). */
+export function formatTravelDuration(raw: string): string {
+  const mins = parseDurationMinutes(raw);
+  if (mins <= 0) {
+    // Already human?
+    if (/^\d+\s*h/i.test(raw.trim())) return raw.trim().replace(/\s+/g, " ");
+    return "";
+  }
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  if (h > 0 && m > 0) return `${h}h ${m}m`;
+  if (h > 0) return `${h}h`;
+  return `${m}m`;
 }
 
 function calendarDayOffset(departIso: string, arriveIso: string): number {

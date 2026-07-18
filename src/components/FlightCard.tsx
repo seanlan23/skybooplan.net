@@ -115,6 +115,7 @@ function CompactLeg({
   departTime,
   arriveTime,
   dateLabel,
+  durationLabel,
   stopsLabel,
   dayOffset,
 }: {
@@ -123,6 +124,7 @@ function CompactLeg({
   departTime: string;
   arriveTime: string;
   dateLabel: string;
+  durationLabel?: string;
   stopsLabel: string;
   dayOffset?: number;
 }) {
@@ -134,13 +136,14 @@ function CompactLeg({
         </div>
         <div className="mt-0.5 text-[11px] font-medium tracking-wide text-muted-foreground">
           {from}
+          {dateLabel ? <span className="text-muted-foreground/80"> · {dateLabel}</span> : null}
         </div>
       </div>
 
       <div className="flex min-w-[4.5rem] flex-1 flex-col items-center px-1 sm:min-w-[5.5rem]">
-        {dateLabel ? (
-          <div className="text-[10px] text-muted-foreground">{dateLabel}</div>
-        ) : null}
+        <div className="text-[11px] font-medium tabular-nums text-muted-foreground">
+          {durationLabel || "—"}
+        </div>
         <div className="relative my-0.5 flex w-full max-w-[7rem] items-center">
           <span className="h-px flex-1 bg-border" />
           <span className="mx-1 inline-flex h-4 w-4 items-center justify-center rounded-full border border-border bg-card">
@@ -253,6 +256,7 @@ export function FlightCard({
               departTime={outDepart}
               arriveTime={outArrive}
               dateLabel={outDate}
+              durationLabel={flight.outbound_duration}
               stopsLabel={outboundStops}
               dayOffset={flight.outbound_arrive_day_offset}
             />
@@ -267,6 +271,7 @@ export function FlightCard({
                 departTime={inDepart}
                 arriveTime={inArrive}
                 dateLabel={inDate}
+                durationLabel={flight.inbound_duration}
                 stopsLabel={inboundStops || formatStops(flight.postanki, directLabel, stopLabel, stopsLabel)}
               />
             </div>
