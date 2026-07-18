@@ -46,9 +46,9 @@ export function PlannerChoicesSummary({
         {tags.map((key) => (
           <span
             key={key}
-            className="inline-flex items-center gap-1.5 rounded-full bg-white border border-orange-200 px-3 py-1 text-xs font-semibold text-slate-700 shadow-sm"
+            className="inline-flex items-center gap-1.5 rounded-full bg-white border border-sky-200 px-3 py-1 text-xs font-semibold text-slate-700 shadow-sm"
           >
-            <Heart className="h-3 w-3 text-orange-500" aria-hidden />
+            <Heart className="h-3 w-3 text-sky-600" aria-hidden />
             {formatPlannerInterests([key], lang)}
           </span>
         ))}

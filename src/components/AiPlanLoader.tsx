@@ -4,9 +4,8 @@ import { useI18n } from "@/lib/i18n";
 import { AI_PLAN_TIP_KEYS, shuffleTipOrder } from "@/lib/aiPlanTips";
 
 /**
- * Loader prikazan med generiranjem AI plana.
- * Brez lažnih števcev — prikazuje napredek faze, animirano letalo
- * po poti in rotacijske potovalne nasvete.
+ * Loader while the AI itinerary is generating.
+ * Globe + orbiting plane (progress-linked), sky palette only.
  */
 export function AiPlanLoader({
   tripDays = 7,
@@ -44,7 +43,6 @@ export function AiPlanLoader({
 
   const estimateSec = Math.min(120, Math.max(35, 25 + tripDays * 2.5));
 
-  // Faze: ~3.5s vsaka
   useEffect(() => {
     const id = setInterval(
       () => setPhase((p) => Math.min(p + 1, phases.length - 1)),
@@ -54,22 +52,18 @@ export function AiPlanLoader({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Rotacija nasvetov: vsakih 4s, naključen vrstni red ob zagonu
   useEffect(() => {
     const id = setInterval(() => setTipStep((s) => s + 1), 4000);
     return () => clearInterval(id);
   }, []);
 
-  // Vizualni napredek letala (0 → 95 %), usklajen z oceno trajanja
   useEffect(() => {
     const duration = estimateSec * 1000;
     const wallStart = startedAt ?? Date.now();
     const perfStart = performance.now();
     let raf = 0;
     const tick = (perfNow: number) => {
-      const elapsedMs = startedAt
-        ? Date.now() - wallStart
-        : perfNow - perfStart;
+      const elapsedMs = startedAt ? Date.now() - wallStart : perfNow - perfStart;
       const tt = Math.min(1, elapsedMs / duration);
       const eased = 1 - Math.pow(1 - tt, 2);
       setProgress(eased * 95);
@@ -81,46 +75,59 @@ export function AiPlanLoader({
   }, [estimateSec, startedAt]);
 
   const remainingSec = Math.max(0, estimateSec - elapsedSec);
+  // Plane completes more of the orbit as generation progresses.
+  const orbitDeg = 40 + progress * 3.2;
 
   return (
-    <div className="mt-8 rounded-3xl border-2 border-sky-200 bg-gradient-to-br from-white via-sky-50/40 to-orange-50/40 p-8 sm:p-10 shadow-md">
+    <div className="mt-8 rounded-3xl border-2 border-sky-200 bg-gradient-to-br from-sky-50 via-white to-sky-100/80 p-8 sm:p-10 shadow-md">
       <div className="flex items-center justify-center gap-2 text-sm font-bold text-sky-600 uppercase tracking-wider">
         <Sparkles className="h-4 w-4 animate-pulse" />
         {t("aiplan.loadingHeader")}
       </div>
 
-      {/* Animirana pot z letalom */}
-      <div className="relative mt-8 mx-auto max-w-xl h-14">
+      {/* Globe + orbiting plane */}
+      <div className="relative mx-auto mt-8 h-40 w-40 sm:h-44 sm:w-44" aria-hidden>
+        {/* Soft atmosphere */}
+        <div className="absolute inset-0 rounded-full bg-sky-200/40 blur-md" />
+
+        {/* Orbit ring */}
+        <div className="absolute inset-[10%] rounded-full border border-dashed border-sky-300/80" />
+        <div className="absolute inset-[4%] rounded-full border border-sky-200/50" />
+
+        {/* Earth */}
+        <div className="absolute inset-[22%] overflow-hidden rounded-full shadow-[inset_-10px_-6px_20px_rgba(15,23,42,0.25),0_8px_24px_rgba(14,165,233,0.25)]">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_28%,#7dd3fc_0%,#0ea5e9_38%,#0369a1_72%,#0c4a6e_100%)]" />
+          <div className="absolute inset-0 animate-[sky-globe-spin_28s_linear_infinite]">
+            <div className="absolute left-[18%] top-[28%] h-[22%] w-[34%] rotate-[-18deg] rounded-[40%] bg-emerald-500/70" />
+            <div className="absolute right-[14%] top-[36%] h-[18%] w-[22%] rotate-[12deg] rounded-[45%] bg-emerald-600/65" />
+            <div className="absolute bottom-[22%] left-[30%] h-[16%] w-[40%] rounded-[50%] bg-teal-500/55" />
+            <div className="absolute left-[-10%] top-[48%] h-[10%] w-[120%] rotate-[-8deg] bg-white/25 blur-[1px]" />
+          </div>
+          <div className="absolute inset-0 bg-gradient-to-l from-slate-900/35 via-transparent to-transparent" />
+        </div>
+
+        {/* Orbiting plane — progresses around the globe as the plan builds */}
         <div
-          className="absolute left-0 right-0 top-1/2 -translate-y-1/2 border-t-2 border-dashed border-sky-300"
-          aria-hidden
-        />
-        <div
-          className="absolute top-1/2 -translate-y-1/2 transition-[left] duration-700 ease-out"
-          style={{ left: `calc(${progress}% - 18px)` }}
+          className="absolute inset-0 transition-transform duration-700 ease-out"
+          style={{ transform: `rotate(${orbitDeg}deg)` }}
         >
-          <div className="h-9 w-9 rounded-full bg-white shadow-md border border-sky-200 flex items-center justify-center">
-            <Plane className="h-5 w-5 text-sky-600 rotate-45" />
+          <div className="absolute left-1/2 top-[6%] -translate-x-1/2">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full border border-sky-200 bg-white shadow-md">
+              <Plane className="h-4 w-4 text-sky-600" style={{ transform: "rotate(45deg)" }} />
+            </div>
           </div>
         </div>
-        <div
-          className="absolute left-0 top-1/2 -translate-y-1/2 h-2 w-2 rounded-full bg-sky-500"
-          aria-hidden
-        />
-        <div
-          className="absolute right-0 top-1/2 -translate-y-1/2 h-2 w-2 rounded-full bg-orange-500"
-          aria-hidden
-        />
       </div>
 
-      {/* Trenutna faza */}
       <div className="mt-6 text-center">
         <div className="inline-flex items-center gap-3 text-base font-medium text-slate-700">
           <span className="relative flex h-2.5 w-2.5">
-            <span className="absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75 animate-ping" />
-            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-sky-600" />
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sky-400 opacity-75" />
+            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-sky-600" />
           </span>
-          <span key={phase} className="animate-fade-in">{phases[phase]}</span>
+          <span key={phase} className="animate-fade-in">
+            {phases[phase]}
+          </span>
         </div>
         <div className="mt-2 text-xs text-slate-500">
           {remainingSec > 5
@@ -129,15 +136,14 @@ export function AiPlanLoader({
         </div>
       </div>
 
-      {/* Rotacijski nasvet */}
-      <div className="mt-8 rounded-2xl bg-white/70 border border-sky-100 p-5 sm:p-6 shadow-sm">
-        <div className="flex items-center gap-2 text-xs font-bold text-orange-600 uppercase tracking-wider">
+      <div className="mt-8 rounded-2xl border border-sky-100 bg-white/80 p-5 shadow-sm sm:p-6">
+        <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-sky-700">
           <Lightbulb className="h-4 w-4" />
           {t("aiplan.tipsTitle")}
         </div>
         <p
           key={`${tipStep}-${tipIdx}`}
-          className="mt-2 text-sm sm:text-base text-slate-700 leading-relaxed animate-fade-in min-h-[3.5rem]"
+          className="mt-2 min-h-[3.5rem] text-sm leading-relaxed text-slate-700 animate-fade-in sm:text-base"
         >
           {tips[tipIdx]}
         </p>

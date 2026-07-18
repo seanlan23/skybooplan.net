@@ -15,9 +15,14 @@ export function TravelRequirements({
   originIata,
   destinationIata,
 }: TravelRequirementsProps) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
 
-  const resolved = resolveTravelRequirements(requirements, originIata, destinationIata);
+  const resolved = resolveTravelRequirements(
+    requirements,
+    originIata,
+    destinationIata,
+    lang,
+  );
   if (!resolved?.targetResidents.length) return null;
 
   const visaCards = resolved.visaInfo ?? [];
@@ -83,7 +88,7 @@ export function TravelRequirements({
           {hasCosts && (
             <div className="rounded-lg border border-white/70 bg-white/90 p-4 shadow-sm">
               <div className="flex items-center gap-1.5 text-sm font-bold text-slate-800 mb-2">
-                <Wallet className="h-4 w-4 text-amber-600 shrink-0" />
+                <Wallet className="h-4 w-4 text-sky-600 shrink-0" />
                 {t("travelReq.costs")}
               </div>
               <p className="text-sm text-slate-700 leading-relaxed">{resolved.estimatedCosts}</p>

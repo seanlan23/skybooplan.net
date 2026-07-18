@@ -343,6 +343,12 @@
   100% { filter: brightness(1.15); }
 }
 
+/* AI plan loader — subtle globe presence (plane angle is driven in JS). */
+@keyframes sky-globe-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .poi-marker-wrap,
   .poi-marker-badge {

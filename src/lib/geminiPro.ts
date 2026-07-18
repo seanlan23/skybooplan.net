@@ -230,6 +230,7 @@ Takoj za tem nadaljuj s kratkim narativnim uvodom o poti (največ 1–2 stavka �
     originIata: params.originIata,
     destinationIata: params.destinationIata,
     destinationLabel: params.destination,
+    language: lang,
   });
 
   const curatedRouteBlock = buildCuratedRoutePromptBlock({
@@ -333,6 +334,7 @@ export function tripPlanSystemPrompt(params: GenerateTripPlanParams): string {
     originIata: params.originIata,
     destinationIata: params.destinationIata,
     destinationLabel: params.destination,
+    language: lang,
   });
 
   return `Si strokovni potovalni agent za aplikacijo skybooplan. Striktno sledi zahtevani JSON shemi.
