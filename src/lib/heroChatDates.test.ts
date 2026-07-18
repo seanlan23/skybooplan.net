@@ -37,6 +37,16 @@ describe("extractHeroChatDates", () => {
     expect(result.returnDate).toMatch(/^\d{4}-11-05$/);
   });
 
+  it("tolerates typo onec + applies 14 dni trip length", () => {
+    const result = extractHeroChatDates(
+      "tajska 14 dni onec oktobra začetek novembra. Glej letališča Lj, Dunaj",
+      "sl",
+    );
+    expect(result.precision).toBe("exact");
+    expect(result.departDate).toMatch(/^\d{4}-10-26$/);
+    expect(result.returnDate).toMatch(/^\d{4}-11-09$/);
+  });
+
   it("detects vague relative period", () => {
     expect(extractHeroChatDates("čez 2 tedna v Italijo", "sl").precision).toBe("vague");
     expect(extractHeroChatDates("konec poletja na Hrvaškem", "sl").precision).toBe("vague");

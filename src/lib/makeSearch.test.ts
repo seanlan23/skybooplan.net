@@ -178,6 +178,17 @@ describe("parseMakeSearchUserMessage", () => {
     expect(parsed.departure_date).toBe("2026-10-26");
     expect(parsed.return_date).toBe("2026-11-05");
   });
+
+  it("parses multiple named origin airports from chat", () => {
+    const parsed = parseMakeSearchUserMessage(
+      "tajska 14 dni konec oktobra začetek novembra. Glej letališča Lj, Dunaj, Milano, Budimpešta",
+    );
+    expect(parsed.destination_airport).toBe("BKK");
+    expect(parsed.origin_airports).toEqual(["LJU", "VIE", "MXP", "BUD"]);
+    expect(parsed.origin_airport).toBe("LJU");
+    expect(parsed.departure_date).toBe("2026-10-26");
+    expect(parsed.return_date).toBe("2026-11-09");
+  });
 });
 
 describe("parseMakeSearchDestination", () => {

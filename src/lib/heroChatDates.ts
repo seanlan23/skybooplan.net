@@ -201,12 +201,37 @@ function extractSingleDay(text: string, lang: string): HeroChatDateParseResult |
   return null;
 }
 
+/** Trip length like "14 dni" / "14 days" (2–60). */
+export function extractTripLengthDays(text: string): number | null {
+  const match = text.match(/\b(\d{1,2})\s*(?:dni|days?|nočitev|nights?)\b/i);
+  if (!match) return null;
+  const days = Number.parseInt(match[1]!, 10);
+  if (!Number.isFinite(days) || days < 2 || days > 60) return null;
+  return days;
+}
+
+function applyTripLength(
+  result: HeroChatDateParseResult,
+  tripDays: number | null,
+): HeroChatDateParseResult {
+  if (!tripDays || !result.departDate) return result;
+  const [y, m, d] = result.departDate.split("-").map((x) => Number.parseInt(x, 10));
+  if (!y || !m || !d) return result;
+  const returnDate = addDaysSafe(y, m - 1, d, tripDays);
+  const label =
+    result.label && !/\d+\s*dni/i.test(result.label)
+      ? `${result.label} · ${tripDays} dni`
+      : result.label;
+  return { ...result, returnDate, label: label || result.label };
+}
+
 /** "konec oktobra začetek novembra" → concrete depart/return for search without re-asking. */
 function extractEndStartMonthRange(text: string, lang: string): HeroChatDateParseResult | null {
   const normalized = text.replace(/\s+/g, " ").trim();
+  // Include common typos: "onec" / "konc" for "konec".
   const range = normalized.match(
     new RegExp(
-      `(?:konec|end\\s+of)\\s+(${MONTH_PATTERN})\\s+(?:(?:-|–|—|/|in)\\s*)?(?:začetek|zacetek|start\\s+of)\\s+(${MONTH_PATTERN})`,
+      `(?:konec|onec|konc|end\\s+of)\\s+(${MONTH_PATTERN})\\s+(?:(?:-|–|—|/|in)\\s*)?(?:začetek|zacetek|start\\s+of)\\s+(${MONTH_PATTERN})`,
       "i",
     ),
   );
@@ -276,7 +301,9 @@ function extractVague(text: string, lang: string): HeroChatDateParseResult | nul
     }
   }
 
-  const endMonth = normalized.match(new RegExp(`(?:konec|end\\s+of)\\s+(${MONTH_PATTERN})`, "i"));
+  const endMonth = normalized.match(
+    new RegExp(`(?:konec|onec|konc|end\\s+of)\\s+(${MONTH_PATTERN})`, "i"),
+  );
   if (endMonth) {
     const monthIndex = resolveMonthIndex(endMonth[1]!);
     if (monthIndex != null) {
@@ -341,12 +368,13 @@ export function extractHeroChatDates(text: string, lang = "sl"): HeroChatDatePar
   const trimmed = text.trim();
   if (!trimmed) return { precision: "none", label: "" };
 
-  return (
+  const parsed =
     extractIsoRange(trimmed) ??
     extractDayRange(trimmed, lang) ??
     extractEndStartMonthRange(trimmed, lang) ??
     extractMonthDashRange(trimmed, lang) ??
     extractSingleDay(trimmed, lang) ??
-    extractVague(trimmed, lang) ?? { precision: "none", label: "" }
-  );
+    extractVague(trimmed, lang) ?? { precision: "none" as const, label: "" };
+
+  return applyTripLength(parsed, extractTripLengthDays(trimmed));
 }

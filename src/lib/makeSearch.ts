@@ -312,7 +312,7 @@ export function createMakeSearchId(): string {
   return `search-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-const NEAREST_AIRPORT_LIMIT = 3;
+const NEAREST_AIRPORT_LIMIT = 4;
 const NEAREST_AIRPORT_LOOKUP_TIMEOUT_MS = 6_000;
 const IATAGEO_FANOUT_KM = 150;
 const DEFAULT_TRIP_DAYS = 14;
@@ -412,7 +412,7 @@ const DESTINATION_ALIASES: Array<{ pattern: RegExp; iata: string }> = [
   { pattern: /\bhelsinki\b|\bhel\b/i, iata: "HEL" },
   { pattern: /\bprague\b|\bpraga\b|\bprg\b/i, iata: "PRG" },
   { pattern: /\bwarsaw\b|\bvaršava\b|\bwaw\b/i, iata: "WAW" },
-  { pattern: /\bbudapest\b|\bbud\b/i, iata: "BUD" },
+  { pattern: /\bbudimpešt[ao]\b|\bbudapest\b|\bbud\b/i, iata: "BUD" },
   { pattern: /\bcairo\b|\bcai\b|\begipt\b|\begypt\b/i, iata: "CAI" },
   { pattern: /\bmarrakech\b|\brak\b|\bmaroko\b|\bmorocco\b/i, iata: "RAK" },
   { pattern: /\bjakarta\b|\bcgk\b/i, iata: "CGK" },
@@ -527,6 +527,27 @@ export function parseMakeSearchDestination(text: string): string | null {
   return null;
 }
 
+/** Departure airports mentioned in chat (Lj, Dunaj, Milano…). */
+const ORIGIN_AIRPORT_ALIASES: Array<{ pattern: RegExp; iata: string }> = [
+  { pattern: /\b(?:ljubljana|ljubljan[ei]|lj|lju)\b/i, iata: "LJU" },
+  { pattern: /\b(?:zagreb|zag)\b/i, iata: "ZAG" },
+  { pattern: /\b(?:dunaj|vienna|vie)\b/i, iata: "VIE" },
+  { pattern: /\b(?:benetke|venice|vce)\b/i, iata: "VCE" },
+  { pattern: /\b(?:milano|milan|mxp)\b/i, iata: "MXP" },
+  { pattern: /\b(?:budimpešt[ao]|budapest|bud)\b/i, iata: "BUD" },
+  { pattern: /\b(?:munchen|münchen|munich|muc)\b/i, iata: "MUC" },
+  { pattern: /\b(?:frankfurt|fra)\b/i, iata: "FRA" },
+];
+
+export function parseMakeSearchOriginAirports(text: string): string[] {
+  const found: string[] = [];
+  for (const alias of ORIGIN_AIRPORT_ALIASES) {
+    if (!alias.pattern.test(text)) continue;
+    if (!found.includes(alias.iata)) found.push(alias.iata);
+  }
+  return found.slice(0, NEAREST_AIRPORT_LIMIT);
+}
+
 export function parseMakeSearchDates(
   text: string,
   reference = new Date(),
@@ -585,13 +606,16 @@ export function parseMakeSearchUserMessage(
   const passengers = parseMakeSearchPassengers(text);
   const destination_airport = parseMakeSearchDestination(text);
 
-  const origin_airports = originAirports
+  const fromGeo = originAirports
     .map((code) => code.trim().toUpperCase())
-    .filter((code) => /^[A-Z]{3}$/.test(code))
-    .slice(0, NEAREST_AIRPORT_LIMIT);
-
-  // Default LJU when geo lookup is unavailable — Make must not invent CDG/August.
-  const resolvedOrigins = origin_airports.length > 0 ? origin_airports : ["LJU"];
+    .filter((code) => /^[A-Z]{3}$/.test(code));
+  const fromText = parseMakeSearchOriginAirports(text);
+  // Prefer airports the user named in chat; fall back to geo, then LJU.
+  const merged: string[] = [];
+  for (const code of [...fromText, ...fromGeo]) {
+    if (!merged.includes(code)) merged.push(code);
+  }
+  const resolvedOrigins = merged.length > 0 ? merged.slice(0, NEAREST_AIRPORT_LIMIT) : ["LJU"];
 
   return {
     origin_airports: resolvedOrigins,
@@ -979,7 +1003,8 @@ export function parseMakeSearchStatus(data: unknown): MakeSearchStatusResult {
     return {
       status: "error",
       flights: [],
-      error: "Make.com je shranil iskanje brez letov. Preveri Data store (offers = {{21.cleanOffers}}).",
+      error:
+        "Iskanje je končano brez letov. Poskusi druge datume ali letališče — ali preveri Make History (HTTP/Duffel).",
       raw: data,
     };
   }
