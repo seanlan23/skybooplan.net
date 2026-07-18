@@ -343,10 +343,21 @@
   100% { filter: brightness(1.15); }
 }
 
-/* AI plan loader — subtle globe presence (plane angle is driven in JS). */
-@keyframes sky-globe-spin {
+/* AI plan loader — smooth CSS-only motion (no JS transform fights). */
+@keyframes sky-orbit {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
+}
+@keyframes sky-earth-drift {
+  from { transform: scale(1.1) translateX(0%); }
+  to { transform: scale(1.1) translateX(-12%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-\[sky-orbit_11s_linear_infinite\],
+  .animate-\[sky-earth-drift_40s_linear_infinite\] {
+    animation: none !important;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

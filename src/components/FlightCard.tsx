@@ -211,7 +211,7 @@ function CompactLeg({
           </span>
           <span className="h-px flex-1 bg-border" />
         </div>
-        <div className="text-[10px] font-medium text-rose-600">{stopsLabel}</div>
+        <div className="text-[10px] font-medium text-sky-700">{stopsLabel}</div>
       </div>
 
       <div className="shrink-0 text-right">

@@ -32,13 +32,13 @@ export function DestinationInsightBanner({
   if (!hasHints && !hasRegionHints && !hasAstroHints && !hasTemp && !flights) return null;
 
   return (
-    <div className="space-y-2 rounded-xl border border-amber-200/80 bg-gradient-to-r from-amber-50/80 to-sky-50/60 px-3 py-2.5 sm:px-4 sm:py-3">
+    <div className="space-y-2 rounded-xl border border-sky-200/80 bg-gradient-to-r from-sky-50/90 to-white px-3 py-2.5 sm:px-4 sm:py-3">
       {(hasTemp || flights) && (
         <div className="flex flex-col gap-1.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-4 sm:gap-y-1">
           {hasTemp && (
             <span className="inline-flex items-center gap-2 text-sm font-semibold text-slate-800">
               <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center">
-                <Thermometer className="h-4 w-4 text-orange-500" />
+                <Thermometer className="h-4 w-4 text-sky-600" />
               </span>
               {context!.destinationName}: {context!.tempC}°C
               {context!.weatherLabel && (
@@ -65,11 +65,11 @@ export function DestinationInsightBanner({
       )}
 
       {(hasHints || hasRegionHints || hasAstroHints) && (
-        <ul className="space-y-1 border-t border-amber-200/50 pt-2">
+        <ul className="space-y-1 border-t border-sky-200/60 pt-2">
           {context!.seasonalHints.map((hint) => (
             <li key={hint} className="flex items-start gap-2 text-xs leading-snug text-slate-700">
               <span className="mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center">
-                <CloudSun className="h-3.5 w-3.5 text-amber-600" />
+                <CloudSun className="h-3.5 w-3.5 text-sky-600" />
               </span>
               {hint}
             </li>

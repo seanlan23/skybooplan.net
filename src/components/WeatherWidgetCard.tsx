@@ -25,16 +25,16 @@ export function WeatherWidgetCard({
       label: t("weather.widgetTemperature" as never),
       value: widget.avgTemp,
       icon: Thermometer,
-      iconClass: "text-orange-600",
-      bgClass: "bg-orange-50/90",
+      iconClass: "text-sky-600",
+      bgClass: "bg-sky-50/90",
     },
     {
       key: "clothing",
       label: t("weather.widgetClothing" as never),
       value: widget.clothing,
       icon: Shirt,
-      iconClass: "text-violet-600",
-      bgClass: "bg-violet-50/90",
+      iconClass: "text-teal-600",
+      bgClass: "bg-teal-50/90",
     },
   ] as const;
 

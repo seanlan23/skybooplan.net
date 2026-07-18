@@ -3,9 +3,12 @@ import { Plane, Sparkles, Lightbulb } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { AI_PLAN_TIP_KEYS, shuffleTipOrder } from "@/lib/aiPlanTips";
 
+/** Bundled Earth texture (local) — looks like the real planet, not green blobs. */
+const EARTH_TEXTURE = "/earth-blue-marble.jpg";
+
 /**
  * Loader while the AI itinerary is generating.
- * Globe + orbiting plane (progress-linked), sky palette only.
+ * Real Earth texture + CSS-only plane orbit (smooth) + separate progress ring.
  */
 export function AiPlanLoader({
   tripDays = 7,
@@ -28,7 +31,7 @@ export function AiPlanLoader({
   );
 
   const tips = useMemo(
-    () => AI_PLAN_TIP_KEYS.map((key) => t(key)).filter(Boolean),
+    () => AI_PLAN_TIP_KEYS.map((key) => t(key as never)).filter(Boolean),
     [lang, t],
   );
 
@@ -40,6 +43,7 @@ export function AiPlanLoader({
   const tipIdx = tipOrder[tipStep % tipOrder.length] ?? 0;
   const [progress, setProgress] = useState(0);
   const [elapsedSec, setElapsedSec] = useState(0);
+  const [earthOk, setEarthOk] = useState(true);
 
   const estimateSec = Math.min(120, Math.max(35, 25 + tripDays * 2.5));
 
@@ -49,8 +53,7 @@ export function AiPlanLoader({
       3500,
     );
     return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [phases.length]);
 
   useEffect(() => {
     const id = setInterval(() => setTipStep((s) => s + 1), 4000);
@@ -75,45 +78,82 @@ export function AiPlanLoader({
   }, [estimateSec, startedAt]);
 
   const remainingSec = Math.max(0, estimateSec - elapsedSec);
-  // Plane completes more of the orbit as generation progresses.
-  const orbitDeg = 40 + progress * 3.2;
+
+  // Progress ring geometry
+  const size = 176;
+  const stroke = 3;
+  const r = (size - stroke) / 2 - 4;
+  const c = 2 * Math.PI * r;
+  const dashOffset = c * (1 - progress / 100);
 
   return (
-    <div className="mt-8 rounded-3xl border-2 border-sky-200 bg-gradient-to-br from-sky-50 via-white to-sky-100/80 p-8 sm:p-10 shadow-md">
-      <div className="flex items-center justify-center gap-2 text-sm font-bold text-sky-600 uppercase tracking-wider">
+    <div
+      key={lang}
+      className="mt-8 rounded-3xl border-2 border-sky-200 bg-gradient-to-br from-sky-50 via-white to-sky-100/80 p-8 sm:p-10 shadow-md"
+    >
+      <div className="flex items-center justify-center gap-2 text-sm font-bold uppercase tracking-wider text-sky-600">
         <Sparkles className="h-4 w-4 animate-pulse" />
         {t("aiplan.loadingHeader")}
       </div>
 
-      {/* Globe + orbiting plane */}
-      <div className="relative mx-auto mt-8 h-40 w-40 sm:h-44 sm:w-44" aria-hidden>
+      <div className="relative mx-auto mt-8 h-44 w-44" aria-hidden>
+        {/* Progress ring (separate from plane — no jank) */}
+        <svg
+          className="absolute inset-0 -rotate-90"
+          width={size}
+          height={size}
+          viewBox={`0 0 ${size} ${size}`}
+        >
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={r}
+            fill="none"
+            stroke="rgb(186 230 253)"
+            strokeWidth={stroke}
+          />
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={r}
+            fill="none"
+            stroke="rgb(14 165 233)"
+            strokeWidth={stroke}
+            strokeLinecap="round"
+            strokeDasharray={c}
+            strokeDashoffset={dashOffset}
+            className="transition-[stroke-dashoffset] duration-300 ease-out"
+          />
+        </svg>
+
         {/* Soft atmosphere */}
-        <div className="absolute inset-0 rounded-full bg-sky-200/40 blur-md" />
+        <div className="absolute inset-[12%] rounded-full bg-sky-300/30 blur-md" />
 
-        {/* Orbit ring */}
-        <div className="absolute inset-[10%] rounded-full border border-dashed border-sky-300/80" />
-        <div className="absolute inset-[4%] rounded-full border border-sky-200/50" />
-
-        {/* Earth */}
-        <div className="absolute inset-[22%] overflow-hidden rounded-full shadow-[inset_-10px_-6px_20px_rgba(15,23,42,0.25),0_8px_24px_rgba(14,165,233,0.25)]">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_28%,#7dd3fc_0%,#0ea5e9_38%,#0369a1_72%,#0c4a6e_100%)]" />
-          <div className="absolute inset-0 animate-[sky-globe-spin_28s_linear_infinite]">
-            <div className="absolute left-[18%] top-[28%] h-[22%] w-[34%] rotate-[-18deg] rounded-[40%] bg-emerald-500/70" />
-            <div className="absolute right-[14%] top-[36%] h-[18%] w-[22%] rotate-[12deg] rounded-[45%] bg-emerald-600/65" />
-            <div className="absolute bottom-[22%] left-[30%] h-[16%] w-[40%] rounded-[50%] bg-teal-500/55" />
-            <div className="absolute left-[-10%] top-[48%] h-[10%] w-[120%] rotate-[-8deg] bg-white/25 blur-[1px]" />
-          </div>
-          <div className="absolute inset-0 bg-gradient-to-l from-slate-900/35 via-transparent to-transparent" />
+        {/* Earth sphere */}
+        <div className="absolute inset-[18%] overflow-hidden rounded-full shadow-[inset_-12px_-8px_24px_rgba(15,23,42,0.35),0_10px_28px_rgba(14,165,233,0.28)]">
+          {earthOk ? (
+            <img
+              src={EARTH_TEXTURE}
+              alt=""
+              draggable={false}
+              className="h-full w-full scale-110 object-cover animate-[sky-earth-drift_40s_linear_infinite]"
+              onError={() => setEarthOk(false)}
+            />
+          ) : (
+            <div className="h-full w-full bg-[radial-gradient(circle_at_32%_30%,#7dd3fc_0%,#0284c7_45%,#0c4a6e_100%)]" />
+          )}
+          {/* Terminator / night side */}
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-l from-slate-950/40 via-transparent to-white/10" />
         </div>
 
-        {/* Orbiting plane — progresses around the globe as the plan builds */}
-        <div
-          className="absolute inset-0 transition-transform duration-700 ease-out"
-          style={{ transform: `rotate(${orbitDeg}deg)` }}
-        >
-          <div className="absolute left-1/2 top-[6%] -translate-x-1/2">
+        {/* Dashed orbit path */}
+        <div className="pointer-events-none absolute inset-[8%] rounded-full border border-dashed border-sky-400/70" />
+
+        {/* Plane — pure CSS infinite orbit (never fights JS progress) */}
+        <div className="absolute inset-0 animate-[sky-orbit_11s_linear_infinite]">
+          <div className="absolute left-1/2 top-[4%] -translate-x-1/2">
             <div className="flex h-9 w-9 items-center justify-center rounded-full border border-sky-200 bg-white shadow-md">
-              <Plane className="h-4 w-4 text-sky-600" style={{ transform: "rotate(45deg)" }} />
+              <Plane className="h-4 w-4 text-sky-600 rotate-45" />
             </div>
           </div>
         </div>
@@ -125,7 +165,7 @@ export function AiPlanLoader({
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sky-400 opacity-75" />
             <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-sky-600" />
           </span>
-          <span key={phase} className="animate-fade-in">
+          <span key={`${lang}-${phase}`} className="animate-fade-in">
             {phases[phase]}
           </span>
         </div>
@@ -142,7 +182,7 @@ export function AiPlanLoader({
           {t("aiplan.tipsTitle")}
         </div>
         <p
-          key={`${tipStep}-${tipIdx}`}
+          key={`${lang}-${tipStep}-${tipIdx}`}
           className="mt-2 min-h-[3.5rem] text-sm leading-relaxed text-slate-700 animate-fade-in sm:text-base"
         >
           {tips[tipIdx]}

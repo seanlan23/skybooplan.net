@@ -327,6 +327,13 @@ function Landing() {
   const streamItinerary = useStreamItinerary();
   const { location: userLocation } = useUserLocation();
 
+  // Keep planner context language in sync with the UI picker (mid-generation / mid-chat).
+  useEffect(() => {
+    setAiContextState((prev) =>
+      prev.language === lang ? prev : { ...prev, language: lang },
+    );
+  }, [lang]);
+
   usePlanPhotoEnrichment(aiPlan, setAiPlan);
 
   const resetLanding = useCallback(() => {
