@@ -19,7 +19,7 @@ export const LANGUAGES: Language[] = [
   { code: "de", label: "German", native: "Deutsch", flag: "🇩🇪" },
 ];
 
-export const DEFAULT_LANGUAGE = "sl";
+export const DEFAULT_LANGUAGE = "en";
 
 export function getLanguageByCode(code: string): Language | undefined {
   return LANGUAGES.find((l) => l.code === code);

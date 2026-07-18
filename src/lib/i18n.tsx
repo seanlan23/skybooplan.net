@@ -1988,7 +1988,8 @@ const dicts: Record<Lang, Dict> = {
 
 const RTL: Lang[] = [];
 
-const STORAGE_KEY = "skybooplan.lang";
+/** Bumped so previous default-to-SL sessions don't keep forcing Slovenian. */
+const STORAGE_KEY = "skybooplan.lang.v2";
 
 function isUsableTranslation(value: string | undefined): value is string {
   return typeof value === "string" && value.trim().length > 0;

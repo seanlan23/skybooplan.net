@@ -149,7 +149,7 @@ const EMPTY_AI_CONTEXT: AiPlannerContext & { language?: string; currency?: "EUR"
   pax: 2,
   adults: 2,
   childrenAges: [],
-  language: "sl",
+  language: "en",
   currency: "EUR",
 };
 
@@ -666,7 +666,7 @@ function Landing() {
         pax: adults + childrenAges.length,
         adults,
         childrenAges,
-        language: v.language || "sl",
+        language: v.language || "en",
       };
       setAiContext(ctx);
       setPlannerMode("stays");
@@ -712,7 +712,7 @@ function Landing() {
         pax: adults + childrenAges.length,
         adults,
         childrenAges,
-        language: v.language || "sl",
+        language: v.language || "en",
       });
       setPlannerMode("trip");
       setTimeout(() => {
@@ -898,7 +898,7 @@ function Landing() {
       pax: adults + childrenAges.length,
       adults,
       childrenAges,
-      language: lastSearch?.language || "sl",
+      language: lastSearch?.language || "en",
       flights: flightContextFromLegs(f.outbound, f.inbound),
     });
     setTimeout(() => {
@@ -1091,7 +1091,7 @@ function Landing() {
           departDate: ctx.departDate,
           returnDate: ctx.returnDate || undefined,
           pax: ctx.pax,
-          language: ctx.language || "sl",
+          language: ctx.language || "en",
           currency: planCurrency,
           pace: safeForm.pace,
           wishes,
@@ -1174,7 +1174,7 @@ function Landing() {
         departDate: ctx.departDate,
         returnDate: ctx.returnDate || undefined,
         pax: ctx.pax,
-        language: ctx.language || "sl",
+        language: ctx.language || "en",
         currency: normalizePlanCurrency(ctx.currency ?? lastSearch?.currency ?? uiCurrency),
         pace: form.pace,
         wishes,
