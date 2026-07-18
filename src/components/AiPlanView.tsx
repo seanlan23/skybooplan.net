@@ -537,7 +537,7 @@ export function AiPlanView({
           <button
             type="button"
             onClick={onDownloadClick}
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md hover:shadow-lg transition-shadow"
+            className="inline-flex items-center gap-2 rounded-xl bg-sky-500 px-5 py-2.5 text-sm font-semibold text-white shadow-md transition-shadow hover:bg-sky-600 hover:shadow-lg"
           >
             <span aria-hidden>⬇</span> {t("aiplan.downloadPdf" as never)}
           </button>

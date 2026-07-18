@@ -397,8 +397,7 @@ export function AiPlannerPreview({
               type="button"
               onClick={submit}
               disabled={!canSubmit}
-              className="w-full inline-flex items-center justify-center gap-2 rounded-2xl py-3.5 font-semibold text-primary-foreground shadow-md transition-all hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.01] active:scale-[0.99]"
-              style={{ background: "var(--gradient-warm)" }}
+              className="w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-sky-500 py-3.5 font-semibold text-white shadow-md transition-all hover:bg-sky-600 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50 hover:scale-[1.01] active:scale-[0.99]"
             >
               {loading ? t("cta.generating") : isCatalogMode ? t("ai.catalogGenerate") : t("ai.generate")}
               <ArrowRight className="h-4 w-4" />

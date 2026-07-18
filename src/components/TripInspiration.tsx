@@ -1,8 +1,6 @@
 import { ArrowRight } from "lucide-react";
-import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
-import { Button } from "@/components/ui/button";
 
 export type InspirationCard = {
   id: string;
@@ -10,8 +8,8 @@ export type InspirationCard = {
   emoji: string;
   destination: string;
   query: string;
-  unsplashQuery: string;
-  fallbackUrl: string;
+  /** Fixed curated photo — no API dependency (reliable on cards). */
+  imageUrl: string;
 };
 
 const CARDS: InspirationCard[] = [
@@ -21,8 +19,8 @@ const CARDS: InspirationCard[] = [
     emoji: "🗼",
     destination: "Pariz",
     query: "Načrtuj mi 5-dnevni romantični trip v Pariz",
-    unsplashQuery: "paris romance eiffel",
-    fallbackUrl: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=800&q=80",
+    imageUrl:
+      "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=1200&q=80",
   },
   {
     id: "croatia",
@@ -30,8 +28,9 @@ const CARDS: InspirationCard[] = [
     emoji: "🌊",
     destination: "Hrvaška",
     query: "Načrtuj roadtrip po Hrvaški za 7 dni",
-    unsplashQuery: "croatia coast",
-    fallbackUrl: "https://images.unsplash.com/photo-1555990793522-b9f8c2d25d33?w=600&q=80",
+    // Dubrovnik / Adriatic coast — stable Unsplash id
+    imageUrl:
+      "https://images.unsplash.com/photo-1555881400-74d7acaacd8b?auto=format&fit=crop&w=1200&q=80",
   },
   {
     id: "asia",
@@ -39,22 +38,10 @@ const CARDS: InspirationCard[] = [
     emoji: "🌴",
     destination: "Bali",
     query: "Načrtuj 10-dnevni trip Bangkok in Bali",
-    unsplashQuery: "bali temple tropical",
-    fallbackUrl: "https://images.unsplash.com/photo-1537953773345-d172ccf13cf1?w=800&q=80",
+    imageUrl:
+      "https://images.unsplash.com/photo-1537953773345-d172ccf13cf1?auto=format&fit=crop&w=1200&q=80",
   },
 ];
-
-async function fetchCardPhoto(query: string): Promise<string | null> {
-  try {
-    const params = new URLSearchParams({ query });
-    const res = await fetch(`/api/hero-photo?${params}`);
-    if (!res.ok) return null;
-    const data = (await res.json()) as { url?: string | null };
-    return data.url ?? null;
-  } catch {
-    return null;
-  }
-}
 
 function InspirationCardItem({
   card,
@@ -64,25 +51,6 @@ function InspirationCardItem({
   onSelect: (destination: string) => void;
 }) {
   const { t } = useI18n();
-  const [imageUrl, setImageUrl] = useState(card.fallbackUrl);
-
-  useEffect(() => {
-    let cancelled = false;
-    void fetchCardPhoto(card.unsplashQuery).then((apiUrl) => {
-      if (cancelled || !apiUrl) return;
-      const img = new Image();
-      img.onload = () => {
-        if (!cancelled) setImageUrl(apiUrl);
-      };
-      img.onerror = () => {
-        if (!cancelled) setImageUrl(card.fallbackUrl);
-      };
-      img.src = apiUrl;
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [card.unsplashQuery, card.fallbackUrl]);
 
   return (
     <article
@@ -91,14 +59,15 @@ function InspirationCardItem({
         "border border-border/80 shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-xl",
       )}
     >
-      <div
-        className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-105"
-        style={{ backgroundImage: `url(${imageUrl})` }}
-        role="img"
-        aria-label={card.title}
+      <img
+        src={card.imageUrl}
+        alt=""
+        loading="lazy"
+        decoding="async"
+        className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
       />
       <div
-        className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-black/10"
+        className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-black/15"
         aria-hidden
       />
       <div className="relative z-10 p-5 text-left">
@@ -106,16 +75,14 @@ function InspirationCardItem({
           {card.emoji}
         </p>
         <h3 className="mt-2 text-lg font-bold text-white sm:text-xl">{card.title}</h3>
-        <Button
+        <button
           type="button"
-          size="sm"
-          variant="secondary"
-          className="mt-4 h-9 rounded-lg bg-white/95 text-foreground hover:bg-white"
+          className="mt-4 inline-flex h-9 items-center gap-1.5 rounded-lg bg-white/95 px-3 text-sm font-semibold text-foreground transition hover:bg-white"
           onClick={() => onSelect(card.destination)}
         >
           {t("inspiration.cta" as never)}
-          <ArrowRight className="ml-1.5 h-3.5 w-3.5" aria-hidden />
-        </Button>
+          <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+        </button>
       </div>
     </article>
   );
