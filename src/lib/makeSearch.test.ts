@@ -219,6 +219,7 @@ describe("parseMakeSearchUserMessage", () => {
   it("maps južna tajska / phuket to HKT not BKK", () => {
     expect(parseMakeSearchDestination("potovanje na južno tajsko (phuket)")).toBe("HKT");
     expect(parseMakeSearchDestination("južna tajska")).toBe("HKT");
+    expect(parseMakeSearchDestination("jug tajske iz phuketa")).toBe("HKT");
   });
 
   it("does not treat Potovanje v … as destination IATA POT", () => {
@@ -226,6 +227,17 @@ describe("parseMakeSearchUserMessage", () => {
       "Potovanje v potovanje na južno tajsko (phuket), konec oktobra",
     );
     expect(parsed.destination_airport).toBe("HKT");
+  });
+
+  it("parses rich Thailand chat without mistaking cae typo for CAE airport", () => {
+    const parsed = parseMakeSearchUserMessage(
+      "Ljubljana → potovanje na jug tajske po možnosti prihod in odhod iz phuketa. Konec oktobra zaetek novembra za 14 nočitev. Let naj bo oi lj, dunaja, milana, zagreba ali budimšete. Cena in cae potovanja sta najpomebnejša",
+    );
+    expect(parsed.destination_airport).toBe("HKT");
+    expect(parsed.origin_airport).toBe("VIE");
+    expect(parsed.origin_airports).toEqual(
+      expect.arrayContaining(["LJU", "VIE", "MXP", "ZAG"]),
+    );
   });
 });
 

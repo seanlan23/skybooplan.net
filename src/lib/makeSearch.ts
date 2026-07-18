@@ -511,8 +511,10 @@ const DESTINATION_ALIASES: Array<{ pattern: RegExp; iata: string }> = [
   { pattern: /\blos angeles\b|\bla\b|\blax\b/i, iata: "LAX" },
   { pattern: /\bsan francisco\b|\bsfo\b/i, iata: "SFO" },
   // Southern Thailand / Phuket before generic Thailand → Bangkok.
+  // Include "jug tajske", genitive "phuketa", and južna/južno variants.
   {
-    pattern: /\bphuket\b|\bhkt\b|\bju[zž]n[aeo]?\s+tajsk|\bsouth(?:ern)?\s+thailand\b/i,
+    pattern:
+      /\bphuket[aeu]?\b|\bhkt\b|\bju[gzž]n[aeo]?\s+tajsk|\bjug\s+tajsk|\bsouth(?:ern)?\s+thailand\b/i,
     iata: "HKT",
   },
   { pattern: /\bkuala lumpur\b|\bkul\b/i, iata: "KUL" },
@@ -655,6 +657,7 @@ const FALSE_IATA_TOKENS = new Set([
   "STA", // sl. "are"
   "DNI", // sl. "days"
   "POT", // from "Potovanje v POT…" false match
+  "CAE", // typo "cae" for "čas" (Columbia SC airport)
   "NAJ",
   "ZAJ",
   "TER",
@@ -670,6 +673,7 @@ const FALSE_IATA_TOKENS = new Set([
   "ARE",
   "DAY",
   "THE",
+  "IZA", // "iz a…" fragments
 ]);
 
 export function parseMakeSearchDestination(text: string): string | null {
@@ -709,12 +713,13 @@ export function pickPrimaryOriginAirport(origins: string[]): string {
 
 /** Departure airports mentioned in chat (Lj, Dunaj, Milano…). */
 const ORIGIN_AIRPORT_ALIASES: Array<{ pattern: RegExp; iata: string }> = [
-  { pattern: /\b(?:ljubljana|ljubljan[ei]|lj|lju)\b/i, iata: "LJU" },
-  { pattern: /\b(?:zagreb|zag)\b/i, iata: "ZAG" },
-  { pattern: /\b(?:dunaj|vienna|vie)\b/i, iata: "VIE" },
+  { pattern: /\b(?:ljubljana|ljubljan[aeiu]?|lj|lju)\b/i, iata: "LJU" },
+  { pattern: /\b(?:zagreb[aeu]?|zag)\b/i, iata: "ZAG" },
+  { pattern: /\b(?:dunaj[aeu]?|vienna|vie)\b/i, iata: "VIE" },
   { pattern: /\b(?:benetke|venice|vce)\b/i, iata: "VCE" },
-  { pattern: /\b(?:milano|milan|mxp)\b/i, iata: "MXP" },
-  { pattern: /\b(?:budimpešt[ao]|budapest|bud)\b/i, iata: "BUD" },
+  { pattern: /\b(?:milan[oa]?|mxp)\b/i, iata: "MXP" },
+  // Include common typos: budimšete / budimsete
+  { pattern: /\b(?:budimpešt[aeo]?|budimš[ae]?t[aeo]?|budimset[aeo]?|budapest|bud)\b/i, iata: "BUD" },
   { pattern: /\b(?:munchen|münchen|munich|muc)\b/i, iata: "MUC" },
   { pattern: /\b(?:frankfurt|fra)\b/i, iata: "FRA" },
 ];
@@ -795,7 +800,8 @@ export function parseMakeSearchUserMessage(
   for (const code of [...fromText, ...fromGeo]) {
     if (!merged.includes(code)) merged.push(code);
   }
-  const resolvedOrigins = merged.length > 0 ? merged.slice(0, NEAREST_AIRPORT_LIMIT) : ["LJU"];
+  // Allow a few more named origins from chat than geo-nearest (user often lists 5 hubs).
+  const resolvedOrigins = merged.length > 0 ? merged.slice(0, 6) : ["LJU"];
   // Put the preferred hub first so Make `first(origin_airports)` / origin_airport hit a sensible airport.
   const primary = pickPrimaryOriginAirport(resolvedOrigins);
   const orderedOrigins = [
@@ -1301,6 +1307,20 @@ export async function callMakeSearchWebhook(
         hasCoords ? await fetchNearestAirports(body.latitude!, body.longitude!) : [];
       parsedData = parseMakeSearchUserMessage(body.userMessage, originAirports);
     }
+    // Duffel 422s if Make maps empty/garbage into slice origin/destination.
+    const dest = parsedData.destination_airport?.trim().toUpperCase() ?? "";
+    if (!/^[A-Z]{3}$/.test(dest) || FALSE_IATA_TOKENS.has(dest)) {
+      return {
+        ok: false,
+        error: "heroSearch.destinationUnclear",
+        status: 422,
+      };
+    }
+    parsedData = {
+      ...parsedData,
+      destination_airport: dest,
+      origin_airport: parsedData.origin_airport.trim().toUpperCase() || "LJU",
+    };
     payload.parsedData = parsedData;
 
     if (body.attachment) {
