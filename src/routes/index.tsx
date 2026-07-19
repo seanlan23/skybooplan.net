@@ -1023,7 +1023,12 @@ function Landing() {
     setAiGenStartedAt(Date.now());
     setAiLoading(true);
     setTimeout(() => {
-      document.getElementById(scrollAnchorId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      // Prefer the plan section title in view (not the loader card alone).
+      const el =
+        document.getElementById(scrollAnchorId) ||
+        document.getElementById("hero-trip-plan") ||
+        document.getElementById("ai-plan-anchor");
+      el?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 100);
     try {
       const lang = ctx.language || "en";
@@ -1326,7 +1331,7 @@ function Landing() {
             context={aiContext}
             initialWishes={heroDreamPrompt}
             onGenerate={(f) =>
-              handleGeneratePlan(f, undefined, plannerMode, "hero-ai-plan-anchor")
+              handleGeneratePlan(f, undefined, plannerMode, "hero-trip-plan")
             }
             loading={aiLoading || isGeminiStreaming}
           />

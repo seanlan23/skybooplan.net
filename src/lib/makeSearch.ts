@@ -505,8 +505,85 @@ export function elapsedMinutesBetween(
 }
 
 function ymdFromDateish(raw?: string): string {
-  const m = (raw ?? "").trim().match(/^(\d{4}-\d{2}-\d{2})/);
-  return m?.[1] ?? "";
+  const trimmed = (raw ?? "").trim();
+  const iso = trimmed.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (iso) return iso[1]!;
+
+  // "26. okt. 2026, 21:10" / "26 Oct 2026, 21:10" / "26 October 2026"
+  const human = trimmed.match(
+    /^(\d{1,2})[.\s]+([A-Za-zčšžČŠŽäöüÄÖÜß.]+)\.?[\s,]+(\d{4})/,
+  );
+  if (!human) return "";
+  const day = Number.parseInt(human[1]!, 10);
+  const year = Number.parseInt(human[3]!, 10);
+  const month = monthIndexFromLabel(human[2]!);
+  if (!month || day < 1 || day > 31 || year < 2000) return "";
+  return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+const MONTH_LABEL_TO_INDEX: Record<string, number> = {
+  jan: 1,
+  januar: 1,
+  january: 1,
+  feb: 2,
+  februar: 2,
+  february: 2,
+  mar: 3,
+  marec: 3,
+  march: 3,
+  apr: 4,
+  april: 4,
+  maj: 5,
+  may: 5,
+  jun: 6,
+  juni: 6,
+  june: 6,
+  jul: 7,
+  juli: 7,
+  july: 7,
+  avg: 8,
+  avgust: 8,
+  aug: 8,
+  august: 8,
+  sep: 9,
+  sept: 9,
+  september: 9,
+  okt: 10,
+  october: 10,
+  oct: 10,
+  nov: 11,
+  november: 11,
+  dec: 12,
+  december: 12,
+};
+
+function monthIndexFromLabel(raw: string): number {
+  const key = raw
+    .trim()
+    .toLowerCase()
+    .replace(/\./g, "")
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "");
+  return MONTH_LABEL_TO_INDEX[key] ?? 0;
+}
+
+/** Infer +N calendar days when arrive local clock is earlier than / equal to depart. */
+export function inferArriveDayOffset(
+  departHm: string,
+  arriveHm: string,
+  storedOffset?: number,
+): number {
+  if (storedOffset != null && storedOffset > 0) return Math.floor(storedOffset);
+  const dep = normalizeHm(departHm);
+  const arr = normalizeHm(arriveHm);
+  if (!dep || !arr) return Math.max(0, storedOffset ?? 0);
+  const [dh, dm] = dep.split(":").map((x) => Number.parseInt(x, 10));
+  const [ah, am] = arr.split(":").map((x) => Number.parseInt(x, 10));
+  const depMins = dh! * 60 + dm!;
+  const arrMins = ah! * 60 + am!;
+  // Overnight / next-day local arrival (common on long-haul eastbound).
+  if (arrMins <= depMins) return 1;
+  return 0;
 }
 
 function addCalendarDaysYmd(ymd: string, days: number): string {
@@ -566,14 +643,14 @@ export function travelDurationMinutes(params: {
 
   const depHm = params.departHm ? normalizeHm(params.departHm) : null;
   const arrHm = params.arriveHm ? normalizeHm(params.arriveHm) : null;
+  // Prefer ISO date; also accept human "26. okt. 2026, 21:10" from Make `odhod`.
   const ymd =
-    ymdFromDateish(params.departDate) || ymdFromDateish(params.departIso);
+    ymdFromDateish(params.departDate) ||
+    ymdFromDateish(params.departIso) ||
+    // Last resort: any mid-year date so TZ math still works when Make omits depart_date.
+    (depHm && arrHm && from && to ? "2026-10-15" : "");
   if (depHm && arrHm && ymd && from && to) {
-    let dayOff = Math.max(0, params.arriveDayOffset ?? 0);
-    if (dayOff === 0) {
-      const naive = naiveWallClockMinutes(depHm, arrHm, 0);
-      if (naive <= 0) dayOff = 1;
-    }
+    const dayOff = inferArriveDayOffset(depHm, arrHm, params.arriveDayOffset);
     const arriveYmd = addCalendarDaysYmd(ymd, dayOff);
     const mins = elapsedMinutesBetween(
       `${ymd}T${depHm}:00`,
@@ -944,6 +1021,21 @@ function parseFlightItem(item: unknown, index: number): MakeSearchFlight | null 
     }
   }
 
+  if (outbound_depart && outbound_arrive) {
+    outbound_arrive_day_offset = inferArriveDayOffset(
+      outbound_depart,
+      outbound_arrive,
+      outbound_arrive_day_offset,
+    );
+  }
+  if (inbound_depart && inbound_arrive) {
+    inbound_arrive_day_offset = inferArriveDayOffset(
+      inbound_depart,
+      inbound_arrive,
+      inbound_arrive_day_offset,
+    );
+  }
+
   // Recompute duration with airport timezones once local times are known.
   // Make often sends duration = naive wall-clock (MUC 21:10→HKT 17:55 = 20h45).
   const outTzMins = travelDurationMinutes({
@@ -951,7 +1043,7 @@ function parseFlightItem(item: unknown, index: number): MakeSearchFlight | null 
     arriveIso: arrivalIso || undefined,
     departHm: outbound_depart || undefined,
     arriveHm: outbound_arrive || undefined,
-    departDate: departureIso || undefined,
+    departDate: departureIso || odhod || undefined,
     arriveDayOffset: outbound_arrive_day_offset,
     fromIata: origin,
     toIata: destination,
@@ -962,7 +1054,7 @@ function parseFlightItem(item: unknown, index: number): MakeSearchFlight | null 
     arriveIso: returnArrivalIso || undefined,
     departHm: inbound_depart || undefined,
     arriveHm: inbound_arrive || undefined,
-    departDate: returnIso || undefined,
+    departDate: returnIso || povratek || undefined,
     arriveDayOffset: inbound_arrive_day_offset,
     fromIata: destination,
     toIata: origin,

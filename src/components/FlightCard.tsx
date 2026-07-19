@@ -4,6 +4,7 @@ import {
   estimateArriveLocal,
   formatDurationMinutes,
   formatTravelDuration,
+  inferArriveDayOffset,
   parseDurationMinutes,
   parseMakeFlightRoute,
   pickTravelDurationRaw,
@@ -383,14 +384,28 @@ export function FlightCard({
   const inHasStops = Boolean(inStopsRaw) && !/^0(?:\||$)/.test(inStopsRaw.trim());
   const outArriveHm = flight.outbound_arrive || "";
   const inArriveHm = flight.inbound_arrive || "";
+  const outDepartDate =
+    flight.outbound_depart_iso || flight.depart_date || flight.odhod || "";
+  const inDepartDate =
+    flight.inbound_depart_iso || flight.return_date || flight.povratek || "";
+  const outDayOffset = inferArriveDayOffset(
+    outDepart,
+    outArriveHm,
+    flight.outbound_arrive_day_offset,
+  );
+  const inDayOffset = inferArriveDayOffset(
+    inDepart,
+    inArriveHm,
+    flight.inbound_arrive_day_offset,
+  );
   const outDuration = resolveDurationLabel({
     stored: flight.outbound_duration,
     departIso: flight.outbound_depart_iso,
     arriveIso: flight.outbound_arrive_iso,
     departHm: outDepart,
     arriveHm: outArriveHm,
-    departDate: flight.outbound_depart_iso || flight.depart_date,
-    arriveDayOffset: flight.outbound_arrive_day_offset,
+    departDate: outDepartDate,
+    arriveDayOffset: outDayOffset,
     fromIata: from,
     toIata: to,
     hasStops: outHasStops,
@@ -401,8 +416,8 @@ export function FlightCard({
     arriveIso: flight.inbound_arrive_iso,
     departHm: inDepart,
     arriveHm: inArriveHm,
-    departDate: flight.inbound_depart_iso || flight.return_date,
-    arriveDayOffset: flight.inbound_arrive_day_offset,
+    departDate: inDepartDate,
+    arriveDayOffset: inDayOffset,
     fromIata: to,
     toIata: from,
     hasStops: inHasStops,
@@ -410,20 +425,20 @@ export function FlightCard({
   const outArriveResolved = resolveArriveDisplay({
     arrivePreferred: flight.outbound_arrive,
     departTime: outDepart,
-    departDate: flight.outbound_depart_iso || flight.depart_date,
+    departDate: outDepartDate,
     durationLabel: outDuration,
     fromIata: from,
     toIata: to,
-    storedDayOffset: flight.outbound_arrive_day_offset,
+    storedDayOffset: outDayOffset,
   });
   const inArriveResolved = resolveArriveDisplay({
     arrivePreferred: flight.inbound_arrive,
     departTime: inDepart,
-    departDate: flight.inbound_depart_iso || flight.return_date,
+    departDate: inDepartDate,
     durationLabel: inDuration,
     fromIata: to,
     toIata: from,
-    storedDayOffset: flight.inbound_arrive_day_offset,
+    storedDayOffset: inDayOffset,
   });
   const badgeLabel = flight.badge ? localizeBadge(flight.badge, t) : "";
 

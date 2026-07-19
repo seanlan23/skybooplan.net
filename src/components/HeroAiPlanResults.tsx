@@ -77,7 +77,7 @@ export function HeroAiPlanResults({
   return (
     <section
       id="hero-trip-plan"
-      className="relative z-10 border-b border-border/60 bg-background"
+      className="relative z-10 scroll-mt-20 border-b border-border/60 bg-background"
       aria-live="polite"
     >
       <div className="mx-auto max-w-6xl px-6 pb-10 pt-2 sm:pb-12">
@@ -85,7 +85,7 @@ export function HeroAiPlanResults({
           {t("heroTrip.planTitle" as never)}
         </h2>
 
-        <div id="hero-ai-plan-anchor" className="mt-6">
+        <div id="hero-ai-plan-anchor" className="mt-4 sm:mt-5">
           {displayPlan ? (
             <AiPlanView
               loading={false}

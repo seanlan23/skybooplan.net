@@ -181,6 +181,31 @@ describe("travelDurationMinutes", () => {
     ).toBe(14 * 60 + 45);
   });
 
+  it("infers +1 day when arriveDayOffset is missing (MUC→BKK overnight)", () => {
+    // Without inference, same-calendar-day TZ math fails and UI showed "—".
+    const mins = travelDurationMinutes({
+      departHm: "21:10",
+      arriveHm: "18:00",
+      departDate: "2026-10-26",
+      fromIata: "MUC",
+      toIata: "BKK",
+      storedLabel: "20h 50m",
+    });
+    expect(mins).toBe(14 * 60 + 50);
+  });
+
+  it("parses human odhod date when depart_date ISO is missing", () => {
+    const mins = travelDurationMinutes({
+      departHm: "21:10",
+      arriveHm: "18:00",
+      departDate: "26. okt. 2026, 21:10",
+      fromIata: "MUC",
+      toIata: "BKK",
+      storedLabel: "7h",
+    });
+    expect(mins).toBe(14 * 60 + 50);
+  });
+
   it("westbound New York uses timezone too (JFK→MUC)", () => {
     // JFK 18:00 → MUC 08:00(+1); naive 14h, real ~8h (EDT UTC-4 → CEST UTC+2).
     const mins = travelDurationMinutes({
