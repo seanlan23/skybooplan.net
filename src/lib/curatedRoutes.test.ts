@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildCuratedRoutePayload,
   buildCuratedRoutePromptBlock,
   lookupCuratedTransportLeg,
   matchCuratedRoute,
   resolveCuratedBlueprint,
+  templateToBlueprintBlocks,
 } from "@/lib/curatedRoutes";
 
 function mockTemplate(template: Array<[string, number]>, nDays: number) {
@@ -51,6 +53,42 @@ describe("curatedRoutes PH", () => {
 
   it("uses flight leg for Manila → Puerto Princesa regardless of country hint", () => {
     expect(lookupCuratedTransportLeg("Manila", "Puerto Princesa", "TH")?.type).toBe("flight");
+  });
+
+  it("does not dump leftover days into final Manila on 22-day beach trip", () => {
+    const payload = buildCuratedRoutePayload(22, "MNL", ["beaches"], "filipini plaže sproščeno");
+    const blocks = payload?.regionBlueprint as
+      | Array<{ city: string; startDay: number; endDay: number }>
+      | undefined;
+    expect(blocks?.length).toBeGreaterThanOrEqual(3);
+
+    const manilaSpans = (blocks ?? [])
+      .filter((b) => /manila/i.test(b.city))
+      .map((b) => b.endDay - b.startDay + 1);
+    expect(Math.max(...manilaSpans)).toBeLessThanOrEqual(3);
+
+    const islandDays = (blocks ?? [])
+      .filter((b) => !/manila/i.test(b.city))
+      .reduce((sum, b) => sum + (b.endDay - b.startDay + 1), 0);
+    expect(islandDays).toBeGreaterThanOrEqual(16);
+  });
+
+  it("templateToBlueprintBlocks keeps return Manila at ≤2–3 days when scaling 28d Palawan", () => {
+    const blocks = templateToBlueprintBlocks(
+      [
+        ["Manila", 1],
+        ["Puerto Princesa", 0],
+        ["Port Barton", 0],
+        ["Manila", 2],
+      ],
+      28,
+    );
+    const last = blocks[blocks.length - 1]!;
+    expect(last.city).toBe("Manila");
+    expect(last.endDay - last.startDay + 1).toBeLessThanOrEqual(3);
+    expect(last.endDay).toBe(28);
+    const pps = blocks.find((b) => /puerto/i.test(b.city))!;
+    expect(pps.endDay - pps.startDay + 1).toBeGreaterThanOrEqual(8);
   });
 });
 

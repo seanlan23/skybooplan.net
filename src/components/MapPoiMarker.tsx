@@ -44,10 +44,10 @@ const CATEGORY_ICON_CLASS: Record<MapPoiCategory, string> = {
 };
 
 const MARKER_IMG_CLASS =
-  "h-11 w-11 rounded-full border-2 border-white object-cover shadow-md transition-all duration-300 ease-out";
+  "h-11 w-11 rounded-full border-2 border-white object-cover shadow-md transition-[opacity,box-shadow,border-color] duration-200 ease-out";
 
 const MARKER_ICON_SHELL_CLASS =
-  "flex h-11 w-11 items-center justify-center rounded-full border-2 border-white bg-white/75 shadow-md backdrop-blur-sm transition-all duration-300 ease-out";
+  "flex h-11 w-11 items-center justify-center rounded-full border-2 border-white bg-white/75 shadow-md backdrop-blur-sm transition-[opacity,box-shadow,border-color] duration-200 ease-out";
 
 type MarkerShellProps = {
   isActive?: boolean;
@@ -65,12 +65,13 @@ function MarkerShell({
   showLabel = false,
   children,
 }: MarkerShellProps & { showLabel?: boolean }) {
+  // Avoid CSS `scale` + transform transitions here — Mapbox owns transform on the marker root.
   const shellClass = isFocused
-    ? "relative z-20 scale-[1.14]"
+    ? "relative z-20"
     : isDimmed
-      ? "opacity-35 scale-[0.92]"
+      ? "opacity-35"
       : isActive
-        ? "z-[6] scale-105 opacity-100"
+        ? "z-[6] opacity-100"
         : "opacity-90 hover:opacity-100";
 
   const labelVisible = Boolean(name && (showLabel || isFocused || isActive));
@@ -91,7 +92,9 @@ function MarkerShell({
           {name}
         </span>
       ) : null}
-      <div className={`relative transition-all duration-300 ease-out ${shellClass}`}>
+      <div
+        className={`relative transition-[opacity,box-shadow] duration-200 ease-out ${shellClass}`}
+      >
         {isFocused ? (
           <span
             className="pointer-events-none absolute -inset-1.5 rounded-full border-2 border-amber-400/70"

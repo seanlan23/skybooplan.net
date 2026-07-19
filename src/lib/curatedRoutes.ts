@@ -24,15 +24,16 @@ const PH_PALAWAN_CLASSIC: CuratedRoute = {
   id: "ph-palawan-pps-portbarton",
   country: "PH",
   minDays: 9,
-  maxDays: 13,
+  maxDays: 18,
   priority: 10,
   wishTest: /palawan|puerto princesa|port barton|honda bay|sabang|underground river/i,
   interests: ["beaches", "nature"],
+  // 0 = flex: surplus days go to islands, NEVER to final Manila hub.
   segments: [
-    ["Manila", 2],
-    ["Puerto Princesa", 3],
-    ["Port Barton", 3],
     ["Manila", 1],
+    ["Puerto Princesa", 0],
+    ["Port Barton", 0],
+    ["Manila", 2],
   ],
   mustIncludeHighlights: [
     "Puerto Princesa",
@@ -41,7 +42,8 @@ const PH_PALAWAN_CLASSIC: CuratedRoute = {
     "Port Barton",
     "Island hopping",
   ],
-  steer: "Palawan: Manila → MNL→PPS → baza PPS → Port Barton → nazaj Manila.",
+  steer:
+    "Palawan: Manila hub (prihod 1 dan) → MNL→PPS → baza PPS → Port Barton → nazaj Manila (max 2 dni buffer). Odvečne dni dodaj na PPS/Port Barton — ne na Manilo.",
 };
 
 const PH_LUZON_BOHOL_PALAWAN: CuratedRoute = {
@@ -69,7 +71,7 @@ const PH_BEACHES_EL_NIDO_BORACAY: CuratedRoute = {
   id: "ph-beaches-elnido-boracay",
   country: "PH",
   minDays: 12,
-  maxDays: 21,
+  maxDays: 32,
   priority: 15,
   wishTest: /el nido|boracay|big lagoon|white beach/i,
   interests: ["beaches"],
@@ -81,7 +83,8 @@ const PH_BEACHES_EL_NIDO_BORACAY: CuratedRoute = {
     ["Manila", 2],
   ],
   mustIncludeHighlights: ["El Nido", "Big Lagoon", "Boracay", "White Beach"],
-  steer: "Intenzivne plaže PH: El Nido → Bohol → Boracay → Manila.",
+  steer:
+    "Intenzivne plaže PH: El Nido → Bohol → Boracay → Manila buffer. Prva Manila = prihod (1 dan); zadnja Manila max 2–3 dni — odvečne dni na otoke/plaže.",
 };
 
 const VN_KH_ANGKOR: CuratedRoute = {
@@ -382,14 +385,18 @@ function vnDefaultRoute(nDays: number, keys: string[]): CuratedRoute | null {
 }
 
 function phDefaultRoute(nDays: number, keys: string[]): CuratedRoute | null {
-  if (nDays >= 9) return PH_PALAWAN_CLASSIC;
+  // Long beach trips: multi-island flex graph (not Palawan-classic with fixed days).
+  if (keys.includes("beaches") && nDays >= 14) {
+    return { ...PH_BEACHES_EL_NIDO_BORACAY, id: "ph-beaches-default", priority: 8 };
+  }
+  if (nDays >= 9 && nDays <= PH_PALAWAN_CLASSIC.maxDays) return PH_PALAWAN_CLASSIC;
   const anchor = getInterestAnchor("PH", keys.includes("beaches") ? "beaches" : "sights");
   if (!anchor) return null;
   return {
     id: "ph-default",
     country: "PH",
     minDays: 7,
-    maxDays: 21,
+    maxDays: 35,
     priority: 6,
     segments: anchor.routeTemplate,
     mustIncludeHighlights: anchor.mustIncludeHighlights,
@@ -671,36 +678,147 @@ export function buildCuratedRoutePayload(
 
 export type RegionBlueprintBlock = { city: string; startDay: number; endDay: number };
 
-/** Scale agency segment template to total trip days (same logic as aiPlan skeleton). */
+/** International hubs: arrival/return buffers — do not absorb leftover trip days. */
+const BLUEPRINT_HUB_CITY_RE =
+  /^(manila|bangkok|jakarta|singapore|kuala lumpur|ho chi minh city|hanoi|tokyo|seoul|dubai|istanbul)$/i;
+
+function isBlueprintReturnHub(
+  index: number,
+  city: string,
+  template: Array<[string, number]>,
+): boolean {
+  if (index !== template.length - 1) return false;
+  const first = (template[0]?.[0] ?? "").trim();
+  const c = city.trim();
+  if (first && c.localeCompare(first, undefined, { sensitivity: "base" }) === 0) return true;
+  return BLUEPRINT_HUB_CITY_RE.test(c);
+}
+
+function isBlueprintArrivalHub(
+  index: number,
+  city: string,
+  templateDays: number,
+): boolean {
+  if (index !== 0) return false;
+  if (templateDays > 0 && templateDays <= 2) return true;
+  return BLUEPRINT_HUB_CITY_RE.test(city.trim());
+}
+
+/**
+ * Scale agency segment template to total trip days.
+ * Surplus days go to flex (0) / middle destinations — never dump onto final return hub
+ * (e.g. Manila / Bangkok buffer).
+ */
 export function templateToBlueprintBlocks(
   template: Array<[string, number]>,
   nDays: number,
 ): RegionBlueprintBlock[] {
-  const segments: Array<{ city: string; days: number }> = [];
-  const fixedDays = template.filter(([, d]) => d > 0).reduce((sum, [, d]) => sum + d, 0);
-  const flexCities = template.filter(([, d]) => d === 0);
-  const flexTotal = Math.max(0, nDays - fixedDays);
-  const flexEach = flexCities.length ? Math.max(1, Math.floor(flexTotal / flexCities.length)) : 0;
+  if (!template.length || nDays < 1) return [];
 
-  for (const [city, days] of template) {
-    segments.push({ city, days: days > 0 ? days : flexEach });
+  const meta = template.map(([city, days], i) => {
+    const returnHub = isBlueprintReturnHub(i, city, template);
+    const arrivalHub = isBlueprintArrivalHub(i, city, days);
+    const flex = days === 0;
+    return {
+      city,
+      templateDays: days,
+      flex,
+      returnHub,
+      arrivalHub,
+      /** Expandable: islands / middle bases — not short hub buffers. */
+      expandable: flex || (!returnHub && !arrivalHub),
+    };
+  });
+
+  const assigned = meta.map((m) => {
+    if (m.flex) return 1;
+    if (m.returnHub) return Math.min(Math.max(1, m.templateDays), 3);
+    if (m.arrivalHub) return Math.min(Math.max(1, m.templateDays), 2);
+    return Math.max(1, m.templateDays);
+  });
+
+  let remaining = nDays - assigned.reduce((sum, d) => sum + d, 0);
+
+  const expandableIdx = meta
+    .map((m, i) => (m.expandable ? i : -1))
+    .filter((i) => i >= 0);
+  const shrinkIdx = expandableIdx.length
+    ? expandableIdx
+    : meta.map((_, i) => i).filter((i) => !meta[i]!.returnHub);
+
+  while (remaining < 0) {
+    let shrunk = false;
+    for (let i = shrinkIdx.length - 1; i >= 0 && remaining < 0; i--) {
+      const idx = shrinkIdx[i]!;
+      if (assigned[idx]! > 1) {
+        assigned[idx]!--;
+        remaining++;
+        shrunk = true;
+      }
+    }
+    if (!shrunk) {
+      for (let i = assigned.length - 1; i >= 0 && remaining < 0; i--) {
+        if (assigned[i]! > 1) {
+          assigned[i]!--;
+          remaining++;
+          shrunk = true;
+        }
+      }
+    }
+    if (!shrunk) break;
+  }
+
+  const growIdx =
+    expandableIdx.length > 0
+      ? expandableIdx
+      : meta.map((_, i) => i).filter((i) => !meta[i]!.returnHub);
+  let t = 0;
+  while (remaining > 0 && growIdx.length > 0) {
+    const idx = growIdx[t % growIdx.length]!;
+    assigned[idx]!++;
+    remaining--;
+    t++;
+  }
+  if (remaining > 0) {
+    const mid = Math.max(0, Math.floor((assigned.length - 1) / 2));
+    assigned[mid]! += remaining;
   }
 
   let day = 1;
   const blocks: RegionBlueprintBlock[] = [];
-  for (let i = 0; i < segments.length; i++) {
-    const seg = segments[i]!;
-    const span = i === segments.length - 1 ? nDays - day + 1 : seg.days;
-    const endDay = Math.min(nDays, day + Math.max(1, span) - 1);
-    blocks.push({ city: seg.city, startDay: day, endDay });
-    day = endDay + 1;
+  for (let i = 0; i < assigned.length; i++) {
     if (day > nDays) break;
+    const span = Math.max(1, assigned[i]!);
+    const endDay = Math.min(nDays, day + span - 1);
+    blocks.push({ city: meta[i]!.city, startDay: day, endDay });
+    day = endDay + 1;
   }
 
-  const last = blocks[blocks.length - 1];
-  if (last && last.endDay !== nDays) {
-    last.endDay = nDays;
+  // Undershoot safety: extend last expandable base, never a return hub dump.
+  if (blocks.length && blocks[blocks.length - 1]!.endDay < nDays) {
+    const gap = nDays - blocks[blocks.length - 1]!.endDay;
+    let extendIdx = -1;
+    for (let i = blocks.length - 1; i >= 0; i--) {
+      if (meta[i]!.expandable) {
+        extendIdx = i;
+        break;
+      }
+    }
+    if (extendIdx < 0) extendIdx = Math.max(0, blocks.length - 2);
+    if (extendIdx < 0) extendIdx = 0;
+    blocks[extendIdx]!.endDay += gap;
+    for (let i = extendIdx + 1; i < blocks.length; i++) {
+      blocks[i]!.startDay += gap;
+      blocks[i]!.endDay += gap;
+    }
+    const last = blocks[blocks.length - 1]!;
+    if (last.endDay > nDays) {
+      const over = last.endDay - nDays;
+      last.endDay = nDays;
+      last.startDay = Math.max(1, last.startDay - over);
+    }
   }
+
   return blocks;
 }
 
@@ -756,6 +874,7 @@ Pravila kurirane poti:
 - Strogo sledi vrstnemu redu mest iz regionBlueprint — enosmerna pot, brez teleporta — RAZEN če je v nasprotju s prihodovnim letališčem zgoraj.
 - Med fazami obvezno transportation[] (let/trajekt/vlak/kombi) in aktivnosti prevoza.
 - Hub mesto na začetku/koncu samo če je to mesto prihoda/odhoda mednarodnega leta — ne izmišljuj notranjega leta na hub.
+- Hub buffer (Manila/Bangkok/Jakarta …): prihod max 1–2 dni, odhod max 2–3 dni. Prepovedano: 5+ zaporednih dni na hubu — odvečne dni dodaj na otoke/plaže/notranje baze.
 - Število dni na mesto prilagodi na ${opts.nDays} dni skupaj, a NE spreminjaj vrstnega reda regij (razen prihodovnega popravka).
 ===`;
 }

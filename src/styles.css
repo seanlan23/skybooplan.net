@@ -288,7 +288,8 @@
   box-shadow: 0 2px 8px color-mix(in oklab, var(--brand) 40%, transparent);
 }
 .trip-marker-wrap.is-active .trip-marker-day {
-  transform: scale(1.1);
+  /* size cue without transform on marker subtree */
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -302,13 +303,25 @@
   }
 }
 
+/*
+ * Mapbox positions markers via `transform` on `.mapboxgl-marker`.
+ * Any transition on that property makes pins slide/jump while zooming.
+ */
+.mapboxgl-marker,
+.mapbox-marker-root,
+.trip-map-poi-marker,
+.layla-city-marker,
+.trip-marker-wrap {
+  /* Mapbox sets translate() on these nodes every frame while zooming. */
+  transition: none !important;
+}
+
 /* POI category badges on the map */
 .poi-marker-wrap {
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  /* No transform transition on marker root (Mapbox owns transform for lat/lng). */
 }
 .poi-marker-badge {
   width: 30px;
@@ -319,10 +332,8 @@
   align-items: center;
   justify-content: center;
   box-shadow: 0 2px 6px rgba(0,0,0,0.28);
-  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
-              opacity 0.3s ease,
-              box-shadow 0.35s ease,
-              border-color 0.3s ease;
+  /* Scale without transitioning transform — keeps parent Mapbox pin glued to lat/lng. */
+  transition: opacity 0.2s ease, box-shadow 0.25s ease, border-color 0.2s ease;
   transform-origin: center center;
 }
 .poi-marker-emoji {
@@ -426,7 +437,7 @@
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.35s ease;
+  transition: box-shadow 0.25s ease, border-color 0.2s ease;
 }
 .layla-city-pin--fallback {
   background: #e8eef5 !important;
@@ -458,8 +469,9 @@
 }
 .layla-city-marker--active .layla-city-pin,
 .layla-city-pin--active {
-  transform: scale(1.1);
-  box-shadow: 0 6px 18px rgba(0,0,0,0.28), 0 0 0 3px rgba(14,165,233,0.35);
+  /* Ring via box-shadow only — no scale(transform) under Mapbox markers. */
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28), 0 0 0 3px rgba(14, 165, 233, 0.35);
+  border-color: #fff;
 }
 .layla-city-marker--active .layla-city-label {
   background: #111827;

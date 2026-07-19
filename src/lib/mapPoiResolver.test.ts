@@ -44,4 +44,53 @@ describe("mapPoiResolver", () => {
     expect(coords).not.toBeNull();
     expect(coords!.lat).toBeCloseTo(13.9126, 1);
   });
+
+  it("focuses Manila arrival card on MNL, not leftover Milan MXP coords", () => {
+    const manilaDay: DayPlan = {
+      day: 2,
+      date: "2026-10-24",
+      title: "Prihod v Manilo",
+      morning: "",
+      afternoon: "",
+      evening: "",
+      city: "Manila",
+      lat: 14.599,
+      lng: 120.984,
+    };
+    const act: Activity = {
+      name: "Prihod na letališče",
+      type: "TRANSPORT",
+      description:
+        "Polet pristane na destinaciji ob 11:30. Orientacija v arrival hallu. Manila (MNL).",
+      // Gemini sometimes stamps origin-airport coords onto arrival logistics.
+      lat: 45.63,
+      lng: 8.723,
+    };
+    const coords = resolveActivityCoordinates(act, manilaDay);
+    expect(coords).not.toBeNull();
+    expect(coords!.lat).toBeCloseTo(14.599, 1);
+    expect(coords!.lng).toBeCloseTo(120.984, 1);
+  });
+
+  it("focuses origin departure card on MXP", () => {
+    const originDay: DayPlan = {
+      day: 1,
+      date: "2026-10-23",
+      title: "Odhod",
+      morning: "",
+      afternoon: "",
+      evening: "",
+      city: "Milan",
+      lat: 45.63,
+      lng: 8.723,
+    };
+    const act: Activity = {
+      name: "Odhod: Milan (MXP)",
+      type: "TRANSPORT",
+      description: "Na mednarodni let pridi 2–3 ure pred odletom.",
+    };
+    const coords = resolveActivityCoordinates(act, originDay);
+    expect(coords).not.toBeNull();
+    expect(coords!.lat).toBeCloseTo(45.63, 1);
+  });
 });

@@ -78,6 +78,84 @@ function isTrainLike(activity: Activity): boolean {
   return /\b(vlak|train|rail)\b/i.test(activity.name);
 }
 
+function activityBlob(activity: Activity): string {
+  return `${activity.name} ${activity.description ?? ""}`;
+}
+
+/** Arrival-day logistics (“Prihod na letališče”) — map should go to destination hub, not origin MXP. */
+function isAirportArrivalLike(activity: Activity): boolean {
+  const t = activityBlob(activity);
+  return /prihod na letališč|airport arrival|\bpristane\b|\blands at\b|arrival hall|immigration|prevzem prtljag/i.test(
+    t,
+  );
+}
+
+function isAirportDepartureLike(activity: Activity): boolean {
+  const t = activityBlob(activity);
+  return /^(odhod|departure)\b|odhod:|departure:|odlet|home airport|prevoz na letališč|transfer to (?:the )?airport/i.test(
+    t,
+  );
+}
+
+function isDayHubLogistics(activity: Activity): boolean {
+  return (
+    isAirportArrivalLike(activity) ||
+    isAirportDepartureLike(activity) ||
+    /check-?\s*in|prevoz do hotela|transfer to hotel|osvežitev|short rest/i.test(activity.name)
+  );
+}
+
+/** Pick IATA coords nearest the day city (arrival on Manila day → MNL, not leftover MXP). */
+function iataCoordsNearDay(
+  text: string,
+  center: { lat: number; lng: number } | null,
+  prefer: "first" | "last" | "nearest",
+): { lat: number; lng: number } | null {
+  const codes = extractIataCodes(text);
+  if (!codes.length) return null;
+  if (prefer === "first") return coordsFromIata(text, "first");
+  if (prefer === "last") return coordsFromIata(text, "last");
+  if (!center) return coordsFromIata(text, "last");
+  let best: { lat: number; lng: number } | null = null;
+  let bestKm = Infinity;
+  for (const code of codes) {
+    const meta = DESTINATION_BY_IATA[code];
+    if (!meta) continue;
+    const km = haversineKm([meta.lng, meta.lat], [center.lng, center.lat]);
+    if (km < bestKm) {
+      bestKm = km;
+      best = { lat: meta.lat, lng: meta.lng };
+    }
+  }
+  return best;
+}
+
+function resolveAirportLogisticsCoords(
+  activity: Activity,
+  day: DayPlan,
+  center: { lat: number; lng: number } | null,
+): { lat: number; lng: number } | null {
+  const blob = activityBlob(activity);
+  if (isAirportDepartureLike(activity)) {
+    return (
+      iataCoordsNearDay(blob, center, "first") ??
+      iataCoordsNearDay(activity.name, center, "first") ??
+      center
+    );
+  }
+  if (isAirportArrivalLike(activity) || /letališč|airport/i.test(activity.name)) {
+    return (
+      iataCoordsNearDay(blob, center, "nearest") ??
+      lookupRegionCoords(day.city) ??
+      center
+    );
+  }
+  if (isDayHubLogistics(activity)) {
+    return center ?? lookupRegionCoords(day.city);
+  }
+  return null;
+}
+
 const WATER_OK =
   /snork|diving|potop|plavanje|swim|boat|čoln|maya bay|phi lay|bay tour|cruise|izlet z lad|kayak|kajak/i;
 const LAND_PREF =
@@ -116,6 +194,12 @@ export function resolveActivityCoordinates(
   const pin = findActivityPinFuzzy(day, activity);
   const center = dayCenter(day);
 
+  // Arrival/departure logistics often lack lat/lng or inherit origin-airport coords.
+  if (isDayHubLogistics(activity) || isAirportArrivalLike(activity) || isAirportDepartureLike(activity)) {
+    const hub = resolveAirportLogisticsCoords(activity, day, center);
+    if (hub) return hub;
+  }
+
   if (isFlightLike(activity)) {
     const first = coordsFromIata(activity.name, "first");
     const last = coordsFromIata(activity.name, "last");
@@ -149,6 +233,8 @@ export function resolveActivityCoordinates(
   let lng = activity.lng ?? pin?.lng;
 
   if (!isValidCoord(lat, lng)) {
+    const hub = resolveAirportLogisticsCoords(activity, day, center);
+    if (hub) return hub;
     // Never pin unknown POIs on the day city center — that stuck "Bangkok Art…" on Khao Sok.
     return null;
   }
@@ -156,6 +242,10 @@ export function resolveActivityCoordinates(
   if (center) {
     const distKm = haversineKm([lng, lat], [center.lng, center.lat]);
     if (distKm > MAX_DAY_PIN_KM) {
+      const hub = resolveAirportLogisticsCoords(activity, day, center);
+      if (hub && haversineKm([hub.lng, hub.lat], [center.lng, center.lat]) <= MAX_DAY_PIN_KM * 3) {
+        return hub;
+      }
       const dest = destinationFromRouteName(activity.name);
       if (dest && haversineKm([dest.lng, dest.lat], [center.lng, center.lat]) <= MAX_DAY_PIN_KM) {
         return dest;

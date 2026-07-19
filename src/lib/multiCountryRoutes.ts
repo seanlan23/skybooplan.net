@@ -1,4 +1,5 @@
 import { lookupDestination } from "@/lib/destinationCoords";
+import { templateToBlueprintBlocks } from "@/lib/curatedRoutes";
 import { extractTripIntent, type TripIntent } from "@/lib/tripIntent";
 
 export type RegionBlueprintBlock = { city: string; startDay: number; endDay: number };
@@ -6,38 +7,6 @@ export type RegionBlueprintBlock = { city: string; startDay: number; endDay: num
 /** @deprecated Use parseMinIslandDays from tripIntent.ts */
 export function parseMinIslandDaysFromWishes(wishes?: string): number | undefined {
   return extractTripIntent(wishes).minIslandDays;
-}
-
-function templateToBlueprintBlocks(
-  template: Array<[string, number]>,
-  nDays: number,
-): RegionBlueprintBlock[] {
-  const segments: Array<{ city: string; days: number }> = [];
-  const fixedDays = template.filter(([, d]) => d > 0).reduce((sum, [, d]) => sum + d, 0);
-  const flexCities = template.filter(([, d]) => d === 0);
-  const flexTotal = Math.max(0, nDays - fixedDays);
-  const flexEach = flexCities.length ? Math.max(1, Math.floor(flexTotal / flexCities.length)) : 0;
-
-  for (const [city, days] of template) {
-    segments.push({ city, days: days > 0 ? days : flexEach });
-  }
-
-  let day = 1;
-  const blocks: RegionBlueprintBlock[] = [];
-  for (let i = 0; i < segments.length; i++) {
-    const seg = segments[i]!;
-    const span = i === segments.length - 1 ? nDays - day + 1 : seg.days;
-    const endDay = Math.min(nDays, day + Math.max(1, span) - 1);
-    blocks.push({ city: seg.city, startDay: day, endDay });
-    day = endDay + 1;
-    if (day > nDays) break;
-  }
-
-  const last = blocks[blocks.length - 1];
-  if (last && last.endDay !== nDays) {
-    last.endDay = nDays;
-  }
-  return blocks;
 }
 
 export function wishesMentionVietnamAndThailand(

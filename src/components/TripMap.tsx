@@ -484,7 +484,7 @@ function createCityMarkerElement(
   activeDay?: number,
 ): { el: HTMLDivElement; root: Root } {
   const wrap = document.createElement("div");
-  wrap.className = `layla-city-marker${isActive ? " layla-city-marker--active" : ""}`;
+  wrap.className = `layla-city-marker mapbox-marker-root${isActive ? " layla-city-marker--active" : ""}`;
   wrap.addEventListener("click", (e) => {
     e.stopPropagation();
     onSelect?.(isActive && activeDay != null ? activeDay : stop.startDay);
@@ -562,11 +562,12 @@ function poiPhotoMarkerClass(
   isFocused: boolean,
   isDimmed = false,
 ): string {
+  // No Tailwind `scale-*` — scale uses transform and fights Mapbox marker positioning.
   if (isFocused) {
-    return `${POI_PHOTO_MARKER_BASE} border-amber-500 ring-[3px] ring-amber-400 ring-offset-2 shadow-lg z-[10] scale-[1.14]`;
+    return `${POI_PHOTO_MARKER_BASE} border-amber-500 ring-[3px] ring-amber-400 ring-offset-2 shadow-lg z-[10]`;
   }
   if (isDimmed) {
-    return `${POI_PHOTO_MARKER_BASE} opacity-35 scale-[0.88]`;
+    return `${POI_PHOTO_MARKER_BASE} opacity-35`;
   }
   return `${POI_PHOTO_MARKER_BASE}${
     isDayActive ? " ring-2 ring-sky-400/50 ring-offset-1 z-[6]" : " opacity-90"
@@ -588,7 +589,7 @@ function createPoiMarkerElement(
 ): { el: HTMLDivElement; root: Root | null; photoEl?: HTMLDivElement } {
   const el = document.createElement("div");
   el.className =
-    "trip-map-poi-marker pointer-events-auto flex shrink-0 cursor-pointer flex-col items-center overflow-visible";
+    "trip-map-poi-marker mapbox-marker-root pointer-events-auto flex shrink-0 cursor-pointer flex-col items-center overflow-visible";
   el.title = pin.name;
   el.appendChild(poiLabelElement(pin.name));
 
