@@ -17,6 +17,7 @@ import {
 import { createTripPlanStream } from "@/lib/geminiPro";
 import { partialTripPlanToPreviewPlan } from "@/lib/geminiStreamMap";
 import {
+  applyFlightContextIfPresent,
   buildCatalogPlanFromResponse,
   buildGeminiMapOpts,
 } from "@/lib/geminiProCatalog";
@@ -31,8 +32,12 @@ const generateInput = generateGeminiProTripInputSchema.transform((data) => ({
 
 type StreamEvent =
   | { type: "partial"; plan: unknown; dayCount: number; expectedDays: number }
+  | { type: "ping"; dayCount: number; expectedDays: number }
   | { type: "done"; plan: unknown }
   | { type: "error"; error: string };
+
+/** Keep client idle watchdog alive while Gemini refines the same day (no new dayCount). */
+const PING_EVERY_MS = 20_000;
 
 function ndjson(event: StreamEvent): Uint8Array {
   return new TextEncoder().encode(`${JSON.stringify(event)}\n`);
@@ -99,19 +104,36 @@ export const Route = createFileRoute("/api/generate-itinerary")({
               const result = createTripPlanStream(planParams, { abortSignal });
 
               let lastDayCount = 0;
+              let lastPingAt = 0;
               for await (const partial of result.partialObjectStream) {
                 if (abortSignal.aborted) break;
                 stallWatchdog.bump();
                 const preview = partialTripPlanToPreviewPlan(partial, mapOpts);
                 const dayCount = preview?.days.length ?? 0;
                 if (preview && dayCount > lastDayCount) {
+                  // Apply flight rewrite on EVERY partial — otherwise UI shows Phuket
+                  // breakfast + Munich airport on day 1 while "Generiram… 10/16".
+                  applyFlightContextIfPresent(preview, data);
                   lastDayCount = dayCount;
+                  lastPingAt = Date.now();
                   push({
                     type: "partial",
                     plan: preview,
                     dayCount,
                     expectedDays,
                   });
+                } else {
+                  // Gemini often spends >100s polishing one day without increasing dayCount.
+                  // Without bytes on the wire, the client idle timer aborts the stream.
+                  const now = Date.now();
+                  if (now - lastPingAt >= PING_EVERY_MS) {
+                    lastPingAt = now;
+                    push({
+                      type: "ping",
+                      dayCount: lastDayCount,
+                      expectedDays,
+                    });
+                  }
                 }
               }
 

@@ -47,6 +47,11 @@ export type TripFlightContext = {
   outboundArriveDayOffset: number;
   inboundDepart?: string;
   inboundArrive?: string;
+  /** Stops on outbound / inbound (0 = nonstop). Undefined = unknown. */
+  outboundStops?: number;
+  inboundStops?: number;
+  outboundVia?: string;
+  inboundVia?: string;
 };
 
 export type LogisticsActivity = {
@@ -54,10 +59,17 @@ export type LogisticsActivity = {
   type: string;
   description: string;
   priceLabel?: string;
+  arrivalTime?: string;
+  departureTime?: string;
 };
 
 function parseHm(hm: string): number {
-  const [h, m] = hm.split(":").map((x) => Number(x));
+  // Accept "18:55", "18:55+1", "18.55"
+  const cleaned = hm.trim().replace(/\+\d+\s*$/, "");
+  const match = cleaned.match(/(\d{1,2})[:.](\d{2})/);
+  if (!match) return 0;
+  const h = Number(match[1]);
+  const m = Number(match[2]);
   if (!Number.isFinite(h) || !Number.isFinite(m)) return 0;
   return h * 60 + m;
 }
@@ -189,8 +201,14 @@ export function buildFlightSchedulingPayload(
 }
 
 export function flightContextFromLegs(
-  outbound: { depart: string; arrive: string; arriveDayOffset: number },
-  inbound?: { depart: string; arrive: string },
+  outbound: {
+    depart: string;
+    arrive: string;
+    arriveDayOffset: number;
+    stops?: number;
+    via?: string;
+  },
+  inbound?: { depart: string; arrive: string; stops?: number; via?: string },
 ): TripFlightContext {
   return {
     outboundDepart: outbound.depart,
@@ -198,6 +216,10 @@ export function flightContextFromLegs(
     outboundArriveDayOffset: outbound.arriveDayOffset,
     inboundDepart: inbound?.depart,
     inboundArrive: inbound?.arrive,
+    ...(outbound.stops != null ? { outboundStops: outbound.stops } : {}),
+    ...(inbound?.stops != null ? { inboundStops: inbound.stops } : {}),
+    ...(outbound.via ? { outboundVia: outbound.via } : {}),
+    ...(inbound?.via ? { inboundVia: inbound.via } : {}),
   };
 }
 
@@ -218,13 +240,10 @@ export function isRedEyeArrival(flights?: TripFlightContext): boolean {
   return flights.outboundArriveDayOffset > 0 && parseHm(flights.outboundArrive) < 12 * 60;
 }
 
-/** Evening / night landing — light day only. Morning red-eye is NOT “late” for slot placement. */
+/** Evening / late-afternoon landing — light day only. 17:55 must NOT be treated as a free afternoon. */
 export function isLateArrival(flights?: TripFlightContext): boolean {
   if (!flights) return false;
-  const arriveMin = parseHm(flights.outboundArrive);
-  if (arriveMin >= 20 * 60) return true;
-  if (arriveMin >= 18 * 60) return true;
-  return false;
+  return parseHm(flights.outboundArrive) >= 17 * 60;
 }
 
 /** Which UI block (dopoldan/popoldan/večer) matches the real landing time. */
@@ -233,7 +252,8 @@ export function arrivalDaySlot(
 ): "morning" | "afternoon" | "evening" {
   if (!flights) return "afternoon";
   const arriveMin = parseHm(flights.outboundArrive);
-  if (arriveMin >= 18 * 60) return "evening";
+  // 17:00+ → evening (Etihad MUC→HKT 17:55 must not unlock “dopoldan/popoldan” fillers).
+  if (arriveMin >= 17 * 60) return "evening";
   if (arriveMin >= 12 * 60) return "afternoon";
   return "morning";
 }
@@ -309,13 +329,20 @@ export function buildArrivalLogistics(
   const late = isLateArrival(flights);
   const airportHint = airportArrivalHint(city, locale);
 
+  const landHm = flights?.outboundArrive?.trim() || "14:00";
+  // Rough transfer window after wheels-down (immigration + bag + taxi).
+  const transferEnd = addHmMinutes(landHm, 90);
+  const checkInEnd = addHmMinutes(landHm, 150);
+
   return [
     {
       name: slo ? "Prihod na letališče" : "Airport arrival",
       type: "TRANSPORT",
+      arrivalTime: landHm,
+      departureTime: transferEnd,
       description: slo
-        ? `Let pristane ob približno ${arriveLabel}. Po izhodu sledi kontrola, prevzem prtljage in orientacija v arrival hallu. ${airportHint}`
-        : `Your flight lands around ${arriveLabel}. Clear immigration, collect luggage, and orient yourself in arrivals. ${airportHint}`,
+        ? `Polet pristane na destinaciji ob ${arriveLabel} po lokalnem času (NE izmišljena ura). Po izhodu sledi kontrola, prevzem prtljage in orientacija v arrival hallu. ${airportHint}`
+        : `Your flight lands at ${arriveLabel} local time (do not invent another time). Clear immigration, collect luggage, and orient yourself in arrivals. ${airportHint}`,
     },
     {
       name: motorhome
@@ -327,6 +354,8 @@ export function buildArrivalLogistics(
           : `Transfer to hotel (${locale.transferLabel})`,
       type: "TRANSPORT",
       priceLabel: locale.transferPrice,
+      arrivalTime: landHm,
+      departureTime: transferEnd,
       description: motorhome
         ? slo
           ? `Z letališča do najemnice avtodoma ali prvega avtokampa izven mestnega jedra. V center mesta kasneje z javnim prevozom ali P+R — ne parkiraj RV-ja v centru.`
@@ -336,6 +365,8 @@ export function buildArrivalLogistics(
     {
       name: slo ? "Check-in, osvežitev in kratek odmor" : "Check-in, refresh, and short rest",
       type: "STAY",
+      arrivalTime: transferEnd,
+      departureTime: checkInEnd,
       description: slo
         ? late
           ? motorhome
@@ -353,6 +384,15 @@ export function buildArrivalLogistics(
             : `Check in, freshen up, hydrate, and rest 1–2 hours after the flight. Only then continue with planned sights — don't rush straight from the airport.`,
     },
   ];
+}
+
+/** Add minutes to "HH:MM" (wraps past midnight for display only). */
+export function addHmMinutes(hm: string, add: number): string {
+  const base = parseHm(hm);
+  const total = ((base + add) % (24 * 60) + 24 * 60) % (24 * 60);
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
 /** Last day: checkout / RV return → airport timing based on return flight. */

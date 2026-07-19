@@ -35,6 +35,25 @@ describe("classifyTransportMode", () => {
     ).toBe("driving");
   });
 
+  it("uses driving for explicit transportation van even without cityChanged flag", () => {
+    const krabiDay = day({
+      day: 5,
+      city: "Krabi",
+      title: "Travel to Krabi",
+      transportation: [
+        {
+          type: "van",
+          from: "Phuket Patong",
+          to: "Ao Nang, Krabi",
+          duration: "2h 30min",
+          estimatedPrice: 18,
+        },
+      ],
+    });
+
+    expect(classifyTransportMode(krabiDay, 160, { cityChanged: false })).toBe("driving");
+  });
+
   it("uses flight arc when day explicitly mentions a flight", () => {
     const flightDay = day({
       day: 5,

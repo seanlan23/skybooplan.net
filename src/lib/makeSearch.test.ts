@@ -220,6 +220,21 @@ describe("travelDurationMinutes", () => {
     expect(mins).toBeGreaterThan(7 * 60);
     expect(mins).toBeLessThan(10 * 60);
   });
+
+  it("westbound prefers Duffel duration when TZ overshoots (HKT→MUC)", () => {
+    // Local clocks imply ~20h30 TZ, but airline total is 14h45 (≠ naive 14h30).
+    expect(
+      travelDurationMinutes({
+        departHm: "15:30",
+        arriveHm: "06:00",
+        departDate: "2026-11-10",
+        arriveDayOffset: 1,
+        fromIata: "HKT",
+        toIata: "MUC",
+        storedLabel: "14h 45m",
+      }),
+    ).toBe(14 * 60 + 45);
+  });
 });
 
 describe("parseMakeSearchFlights", () => {

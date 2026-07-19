@@ -2,6 +2,18 @@ export type OpenInGoogleMapsResult =
   | { ok: true }
   | { ok: false; reason: "invalid_coords" | "no_window" };
 
+export type GoogleMapsNavOptions = {
+  /** Display/query hint (reserved); directions use lat/lng for reliable deep links. */
+  label?: string;
+  originLat?: number;
+  originLng?: number;
+  /** Place names (e.g. "Rassada Pier, Phuket") — better ferry lines than bare coords. */
+  originQuery?: string;
+  destinationQuery?: string;
+  /** Default driving so intercity vans don't open as flights from "Your location". */
+  travelMode?: "driving" | "walking" | "transit" | "bicycling";
+};
+
 /** Validates WGS84 coords suitable for Google Maps deep links. */
 export function isValidNavCoord(lat: unknown, lng: unknown): lat is number {
   if (typeof lat !== "number" || typeof lng !== "number") return false;
@@ -11,23 +23,46 @@ export function isValidNavCoord(lat: unknown, lng: unknown): lat is number {
   return lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
 }
 
-/** Stateless Google Maps Directions deep link (no KML/GPX). */
-export function buildGoogleMapsDirectionsUrl(lat: number, lng: number): string {
+/**
+ * Google Maps Directions deep link.
+ * Always sets travelmode (default driving). When origin is provided (transfer leg),
+ * Maps routes from→to instead of "Your location" → flight across the globe.
+ */
+export function buildGoogleMapsDirectionsUrl(
+  lat: number,
+  lng: number,
+  opts?: GoogleMapsNavOptions,
+): string {
+  const travelmode = opts?.travelMode ?? "driving";
+  const destination =
+    opts?.destinationQuery?.trim() || `${lat},${lng}`;
   const params = new URLSearchParams({
     api: "1",
-    destination: `${lat},${lng}`,
+    destination,
+    travelmode,
   });
+
+  const originQuery = opts?.originQuery?.trim();
+  if (originQuery) {
+    params.set("origin", originQuery);
+  } else if (
+    opts?.originLat != null &&
+    opts?.originLng != null &&
+    isValidNavCoord(opts.originLat, opts.originLng)
+  ) {
+    params.set("origin", `${opts.originLat},${opts.originLng}`);
+  }
+
   return `https://www.google.com/maps/dir/?${params.toString()}`;
 }
 
 /**
  * Opens Google Maps directions to `destination` in a new tab.
- * @param label Reserved for future place-name queries; coords-only link per spec.
  */
 export function openInGoogleMaps(
   lat: number,
   lng: number,
-  _label?: string,
+  labelOrOpts?: string | GoogleMapsNavOptions,
 ): OpenInGoogleMapsResult {
   if (!isValidNavCoord(lat, lng)) {
     return { ok: false, reason: "invalid_coords" };
@@ -36,7 +71,10 @@ export function openInGoogleMaps(
     return { ok: false, reason: "no_window" };
   }
 
-  const url = buildGoogleMapsDirectionsUrl(lat, lng);
+  const opts: GoogleMapsNavOptions =
+    typeof labelOrOpts === "string" ? { label: labelOrOpts } : (labelOrOpts ?? {});
+
+  const url = buildGoogleMapsDirectionsUrl(lat, lng, opts);
   window.open(url, "_blank", "noopener,noreferrer");
   return { ok: true };
 }

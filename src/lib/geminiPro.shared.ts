@@ -283,6 +283,10 @@ export type GenerateTripPlanParams = {
     outboundArriveDayOffset: number;
     inboundDepart?: string;
     inboundArrive?: string;
+    outboundStops?: number;
+    inboundStops?: number;
+    outboundVia?: string;
+    inboundVia?: string;
   };
 };
 

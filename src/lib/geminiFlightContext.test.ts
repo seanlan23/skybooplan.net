@@ -118,7 +118,7 @@ describe("flightContextPromptBlock", () => {
     expect(block).toContain("21:10");
     expect(block).toContain("17:55");
     expect(block).toContain('departure_time = "15:30"');
-    expect(block).toContain("IZJEMA");
+    expect(block).toContain("PRIORITETA NAD");
   });
 });
 
@@ -138,9 +138,13 @@ describe("applyFlightContextToGeminiPlan", () => {
     );
 
     expect(plan.days[0]?.inFlightDay).toBe(true);
-    const day1Names = (plan.days[0]?.activities?.morning ?? []).map((a) => a.name).join(" | ");
-    expect(day1Names).toMatch(/Odhod|MUC/i);
-    expect(day1Names).toMatch(/Mednarodni let/i);
+    expect(plan.days[0]?.title).toMatch(/Odhod|let/i);
+    const day1Names = (plan.days[0]?.activities?.morning ?? []).map((a) => a.name);
+    expect(day1Names.join(" | ")).toMatch(/Odhod|MUC/i);
+    expect(day1Names.join(" | ")).toMatch(/Mednarodni let/i);
+    expect(day1Names.some((n) => /Zajtrk|Siesta|plaž/i.test(n))).toBe(false);
+    expect(plan.days[0]?.activities?.afternoon ?? []).toEqual([]);
+    expect(plan.days[0]?.activities?.evening ?? []).toEqual([]);
 
     const arrival = plan.days[1];
     expect(arrival?.inFlightDay).toBeFalsy();
@@ -156,5 +160,56 @@ describe("applyFlightContextToGeminiPlan", () => {
     expect(lastText).toContain("15:30");
     expect(lastText).toContain("06:00");
     expect(lastText).not.toContain("23:00");
+  });
+
+  it("clears breakfast/siesta and stamps 17:55 when landing late afternoon (+1d)", () => {
+    const plan = basePlan();
+    plan.days[1]!.activities = {
+      morning: [
+        {
+          name: "Zajtrk ob morju",
+          type: "FOOD",
+          description: "Zajtrk v beach café — počasi pred izletom",
+        },
+      ],
+      afternoon: [
+        {
+          name: "Siesta / bazen",
+          type: "ACTIVITY",
+          description: "Tropska pavza 13:00–16:00 — bazen ali senčnik",
+        },
+      ],
+      evening: [
+        {
+          name: "Večer na plaži",
+          type: "ACTIVITY",
+          description: "Sprehod",
+        },
+      ],
+    };
+
+    applyFlightContextToGeminiPlan(
+      plan,
+      {
+        outboundDepart: "21:10",
+        outboundArrive: "17:55",
+        outboundArriveDayOffset: 1,
+        inboundDepart: "15:30",
+        inboundArrive: "06:00",
+      },
+      { originIata: "MUC", language: "sl" },
+    );
+
+    const arrival = plan.days[1]!;
+    const morning = JSON.stringify(arrival.activities?.morning ?? []);
+    const afternoon = JSON.stringify(arrival.activities?.afternoon ?? []);
+    expect(morning).not.toMatch(/Zajtrk|breakfast/i);
+    expect(afternoon).not.toMatch(/Siesta|Tropska|bazen/i);
+    expect(arrival.activities?.morning ?? []).toEqual([]);
+    expect(arrival.activities?.afternoon ?? []).toEqual([]);
+    const eveningText = JSON.stringify(arrival.activities?.evening ?? []);
+    expect(eveningText).toMatch(/17:55/);
+    expect(eveningText).not.toMatch(/12:00/);
+    expect(eveningText).toMatch(/transfer|check|Prihod|hotel|letališ/i);
   });
 });

@@ -31,6 +31,10 @@ import {
 } from "@/lib/planCurrency";
 import { languageWritingRule } from "@/lib/tripLocale";
 import { buildCuratedRoutePromptBlock } from "@/lib/curatedRoutes";
+import {
+  buildUserStayPlanPromptBlock,
+  hasExplicitStayPlan,
+} from "@/lib/userStayPlan";
 import { flightContextPromptBlock } from "@/lib/geminiFlightContext";
 import { lookupDestination } from "@/lib/destinationCoords";
 import { DISTANCE_TRANSPORT_RULES } from "@/lib/transportPromptRules";
@@ -74,6 +78,89 @@ const PACE_LABELS: Record<NonNullable<GenerateTripPlanParams["pace"]>, string> =
   relaxed: "sproščen",
   calm: "miren",
 };
+
+/**
+ * Single source of truth for priority / day slots / pace — injected into system + user prompts
+ * so Gemini cannot invent “full day before landing” or ignore an explicit stay plan.
+ */
+export function tripPlanControlRules(params: {
+  pace?: GenerateTripPlanParams["pace"];
+  hasFlightContext: boolean;
+  explicitStayPlan: boolean;
+  arrivalCity: string;
+  destinationIata: string;
+  arrivalDay: number;
+  groundTransport?: boolean;
+}): string {
+  const pace = params.pace ?? "relaxed";
+  const lightPace = pace === "calm" || pace === "relaxed";
+  const arrivalDay = Math.max(1, params.arrivalDay);
+
+  const paceBlock =
+    pace === "intensive"
+      ? `- TEMPO INTENZIVEN: 3–4 aktivnosti/dan je OK, a še vedno realni odmori za prevoz in hrano.
+- Ne packaj dveh težkih celodnevnih izletov isti dan.`
+      : pace === "calm"
+        ? `- TEMPO MIREN / UMIRJEN (obvezno — uporabnik ne želi napora):
+  • Tipično 1–2 lahki aktivnosti na poln dan (ne 3 težke).
+  • Vsak dan naj ima prostor za počitek (bazen, plaža, siesta, počasen zajtrk) — to NI “filler”, to je namen.
+  • PREPOVEDANO: celodnevni treking + dolg transfer + nočni program isti dan.
+  • Premiki med bazami: samo transfer + check-in + lahka večerja; brez “raziskovanja okolice” isti dan.
+  • pois[] na fazo: 2–4 (ne 6) — kakovost pred količino.`
+        : `- TEMPO SPROŠČEN (obvezno — ne naporen itinerar):
+  • Tipično 2 aktivnosti na poln dan + večerja/sprehod; ne polni dopoldan+popoldan+večer z “must-see” vsak slot.
+  • Po dolgem transferju (≥2h): samo check-in + lahka aktivnost.
+  • PREPOVEDANO: nabijanje 4+ ogledov ali “tropska pavza” kot lažni program pred dejanskim prihodom.
+  • pois[] na fazo: 3–4 dovolj.`;
+
+  const preArrival =
+    arrivalDay > 1
+      ? `• Dnevi 1–${arrivalDay - 1}: samo odhod/let — BREZ plaže, zajtrka ob morju, sieste na destinaciji.`
+      : `• Pristaneš na dan 1 — pred uro pristanka ni destinacijskih aktivnosti.`;
+
+  const flightDayBlock = params.groundTransport
+    ? `- Potovanje po kopnem: dnevi so polni glede na tempo zgoraj.`
+    : params.hasFlightContext
+      ? `- LET IMA PREDNOST PRED “POLNIM DNEVOM”:
+  • Dan prihoda = dan ${arrivalDay} (ne izmišljuj zgodnejšega prihoda).
+  ${preArrival}
+  • Na dan ${arrivalDay}: aktivnosti SAMO v časovnih slotih PO uri pristanka (glej IZBRANI LET). Pred pristankom = prazni sloti.
+  • PREPOVEDANO: “Zajtrk ob morju”, “Tropska pavza”, bazen ali promenada, če let še ni pristal.
+  • Dan odhoda: po uri odhoda na letališče ni novih ogledov.`
+      : `- Če ni izbranega leta: dan 1 = prihod v ${params.arrivalCity} (${params.destinationIata}), lahek program.`;
+
+  const stayBlock = params.explicitStayPlan
+    ? `- UPORABNIKOV RAZPORED MEST/NOČI ima ABSOLUTNO PREDNOST pred limito “max 3–4 baze”, unikatnostjo mest in kurirano Andaman potjo.
+- Vrnitev na Phuket/Patong za odhod je dovoljena, če je v željah.`
+    : `- Brez eksplicitnega razporeda: drži enosmerni lok in razumno število baz (glej PRILAGODITEV TRAJANJU).`;
+
+  return `
+=== HIERARHIJA PRAVIL (obvezno — ob konfliktu zmaga višje) ===
+1) Uporabnikove želje / razpored mest in noči
+2) IZBRANI LET (realne ure prihoda/odhoda) — prazni sloti pred pristankom
+3) Tempo potovanja (${PACE_LABELS[pace]}) — lahek program, ne naporen
+4) Kurirana pot / limity baz (samo če točki 1 ni)
+5) “Poln dan” (dopoldan/popoldan/večer) — SAMO na polnih dneh na destinaciji, ko ni konflikta z 2–3
+
+${stayBlock}
+
+${flightDayBlock}
+
+TEMPO IN OBREMENITEV:
+${paceBlock}
+
+ČASOVNA STRUKTURA DNEVA (fleksibilno — tempo in let imata prednost):
+- Na POLNIH dneh na destinaciji (po prihodu, pred odhodom, brez dolgega transferja): smiselno zapolni slot glede na tempo — miren/sproščen = pogosto 1 prazen slot (počitek).
+- Na dan prihoda/odhoda/dolg transfer: prazni sloti SO PRAVILNI in zaželeni.
+- PREPOVEDANO polniti prazne slote z izmišljenim “programom” samo zato, da so vsi trije timeSlot-i zasedeni.
+- Aktivnosti ene baze / dneva NE smejo “prehitevati” naslednje baze (npr. dan v Ao Nangu ≠ trajekt na Koh Phi Phi; to šele na dnevu premika).
+
+FAZE vs DNEVI (brez mešanja):
+- itinerar[].pois[] = samo znamenitosti TE faze/baze.
+- days[].activities in transportation[] = samo ta koledarski dan.
+- Naslednji premik (npr. Ao Nang → Phi Phi) gre na dan ODHODA, ne na prvi dan bivanja.
+===`.trim();
+}
 
 /** Shared LLM rules for per-day travel hacks and transport logic (system + user prompt). */
 export function itineraryHacksAndTransportRules(displayCurrency: PlanCurrency): string {
@@ -165,8 +252,11 @@ function buildTripPlanPrompt(params: GenerateTripPlanParams): string {
   const priorities =
     params.priorities?.length ? params.priorities.join(", ") : "brez posebnih prioritet";
 
+  const wishBlob = wishesBlob(params);
+  const explicitStayPlan = hasExplicitStayPlan(wishBlob || customWishes);
+
   const maxBases =
-    motorhome || roadTrip
+    explicitStayPlan || motorhome || roadTrip
       ? params.days
       : params.days <= 9
         ? 2
@@ -179,8 +269,10 @@ function buildTripPlanPrompt(params: GenerateTripPlanParams): string {
   const tvojeZeljeBlock = customWishes
     ? `
 
-=== TVOJE ŽELJE (obvezno upoštevaj dosledno v celotnem načrtu) ===
+=== TVOJE ŽELJE (ABSOLUTNA PREDNOST — pred kurirano potjo in limito baz) ===
 ${customWishes}
+
+Če želje vsebujejo razpored mest z dnevi/nočmi (npr. "3 dni Khao Sok"): itinerar[] in days[].city MORATA slediti temu razporedu. PREPOVEDANO ga zamenjati s "tipično" Andaman potjo (Koh Lipe ipd.), če uporabnik tega ni prosil.
 ===`
     : "";
 
@@ -246,61 +338,96 @@ Takoj za tem nadaljuj s kratkim narativnim uvodom o poti (največ 1–2 stavka �
     language: lang,
   });
 
+  const userStayPlanBlock = buildUserStayPlanPromptBlock(
+    wishBlob || customWishes,
+    params.days,
+  );
+
   const curatedRouteBlock = buildCuratedRoutePromptBlock({
     nDays: params.days,
     destinationIata: params.destinationIata,
     priorities: params.priorities,
-    wishes: wishesBlob(params),
+    wishes: wishBlob,
     returnFromIata: params.returnFromIata,
+    skipForUserStayPlan: explicitStayPlan,
   });
 
   const arrivalCityName =
     lookupDestination(params.destinationIata)?.name ??
     params.destinationPlace ??
     params.destination;
+  const arrivalDayNum = 1 + (params.flightContext?.outboundArriveDayOffset ?? 0);
+  const controlRules = tripPlanControlRules({
+    pace: params.pace,
+    hasFlightContext: Boolean(params.flightContext && !params.groundTransportMode),
+    explicitStayPlan,
+    arrivalCity: arrivalCityName,
+    destinationIata: params.destinationIata,
+    arrivalDay: arrivalDayNum,
+    groundTransport: Boolean(params.groundTransportMode),
+  });
   const arrivalDayRule = params.groundTransportMode
     ? ""
-    : `- Dan 1 = ${arrivalCityName} (prihod na ${params.destinationIata}). Prepovedan notranji let stran z letališča prihoda na dan 1.`;
+    : arrivalDayNum > 1
+      ? `- Dan prihoda na destinacijo = dan ${arrivalDayNum} v ${arrivalCityName} (${params.destinationIata}). Dnevi pred tem = samo let — brez destinacijskih aktivnosti. Prepovedan notranji let stran z letališča prihoda na dan prihoda.`
+      : `- Dan 1 = ${arrivalCityName} (prihod na ${params.destinationIata}). Prepovedan notranji let stran z letališča prihoda na dan 1.`;
+
+  const poisPerPhase = lightPacePoisHint(params.pace);
 
   return `Ustvari ${params.days}-dnevni načrt potovanja za lokacijo: ${params.destination} v mesecu ${params.month}.
 ${teaserBlock}
 ${travelReqBlock}
+${controlRules}
+${userStayPlanBlock ?? ""}
 ${curatedRouteBlock ?? ""}
 ${tvojeZeljeBlock}${motorhomeBlock}${groundTransportBlock}
 
 Let: ${route}.
 Datumi: ${dates} (${params.days} dni).
 Potniki: ${formatPaxForPrompt(params.pax)}.
-Tempo potovanja: ${pace}.
+Tempo potovanja: ${pace} — spoštuj TEMPO IN OBREMENITEV zgoraj (ne naporen itinerar).
 Kaj jih zanima: ${priorities}.
 Proračun: ${BUDGET_LABELS[params.budget]}.
 Posebne zahteve (oznake): ${wishes}.
 
 Obvezna logistična pravila za ta načrt:
-- ${motorhome || roadTrip ? `Načrtuj ${maxBases} postaj vzdolž enosmerne poti (road trip — vsak dan ali vsak drug dan nova postaja ob cesti).` : `Največ ${maxBases} glavne baze (mesta/regije) za ${params.days} dni — brez skakanja sem in tja po državi.`}
-- Enosmerna geografska pot (en jasen lok); brez vračanja v že obiskana mesta.
+- ${
+    explicitStayPlan
+      ? `Število in vrstni red baz = NATANKO po UPORABNIKOVEM RAZPOREDU zgoraj (ne skrči na tipičnih ${Math.min(4, params.days)} baz).`
+      : motorhome || roadTrip
+        ? `Načrtuj ${maxBases} postaj vzdolž enosmerne poti (road trip — vsak dan ali vsak drug dan nova postaja ob cesti).`
+        : `Največ ${maxBases} glavne baze (mesta/regije) za ${params.days} dni — brez skakanja sem in tja po državi.`
+  }
+- ${explicitStayPlan ? "Sledi uporabnikovemu vrstnemu redu mest (lahko se vrneš na Phuket/Patong za odhod, če je to v razporedu)." : "Enosmerna geografska pot (en jasen lok); brez vračanja v že obiskana mesta."}
 ${arrivalDayRule}
 ${flightReturnLine}
 - Za vsako fazo obvezno izpolni city (angleško ime), lat in lng (centrum mesta ali kamp ob poti).
 - Vsaka aktivnost mora imeti category (sightseeing, nature, beach, food, entertainment, hotel, airport) in koordinate za oglede.
+- PREPOVEDANO: Grand Palace, Wat Pho, Wat Arun, Khao San na dnevih zunaj Bangkoka (npr. Khao Sok, Phuket, Krabi, Ao Nang). To so samo Bangkok znamenitosti.
 - Vsaka aktivnost mora imeti arrivalTime in departureTime v formatu "HH:MM" (npr. "09:00", "11:30") — realen časovni okvir obiska.
 - Vsaka aktivnost mora imeti timeSlot: "dopoldan", "popoldan" ali "vecer".
-- STROGA ČASOVNA STRUKTURA: Vsak dan mora vsebovati strukturirane aktivnosti za DOPOLDAN, POPOLDAN in VEČER — razen na dan prihoda/odhoda, kjer so prazni sloti pred/za letom obvezni (glej IZBRANI LET). Ure obiska (arrivalTime, departureTime) morajo biti tekoče in realistične, brez prekrivanj.
+- ČASOVNA STRUKTURA: glej HIERARHIJA PRAVIL zgoraj — prazni sloti pred/za letom in ob mirnem tempu SO dovoljeni; ne polni dneva na silo.
 - Vsak dan obvezno izpolni travelHack (unikaten insider nasvet) in transportTip (dnevni pregled prevoza) — glej podrobna pravila spodaj.
 - Za dni z notranjim letom, trajektom, kombijem ali vlakom obvezno izpolni transportation[] (type: flight|ferry|train|van, from, to, duration, estimatedPrice v ${displayCurrency}). Za otok z letališčem na celini (npr. Boracay/MPH) obvezno 3 koraki: let → kombi → trajekt.
 - Vsak dan (days[]) mora imeti dailyBudget (EUR), drivingDistanceKm (km vožnje tistega dne) in drivingDurationHours (npr. "3h 45m").
 - Polje days[].date mora biti vedno v ISO obliki YYYY-MM-DD (npr. "2026-08-14") — ne slovenskega datuma; day_name je lahko "Sobota, 14. avgust".
-- Za vsako fazo (itinerar[]) obvezno generiraj pois[] — vsaj 3–6 znamenitosti z name, description, lat, lng, unsplashQuery, tripAdvisorStyleDetails (highlights, proTip, bestTimeOfDay, rating, reviewSummary).
+- Za vsako fazo (itinerar[]) generiraj pois[] — ${poisPerPhase} z name, description, lat, lng, unsplashQuery, tripAdvisorStyleDetails (highlights, proTip, bestTimeOfDay, rating, reviewSummary). Samo POI te baze.
 - UNSPLASH ISKANJE SLIK (obvezno): Za vsako fazo (itinerar[]) izpolni unsplashQuery z čistim angleškim izrazom za mesto (npr. "Dubai", ne "Dubaj"). Za vsak POI (pois[]) in vsako aktivnost z ogledom izpolni unsplashQuery z uradnim angleškim imenom znamenitosti (npr. "Burj Khalifa", ne "Burj Kalifa"). Brez slovenskih črk — samo angleščina, kot jo uporablja Unsplash/Google.
 - Vsaka aktivnost z ogledom mora imeti tripAdvisorStyleDetails (razen hotel/airport).
-- Vsak dan mora imeti vsaj 2–4 smiselne aktivnosti z opisi — prazni dnevi niso dovoljeni.
+- Na polnih dneh: smiselno število aktivnosti glede na tempo (miren ≈ 1–2, sproščen ≈ 2, intenziven ≈ 3–4). Na dan prihoda/odhoda/transferja je manj OK — ne izmišljuj fillerja.
 
-Opisi aktivnosti morajo biti izjemno podrobni, zanimivi in dolgi vsaj 3–4 stavke (ne kratki!). Vsaka aktivnost mora imeti estimatedCostEur (realna cifra v ${displayCurrency}). day_name zapisuj s polnimi imeni mesecev (npr. "Sobota, 14. avgust"). season_warning naj bo geografsko natančen za ${params.destination}.
+Opisi aktivnosti naj bodo konkretni (2–4 stavke), ne eseji. Vsaka aktivnost mora imeti estimatedCostEur (realna cifra v ${displayCurrency}). day_name zapisuj s polnimi imeni mesecev (npr. "Sobota, 14. avgust"). season_warning naj bo geografsko natančen za ${params.destination}.
 
 ${itineraryHacksAndTransportRules(displayCurrency)}
 
 ${selectedFlightBlock}
 ${lastDayBlock}${flightReturnClosing}`;
+}
+
+function lightPacePoisHint(pace?: GenerateTripPlanParams["pace"]): string {
+  if (pace === "calm") return "2–4 znamenitosti (ne več)";
+  if (pace === "intensive") return "vsaj 3–6 znamenitosti";
+  return "3–4 znamenitosti (dovolj za sproščen tempo)";
 }
 
 /** Structured trip-plan JSON — override via GEMINI_TRIP_PLAN_MODEL in .env / Vercel. */
@@ -326,6 +453,7 @@ const tripPlanGenerationConfig = {
 export function tripPlanSystemPrompt(params: GenerateTripPlanParams): string {
   const motorhome = isMotorhomeTrip(params);
   const roadTrip = isRoadTripRequest(params);
+  const explicitStayPlan = hasExplicitStayPlan(wishesBlob(params));
   const motorhomeRules = motorhome ? motorhomePromptRules(true) : "";
   const lastDayBlock = lastDayReturnPromptBlock({
     groundTransportMode: params.groundTransportMode,
@@ -336,8 +464,14 @@ export function tripPlanSystemPrompt(params: GenerateTripPlanParams): string {
   const flightReturnEuRule = params.groundTransportMode
     ? `- Če je prevoz avto/vlak/avtodom: trip_metadata.return_flight_eu NE izpolnjuj — potnik se vrne z istim prevozom na izhodišče (${params.originPlace ?? "domov"}), ne z letalom.`
     : params.flightContext?.inboundDepart
-      ? `- trip_metadata.return_flight_eu: uporabi NATANKO ure iz IZBRANI LET (departure_time=${params.flightContext.inboundDepart}, arrival_time_eu=${params.flightContext.inboundArrive ?? ""}) — ne izmišljaj drugih.`
-      : `- Na zadnjem dnevu logistike obvezno generiraj točno uro mednarodnega leta nazaj v Evropo (EU) in izpolni trip_metadata.return_flight_eu.`;
+      ? `- trip_metadata.return_flight_eu: uporabi NATANKO ure iz IZBRANI LET (departure_time=${params.flightContext.inboundDepart}, arrival_time_eu=${params.flightContext.inboundArrive ?? ""}) — ne izmišljaj drugih.${
+          params.flightContext.inboundStops != null && params.flightContext.inboundStops > 0
+            ? ` PREPOVEDANO: summary NE sme reči "direct"/"direktni" — let ima ${params.flightContext.inboundStops} postanek(ov)${params.flightContext.inboundVia ? ` prek ${params.flightContext.inboundVia}` : ""}.`
+            : params.flightContext.inboundStops === 0
+              ? " Summary sme omeniti direktni let samo ker je IZBRANI LET nonstop."
+              : ' PREPOVEDANO: v summary NE trdi "direct"/"direktni let", razen če je eksplicitno nonstop.'
+        }`
+      : `- Na zadnjem dnevu logistike obvezno generiraj točno uro mednarodnega leta nazaj v Evropo (EU) in izpolni trip_metadata.return_flight_eu. NE trdi "direct"/"direktni", če nisi 100% prepričan (HKT–MUC / BKK–MUC skoraj nikoli ni direkt).`;
 
   const selectedFlightSystemBlock =
     !params.groundTransportMode && params.flightContext
@@ -388,13 +522,28 @@ export function tripPlanSystemPrompt(params: GenerateTripPlanParams): string {
   • južni lok: Bangkok → Ayutthaya → Krabi/Phuket/Koh Lanta → odhod iz južnega letališča ali Bangkoka,
   • osrednji lok: Bangkok → Ayutthaya → Chiang Mai (brez skoka na otroke) ALI Bangkok → Hua Hin → juž — nikoli oboje v istem načrtu.`;
 
+  const arrivalDayNum = 1 + (params.flightContext?.outboundArriveDayOffset ?? 0);
+  const controlRules = tripPlanControlRules({
+    pace: params.pace,
+    hasFlightContext: Boolean(params.flightContext && !params.groundTransportMode),
+    explicitStayPlan,
+    arrivalCity,
+    destinationIata: params.destinationIata,
+    arrivalDay: arrivalDayNum,
+    groundTransport: Boolean(params.groundTransportMode),
+  });
+
   const arrivalAirportBlock = params.groundTransportMode
     ? ""
     : `
 PRIHODOVNO LETALIŠČE (OBVEZNO — prednost pred vsemi primeri poti):
 - Mednarodni let potnika pristane na ${params.destinationIata} (${arrivalCity}).
-- Dan 1 MORA biti v ${arrivalCity}. Aktivnosti dneva 1 = prihod + prilagajanje v ${arrivalCity} — NE v drugem mestu.
-- Prepovedano: notranji let z ${params.destinationIata} na drug hub (npr. HKT→BKK, CNX→BKK, DPS→CGK) na dan 1 ali 2 samo zato, da bi “začeli v prestolnici”.
+- Dan prihoda na destinacijo = dan ${arrivalDayNum} v ${arrivalCity}${
+        arrivalDayNum > 1
+          ? ` (dnevi pred tem = samo odhod/let — BREZ plaže/zajtrka/sieste na destinaciji)`
+          : ""
+      }.
+- Prepovedano: notranji let z ${params.destinationIata} na drug hub (npr. HKT→BKK, CNX→BKK, DPS→CGK) na dan prihoda ali dan zatem samo zato, da bi “začeli v prestolnici”.
 - Notranji leti so dovoljeni šele ko potnik zapusti bazo prihoda po vsaj 1–2 polnih dneh tam.
 - Odhod nazaj: izhodno letališče je ${returnAirport}${
         returnAirport !== params.destinationIata
@@ -415,6 +564,8 @@ ${writingRule}
 VALUTA (displayCurrency = ${displayCurrency}):
 ${moneyRule}
 
+${controlRules}
+
 ${travelReqBlock}
 ${arrivalAirportBlock}
 ${selectedFlightSystemBlock}
@@ -428,8 +579,8 @@ STROGO PRAVILO — AVTODOM / RV / CAMPERVAN:
   • Route 66 / cestna pot: enosmerna pot vzdolž ceste, postaja za nočitev na kampu ob vsaki etapi.
 - Če uporabnik omeni periodične hotel nočitve ("vsak 5 dan hotel"), hotels[] ostane [], hotel omeni le kot izjemo v activities tistega dne.
 
-HITROST — bogati, privlačni opisi (obvezno):
-- Polje description pri vsaki aktivnosti mora biti izjemno podrobno, zanimivo in dolgo vsaj 3–4 stavke (150–300 besed skupaj na dan).
+OPISI (jasno, ne naporno):
+- description: 2–4 konkretni stavki na aktivnost (ne esej 150–300 besed/dan — uporabnik hoče berljiv, sproščen plan).
 - Vsaka aktivnost mora imeti estimatedCostEur z realno cifro v ${displayCurrency} (vstopnine, hrana, gorivo — ne 0, razen res brezplačnih). Polje se imenuje estimatedCostEur, vrednost pa je v ${displayCurrency}.
 - dailyBudget na vsakem dnevu mora biti realna vsota dnevnih stroškov v ${displayCurrency} — nikoli 0. Prilagodi rang državi (npr. večerja na Šrilanki ≈ 5–15 ${displayCurrency === "USD" ? "$" : "€"}, ne 40).
 ${flightReturnEuRule}
@@ -483,13 +634,13 @@ OBVEZNA KATEGORIJA ZA VSAKO AKTIVNOST (activities[].category):
   • airport — prilet, odlet, transfer na letališče
 - Za vsako aktivnost z ogledom/znamenitostjo dodaj točne coordinates (lat, lng) lokacije.
 - Za vsako aktivnost obvezno arrivalTime in departureTime (HH:MM) — realen urnik dneva.
-- Vsaka aktivnost MORA imeti timeSlot: natanko "dopoldan", "popoldan" ali "vecer" — brez izjeme!
+- Vsaka aktivnost MORA imeti timeSlot: natanko "dopoldan", "popoldan" ali "vecer".
 - category mora ustrezati dejanski vsebini aktivnosti — ne uporabljaj vedno iste kategorije.
 
-OBVEZNA ČASOVNA STRUKTURA DNEVA (brez izjeme):
-- Vsak dan MORA vsebovati strukturirane aktivnosti za DOPOLDAN (timeSlot: "dopoldan"), POPOLDAN ("popoldan") in VEČER ("vecer").
-- Noben del dneva ne sme ostati prazen — vsaj ena smiselna aktivnost na vsak časovni okvir.
-- Ure obiska (arrivalTime, departureTime) morajo biti tekoče in realistične, brez prekrivanj (npr. 09:00–11:30 dopoldan, 13:00–16:00 popoldan, 19:00–21:30 večer).
+ČASOVNA STRUKTURA DNEVA (glej HIERARHIJA PRAVIL — ne polni na silo):
+- Na polnih dneh: aktivnosti po tempu (miren/sproščen = manj slotov; prazen slot = počitek OK).
+- Na dan prihoda/odhoda/dolg transfer: prazni timeSlot-i PRED/ZA letom so OBVEZNI — ne zapolnjuj z zajtrkom/siesto/plažo pred pristankom.
+- Ure obiska (arrivalTime, departureTime) morajo biti tekoče in realistične, brez prekrivanj.
 
 ${itineraryHacksAndTransportRules(displayCurrency)}
 
@@ -516,10 +667,11 @@ OBVEZNA DNEVNA LOGISTIKA (itinerar[].days[] — za vsak dan):
 - Vsaka aktivnost z ogledom/znamenitostjo (category razen hotel/airport) MORA imeti tripAdvisorStyleDetails z realnimi, lokacijsko specifičnimi podatki.
 
 OBVEZNE ZNAMENITOSTI NA FAZO (itinerar[].pois[]):
-- Za vsako postojanko generiraj pois[] z natančnimi lat/lng — glavne znamenitosti, ki jih bomo obiskali.
+- Za vsako postojanko generiraj pois[] z natančnimi lat/lng — samo znamenitosti TE baze (ne naslednje!).
+- Število: ${lightPacePoisHint(params.pace)} — ne nabijaj seznama.
 - Vsaka faza MORA imeti unsplashQuery (angleško ime mesta za iskanje slik, npr. "Dubai", "Bangkok").
 - Vsak POI: name (angleško/uradno ime), description (2–3 privlačne stavke), lat, lng, unsplashQuery (angleško ime za Unsplash, npr. "Burj Khalifa", "Grand Palace Bangkok").
-- Vsak POI MORA imeti tripAdvisorStyleDetails (obvezno, brez izjeme):
+- Vsak POI MORA imeti tripAdvisorStyleDetails:
   • highlights: 3–5 kratkih točk (max 12 besed na točko) — kaj je must-see pri tej lokaciji
   • proTip: EN specifičen, praktičen nasvet za TO mesto (npr. "Pridi 30 min pred odprtjem", "Ne fotografiraj proti vzhodu sonca ob poldnevu", "Vstop preko vzhodnega vhoda — krajša vrsta"). Prepovedani generični nasveti!
   • bestTimeOfDay: najboljši čas obiska (npr. "Zgodaj dopoldan ob delavnikih", "Sončni zahod")
@@ -533,8 +685,14 @@ TRIPADVISOR PODATKI ZA AKTIVNOSTI (activities[] — obvezno za oglede):
 
 ${povratekEuBlock}
 
-VEČ DESTINACIJ — LOGIČNA, ENOSMERNA POT (brez skakanja):
-- Če je potovanje daljše od 10 dni in destinacija predstavlja celo državo ali večjo regijo (npr. Japonska, Tajska, Italija, Španija), NE omejuj celotnega itinerarja na eno samo mesto — a tudi NE raztegni na preveč regij.
+VEČ DESTINACIJ — LOGIČNA POT:
+${
+  explicitStayPlan
+    ? `- UPORABNIK JE PODAL RAZPORED MEST/DNI — to ima ABSOLUTNO PREDNOST pred vsemi spodnjimi limito-baz in "tipičnimi" Tajskimi potmi.
+- Sledi uporabnikovemu vrstnemu redu (npr. Phuket → Khao Sok → Ao Nang → Phi Phi → Patong). Dovoljeno je več kot 4 baze in vrnitev na Phuket/Patong za odhod, če je to v željah.
+- PREPOVEDANO zamenjati ta razpored s kurirano Andaman potjo (Koh Lipe ipd.), če uporabnik tega ni prosil.
+- Vsaka faza (phase) = ena baza iz uporabnikovega razporeda; days[].city mora ujemati.`
+    : `- Če je potovanje daljše od 10 dni in destinacija predstavlja celo državo ali večjo regijo (npr. Japonska, Tajska, Italija, Španija), NE omejuj celotnega itinerarja na eno samo mesto — a tudi NE raztegni na preveč regij.
 - STROGA GEOGRAFSKA LINEARNOST (obvezno): Pot mora potekati enosmerno v enem jasnem geografskem smernem loku. Prepovedano je:
   • skakanje s severa na jug in nazaj (npr. Bangkok → Chiang Mai → južni otoki → spet Bangkok — NAROBE),
   • vračanje v mesta/regije, ki jih je potnik že obiskal (${lastDayTransitException}),
@@ -543,15 +701,22 @@ VEČ DESTINACIJ — LOGIČNA, ENOSMERNA POT (brez skakanja):
 ${thailandRouteExamples}
 - Primer za Japonsko: Tokio → Hakone → Kjoto → Osaka (enosmerno proti zahodu/jugu, brez vračanja v Tokio sredi poti).
 - Vsaka faza (phase) = ena regija/mesto; dni razporedi sorazmerno glede na velikost lokacije.
-- Unikatnost mest: Vsako mesto/regija se lahko v celotnem itinerarju pojavi samo enkrat (izjema: zadnji dan — le ${params.groundTransportMode ? "vožnja/vlak nazaj domov" : "tranzit na izhodno letališče"}, brez ogledov).
+- Unikatnost mest: Vsako mesto/regija se lahko v celotnem itinerarju pojavi samo enkrat (izjema: zadnji dan — le ${params.groundTransportMode ? "vožnja/vlak nazaj domov" : "tranzit na izhodno letališče"}, brez ogledov).`
+}
 
-PRILAGODITEV TRAJANJU — MANJ REGIJ, VEČ ČASA NA KRAJ (obvezno):
-${motorhome || roadTrip ? `- ROAD TRIP / AVTODOM: Načrtuj enosmerno pot z ${params.days} postajami vzdolž ceste. Vsak dan mora imeti smiselne aktivnosti + kamp/RV park za nočitev. Ne združuj več dni v eno mesto, razen če uporabnik izrecno želi.` : `- Število glavnih baz (mest/regij, kjer potnik prespi več dni) MORAŠ omejiti glede na dolžino poti — manj regij = manj prevozev, več uživanja:
+PRILAGODITEV TRAJANJU — BAZA / REGIJE (obvezno):
+${
+  explicitStayPlan
+    ? `- Število baz = točno po uporabnikovih željah (ne uporabljaj limit 2/3/4 baz).`
+    : motorhome || roadTrip
+      ? `- ROAD TRIP / AVTODOM: Načrtuj enosmerno pot z ${params.days} postajami vzdolž ceste. Vsak dan mora imeti smiselne aktivnosti + kamp/RV park za nočitev. Ne združuj več dni v eno mesto, razen če uporabnik izrecno želi.`
+      : `- Število glavnih baz (mest/regij, kjer potnik prespi več dni) MORAŠ omejiti glede na dolžino poti — manj regij = manj prevozev, več uživanja:
   • 7–9 dni: največ 2 glavni bazi (+ morebitna kratka postaja),
   • 10–14 dni: največ 3 glavne baze (NE 4, 5 ali več — uporabnik ne sme preživeti dopusta na letalih/vlakih),
   • 15–21 dni: največ 4 glavne baze.
 - Med bazami načrtuj le en logičen premik; izogibaj se dnevnim dolgim preskokom (>4–5 h prevoza) razen ob enem preselitvenem dnevu med bazami.
-- Če je pot krajša od 10 dni, ostani v 1–2 mestih/regijah — ne raztezaj na celo državo.`}
+- Če je pot krajša od 10 dni, ostani v 1–2 mestih/regijah — ne raztezaj na celo državo.`
+}
 
 ${lastDayBlock}
 

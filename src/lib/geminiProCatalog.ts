@@ -63,14 +63,24 @@ export function buildCatalogPlanFromResponse(
     destinationPlace: data.destinationPlace,
   });
 
-  if (data.flightContext && !data.groundTransportMode) {
-    applyFlightContextToGeminiPlan(catalogPlan, data.flightContext, {
-      originIata: data.originIata,
-      language: data.language ?? "sl",
-    });
-  }
+  applyFlightContextIfPresent(catalogPlan, data);
 
   return { plan: catalogPlan, error: null };
+}
+
+/** Shared by final catalog + live stream partials — boarding-pass times always win. */
+export function applyFlightContextIfPresent(
+  plan: AiTripPlan,
+  data: Pick<
+    GenerateGeminiProTripInput,
+    "flightContext" | "groundTransportMode" | "originIata" | "language"
+  >,
+): void {
+  if (!data.flightContext || data.groundTransportMode) return;
+  applyFlightContextToGeminiPlan(plan, data.flightContext, {
+    originIata: data.originIata,
+    language: data.language ?? "sl",
+  });
 }
 
 export function buildGeminiMapOpts(data: GenerateGeminiProTripInput) {

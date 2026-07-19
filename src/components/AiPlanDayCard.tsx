@@ -3,7 +3,6 @@ import {
   AlarmClock,
   CloudSun,
   Moon,
-  MapPin,
   Hotel,
   Tent,
   Wallet,
@@ -90,8 +89,13 @@ function isPlaceholderSlotText(text?: string): boolean {
 }
 
 export function getSlotActivities(d: DayPlan, slot: "morning" | "afternoon" | "evening"): Activity[] {
-  const fromStruct = (d.activities?.[slot] ?? []).filter((a) => !isPlaceholderSlotText(a.name));
-  if (fromStruct.length > 0) return sortActivitiesByTime(fromStruct);
+  // If structured activities exist, trust empty slots (flight rewrite clears afternoon/evening).
+  // Falling back to legacy day.afternoon resurrects "Siesta / bazen" after applyFlightContext.
+  if (d.activities) {
+    return sortActivitiesByTime(
+      (d.activities[slot] ?? []).filter((a) => !isPlaceholderSlotText(a.name)),
+    );
+  }
   return parseActivities(d[slot]).filter((a) => !isPlaceholderSlotText(a.name));
 }
 
@@ -609,21 +613,25 @@ export function AiPlanDayCard({
   }, [isHotelRestNight, day.date, checkOut]);
 
   const dateLabel = useMemo(() => {
+    const city = day.city?.trim();
+    const withCity = (label: string) => (city ? `${label} · ${city}` : label);
     if (day.dateEnd && day.dayEnd && day.dayEnd > day.day) {
-      return formatStayDateRange(day.date, day.dateEnd, lang || "sl");
+      return withCity(formatStayDateRange(day.date, day.dateEnd, lang || "sl"));
     }
     const d = parseLocalDate(day.date);
-    if (!d) return day.date;
+    if (!d) return withCity(day.date);
     try {
-      return d.toLocaleDateString(lang || "sl", {
-        weekday: "long",
-        day: "numeric",
-        month: "short",
-      });
+      return withCity(
+        d.toLocaleDateString(lang || "sl", {
+          weekday: "long",
+          day: "numeric",
+          month: "short",
+        }),
+      );
     } catch {
-      return day.date;
+      return withCity(day.date);
     }
-  }, [day.date, day.dateEnd, day.day, day.dayEnd, lang]);
+  }, [day.city, day.date, day.dateEnd, day.day, day.dayEnd, lang]);
 
   const dayBadge = day.dayEnd && day.dayEnd > day.day ? `${day.day}–${day.dayEnd}` : String(day.day);
   const heroImage = normalizeImageUrl(day.imageUrl);
@@ -675,12 +683,6 @@ export function AiPlanDayCard({
                 </h3>
                 <div className="mt-1 flex flex-wrap items-center gap-2">
                   <span className="text-xs sm:text-sm text-white/90 capitalize">{dateLabel}</span>
-                  {day.city && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-0.5 text-xs font-semibold text-white backdrop-blur-sm">
-                      <MapPin className="h-3 w-3" aria-hidden />
-                      {day.city}
-                    </span>
-                  )}
                 </div>
               </div>
             </div>
@@ -698,12 +700,6 @@ export function AiPlanDayCard({
               </h3>
               <div className="mt-1.5 flex flex-wrap items-center gap-2">
                 <span className="text-sm text-slate-500 capitalize">{dateLabel}</span>
-                {day.city && (
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-800 shadow-sm">
-                    <MapPin className="h-3 w-3 text-slate-500" aria-hidden />
-                    {day.city}
-                  </span>
-                )}
               </div>
             </div>
           </div>

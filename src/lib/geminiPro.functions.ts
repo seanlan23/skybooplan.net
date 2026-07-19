@@ -111,6 +111,10 @@ export const generateGeminiProTripInputSchema = z
         outboundArriveDayOffset: z.number().int().min(0).max(3),
         inboundDepart: z.string().regex(/^\d{1,2}:\d{2}$/).optional(),
         inboundArrive: z.string().regex(/^\d{1,2}:\d{2}$/).optional(),
+        outboundStops: z.number().int().min(0).max(5).optional(),
+        inboundStops: z.number().int().min(0).max(5).optional(),
+        outboundVia: z.string().trim().max(40).optional(),
+        inboundVia: z.string().trim().max(40).optional(),
       })
       .optional(),
     attachment: z

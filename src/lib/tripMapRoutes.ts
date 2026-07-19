@@ -6,6 +6,8 @@ import {
   type IslandAirportAccessDef,
 } from "@/lib/islandAirportTransfers";
 import { HTTP_API_TIMEOUT_MS, withTimeout } from "@/lib/asyncTimeout";
+import { lookupRegionCoords } from "@/lib/regionCoords";
+import { lookupPoiCoords } from "@/lib/tripGeo";
 
 /** Max distance (km) for Mapbox driving — beyond this, default to flight arc unless explicit road trip. */
 const MAX_DRIVING_SEGMENT_KM = 900;
@@ -70,14 +72,15 @@ function collectDayText(day: DayPlan): string {
   const transportLegs = (day.transportation ?? [])
     .map((t) => `${t.type} ${t.from} ${t.to} ${t.duration}`)
     .join(" ");
+  // Prefer structured activities + transportation[]. Skip stale legacy morning/afternoon
+  // strings — they often still say "Mednarodni let" and force a dashed flight line on van days.
+  const useLegacySlots = !(day.transportation && day.transportation.length > 0) && !day.activities;
   return [
     day.transport?.type,
     day.transport?.description,
     transportLegs,
     day.title,
-    day.morning,
-    day.afternoon,
-    day.evening,
+    ...(useLegacySlots ? [day.morning, day.afternoon, day.evening] : []),
     ...acts,
   ]
     .filter(Boolean)
@@ -99,14 +102,26 @@ export function classifyTransportMode(
   const preferDriving = opts?.preferDriving ?? false;
   const cityChanged = opts?.cityChanged ?? false;
   const text = collectDayText(day);
-  const explicitFlight =
-    FLIGHT_TEXT.test(text) ||
-    day.inFlightDay ||
-    day.category === "transport" ||
-    (day.transportation ?? []).some((t) => t.type === "flight");
+  const legs = day.transportation ?? [];
+  const explicitVan = legs.some((t) => t.type === "van" || t.type === "bus");
   const explicitFerry =
-    FERRY_TEXT.test(text) || (day.transportation ?? []).some((t) => t.type === "ferry");
-  const explicitTrain = (day.transportation ?? []).some((t) => t.type === "train");
+    FERRY_TEXT.test(text) || legs.some((t) => t.type === "ferry");
+  const explicitTrain = legs.some((t) => t.type === "train");
+  const legIsFlight = legs.some((t) => t.type === "flight");
+  // Ground transfer wins over stale "flight/airport" words in activity copy.
+  const explicitFlight =
+    day.inFlightDay ||
+    legIsFlight ||
+    (!explicitVan &&
+      !explicitFerry &&
+      !explicitTrain &&
+      (FLIGHT_TEXT.test(text) || day.category === "transport"));
+
+  // Explicit kombi/van/bus day (e.g. Khao Sok → Ao Nang) — road polyline first.
+  if (explicitVan && distanceKm >= 0.3 && !legIsFlight) {
+    if (distanceKm > MAX_DRIVING_SEGMENT_KM) return "flight";
+    return "driving";
+  }
 
   if (preferDriving) {
     if (explicitFlight && distanceKm > 250) return "flight";
@@ -298,6 +313,12 @@ export type BuildSegmentOpts = {
   groundTransportMode?: import("@/lib/aiPlan.functions").GroundTransportMode;
 };
 
+/** Snap day markers off water/jungle centroids onto curated road-accessible city centers. */
+function landSnapCoord(city: string | undefined, fallback: [number, number]): [number, number] {
+  const c = lookupRegionCoords(city ?? "") ?? lookupPoiCoords(city ?? "");
+  return c ? [c.lng, c.lat] : fallback;
+}
+
 export function buildIslandAccessSegmentSpecs(
   def: IslandAirportAccessDef,
   direction: "arrival" | "departure",
@@ -387,7 +408,10 @@ export function buildSegmentSpecs(
   for (let i = 1; i < validDays.length; i++) {
     const prev = validDays[i - 1]!;
     const curr = validDays[i]!;
-    const dist = haversineKm(prev.coord, curr.coord);
+    // Prefer curated land centers over Gemini lake/jungle centroids (Mapbox needs roads).
+    const fromCoord = landSnapCoord(prev.day.city, prev.coord);
+    const toCoord = landSnapCoord(curr.day.city, curr.coord);
+    const dist = haversineKm(fromCoord, toCoord);
 
     const prevCity = (prev.day.city ?? "").trim().toLowerCase();
     const currCity = (curr.day.city ?? "").trim().toLowerCase();
@@ -403,8 +427,8 @@ export function buildSegmentSpecs(
         ...buildIslandAccessSegmentSpecs(
           islandTransition.def,
           islandTransition.direction,
-          islandTransition.direction === "arrival" ? prev.coord : curr.coord,
-          islandTransition.direction === "arrival" ? curr.coord : prev.coord,
+          islandTransition.direction === "arrival" ? fromCoord : toCoord,
+          islandTransition.direction === "arrival" ? toCoord : fromCoord,
           curr.day.day,
           `leg-${prev.day.day}-${curr.day.day}`,
         ),
@@ -419,28 +443,32 @@ export function buildSegmentSpecs(
       specs.push({
         id: `leg-${prev.day.day}-${curr.day.day}`,
         mode,
-        from: prev.coord,
-        to: curr.coord,
+        from: fromCoord,
+        to: toCoord,
         dayTo: curr.day.day,
       });
       continue;
     }
 
-    if (!cityChanged && dist < 50) {
+    const hasGroundTransfer = (curr.day.transportation ?? []).some(
+      (t) => t.type === "van" || t.type === "bus" || t.type === "train",
+    );
+    // Same-city sightseeing: skip. Explicit van/kombi days still get a road line.
+    if (!cityChanged && dist < 50 && !hasGroundTransfer) {
       continue;
     }
 
     const mode = classifyTransportMode(curr.day, dist, {
       preferDriving: opts?.preferDriving,
-      cityChanged,
+      cityChanged: cityChanged || hasGroundTransfer,
     });
     if (!mode) continue;
 
     specs.push({
       id: `leg-${prev.day.day}-${curr.day.day}`,
       mode,
-      from: prev.coord,
-      to: curr.coord,
+      from: fromCoord,
+      to: toCoord,
       dayTo: curr.day.day,
     });
   }
@@ -505,7 +533,7 @@ export async function resolveOneSegment(
     switch (spec.mode) {
       case "driving": {
         const route = await fetchDrivingRoute(spec.from, spec.to, token);
-        if (route.coordinates.length >= 2) {
+        if (route.fromMapboxDirections && route.coordinates.length >= 2) {
           return {
             ...spec,
             coordinates: route.coordinates,

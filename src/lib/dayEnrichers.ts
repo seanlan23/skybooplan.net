@@ -1457,6 +1457,8 @@ export function enrichDayActivities(
     lateArrival?: boolean;
     /** Midday/afternoon landing — max 1 light evening add-on, no filler spam. */
     tightArrivalDay?: boolean;
+    /** Which day-part matches real landing (from flight times). */
+    arrivalSlot?: "morning" | "afternoon" | "evening";
     /** Red-eye landing (e.g. 01:35) — recovery first, no museums before rest. */
     redEyeArrival?: boolean;
     destinationIata?: string;
@@ -1509,6 +1511,16 @@ export function enrichDayActivities(
   }
 
   if (opts?.lateArrival || opts?.tightArrivalDay || opts?.redEyeArrival) {
+    const slot = opts.arrivalSlot ?? (opts.lateArrival ? "evening" : "afternoon");
+    // Never invent breakfast / siesta before the plane lands.
+    if (slot === "evening" || opts.lateArrival) {
+      result.morning = [];
+      result.afternoon = [];
+    } else if (slot === "afternoon") {
+      result.morning = [];
+    }
+    result.morning = result.morning.filter((a) => !isPreArrivalFiller(a));
+    result.afternoon = result.afternoon.filter((a) => !isPreArrivalFiller(a));
     if (normCity(city).includes("bangkok")) {
       result.morning = result.morning.filter(
         (a) => !isEarlyClosingPoi(a.name, a.description ?? ""),

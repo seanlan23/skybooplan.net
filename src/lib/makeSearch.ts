@@ -183,26 +183,48 @@ function parseDuffelOfferAsMakeFlight(item: unknown, index: number): MakeSearchF
       ? `${formatStopsWithLayovers(outboundStops, outLayovers)}/${formatStopsWithLayovers(returnStops, inLayovers)}`
       : formatStopsWithLayovers(outboundStops, outLayovers);
 
-  // Prefer longest of slice.duration / first→last segment timestamps.
-  // Never trust a short wall-clock gap when Duffel reports a longer slice duration.
-  const outDurationRaw = pickTravelDurationRaw(
-    readString(firstSlice, "duration"),
-    durationFromSegments(segments),
-    departing && arriving
-      ? isoDurationBetween(departing, arriving, origin, destination)
-      : "",
+  // Slice.duration is Duffel's official total; merge with TZ via travelDurationMinutes
+  // so westbound local-clock gaps don't inflate past the airline total.
+  const outStored = formatTravelDuration(
+    pickTravelDurationRaw(
+      readString(firstSlice, "duration"),
+      durationFromSegments(segments),
+    ),
   );
-  const inDurationRaw = pickTravelDurationRaw(
-    readString(returnSlice ?? {}, "duration"),
-    durationFromSegments(returnSegments),
-    returning && returnArriving
-      ? isoDurationBetween(returning, returnArriving, destination, origin)
-      : "",
+  const inStored = formatTravelDuration(
+    pickTravelDurationRaw(
+      readString(returnSlice ?? {}, "duration"),
+      durationFromSegments(returnSegments),
+    ),
   );
-  const outbound_duration = formatTravelDuration(outDurationRaw);
-  const inbound_duration = formatTravelDuration(inDurationRaw);
-  const outMins = parseDurationMinutes(outDurationRaw);
-  const inMins = parseDurationMinutes(inDurationRaw);
+  const outMins = travelDurationMinutes({
+    departIso: departing || undefined,
+    arriveIso: arriving || undefined,
+    departHm: departing ? timeHmFromIso(departing) : undefined,
+    arriveHm: arriving ? timeHmFromIso(arriving) : undefined,
+    departDate: departing ? isoDatePart(departing) : undefined,
+    arriveDayOffset:
+      departing && arriving ? calendarDayOffset(departing, arriving) : undefined,
+    fromIata: origin,
+    toIata: destination,
+    storedLabel: outStored,
+  });
+  const inMins = travelDurationMinutes({
+    departIso: returning || undefined,
+    arriveIso: returnArriving || undefined,
+    departHm: returning ? timeHmFromIso(returning) : undefined,
+    arriveHm: returnArriving ? timeHmFromIso(returnArriving) : undefined,
+    departDate: returning ? isoDatePart(returning) : undefined,
+    arriveDayOffset:
+      returning && returnArriving
+        ? calendarDayOffset(returning, returnArriving)
+        : undefined,
+    fromIata: destination,
+    toIata: origin,
+    storedLabel: inStored,
+  });
+  const outbound_duration = formatDurationMinutes(outMins) || outStored;
+  const inbound_duration = formatDurationMinutes(inMins) || inStored;
   const duration_minutes =
     outMins > 0 || inMins > 0 ? outMins + inMins : undefined;
 
@@ -618,6 +640,28 @@ export function naiveWallClockMinutes(
 }
 
 /**
+ * Choose between timezone-elapsed minutes and a provider-stored duration.
+ *
+ * - When stored ≈ wall-clock gap, take the shorter of TZ vs stored:
+ *   eastbound Make 20h45 → TZ 14h45; westbound HKT→MUC TZ 20h30 → stored 14h45.
+ * - When stored is far from wall-clock (junk "7h"), trust TZ.
+ * - Explicit UTC-offset ISO timestamps are authoritative — skip this merge.
+ */
+function preferTravelMinutes(
+  tzMins: number,
+  stored: number,
+  naive: number,
+): number {
+  if (tzMins <= 0) return stored > 0 ? stored : 0;
+  if (stored <= 0) return tzMins;
+  const nearNaive = naive > 0 && Math.abs(stored - naive) <= 30;
+  if (nearNaive) return Math.min(tzMins, stored);
+  // Far from wall-clock: short junk → TZ; much longer provider total → stored.
+  if (stored > tzMins + 3 * 60) return stored;
+  return tzMins;
+}
+
+/**
  * Real travel minutes using airport timezones.
  * Works from full ISO or from local HH:mm + date (+ day offset).
  */
@@ -635,14 +679,22 @@ export function travelDurationMinutes(params: {
 }): number {
   const from = (params.fromIata ?? "").trim().toUpperCase();
   const to = (params.toIata ?? "").trim().toUpperCase();
+  const stored = parseDurationMinutes(params.storedLabel ?? "");
+  const depHm = params.departHm ? normalizeHm(params.departHm) : null;
+  const arrHm = params.arriveHm ? normalizeHm(params.arriveHm) : null;
+  const dayOffForNaive = inferArriveDayOffset(
+    depHm ?? "",
+    arrHm ?? "",
+    params.arriveDayOffset,
+  );
+  const naive =
+    depHm && arrHm ? naiveWallClockMinutes(depHm, arrHm, dayOffForNaive) : 0;
 
   if (params.departIso && params.arriveIso && from && to) {
     const mins = elapsedMinutesBetween(params.departIso, params.arriveIso, from, to);
-    if (mins > 0) return mins;
+    if (mins > 0) return preferTravelMinutes(mins, stored, naive);
   }
 
-  const depHm = params.departHm ? normalizeHm(params.departHm) : null;
-  const arrHm = params.arriveHm ? normalizeHm(params.arriveHm) : null;
   // Prefer ISO date; also accept human "26. okt. 2026, 21:10" from Make `odhod`.
   const ymd =
     ymdFromDateish(params.departDate) ||
@@ -658,20 +710,12 @@ export function travelDurationMinutes(params: {
       from,
       to,
     );
-    if (mins > 0) return mins;
+    if (mins > 0) return preferTravelMinutes(mins, stored, naive);
   }
 
-  const stored = parseDurationMinutes(params.storedLabel ?? "");
   // If stored duration is just the naive wall-clock gap, drop it (TZ missing).
-  if (stored > 0 && depHm && arrHm) {
-    const naive = naiveWallClockMinutes(
-      depHm,
-      arrHm,
-      params.arriveDayOffset ?? 0,
-    );
-    if (naive > 0 && Math.abs(stored - naive) <= 5) {
-      return 0;
-    }
+  if (stored > 0 && naive > 0 && Math.abs(stored - naive) <= 5) {
+    return 0;
   }
   return stored;
 }

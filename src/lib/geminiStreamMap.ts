@@ -47,19 +47,8 @@ function coercePartialResponse(partial: PartialResponse): TripPlanResponse | nul
         })
         .filter(Boolean) as TripPlanResponse["itinerar"][number]["pois"];
 
-      const safePois =
-        pois.length > 0
-          ? pois
-          : [
-              {
-                name: city,
-                description: `Obisk ${city}.`,
-                lat: typeof phase.lat === "number" ? phase.lat : 0,
-                lng: typeof phase.lng === "number" ? phase.lng : 0,
-                tripAdvisorStyleDetails: { ...DEFAULT_POI },
-                unsplashQuery: city,
-              },
-            ];
+      // Never invent a city-named POI — that stacked identical "Phuket" pins on the map.
+      // Activities carry real stop names; empty pois is fine until Gemini fills them.
 
       const days = (phase.days ?? [])
         .map((day) => {
@@ -80,8 +69,9 @@ function coercePartialResponse(partial: PartialResponse): TripPlanResponse | nul
                   act.timeSlot === "vecer"
                     ? act.timeSlot
                     : slots[idx % slots.length]!,
-                arrivalTime: act.arrivalTime?.trim() || "09:00",
-                departureTime: act.departureTime?.trim() || "11:00",
+                // Do NOT invent 09:00/11:00 — that fights real flight times in the preview.
+                arrivalTime: act.arrivalTime?.trim() || act.time?.trim() || undefined,
+                departureTime: act.departureTime?.trim() || undefined,
                 estimatedCostEur:
                   typeof act.estimatedCostEur === "number" ? act.estimatedCostEur : undefined,
                 transport_type: act.transport_type,
@@ -120,9 +110,9 @@ function coercePartialResponse(partial: PartialResponse): TripPlanResponse | nul
         phase: phase.phase?.trim() || city,
         city,
         unsplashQuery: phase.unsplashQuery?.trim() || city,
-        lat: typeof phase.lat === "number" ? phase.lat : safePois[0]!.lat,
-        lng: typeof phase.lng === "number" ? phase.lng : safePois[0]!.lng,
-        pois: safePois,
+        lat: typeof phase.lat === "number" ? phase.lat : 0,
+        lng: typeof phase.lng === "number" ? phase.lng : 0,
+        pois,
         days,
       };
     })

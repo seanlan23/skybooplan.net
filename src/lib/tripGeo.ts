@@ -126,9 +126,15 @@ const POI_COORDS: Record<string, { lat: number; lng: number }> = {
   "khao|san": { lat: 13.7589, lng: 100.4974 },
   "wat|mahathat": { lat: 14.357, lng: 100.567 },
   "ayutthaya": { lat: 14.353, lng: 100.569 },
+  // Khao Sok village (road 401) — NOT the lake centroid (that sits on water/jungle).
   "khao|sok": { lat: 8.915, lng: 98.529 },
-  "cheow|lan": { lat: 8.97, lng: 98.82 },
-  "ratchaprapha": { lat: 8.97, lng: 98.82 },
+  // Cheow Lan / Chiew Larn reservoir — on-water point for kayak / sunset pins.
+  "cheow|lan": { lat: 8.964, lng: 98.723 },
+  "chiew|larn": { lat: 8.964, lng: 98.723 },
+  // Dam pier — road-accessible trailhead for floating bungalows.
+  "ratchaprapha": { lat: 8.9728, lng: 98.8057 },
+  "floating|bungalow": { lat: 8.964, lng: 98.723 },
+  "plavajoč": { lat: 8.964, lng: 98.723 },
   "koh|phangan": { lat: 9.731, lng: 100.013 },
   "haad|rIn": { lat: 9.974, lng: 100.069 },
   "full|moon|party": { lat: 9.974, lng: 100.069 },
@@ -145,13 +151,39 @@ const POI_COORDS: Record<string, { lat: number; lng: number }> = {
   "phaeng|waterfall": { lat: 9.745, lng: 100.015 },
   "seen|beach|club": { lat: 9.558, lng: 100.031 },
   "don|sak|pier|donsak": { lat: 9.318, lng: 99.694 },
-  "ton|toey|rafthouse": { lat: 8.97, lng: 98.82 },
+  "ton|toey|rafthouse": { lat: 8.964, lng: 98.723 },
+  // Krabi / Railay — land/beach points (park bbox centers often sit in the Andaman Sea)
+  "phra|nang": { lat: 8.0056, lng: 98.8403 },
+  "pra|nang": { lat: 8.0056, lng: 98.8403 },
+  "railay": { lat: 8.0117, lng: 98.8372 },
+  "railey": { lat: 8.0117, lng: 98.8372 },
+  "ao|nang": { lat: 8.0317, lng: 98.8267 },
+  "noppharat|thara": { lat: 8.047, lng: 98.812 },
+  "hat|noppharat": { lat: 8.047, lng: 98.812 },
+  // Phi Phi — land/beach/pier (avoid open-water lunch pins)
+  "ton|sai": { lat: 7.7405, lng: 98.7782 },
+  "tonsai": { lat: 7.7405, lng: 98.7782 },
+  "rassada": { lat: 7.8955, lng: 98.4015 },
+  "monkey|opicja": { lat: 7.7465, lng: 98.7655 },
+  "phi|viewpoint": { lat: 7.7365, lng: 98.7705 },
+  "loh|dalum": { lat: 7.7445, lng: 98.7755 },
 };
 
 const TH_ZONE_KEYWORDS: Array<{ test: RegExp; coords: { lat: number; lng: number } }> = [
+  { test: /phra nang|pra nang/i, coords: { lat: 8.0056, lng: 98.8403 } },
+  { test: /railay|railey/i, coords: { lat: 8.0117, lng: 98.8372 } },
+  { test: /noppharat|hat noppharat/i, coords: { lat: 8.047, lng: 98.812 } },
+  { test: /ao nang|aonang/i, coords: { lat: 8.0317, lng: 98.8267 } },
+  { test: /rassada/i, coords: { lat: 7.8955, lng: 98.4015 } },
+  { test: /ton\s*sai|tonsai\b/i, coords: { lat: 7.7405, lng: 98.7782 } },
+  { test: /loh dalum/i, coords: { lat: 7.7445, lng: 98.7755 } },
+  { test: /monkey beach|opičja pla/i, coords: { lat: 7.7465, lng: 98.7655 } },
+  { test: /phi phi viewpoint|viewpoint.*phi phi/i, coords: { lat: 7.7365, lng: 98.7705 } },
   { test: /bangkok|khao san|grand palace|wat pho|wat arun|chinatown|yaowarat/i, coords: { lat: 13.756, lng: 100.502 } },
   { test: /ayutthaya|wat mahathat/i, coords: { lat: 14.353, lng: 100.569 } },
-  { test: /khao sok|cheow lan|ratchaprapha/i, coords: { lat: 8.97, lng: 98.82 } },
+  // Split lake vs village — old combined centroid put lake pins mid-jungle.
+  { test: /cheow lan|chiew larn|ratchaprapha|floating bungalow|plavajoč|rafthouse/i, coords: { lat: 8.964, lng: 98.723 } },
+  { test: /khao sok/i, coords: { lat: 8.915, lng: 98.529 } },
   { test: /koh phangan|ko pha-ngan|haad rin|zen beach|secret beach/i, coords: { lat: 9.731, lng: 100.013 } },
   { test: /koh samui|ko samui|chaweng|coral cove|wat plai laem/i, coords: { lat: 9.512, lng: 100.013 } },
 ];

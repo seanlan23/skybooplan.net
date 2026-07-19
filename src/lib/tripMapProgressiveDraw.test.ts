@@ -92,11 +92,23 @@ describe("tripMapProgressiveDraw", () => {
     expect(primary?.mode).toBe("flight");
   });
 
-  it("shouldDrawDrivingRoute requires road-trip mode and min distance", () => {
+  it("shouldDrawDrivingRoute draws explicit driving segments without road-trip mode", () => {
     const endpoints = {
-      from: [8.0, 48.0] as [number, number],
-      to: [9.5, 49.0] as [number, number],
+      from: [98.3, 7.9] as [number, number],
+      to: [98.83, 8.03] as [number, number],
     };
+    const drivingSeg: TripRouteSegment = {
+      id: "leg-4-5",
+      mode: "driving",
+      from: endpoints.from,
+      to: endpoints.to,
+      coordinates: [endpoints.from, endpoints.to],
+      dayTo: 5,
+      durationSeconds: 9000,
+      durationLabel: "2h 30m",
+    };
+    // Phuket → Krabi van day on a normal flight trip.
+    expect(shouldDrawDrivingRoute(false, endpoints, drivingSeg)).toBe(true);
     expect(shouldDrawDrivingRoute(false, endpoints, null)).toBe(false);
     expect(shouldDrawDrivingRoute(true, null, null)).toBe(false);
     expect(shouldDrawDrivingRoute(true, endpoints, null)).toBe(true);

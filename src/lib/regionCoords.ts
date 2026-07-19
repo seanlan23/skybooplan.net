@@ -12,6 +12,18 @@ const REGION_COORDS: Record<string, { lat: number; lng: number }> = {
   ubud: { lat: -8.506, lng: 115.263 },
   kuta: { lat: -8.717, lng: 115.168 },
   phuket: { lat: 7.88, lng: 98.392 },
+  patong: { lat: 7.896, lng: 98.296 },
+  /** Ferry terminal Phuket ↔ Phi Phi / Krabi */
+  rassada: { lat: 7.8955, lng: 98.4015 },
+  "rassada pier": { lat: 7.8955, lng: 98.4015 },
+  "khao sok": { lat: 8.915, lng: 98.529 },
+  "ao nang": { lat: 8.0317, lng: 98.8267 },
+  /** Tonsai village / pier — land, not open water west of the island */
+  "koh phi phi": { lat: 7.7407, lng: 98.7784 },
+  "phi phi": { lat: 7.7407, lng: 98.7784 },
+  tonsai: { lat: 7.7405, lng: 98.7782 },
+  "ton sai": { lat: 7.7405, lng: 98.7782 },
+  "tonsai pier": { lat: 7.7405, lng: 98.7782 },
   "chiang mai": { lat: 18.788, lng: 98.985 },
   ayutthaya: { lat: 14.353, lng: 100.569 },
   krabi: { lat: 8.086, lng: 98.906 },
@@ -114,6 +126,19 @@ export function lookupRegionCoords(city: string): { lat: number; lng: number } |
     .toLowerCase()
     .normalize("NFD")
     .replace(/\p{M}/gu, "")
-    .replace(/\./g, "");
-  return REGION_COORDS[key] ?? REGION_COORDS[key.replace(/\s+/g, " ")] ?? null;
+    .replace(/\./g, "")
+    .replace(/\s+/g, " ");
+  if (REGION_COORDS[key]) return REGION_COORDS[key]!;
+
+  // Slovenian / typed endings: "Ao Nanga", "Khao Soka", "Phuketa"
+  const stem = key.replace(/[aeiu]\b/g, "").replace(/\s+/g, " ").trim();
+  if (stem && REGION_COORDS[stem]) return REGION_COORDS[stem]!;
+
+  // Substring match against known hubs (longest key first).
+  const keys = Object.keys(REGION_COORDS).sort((a, b) => b.length - a.length);
+  for (const k of keys) {
+    if (k.length < 4) continue;
+    if (key.includes(k) || k.includes(key)) return REGION_COORDS[k]!;
+  }
+  return null;
 }

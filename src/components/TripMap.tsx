@@ -298,9 +298,13 @@ type PoiMarkerEntry = {
 /** Pick a single marker when several pins share the same coords (e.g. mapPin + activity). */
 export function pickFocusedPoiEntryId(
   entries: PoiMarkerEntry[],
-  target: { poiName?: string; lat: number; lng: number },
+  target: { poiName?: string; lat: number; lng: number; day?: number },
 ): string | null {
-  const candidates = entries.filter((e) => matchesPoiFocus(e.pin, target));
+  let candidates = entries.filter((e) => matchesPoiFocus(e.pin, target));
+  if (target.day != null) {
+    const sameDay = candidates.filter((e) => e.day === target.day);
+    if (sameDay.length) candidates = sameDay;
+  }
   if (candidates.length === 0) return null;
   if (candidates.length === 1) return candidates[0]!.id;
 
@@ -320,6 +324,7 @@ export function pickFocusedPoiEntryId(
     } else {
       score = 40;
     }
+    if (target.day != null && entry.day === target.day) score += 50;
     score -= haversineKm([entry.pin.lng, entry.pin.lat], [target.lng, target.lat]) * 10;
     if (score > bestScore) {
       bestScore = score;
@@ -375,10 +380,16 @@ function setPoiMarkersForDay(
     const el = entry.marker.getElement();
     if (entry.day !== activeDay) {
       setPoiMarkerHidden(el, true);
+      entry.marker.getPopup()?.remove();
     } else {
       setPoiMarkerHidden(el, !visibleForActiveDay);
     }
   }
+}
+
+/** Marker store id — day-scoped so Ao Nang D6 and Phi Phi ferry D7 never collide. */
+function poiMarkerId(pin: { day: number; name: string; lat: number; lng: number }): string {
+  return `${pin.day}:${poiFocusKey(pin.name, pin.lat, pin.lng)}`;
 }
 
 function setDurationBadgesForDay(
@@ -416,10 +427,27 @@ function cityMarkerId(stop: CityMapStop): string {
 
 function clearPoiMarkerLayer(store: { current: PoiMarkerEntry[] }) {
   store.current.forEach((m) => {
-    unmountReactRoot(m.root);
+    unmountReactRoot(m.root ?? undefined);
     m.marker.remove();
   });
   store.current = [];
+}
+
+/** After setStyle, Mapbox fires `style.load` — not `load` again. */
+function whenMapStyleReady(
+  map: mapboxgl.Map,
+  isReady: { current: boolean },
+  fn: () => void,
+): () => void {
+  if (map.isStyleLoaded() && isReady.current) {
+    fn();
+    return () => {};
+  }
+  const onStyle = () => fn();
+  map.once("style.load", onStyle);
+  return () => {
+    map.off("style.load", onStyle);
+  };
 }
 
 function clearDurationMarkerLayer(store: { current: DurationMarkerEntry[] }) {
@@ -453,24 +481,28 @@ function createCityMarkerElement(
   stop: CityMapStop,
   isActive: boolean,
   onSelect?: (startDay: number) => void,
+  activeDay?: number,
 ): { el: HTMLDivElement; root: Root } {
   const wrap = document.createElement("div");
   wrap.className = `layla-city-marker${isActive ? " layla-city-marker--active" : ""}`;
   wrap.addEventListener("click", (e) => {
     e.stopPropagation();
-    onSelect?.(stop.startDay);
+    onSelect?.(isActive && activeDay != null ? activeDay : stop.startDay);
   });
   wrap.appendChild(cityLabelElement(stop.city));
 
   const pinHost = document.createElement("div");
   wrap.appendChild(pinHost);
 
+  const badgeStart = isActive && activeDay != null ? activeDay : stop.startDay;
+  const badgeEnd = isActive && activeDay != null ? activeDay : stop.endDay;
+
   const root = createRoot(pinHost);
   root.render(
     <MapCityMarker
       isActive={isActive}
-      dayNumber={stop.startDay}
-      dayEnd={stop.endDay}
+      dayNumber={badgeStart}
+      dayEnd={badgeEnd}
       imageUrl={stop.imageUrl}
       city={stop.city}
     />,
@@ -541,15 +573,24 @@ function poiPhotoMarkerClass(
   }`;
 }
 
-/** Plain DOM marker — rounded-full div with Unsplash backgroundImage for Mapbox. */
+function poiLabelElement(name: string): HTMLSpanElement {
+  const label = document.createElement("span");
+  label.dataset.poiFocusLabel = "1";
+  label.className = "layla-poi-label";
+  label.textContent = name;
+  return label;
+}
+
+/** Plain DOM marker — Layla photo circle + always-visible POI name. */
 function createPoiMarkerElement(
   pin: MapPoiPin,
   isDayActive: boolean,
 ): { el: HTMLDivElement; root: Root | null; photoEl?: HTMLDivElement } {
   const el = document.createElement("div");
   el.className =
-    "trip-map-poi-marker pointer-events-auto flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center overflow-hidden";
+    "trip-map-poi-marker pointer-events-auto flex shrink-0 cursor-pointer flex-col items-center overflow-visible";
   el.title = pin.name;
+  el.appendChild(poiLabelElement(pin.name));
 
   const imageUrl = pin.imageUrl?.trim();
   if (imageUrl) {
@@ -577,9 +618,26 @@ function createPoiMarkerElement(
   el.appendChild(iconHost);
   const root = createRoot(iconHost);
   root.render(
-    <MapPoiMarker category={pin.category} isActive={isDayActive} name={pin.name} />,
+    <MapPoiMarker
+      category={pin.category}
+      isActive={isDayActive}
+      showLabel={false}
+      name={pin.name}
+      imageUrl={pin.imageUrl}
+    />,
   );
   return { el, root };
+}
+
+function dayCityName(day: DayPlan): string {
+  return (day.city ?? day.focusName ?? "").trim();
+}
+
+/** True when the pin is just the city name (useless as a stop label). */
+function isGenericCityPinName(name: string, city: string): boolean {
+  const n = name.trim().toLowerCase();
+  const c = city.trim().toLowerCase();
+  return Boolean(n && c && n === c);
 }
 
 function collectPlanPoiPins(plan: AiTripPlan): MapPoiPin[] {
@@ -599,6 +657,8 @@ function collectPlanPoiPins(plan: AiTripPlan): MapPoiPin[] {
     unsplashQuery?: string;
   }) => {
     if (!isValidCoord(source.lat, source.lng)) return;
+    const city = dayCityName(day);
+    if (isGenericCityPinName(source.name, city)) return;
 
     const existing = pins.find(
       (p) =>
@@ -606,11 +666,17 @@ function collectPlanPoiPins(plan: AiTripPlan): MapPoiPin[] {
         haversineKm([p.lng, p.lat], [source.lng, source.lat]) < COLOCATE_KM,
     );
     if (existing) {
-      if (source.name.trim().length > existing.name.trim().length) {
+      const sourceName = source.name.trim();
+      const existingName = existing.name.trim();
+      const preferSourceName =
+        sourceName.length > existingName.length ||
+        (isGenericCityPinName(existingName, city) && !isGenericCityPinName(sourceName, city));
+      if (preferSourceName) {
         existing.name = source.name;
         existing.description = source.description ?? existing.description;
-        existing.imageUrl = normalizeImageUrl(source.imageUrl) ?? existing.imageUrl;
       }
+      existing.imageUrl = normalizeImageUrl(source.imageUrl) ?? existing.imageUrl;
+      existing.unsplashQuery = source.unsplashQuery?.trim() || existing.unsplashQuery;
       existing.category = source.category;
       existing.arrivalTime = source.arrivalTime ?? existing.arrivalTime;
       existing.departureTime = source.departureTime ?? existing.departureTime;
@@ -651,6 +717,7 @@ function collectPlanPoiPins(plan: AiTripPlan): MapPoiPin[] {
         departureTime: pin.departureTime,
         estimatedCostEur: pin.estimatedCostEur,
         imageUrl: pin.imageUrl,
+        unsplashQuery: pin.unsplashQuery,
       });
     }
 
@@ -670,8 +737,8 @@ function collectPlanPoiPins(plan: AiTripPlan): MapPoiPin[] {
         arrivalTime: act.arrivalTime,
         departureTime: act.departureTime,
         estimatedCostEur: act.estimatedCostEur,
-        imageUrl: act.imageUrl,
-        unsplashQuery: act.unsplashQuery,
+        imageUrl: act.imageUrl ?? fuzzyPin?.imageUrl,
+        unsplashQuery: act.unsplashQuery ?? fuzzyPin?.unsplashQuery,
       });
     }
   }
@@ -756,27 +823,21 @@ function applyPoiMarkerVisualState(
         isActive={isDayActiveOnly}
         isFocused={state.isFocused}
         isDimmed={state.isDimmed}
+        showLabel={false}
         name={pin.name}
+        imageUrl={pin.imageUrl}
       />,
     );
   }
 
   let labelEl = el.querySelector<HTMLElement>("[data-poi-focus-label]");
-  if (state.isFocused && photoEl) {
-    if (!labelEl) {
-      labelEl = document.createElement("span");
-      labelEl.dataset.poiFocusLabel = "1";
-      labelEl.className =
-        "mb-1.5 max-w-[148px] truncate rounded-full bg-slate-900/90 px-2.5 py-1 text-[10px] font-semibold leading-tight text-white shadow-lg text-center pointer-events-none";
-      el.prepend(labelEl);
-      el.className =
-        "trip-map-poi-marker pointer-events-auto flex shrink-0 cursor-pointer flex-col items-center overflow-visible";
-    }
-    labelEl.textContent = pin.name;
-    labelEl.style.display = "";
-  } else if (labelEl) {
-    labelEl.remove();
+  if (!labelEl) {
+    labelEl = poiLabelElement(pin.name);
+    el.prepend(labelEl);
   }
+  labelEl.textContent = pin.name;
+  labelEl.className = state.isFocused ? "layla-poi-label layla-poi-label--focused" : "layla-poi-label";
+  labelEl.style.display = "";
 }
 
 function openFocusedPoiPopup(
@@ -798,21 +859,30 @@ function buildMarkerPopupHtml(opts: {
   description?: string;
   time?: string;
   cost?: string;
+  imageUrl?: string;
   showDetailsButton?: boolean;
   detailsButtonLabel?: string;
 }): string {
   const desc = opts.description?.trim();
   const time = opts.time?.trim();
   const cost = opts.cost?.trim();
+  const imageUrl = opts.imageUrl?.trim();
   const descShort = desc
     ? desc.length > 140
       ? `${desc.slice(0, 137).trim()}…`
       : desc
     : "";
+  const hero = imageUrl
+    ? `<div class="mb-3 -mx-4 -mt-4 h-28 overflow-hidden bg-slate-100"><img src="${escapeHtml(imageUrl)}" alt="" class="h-full w-full object-cover" loading="lazy" /></div>`
+    : "";
+  const avatar = imageUrl
+    ? `<img src="${escapeHtml(imageUrl)}" alt="" class="h-8 w-8 shrink-0 rounded-full object-cover border border-white shadow-sm" loading="lazy" />`
+    : `<span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sky-50 text-base leading-none" aria-hidden="true">📍</span>`;
   return `
     <div class="rounded-2xl bg-white shadow-xl border border-slate-100/80 overflow-hidden p-4 min-w-[210px] max-w-[280px]">
+      ${hero}
       <div class="flex items-start gap-2.5 mb-3">
-        <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sky-50 text-base leading-none" aria-hidden="true">📍</span>
+        ${avatar}
         <h4 class="font-bold text-slate-900 text-[15px] leading-snug pt-0.5">${escapeHtml(opts.title)}</h4>
       </div>
       <div class="flex flex-wrap gap-2">
@@ -1228,6 +1298,24 @@ function TripMapInner({
 
   const planContentKey = useMemo(() => buildTripMapPlanKey(plan), [plan]);
 
+  /** Photo-only updates must rebuild pins — geo key alone stays stable after Unsplash merge. */
+  const planPhotosKey = useMemo(
+    () =>
+      plan.days
+        .map((d) => {
+          const pinImgs = (d.mapPins ?? []).map((p) => `${p.name}:${p.imageUrl ?? ""}`).join(",");
+          const slots = d.activities;
+          const actImgs = slots
+            ? [...slots.morning, ...slots.afternoon, ...slots.evening]
+                .map((a) => `${a.name}:${a.imageUrl ?? ""}`)
+                .join(",")
+            : "";
+          return `${d.day}:${d.imageUrl ?? ""}:${pinImgs}:${actImgs}`;
+        })
+        .join("|"),
+    [plan],
+  );
+
   const planDaysTextKey = useMemo(
     () => plan.days.map((d) => `${d.title} ${d.city}`).join("|"),
     [planContentKey],
@@ -1244,8 +1332,14 @@ function TripMapInner({
 
   const visibleRouteModes = useMemo((): RouteMode[] => ROUTE_MODES, []);
 
-  const poiPinsKey = useMemo(() => buildPoiPinsKey(plan), [planContentKey]);
-  const poiPins = useMemo(() => collectPlanPoiPins(plan), [planContentKey]);
+  const poiPinsKey = useMemo(
+    () => buildPoiPinsKey(plan),
+    [planContentKey, planPhotosKey],
+  );
+  const poiPins = useMemo(
+    () => collectPlanPoiPins(plan),
+    [planContentKey, planPhotosKey],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -1399,7 +1493,7 @@ function TripMapInner({
         return c ? { day: d, coord: c } : null;
       })
       .filter((x): x is { day: DayPlan; coord: [number, number] } => x !== null);
-  }, [planContentKey, dayCoordsKey]);
+  }, [planContentKey, planPhotosKey, dayCoordsKey, plan.days, dayCoords]);
 
   const originLabel = plan.originPlace?.trim() || plan.originIata || "";
   const destinationLabel =
@@ -1536,12 +1630,11 @@ function TripMapInner({
       map.once("moveend", onSettled);
     };
 
-    if (map.isStyleLoaded() && ready.current) run();
-    else map.once("load", run);
+    const cancelReady = whenMapStyleReady(map, ready, run);
 
     return () => {
       if (onSettled) map.off("moveend", onSettled);
-      map.off("load", run);
+      cancelReady();
     };
   }, [focusTarget]);
 
@@ -1551,10 +1644,11 @@ function TripMapInner({
     }
   }, [focusTarget?.mode]);
 
-  // One marker per itinerary day so badge numbers match the day list.
+  // Collapse consecutive same-city days into one Layla pin (badge "1–4"),
+  // so Phuket×4 identical labels never stack on top of each other.
   const cityStops = useMemo(
-    () => buildCityStops(validDays, plan.days.length, true),
-    [validDays, plan.days.length],
+    () => buildCityStops(validDays, plan.days.length, false),
+    [validDays, plan.days.length, planPhotosKey],
   );
 
   const cityStopsKey = useMemo(() => buildCityStopsKey(cityStops), [cityStops]);
@@ -1658,7 +1752,7 @@ function TripMapInner({
     };
 
     if (ready.current && map.isStyleLoaded()) switchStyle();
-    else map.once("load", switchStyle);
+    else map.once("style.load", switchStyle);
   }, [isSatellite, token]);
 
   // POI sightseeing markers from AI-generated pins.
@@ -1675,19 +1769,38 @@ function TripMapInner({
       const nextEntries: PoiMarkerEntry[] = [];
 
       for (const pin of poiPins) {
-        const id = poiFocusKey(pin.name, pin.lat, pin.lng);
+        const id = poiMarkerId(pin);
         const existing = existingById.get(id);
         if (existing) {
           existing.marker.setLngLat([pin.lng, pin.lat]);
           existing.pin = pin;
           existing.day = pin.day;
+          const labelEl = existing.marker
+            .getElement()
+            .querySelector<HTMLElement>("[data-poi-focus-label]");
+          if (labelEl) labelEl.textContent = pin.name;
+          // Refresh photo/icon if enrichment arrived after first paint.
+          if (existing.photoEl && pin.imageUrl) {
+            existing.photoEl.style.backgroundImage = `url("${pin.imageUrl.replace(/"/g, "%22")}")`;
+            existing.photoEl.textContent = "";
+          } else if (existing.root) {
+            existing.root.render(
+              <MapPoiMarker
+                category={pin.category}
+                isActive={pin.day === activeDayRef.current}
+                showLabel={false}
+                name={pin.name}
+                imageUrl={pin.imageUrl}
+              />,
+            );
+          }
           nextEntries.push(existing);
           continue;
         }
 
         const isDayActive = pin.day === activeDayRef.current;
         const { el, root, photoEl } = createPoiMarkerElement(pin, isDayActive);
-        const marker = new mapboxgl.Marker(el)
+        const marker = new mapboxgl.Marker({ element: el, anchor: "bottom" })
           .setLngLat([pin.lng, pin.lat])
           .addTo(map);
 
@@ -1729,6 +1842,7 @@ function TripMapInner({
             description: pin.description,
             time,
             cost,
+            imageUrl: pin.imageUrl,
             showDetailsButton: Boolean(openDetails && poiDetails),
             detailsButtonLabel: t("poi.moreInfo"),
           }),
@@ -1747,24 +1861,20 @@ function TripMapInner({
       }
 
       poiMarkersRef.current = nextEntries;
+      // Reveal active-day pins immediately (style swap can race the route-draw effect).
+      setPoiMarkersForDay(poiMarkersRef, activeDayRef.current, true);
     };
 
-    const onReady = () => apply();
-
-    if (map.isStyleLoaded() && ready.current) {
-      apply();
-    } else {
-      map.once("load", onReady);
-    }
+    const cancelReady = whenMapStyleReady(map, ready, apply);
 
     return () => {
       disposed = true;
-      map.off("load", onReady);
+      cancelReady();
       clearPoiMarkerLayer(poiMarkersRef);
     };
   }, [poiPinsKey, mapStyleEpoch, plan.days, t, formatMoney]);
 
-  // Highlight focused POI — one marker, dim siblings, hide co-located duplicates.
+  // Highlight focused POI — only active-day pins stay visible (never leak D7 onto D6).
   useEffect(() => {
     const inPoiFocus = focusTarget?.mode === "drone";
     const focusCoords = inPoiFocus && focusTarget ? focusTarget : null;
@@ -1775,24 +1885,31 @@ function TripMapInner({
 
     for (const entry of poiMarkersRef.current) {
       const el = entry.marker.getElement();
+      const isDayActive = entry.day === activeDay;
       const isFocused = entry.id === focusedId;
+      // Drone focus may briefly show the clicked pin even if scroll day differs.
+      const allowVisible = isDayActive || isFocused;
+
+      if (!allowVisible) {
+        setPoiMarkerHidden(el, true);
+        entry.marker.getPopup()?.remove();
+        continue;
+      }
+
       const isColocatedDup = Boolean(
         inPoiFocus &&
           focusedEntry &&
           !isFocused &&
+          entry.day === focusedEntry.day &&
           coordsNearPin(entry.pin, focusedEntry.pin),
       );
 
       if (isColocatedDup) {
-        el.style.opacity = "0";
-        el.style.pointerEvents = "none";
+        setPoiMarkerHidden(el, true);
         continue;
       }
 
-      el.style.opacity = "";
-      el.style.pointerEvents = "";
-
-      const isDayActive = entry.day === activeDay;
+      setPoiMarkerHidden(el, false);
       const isDimmed = Boolean(inPoiFocus && !isFocused);
       applyPoiMarkerVisualState(entry, { isDayActive, isFocused, isDimmed });
     }
@@ -1820,8 +1937,7 @@ function TripMapInner({
       }
     };
 
-    if (map.isStyleLoaded() && ready.current) drawRoutes();
-    else map.once("load", drawRoutes);
+    return whenMapStyleReady(map, ready, drawRoutes);
   }, [routeData, origin, visibleRouteModes, mapStyleEpoch]);
 
   // Fit the full trip once when route geometry is first available.
@@ -1847,8 +1963,7 @@ function TripMapInner({
       map.once("moveend", onSettled);
     };
 
-    if (map.isStyleLoaded() && ready.current) fit();
-    else map.once("load", fit);
+    return whenMapStyleReady(map, ready, fit);
   }, [tripRouteBoundsKey, tripRouteBounds]);
 
   // Single-city / no route bounds — allow day camera immediately.
@@ -1858,7 +1973,7 @@ function TripMapInner({
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !map.isStyleLoaded() || !ready.current) return;
+    if (!map) return;
     if (tripRouteBoundsKey && !overviewReady && !isPlaying) return;
     if (
       scrollSpyPausedRef.current &&
@@ -1868,70 +1983,81 @@ function TripMapInner({
       return;
     }
 
-    clearPoiRevealTimers(poiRevealTimersRef);
-    if (routeDrawAnimRef.current) {
-      cancelAnimationFrame(routeDrawAnimRef.current);
-      routeDrawAnimRef.current = 0;
-    }
-    routeDrawGenerationRef.current += 1;
-    clearAllRouteDisplay(map);
-
     let cancelled = false;
-    const dayFocusKey =
-      focusTargetRef.current?.mode === "day" ? focusTargetRef.current.key : 0;
-    const skipDayCamera = focusTargetRef.current?.mode === "drone";
 
-    void (async () => {
-      const dayPlan = plan.days.find((d) => d.day === activeDay);
-      const activeRoute = await resolveActiveDayRoute({
-        activeDay,
-        dayPlan,
-        routeData,
-        dayCoords,
-        origin,
-        finalizedDays: finalizedRouteDays,
-        token,
-        preferDriving,
-      });
-      if (cancelled) return;
+    const runDayView = () => {
+      if (cancelled || !map.isStyleLoaded() || !ready.current) return;
 
-      const { coordinates: coords, boundsPoints, lineStyle, drawRoute } = activeRoute;
-      const focusKey = focusTargetRef.current?.key ?? 0;
-      const camKey = streaming
-        ? `${isPlaying ? "play" : "scroll"}:${activeDay}:${dayFocusKey}:${focusKey}`
-        : `${isPlaying ? "play" : "scroll"}:${activeDay}:${dayFocusKey}:${coordsBoundsKey(coords)}:${drawRoute}:${focusKey}`;
-      if (!skipDayCamera && lastFlyTargetKeyRef.current !== camKey) {
-        lastFlyTargetKeyRef.current = camKey;
-        const center = boundsPoints[0] ?? activeDayCoord;
-        if (isPlaying && center) {
-          flyToDayCenter(map, center);
-        } else {
-          fitActiveDayView(map, {
-            boundsPoints,
-            fallbackCenter: activeDayCoord,
-          });
-        }
+      clearPoiRevealTimers(poiRevealTimersRef);
+      if (routeDrawAnimRef.current) {
+        cancelAnimationFrame(routeDrawAnimRef.current);
+        routeDrawAnimRef.current = 0;
       }
+      routeDrawGenerationRef.current += 1;
+      clearAllRouteDisplay(map);
 
-      runActiveDayRouteDraw(map, drawRoute ? coords : [], {
-        activeDay,
-        lineStyle,
-        poiMarkersRef,
-        durationMarkersRef,
-        routeDrawAnimRef,
-        routeDrawGenerationRef,
-        poiRevealTimersRef,
-      });
-    })();
+      const dayFocusKey =
+        focusTargetRef.current?.mode === "day" ? focusTargetRef.current.key : 0;
+      const skipDayCamera = focusTargetRef.current?.mode === "drone";
+
+      void (async () => {
+        const dayPlan = plan.days.find((d) => d.day === activeDay);
+        const activeRoute = await resolveActiveDayRoute({
+          activeDay,
+          dayPlan,
+          routeData,
+          dayCoords,
+          origin,
+          finalizedDays: finalizedRouteDays,
+          token,
+          preferDriving,
+        });
+        if (cancelled) return;
+
+        const { coordinates: coords, boundsPoints, lineStyle, drawRoute } = activeRoute;
+        const focusKey = focusTargetRef.current?.key ?? 0;
+        const camKey = streaming
+          ? `${isPlaying ? "play" : "scroll"}:${activeDay}:${dayFocusKey}:${focusKey}`
+          : `${isPlaying ? "play" : "scroll"}:${activeDay}:${dayFocusKey}:${coordsBoundsKey(coords)}:${drawRoute}:${focusKey}`;
+        if (!skipDayCamera && lastFlyTargetKeyRef.current !== camKey) {
+          lastFlyTargetKeyRef.current = camKey;
+          const center = boundsPoints[0] ?? activeDayCoord;
+          if (isPlaying && center) {
+            flyToDayCenter(map, center);
+          } else {
+            fitActiveDayView(map, {
+              boundsPoints,
+              fallbackCenter: activeDayCoord,
+            });
+          }
+        }
+
+        runActiveDayRouteDraw(map, drawRoute ? coords : [], {
+          activeDay,
+          lineStyle,
+          poiMarkersRef,
+          durationMarkersRef,
+          routeDrawAnimRef,
+          routeDrawGenerationRef,
+          poiRevealTimersRef,
+        });
+      })();
+    };
+
+    const cancelReady = whenMapStyleReady(map, ready, runDayView);
 
     return () => {
       cancelled = true;
+      cancelReady();
       routeDrawGenerationRef.current += 1;
       clearPoiRevealTimers(poiRevealTimersRef);
       if (routeDrawAnimRef.current) {
         cancelAnimationFrame(routeDrawAnimRef.current);
         routeDrawAnimRef.current = 0;
       }
+      // Don't leave active-day POIs stuck at opacity 0 after a cancelled route-draw.
+      setPoiMarkersForDay(poiMarkersRef, activeDayRef.current, true);
+      setDurationBadgesForDay(durationMarkersRef, activeDayRef.current, true);
     };
   }, [
     activeDay,
@@ -1978,8 +2104,7 @@ function TripMapInner({
       }
     };
 
-    if (map.isStyleLoaded() && ready.current) apply();
-    else map.once("load", apply);
+    return whenMapStyleReady(map, ready, apply);
   }, [origin, plan.originIata, plan.originPlace, mapStyleEpoch]);
 
   // Layla-style city markers — sync in place to avoid jump on day change.
@@ -2003,15 +2128,35 @@ function TripMapInner({
           existing.stop = stop;
           existing.startDay = stop.startDay;
           existing.endDay = stop.endDay;
+          const isActive =
+            activeDayRef.current >= stop.startDay && activeDayRef.current <= stop.endDay;
+          const label = existing.marker.getElement().querySelector(".layla-city-label");
+          if (label) label.textContent = stop.city;
+          const badgeStart = isActive ? activeDayRef.current : stop.startDay;
+          const badgeEnd = isActive ? activeDayRef.current : stop.endDay;
+          existing.root.render(
+            <MapCityMarker
+              isActive={isActive}
+              dayNumber={badgeStart}
+              dayEnd={badgeEnd}
+              imageUrl={stop.imageUrl}
+              city={stop.city}
+            />,
+          );
           nextEntries.push(existing);
           continue;
         }
 
         const isActive =
           activeDayRef.current >= stop.startDay && activeDayRef.current <= stop.endDay;
-        const { el, root } = createCityMarkerElement(stop, isActive, (day) => {
-          onDaySelectRef.current?.(day);
-        });
+        const { el, root } = createCityMarkerElement(
+          stop,
+          isActive,
+          (day) => {
+            onDaySelectRef.current?.(day);
+          },
+          activeDayRef.current,
+        );
         const marker = new mapboxgl.Marker({ element: el, anchor: "bottom" })
           .setLngLat(stop.coord)
           .addTo(map);
@@ -2061,17 +2206,11 @@ function TripMapInner({
       markersRef.current = nextEntries;
     };
 
-    const onReady = () => apply();
-
-    if (map.isStyleLoaded() && ready.current) {
-      apply();
-    } else {
-      map.once("load", onReady);
-    }
+    const cancelReady = whenMapStyleReady(map, ready, apply);
 
     return () => {
       disposed = true;
-      map.off("load", onReady);
+      cancelReady();
       clearCityMarkerLayer(markersRef);
     };
   }, [cityStopsKey, mapStyleEpoch, plan.days, t, formatMoney]);
@@ -2103,37 +2242,45 @@ function TripMapInner({
       }
     };
 
-    const onReady = () => apply();
-
-    if (map.isStyleLoaded() && ready.current) {
-      apply();
-    } else {
-      map.once("load", onReady);
-    }
+    const cancelReady = whenMapStyleReady(map, ready, apply);
 
     return () => {
       disposed = true;
-      map.off("load", onReady);
+      cancelReady();
       clearDurationMarkerLayer(durationMarkersRef);
     };
   }, [routeDataKey, mapStyleEpoch, plan, t]);
 
-  // Highlight active city marker without rebuilding DOM.
+  // Highlight active city marker; badge shows the day you're reading (not the whole stay range).
   useEffect(() => {
+    // Only hide city pin when a POI marker for this day is actually visible (opacity > 0).
+    // Otherwise route-draw hide/reveal left a blank map (no city, no POIs).
+    const visiblePoiForDay = poiMarkersRef.current.some((entry) => {
+      if (entry.day !== activeDay) return false;
+      const op = entry.marker.getElement().style.opacity;
+      return op === "" || op === "1";
+    });
     for (const { root, stop, startDay, endDay, marker } of markersRef.current) {
       const isActive = activeDay >= startDay && activeDay <= endDay;
+      const el = marker.getElement();
+      const hideCity = visiblePoiForDay && isActive;
+      el.style.opacity = hideCity ? "0" : "";
+      el.style.pointerEvents = hideCity ? "none" : "";
+      el.className = `layla-city-marker${isActive && !hideCity ? " layla-city-marker--active" : ""}`;
+      // Active: "6". Inactive multi-night stay: "6–7". Never imply next-day content while reading D6.
+      const badgeStart = isActive ? activeDay : stop.startDay;
+      const badgeEnd = isActive ? activeDay : stop.endDay;
       root.render(
         <MapCityMarker
-          isActive={isActive}
-          dayNumber={stop.startDay}
-          dayEnd={stop.endDay}
+          isActive={isActive && !hideCity}
+          dayNumber={badgeStart}
+          dayEnd={badgeEnd}
           imageUrl={stop.imageUrl}
           city={stop.city}
         />,
       );
-      marker.getElement().className = `layla-city-marker${isActive ? " layla-city-marker--active" : ""}`;
     }
-  }, [activeDay]);
+  }, [activeDay, poiPins, poiPinsKey]);
 
   // Reset fly dedupe when playback starts so day 1 always animates.
   const wasPlayingRef = useRef(false);

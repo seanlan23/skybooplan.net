@@ -35,6 +35,7 @@ import {
 } from "@/lib/aiPlan.functions";
 import { useStreamItinerary } from "@/hooks/useStreamItinerary";
 import { usePlanPhotoEnrichment } from "@/hooks/usePlanPhotoEnrichment";
+import { mergePlanPhotos } from "@/lib/unsplashPhotos";
 import type { GenerateGeminiProTripInput } from "@/lib/geminiPro.functions";
 import {
   normalizeIata,
@@ -50,12 +51,14 @@ import { useAuth } from "@/hooks/use-auth";
 import { resolveErrorMessage, useI18n } from "@/lib/i18n";
 import { normalizePlanLangCode } from "@/lib/planLanguages";
 import { normalizePlanCurrency } from "@/lib/planCurrency";
+import { applyFlightContextToGeminiPlan } from "@/lib/geminiFlightContext";
 import { flightContextFromLegs } from "@/lib/flightScheduling";
 import { isClassicRoundTrip } from "@/lib/flightSearch";
 import { formatPlannerInterests } from "@/lib/plannerInterests";
 import { Button } from "@/components/ui/button";
 import { addDays } from "@/lib/dateUtils";
-import { parseMakeFlightRoute, type MakeSearchFlight } from "@/lib/makeSearch";
+import { inferArriveDayOffset, parseMakeFlightRoute, type MakeSearchFlight } from "@/lib/makeSearch";
+import { parsePostankiLeg } from "@/lib/returnFlightSummary";
 import { resolveHeroSearchData } from "@/lib/heroSearchPoll";
 import { heroChatToPlannerPayload, resolveDestinationIata } from "@/lib/heroChatPlanner";
 import type { HeroChatCollected } from "@/lib/heroChatFlow";
@@ -287,6 +290,8 @@ function Landing() {
   const [lastSearch, setLastSearch] = useState<SearchValues | null>(null);
   const [flightSearchDone, setFlightSearchDone] = useState(false);
   const [aiPlan, setAiPlan] = useState<AiTripPlan | null>(null);
+  /** Unsplash merge while Gemini stream preview is still the display plan. */
+  const [previewPhotoPlan, setPreviewPhotoPlan] = useState<AiTripPlan | null>(null);
   const [aiSkeleton, setAiSkeleton] = useState<TripSkeleton | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiExpandingFull, setAiExpandingFull] = useState(false);
@@ -334,7 +339,37 @@ function Landing() {
     );
   }, [lang]);
 
-  usePlanPhotoEnrichment(aiPlan, setAiPlan);
+  const previewPhotoPlanRef = useRef<AiTripPlan | null>(null);
+  previewPhotoPlanRef.current = previewPhotoPlan;
+  const aiFlightsRef = useRef(aiContext?.flights);
+  aiFlightsRef.current = aiContext?.flights;
+  const aiOriginRef = useRef(aiContext?.from);
+  aiOriginRef.current = aiContext?.from;
+  const aiLangRef = useRef(aiContext?.language || lang);
+  aiLangRef.current = aiContext?.language || lang;
+
+  const commitAiPlan = useCallback((plan: AiTripPlan) => {
+    const photos = previewPhotoPlanRef.current;
+    const withPhotos = photos ? mergePlanPhotos(plan, photos) : plan;
+    const flights = aiFlightsRef.current;
+    if (flights?.outboundArrive) {
+      // Client safety net: never show Gemini-invented 12:00 when boarding pass says 17:55.
+      const next: AiTripPlan = structuredClone(withPhotos);
+      applyFlightContextToGeminiPlan(next, flights, {
+        originIata: aiOriginRef.current,
+        language: aiLangRef.current,
+      });
+      setAiPlan(next);
+      return;
+    }
+    setAiPlan(withPhotos);
+  }, []);
+
+  // Enrich final plan + stream preview so Layla-style photo pins appear ASAP.
+  usePlanPhotoEnrichment(aiPlan ?? streamItinerary.previewPlan, (enriched) => {
+    setAiPlan((current) => (current ? mergePlanPhotos(current, enriched) : current));
+    setPreviewPhotoPlan(enriched);
+  });
 
   const resetLanding = useCallback(() => {
     clearSession();
@@ -343,6 +378,7 @@ function Landing() {
     setSelected(null);
     setConfirmFlight(null);
     setAiPlan(null);
+    setPreviewPhotoPlan(null);
     setAiSkeleton(null);
     setAiError(null);
     setAiContext(null);
@@ -509,6 +545,7 @@ function Landing() {
 
   function beginNewSearch() {
     setAiPlan(null);
+    setPreviewPhotoPlan(null);
     setAiSkeleton(null);
     setAiError(null);
     setLastPlannerForm(null);
@@ -854,6 +891,7 @@ function Landing() {
     setHeroSkyChatComplete(true);
     setLastPlannerForm(null);
     setAiPlan(null);
+    setPreviewPhotoPlan(null);
     setAiError(null);
     setHeroPlannerActive(false);
 
@@ -872,14 +910,25 @@ function Landing() {
     const returnDate =
       aiContext.returnDate || lastSearch?.returnDate || flight.return_date || undefined;
 
+    const outStops = parsePostankiLeg(flight.postanki, "outbound");
+    const inStops = parsePostankiLeg(flight.postanki, "inbound");
     const flightCtx =
       flight.outbound_depart && flight.outbound_arrive
         ? {
             outboundDepart: flight.outbound_depart,
             outboundArrive: flight.outbound_arrive,
-            outboundArriveDayOffset: flight.outbound_arrive_day_offset ?? 0,
+            // Same inference as FlightCard (+1 for 21:10→17:55) — never default silent 0.
+            outboundArriveDayOffset: inferArriveDayOffset(
+              flight.outbound_depart,
+              flight.outbound_arrive,
+              flight.outbound_arrive_day_offset,
+            ),
             ...(flight.inbound_depart ? { inboundDepart: flight.inbound_depart } : {}),
             ...(flight.inbound_arrive ? { inboundArrive: flight.inbound_arrive } : {}),
+            ...(outStops.stops != null ? { outboundStops: outStops.stops } : {}),
+            ...(inStops.stops != null ? { inboundStops: inStops.stops } : {}),
+            ...(outStops.via ? { outboundVia: outStops.via } : {}),
+            ...(inStops.via ? { inboundVia: inStops.via } : {}),
           }
         : aiContext.flights;
 
@@ -906,6 +955,7 @@ function Landing() {
     setShowConfirm(false);
     setSelected(f);
     setAiPlan(null);
+    setPreviewPhotoPlan(null);
     setAiError(null);
     const openJaw =
       f.tripKind === "multicity" ||
@@ -1016,6 +1066,7 @@ function Landing() {
     setLastPlannerForm(safeForm);
     setHeroPlannerActive(true);
     setAiPlan(null);
+    setPreviewPhotoPlan(null);
     setAiSkeleton(null);
     setAiError(null);
     streamItinerary.reset();
@@ -1094,7 +1145,7 @@ function Landing() {
           return;
         }
         if (plan?.days?.length) {
-          setAiPlan(plan);
+          commitAiPlan(plan);
           setSavedPlanId(null);
         } else {
           setAiError(t("error.planInvalidFormat"));
@@ -1163,7 +1214,7 @@ function Landing() {
           setAiError(expandError);
           setAiSkeleton(res.skeleton);
         } else if (fullPlan) {
-          setAiPlan(fullPlan);
+          commitAiPlan(fullPlan);
           setAiSkeleton(null);
           setSavedPlanId(null);
           await persistPlanToTrips(fullPlan, ctx);
@@ -1249,7 +1300,7 @@ function Landing() {
         return;
       }
       if (plan) {
-        setAiPlan(plan);
+        commitAiPlan(plan);
         setAiSkeleton(null);
         setSavedPlanId(null);
         await persistPlanToTrips(plan, ctx);
@@ -1267,7 +1318,11 @@ function Landing() {
   }
 
   const streamPreviewPlan = streamItinerary.previewPlan;
-  const displayPlan = aiPlan ?? streamPreviewPlan;
+  const displayPlan =
+    aiPlan ??
+    (streamPreviewPlan && previewPhotoPlan
+      ? mergePlanPhotos(streamPreviewPlan, previewPhotoPlan)
+      : streamPreviewPlan);
   const isGeminiStreaming = streamItinerary.isStreaming && !aiPlan;
 
   const showHeroPlannerForm =

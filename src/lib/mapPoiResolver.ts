@@ -78,6 +78,36 @@ function isTrainLike(activity: Activity): boolean {
   return /\b(vlak|train|rail)\b/i.test(activity.name);
 }
 
+const WATER_OK =
+  /snork|diving|potop|plavanje|swim|boat|čoln|maya bay|phi lay|bay tour|cruise|izlet z lad|kayak|kajak/i;
+const LAND_PREF =
+  /kosilo|lunch|dinner|večerja|zajtrk|breakfast|hotel|prijava|check-?\s*in|check-?\s*out|restavrac|café|kavarn|street food|tržnica/i;
+
+/** Food/hotel pins Gemini drops in open water → snap to day land hub (e.g. Tonsai). */
+function snapLandPreferringPin(
+  activity: Activity,
+  day: DayPlan,
+  coords: { lat: number; lng: number },
+): { lat: number; lng: number } {
+  const text = `${activity.name} ${activity.description ?? ""}`;
+  if (WATER_OK.test(text) && !LAND_PREF.test(text)) return coords;
+
+  const category = resolveActivityMapCategory(activity);
+  const landLike =
+    category === "food" ||
+    category === "hotel" ||
+    LAND_PREF.test(text);
+  if (!landLike) return coords;
+
+  const center = dayCenter(day);
+  if (!center) return coords;
+
+  const distKm = haversineKm([coords.lng, coords.lat], [center.lng, center.lat]);
+  // Offshore lunch west of Phi Phi is typically 1.5–4 km from Tonsai.
+  if (distKm > 1.2) return center;
+  return coords;
+}
+
 /** Resolve best map coordinates for an activity — curated POI > IATA > pin > AI coords. */
 export function resolveActivityCoordinates(
   activity: Activity,
@@ -98,7 +128,17 @@ export function resolveActivityCoordinates(
   }
 
   const curated = lookupPoiCoords(activity.name);
-  if (curated) return curated;
+  if (curated) {
+    // Never pin Bangkok temples onto a Khao Sok / Phuket day — hide instead.
+    if (center) {
+      const distKm = haversineKm(
+        [curated.lng, curated.lat],
+        [center.lng, center.lat],
+      );
+      if (distKm > MAX_DAY_PIN_KM) return null;
+    }
+    return snapLandPreferringPin(activity, day, curated);
+  }
 
   if (isTrainLike(activity) || activity.transportType === "ferry") {
     const dest = destinationFromRouteName(activity.name);
@@ -109,7 +149,7 @@ export function resolveActivityCoordinates(
   let lng = activity.lng ?? pin?.lng;
 
   if (!isValidCoord(lat, lng)) {
-    if (center) return center;
+    // Never pin unknown POIs on the day city center — that stuck "Bangkok Art…" on Khao Sok.
     return null;
   }
 
@@ -122,13 +162,13 @@ export function resolveActivityCoordinates(
       }
       const retry = lookupPoiCoords(`${activity.name} ${day.city}`);
       if (retry && haversineKm([retry.lng, retry.lat], [center.lng, center.lat]) <= MAX_DAY_PIN_KM) {
-        return retry;
+        return snapLandPreferringPin(activity, day, retry);
       }
       return null;
     }
   }
 
-  return { lat, lng };
+  return snapLandPreferringPin(activity, day, { lat, lng });
 }
 
 export function shouldShowActivityOnMap(activity: Activity): boolean {
@@ -158,18 +198,41 @@ export function attachActivityCoordinates(day: DayPlan): DayPlan {
 
   const patch = (activities: Activity[]): Activity[] =>
     activities.map((act) => {
-      if (isValidCoord(act.lat, act.lng)) return act;
+      // Always re-resolve — curated land coords must override Gemini offshore pins.
       const coords = resolveActivityCoordinates(act, day);
       if (!coords) return act;
+      if (
+        isValidCoord(act.lat, act.lng) &&
+        act.lat === coords.lat &&
+        act.lng === coords.lng
+      ) {
+        return act;
+      }
       return { ...act, lat: coords.lat, lng: coords.lng };
     });
 
+  // Snap mapPins the same way (popup/marker sources).
+  const mapPins = (day.mapPins ?? []).map((pin) => {
+    const asAct: Activity = {
+      name: pin.name,
+      description: pin.description,
+      lat: pin.lat,
+      lng: pin.lng,
+      type: pin.category,
+    };
+    const coords = resolveActivityCoordinates(asAct, day);
+    if (!coords) return pin;
+    if (pin.lat === coords.lat && pin.lng === coords.lng) return pin;
+    return { ...pin, lat: coords.lat, lng: coords.lng };
+  });
+
   return {
     ...day,
+    ...(mapPins.length ? { mapPins } : {}),
     activities: {
-      morning: patch(slots.morning),
-      afternoon: patch(slots.afternoon),
-      evening: patch(slots.evening),
+      morning: patch(slots.morning ?? []),
+      afternoon: patch(slots.afternoon ?? []),
+      evening: patch(slots.evening ?? []),
     },
   };
 }

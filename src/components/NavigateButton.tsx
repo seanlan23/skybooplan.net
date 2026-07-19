@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import {
   isValidNavCoord,
   openInGoogleMaps,
+  type GoogleMapsNavOptions,
 } from "@/lib/navigationService";
 import { useI18n } from "@/lib/i18n";
 
@@ -10,12 +11,22 @@ export function NavigateButton({
   lat,
   lng,
   label,
+  originLat,
+  originLng,
+  originQuery,
+  destinationQuery,
+  travelMode = "driving",
   className = "",
   size = "default",
 }: {
   lat?: number;
   lng?: number;
   label?: string;
+  originLat?: number;
+  originLng?: number;
+  originQuery?: string;
+  destinationQuery?: string;
+  travelMode?: GoogleMapsNavOptions["travelMode"];
   className?: string;
   size?: "default" | "compact";
 }) {
@@ -30,7 +41,14 @@ export function NavigateButton({
       toast.error(navError("invalid_coords"));
       return;
     }
-    const result = openInGoogleMaps(lat!, lng!, label);
+    const result = openInGoogleMaps(lat!, lng!, {
+      label,
+      originLat,
+      originLng,
+      originQuery,
+      destinationQuery,
+      travelMode,
+    });
     if (!result.ok) {
       toast.error(navError(result.reason));
     }

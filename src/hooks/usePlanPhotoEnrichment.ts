@@ -27,6 +27,10 @@ export function usePlanPhotoEnrichment(
   );
 
   useEffect(() => {
+    if (!photoRequestKey) {
+      lastRequestedKeyRef.current = "";
+      return;
+    }
     const currentPlan = planRef.current;
     if (!currentPlan?.days?.length) return;
     if (!planNeedsPhotoEnrichment(currentPlan)) return;

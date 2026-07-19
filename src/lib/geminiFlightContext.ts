@@ -19,6 +19,8 @@ import {
   type LogisticsActivity,
   type TripFlightContext,
 } from "@/lib/flightScheduling";
+import { lookupDestination } from "@/lib/destinationCoords";
+import { buildReturnFlightSummary } from "@/lib/returnFlightSummary";
 import { resolveTripLocale } from "@/lib/tripLocale";
 
 function logisticsToActivity(a: LogisticsActivity): Activity {
@@ -27,12 +29,25 @@ function logisticsToActivity(a: LogisticsActivity): Activity {
     type: a.type,
     description: a.description,
     priceLabel: a.priceLabel,
+    ...(a.arrivalTime ? { arrivalTime: a.arrivalTime } : {}),
+    ...(a.departureTime ? { departureTime: a.departureTime } : {}),
   };
 }
 
 function isHeavyArrivalSight(a: Activity): boolean {
   const t = `${a.name} ${a.description ?? ""}`.toLowerCase();
   return /museum|muzej|palace|citadel|trdnjava|temple|tempelj|war |znamenit|full-day|celodnev/i.test(
+    t,
+  );
+}
+
+/** Beach breakfast / siesta / pool — nonsense before the plane has landed. */
+function isPreLandingDestinationFiller(a: Activity): boolean {
+  const t = `${a.name} ${a.description ?? ""} ${a.type ?? ""}`.toLowerCase();
+  if (/letališč|airport|transfer|check-?in|odhod|mednarodn|\blet\b|flight/i.test(t)) {
+    return false;
+  }
+  return /zajtrk|breakfast|siesta|tropska\s*pavza|bazen|\bpool\b|beach\s*caf|promenad|plaž|senčnik|brunch/i.test(
     t,
   );
 }
@@ -49,7 +64,9 @@ function mergeArrivalDay(
   logistics: LogisticsActivity[],
 ): DayPlan["activities"] {
   const logisticsActs = logistics.map(logisticsToActivity);
-  const sights = flattenDayActivities(day).filter((a) => !isHeavyArrivalSight(a));
+  const sights = flattenDayActivities(day).filter(
+    (a) => !isHeavyArrivalSight(a) && !isPreLandingDestinationFiller(a),
+  );
   const slot = arrivalDaySlot(flights);
 
   if (isRedEyeArrival(flights)) {
@@ -60,6 +77,7 @@ function mergeArrivalDay(
     };
   }
   if (slot === "evening") {
+    // Land ~18:00+ — no morning/afternoon at destination (no breakfast, no “tropical break”).
     return { morning: [], afternoon: [], evening: logisticsActs };
   }
   if (slot === "afternoon") {
@@ -182,6 +200,19 @@ export function flightContextPromptBlock(
         ? `- trip_metadata.return_flight_eu.departure_time = "${flights.inboundDepart}", arrival_time_eu = "${flights.inboundArrive ?? ""}", from_airport = "${dest}", to_airport = "${origin}".`
         : `- Fill trip_metadata.return_flight_eu with departure_time="${flights.inboundDepart}", arrival_time_eu="${flights.inboundArrive ?? ""}".`,
     );
+    if (flights.inboundStops != null && flights.inboundStops > 0) {
+      lines.push(
+        slo
+          ? `- Povratek NI direktni: ${flights.inboundStops} postanek(ov)${flights.inboundVia ? ` prek ${flights.inboundVia}` : ""}. V summary PREPOVEDANO napisati "direct"/"direktni".`
+          : `- Return is NOT direct: ${flights.inboundStops} stop(s)${flights.inboundVia ? ` via ${flights.inboundVia}` : ""}. Summary must NOT say "direct"/"nonstop".`,
+      );
+    } else if (flights.inboundStops == null) {
+      lines.push(
+        slo
+          ? `- Če nisi prepričan o postankih, v summary NE trdi "direktni let" (HKT/BKK↔EU skoraj nikoli ni nonstop).`
+          : `- If unsure about stops, do NOT claim "direct" in summary (HKT/BKK↔EU is almost never nonstop).`,
+      );
+    }
   }
 
   for (const [key, value] of Object.entries(scheduling)) {
@@ -190,11 +221,75 @@ export function flightContextPromptBlock(
 
   lines.push(
     slo
-      ? `- IZJEMA od pravila “vsak dan dopoldan+popoldan+večer”: na dan prihoda in dan odhoda so prazni sloti PRED/ZA letom dovoljeni in zaželeni.`
-      : `- EXCEPTION to “morning+afternoon+evening every day”: empty slots before/after flights on arrival/departure days are required.`,
+      ? `- PRIORITETA NAD “polnim dnem”: na dan prihoda in odhoda so prazni sloti PRED/ZA letom OBVEZNI. PREPOVEDANO: zajtrk, siesta, plaža, “tropska pavza” ali dopoldanske aktivnosti na destinaciji, preden let pristane.`
+      : `- PRIORITY OVER “full day”: empty slots before/after flights on arrival/departure days are REQUIRED. FORBIDDEN: breakfast, siesta, beach, or morning destination activities before the plane lands.`,
   );
 
   return lines.join("\n");
+}
+
+/** Replace invented HH:MM (e.g. 12:00) in arrival activities with real outboundArrive. */
+function patchArrivalActivityClockTimes(
+  activities: NonNullable<DayPlan["activities"]>,
+  flights: TripFlightContext,
+): NonNullable<DayPlan["activities"]> {
+  const land = flights.outboundArrive;
+  const patchList = (list: Activity[] | undefined): Activity[] =>
+    (list ?? []).map((a) => {
+      const blob = `${a.name} ${a.description ?? ""} ${a.type ?? ""}`.toLowerCase();
+      const isAirport =
+        /letališč|airport|prihod|pristane|landing|transfer|check-?in|hotel|prtljag/i.test(blob);
+      if (!isAirport) return a;
+      let description = a.description;
+      if (description) {
+        // Rewrite "pristane ob 12:00" → real land time (first clock in airport copy).
+        let replaced = false;
+        description = description.replace(/\b\d{1,2}:\d{2}\b/g, (match) => {
+          if (!replaced) {
+            replaced = true;
+            return land;
+          }
+          return match;
+        });
+        description = description.replace(
+          /ob\s+\d{1,2}:\d{2}/gi,
+          `ob ${land}`,
+        );
+      }
+      return {
+        ...a,
+        arrivalTime: land,
+        departureTime: a.departureTime ?? land,
+        description,
+      };
+    });
+
+  return {
+    morning: patchList(activities.morning),
+    afternoon: patchList(activities.afternoon),
+    evening: patchList(activities.evening),
+  };
+}
+
+function patchArrivalDayTitle(title: string | undefined, flights: TripFlightContext, slo: boolean): string {
+  const t = title?.trim() ?? "";
+  const land = flights.outboundArrive;
+  if (!t) {
+    return slo ? `Prihod (${land}) in namestitev` : `Arrival (${land}) and check-in`;
+  }
+  // Drop misleading “sproščanje na Patong Beach” style titles that ignore landing time.
+  if (/patong|plaž|beach|sprošč/i.test(t) && parseHmSafe(land) >= 17 * 60) {
+    return slo
+      ? `Prihod ob ${land} in namestitev`
+      : `Arrival at ${land} and check-in`;
+  }
+  return t;
+}
+
+function parseHmSafe(hm: string): number {
+  const m = hm.trim().match(/(\d{1,2}):(\d{2})/);
+  if (!m) return 0;
+  return Number(m[1]) * 60 + Number(m[2]);
 }
 
 /**
@@ -218,15 +313,22 @@ export function applyFlightContextToGeminiPlan(
   const originIata = opts?.originIata ?? plan.originIata;
 
   if (flights.inboundDepart && flights.inboundArrive) {
-    const slo = locale.slo;
+    const fromAirport = (plan.destinationIata ?? "DEST").toUpperCase();
+    const toAirport = (originIata ?? "EU").toUpperCase();
     plan.returnFlightEu = {
       departureTime: flights.inboundDepart,
       arrivalTimeEu: flights.inboundArrive,
-      fromAirport: (plan.destinationIata ?? "DEST").toUpperCase(),
-      toAirport: (originIata ?? "EU").toUpperCase(),
-      summary: slo
-        ? `Povratek ${plan.destinationIata ?? ""} → ${originIata ?? "EU"}: odhod ${flights.inboundDepart}, prihod ${flights.inboundArrive} (lokalni časi z letalske kartice).`
-        : `Return ${plan.destinationIata ?? ""} → ${originIata ?? "EU"}: depart ${flights.inboundDepart}, arrive ${flights.inboundArrive} (boarding-pass local times).`,
+      fromAirport,
+      toAirport,
+      summary: buildReturnFlightSummary({
+        fromIata: fromAirport,
+        toIata: toAirport,
+        language: lang,
+        stops: flights.inboundStops,
+        via: flights.inboundVia,
+        depart: flights.inboundDepart,
+        arrive: flights.inboundArrive,
+      }),
     };
   }
 
@@ -251,12 +353,33 @@ export function applyFlightContextToGeminiPlan(
         const hint = buildOriginDepartureHint(originIata, flights, lang);
         if (hint) day.travelHack = hint;
       }
+      // Wipe Gemini junk (Phuket breakfast + Munich airport mixed into one day).
       day.activities = {
         morning: [...originActs, flightAct].slice(0, 4),
         afternoon: [],
         evening: [],
       };
+      // Clear legacy slot strings — AiPlanDayCard used to fall back to these.
+      day.morning = "";
+      day.afternoon = "";
+      day.evening = "";
       day.mapPins = [];
+      day.transportation = undefined;
+      day.title = locale.slo
+        ? `Odhod${originIata ? ` iz ${originIata}` : ""} / mednarodni let`
+        : `Departure${originIata ? ` from ${originIata}` : ""} / international flight`;
+      if (originIata) {
+        const hub = lookupDestination(originIata);
+        if (hub) {
+          day.city = hub.name;
+          day.focusName = hub.name;
+          day.lat = hub.lat;
+          day.lng = hub.lng;
+        } else {
+          day.city = originIata;
+          day.focusName = originIata;
+        }
+      }
       continue;
     }
 
@@ -284,7 +407,31 @@ export function applyFlightContextToGeminiPlan(
         }
       }
 
-      day.activities = activities;
+      // Same-day evening arrival: keep only origin-airport morning logistics, never destination fillers.
+      if (arrivalDaySlot(flights) === "evening") {
+        activities = {
+          morning: (activities.morning ?? []).filter((a) => !isPreLandingDestinationFiller(a)),
+          afternoon: [],
+          evening: activities.evening ?? [],
+        };
+      } else if (arrivalDaySlot(flights) === "afternoon") {
+        activities = {
+          morning: (activities.morning ?? []).filter((a) => !isPreLandingDestinationFiller(a)),
+          afternoon: activities.afternoon ?? [],
+          evening: (activities.evening ?? []).filter((a) => !isPreLandingDestinationFiller(a)),
+        };
+      }
+
+      // Nuke Gemini-invented landing times (e.g. 12:00) — boarding-pass time wins.
+      day.activities = patchArrivalActivityClockTimes(activities, flights);
+      day.title = patchArrivalDayTitle(day.title, flights, locale.slo);
+      day.morning = "";
+      day.afternoon = "";
+      day.evening = "";
+      day.mapPins = (day.mapPins ?? []).filter((pin) => {
+        const blob = `${pin.name ?? ""} ${pin.description ?? ""}`.toLowerCase();
+        return !/zajtrk|breakfast|siesta|tropska|bazen|promenad/i.test(blob);
+      });
       day.inFlightDay = false;
       continue;
     }

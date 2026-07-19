@@ -1,9 +1,10 @@
 import { Plane, Clock, MapPin } from "lucide-react";
 import type { AiTripPlan } from "@/lib/aiPlan.functions";
 import { useI18n } from "@/lib/i18n";
+import { sanitizeReturnFlightSummary } from "@/lib/returnFlightSummary";
 
 export function ReturnHomeCard({ plan }: { plan: AiTripPlan }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const rf = plan.returnFlightEu;
   const lastDay = plan.days[plan.days.length - 1];
 
@@ -13,7 +14,14 @@ export function ReturnHomeCard({ plan }: { plan: AiTripPlan }) {
   const arrival = rf?.arrivalTimeEu;
   const from = rf?.fromAirport ?? lastDay?.city;
   const to = rf?.toAirport ?? plan.originIata ?? t("returnHome.europeFallback");
-  const summary = rf?.summary;
+  // Gemini often invents "Direct flight" for HKT↔MUC — never show that unless verified.
+  const summary = sanitizeReturnFlightSummary(rf?.summary, {
+    fromIata: typeof from === "string" && /^[A-Z]{3}$/i.test(from) ? from : plan.destinationIata ?? "DEST",
+    toIata: typeof to === "string" && /^[A-Z]{3}$/i.test(to) ? to : plan.originIata ?? "EU",
+    language: lang,
+    depart: departure,
+    arrive: arrival,
+  });
 
   return (
     <div className="overflow-hidden rounded-2xl border-2 border-indigo-200 bg-gradient-to-br from-indigo-50 via-white to-sky-50 shadow-md">

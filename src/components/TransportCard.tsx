@@ -3,6 +3,8 @@ import type { DayTransportLeg } from "@/lib/aiPlan.functions";
 import { NavigateButton } from "@/components/NavigateButton";
 import { useI18n } from "@/lib/i18n";
 import { isValidNavCoord } from "@/lib/navigationService";
+import { lookupPlaceNavTarget } from "@/lib/placeNavCoords";
+import { lookupRegionCoords } from "@/lib/regionCoords";
 
 const TYPE_META: Record<
   DayTransportLeg["type"],
@@ -34,19 +36,45 @@ const TYPE_META: Record<
   },
 };
 
+function resolveLegNav(leg: DayTransportLeg, fallbackLat?: number, fallbackLng?: number) {
+  const ferry = leg.type === "ferry";
+  const destPlace = lookupPlaceNavTarget(leg.to, { ferry });
+  const originPlace = lookupPlaceNavTarget(leg.from, { ferry });
+  const dest =
+    destPlace ??
+    lookupRegionCoords(leg.to) ??
+    (isValidNavCoord(fallbackLat, fallbackLng)
+      ? { lat: fallbackLat!, lng: fallbackLng! }
+      : null);
+  const origin = originPlace ?? lookupRegionCoords(leg.from);
+  return {
+    destLat: dest?.lat,
+    destLng: dest?.lng,
+    originLat: origin?.lat,
+    originLng: origin?.lng,
+    originQuery: originPlace?.query,
+    destinationQuery: destPlace?.query,
+    label: leg.to,
+    // Transit + pier place names → Google Maps can draw the ferry line to Rassada.
+    travelMode:
+      leg.type === "flight" || ferry ? ("transit" as const) : ("driving" as const),
+  };
+}
+
 function TransportLegCard({
   leg,
-  navLat,
-  navLng,
+  fallbackLat,
+  fallbackLng,
 }: {
   leg: DayTransportLeg;
-  navLat?: number;
-  navLng?: number;
+  fallbackLat?: number;
+  fallbackLng?: number;
 }) {
   const { formatMoney } = useI18n();
   const meta = TYPE_META[leg.type];
   const Icon = meta.icon;
-  const canNavigate = isValidNavCoord(navLat, navLng);
+  const nav = resolveLegNav(leg, fallbackLat, fallbackLng);
+  const canNavigate = isValidNavCoord(nav.destLat, nav.destLng);
 
   return (
     <div
@@ -75,9 +103,14 @@ function TransportLegCard({
           {canNavigate && (
             <div className="mt-3">
               <NavigateButton
-                lat={navLat}
-                lng={navLng}
-                label={leg.to}
+                lat={nav.destLat}
+                lng={nav.destLng}
+                originLat={nav.originLat}
+                originLng={nav.originLng}
+                originQuery={nav.originQuery}
+                destinationQuery={nav.destinationQuery}
+                label={nav.label}
+                travelMode={nav.travelMode}
                 size="compact"
                 className="!w-auto"
               />
@@ -95,7 +128,7 @@ export function TransportCard({
   destinationLng,
 }: {
   legs: DayTransportLeg[];
-  /** Destination coords for Google Maps (typically the day's city center). */
+  /** Fallback destination coords when leg.to is not in the region lookup. */
   destinationLat?: number;
   destinationLng?: number;
 }) {
@@ -107,12 +140,20 @@ export function TransportCard({
         <div className="flex gap-3 overflow-x-auto pb-1 snap-x snap-mandatory -mx-1 px-1">
           {legs.map((leg, i) => (
             <div key={`${leg.type}-${leg.from}-${leg.to}-${i}`} className="snap-start shrink-0 w-full min-w-[280px] max-w-[340px]">
-              <TransportLegCard leg={leg} navLat={destinationLat} navLng={destinationLng} />
+              <TransportLegCard
+                leg={leg}
+                fallbackLat={destinationLat}
+                fallbackLng={destinationLng}
+              />
             </div>
           ))}
         </div>
       ) : (
-        <TransportLegCard leg={legs[0]!} navLat={destinationLat} navLng={destinationLng} />
+        <TransportLegCard
+          leg={legs[0]!}
+          fallbackLat={destinationLat}
+          fallbackLng={destinationLng}
+        />
       )}
     </div>
   );

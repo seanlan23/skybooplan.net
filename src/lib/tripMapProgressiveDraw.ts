@@ -8,6 +8,8 @@ import {
   haversineKm,
 } from "@/lib/tripMapRoutes";
 import type { RouteDayStop } from "@/lib/tripMapRouteState";
+import { lookupRegionCoords } from "@/lib/regionCoords";
+import { lookupPoiCoords } from "@/lib/tripGeo";
 
 export const ROUTE_DRAW_DURATION_MS = 2000;
 
@@ -54,17 +56,21 @@ export function resolveDayRouteEndpoints(
   origin: [number, number] | null,
   finalizedDays: RouteDayStop[],
 ): { from: [number, number]; to: [number, number] } | null {
-  const to =
-    dayCoords.get(activeDay) ??
-    finalizedDays.find((d) => d.day.day === activeDay)?.coord ??
-    null;
-  if (!to) return null;
+  const toDay = finalizedDays.find((d) => d.day.day === activeDay);
+  const fromDay = finalizedDays.find((d) => d.day.day === activeDay - 1);
 
-  const from =
+  const rawTo =
+    dayCoords.get(activeDay) ?? toDay?.coord ?? null;
+  if (!rawTo) return null;
+
+  const rawFrom =
     dayCoords.get(activeDay - 1) ??
-    finalizedDays.find((d) => d.day.day === activeDay - 1)?.coord ??
+    fromDay?.coord ??
     (activeDay === 1 ? origin : null);
-  if (!from) return null;
+  if (!rawFrom) return null;
+
+  const to = lngLatFromCity(toDay?.day.city) ?? rawTo;
+  const from = lngLatFromCity(fromDay?.day.city) ?? rawFrom;
   if (from[0] === to[0] && from[1] === to[1]) return null;
 
   return { from, to };
@@ -123,6 +129,46 @@ export function enrichSegmentCoords(seg: TripRouteSegment): [number, number][] {
   return seg.coordinates;
 }
 
+function lngLatFromCity(city?: string): [number, number] | null {
+  if (!city?.trim()) return null;
+  const c = lookupRegionCoords(city) ?? lookupPoiCoords(city);
+  return c ? [c.lng, c.lat] : null;
+}
+
+function prevCityName(activeDay: number, finalizedDays: RouteDayStop[]): string | undefined {
+  const idx = finalizedDays.findIndex((d) => d.day.day === activeDay);
+  if (idx <= 0) return undefined;
+  return finalizedDays[idx - 1]?.day.city;
+}
+
+/**
+ * Mapbox Directions from land-snapped city centers when raw endpoints sit in water/jungle
+ * (Cheow Lan lake centroid → no roads → straight-line fallback).
+ */
+export async function fetchDrivingRouteLandAware(
+  from: [number, number],
+  to: [number, number],
+  token: string,
+  cities?: { fromCity?: string; toCity?: string },
+): Promise<{ coordinates: [number, number][]; fromMapboxDirections: boolean }> {
+  const primary = await fetchDrivingRoute(from, to, token);
+  if (primary.fromMapboxDirections) {
+    return { coordinates: primary.coordinates, fromMapboxDirections: true };
+  }
+
+  const fromLand = lngLatFromCity(cities?.fromCity) ?? from;
+  const toLand = lngLatFromCity(cities?.toCity) ?? to;
+  if (fromLand[0] === from[0] && fromLand[1] === from[1] && toLand[0] === to[0] && toLand[1] === to[1]) {
+    return { coordinates: primary.coordinates, fromMapboxDirections: false };
+  }
+
+  const retry = await fetchDrivingRoute(fromLand, toLand, token);
+  if (retry.fromMapboxDirections) {
+    return { coordinates: retry.coordinates, fromMapboxDirections: true };
+  }
+  return { coordinates: primary.coordinates, fromMapboxDirections: false };
+}
+
 function greatCircleForMode(
   from: [number, number],
   to: [number, number],
@@ -132,15 +178,27 @@ function greatCircleForMode(
   return buildGreatCircleCoords(from, to, npoints);
 }
 
-/** Driving lines only on road-trip plans for inter-city legs above MIN_ROAD_TRIP_DRAW_KM. */
+/**
+ * When to draw a road/transit line for the active day.
+ * - Explicit driving/transit segment (van, kombi, city change) → always, if leg is real.
+ * - Road-trip mode → inter-city legs above MIN_ROAD_TRIP_DRAW_KM.
+ * Sightseeing / same-city days stay marker-only.
+ */
 export function shouldDrawDrivingRoute(
   preferDriving: boolean,
   endpoints: { from: [number, number]; to: [number, number] } | null,
   primarySeg: TripRouteSegment | null,
 ): boolean {
-  if (!preferDriving || !endpoints) return false;
+  if (!endpoints) return false;
   if (primarySeg?.mode === "flight" || primarySeg?.mode === "ferry") return false;
-  return haversineKm(endpoints.from, endpoints.to) >= MIN_ROAD_TRIP_DRAW_KM;
+
+  const distKm = haversineKm(endpoints.from, endpoints.to);
+  // Inter-city van/kombi/bus from buildSegmentSpecs — draw even on flight+hotel trips.
+  if (primarySeg?.mode === "driving" || primarySeg?.mode === "transit") {
+    return distKm >= 0.3;
+  }
+  if (!preferDriving) return false;
+  return distKm >= MIN_ROAD_TRIP_DRAW_KM;
 }
 
 /** Coordinates for the leg ending on `activeDay` (cached Directions polyline or fallback). */
@@ -176,7 +234,20 @@ function sightseeingRoute(
   };
 }
 
-/** Resolve route geometry — driving lines only on road-trip inter-city legs. */
+function dayHasGroundTransfer(dayPlan?: DayPlan): boolean {
+  if (!dayPlan) return false;
+  if (
+    (dayPlan.transportation ?? []).some((t) =>
+      t.type === "van" || t.type === "bus" || t.type === "train",
+    )
+  ) {
+    return true;
+  }
+  const blob = `${dayPlan.title} ${dayPlan.morning} ${dayPlan.afternoon} ${dayPlan.evening}`;
+  return /kombi|minibus|van\b|transfer|prevoz|vožnja|drive to|bus to/i.test(blob);
+}
+
+/** Resolve route geometry for the active day (flight arc, road polyline, or markers only). */
 export async function resolveActiveDayRoute(opts: {
   activeDay: number;
   dayPlan?: DayPlan;
@@ -230,11 +301,24 @@ export async function resolveActiveDayRoute(opts: {
     };
   }
 
-  const drawDriving = shouldDrawDrivingRoute(preferDriving, endpoints, primarySeg);
+  const drawDriving =
+    shouldDrawDrivingRoute(preferDriving, endpoints, primarySeg) ||
+    Boolean(
+      endpoints &&
+        dayHasGroundTransfer(dayPlan) &&
+        haversineKm(endpoints.from, endpoints.to) >= MIN_ROAD_TRIP_DRAW_KM,
+    );
 
-  // Road-trip inter-city leg — Mapbox driving between previous stop and today's city (2 points).
+  // Inter-city ground leg (kombi/van) or road-trip — Mapbox driving polyline.
   if (drawDriving && endpoints) {
-    if (primarySeg?.mode === "driving" && primarySeg.coordinates.length > 2) {
+    const lineStyle: ActiveDayLineStyle =
+      primarySeg?.mode === "transit" ? "transit" : "driving";
+
+    // Prefer cached Mapbox geometry (many points). Skip 2-point straight stubs.
+    if (
+      primarySeg?.mode === "driving" &&
+      primarySeg.coordinates.length > 8
+    ) {
       return {
         coordinates: primarySeg.coordinates,
         lineStyle: "driving",
@@ -244,29 +328,44 @@ export async function resolveActiveDayRoute(opts: {
     }
 
     if (token) {
-      const route = await fetchDrivingRoute(endpoints.from, endpoints.to, token);
-      if (route.fromMapboxDirections && route.coordinates.length >= 2) {
+      const road = await fetchDrivingRouteLandAware(
+        endpoints.from,
+        endpoints.to,
+        token,
+        {
+          fromCity: prevCityName(activeDay, finalizedDays),
+          toCity: dayPlan?.city,
+        },
+      );
+      if (road.fromMapboxDirections && road.coordinates.length >= 2) {
         return {
-          coordinates: route.coordinates,
-          lineStyle: "driving",
-          boundsPoints: mergeBoundsPoints(poiBounds, route.coordinates),
+          coordinates: road.coordinates,
+          lineStyle,
+          boundsPoints: mergeBoundsPoints(poiBounds, road.coordinates),
           drawRoute: true,
         };
       }
     }
 
-    if (primarySeg && primarySeg.coordinates.length >= 2) {
-      const coordinates = enrichSegmentCoords(primarySeg);
+    if (primarySeg && primarySeg.mode === "driving" && primarySeg.coordinates.length > 8) {
       return {
-        coordinates,
-        lineStyle: primarySeg.mode,
-        boundsPoints: mergeBoundsPoints(poiBounds, coordinates),
+        coordinates: primarySeg.coordinates,
+        lineStyle: "driving",
+        boundsPoints: mergeBoundsPoints(poiBounds, primarySeg.coordinates),
         drawRoute: true,
       };
     }
+
+    // Last resort — straight line (visible but not snapped).
+    return {
+      coordinates: [endpoints.from, endpoints.to],
+      lineStyle: "driving",
+      boundsPoints: mergeBoundsPoints(poiBounds, [endpoints.from, endpoints.to]),
+      drawRoute: true,
+    };
   }
 
-  // Sightseeing / same-city day / non-road-trip — markers + bounds, no road line.
+  // Sightseeing / same-city day — markers + bounds, no road line.
   return sightseeingRoute(dayPlan, dayCoord, endpoints);
 }
 

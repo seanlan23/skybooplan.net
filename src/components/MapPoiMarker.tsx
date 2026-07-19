@@ -62,8 +62,9 @@ function MarkerShell({
   isFocused = false,
   isDimmed = false,
   name,
+  showLabel = false,
   children,
-}: MarkerShellProps) {
+}: MarkerShellProps & { showLabel?: boolean }) {
   const shellClass = isFocused
     ? "relative z-20 scale-[1.14]"
     : isDimmed
@@ -72,13 +73,21 @@ function MarkerShell({
         ? "z-[6] scale-105 opacity-100"
         : "opacity-90 hover:opacity-100";
 
+  const labelVisible = Boolean(name && (showLabel || isFocused || isActive));
+
   return (
     <div
       className="pointer-events-auto flex shrink-0 cursor-pointer flex-col items-center"
       title={name}
     >
-      {isFocused && name ? (
-        <span className="mb-1.5 max-w-[148px] truncate rounded-full bg-slate-900/90 px-2.5 py-1 text-[10px] font-semibold leading-tight text-white shadow-lg backdrop-blur-sm">
+      {labelVisible ? (
+        <span
+          className={
+            isFocused
+              ? "layla-poi-label layla-poi-label--focused"
+              : "layla-poi-label"
+          }
+        >
           {name}
         </span>
       ) : null}
@@ -142,6 +151,8 @@ export type MapPoiMarkerProps = {
   isDimmed?: boolean;
   name?: string;
   imageUrl?: string;
+  /** When false, parent DOM already renders the Layla name label. */
+  showLabel?: boolean;
 };
 
 export function MapPoiMarker({
@@ -151,6 +162,7 @@ export function MapPoiMarker({
   isDimmed = false,
   name,
   imageUrl,
+  showLabel = true,
 }: MapPoiMarkerProps) {
   const [photoFailed, setPhotoFailed] = useState(false);
   const hasPhoto = Boolean(imageUrl?.trim()) && !photoFailed;
@@ -168,6 +180,7 @@ export function MapPoiMarker({
         isFocused={isFocused}
         isDimmed={isDimmed}
         name={name}
+        showLabel={showLabel}
       >
         <img
           src={imageUrl}
@@ -187,7 +200,7 @@ export function MapPoiMarker({
       isActive={isActive}
       isFocused={isFocused}
       isDimmed={isDimmed}
-      name={name}
+      name={showLabel ? name : undefined}
     />
   );
 }

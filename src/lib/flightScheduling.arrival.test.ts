@@ -60,6 +60,21 @@ describe("afternoon +1d arrival (BKK 15:25)", () => {
   });
 });
 
+describe("Etihad-style 17:55 +1d arrival", () => {
+  const flights = {
+    outboundDepart: "21:10",
+    outboundArrive: "17:55",
+    outboundArriveDayOffset: 1,
+  };
+
+  it("is evening slot / late — not a free afternoon before landing", () => {
+    expect(arrivalTripDay(flights)).toBe(2);
+    expect(arrivalDaySlot(flights)).toBe("evening");
+    expect(isLateArrival(flights)).toBe(true);
+    expect(isTightArrivalDay(flights)).toBe(true);
+  });
+});
+
 describe("+2d morning arrival (long-haul)", () => {
   const flights = {
     outboundDepart: "10:00",

@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import type { AiTripPlan } from "@/lib/aiPlan.functions";
 import type { GenerateGeminiProTripInput } from "@/lib/geminiPro.functions";
+import { applyFlightContextIfPresent } from "@/lib/geminiProCatalog";
 import { supabaseAuthHeaders } from "@/lib/supabaseAuthHeaders";
 import {
   consumeNdjsonBuffer,
@@ -8,19 +9,35 @@ import {
   isStreamEvent,
 } from "@/lib/parseStreamNdjson";
 
-/** Client safety net if the server stream stalls without closing. */
-const CLIENT_STREAM_IDLE_MS = 100_000;
+function sanitizeStreamPlan(
+  plan: AiTripPlan,
+  input: GenerateGeminiProTripInput,
+): AiTripPlan {
+  if (!input.flightContext || input.groundTransportMode) return plan;
+  const next = structuredClone(plan);
+  applyFlightContextIfPresent(next, input);
+  return next;
+}
+
+/** Must exceed Gemini pauses between new days on long trips (16d can idle >100s). */
+const CLIENT_STREAM_IDLE_MS = 200_000;
 
 export type StreamItineraryStatus = "idle" | "streaming" | "done" | "error";
 
 type StreamEvent =
   | { type: "partial"; plan: AiTripPlan; dayCount: number; expectedDays: number }
+  | { type: "ping"; dayCount: number; expectedDays: number }
   | { type: "done"; plan: AiTripPlan }
   | { type: "error"; error: string };
 
 function asStreamEvent(raw: unknown): StreamEvent | null {
   if (!isStreamEvent(raw)) return null;
-  if (raw.type === "partial" || raw.type === "done" || raw.type === "error") {
+  if (
+    raw.type === "partial" ||
+    raw.type === "ping" ||
+    raw.type === "done" ||
+    raw.type === "error"
+  ) {
     return raw as StreamEvent;
   }
   return null;
@@ -94,20 +111,28 @@ export function useStreamItinerary() {
       };
 
       const handleEvent = (event: StreamEvent): "stop" | "continue" => {
+        if (event.type === "ping") {
+          // Server keepalive — Gemini still working, just no new day yet.
+          setStreamedDayCount(event.dayCount);
+          setExpectedDays(event.expectedDays);
+          return "continue";
+        }
         if (event.type === "partial") {
-          lastPartialPlan = event.plan;
-          setPreviewPlan(event.plan);
+          const plan = sanitizeStreamPlan(event.plan, input);
+          lastPartialPlan = plan;
+          setPreviewPlan(plan);
           setStreamedDayCount(event.dayCount);
           setExpectedDays(event.expectedDays);
           return "continue";
         }
         if (event.type === "done") {
-          resolvedPlan = event.plan;
-          lastPartialPlan = event.plan;
-          setFinalPlan(event.plan);
-          setPreviewPlan(event.plan);
-          setStreamedDayCount(event.plan.days.length);
-          setExpectedDays(event.plan.days.length);
+          const plan = sanitizeStreamPlan(event.plan, input);
+          resolvedPlan = plan;
+          lastPartialPlan = plan;
+          setFinalPlan(plan);
+          setPreviewPlan(plan);
+          setStreamedDayCount(plan.days.length);
+          setExpectedDays(plan.days.length);
           return "continue";
         }
         streamError = event.error;

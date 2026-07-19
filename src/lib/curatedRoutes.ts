@@ -711,7 +711,11 @@ export function buildCuratedRoutePromptBlock(opts: {
   priorities?: string[];
   wishes?: string;
   returnFromIata?: string;
+  /** When true, skip curated graphs — user already spelled day/city allocation. */
+  skipForUserStayPlan?: boolean;
 }): string | undefined {
+  if (opts.skipForUserStayPlan) return undefined;
+
   const route = matchCuratedRoute(
     opts.nDays,
     opts.destinationIata,
@@ -732,8 +736,9 @@ export function buildCuratedRoutePromptBlock(opts: {
     ? `
 PRIHODOVNO LETALIŠČE (PREDNOST PRED BLUEPRINTOM):
 - Mednarodni let pristane na ${opts.destinationIata} (${arrivalCity}).
-- Dan 1 MORA biti v ${arrivalCity}. Prepovedano: notranji let STRAN z ${opts.destinationIata} na dan 1 (npr. HKT→BKK, CNX→BKK).
-- Če bi blueprint predlagal drugo začetno mesto, začni v ${arrivalCity} in prilagodi vrstni red.`
+- Prva destinacijska baza MORA biti ${arrivalCity} (dan prihoda po IZBRANEM LETU — lahko dan 1 ali kasneje, če let pristane +1d). Prepovedano: notranji let STRAN z ${opts.destinationIata} na dan prihoda (npr. HKT→BKK, CNX→BKK).
+- Če bi blueprint predlagal drugo začetno mesto, začni v ${arrivalCity} in prilagodi vrstni red.
+- Ta blok NE premaga uporabnikovega razporeda mest/noči, če je podan v željah.`
     : "";
 
   return `

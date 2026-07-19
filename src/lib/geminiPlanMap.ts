@@ -14,6 +14,9 @@ import {
   resolveMapPoiCategory,
 } from "@/lib/mapPoiCategory";
 import { attachActivityCoordinates } from "@/lib/mapPoiResolver";
+import { stripMisplacedCityPois } from "@/lib/cityPoiGuard";
+import { lookupRegionCoords } from "@/lib/regionCoords";
+import { lookupPoiCoords } from "@/lib/tripGeo";
 import {
   classifyDayBudgetKind,
   computeTripTotalBudgetEur,
@@ -36,6 +39,7 @@ import {
 import type { Lang } from "@/lib/i18n";
 import type { GroundTransportMode } from "@/lib/aiPlan.functions";
 import { repairTransportLegs } from "@/lib/transportLegRepair";
+import { sanitizeReturnFlightSummary } from "@/lib/returnFlightSummary";
 
 export type GeminiPlanMapOpts = {
   originIata?: string;
@@ -481,6 +485,8 @@ export function tripPlanResponseToAiTripPlan(
       }
 
       for (const poi of phase.pois ?? []) {
+        // Skip generic city-named POIs — activities already provide real stop titles.
+        if (poi.name.trim().toLowerCase() === city.toLowerCase()) continue;
         addPin({
           name: poi.name,
           lat: poi.lat,
@@ -535,40 +541,44 @@ export function tripPlanResponseToAiTripPlan(
           ? "Preveri vizne zahteve pred odhodom."
           : "";
 
+      const landCenter =
+        lookupRegionCoords(city) ?? lookupPoiCoords(city) ?? { lat, lng };
       days.push(
-        attachActivityCoordinates({
-        day: day.day_number,
-        date: resolveIsoDayDate(day.date, opts?.departDate, day.day_number),
-        title: day.title,
-        morning: slots.morning,
-        afternoon: slots.afternoon,
-        evening: slots.evening,
-        activities: slots.structured,
-        transportation: dayTransportation,
-        travelHack,
-        transportationTips,
-        localWarnings,
-        dailyBudgetEur: day.dailyBudget ?? 0,
-        drivingDistanceKm: day.drivingDistanceKm,
-        drivingDurationHours: day.drivingDurationHours,
-        transport:
-          day.drivingDistanceKm > 0
-            ? {
-                type: "Vožnja",
-                duration: day.drivingDurationHours,
-                cost: "",
-                description: `${day.drivingDistanceKm} km`,
-              }
-            : undefined,
-        lat,
-        lng,
-        focusName: mapPins[0]?.name ?? day.activities?.[0]?.title ?? day.title,
-        city,
-        unsplashQuery: phase.unsplashQuery?.trim(),
-        imageUrl: undefined,
-        category: "activity",
-        mapPins: mapPins.length > 0 ? mapPins : undefined,
-        }),
+        attachActivityCoordinates(
+          stripMisplacedCityPois({
+            day: day.day_number,
+            date: resolveIsoDayDate(day.date, opts?.departDate, day.day_number),
+            title: day.title,
+            morning: slots.morning,
+            afternoon: slots.afternoon,
+            evening: slots.evening,
+            activities: slots.structured,
+            transportation: dayTransportation,
+            travelHack,
+            transportationTips,
+            localWarnings,
+            dailyBudgetEur: day.dailyBudget ?? 0,
+            drivingDistanceKm: day.drivingDistanceKm,
+            drivingDurationHours: day.drivingDurationHours,
+            transport:
+              day.drivingDistanceKm > 0
+                ? {
+                    type: "Vožnja",
+                    duration: day.drivingDurationHours,
+                    cost: "",
+                    description: `${day.drivingDistanceKm} km`,
+                  }
+                : undefined,
+            lat: landCenter.lat,
+            lng: landCenter.lng,
+            focusName: mapPins[0]?.name ?? day.activities?.[0]?.title ?? day.title,
+            city,
+            unsplashQuery: phase.unsplashQuery?.trim(),
+            imageUrl: undefined,
+            category: "activity",
+            mapPins: mapPins.length > 0 ? mapPins : undefined,
+          }),
+        ),
       );
     }
   }
@@ -601,12 +611,21 @@ export function tripPlanResponseToAiTripPlan(
   let returnFlightEu: ReturnFlightEu | undefined;
   const rf = meta?.return_flight_eu;
   if (rf?.departure_time && rf.arrival_time_eu) {
+    const fromAirport = rf.from_airport;
+    const toAirport = rf.to_airport;
     returnFlightEu = {
       departureTime: rf.departure_time,
       arrivalTimeEu: rf.arrival_time_eu,
-      fromAirport: rf.from_airport,
-      toAirport: rf.to_airport,
-      summary: rf.summary,
+      fromAirport,
+      toAirport,
+      // Never trust Gemini "Direct flight" for long-haul — UI sanitizes again.
+      summary: sanitizeReturnFlightSummary(rf.summary, {
+        fromIata: fromAirport,
+        toIata: toAirport,
+        language: opts?.language ?? "sl",
+        depart: rf.departure_time,
+        arrive: rf.arrival_time_eu,
+      }),
     };
   } else {
     returnFlightEu = extractReturnFlightFromLastDay(days, opts?.originIata);
@@ -701,7 +720,18 @@ export function enrichGeminiCatalogPlan(
   const cityDayIndex = new Map<string, number>();
   let priorScheduledText = "";
 
-  for (const day of plan.days) {
+  for (let i = 0; i < plan.days.length; i++) {
+    // Snap Gemini day centers onto curated land coords (avoids lake/jungle centroids).
+    const raw = plan.days[i]!;
+    const land =
+      lookupRegionCoords(raw.city ?? "") ??
+      lookupPoiCoords(raw.city ?? "") ??
+      lookupPoiCoords(raw.focusName ?? "");
+    if (land) {
+      plan.days[i] = { ...raw, lat: land.lat, lng: land.lng };
+    }
+
+    const day = plan.days[i]!;
     const isArrival = day.day === 1;
     const isDeparture = isDepartureLogisticsDay(day, totalDays);
 
@@ -738,28 +768,32 @@ export function enrichGeminiCatalogPlan(
         .join(" ");
     }
 
+    // After enrichers: drop Bangkok temples that Gemini (or pools) put on wrong cities.
+    plan.days[i] = attachActivityCoordinates(stripMisplacedCityPois(plan.days[i]!));
+    const finalDay = plan.days[i]!;
+
     if (isDeparture) {
-      day.inFlightDay = true;
-      day.category = "transport";
+      finalDay.inFlightDay = true;
+      finalDay.category = "transport";
     }
 
-    const kind = classifyDayBudgetKind(day.activities, {
+    const kind = classifyDayBudgetKind(finalDay.activities, {
       isArrival,
       isDeparture,
-      regionCity: day.city,
+      regionCity: finalDay.city,
     });
 
     let daily = estimateDayBudgetEur(
-      day.activities,
+      finalDay.activities,
       undefined,
       { ...dayBudgetParams(tier, kind, true, mealsFullDay), pax: travelers },
     );
 
-    if (day.dailyBudgetEur > 0) {
+    if (finalDay.dailyBudgetEur > 0) {
       daily = normalizeGeminiDailyBudgetPerPerson(
-        day.dailyBudgetEur,
+        finalDay.dailyBudgetEur,
         daily,
-        sumListedActivityEur(day.activities),
+        sumListedActivityEur(finalDay.activities),
         travelers,
       );
     }
@@ -768,13 +802,13 @@ export function enrichGeminiCatalogPlan(
       daily = applyMotorhomeBudgetFloor(daily, kind, travelers);
       if (
         hotelRestInterval &&
-        isHotelRestDay(day.day, hotelRestInterval, { totalDays })
+        isHotelRestDay(finalDay.day, hotelRestInterval, { totalDays })
       ) {
         daily = applyHotelRestBudgetFloor(daily, true, travelers);
       }
     }
 
-    day.dailyBudgetEur = daily;
+    finalDay.dailyBudgetEur = daily;
   }
 
   plan.totalBudgetEur = computeTripTotalBudgetEur(plan.days, travelers);
