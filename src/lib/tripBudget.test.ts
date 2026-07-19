@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   applySafariBudgetFloor,
+  applyUsBudgetFloor,
   classifyDayBudgetKind,
   computeTripTotalBudgetEur,
   dayBudgetParams,
@@ -42,11 +43,35 @@ describe("classifyDayBudgetKind", () => {
 describe("normalizeGeminiDailyBudgetPerPerson", () => {
   it("treats Gemini dailyBudget as household total when divided by pax is sane", () => {
     expect(normalizeGeminiDailyBudgetPerPerson(380, 88, 90, 4)).toBe(95);
-    expect(normalizeGeminiDailyBudgetPerPerson(420, 100, 120, 4)).toBe(105);
+    // Prefer listed activity floor when higher than household split
+    expect(normalizeGeminiDailyBudgetPerPerson(420, 100, 120, 4)).toBe(120);
   });
 
   it("keeps per-person value when already reasonable", () => {
     expect(normalizeGeminiDailyBudgetPerPerson(75, 70, 50, 2)).toBe(75);
+  });
+
+  it("never undercuts listed NYC-style spend with a low Gemini dailyBudget", () => {
+    // Dinner €80 + lunch/coffee ~50; Gemini guessed 110 for 3 pax
+    expect(normalizeGeminiDailyBudgetPerPerson(110, 180, 130, 3)).toBeGreaterThanOrEqual(180);
+  });
+});
+
+describe("applyUsBudgetFloor", () => {
+  it("raises thin NYC sightseeing days", () => {
+    const floored = applyUsBudgetFloor(
+      90,
+      "sightseeing",
+      {
+        morning: [{ priceLabel: "€22" }],
+        afternoon: [{ priceLabel: "€40" }],
+        evening: [{ priceLabel: "€80", name: "Dinner and cocktails" }],
+      },
+      "New York",
+      "US",
+    );
+    expect(floored).toBeGreaterThanOrEqual(150);
+    expect(floored).toBeGreaterThanOrEqual(22 + 40 + 80 + 55);
   });
 });
 

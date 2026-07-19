@@ -34,6 +34,8 @@ export type TripAstronomyOpts = {
   lang: string;
   lat?: number;
   lng?: number;
+  /** Hub / destination name — used with regionCities for coastal gating (not lat/lng alone). */
+  destinationLabel?: string;
   /** Pre-fetched tide calendar (YYYY-MM-DD → extremes). */
   tideByDate?: Record<string, DayTideInfo>;
   regionCities?: string[];
@@ -155,6 +157,18 @@ export function isCoastalTripCity(city: string): boolean {
   return COASTAL_CITY_TEST.test(city);
 }
 
+/** True only for island/beach hubs — never lat/lng alone (that made NYC show tide/bio tips). */
+export function tripNeedsCoastalAstronomy(opts: {
+  regionCities?: string[];
+  destinationLabel?: string;
+}): boolean {
+  const labels = [
+    ...(opts.regionCities ?? []),
+    ...(opts.destinationLabel ? [opts.destinationLabel] : []),
+  ];
+  return labels.some((c) => c.trim().length > 0 && isCoastalTripCity(c));
+}
+
 function formatLocalTime(isoDateTime: string): string {
   try {
     const d = new Date(isoDateTime);
@@ -253,9 +267,10 @@ export function buildTripAstronomy(opts: TripAstronomyOpts): TripAstronomyResult
     if (moon.isFullMoon) fullMoonDates.push(d);
   }
 
-  const coastal =
-    opts.regionCities?.some(isCoastalTripCity) ||
-    (opts.lat != null && opts.lng != null);
+  const coastal = tripNeedsCoastalAstronomy({
+    regionCities: opts.regionCities,
+    destinationLabel: opts.destinationLabel,
+  });
 
   if (bestBioluminescenceDates.length > 0 && coastal) {
     const sample = bestBioluminescenceDates.slice(0, 3).join(", ");

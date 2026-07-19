@@ -60,6 +60,19 @@ describe("buildTripAstronomy", () => {
     expect(out.fullMoonDates.length).toBeGreaterThan(0);
     expect(out.tripHints.some((h) => /polna luna/i.test(h))).toBe(true);
   });
+
+  it("does not show bioluminescence or tide tips for New York", () => {
+    const out = buildTripAstronomy({
+      departDate: "2026-09-03",
+      returnDate: "2026-09-10",
+      lang: "sl",
+      lat: 40.7128,
+      lng: -74.006,
+      destinationLabel: "New York",
+      regionCities: ["New York"],
+    });
+    expect(out.tripHints).toEqual([]);
+  });
 });
 
 describe("stripMoonHintSpam", () => {

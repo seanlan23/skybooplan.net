@@ -103,6 +103,7 @@ export const getDestinationContext = createServerFn({ method: "POST" })
       lang,
       lat: dest?.lat,
       lng: dest?.lng,
+      destinationLabel: dest?.name ?? data.destinationIata,
       regionCities,
       tideByDate: tideByRegion
         ? Object.values(tideByRegion)[0]

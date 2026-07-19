@@ -24,6 +24,9 @@ import {
   estimateDayBudgetEur,
   applyMotorhomeBudgetFloor,
   applyHotelRestBudgetFloor,
+  applyCanadaBudgetFloor,
+  applyUsBudgetFloor,
+  applySafariBudgetFloor,
   normalizeGeminiDailyBudgetPerPerson,
   sumListedActivityEur,
 } from "@/lib/tripBudget";
@@ -797,6 +800,20 @@ export function enrichGeminiCatalogPlan(
         travelers,
       );
     }
+
+    daily = applyUsBudgetFloor(
+      applyCanadaBudgetFloor(
+        applySafariBudgetFloor(daily, kind, finalDay.activities),
+        kind,
+        finalDay.activities,
+        finalDay.city ?? "",
+        locale.country,
+      ),
+      kind,
+      finalDay.activities,
+      finalDay.city ?? "",
+      locale.country,
+    );
 
     if (motorhome) {
       daily = applyMotorhomeBudgetFloor(daily, kind, travelers);

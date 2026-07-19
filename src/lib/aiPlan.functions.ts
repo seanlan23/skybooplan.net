@@ -28,6 +28,7 @@ import {
   applyHotelRestBudgetFloor,
   applyMotorhomeBudgetFloor,
   applySafariBudgetFloor,
+  applyUsBudgetFloor,
   classifyDayBudgetKind,
   computeTripTotalBudgetEur,
   dayBudgetParams,
@@ -1754,6 +1755,7 @@ export const generateAiPlan = createServerFn({ method: "POST" })
       lang: langCode,
       lat: destHub?.lat,
       lng: destHub?.lng,
+      destinationLabel: destHub?.name ?? data.destinationIata,
       regionCities: regionBlueprint?.map((b) => b.city),
     });
 
@@ -3272,8 +3274,14 @@ export function buildSkeletonDayPlans(
           ...params,
           pax: Math.max(1, opts?.pax ?? 1),
         });
-        const floored = applyCanadaBudgetFloor(
-          applySafariBudgetFloor(raw, kind, activities),
+        const floored = applyUsBudgetFloor(
+          applyCanadaBudgetFloor(
+            applySafariBudgetFloor(raw, kind, activities),
+            kind,
+            activities,
+            region.city,
+            locale.country,
+          ),
           kind,
           activities,
           region.city,
@@ -3923,6 +3931,7 @@ export const generateAiPlanSkeleton = createServerFn({ method: "POST" })
       lang: langCode,
       lat: destHub?.lat,
       lng: destHub?.lng,
+      destinationLabel: destHub?.name ?? data.destinationIata,
       regionCities: regionBlueprint?.map((b) => b.city),
     });
     trace(

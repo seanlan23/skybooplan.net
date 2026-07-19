@@ -1,8 +1,8 @@
-/** Parse price labels (€, THB, free) into approximate EUR for daily budget sums. */
+/** Parse price labels (€, $, THB, free) into approximate EUR for daily budget sums. */
 export function parsePriceLabelToEur(label?: string): number {
   if (!label || label === "—") return 0;
   const t = label.trim().toLowerCase();
-  if (/brezplačno|free|€\s*0|included|vključeno/.test(t)) return 0;
+  if (/brezplačno|free|€\s*0|\$\s*0|included|vključeno/.test(t)) return 0;
 
   const eurRange =
     /€\s*(\d+(?:[.,]\d+)?)\s*[-–]\s*€?\s*(\d+(?:[.,]\d+)?)/.exec(label) ??
@@ -15,6 +15,18 @@ export function parsePriceLabelToEur(label?: string): number {
 
   const eurSingle = /€\s*(\d+(?:[.,]\d+)?)/.exec(label) ?? /(\d+(?:[.,]\d+)?)\s*€/.exec(label);
   if (eurSingle) return Math.round(Number(eurSingle[1].replace(",", ".")));
+
+  // Display currency may be USD while values stay EUR-equivalent for budgeting.
+  const usdRange =
+    /\$\s*(\d+(?:[.,]\d+)?)\s*[-–]\s*\$?\s*(\d+(?:[.,]\d+)?)/.exec(label) ??
+    /(\d+(?:[.,]\d+)?)\s*[-–]\s*(\d+(?:[.,]\d+)?)\s*\$/.exec(label);
+  if (usdRange) {
+    const a = Number(usdRange[1].replace(",", "."));
+    const b = Number(usdRange[2].replace(",", "."));
+    return Math.round((a + b) / 2);
+  }
+  const usdSingle = /\$\s*(\d+(?:[.,]\d+)?)/.exec(label) ?? /(\d+(?:[.,]\d+)?)\s*\$/.exec(label);
+  if (usdSingle) return Math.round(Number(usdSingle[1].replace(",", ".")));
 
   const thbRange = /(\d+)\s*[-–]\s*(\d+)\s*thb/i.exec(label);
   if (thbRange) {
@@ -31,7 +43,23 @@ export function parsePriceLabelToEur(label?: string): number {
   return 0;
 }
 
-type ActivityLike = { priceLabel?: string; price?: string; type?: string };
+type ActivityLike = {
+  priceLabel?: string;
+  price?: string;
+  type?: string;
+  estimatedCostEur?: number;
+  name?: string;
+};
+
+/** Prefer price label; fall back to estimatedCostEur (Gemini often sets only that). */
+export function activityCostEur(a: ActivityLike): number {
+  const fromLabel = parsePriceLabelToEur(a.priceLabel || a.price);
+  if (fromLabel > 0) return fromLabel;
+  if (typeof a.estimatedCostEur === "number" && Number.isFinite(a.estimatedCostEur) && a.estimatedCostEur >= 0) {
+    return Math.round(a.estimatedCostEur);
+  }
+  return 0;
+}
 
 /** Estimated spend per traveler for one day (meals, sights, shared transport split). */
 export function estimateDayBudgetEur(
@@ -50,7 +78,7 @@ export function estimateDayBudgetEur(
   if (activities) {
     for (const slot of ["morning", "afternoon", "evening"] as const) {
       for (const a of activities[slot]) {
-        const eur = parsePriceLabelToEur(a.priceLabel || a.price);
+        const eur = activityCostEur(a);
         if (a.type === "TRANSPORT") {
           perPerson += Math.round(eur / pax);
         } else {
@@ -63,7 +91,7 @@ export function estimateDayBudgetEur(
   const hasPricedTransportActivity =
     activities &&
     [...activities.morning, ...activities.afternoon, ...activities.evening].some(
-      (a) => a.type === "TRANSPORT" && parsePriceLabelToEur(a.priceLabel || a.price) > 0,
+      (a) => a.type === "TRANSPORT" && activityCostEur(a) > 0,
     );
 
   if (transportCost && !hasPricedTransportActivity) {
@@ -158,7 +186,7 @@ function activityListTotalEur(
   for (const slot of ["morning", "afternoon", "evening"] as const) {
     for (const a of activities[slot]) {
       if (a.type === "TRANSPORT" || a.type === "STAY") continue;
-      sum += parsePriceLabelToEur(a.priceLabel || a.price);
+      sum += activityCostEur(a);
     }
   }
   return sum;
@@ -247,6 +275,33 @@ export function applyCanadaBudgetFloor(
   return Math.max(eur, listed + 25, 75);
 }
 
+function isUsPremiumCity(city: string): boolean {
+  return /new york|nyc|manhattan|brooklyn|williamsburg|los angeles|san francisco|chicago|miami|boston|seattle|las vegas|washington/i.test(
+    city,
+  );
+}
+
+/** Floor unrealistically low US quotes (NYC dinner+cocktails alone can be 80–120). */
+export function applyUsBudgetFloor(
+  eur: number,
+  kind: DayBudgetKind,
+  activities: { morning: ActivityLike[]; afternoon: ActivityLike[]; evening: ActivityLike[] } | undefined,
+  regionCity: string,
+  country: string,
+): number {
+  if (country !== "US" && !isUsPremiumCity(regionCity)) return eur;
+  if (kind === "departure") return eur;
+
+  const listed = activityListTotalEur(activities);
+  if (kind === "cross-country-travel") {
+    return Math.max(eur, listed + 90, 170);
+  }
+  if (/new york|nyc|manhattan|brooklyn|williamsburg|san francisco|los angeles/i.test(regionCity)) {
+    return Math.max(eur, listed + 55, 150);
+  }
+  return Math.max(eur, listed + 35, 110);
+}
+
 /** Floor for motorhome trips — rental share, fuel, campsite, tolls (per person). */
 export function applyMotorhomeBudgetFloor(
   eur: number,
@@ -277,6 +332,7 @@ export function applyHotelRestBudgetFloor(
 /**
  * Gemini often returns dailyBudget as a household/day total (not per person).
  * Normalize to per-person for UI that multiplies by pax again.
+ * Never undercut listed activity spend (old Math.min + /pax made NYC days too cheap).
  */
 export function normalizeGeminiDailyBudgetPerPerson(
   geminiDaily: number,
@@ -284,25 +340,31 @@ export function normalizeGeminiDailyBudgetPerPerson(
   activityTotalEur: number,
   travelers: number,
 ): number {
-  if (geminiDaily <= 0) return computedPerPerson;
+  if (geminiDaily <= 0) {
+    return Math.max(computedPerPerson, activityTotalEur);
+  }
   const pax = Math.max(1, travelers);
   const asGroupPerPerson = Math.round(geminiDaily / pax);
+  // Activity labels / estimatedCostEur are already per person — do not divide by pax.
+  const activityFloor = activityTotalEur > 0 ? activityTotalEur + 8 : 0;
+  const floor = Math.max(computedPerPerson, activityFloor);
 
-  // Household total (e.g. 380 € / 4 ≈ 95 € na osebo)
-  if (geminiDaily >= activityTotalEur * 0.8 && asGroupPerPerson >= 15 && asGroupPerPerson <= 180) {
-    return asGroupPerPerson;
+  const looksLikeHousehold =
+    geminiDaily >= 200 &&
+    asGroupPerPerson >= 15 &&
+    asGroupPerPerson <= 220 &&
+    geminiDaily >= computedPerPerson * 2.2 &&
+    Math.abs(asGroupPerPerson - computedPerPerson) <=
+      Math.abs(geminiDaily - computedPerPerson);
+
+  if (looksLikeHousehold) {
+    return Math.max(asGroupPerPerson, activityTotalEur, Math.round(computedPerPerson * 0.9));
   }
 
-  // Already per-person but inflated vs listed activities
-  if (geminiDaily <= 180) {
-    const floor = Math.max(computedPerPerson, Math.round(activityTotalEur / pax) + 8);
-    return Math.min(geminiDaily, Math.max(floor, computedPerPerson));
-  }
-
-  return computedPerPerson > 0 ? computedPerPerson : asGroupPerPerson;
+  return Math.max(geminiDaily, floor);
 }
 
-/** Sum listed activity EUR (group costs, not per-person). */
+/** Sum listed activity EUR (per person — tickets/meals as shown on cards). */
 export function sumListedActivityEur(
   activities: { morning: ActivityLike[]; afternoon: ActivityLike[]; evening: ActivityLike[] } | undefined,
 ): number {
@@ -311,7 +373,7 @@ export function sumListedActivityEur(
   for (const slot of ["morning", "afternoon", "evening"] as const) {
     for (const a of activities[slot]) {
       if (a.type === "STAY") continue;
-      sum += parsePriceLabelToEur(a.priceLabel || a.price);
+      sum += activityCostEur(a);
     }
   }
   return sum;
