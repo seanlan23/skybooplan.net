@@ -31,6 +31,8 @@ import {
 } from "@/lib/planCurrency";
 import { languageWritingRule } from "@/lib/tripLocale";
 import { buildCuratedRoutePromptBlock } from "@/lib/curatedRoutes";
+import { flightContextPromptBlock } from "@/lib/geminiFlightContext";
+import { lookupDestination } from "@/lib/destinationCoords";
 import { DISTANCE_TRANSPORT_RULES } from "@/lib/transportPromptRules";
 import type { Lang } from "@/lib/i18n";
 
@@ -215,7 +217,18 @@ ${roadTrip ? "- Road trip (npr. Route 66): enosmerna pot vzdolž ceste, vsak dan
 
   const flightReturnClosing = params.groundTransportMode
     ? ""
-    : "\n\nZadnji dan logistike: obvezno dodaj aktivnost z category airport z natančno uro odhoda mednarodnega leta nazaj v Evropo (EU) in izpolni trip_metadata.return_flight_eu (departure_time, arrival_time_eu, from_airport, to_airport, summary).";
+    : params.flightContext?.inboundDepart
+      ? "\n\nZadnji dan logistike: aktivnost category airport z NATANKO urami iz IZBRANI LET (ne izmišljaj); trip_metadata.return_flight_eu mora ujemati te ure."
+      : "\n\nZadnji dan logistike: obvezno dodaj aktivnost z category airport z natančno uro odhoda mednarodnega leta nazaj v Evropo (EU) in izpolni trip_metadata.return_flight_eu (departure_time, arrival_time_eu, from_airport, to_airport, summary).";
+
+  const selectedFlightBlock =
+    !params.groundTransportMode && params.flightContext
+      ? flightContextPromptBlock(params.flightContext, params.days, {
+          originIata: params.originIata,
+          destinationIata: params.destinationIata,
+          language: params.language,
+        })
+      : "";
 
   const lang = (params.language ?? "sl") as Lang;
   const displayCurrency = normalizePlanCurrency(params.currency);
@@ -241,6 +254,14 @@ Takoj za tem nadaljuj s kratkim narativnim uvodom o poti (največ 1–2 stavka �
     returnFromIata: params.returnFromIata,
   });
 
+  const arrivalCityName =
+    lookupDestination(params.destinationIata)?.name ??
+    params.destinationPlace ??
+    params.destination;
+  const arrivalDayRule = params.groundTransportMode
+    ? ""
+    : `- Dan 1 = ${arrivalCityName} (prihod na ${params.destinationIata}). Prepovedan notranji let stran z letališča prihoda na dan 1.`;
+
   return `Ustvari ${params.days}-dnevni načrt potovanja za lokacijo: ${params.destination} v mesecu ${params.month}.
 ${teaserBlock}
 ${travelReqBlock}
@@ -258,12 +279,13 @@ Posebne zahteve (oznake): ${wishes}.
 Obvezna logistična pravila za ta načrt:
 - ${motorhome || roadTrip ? `Načrtuj ${maxBases} postaj vzdolž enosmerne poti (road trip — vsak dan ali vsak drug dan nova postaja ob cesti).` : `Največ ${maxBases} glavne baze (mesta/regije) za ${params.days} dni — brez skakanja sem in tja po državi.`}
 - Enosmerna geografska pot (en jasen lok); brez vračanja v že obiskana mesta.
+${arrivalDayRule}
 ${flightReturnLine}
 - Za vsako fazo obvezno izpolni city (angleško ime), lat in lng (centrum mesta ali kamp ob poti).
 - Vsaka aktivnost mora imeti category (sightseeing, nature, beach, food, entertainment, hotel, airport) in koordinate za oglede.
 - Vsaka aktivnost mora imeti arrivalTime in departureTime v formatu "HH:MM" (npr. "09:00", "11:30") — realen časovni okvir obiska.
 - Vsaka aktivnost mora imeti timeSlot: "dopoldan", "popoldan" ali "vecer".
-- STROGA ČASOVNA STRUKTURA: Vsak dan mora obvezno in brez izjeme vsebovati strukturirane aktivnosti za DOPOLDAN, POPOLDAN in VEČER — noben del dneva ne sme ostati prazen! Ure obiska (arrivalTime, departureTime) morajo biti tekoče in realistične, brez prekrivanj.
+- STROGA ČASOVNA STRUKTURA: Vsak dan mora vsebovati strukturirane aktivnosti za DOPOLDAN, POPOLDAN in VEČER — razen na dan prihoda/odhoda, kjer so prazni sloti pred/za letom obvezni (glej IZBRANI LET). Ure obiska (arrivalTime, departureTime) morajo biti tekoče in realistične, brez prekrivanj.
 - Vsak dan obvezno izpolni travelHack (unikaten insider nasvet) in transportTip (dnevni pregled prevoza) — glej podrobna pravila spodaj.
 - Za dni z notranjim letom, trajektom, kombijem ali vlakom obvezno izpolni transportation[] (type: flight|ferry|train|van, from, to, duration, estimatedPrice v ${displayCurrency}). Za otok z letališčem na celini (npr. Boracay/MPH) obvezno 3 koraki: let → kombi → trajekt.
 - Vsak dan (days[]) mora imeti dailyBudget (EUR), drivingDistanceKm (km vožnje tistega dne) in drivingDurationHours (npr. "3h 45m").
@@ -277,6 +299,7 @@ Opisi aktivnosti morajo biti izjemno podrobni, zanimivi in dolgi vsaj 3–4 stav
 
 ${itineraryHacksAndTransportRules(displayCurrency)}
 
+${selectedFlightBlock}
 ${lastDayBlock}${flightReturnClosing}`;
 }
 
@@ -312,7 +335,18 @@ export function tripPlanSystemPrompt(params: GenerateTripPlanParams): string {
   });
   const flightReturnEuRule = params.groundTransportMode
     ? `- Če je prevoz avto/vlak/avtodom: trip_metadata.return_flight_eu NE izpolnjuj — potnik se vrne z istim prevozom na izhodišče (${params.originPlace ?? "domov"}), ne z letalom.`
-    : `- Na zadnjem dnevu logistike obvezno generiraj točno uro mednarodnega leta nazaj v Evropo (EU) in izpolni trip_metadata.return_flight_eu.`;
+    : params.flightContext?.inboundDepart
+      ? `- trip_metadata.return_flight_eu: uporabi NATANKO ure iz IZBRANI LET (departure_time=${params.flightContext.inboundDepart}, arrival_time_eu=${params.flightContext.inboundArrive ?? ""}) — ne izmišljaj drugih.`
+      : `- Na zadnjem dnevu logistike obvezno generiraj točno uro mednarodnega leta nazaj v Evropo (EU) in izpolni trip_metadata.return_flight_eu.`;
+
+  const selectedFlightSystemBlock =
+    !params.groundTransportMode && params.flightContext
+      ? flightContextPromptBlock(params.flightContext, params.days, {
+          originIata: params.originIata,
+          destinationIata: params.destinationIata,
+          language: params.language,
+        })
+      : "";
   const povratekEuBlock = params.groundTransportMode
     ? `POVRATEK DOMOV (obvezno — ${params.groundTransportMode === "train" ? "VLAK" : "AVTO/AVTODOM"}):
 - Zadnji dan: vožnja/vlak nazaj na izhodiščno lokacijo — NE mednarodni let z letališča.
@@ -337,6 +371,38 @@ export function tripPlanSystemPrompt(params: GenerateTripPlanParams): string {
     language: lang,
   });
 
+  const arrivalCity =
+    lookupDestination(params.destinationIata)?.name ??
+    params.destinationPlace ??
+    params.destination ??
+    params.destinationIata;
+  const returnAirport = params.returnFromIata ?? params.destinationIata;
+  const thailandRouteExamples =
+    params.destinationIata.toUpperCase() === "HKT" ||
+    params.destinationIata.toUpperCase() === "KBV"
+      ? `  • južni lok (prihod ${params.destinationIata}): Phuket → Krabi/Koh Lanta/Koh Lipe → odhod iz Phuketa (ali Krabi) — NE začni v Bangkoku,
+  • če uporabnik eksplicitno želi Bangkok: Phuket → … → Bangkok šele proti koncu (nikoli notranji let stran z ${params.destinationIata} na dan 1).`
+      : params.destinationIata.toUpperCase() === "CNX"
+        ? `  • severni lok (prihod CNX): Chiang Mai → Chiang Rai/Pai → odhod iz Chiang Mai — NE začni v Bangkoku.`
+        : `  • severni lok: Bangkok → Ayutthaya → Chiang Mai → Chiang Rai → odhod iz Chiang Mai ali Bangkoka,
+  • južni lok: Bangkok → Ayutthaya → Krabi/Phuket/Koh Lanta → odhod iz južnega letališča ali Bangkoka,
+  • osrednji lok: Bangkok → Ayutthaya → Chiang Mai (brez skoka na otroke) ALI Bangkok → Hua Hin → juž — nikoli oboje v istem načrtu.`;
+
+  const arrivalAirportBlock = params.groundTransportMode
+    ? ""
+    : `
+PRIHODOVNO LETALIŠČE (OBVEZNO — prednost pred vsemi primeri poti):
+- Mednarodni let potnika pristane na ${params.destinationIata} (${arrivalCity}).
+- Dan 1 MORA biti v ${arrivalCity}. Aktivnosti dneva 1 = prihod + prilagajanje v ${arrivalCity} — NE v drugem mestu.
+- Prepovedano: notranji let z ${params.destinationIata} na drug hub (npr. HKT→BKK, CNX→BKK, DPS→CGK) na dan 1 ali 2 samo zato, da bi “začeli v prestolnici”.
+- Notranji leti so dovoljeni šele ko potnik zapusti bazo prihoda po vsaj 1–2 polnih dneh tam.
+- Odhod nazaj: izhodno letališče je ${returnAirport}${
+        returnAirport !== params.destinationIata
+          ? " (open-jaw — pot lahko končaš proti temu letališču)"
+          : " — končaj pot v isti regiji, ne sili v Bangkok buffer, če ni potreben"
+      }.
+`;
+
   return `Si strokovni potovalni agent za aplikacijo skybooplan. Striktno sledi zahtevani JSON shemi.
 
 ${STRICT_LLM_LANGUAGE_RULE}
@@ -350,7 +416,8 @@ VALUTA (displayCurrency = ${displayCurrency}):
 ${moneyRule}
 
 ${travelReqBlock}
-
+${arrivalAirportBlock}
+${selectedFlightSystemBlock}
 ${motorhomeRules}
 
 STROGO PRAVILO — AVTODOM / RV / CAMPERVAN:
@@ -472,10 +539,8 @@ VEČ DESTINACIJ — LOGIČNA, ENOSMERNA POT (brez skakanja):
   • skakanje s severa na jug in nazaj (npr. Bangkok → Chiang Mai → južni otoki → spet Bangkok — NAROBE),
   • vračanje v mesta/regije, ki jih je potnik že obiskal (${lastDayTransitException}),
   • ciklična pot ali "zig-zag" preko celega ozemlja brez smisla.
-- Primeri DOVOLJENIH poti za Tajsko (izberi EN sam smerni lok, ne mešaj obeh):
-  • severni lok: Bangkok → Ayutthaya → Chiang Mai → Chiang Rai → odhod iz Chiang Mai ali Bangkoka,
-  • južni lok: Bangkok → Ayutthaya → Krabi/Phuket/Koh Lanta → odhod iz južnega letališča ali Bangkoka,
-  • osrednji lok: Bangkok → Ayutthaya → Chiang Mai (brez skoka na otroke) ALI Bangkok → Hua Hin → juž — nikoli oboje v istem načrtu.
+- Primeri DOVOLJENIH poti za Tajsko (izberi EN sam smerni lok; vedno spoštuj prihodovno letališče zgoraj):
+${thailandRouteExamples}
 - Primer za Japonsko: Tokio → Hakone → Kjoto → Osaka (enosmerno proti zahodu/jugu, brez vračanja v Tokio sredi poti).
 - Vsaka faza (phase) = ena regija/mesto; dni razporedi sorazmerno glede na velikost lokacije.
 - Unikatnost mest: Vsako mesto/regija se lahko v celotnem itinerarju pojavi samo enkrat (izjema: zadnji dan — le ${params.groundTransportMode ? "vožnja/vlak nazaj domov" : "tranzit na izhodno letališče"}, brez ogledov).
@@ -500,10 +565,14 @@ PRILAGODITEV POTNIKOM IN PRORAČUNU (obvezno):
 }
 
 /** Streaming Gemini generation — keeps HTTP connection alive (avoids serverless timeout). */
-export function createTripPlanStream(params: GenerateTripPlanParams) {
+export function createTripPlanStream(
+  params: GenerateTripPlanParams,
+  options?: { abortSignal?: AbortSignal },
+) {
   pipelineLog("gemini:streamObject START", GEMINI_TRIP_PLAN_MODEL);
   const prompt = buildTripPlanPrompt(params);
   const image = params.sharedImage;
+  const abortSignal = options?.abortSignal;
 
   if (image) {
     return streamObject({
@@ -519,6 +588,7 @@ export function createTripPlanStream(params: GenerateTripPlanParams) {
         },
       ],
       schema: tripPlanSchema,
+      abortSignal,
       ...tripPlanGenerationConfig,
     });
   }
@@ -528,6 +598,7 @@ export function createTripPlanStream(params: GenerateTripPlanParams) {
     system: tripPlanSystemPrompt(params),
     prompt,
     schema: tripPlanSchema,
+    abortSignal,
     ...tripPlanGenerationConfig,
   });
 }

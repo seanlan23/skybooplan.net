@@ -55,8 +55,21 @@ describe("i18n strict fallback", () => {
   });
 
   it("de never falls back to Slovenian for untranslated keys", () => {
-    expect(translate("de", "nav.signIn")).toBe("Sign in");
     expect(translate("de", "error.networkFetch")).not.toBe("Težava s povezavo");
     expect(translate("de", "error.networkFetch")).toMatch(/connection|server/i);
+  });
+
+  it("de shell UI is German (not English fallback)", () => {
+    expect(translate("de", "nav.flights")).toBe("Flüge");
+    expect(translate("de", "nav.stays")).toBe("Unterkünfte");
+    expect(translate("de", "nav.ai")).toBe("KI-Planer");
+    expect(translate("de", "nav.signIn")).toBe("Anmelden");
+    expect(translate("de", "heroMode.flights")).toContain("Flüge");
+    expect(translate("de", "heroChat.checklist.title")).toContain("Reise");
+    expect(translate("de", "results.cheapestBadge")).toBe("Günstigste");
+    expect(translate("de", "results.selectAiPlan")).toContain("KI");
+    expect(translate("de", "aiplan.yourChoices")).toBe("Deine Einstellungen");
+    expect(translate("de", "aiplan.paceChip")).toBe("Tempo: {pace}");
+    expect(translate("de", "travelReq.vaccinations")).toContain("Impfungen");
   });
 });

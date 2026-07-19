@@ -8,7 +8,7 @@ export type HeroChatDateParseResult = {
 };
 
 const MONTH_PATTERN =
-  "januarja|februarja|marca|aprila|maja|junija|julija|avgusta|septembra|oktobra|novembra|decembra|januar|februar|marec|april|maj|junij|julij|avgust|september|oktober|november|december|january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|avg|aug|sep|okt|oct|nov|dec";
+  "januarja|februarja|marca|aprila|maja|junija|julija|avgusta|septembra|oktobra|novembra|decembra|januar|februar|marec|märz|maerz|april|maj|junij|juni|julij|juli|avgust|september|oktober|november|december|january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|avg|aug|sep|okt|oct|nov|dec";
 
 const SL_MONTHS: Record<string, number> = {
   jan: 0,
@@ -20,18 +20,23 @@ const SL_MONTHS: Record<string, number> = {
   mar: 2,
   marec: 2,
   marca: 2,
+  märz: 2,
+  maerz: 2,
   apr: 3,
   april: 3,
   aprila: 3,
   maj: 4,
   maja: 4,
   may: 4,
+  mai: 4,
   jun: 5,
   junij: 5,
   junija: 5,
+  juni: 5,
   jul: 6,
   julij: 6,
   julija: 6,
+  juli: 6,
   avg: 7,
   avgust: 7,
   avgusta: 7,
@@ -104,15 +109,42 @@ const SL_MONTH_NAMES = [
   "december",
 ] as const;
 
+const DE_MONTH_NAMES = [
+  "Januar",
+  "Februar",
+  "März",
+  "April",
+  "Mai",
+  "Juni",
+  "Juli",
+  "August",
+  "September",
+  "Oktober",
+  "November",
+  "Dezember",
+] as const;
+
 function monthNameForLang(monthIndex: number, lang: string): string {
   const idx = Math.min(11, Math.max(0, monthIndex));
-  return lang === "sl" ? SL_MONTH_NAMES[idx]! : EN_MONTH_NAMES[idx]!;
+  const code = lang.toLowerCase().slice(0, 2);
+  if (code === "sl") return SL_MONTH_NAMES[idx]!;
+  if (code === "de") return DE_MONTH_NAMES[idx]!;
+  return EN_MONTH_NAMES[idx]!;
+}
+
+function localeForLang(lang: string): string {
+  const code = lang.toLowerCase().slice(0, 2);
+  if (code === "sl") return "sl-SI";
+  if (code === "de") return "de-DE";
+  if (code === "fr") return "fr-FR";
+  if (code === "es") return "es-ES";
+  if (code === "it") return "it-IT";
+  return "en-GB";
 }
 
 function formatDayMonth(day: number, monthIndex: number, lang: string): string {
-  const locale = lang === "sl" ? "sl-SI" : "en-GB";
   const d = new Date(2026, monthIndex, day, 12);
-  return d.toLocaleDateString(locale, { day: "numeric", month: "long" });
+  return d.toLocaleDateString(localeForLang(lang), { day: "numeric", month: "long" });
 }
 
 function extractIsoRange(text: string): HeroChatDateParseResult | null {
@@ -254,9 +286,10 @@ function applyTripLength(
   const [y, m, d] = result.departDate.split("-").map((x) => Number.parseInt(x, 10));
   if (!y || !m || !d) return result;
   const returnDate = addDaysSafe(y, m - 1, d, tripDays);
-  const unit = lang === "sl" ? "dni" : "days";
+  const code = lang.toLowerCase().slice(0, 2);
+  const unit = code === "sl" ? "dni" : code === "de" ? "Tage" : "days";
   const label =
-    result.label && !/\d+\s*(?:dni|days)\b/i.test(result.label)
+    result.label && !/\d+\s*(?:dni|days|Tage)\b/i.test(result.label)
       ? `${result.label} · ${tripDays} ${unit}`
       : result.label;
   return { ...result, returnDate, label: label || result.label };
@@ -282,10 +315,13 @@ function extractEndStartMonthRange(text: string, lang: string): HeroChatDatePars
   const yearTo = monthTo < monthFrom ? yearFrom + 1 : yearFrom;
   const departDate = toIsoDate(yearFrom, monthFrom, 26);
   const returnDate = toIsoDate(yearTo, monthTo, 5);
+  const code = lang.toLowerCase().slice(0, 2);
   const label =
-    lang === "sl"
+    code === "sl"
       ? `konec ${monthNameForLang(monthFrom, "sl")} → začetek ${monthNameForLang(monthTo, "sl")} ${yearFrom}`
-      : `late ${monthNameForLang(monthFrom, "en")} → early ${monthNameForLang(monthTo, "en")} ${yearFrom}`;
+      : code === "de"
+        ? `Ende ${monthNameForLang(monthFrom, "de")} → Anfang ${monthNameForLang(monthTo, "de")} ${yearFrom}`
+        : `late ${monthNameForLang(monthFrom, "en")} → early ${monthNameForLang(monthTo, "en")} ${yearFrom}`;
 
   return { precision: "exact", label, departDate, returnDate };
 }
@@ -305,41 +341,89 @@ function extractMonthDashRange(text: string, lang: string): HeroChatDateParseRes
   const yearTo = monthTo < monthFrom ? yearFrom + 1 : yearFrom;
   const departDate = toIsoDate(yearFrom, monthFrom, 15);
   const returnDate = toIsoDate(yearTo, monthTo, 15);
+  const code = lang.toLowerCase().slice(0, 2);
   const label =
-    lang === "sl"
+    code === "sl"
       ? `${monthNameForLang(monthFrom, "sl")} – ${monthNameForLang(monthTo, "sl")} ${yearFrom}`
-      : `${monthNameForLang(monthFrom, "en")} – ${monthNameForLang(monthTo, "en")} ${yearFrom}`;
+      : code === "de"
+        ? `${monthNameForLang(monthFrom, "de")} – ${monthNameForLang(monthTo, "de")} ${yearFrom}`
+        : `${monthNameForLang(monthFrom, "en")} – ${monthNameForLang(monthTo, "en")} ${yearFrom}`;
 
   return { precision: "exact", label, departDate, returnDate };
 }
 
 function extractVague(text: string, lang: string): HeroChatDateParseResult | null {
   const normalized = text.toLowerCase();
+  const code = lang.toLowerCase().slice(0, 2);
 
-  const relativePatterns: { re: RegExp; labelSl: string; labelEn: string }[] = [
-    { re: /čez\s+(\d+)\s+tedn/i, labelSl: "čez $1 tedna", labelEn: "in $1 weeks" },
-    { re: /in\s+(\d+)\s+weeks?/i, labelSl: "čez $1 tedna", labelEn: "in $1 weeks" },
-    { re: /naslednji\s+teden|next\s+week/i, labelSl: "naslednji teden", labelEn: "next week" },
-    { re: /konec\s+poletja|end\s+of\s+summer/i, labelSl: "konec poletja", labelEn: "end of summer" },
-    { re: /poletj[ae]|summer/i, labelSl: "poletje", labelEn: "summer" },
-    { re: /pozimi|zim[ae]|winter/i, labelSl: "zima", labelEn: "winter" },
-    { re: /spomladi|spring/i, labelSl: "spomlad", labelEn: "spring" },
-    { re: /jeseni|autumn|fall/i, labelSl: "jesen", labelEn: "autumn" },
+  const relativePatterns: {
+    re: RegExp;
+    labelSl: string;
+    labelEn: string;
+    labelDe: string;
+  }[] = [
+    {
+      re: /čez\s+(\d+)\s+tedn/i,
+      labelSl: "čez $1 tedna",
+      labelEn: "in $1 weeks",
+      labelDe: "in $1 Wochen",
+    },
+    {
+      re: /in\s+(\d+)\s+weeks?/i,
+      labelSl: "čez $1 tedna",
+      labelEn: "in $1 weeks",
+      labelDe: "in $1 Wochen",
+    },
+    {
+      re: /naslednji\s+teden|next\s+week|nächste\s+woche/i,
+      labelSl: "naslednji teden",
+      labelEn: "next week",
+      labelDe: "nächste Woche",
+    },
+    {
+      re: /konec\s+poletja|end\s+of\s+summer|ende\s+des\s+sommers/i,
+      labelSl: "konec poletja",
+      labelEn: "end of summer",
+      labelDe: "Ende des Sommers",
+    },
+    {
+      re: /poletj[ae]|summer|sommer/i,
+      labelSl: "poletje",
+      labelEn: "summer",
+      labelDe: "Sommer",
+    },
+    {
+      re: /pozimi|zim[ae]|winter/i,
+      labelSl: "zima",
+      labelEn: "winter",
+      labelDe: "Winter",
+    },
+    {
+      re: /spomladi|spring|frühling/i,
+      labelSl: "spomlad",
+      labelEn: "spring",
+      labelDe: "Frühling",
+    },
+    {
+      re: /jeseni|autumn|fall|herbst/i,
+      labelSl: "jesen",
+      labelEn: "autumn",
+      labelDe: "Herbst",
+    },
   ];
 
   for (const pattern of relativePatterns) {
     const match = normalized.match(pattern.re);
     if (match) {
-      const label =
-        lang === "sl"
-          ? pattern.labelSl.replace("$1", match[1] ?? "")
-          : pattern.labelEn.replace("$1", match[1] ?? "");
+      const template =
+        code === "sl" ? pattern.labelSl : code === "de" ? pattern.labelDe : pattern.labelEn;
+      const label = template.replace("$1", match[1] ?? "");
       return { precision: "vague", label };
     }
   }
 
   const endMonth = normalized.match(
-    new RegExp(`(?:konec|onec|konc|end\\s+of)\\s+(${MONTH_PATTERN})`, "i"),
+    new RegExp(`(?:konec|onec|konc|end\\s+of|ende)\\s+(${MONTH_PATTERN})`, "i"),
   );
   if (endMonth) {
     const monthIndex = resolveMonthIndex(endMonth[1]!);
@@ -348,9 +432,11 @@ function extractVague(text: string, lang: string): HeroChatDateParseResult | nul
       return {
         precision: "exact",
         label:
-          lang === "sl"
+          code === "sl"
             ? `konec ${monthNameForLang(monthIndex, "sl")} ${year}`
-            : `late ${monthNameForLang(monthIndex, "en")} ${year}`,
+            : code === "de"
+              ? `Ende ${monthNameForLang(monthIndex, "de")} ${year}`
+              : `late ${monthNameForLang(monthIndex, "en")} ${year}`,
         departDate: toIsoDate(year, monthIndex, 26),
         returnDate: addDaysSafe(year, monthIndex, 26, 14),
       };
@@ -358,7 +444,10 @@ function extractVague(text: string, lang: string): HeroChatDateParseResult | nul
   }
 
   const startMonth = normalized.match(
-    new RegExp(`(?:začetek|zacetek|zaetek|start\\s+of)\\s+(${MONTH_PATTERN})`, "i"),
+    new RegExp(
+      `(?:začetek|zacetek|zaetek|start\\s+of|anfang)\\s+(${MONTH_PATTERN})`,
+      "i",
+    ),
   );
   if (startMonth) {
     const monthIndex = resolveMonthIndex(startMonth[1]!);
@@ -368,9 +457,11 @@ function extractVague(text: string, lang: string): HeroChatDateParseResult | nul
       return {
         precision: "exact",
         label:
-          lang === "sl"
+          code === "sl"
             ? `začetek ${monthNameForLang(monthIndex, "sl")} ${year}`
-            : `early ${monthNameForLang(monthIndex, "en")} ${year}`,
+            : code === "de"
+              ? `Anfang ${monthNameForLang(monthIndex, "de")} ${year}`
+              : `early ${monthNameForLang(monthIndex, "en")} ${year}`,
         departDate,
         returnDate: addDaysSafe(year, monthIndex, 5, 14),
       };

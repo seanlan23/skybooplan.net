@@ -1,9 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { pipelineLog } from "@/lib/asyncTimeout";
+import {
+  createStallWatchdog,
+  GEMINI_STREAM_HARD_MS,
+  GEMINI_STREAM_STALL_MS,
+  mergeAbortSignals,
+  pipelineLog,
+} from "@/lib/asyncTimeout";
 import { geminiApiKey } from "@/lib/llm";
 import {
   tripDayCount,
-  buildGeminiTripPlanParams,
   buildGeminiTripPlanParamsWithAttachment,
   formatGenerateTripInputError,
   generateGeminiProTripInputSchema,
@@ -75,15 +80,28 @@ export const Route = createFileRoute("/api/generate-itinerary")({
         const stream = new ReadableStream<Uint8Array>({
           async start(controller) {
             const push = (event: StreamEvent) => controller.enqueue(ndjson(event));
+            const hardAbort = new AbortController();
+            const hardTimer = setTimeout(() => hardAbort.abort(), GEMINI_STREAM_HARD_MS);
+            const stallWatchdog = createStallWatchdog(GEMINI_STREAM_STALL_MS, hardAbort.signal);
+            const abortSignal = mergeAbortSignals(
+              hardAbort.signal,
+              stallWatchdog.signal,
+              request.signal,
+            );
 
             try {
-              pipelineLog("stream:generate-itinerary START", `${data.originIata}→${data.destinationIata}`);
+              pipelineLog(
+                "stream:generate-itinerary START",
+                `${data.originIata}→${data.destinationIata} (${expectedDays}d)`,
+              );
 
               const planParams = await buildGeminiTripPlanParamsWithAttachment(data, expectedDays);
-              const result = createTripPlanStream(planParams);
+              const result = createTripPlanStream(planParams, { abortSignal });
 
               let lastDayCount = 0;
               for await (const partial of result.partialObjectStream) {
+                if (abortSignal.aborted) break;
+                stallWatchdog.bump();
                 const preview = partialTripPlanToPreviewPlan(partial, mapOpts);
                 const dayCount = preview?.days.length ?? 0;
                 if (preview && dayCount > lastDayCount) {
@@ -95,6 +113,16 @@ export const Route = createFileRoute("/api/generate-itinerary")({
                     expectedDays,
                   });
                 }
+              }
+
+              if (abortSignal.aborted) {
+                const reason =
+                  lastDayCount > 0
+                    ? `Generiranje se je ustavilo po ${lastDayCount}. dnevu (Gemini ni več odgovarjal). Poskusi znova ali krajši izlet.`
+                    : "Generiranje načrta je predolgo trajalo brez odgovora. Poskusi znova.";
+                pipelineLog("stream:generate-itinerary ABORT", reason);
+                push({ type: "error", error: reason });
+                return;
               }
 
               const finalObject = await result.object;
@@ -109,14 +137,18 @@ export const Route = createFileRoute("/api/generate-itinerary")({
               pipelineLog("stream:generate-itinerary DONE", `${built.plan?.days.length ?? 0} days`);
             } catch (err) {
               console.error("[generate-itinerary] stream failed:", err);
+              const aborted = abortSignal.aborted;
               push({
                 type: "error",
-                error:
-                  err instanceof Error
+                error: aborted
+                  ? "Generiranje načrta je predolgo trajalo brez odgovora. Poskusi znova."
+                  : err instanceof Error
                     ? err.message
                     : "Napaka pri generiranju načrta preko Gemini Pro",
               });
             } finally {
+              stallWatchdog.clear();
+              clearTimeout(hardTimer);
               controller.close();
             }
           },

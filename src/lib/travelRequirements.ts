@@ -174,7 +174,8 @@ function thailandFallback(lang: LangCode): Omit<TravelRequirements, "targetResid
   visaRequirement: string;
   howToApply: string;
 } {
-  if (lang === "sl") {
+  const code = lang.toLowerCase().slice(0, 2);
+  if (code === "sl") {
     return {
       visaRequirement:
         "Državljani EU/Schengen za turistični obisk Tajske ne potrebujejo vize vnaprej. Od maja 2026 velja 30 dni brezvizumskega bivanja na vstop (začasna shema 60 dni je bila ukinjena). Največ dva brezvizumska vstopa na koledarsko leto. Potni list mora veljati vsaj 6 mesecev ob vstopu. Na meji lahko zahtevajo dokazilo o nastanitvi, povratni let in sredstva za bivanje (okvirno 20 000 THB na osebo ali enakovredno).",
@@ -184,6 +185,19 @@ function thailandFallback(lang: LangCode): Omit<TravelRequirements, "targetResid
         "Priporočeno: cepljenje proti hepatitisu A (in B pri daljšem potovanju), posodobljena rutinska cepljenja (MMR, tetanus). Rumena mrličica je obvezna le, če prihajaš iz endemične države. Antimalariki za Bangkok/Chiang Mai/otoke običajno niso potrebni; za deževno sezono imej repelent in zdravila proti driski.",
       estimatedCosts:
         "Viza za turistični obisk običajno ni potrebna (0 €). Podaljšanje pri imigraciji: približno 1 900 THB (~50 €). Cepljenje proti hepatitisu A: približno 40–80 € na osebo. TDAC je brezplačen.",
+    };
+  }
+
+  if (code === "de") {
+    return {
+      visaRequirement:
+        "EU-/Schengen-Bürger brauchen für touristische Aufenthalte in Thailand kein Visum im Voraus. Ab Mai 2026 gilt 30 Tage visumfreier Aufenthalt pro Einreise (die vorübergehende 60-Tage-Regelung wurde beendet). Höchstens zwei visumfreie Einreisen pro Kalenderjahr. Reisepass muss bei Einreise mindestens 6 Monate gültig sein. Grenzbeamte können Nachweis über Unterkunft, Rückflug und finanzielle Mittel verlangen (ca. 20.000 THB pro Person oder Gegenwert).",
+      howToApply:
+        "Vor der Ankunft die kostenlose TDAC (Thailand Digital Arrival Card) auf der offiziellen Thai-Immigration-Website ausfüllen. Bei Einreise Reisepass und TDAC vorzeigen. Eine Verlängerung um 30 Tage ist bei einer lokalen Einwanderungsbehörde möglich (~1.900 THB) — insgesamt bis ca. 60 Tage auf einer Reise.",
+      vaccinations:
+        "Empfohlen: Hepatitis A (und B bei längeren Reisen), aktuelle Routineimpfungen (MMR, Tetanus). Gelbfieber nur bei Anreise aus einem Endemiegebiet. Malariaprophylaxe ist für Bangkok/Chiang Mai/Inseln meist nicht nötig; für die Regenzeit Repellent und Mittel gegen Durchfall mitnehmen.",
+      estimatedCosts:
+        "Touristenvisum meist nicht nötig (0 €). Verlängerung bei Immigration ~1.900 THB (~50 €). Hepatitis-A-Impfung ca. 40–80 € pro Person. TDAC ist kostenlos.",
     };
   }
 
@@ -225,17 +239,22 @@ export function buildFallbackTravelRequirements(
       });
     }
 
+    const langCode = lang.toLowerCase().slice(0, 2);
     for (const country of otherGroup) {
       visaInfo.push({
         country,
         requirement:
-          lang === "sl"
+          langCode === "sl"
             ? `Preveri aktualna brezvizumska pravila za potnike s potnim listom ${country} ob vstopu v Tajsko (2026: večina zahodnih držav 30 dni). Potni list vsaj 6 mesecev veljaven.`
-            : `Check current visa-free rules for ${country} passport holders entering Thailand (2026: most Western passports get 30 days). Passport must be valid at least 6 months.`,
+            : langCode === "de"
+              ? `Aktuelle visumfreie Regeln für Reisende mit Pass aus ${country} bei Einreise nach Thailand prüfen (2026: die meisten westlichen Pässe 30 Tage). Reisepass mindestens 6 Monate gültig.`
+              : `Check current visa-free rules for ${country} passport holders entering Thailand (2026: most Western passports get 30 days). Passport must be valid at least 6 months.`,
         howToApply:
-          lang === "sl"
+          langCode === "sl"
             ? "Preveri uradne vire Thai MFA ali lokalno veleposlaništvo pred odhodom. TDAC obrazec je obvezen za vse potnike."
-            : "Check Thai MFA or your local embassy before departure. TDAC is required for all travellers.",
+            : langCode === "de"
+              ? "Vor Abreise offizielle Quellen des thailändischen Außenministeriums oder die lokale Botschaft prüfen. TDAC ist für alle Reisenden Pflicht."
+              : "Check Thai MFA or your local embassy before departure. TDAC is required for all travellers.",
       });
     }
 
@@ -248,29 +267,38 @@ export function buildFallbackTravelRequirements(
   }
 
   const destLabel = destinationLabelForRequirements(destinationIata, lang);
+  const langCode = lang.toLowerCase().slice(0, 2);
   return {
     targetResidents,
     visaInfo: [
       {
         country: targetResidents.join(" · "),
         requirement:
-          lang === "sl"
+          langCode === "sl"
             ? `Preveri aktualne vizumske zahteve za potnike s potnimi listi (${targetResidents.join(", ")}) ob vstopu v ${destLabel}. Pravila se pogosto spreminjajo — vedno preveri uradne vire pred odhodom.`
-            : `Check current visa requirements for travellers with passports from ${targetResidents.join(", ")} entering ${destLabel}. Rules change often — always verify official sources before you go.`,
+            : langCode === "de"
+              ? `Aktuelle Visabestimmungen für Reisende mit Pässen aus (${targetResidents.join(", ")}) bei Einreise nach ${destLabel} prüfen. Regeln ändern sich oft — immer offizielle Quellen vor Abreise checken.`
+              : `Check current visa requirements for travellers with passports from ${targetResidents.join(", ")} entering ${destLabel}. Rules change often — always verify official sources before you go.`,
         howToApply:
-          lang === "sl"
+          langCode === "sl"
             ? "Uradni viri: gov.si (MZV) ali ustrezno veleposlaništvo / e-viza, če je na voljo."
-            : "Use your foreign ministry site or the destination embassy / e-visa portal if available.",
+            : langCode === "de"
+              ? "Offizielle Quellen: Außenministerium oder Botschaft des Ziellandes / E-Visum-Portal, falls vorhanden."
+              : "Use your foreign ministry site or the destination embassy / e-visa portal if available.",
       },
     ],
     vaccinations:
-      lang === "sl"
+      langCode === "sl"
         ? "Posvetuj se s potovalno medicino 4–6 tednov pred odhodom. Rutinska cepljenja morajo biti posodobljena; dodatna cepljenja so odvisna od regije in načina potovanja."
-        : "See a travel clinic 4–6 weeks before departure. Keep routine vaccines up to date; extras depend on region and how you travel.",
+        : langCode === "de"
+          ? "Reiseimpfberatung 4–6 Wochen vor Abreise. Routineimpfungen aktuell halten; Zusatzimpfungen hängen von Region und Reiseart ab."
+          : "See a travel clinic 4–6 weeks before departure. Keep routine vaccines up to date; extras depend on region and how you travel.",
     estimatedCosts:
-      lang === "sl"
+      langCode === "sl"
         ? "Stroški viz in cepljenj so odvisni od destinacije — načrtuj 0–150 € na osebo (e-viza + osnovna cepljenja)."
-        : "Visa and vaccine costs vary by destination — budget about €0–150 per person (e-visa + basic vaccines).",
+        : langCode === "de"
+          ? "Visa- und Impfkosten hängen vom Ziel ab — plane ca. 0–150 € pro Person (E-Visum + Basisimpfungen)."
+          : "Visa and vaccine costs vary by destination — budget about €0–150 per person (e-visa + basic vaccines).",
   };
 }
 

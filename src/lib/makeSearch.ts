@@ -1,6 +1,12 @@
 import type { HeroChatAttachmentPayload } from "@/lib/heroChatAttachment";
 import { parseHeroChatAttachment } from "@/lib/heroChatAttachment";
 import { extractHeroChatDates } from "@/lib/heroChatDates";
+import { originAliasPatterns } from "@/lib/airportCatalog";
+import {
+  elapsedMinutesBetweenAirportLocals,
+  estimateLocalArrival,
+  isoHasExplicitOffset,
+} from "@/lib/airportTimeZones";
 
 export type MakeSearchFlight = {
   id: string;
@@ -12,11 +18,14 @@ export type MakeSearchFlight = {
   prevoznik: string;
   /** IATA airline code when available (for logo). */
   airline_iata?: string;
+  /** e.g. EY85 — helps external search match the card. */
+  outbound_flight_number?: string;
+  inbound_flight_number?: string;
   postanki: string;
   ai_povzetek: string;
   badge?: string;
   booking_url?: string;
-  /** Structured fields for Skyscanner deep-links + AI plan scheduling. */
+  /** Structured fields for booking deep-links + AI plan scheduling. */
   origin_iata?: string;
   destination_iata?: string;
   /** YYYY-MM-DD */
@@ -29,6 +38,7 @@ export type MakeSearchFlight = {
   outbound_arrive_day_offset?: number;
   inbound_depart?: string;
   inbound_arrive?: string;
+  inbound_arrive_day_offset?: number;
   /** Human duration e.g. "14h 30m" (Skyscanner-style). */
   outbound_duration?: string;
   inbound_duration?: string;
@@ -153,6 +163,8 @@ function parseDuffelOfferAsMakeFlight(item: unknown, index: number): MakeSearchF
   const airlineIata =
     readString(owner ?? {}, "iata_code", "iata").toUpperCase() ||
     readString(marketing ?? {}, "iata_code", "iata").toUpperCase();
+  const outboundFlightNumber = flightNumberFromSegment(firstSeg, airlineIata);
+  const inboundFlightNumber = flightNumberFromSegment(returnFirstSeg, airlineIata);
   const departing = readString(firstSeg ?? {}, "departing_at");
   const arriving = readString(lastSeg ?? {}, "arriving_at");
   const returning = readString(returnFirstSeg ?? {}, "departing_at");
@@ -176,12 +188,16 @@ function parseDuffelOfferAsMakeFlight(item: unknown, index: number): MakeSearchF
   const outDurationRaw = pickTravelDurationRaw(
     readString(firstSlice, "duration"),
     durationFromSegments(segments),
-    departing && arriving ? isoDurationBetween(departing, arriving) : "",
+    departing && arriving
+      ? isoDurationBetween(departing, arriving, origin, destination)
+      : "",
   );
   const inDurationRaw = pickTravelDurationRaw(
     readString(returnSlice ?? {}, "duration"),
     durationFromSegments(returnSegments),
-    returning && returnArriving ? isoDurationBetween(returning, returnArriving) : "",
+    returning && returnArriving
+      ? isoDurationBetween(returning, returnArriving, destination, origin)
+      : "",
   );
   const outbound_duration = formatTravelDuration(outDurationRaw);
   const inbound_duration = formatTravelDuration(inDurationRaw);
@@ -198,6 +214,8 @@ function parseDuffelOfferAsMakeFlight(item: unknown, index: number): MakeSearchF
     ...(returning ? { povratek: formatDepartureDatetime(returning) } : {}),
     prevoznik: carrier || "—",
     ...(airlineIata ? { airline_iata: airlineIata } : {}),
+    ...(outboundFlightNumber ? { outbound_flight_number: outboundFlightNumber } : {}),
+    ...(inboundFlightNumber ? { inbound_flight_number: inboundFlightNumber } : {}),
     postanki,
     ai_povzetek: "",
     ...(origin ? { origin_iata: origin } : {}),
@@ -219,6 +237,25 @@ function parseDuffelOfferAsMakeFlight(item: unknown, index: number): MakeSearchF
     ...(inbound_duration ? { inbound_duration } : {}),
     ...(duration_minutes != null ? { duration_minutes } : {}),
   };
+}
+
+function flightNumberFromSegment(
+  segment: Record<string, unknown> | null | undefined,
+  airlineIata: string,
+): string {
+  if (!segment) return "";
+  const raw = readString(
+    segment,
+    "marketing_carrier_flight_number",
+    "operating_carrier_flight_number",
+    "flight_number",
+  ).replace(/\s+/g, "");
+  if (!raw) return "";
+  if (/^[A-Z0-9]{2}\d{1,4}$/i.test(raw)) return raw.toUpperCase();
+  if (/^\d{1,4}$/.test(raw) && /^[A-Z0-9]{2}$/i.test(airlineIata)) {
+    return `${airlineIata.toUpperCase()}${raw}`;
+  }
+  return raw.toUpperCase();
 }
 
 /** Stable badge keys — UI translates via i18n. Ranked by value, not raw price. */
@@ -275,13 +312,9 @@ export function selectTopMakeSearchFlights(
   flights: MakeSearchFlight[],
   opts?: { showOriginBadge?: boolean; keepExistingBadges?: boolean },
 ): MakeSearchFlight[] {
-  if (
-    opts?.keepExistingBadges &&
-    flights.length <= 3 &&
-    flights.every((f) => f.badge)
-  ) {
-    return flights;
-  }
+  // Always re-rank by value score. Ignoring prior Gemini/Make "cheapest" badges
+  // so a 31h layover cannot stay on top just because a badge was pre-set.
+  void opts?.keepExistingBadges;
 
   const usable = [...flights].filter((f) => f.cena_eur > 0 || f.destinacija !== "—");
 
@@ -387,17 +420,202 @@ function timeHmFromIso(iso: string): string {
   return match ? `${match[1]}:${match[2]}` : "";
 }
 
-/** Elapsed minutes between two timestamps (timezone-aware when offsets present). */
-export function elapsedMinutesBetween(departIso: string, arriveIso: string): number {
+/** Add minutes to HH:mm — naive (same timezone). Prefer estimateArriveLocal. */
+export function addMinutesToHm(
+  hm: string,
+  minutes: number,
+): { time: string; dayOffset: number } | null {
+  const match = hm.trim().match(/^(\d{1,2}):(\d{2})$/);
+  if (!match || !Number.isFinite(minutes) || minutes <= 0) return null;
+  const start = Number.parseInt(match[1]!, 10) * 60 + Number.parseInt(match[2]!, 10);
+  const total = start + Math.round(minutes);
+  const dayOffset = Math.floor(total / (24 * 60));
+  const tod = ((total % (24 * 60)) + 24 * 60) % (24 * 60);
+  const hh = String(Math.floor(tod / 60)).padStart(2, "0");
+  const mm = String(tod % 60).padStart(2, "0");
+  return { time: `${hh}:${mm}`, dayOffset: Math.max(0, dayOffset) };
+}
+
+/**
+ * Estimate local arrival at destination.
+ * Uses IATA timezones when known; otherwise naive depart+duration.
+ */
+export function estimateArriveLocal(params: {
+  departHm: string;
+  departDate?: string;
+  durationMinutes: number;
+  fromIata?: string;
+  toIata?: string;
+}): { time: string; dayOffset: number } | null {
+  const date = params.departDate?.trim() ?? "";
+  if (date && params.fromIata && params.toIata) {
+    const zoned = estimateLocalArrival({
+      departHm: params.departHm,
+      departDate: date,
+      durationMinutes: params.durationMinutes,
+      fromIata: params.fromIata,
+      toIata: params.toIata,
+    });
+    if (zoned) return zoned;
+  }
+  return addMinutesToHm(params.departHm, params.durationMinutes);
+}
+
+/**
+ * Elapsed minutes between two timestamps.
+ * With IATA codes, naive local ISO (no Z/offset) is interpreted in each airport's TZ —
+ * so MUC 21:10 → HKT 17:55 is ~14h45, not wall-clock 20h45.
+ */
+export function elapsedMinutesBetween(
+  departIso: string,
+  arriveIso: string,
+  fromIata?: string,
+  toIata?: string,
+): number {
+  if (
+    fromIata &&
+    toIata &&
+    !isoHasExplicitOffset(departIso) &&
+    !isoHasExplicitOffset(arriveIso)
+  ) {
+    const zoned = elapsedMinutesBetweenAirportLocals(
+      departIso,
+      arriveIso,
+      fromIata,
+      toIata,
+    );
+    if (zoned != null) return zoned;
+  }
+
+  // One side has offset / other doesn't — still prefer airport locals when IATAs known.
+  if (fromIata && toIata) {
+    const zoned = elapsedMinutesBetweenAirportLocals(
+      departIso,
+      arriveIso,
+      fromIata,
+      toIata,
+    );
+    if (zoned != null) return zoned;
+  }
+
   const a = Date.parse(departIso);
   const b = Date.parse(arriveIso);
   if (!Number.isFinite(a) || !Number.isFinite(b) || b <= a) return 0;
   return Math.round((b - a) / 60_000);
 }
 
+function ymdFromDateish(raw?: string): string {
+  const m = (raw ?? "").trim().match(/^(\d{4}-\d{2}-\d{2})/);
+  return m?.[1] ?? "";
+}
+
+function addCalendarDaysYmd(ymd: string, days: number): string {
+  const base = Date.parse(`${ymd}T12:00:00Z`);
+  if (!Number.isFinite(base)) return ymd;
+  const d = new Date(base + days * 86_400_000);
+  return d.toISOString().slice(0, 10);
+}
+
+function normalizeHm(hm: string): string | null {
+  const m = hm.trim().match(/^(\d{1,2}):(\d{2})$/);
+  if (!m) return null;
+  return `${String(Number.parseInt(m[1]!, 10)).padStart(2, "0")}:${m[2]}`;
+}
+
+/** Naive same-timezone gap (what Make often stores as “duration”). */
+export function naiveWallClockMinutes(
+  departHm: string,
+  arriveHm: string,
+  arriveDayOffset = 0,
+): number {
+  const dep = normalizeHm(departHm);
+  const arr = normalizeHm(arriveHm);
+  if (!dep || !arr) return 0;
+  const [dh, dm] = dep.split(":").map((x) => Number.parseInt(x, 10));
+  const [ah, am] = arr.split(":").map((x) => Number.parseInt(x, 10));
+  let mins = ah! * 60 + am! - (dh! * 60 + dm!);
+  let offset = arriveDayOffset;
+  if (offset <= 0 && mins <= 0) offset = 1;
+  mins += offset * 24 * 60;
+  return mins > 0 ? mins : 0;
+}
+
+/**
+ * Real travel minutes using airport timezones.
+ * Works from full ISO or from local HH:mm + date (+ day offset).
+ */
+export function travelDurationMinutes(params: {
+  departIso?: string;
+  arriveIso?: string;
+  departHm?: string;
+  arriveHm?: string;
+  /** YYYY-MM-DD or ISO datetime */
+  departDate?: string;
+  arriveDayOffset?: number;
+  fromIata?: string;
+  toIata?: string;
+  storedLabel?: string;
+}): number {
+  const from = (params.fromIata ?? "").trim().toUpperCase();
+  const to = (params.toIata ?? "").trim().toUpperCase();
+
+  if (params.departIso && params.arriveIso && from && to) {
+    const mins = elapsedMinutesBetween(params.departIso, params.arriveIso, from, to);
+    if (mins > 0) return mins;
+  }
+
+  const depHm = params.departHm ? normalizeHm(params.departHm) : null;
+  const arrHm = params.arriveHm ? normalizeHm(params.arriveHm) : null;
+  const ymd =
+    ymdFromDateish(params.departDate) || ymdFromDateish(params.departIso);
+  if (depHm && arrHm && ymd && from && to) {
+    let dayOff = Math.max(0, params.arriveDayOffset ?? 0);
+    if (dayOff === 0) {
+      const naive = naiveWallClockMinutes(depHm, arrHm, 0);
+      if (naive <= 0) dayOff = 1;
+    }
+    const arriveYmd = addCalendarDaysYmd(ymd, dayOff);
+    const mins = elapsedMinutesBetween(
+      `${ymd}T${depHm}:00`,
+      `${arriveYmd}T${arrHm}:00`,
+      from,
+      to,
+    );
+    if (mins > 0) return mins;
+  }
+
+  const stored = parseDurationMinutes(params.storedLabel ?? "");
+  // If stored duration is just the naive wall-clock gap, drop it (TZ missing).
+  if (stored > 0 && depHm && arrHm) {
+    const naive = naiveWallClockMinutes(
+      depHm,
+      arrHm,
+      params.arriveDayOffset ?? 0,
+    );
+    if (naive > 0 && Math.abs(stored - naive) <= 5) {
+      return 0;
+    }
+  }
+  return stored;
+}
+
+export function formatDurationMinutes(mins: number): string {
+  if (mins <= 0) return "";
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  if (h > 0 && m > 0) return `${h}h ${m}m`;
+  if (h > 0) return `${h}h`;
+  return `${m}m`;
+}
+
 /** Build ISO-8601 duration from two timestamps. */
-function isoDurationBetween(departIso: string, arriveIso: string): string {
-  const mins = elapsedMinutesBetween(departIso, arriveIso);
+function isoDurationBetween(
+  departIso: string,
+  arriveIso: string,
+  fromIata?: string,
+  toIata?: string,
+): string {
+  const mins = elapsedMinutesBetween(departIso, arriveIso, fromIata, toIata);
   if (mins <= 0) return "";
   const h = Math.floor(mins / 60);
   const m = mins % 60;
@@ -495,6 +713,8 @@ export function buildSkyscannerFlightUrl(opts: {
   departDate: string;
   returnDate?: string;
   adults?: number;
+  /** Optional IATA airline filter — still a search page, not a locked offer. */
+  airlineIata?: string;
 }): string | null {
   const from = opts.from.trim().toLowerCase();
   const to = opts.to.trim().toLowerCase();
@@ -506,7 +726,12 @@ export function buildSkyscannerFlightUrl(opts: {
       ? `${fmt(opts.departDate)}/${fmt(opts.returnDate)}`
       : fmt(opts.departDate);
   const adults = Math.max(1, Math.min(9, opts.adults ?? 1));
-  return `https://www.skyscanner.net/transport/flights/${from}/${to}/${seg}/?adults=${adults}`;
+  const params = new URLSearchParams({ adults: String(adults) });
+  const airline = opts.airlineIata?.trim().toLowerCase();
+  if (airline && /^[a-z0-9]{2}$/.test(airline)) {
+    params.set("airlines", airline);
+  }
+  return `https://www.skyscanner.net/transport/flights/${from}/${to}/${seg}/?${params.toString()}`;
 }
 
 export function skyscannerUrlForMakeFlight(
@@ -517,25 +742,58 @@ export function skyscannerUrlForMakeFlight(
   const route = parseMakeFlightRoute(flight.destinacija);
   const from = flight.origin_iata || route.from || fallback?.from;
   const to = flight.destination_iata || route.to || fallback?.to;
-  const departDate = flight.depart_date || fallback?.departDate;
-  const returnDate = flight.return_date || fallback?.returnDate;
+  // Prefer the user's searched dates when present.
+  const departDate = fallback?.departDate || flight.depart_date;
+  const returnDate = fallback?.returnDate || flight.return_date;
   if (!from || !to || !departDate) return null;
-  return buildSkyscannerFlightUrl({ from, to, departDate, returnDate, adults });
+  return buildSkyscannerFlightUrl({
+    from,
+    to,
+    departDate,
+    returnDate,
+    adults,
+    airlineIata: flight.airline_iata,
+  });
+}
+
+/** Alias kept for older imports — Skyscanner search for the card route/dates. */
+export function externalFlightSearchUrlForMakeFlight(
+  flight: MakeSearchFlight,
+  adults = 1,
+  fallback?: { from?: string; to?: string; departDate?: string; returnDate?: string },
+): string | null {
+  return skyscannerUrlForMakeFlight(flight, adults, fallback);
 }
 
 function parseFlightItem(item: unknown, index: number): MakeSearchFlight | null {
   const record = asRecord(item);
   if (!record) return null;
 
-  const originIata = readString(record, "origin_iata", "origin").toUpperCase();
-  const destIata = readString(record, "destination_iata", "destination_iata", "destination").toUpperCase();
+  const originObj = asRecord(record.origin);
+  const destObj = asRecord(record.destination);
+  const airlineObj = asRecord(record.airline);
+  const priceObj = asRecord(record.price);
+
+  const originIata = (
+    readString(record, "origin_iata") ||
+    readString(originObj ?? {}, "iata", "iata_code", "code") ||
+    readString(record, "origin")
+  ).toUpperCase();
+  const destIata = (
+    readString(record, "destination_iata") ||
+    readString(destObj ?? {}, "iata", "iata_code", "code") ||
+    readString(record, "destination")
+  ).toUpperCase();
   const destinacija =
-    readString(record, "destinacija", "destination", "dest") ||
+    readString(record, "destinacija", "dest") ||
     formatMakeRoute(originIata, destIata);
-  const prevoznik = readString(record, "prevoznik", "carrier", "airline", "airline_name");
+  const prevoznik =
+    readString(record, "prevoznik", "carrier", "airline_name") ||
+    readString(airlineObj ?? {}, "name") ||
+    readString(record, "airline");
   const departureIso = readString(record, "departure_datetime", "departure", "depart_datetime");
   const odhod =
-    readString(record, "odhod", "departure", "depart") ||
+    readString(record, "odhod", "depart") ||
     (departureIso ? formatDepartureDatetime(departureIso) : "");
   const returnIso = readString(
     record,
@@ -558,20 +816,23 @@ function parseFlightItem(item: unknown, index: number): MakeSearchFlight | null 
 
   const booking_url = readString(record, "booking_url", "url", "link", "rezervacija_url") || undefined;
   const rank = readString(record, "rank", "id");
-  const priceCurrency = readString(record, "price_currency", "currency").toUpperCase();
+  const priceCurrency = (
+    readString(record, "price_currency", "currency") ||
+    readString(priceObj ?? {}, "currency")
+  ).toUpperCase();
   const priceTotal = readNumber(
     record,
     "price_total",
     "total_amount",
     "cena_eur",
     "price_eur",
-    "price",
     "cena",
-  );
+  ) || readNumber(priceObj ?? {}, "total", "per_person", "amount");
   const cena_eur =
     priceCurrency && priceCurrency !== "EUR" && priceTotal > 0
       ? priceTotal
-      : readNumber(record, "cena_eur", "price_eur", "price_total", "total_amount", "price", "cena");
+      : priceTotal ||
+        readNumber(record, "cena_eur", "price_eur", "price_total", "total_amount", "price", "cena");
 
   const stopsRaw =
     record.stops_outbound ?? record.stops ?? record.stop_count ?? record.postanki;
@@ -581,25 +842,137 @@ function parseFlightItem(item: unknown, index: number): MakeSearchFlight | null 
     (/^[A-Z]{3}$/.test(originIata) ? originIata : "") || route.from || "";
   const destination =
     (/^[A-Z]{3}$/.test(destIata) ? destIata : "") || route.to || "";
-  const arrivalIso = readString(record, "arrival_datetime", "arrival");
-  const returnArrivalIso = readString(record, "return_arrival_datetime");
-  const airlineIata = readString(record, "airline_iata", "carrier_iata").toUpperCase();
+  const arrivalIso = readString(
+    record,
+    "arrival_datetime",
+    "arrival",
+    "outbound_arrival_datetime",
+    "prihod",
+  );
+  const returnArrivalIso = readString(
+    record,
+    "return_arrival_datetime",
+    "inbound_arrival_datetime",
+    "return_arrival",
+  );
+  const airlineIata = (
+    readString(record, "airline_iata", "carrier_iata") ||
+    readString(airlineObj ?? {}, "iata", "iata_code", "code")
+  ).toUpperCase();
 
-  // Timestamps first — never let a short Gemini "duration" beat real elapsed time.
-  const outDurationRaw = pickTravelDurationRaw(
-    departureIso && arrivalIso ? isoDurationBetween(departureIso, arrivalIso) : "",
+  const outDurationMinsField = readNumber(
+    record,
+    "duration_outbound_minutes",
+    "outbound_duration_minutes",
+  );
+  const inDurationMinsField = readNumber(
+    record,
+    "duration_return_minutes",
+    "duration_inbound_minutes",
+    "inbound_duration_minutes",
+  );
+
+  const storedOutDuration = pickTravelDurationRaw(
+    outDurationMinsField > 0
+      ? `PT${Math.floor(outDurationMinsField / 60)}H${outDurationMinsField % 60}M`
+      : "",
     readString(record, "outbound_duration", "duration_outbound"),
-    // Generic "duration" last — often a single-segment value from Make/Gemini.
     readString(record, "duration"),
   );
-  const inDurationRaw = pickTravelDurationRaw(
-    returnIso && returnArrivalIso ? isoDurationBetween(returnIso, returnArrivalIso) : "",
+  const storedInDuration = pickTravelDurationRaw(
+    inDurationMinsField > 0
+      ? `PT${Math.floor(inDurationMinsField / 60)}H${inDurationMinsField % 60}M`
+      : "",
     readString(record, "inbound_duration", "duration_inbound"),
   );
-  const outbound_duration = formatTravelDuration(outDurationRaw);
-  const inbound_duration = formatTravelDuration(inDurationRaw);
-  const outMins = parseDurationMinutes(outDurationRaw);
-  const inMins = parseDurationMinutes(inDurationRaw);
+  let outMins = parseDurationMinutes(storedOutDuration) || outDurationMinsField;
+  let inMins = parseDurationMinutes(storedInDuration) || inDurationMinsField;
+
+  let outbound_depart =
+    (departureIso && timeHmFromIso(departureIso)) ||
+    readString(record, "outbound_depart", "depart_time") ||
+    "";
+  if (!outbound_depart) {
+    const fromOdhod = odhod.match(/(\d{1,2}:\d{2})\s*$/);
+    if (fromOdhod) outbound_depart = fromOdhod[1]!;
+  }
+  let outbound_arrive =
+    (arrivalIso && timeHmFromIso(arrivalIso)) ||
+    readString(record, "outbound_arrive", "arrive_time", "prihod_ura") ||
+    "";
+  let outbound_arrive_day_offset =
+    departureIso && arrivalIso ? calendarDayOffset(departureIso, arrivalIso) : 0;
+  if (!outbound_arrive && outbound_depart && outMins > 0) {
+    const est = estimateArriveLocal({
+      departHm: outbound_depart,
+      departDate: departureIso || undefined,
+      durationMinutes: outMins,
+      fromIata: origin,
+      toIata: destination,
+    });
+    if (est) {
+      outbound_arrive = est.time;
+      outbound_arrive_day_offset = est.dayOffset;
+    }
+  }
+
+  let inbound_depart =
+    (returnIso && timeHmFromIso(returnIso)) ||
+    readString(record, "inbound_depart", "return_depart_time") ||
+    "";
+  if (!inbound_depart && povratek) {
+    const fromPov = povratek.match(/(\d{1,2}:\d{2})\s*$/);
+    if (fromPov) inbound_depart = fromPov[1]!;
+  }
+  let inbound_arrive =
+    (returnArrivalIso && timeHmFromIso(returnArrivalIso)) ||
+    readString(record, "inbound_arrive", "return_arrive_time") ||
+    "";
+  let inbound_arrive_day_offset =
+    returnIso && returnArrivalIso ? calendarDayOffset(returnIso, returnArrivalIso) : 0;
+  if (!inbound_arrive && inbound_depart && inMins > 0) {
+    const est = estimateArriveLocal({
+      departHm: inbound_depart,
+      departDate: returnIso || undefined,
+      durationMinutes: inMins,
+      fromIata: destination,
+      toIata: origin,
+    });
+    if (est) {
+      inbound_arrive = est.time;
+      inbound_arrive_day_offset = est.dayOffset;
+    }
+  }
+
+  // Recompute duration with airport timezones once local times are known.
+  // Make often sends duration = naive wall-clock (MUC 21:10→HKT 17:55 = 20h45).
+  const outTzMins = travelDurationMinutes({
+    departIso: departureIso || undefined,
+    arriveIso: arrivalIso || undefined,
+    departHm: outbound_depart || undefined,
+    arriveHm: outbound_arrive || undefined,
+    departDate: departureIso || undefined,
+    arriveDayOffset: outbound_arrive_day_offset,
+    fromIata: origin,
+    toIata: destination,
+    storedLabel: storedOutDuration,
+  });
+  const inTzMins = travelDurationMinutes({
+    departIso: returnIso || undefined,
+    arriveIso: returnArrivalIso || undefined,
+    departHm: inbound_depart || undefined,
+    arriveHm: inbound_arrive || undefined,
+    departDate: returnIso || undefined,
+    arriveDayOffset: inbound_arrive_day_offset,
+    fromIata: destination,
+    toIata: origin,
+    storedLabel: storedInDuration,
+  });
+  if (outTzMins > 0) outMins = outTzMins;
+  if (inTzMins > 0) inMins = inTzMins;
+
+  const outbound_duration = formatDurationMinutes(outMins);
+  const inbound_duration = formatDurationMinutes(inMins);
   const claimedTotal = readNumber(record, "duration_minutes");
   const computedTotal = outMins > 0 || inMins > 0 ? outMins + inMins : 0;
   const totalMins =
@@ -629,21 +1002,14 @@ function parseFlightItem(item: unknown, index: number): MakeSearchFlight | null 
     ...(returnIso && isoDatePart(returnIso)
       ? { return_date: isoDatePart(returnIso) }
       : {}),
-    ...(departureIso && timeHmFromIso(departureIso)
-      ? { outbound_depart: timeHmFromIso(departureIso) }
+    ...(outbound_depart ? { outbound_depart } : {}),
+    ...(outbound_arrive ? { outbound_arrive } : {}),
+    ...(outbound_arrive_day_offset > 0
+      ? { outbound_arrive_day_offset }
       : {}),
-    ...(arrivalIso && timeHmFromIso(arrivalIso)
-      ? { outbound_arrive: timeHmFromIso(arrivalIso) }
-      : {}),
-    ...(departureIso && arrivalIso
-      ? { outbound_arrive_day_offset: calendarDayOffset(departureIso, arrivalIso) }
-      : {}),
-    ...(returnIso && timeHmFromIso(returnIso)
-      ? { inbound_depart: timeHmFromIso(returnIso) }
-      : {}),
-    ...(returnArrivalIso && timeHmFromIso(returnArrivalIso)
-      ? { inbound_arrive: timeHmFromIso(returnArrivalIso) }
-      : {}),
+    ...(inbound_depart ? { inbound_depart } : {}),
+    ...(inbound_arrive ? { inbound_arrive } : {}),
+    ...(inbound_arrive_day_offset > 0 ? { inbound_arrive_day_offset } : {}),
     ...(departureIso ? { outbound_depart_iso: departureIso } : {}),
     ...(arrivalIso ? { outbound_arrive_iso: arrivalIso } : {}),
     ...(returnIso ? { inbound_depart_iso: returnIso } : {}),
@@ -708,8 +1074,8 @@ export type MakeSearchWebhookBody = {
 export const MAKE_SEARCH_POLL_INTERVAL_MS = 2_500;
 /** Initial wait before first status poll — Make Duffel loop + Gemini often needs 30–90s. */
 export const MAKE_SEARCH_POLL_INITIAL_DELAY_MS = 5_000;
-/** 72 × 2.5s ≈ 3 min of polling after the initial delay. */
-export const MAKE_SEARCH_POLL_MAX_ATTEMPTS = 72;
+/** 36 × 2.5s ≈ 90s of polling after the initial delay (fail faster if Make never writes Data store). */
+export const MAKE_SEARCH_POLL_MAX_ATTEMPTS = 36;
 
 export function createMakeSearchId(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
@@ -1011,17 +1377,7 @@ export function pickPrimaryOriginAirport(origins: string[]): string {
 }
 
 /** Departure airports mentioned in chat (Lj, Dunaj, Milano…). */
-const ORIGIN_AIRPORT_ALIASES: Array<{ pattern: RegExp; iata: string }> = [
-  { pattern: /\b(?:ljubljana|ljubljan[aeiu]?|lj|lju)\b/i, iata: "LJU" },
-  { pattern: /\b(?:zagreb[aeu]?|zag)\b/i, iata: "ZAG" },
-  { pattern: /\b(?:dunaj[aeu]?|vienna|vie)\b/i, iata: "VIE" },
-  { pattern: /\b(?:benetke|venice|vce)\b/i, iata: "VCE" },
-  { pattern: /\b(?:milan[oa]?|mxp)\b/i, iata: "MXP" },
-  // Include common typos: budimšete / budimsete
-  { pattern: /\b(?:budimpešt[aeo]?|budimš[ae]?t[aeo]?|budimset[aeo]?|budapest|bud)\b/i, iata: "BUD" },
-  { pattern: /\b(?:munchen|münchen|munich|muc)\b/i, iata: "MUC" },
-  { pattern: /\b(?:frankfurt|fra)\b/i, iata: "FRA" },
-];
+const ORIGIN_AIRPORT_ALIASES: Array<{ pattern: RegExp; iata: string }> = originAliasPatterns();
 
 export function parseMakeSearchOriginAirports(text: string): string[] {
   const found: string[] = [];
@@ -1029,7 +1385,13 @@ export function parseMakeSearchOriginAirports(text: string): string[] {
     if (!alias.pattern.test(text)) continue;
     if (!found.includes(alias.iata)) found.push(alias.iata);
   }
-  return found.slice(0, NEAREST_AIRPORT_LIMIT);
+  // Origin picker labels: "Ljubljana (LJU) · Vienna (VIE)"
+  for (const match of text.toUpperCase().matchAll(/\(([A-Z]{3})\)/g)) {
+    const code = match[1]!;
+    if (FALSE_IATA_TOKENS.has(code)) continue;
+    if (!found.includes(code)) found.push(code);
+  }
+  return found.slice(0, Math.max(NEAREST_AIRPORT_LIMIT, 6));
 }
 
 export function parseMakeSearchDates(
@@ -1089,28 +1451,40 @@ export function parseMakeSearchUserMessage(
   const { departure_date, return_date } = parseMakeSearchDates(text);
   const passengers = parseMakeSearchPassengers(text);
   const destination_airport = parseMakeSearchDestination(text);
+  const destCode =
+    destination_airport && /^[A-Z]{3}$/.test(destination_airport)
+      ? destination_airport
+      : null;
 
   const fromGeo = originAirports
     .map((code) => code.trim().toUpperCase())
     .filter((code) => /^[A-Z]{3}$/.test(code));
-  const fromText = parseMakeSearchOriginAirports(text);
-  // Prefer airports the user named in chat; fall back to geo, then LJU.
-  const merged: string[] = [];
-  for (const code of [...fromText, ...fromGeo]) {
-    if (!merged.includes(code)) merged.push(code);
-  }
+  // "Phuket (HKT)" must not become an origin — parentheses IATA is the destination.
+  const fromText = parseMakeSearchOriginAirports(text).filter(
+    (code) => !destCode || code !== destCode,
+  );
+  // If the user named an origin (e.g. Munich/MUC), do NOT append GPS nearest hubs —
+  // that was fanning Make out to 5 unrelated airports and hanging the search.
+  // Geo is only a fallback when the chat never named an origin.
+  const merged = (fromText.length > 0 ? fromText : fromGeo).filter(
+    (code) => !destCode || code !== destCode,
+  );
   // Allow a few more named origins from chat than geo-nearest (user often lists 5 hubs).
   const resolvedOrigins = merged.length > 0 ? merged.slice(0, 6) : ["LJU"];
   // Put the preferred hub first so Make `first(origin_airports)` / origin_airport hit a sensible airport.
   const primary = pickPrimaryOriginAirport(resolvedOrigins);
-  const orderedOrigins = [
+  let orderedOrigins = [
     primary,
     ...resolvedOrigins.filter((code) => code !== primary),
-  ];
+  ].filter((code) => !destCode || code !== destCode);
+  // Never search origin === destination (Duffel 422 destination_must_be_different_from_origin).
+  if (orderedOrigins.length === 0) {
+    orderedOrigins = destCode === "LJU" ? ["VIE"] : ["LJU"];
+  }
 
   return {
     origin_airports: orderedOrigins,
-    origin_airport: primary,
+    origin_airport: orderedOrigins[0]!,
     destination_airport,
     departure_date,
     return_date,
@@ -1324,6 +1698,20 @@ function isAsyncAckText(text: string): boolean {
 }
 
 /**
+ * Make Webhook response templates often emit empty fields as `"offers":}`
+ * when the Data store value is blank. Repair those before JSON.parse.
+ */
+export function repairMakeBrokenJson(text: string): string {
+  let repaired = text.trim();
+  repaired = repaired.replace(
+    /("(?:offers|status|key|flights|error|message|data)"\s*:)\s*([,}])/gi,
+    "$1 null$2",
+  );
+  repaired = repaired.replace(/,\s*([}\]])/g, "$1");
+  return repaired;
+}
+
+/**
  * Make.com instant webhooks often return plain text "Accepted" (HTTP 200/202)
  * when the scenario runs asynchronously instead of returning JSON results.
  * Fix in Make: Webhook → "Immediately as data arrives" + Webhook response module.
@@ -1341,21 +1729,30 @@ export function parseMakeWebhookBody(text: string, httpStatus: number): MakeWebh
     };
   }
 
-  try {
-    return { ok: true, data: JSON.parse(trimmed) as unknown };
-  } catch {
-    if (httpStatus >= 200 && httpStatus < 300) {
-      return {
-        ok: true,
-        data: buildMakeAsyncPayload(trimmed),
-      };
+  const tryParse = (raw: string): unknown | null => {
+    try {
+      return JSON.parse(raw) as unknown;
+    } catch {
+      return null;
     }
+  };
+
+  const parsed = tryParse(trimmed) ?? tryParse(repairMakeBrokenJson(trimmed));
+  if (parsed !== null) {
+    return { ok: true, data: parsed };
+  }
+
+  if (httpStatus >= 200 && httpStatus < 300) {
     return {
-      ok: false,
-      error: "Make webhook je vrnil neveljaven JSON.",
-      raw: trimmed.slice(0, 500),
+      ok: true,
+      data: buildMakeAsyncPayload(trimmed),
     };
   }
+  return {
+    ok: false,
+    error: "Make webhook je vrnil neveljaven JSON.",
+    raw: trimmed.slice(0, 500),
+  };
 }
 
 export function buildMakeAsyncPayload(message: string): Record<string, unknown> {
@@ -1615,10 +2012,30 @@ export async function callMakeSearchWebhook(
         status: 422,
       };
     }
+    let origin = parsedData.origin_airport.trim().toUpperCase() || "LJU";
+    const originAirports = (parsedData.origin_airports ?? [])
+      .map((code) => code.trim().toUpperCase())
+      .filter((code) => /^[A-Z]{3}$/.test(code) && code !== dest);
+    if (origin === dest || FALSE_IATA_TOKENS.has(origin)) {
+      origin = originAirports[0] || (dest === "LJU" ? "VIE" : "LJU");
+    }
+    if (origin === dest) {
+      return {
+        ok: false,
+        error: "heroSearch.originSameAsDestination",
+        status: 422,
+      };
+    }
     parsedData = {
       ...parsedData,
       destination_airport: dest,
-      origin_airport: parsedData.origin_airport.trim().toUpperCase() || "LJU",
+      origin_airport: origin,
+      origin_airports:
+        originAirports.length > 0
+          ? originAirports.includes(origin)
+            ? originAirports
+            : [origin, ...originAirports]
+          : [origin],
     };
     payload.parsedData = parsedData;
 

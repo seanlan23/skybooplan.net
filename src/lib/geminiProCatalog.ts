@@ -8,6 +8,7 @@ import {
   isCatalogTripPlan,
   tripPlanResponseToAiTripPlan,
 } from "@/lib/geminiPlanMap";
+import { applyFlightContextToGeminiPlan } from "@/lib/geminiFlightContext";
 import type { GenerateGeminiProTripInput } from "@/lib/geminiPro.functions";
 import type { Lang } from "@/lib/i18n";
 
@@ -61,6 +62,13 @@ export function buildCatalogPlanFromResponse(
     originPlace: data.originPlace,
     destinationPlace: data.destinationPlace,
   });
+
+  if (data.flightContext && !data.groundTransportMode) {
+    applyFlightContextToGeminiPlan(catalogPlan, data.flightContext, {
+      originIata: data.originIata,
+      language: data.language ?? "sl",
+    });
+  }
 
   return { plan: catalogPlan, error: null };
 }

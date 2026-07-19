@@ -2,7 +2,10 @@ import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 import type { HeroChatCollected } from "@/lib/heroChatFlow";
-import { parseMakeSearchOriginAirports } from "@/lib/makeSearch";
+import {
+  parseMakeSearchDestination,
+  parseMakeSearchOriginAirports,
+} from "@/lib/makeSearch";
 
 type ChecklistItem = {
   id: string;
@@ -16,12 +19,20 @@ function buildItems(
   collected: Partial<HeroChatCollected>,
   t: (key: never) => string,
 ): ChecklistItem[] {
-  const origins = collected.destination
-    ? parseMakeSearchOriginAirports(collected.destination)
+  // Never infer "Odkod" from destination text like "Phuket (HKT)".
+  const destCode = parseMakeSearchDestination(collected.destination ?? "")?.toUpperCase();
+  const originCodes = collected.origin
+    ? parseMakeSearchOriginAirports(collected.origin).filter(
+        (code) => !destCode || code !== destCode,
+      )
     : [];
+  const rawOrigin = collected.origin?.trim() || "";
   const fromLabel =
-    collected.origin?.trim() ||
-    (origins.length ? origins.join(", ") : undefined);
+    originCodes.length > 0
+      ? rawOrigin
+      : rawOrigin && destCode && !rawOrigin.toUpperCase().includes(destCode)
+        ? rawOrigin
+        : undefined;
 
   return [
     {

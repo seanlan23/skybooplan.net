@@ -104,6 +104,15 @@ export const generateGeminiProTripInputSchema = z
     originPlace: z.string().trim().min(2).max(120).optional(),
     destinationPlace: z.string().trim().min(2).max(120).optional(),
     language: z.string().min(2).max(5).optional(),
+    flightContext: z
+      .object({
+        outboundDepart: z.string().regex(/^\d{1,2}:\d{2}$/),
+        outboundArrive: z.string().regex(/^\d{1,2}:\d{2}$/),
+        outboundArriveDayOffset: z.number().int().min(0).max(3),
+        inboundDepart: z.string().regex(/^\d{1,2}:\d{2}$/).optional(),
+        inboundArrive: z.string().regex(/^\d{1,2}:\d{2}$/).optional(),
+      })
+      .optional(),
     attachment: z
       .object({
         filename: z.string().trim().min(1).max(200),
@@ -229,6 +238,7 @@ export function buildGeminiTripPlanParams(data: GenerateGeminiProTripInput, days
     originPlace: data.originPlace,
     destinationPlace: data.destinationPlace,
     language: data.language ?? "sl",
+    flightContext: data.flightContext,
   };
 }
 

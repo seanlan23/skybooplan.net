@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Loader2, MapPin, Plane, Globe, X } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
+import { didYouMeanAirport, searchAirportCatalog } from "@/lib/airportCatalog";
 import { searchPlaces, type PlaceSuggestion } from "@/lib/places.functions";
 import { useI18n } from "@/lib/i18n";
 import {
@@ -12,6 +13,23 @@ import {
   FIELD_SHELL,
   FIELD_VALUE_ROW,
 } from "@/components/searchFieldStyles";
+
+function mergeLocalRemote(
+  query: string,
+  remote: PlaceSuggestion[],
+): PlaceSuggestion[] {
+  const local = searchAirportCatalog(query, 8);
+  const seen = new Set<string>();
+  const out: PlaceSuggestion[] = [];
+  for (const s of [...local, ...remote]) {
+    const key = s.iata.toUpperCase();
+    if (!/^[A-Z]{3}$/.test(key) || seen.has(key)) continue;
+    seen.add(key);
+    out.push({ ...s, iata: key });
+    if (out.length >= 12) break;
+  }
+  return out;
+}
 
 type Kind = "airport" | "place";
 
@@ -75,18 +93,32 @@ export function AirportAutocomplete({
     }
     setLoading(true);
     let cancelled = false;
+    // Instant local fuzzy hits while Duffel loads.
+    if (kind === "airport") {
+      setSuggestions(mergeLocalRemote(q, []));
+      setOpen(true);
+    }
+
     const t = setTimeout(async () => {
       try {
         const res = await placesFnRef.current({ data: { query: q, kind } });
         if (cancelled) return;
-        setSuggestions(res.suggestions);
+        setSuggestions(
+          kind === "airport"
+            ? mergeLocalRemote(q, res.suggestions)
+            : res.suggestions,
+        );
         setOpen(true);
         setHighlight(0);
         if (res.error) console.warn("Places:", res.error);
       } catch (e) {
         if (cancelled) return;
         console.error("Places fetch error:", e);
-        setSuggestions([]);
+        if (kind === "airport") {
+          setSuggestions(mergeLocalRemote(q, []));
+        } else {
+          setSuggestions([]);
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -166,8 +198,7 @@ export function AirportAutocomplete({
             placeholder={placeholder}
             value={query}
             onChange={(e) => {
-              const raw = e.target.value;
-              const v = kind === "airport" ? raw.toUpperCase() : raw;
+              const v = e.target.value;
               selectedRef.current = null;
               setQuery(v);
               if (v.trim().length >= 2) setOpen(true);
@@ -212,9 +243,13 @@ export function AirportAutocomplete({
               <Loader2 className="h-4 w-4 animate-spin" /> {t("autocomplete.searching")}
             </div>
           ) : visibleSuggestions.length === 0 ? (
-            <div className="px-4 py-3 text-sm text-muted-foreground">
-              {t("autocomplete.noResults").replace("{query}", query)}
-            </div>
+            <EmptyAirportResults
+              query={query}
+              kind={kind}
+              noResultsLabel={t("autocomplete.noResults")}
+              didYouMeanLabel={t("autocomplete.didYouMean")}
+              onPick={pick}
+            />
           ) : (
             <ul className="max-h-72 overflow-y-auto">
               {visibleSuggestions.map((s, i) => (
@@ -274,6 +309,37 @@ export function AirportAutocomplete({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function EmptyAirportResults({
+  query,
+  kind,
+  noResultsLabel,
+  didYouMeanLabel,
+  onPick,
+}: {
+  query: string;
+  kind: Kind;
+  noResultsLabel: string;
+  didYouMeanLabel: string;
+  onPick: (s: PlaceSuggestion) => void;
+}) {
+  const hint = kind === "airport" ? didYouMeanAirport(query) : null;
+  return (
+    <div className="space-y-2 px-4 py-3 text-sm text-muted-foreground">
+      <p>{noResultsLabel.replace("{query}", query)}</p>
+      {hint ? (
+        <button
+          type="button"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => onPick(hint)}
+          className="rounded-lg bg-muted px-2.5 py-1.5 text-left text-sm font-medium text-foreground hover:bg-muted/80"
+        >
+          {didYouMeanLabel.replace("{airport}", `${hint.city} (${hint.iata})`)}
+        </button>
+      ) : null}
     </div>
   );
 }

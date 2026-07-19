@@ -42,9 +42,70 @@ const EN_LABELS: Record<PlannerInterestKey, string> = {
   nightlife: "nightlife",
 };
 
-export function formatPlannerInterests(keys: string[], lang = "sl"): string {
-  const slo = lang === "sl" || lang.startsWith("sl");
-  const map = slo ? SL_LABELS : EN_LABELS;
+const DE_LABELS: Record<PlannerInterestKey, string> = {
+  beaches: "Traumstrände",
+  fun: "viel Spaß",
+  sights: "Sehenswürdigkeiten",
+  hikes: "Wanderungen",
+  mountains: "Berge",
+  nature: "Natur",
+  rivers: "Flüsse",
+  food: "Kulinarik",
+  culture: "Kultur",
+  nightlife: "Nachtleben",
+};
+
+const FR_LABELS: Record<PlannerInterestKey, string> = {
+  beaches: "plages de rêve",
+  fun: "beaucoup de fun",
+  sights: "monuments & sites",
+  hikes: "randonnées",
+  mountains: "montagnes",
+  nature: "nature",
+  rivers: "rivières",
+  food: "gastronomie",
+  culture: "culture",
+  nightlife: "vie nocturne",
+};
+
+const ES_LABELS: Record<PlannerInterestKey, string> = {
+  beaches: "playas de ensueño",
+  fun: "mucho diversión",
+  sights: "lugares de interés",
+  hikes: "senderismo",
+  mountains: "montañas",
+  nature: "naturaleza",
+  rivers: "ríos",
+  food: "gastronomía",
+  culture: "cultura",
+  nightlife: "vida nocturna",
+};
+
+const IT_LABELS: Record<PlannerInterestKey, string> = {
+  beaches: "spiagge da sogno",
+  fun: "tanto divertimento",
+  sights: "attrazioni",
+  hikes: "escursioni",
+  mountains: "montagne",
+  nature: "natura",
+  rivers: "fiumi",
+  food: "cucina",
+  culture: "cultura",
+  nightlife: "vita notturna",
+};
+
+function labelsForLang(lang: string): Record<PlannerInterestKey, string> {
+  const code = lang.toLowerCase().slice(0, 2);
+  if (code === "sl") return SL_LABELS;
+  if (code === "de") return DE_LABELS;
+  if (code === "fr") return FR_LABELS;
+  if (code === "es") return ES_LABELS;
+  if (code === "it") return IT_LABELS;
+  return EN_LABELS;
+}
+
+export function formatPlannerInterests(keys: string[], lang = "en"): string {
+  const map = labelsForLang(lang);
   return keys
     .filter((k): k is PlannerInterestKey => k in map)
     .map((k) => map[k])
@@ -52,11 +113,11 @@ export function formatPlannerInterests(keys: string[], lang = "sl"): string {
 }
 
 export function parsePlannerInterestKeys(keys: string[]): PlannerInterestKey[] {
-  return keys.filter((k): k is PlannerInterestKey => k in SL_LABELS);
+  return keys.filter((k): k is PlannerInterestKey => k in EN_LABELS);
 }
 
 /** Structured payload for AI — keys + human labels + steering hint. */
-export function buildPrioritiesPayload(keys: string[], langCode = "sl") {
+export function buildPrioritiesPayload(keys: string[], langCode = "en") {
   const valid = parsePlannerInterestKeys(keys);
   if (!valid.length) return undefined;
   const slo = langCode === "sl" || langCode.startsWith("sl");

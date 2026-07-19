@@ -276,6 +276,14 @@ export type GenerateTripPlanParams = {
     mimeType: string;
     base64: string;
   };
+  /** Selected boarding-pass local times from the flight card (hero → AI plan). */
+  flightContext?: {
+    outboundDepart: string;
+    outboundArrive: string;
+    outboundArriveDayOffset: number;
+    inboundDepart?: string;
+    inboundArrive?: string;
+  };
 };
 
 export const TRIP_WISH_TAGS = [

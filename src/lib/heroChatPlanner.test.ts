@@ -50,11 +50,47 @@ describe("heroChatPlanner", () => {
     expect(parseChatDepartDate("Avgust 2027")).toBe("2027-08-01");
   });
 
+  it("keeps exact calendar return date instead of default 7 nights", () => {
+    const { ctx } = heroChatToPlannerPayload(
+      {
+        destination: "Thailand",
+        dates: "26. okt → 10. nov 2026",
+        nights: "",
+        origin: "Munich (MUC)",
+        passengers: "3 odraslih",
+        pace: "Sproščen",
+        budget: "1000–2000€ / osebo",
+      },
+      "sl",
+    );
+    expect(ctx.departDate).toBe("2026-10-26");
+    expect(ctx.returnDate).toBe("2026-11-10");
+  });
+
   it("parses passenger strings", () => {
     expect(parseChatPassengers("2 odrasla + 1 otrok")).toEqual({
       adults: 2,
       childrenAges: [8],
     });
+  });
+
+  it("tolerates missing chat fields before passengers/dates are collected", () => {
+    expect(parseChatPassengers(undefined)).toEqual({ adults: 1, childrenAges: [] });
+    expect(parseChatDepartDate(undefined)).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    const { ctx } = heroChatToPlannerPayload(
+      {
+        destination: "Thailand",
+        dates: "",
+        nights: "",
+        origin: "",
+        passengers: "",
+        pace: "",
+        budget: "",
+      },
+      "en",
+    );
+    expect(ctx.to || ctx.destinationPlace).toBeTruthy();
+    expect(ctx.adults).toBe(1);
   });
 
   it("parses night ranges", () => {

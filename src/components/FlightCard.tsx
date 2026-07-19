@@ -1,12 +1,14 @@
 import { ExternalLink, Sparkles, Plane, Check } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import {
-  elapsedMinutesBetween,
+  estimateArriveLocal,
+  formatDurationMinutes,
   formatTravelDuration,
   parseDurationMinutes,
   parseMakeFlightRoute,
   pickTravelDurationRaw,
   skyscannerUrlForMakeFlight,
+  travelDurationMinutes,
   type MakeSearchFlight,
 } from "@/lib/makeSearch";
 import { cn } from "@/lib/utils";
@@ -98,7 +100,7 @@ function badgeClasses(badge: string): string {
 function displayTime(preferred?: string, fallback = ""): string {
   if (preferred && /^\d{1,2}:\d{2}$/.test(preferred)) return preferred;
   const match = fallback.match(/(\d{1,2}:\d{2})\s*$/);
-  return match?.[1] ?? fallback;
+  return match?.[1] ?? "";
 }
 
 function displayDate(isoDate?: string, humanFallback = "", lang = "en"): string {
@@ -116,37 +118,110 @@ function displayDate(isoDate?: string, humanFallback = "", lang = "en"): string 
   return match?.[1]?.trim() ?? "";
 }
 
-function minutesToDurationLabel(mins: number): string {
-  if (mins <= 0) return "";
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  if (h > 0 && m > 0) return `${h}h ${m}m`;
-  if (h > 0) return `${h}h`;
-  return `${m}m`;
-}
-
 /**
- * Resolve display duration. Prefer timezone-aware ISO timestamps.
- * Never show naive HH:mm gaps (MXP 10:30 → HKT 17:50 ≠ 7h20m on a real airliner).
+ * Resolve display duration with airport timezones.
+ * MUC 21:10 → HKT 17:55(+1) = ~14h45, never naive wall-clock 20h45.
  */
-function resolveDurationLabel(
-  stored: string | undefined,
-  departIso?: string,
-  arriveIso?: string,
-  hasStops = false,
-): string | undefined {
-  const isoMins =
-    departIso && arriveIso ? elapsedMinutesBetween(departIso, arriveIso) : 0;
-  const isoLabel = minutesToDurationLabel(isoMins);
-  const best = pickTravelDurationRaw(isoLabel, stored);
+function resolveDurationLabel(params: {
+  stored?: string;
+  departIso?: string;
+  arriveIso?: string;
+  departHm?: string;
+  arriveHm?: string;
+  departDate?: string;
+  arriveDayOffset?: number;
+  fromIata?: string;
+  toIata?: string;
+  hasStops?: boolean;
+}): string | undefined {
+  const {
+    stored,
+    departIso,
+    arriveIso,
+    departHm,
+    arriveHm,
+    departDate,
+    arriveDayOffset,
+    fromIata,
+    toIata,
+    hasStops = false,
+  } = params;
+
+  const tzMins = travelDurationMinutes({
+    departIso,
+    arriveIso,
+    departHm,
+    arriveHm,
+    departDate: departDate || departIso,
+    arriveDayOffset,
+    fromIata,
+    toIata,
+    storedLabel: stored,
+  });
+  if (tzMins > 0) {
+    return formatDurationMinutes(tzMins);
+  }
+
+  // Have local times + airports but no TZ result — don't show naive Make duration.
+  if (
+    departHm &&
+    arriveHm &&
+    fromIata &&
+    toIata &&
+    /^[A-Z]{3}$/i.test(fromIata) &&
+    /^[A-Z]{3}$/i.test(toIata)
+  ) {
+    return undefined;
+  }
+
+  const best = pickTravelDurationRaw(stored);
   const bestMins = parseDurationMinutes(best);
 
   // With stops, reject absurdly short claims left over from wall-clock math.
-  if (hasStops && bestMins > 0 && bestMins < 8 * 60 && !isoLabel) {
+  if (hasStops && bestMins > 0 && bestMins < 8 * 60) {
     return undefined;
   }
 
   return best ? formatTravelDuration(best) || best : undefined;
+}
+
+/** Prefer provider arrival times; estimate only when arrival is missing. */
+function resolveArriveDisplay(params: {
+  arrivePreferred?: string;
+  departTime: string;
+  departDate?: string;
+  durationLabel?: string;
+  fromIata?: string;
+  toIata?: string;
+  storedDayOffset?: number;
+}): { time: string; dayOffset?: number } {
+  const {
+    arrivePreferred,
+    departTime,
+    departDate,
+    durationLabel,
+    fromIata,
+    toIata,
+    storedDayOffset,
+  } = params;
+
+  if (arrivePreferred && /^\d{1,2}:\d{2}$/.test(arrivePreferred)) {
+    return { time: arrivePreferred, dayOffset: storedDayOffset };
+  }
+
+  const mins = parseDurationMinutes(durationLabel ?? "");
+  if (departTime && mins > 0) {
+    const est = estimateArriveLocal({
+      departHm: departTime,
+      departDate,
+      durationMinutes: mins,
+      fromIata,
+      toIata,
+    });
+    if (est) return { time: est.time, dayOffset: est.dayOffset || undefined };
+  }
+
+  return { time: "", dayOffset: storedDayOffset };
 }
 
 function AirlineMark({ name, code }: { name: string; code?: string }) {
@@ -206,14 +281,14 @@ function CompactLeg({
   dayOffset?: number;
 }) {
   return (
-    <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
-      <div className="shrink-0">
+    <div className="flex min-w-0 flex-1 items-center justify-between gap-1">
+      <div className="shrink-0 text-left">
         <div className="text-lg font-bold tabular-nums leading-none text-foreground sm:text-xl">
           {departTime || "—"}
         </div>
         <div className="mt-0.5 text-[11px] font-medium tracking-wide text-muted-foreground">
           {from}
-          {dateLabel ? <span className="text-muted-foreground/80"> · {dateLabel}</span> : null}
+          {dateLabel ? ` · ${dateLabel}` : ""}
         </div>
       </div>
 
@@ -291,29 +366,65 @@ export function FlightCard({
     ? formatStopPart(inStopsRaw, directLabel, stopLabel, stopsLabel, viaLabel)
     : "";
 
-  const skyscannerUrl = skyscannerUrlForMakeFlight(flight, adults, searchMeta ?? undefined);
-  const bookUrl = skyscannerUrl || flight.booking_url;
+  const skyscannerUrl = skyscannerUrlForMakeFlight(
+    flight,
+    adults,
+    searchMeta ?? undefined,
+  );
+  const directBookUrl = flight.booking_url?.trim() || "";
+  const bookUrl = directBookUrl || skyscannerUrl;
+  const isSkyscannerSearch = Boolean(bookUrl && !directBookUrl);
 
   const outDepart = displayTime(flight.outbound_depart, flight.odhod);
-  const outArrive = displayTime(flight.outbound_arrive);
   const inDepart = displayTime(flight.inbound_depart, flight.povratek);
-  const inArrive = displayTime(flight.inbound_arrive);
   const outDate = displayDate(flight.depart_date, flight.odhod, lang);
   const inDate = displayDate(flight.return_date, flight.povratek ?? "", lang);
   const outHasStops = !/^0(?:\||$)/.test(outStopsRaw.trim()) && outStopsRaw.trim() !== "0";
   const inHasStops = Boolean(inStopsRaw) && !/^0(?:\||$)/.test(inStopsRaw.trim());
-  const outDuration = resolveDurationLabel(
-    flight.outbound_duration,
-    flight.outbound_depart_iso,
-    flight.outbound_arrive_iso,
-    outHasStops,
-  );
-  const inDuration = resolveDurationLabel(
-    flight.inbound_duration,
-    flight.inbound_depart_iso,
-    flight.inbound_arrive_iso,
-    inHasStops,
-  );
+  const outArriveHm = flight.outbound_arrive || "";
+  const inArriveHm = flight.inbound_arrive || "";
+  const outDuration = resolveDurationLabel({
+    stored: flight.outbound_duration,
+    departIso: flight.outbound_depart_iso,
+    arriveIso: flight.outbound_arrive_iso,
+    departHm: outDepart,
+    arriveHm: outArriveHm,
+    departDate: flight.outbound_depart_iso || flight.depart_date,
+    arriveDayOffset: flight.outbound_arrive_day_offset,
+    fromIata: from,
+    toIata: to,
+    hasStops: outHasStops,
+  });
+  const inDuration = resolveDurationLabel({
+    stored: flight.inbound_duration,
+    departIso: flight.inbound_depart_iso,
+    arriveIso: flight.inbound_arrive_iso,
+    departHm: inDepart,
+    arriveHm: inArriveHm,
+    departDate: flight.inbound_depart_iso || flight.return_date,
+    arriveDayOffset: flight.inbound_arrive_day_offset,
+    fromIata: to,
+    toIata: from,
+    hasStops: inHasStops,
+  });
+  const outArriveResolved = resolveArriveDisplay({
+    arrivePreferred: flight.outbound_arrive,
+    departTime: outDepart,
+    departDate: flight.outbound_depart_iso || flight.depart_date,
+    durationLabel: outDuration,
+    fromIata: from,
+    toIata: to,
+    storedDayOffset: flight.outbound_arrive_day_offset,
+  });
+  const inArriveResolved = resolveArriveDisplay({
+    arrivePreferred: flight.inbound_arrive,
+    departTime: inDepart,
+    departDate: flight.inbound_depart_iso || flight.return_date,
+    durationLabel: inDuration,
+    fromIata: to,
+    toIata: from,
+    storedDayOffset: flight.inbound_arrive_day_offset,
+  });
   const badgeLabel = flight.badge ? localizeBadge(flight.badge, t) : "";
 
   return (
@@ -326,7 +437,7 @@ export function FlightCard({
         className,
       )}
     >
-      <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_118px]">
+      <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_132px]">
         <div className="divide-y divide-border px-3 py-1.5 sm:px-3.5">
           {badgeLabel ? (
             <div className="pb-1.5 pt-1">
@@ -347,11 +458,11 @@ export function FlightCard({
               from={from}
               to={to}
               departTime={outDepart}
-              arriveTime={outArrive}
+              arriveTime={outArriveResolved.time}
               dateLabel={outDate}
               durationLabel={outDuration}
               stopsLabel={outboundStops}
-              dayOffset={flight.outbound_arrive_day_offset}
+              dayOffset={outArriveResolved.dayOffset}
             />
           </div>
 
@@ -362,20 +473,21 @@ export function FlightCard({
                 from={to}
                 to={from}
                 departTime={inDepart}
-                arriveTime={inArrive}
+                arriveTime={inArriveResolved.time}
                 dateLabel={inDate}
                 durationLabel={inDuration}
                 stopsLabel={
                   inboundStops ||
                   formatStops(flight.postanki, directLabel, stopLabel, stopsLabel, viaLabel)
                 }
+                dayOffset={inArriveResolved.dayOffset}
               />
             </div>
           ) : null}
         </div>
 
-        <div className="flex flex-row items-center justify-between gap-3 border-t border-border bg-muted/20 px-3 py-2.5 sm:flex-col sm:items-end sm:justify-center sm:border-l sm:border-t-0 sm:px-2.5 sm:py-3 sm:text-right">
-          <div>
+        <div className="flex flex-row items-center justify-between gap-3 border-t border-border bg-muted/20 px-3 py-2.5 sm:flex-col sm:items-stretch sm:justify-center sm:gap-2 sm:border-l sm:border-t-0 sm:px-2.5 sm:py-3">
+          <div className="sm:text-right">
             <p className="text-xl font-bold tabular-nums leading-none text-foreground">
               {formatPrice(flight.cena_eur, lang)}
             </p>
@@ -384,55 +496,55 @@ export function FlightCard({
             </p>
           </div>
 
+          {onSelectForAiPlan ? (
+            <button
+              type="button"
+              data-select-ai-plan={isFirst ? "first" : undefined}
+              onClick={() => onSelectForAiPlan(flight)}
+              className={cn(
+                "inline-flex items-center justify-center gap-1 rounded-lg px-3 py-2 text-xs font-semibold shadow-sm transition-colors sm:w-full",
+                selectedForAi
+                  ? "bg-sky-600 text-white"
+                  : "bg-sky-500 text-white hover:bg-sky-600",
+                isFirst && !selectedForAi ? "animate-pulse" : "",
+              )}
+            >
+              {selectedForAi ? (
+                <>
+                  <Check className="h-3.5 w-3.5" aria-hidden />
+                  {t("results.selectedAi" as never)}
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-3.5 w-3.5" aria-hidden />
+                  {t("results.selectAiPlan" as never)}
+                </>
+              )}
+            </button>
+          ) : null}
+
           {bookUrl ? (
             <a
               href={bookUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center justify-center gap-1 rounded-lg bg-sky-500 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-sky-600 sm:w-full"
+              title={
+                isSkyscannerSearch
+                  ? t("flightCard.compareSkyscannerHint" as never)
+                  : undefined
+              }
+              className="inline-flex items-center justify-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:border-sky-300 hover:text-sky-700 sm:w-full"
             >
-              {t("flightCard.book" as never)}
+              {t(
+                (isSkyscannerSearch
+                  ? "flightCard.compareSkyscanner"
+                  : "flightCard.book") as never,
+              )}
               <ExternalLink className="h-3 w-3" aria-hidden />
             </a>
-          ) : (
-            <button
-              type="button"
-              disabled
-              className="inline-flex cursor-not-allowed items-center justify-center rounded-lg bg-sky-500/50 px-3 py-1.5 text-xs font-semibold text-white sm:w-full"
-            >
-              {t("flightCard.book" as never)}
-            </button>
-          )}
+          ) : null}
         </div>
       </div>
-
-      {onSelectForAiPlan ? (
-        <div className="border-t border-border px-3 py-1.5">
-          <button
-            type="button"
-            data-select-ai-plan={isFirst ? "first" : undefined}
-            onClick={() => onSelectForAiPlan(flight)}
-            className={cn(
-              "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors",
-              selectedForAi
-                ? "bg-sky-500 text-white"
-                : "text-sky-700 hover:bg-sky-50",
-            )}
-          >
-            {selectedForAi ? (
-              <>
-                <Check className="h-3 w-3" aria-hidden />
-                {t("results.selectedAi" as never)}
-              </>
-            ) : (
-              <>
-                <Sparkles className="h-3 w-3" aria-hidden />
-                {t("results.selectAiPlan" as never)}
-              </>
-            )}
-          </button>
-        </div>
-      ) : null}
     </article>
   );
 }

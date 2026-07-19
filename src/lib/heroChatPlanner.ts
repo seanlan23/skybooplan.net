@@ -1,6 +1,6 @@
 import type { AiPlannerContext, AiPlannerSubmit } from "@/components/AiPlannerPreview";
 import { defaultDateFrom, defaultDateTo } from "@/lib/heroFlightSearch";
-import { parseHeroDateRangeStart } from "@/lib/heroDateRange";
+import { parseHeroDateRange } from "@/lib/heroDateRange";
 import type { HeroChatCollected } from "@/lib/heroChatFlow";
 import { normalizeIata, type TripBudgetTier } from "@/lib/geminiPro.shared";
 import { parseMakeSearchDestination, parseMakeSearchOriginAirports } from "@/lib/makeSearch";
@@ -93,12 +93,24 @@ function addDays(isoDate: string, days: number): string {
 }
 
 /** Parse chat date label (e.g. "Julij 2027" or "16. jun → 23. jun 2026") to YYYY-MM-DD. */
-export function parseChatDepartDate(datesLabel: string, language = "sl"): string {
-  const trimmed = datesLabel.trim();
-  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+export function parseChatDepartDate(
+  datesLabel: string | undefined | null,
+  language = "sl",
+): string {
+  return parseChatDateRange(datesLabel, language).departDate;
+}
 
-  const rangeStart = parseHeroDateRangeStart(trimmed, language);
-  if (rangeStart) return rangeStart;
+/** Exact range from chat, or depart + nights fallback. */
+export function parseChatDateRange(
+  datesLabel: string | undefined | null,
+  language = "sl",
+): { departDate: string; returnDate?: string } {
+  const trimmed = (datesLabel ?? "").trim();
+  if (!trimmed) return { departDate: defaultDateFrom() };
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return { departDate: trimmed };
+
+  const range = parseHeroDateRange(trimmed, language);
+  if (range) return range;
 
   const lower = trimmed.toLowerCase();
   const yearMatch = lower.match(/20\d{2}/);
@@ -107,16 +119,16 @@ export function parseChatDepartDate(datesLabel: string, language = "sl"): string
   for (const [name, monthIndex] of Object.entries(MONTH_INDEX)) {
     if (lower.includes(name)) {
       const month = String(monthIndex + 1).padStart(2, "0");
-      return `${year}-${month}-01`;
+      return { departDate: `${year}-${month}-01` };
     }
   }
 
-  return defaultDateFrom();
+  return { departDate: defaultDateFrom() };
 }
 
 /** Infer trip length in nights from chat chip label. */
-export function parseChatNights(nightsLabel: string): number {
-  const lower = nightsLabel.toLowerCase();
+export function parseChatNights(nightsLabel: string | undefined | null): number {
+  const lower = (nightsLabel ?? "").toLowerCase();
   if (lower.includes("2 tedn") || lower.includes("2 week")) return 15;
   const range = lower.match(/(\d+)\s*[-–]\s*(\d+)/);
   if (range) {
@@ -132,11 +144,11 @@ export function parseChatNights(nightsLabel: string): number {
   return 7;
 }
 
-export function parseChatPassengers(passengersLabel: string): {
+export function parseChatPassengers(passengersLabel: string | undefined | null): {
   adults: number;
   childrenAges: number[];
 } {
-  const lower = passengersLabel.toLowerCase();
+  const lower = (passengersLabel ?? "").toLowerCase();
   let adults = 1;
   let children = 0;
 
@@ -157,8 +169,8 @@ export function parseChatPassengers(passengersLabel: string): {
   };
 }
 
-export function mapChatBudget(budgetLabel: string): TripBudgetTier {
-  const lower = budgetLabel.toLowerCase();
+export function mapChatBudget(budgetLabel: string | undefined | null): TripBudgetTier {
+  const lower = (budgetLabel ?? "").toLowerCase();
   if (lower.includes("2000") && (lower.includes("+") || lower.includes("plus"))) return "premium";
   if (lower.includes("do 500") || lower.includes("up to") || lower.includes("under")) return "budget";
   if (lower.includes("1000-2000") || lower.includes("1000–2000")) return "standard";
@@ -175,14 +187,19 @@ export function heroChatToPlannerPayload(
   collected: HeroChatCollected,
   language = "en",
 ): HeroChatPlannerPayload {
-  const departDate = parseChatDepartDate(collected.dates, language);
-  const nightsLabel = collected.nights?.trim() || "7 noči";
+  const parsedDates = parseChatDateRange(collected.dates, language);
+  const departDate = parsedDates.departDate;
+  const nightsLabel = collected.nights?.trim() || "";
   const budgetLabel = collected.budget?.trim() || "500–1000€";
-  const nights = parseChatNights(nightsLabel);
-  const returnDate = nights > 0 ? addDays(departDate, nights) : defaultDateTo(departDate);
+  // Exact calendar range wins — do NOT collapse "26. okt → 10. nov" to default 7 nights (Nov 2).
+  const returnDate =
+    parsedDates.returnDate ||
+    (nightsLabel
+      ? addDays(departDate, parseChatNights(nightsLabel))
+      : defaultDateTo(departDate));
   const { adults, childrenAges } = parseChatPassengers(collected.passengers);
   const originPlace = collected.origin?.trim() || "Ljubljana";
-  const destinationPlace = collected.destination.trim();
+  const destinationPlace = (collected.destination ?? "").trim() || "Thailand";
 
   const ctx: AiPlannerContext & { language?: string; currency?: "EUR" | "USD" } = {
     from: resolveOriginIata(originPlace),
@@ -211,9 +228,11 @@ export function heroChatToPlannerPayload(
     wishes: [
       `Destinacija: ${destinationPlace}`,
       `Datumi: ${collected.dates}`,
-      nightsLabel,
+      nightsLabel || undefined,
       collected.pace ? `Tempo: ${collected.pace}` : "",
-      `Proračun: ${budgetLabel} na osebo`,
+      /\b(osebo|person)\b/i.test(budgetLabel)
+        ? `Proračun: ${budgetLabel}`
+        : `Proračun: ${budgetLabel} na osebo`,
     ]
       .filter(Boolean)
       .join(". "),

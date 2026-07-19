@@ -42,11 +42,48 @@ export type HeroDestinationChip = {
 };
 
 export const HERO_DESTINATION_CHIPS: HeroDestinationChip[] = [
-  { id: "paris", destination: "Pariz", emoji: "🗼", labelKey: "hero.chip.paris.label", nameKey: "hero.chip.paris.name" },
-  { id: "croatia", destination: "Hrvaška", emoji: "🌊", labelKey: "hero.chip.croatia.label", nameKey: "hero.chip.croatia.name" },
-  { id: "bali", destination: "Bali", emoji: "🌴", labelKey: "hero.chip.bali.label", nameKey: "hero.chip.bali.name" },
-  { id: "newyork", destination: "New York", emoji: "🗽", labelKey: "hero.chip.newyork.label", nameKey: "hero.chip.newyork.name" },
-  { id: "japan", destination: "Japonska", emoji: "🏯", labelKey: "hero.chip.japan.label", nameKey: "hero.chip.japan.name" },
+  {
+    id: "thailand",
+    destination: "Thailand",
+    emoji: "🏝️",
+    labelKey: "hero.chip.thailand.label",
+    nameKey: "hero.chip.thailand.name",
+  },
+  {
+    id: "paris",
+    destination: "Paris",
+    emoji: "🗼",
+    labelKey: "hero.chip.paris.label",
+    nameKey: "hero.chip.paris.name",
+  },
+  {
+    id: "croatia",
+    destination: "Croatia",
+    emoji: "🌊",
+    labelKey: "hero.chip.croatia.label",
+    nameKey: "hero.chip.croatia.name",
+  },
+  {
+    id: "bali",
+    destination: "Bali",
+    emoji: "🌴",
+    labelKey: "hero.chip.bali.label",
+    nameKey: "hero.chip.bali.name",
+  },
+  {
+    id: "newyork",
+    destination: "New York",
+    emoji: "🗽",
+    labelKey: "hero.chip.newyork.label",
+    nameKey: "hero.chip.newyork.name",
+  },
+  {
+    id: "japan",
+    destination: "Japan",
+    emoji: "🏯",
+    labelKey: "hero.chip.japan.label",
+    nameKey: "hero.chip.japan.name",
+  },
 ];
 
 /** Full chip label e.g. "🗼 Pariz" — never emoji-only. */
@@ -98,8 +135,18 @@ export function buildHeroSearchQuery(data: HeroChatCollected): string {
     data.nights,
     `iz ${data.origin}`,
     data.passengers,
-    `proračun ${data.budget} na osebo`,
+    formatBudgetForQuery(data.budget),
   ].join(", ");
+}
+
+function formatBudgetForQuery(budget: string): string {
+  const trimmed = budget?.trim() ?? "";
+  if (!trimmed) return "";
+  // Chips already include "/ osebo" / "/ person" — don't double-suffix.
+  if (/\b(osebo|person|pp)\b/i.test(trimmed) || /\/\s*osebo/i.test(trimmed)) {
+    return `proračun ${trimmed}`;
+  }
+  return `proračun ${trimmed} na osebo`;
 }
 
 export function buildHeroFlightsSearchQuery(data: HeroChatCollected): string {
@@ -121,7 +168,10 @@ export function buildHeroMakeSearchQuery(
   if (data.nights?.trim()) parts.push(data.nights.trim());
   if (data.origin?.trim()) parts.push(`iz ${data.origin.trim()}`);
   if (data.pace?.trim()) parts.push(`tempo ${data.pace.trim()}`);
-  if (data.budget?.trim()) parts.push(`proračun ${data.budget.trim()} na osebo`);
+  if (data.budget?.trim()) {
+    const budgetPart = formatBudgetForQuery(data.budget);
+    if (budgetPart) parts.push(budgetPart);
+  }
   return parts.join(", ");
 }
 

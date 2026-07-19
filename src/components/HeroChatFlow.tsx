@@ -7,9 +7,8 @@ import {
   type FormEvent,
   type KeyboardEvent,
   type ChangeEvent,
-  type RefObject,
 } from "react";
-import { ArrowUp, Loader2, Mic, Paperclip, X } from "lucide-react";
+import { ArrowUp, Loader2, X } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import {
   createHeroAttachmentPreviewUrl,
@@ -19,9 +18,12 @@ import {
   type HeroChatSelectedFile,
 } from "@/lib/heroChatAttachment";
 import { HeroDateRangeCalendar } from "@/components/HeroDateRangeCalendar";
+import { HeroDestinationAutocomplete } from "@/components/HeroDestinationAutocomplete";
 import {
   buildHeroMakeSearchQuery,
   createChatMessage,
+  getDestinationChipDisplay,
+  HERO_DESTINATION_CHIPS,
   type HeroChatCollected,
   type HeroChatMessage,
   type HeroChatMode,
@@ -35,30 +37,36 @@ import {
 import { FlightCard } from "@/components/FlightCard";
 import { HeroPassengerBrowser } from "@/components/HeroPassengerBrowser";
 import { HeroTripChecklist } from "@/components/HeroTripChecklist";
-import { RotatingTextareaPlaceholder } from "@/components/RotatingTextareaPlaceholder";
+import { OriginAirportPicker } from "@/components/OriginAirportPicker";
+import { formatOriginSelection } from "@/lib/airportCatalog";
+import { rememberRecentOrigins } from "@/lib/recentOrigins";
 import {
+  parseMakeSearchDestination,
   parseMakeSearchOriginAirports,
-  parseMakeSearchUserMessage,
   type MakeSearchFlight,
 } from "@/lib/makeSearch";
 import { cn } from "@/lib/utils";
 
 const DATE_CHIP_IDS = ["endOctober", "startNovember", "octNov", "flexible"] as const;
 const NIGHT_CHIP_IDS = ["3-5", "7", "10-14", "2weeks"] as const;
-const ORIGIN_CHIP_IDS = ["ljubljana", "zagreb", "vienna", "venice", "other"] as const;
 const PACE_CHIP_IDS = ["intensive", "relaxed", "calm"] as const;
 const BUDGET_CHIP_IDS = ["under500", "500-1000", "1000-2000", "2000plus"] as const;
 
-const HERO_FEATURE_BADGE_IDS = ["itinerary", "flights", "pdf"] as const;
+/**
+ * Origins mentioned in chat — never treat destination IATA in "Phuket (HKT)" as departure.
+ */
+function originsFromCollected(
+  destination: string | undefined,
+  origin: string | undefined,
+): string[] {
+  const destCode = parseMakeSearchDestination(destination ?? "")?.toUpperCase() ?? null;
+  const codes = parseMakeSearchOriginAirports(
+    [destination?.trim(), origin?.trim()].filter(Boolean).join(" "),
+  );
+  return codes.filter((code) => !destCode || code !== destCode);
+}
 
-const HERO_PLACEHOLDER_EXAMPLE_KEYS = [
-  "heroChat.placeholder.example1",
-  "heroChat.placeholder.example2",
-  "heroChat.placeholder.example3",
-  "heroChat.placeholder.example4",
-  "heroChat.placeholder.example5",
-  "heroChat.placeholder.example6",
-] as const;
+const HERO_FEATURE_BADGE_IDS = ["itinerary", "flights", "pdf"] as const;
 
 type ChipOption = {
   id: string;
@@ -169,72 +177,40 @@ function FilePreview({
   );
 }
 
-function AttachmentToolbar({
-  fileInputRef,
-  onAttachClick,
-  onFileChange,
-  fileProcessing,
-  attachLabel,
-  processingLabel,
-}: {
-  fileInputRef: RefObject<HTMLInputElement | null>;
-  onAttachClick: () => void;
-  onFileChange: (e: ChangeEvent<HTMLInputElement>) => void;
-  fileProcessing: boolean;
-  attachLabel: string;
-  processingLabel: string;
-}) {
-  return (
-    <>
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*,.pdf"
-        multiple={false}
-        onChange={onFileChange}
-        className="hidden"
-      />
-      <button
-        type="button"
-        onClick={onAttachClick}
-        disabled={fileProcessing}
-        aria-label={attachLabel}
-        className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-white/60 transition-colors hover:text-white/90 disabled:cursor-wait disabled:opacity-50"
-      >
-        {fileProcessing ? (
-          <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
-        ) : (
-          <Paperclip className="h-5 w-5" strokeWidth={1.75} aria-hidden />
-        )}
-      </button>
-      {fileProcessing ? (
-        <span className="sr-only">{processingLabel}</span>
-      ) : null}
-    </>
-  );
-}
-
 function QuickReplyChips({
   options,
   onSelect,
   disabled,
+  layout = "wrap",
 }: {
   options: ChipOption[];
   onSelect: (id: string, label: string) => void;
   disabled?: boolean;
+  /** `grid` = 2 columns (better for longer date labels). */
+  layout?: "wrap" | "grid";
 }) {
   return (
-    <div className="hero-chips-enter pl-10 pr-1">
-      <div className="flex flex-wrap gap-2 pb-1 sm:flex-nowrap sm:overflow-x-auto sm:[-ms-overflow-style:none] sm:[scrollbar-width:none] sm:[&::-webkit-scrollbar]:hidden">
+    <div className="hero-chips-enter pl-0 pr-1 sm:pl-10">
+      <div
+        className={cn(
+          "gap-2 pb-1",
+          layout === "grid"
+            ? "grid grid-cols-1 min-[380px]:grid-cols-2"
+            : "flex flex-wrap",
+        )}
+      >
         {options.map(({ id, label }) => (
           <button
             key={id}
             type="button"
             disabled={disabled}
             onClick={() => onSelect(id, label)}
-            className="inline-flex shrink-0 items-center rounded-full border border-white/40 bg-white px-3.5 py-1.5 text-sm font-medium text-gray-800 shadow-sm transition-colors hover:bg-white/90 disabled:opacity-50"
+            className={cn(
+              "inline-flex items-center justify-center rounded-full border border-white/40 bg-white px-3.5 py-2 text-sm font-medium text-gray-800 shadow-sm transition-colors hover:bg-white/90 disabled:opacity-50",
+              layout === "grid" ? "w-full text-center" : "shrink-0",
+            )}
           >
-            <span className="whitespace-nowrap">{label}</span>
+            <span className="whitespace-normal text-balance leading-snug">{label}</span>
           </button>
         ))}
       </div>
@@ -242,37 +218,107 @@ function QuickReplyChips({
   );
 }
 
-function HeroCtaArea({
-  onStartPlanning,
-  disabled,
-  featureBadges,
-  ctaLabel,
-}: {
-  onStartPlanning: () => void;
-  disabled?: boolean;
-  featureBadges: string[];
-  ctaLabel: string;
-}) {
+function HeroFeatureBadges({ featureBadges }: { featureBadges: string[] }) {
   return (
-    <div className="mt-6 flex flex-col items-center gap-4">
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={onStartPlanning}
-        className="inline-flex items-center justify-center rounded-full bg-blue-600 px-8 py-3 text-base font-semibold text-white shadow-lg transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        {ctaLabel}
-      </button>
-      <div className="flex flex-wrap items-center justify-center gap-2">
-        {featureBadges.map((label) => (
-          <span
-            key={label}
-            className="inline-flex items-center rounded-full bg-white/10 px-3 py-1 text-sm text-white/80 backdrop-blur-sm"
+    <div className="relative z-0 mt-5 flex flex-wrap items-center justify-center gap-2">
+      {featureBadges.map((label) => (
+        <span
+          key={label}
+          className="inline-flex items-center rounded-full bg-white/10 px-3 py-1 text-sm text-white/80 backdrop-blur-sm"
+        >
+          {label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function HeroGuidedStart({
+  onPickDestination,
+  onTypeSubmit,
+  textInput,
+  onTextChange,
+  canSubmit,
+  inputDisabled,
+  fileProcessing,
+  featureBadges,
+  t,
+}: {
+  onPickDestination: (destination: string, label: string) => void;
+  onTypeSubmit: () => void;
+  textInput: string;
+  onTextChange: (value: string) => void;
+  canSubmit: boolean;
+  inputDisabled: boolean;
+  fileProcessing: boolean;
+  featureBadges: string[];
+  t: (key: never) => string;
+}) {
+  const [showTypeBox, setShowTypeBox] = useState(false);
+
+  return (
+    <div className="relative z-20 w-full">
+      <div className="rounded-2xl border border-white/25 bg-white/12 p-5 shadow-lg backdrop-blur-md sm:p-6">
+        <p className="text-center text-lg font-semibold text-white sm:text-xl">
+          {t("heroChat.guided.whereTitle" as never)}
+        </p>
+        <p className="mt-1.5 text-center text-sm text-white/70">
+          {t("heroChat.guided.whereHint" as never)}
+        </p>
+
+        <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {HERO_DESTINATION_CHIPS.map((chip) => {
+            const { emoji, name } = getDestinationChipDisplay(chip, t);
+            return (
+              <button
+                key={chip.id}
+                type="button"
+                disabled={inputDisabled || fileProcessing}
+                onClick={() => onPickDestination(chip.destination, `${emoji} ${name}`)}
+                className="flex flex-col items-center justify-center gap-1 rounded-2xl border border-white/25 bg-white/15 px-3 py-4 text-white shadow-sm transition hover:bg-white/25 active:scale-[0.98] disabled:opacity-50"
+              >
+                <span className="text-2xl" aria-hidden>
+                  {emoji}
+                </span>
+                <span className="text-sm font-semibold sm:text-[15px]">{name}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {!showTypeBox ? (
+          <button
+            type="button"
+            onClick={() => setShowTypeBox(true)}
+            className="mt-4 w-full rounded-xl border border-dashed border-white/30 py-2.5 text-sm font-medium text-white/85 hover:bg-white/10"
           >
-            {label}
-          </span>
-        ))}
+            {t("heroChat.guided.typeOwn" as never)}
+          </button>
+        ) : (
+          <div className="relative z-30 mt-4 space-y-2">
+            <p className="text-sm font-medium text-white/90">
+              {t("heroChat.guided.typeTitle" as never)}
+            </p>
+            <HeroDestinationAutocomplete
+              value={textInput}
+              onChange={onTextChange}
+              onPick={onPickDestination}
+              onSubmit={onTypeSubmit}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  onTypeSubmit();
+                }
+              }}
+              canSubmit={canSubmit}
+              disabled={inputDisabled || fileProcessing}
+              placeholder={t("heroChat.guided.typePlaceholder" as never)}
+            />
+          </div>
+        )}
       </div>
+      {/* Hide badges while typing — they sat on top of the airport dropdown. */}
+      {!showTypeBox ? <HeroFeatureBadges featureBadges={featureBadges} /> : null}
     </div>
   );
 }
@@ -287,12 +333,12 @@ function PickExactDatesButton({
   disabled?: boolean;
 }) {
   return (
-    <div className="hero-chips-enter pl-10 pr-1">
+    <div className="hero-chips-enter pl-0 pr-1 sm:pl-10">
       <button
         type="button"
         disabled={disabled}
         onClick={onClick}
-        className="inline-flex items-center rounded-full border border-white/40 bg-white px-3.5 py-1.5 text-sm font-medium text-gray-800 shadow-sm transition-colors hover:bg-white/90 disabled:opacity-50"
+        className="inline-flex w-full items-center justify-center rounded-full border border-white/40 bg-white px-3.5 py-2 text-sm font-medium text-gray-800 shadow-sm transition-colors hover:bg-white/90 disabled:opacity-50 min-[380px]:w-auto"
       >
         {label}
       </button>
@@ -342,10 +388,13 @@ export function HeroChatFlow({
   const [fileProcessing, setFileProcessing] = useState(false);
   const [fileError, setFileError] = useState<string | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [originFreeText, setOriginFreeText] = useState(false);
+  /** Where to go after the origin picker confirms. */
+  const [afterOrigin, setAfterOrigin] = useState<"searching" | "pace">("searching");
 
   const agentName = t("heroChat.agentName" as never);
   const isSearching = step === "searching";
+  const showSearchLoader =
+    isSearching && flights.length === 0 && !searchError;
   const inputDisabled = isSearching;
   const showTripChecklist = conversationStarted && mode === "all";
 
@@ -355,13 +404,15 @@ export function HeroChatFlow({
   );
 
   const scrollToBottom = useCallback(() => {
+    // While the search loader is up, freeze auto-scroll so the spinner stays in view.
+    if (step === "searching" && flights.length === 0 && !searchError) return;
     window.requestAnimationFrame(() => {
       scrollRef.current?.scrollTo({
         top: scrollRef.current.scrollHeight,
         behavior: "smooth",
       });
     });
-  }, []);
+  }, [step, flights.length, searchError]);
 
   const appendMessages = useCallback(
     (...next: HeroChatMessage[]) => {
@@ -432,38 +483,40 @@ export function HeroChatFlow({
           passengers: boot.passengers!.label,
           dates: boot.dates.label,
         }));
-        if (isFlightsOnly) {
-          const bootOrigins = parseMakeSearchUserMessage(userMessage).origin_airports;
-          appendMessages(
-            createChatMessage(
-              "ai",
-              skyMessageWithVars(t("heroChat.bootstrap.ready" as never), {
-                passengers: boot.passengers.label,
-                dates: boot.dates.label,
-              }),
-            ),
-            createChatMessage(
-              "ai",
-              bootOrigins.length > 1
-                ? skyMessageWithVars(t("heroChat.searchingFlightsFrom" as never), {
-                    origins: bootOrigins.join(", "),
-                  })
-                : t("heroChat.searchingFlights" as never),
-            ),
-          );
-          setStep("searching");
-          return;
-        }
         appendMessages(
           createChatMessage(
             "ai",
-            skyMessageWithVars(t("heroChat.stepDates.exact" as never), {
+            skyMessageWithVars(t("heroChat.bootstrap.ready" as never), {
+              passengers: boot.passengers.label,
               dates: boot.dates.label,
             }),
           ),
-          createChatMessage("ai", t("heroChat.pace.ask" as never)),
         );
-        setStep("pace");
+        const bootOrigins = originsFromCollected(resolved, "");
+        if (bootOrigins.length > 0) {
+          const originLabel = formatOriginSelection(bootOrigins);
+          setCollected((prev) => ({ ...prev, origin: originLabel }));
+          if (isFlightsOnly) {
+            appendMessages(
+              createChatMessage(
+                "ai",
+                bootOrigins.length > 1
+                  ? skyMessageWithVars(t("heroChat.searchingFlightsFrom" as never), {
+                      origins: bootOrigins.join(", "),
+                    })
+                  : t("heroChat.searchingFlights" as never),
+              ),
+            );
+            setStep("searching");
+          } else {
+            appendMessages(createChatMessage("ai", t("heroChat.pace.ask" as never)));
+            setStep("pace");
+          }
+          return;
+        }
+        setAfterOrigin(isFlightsOnly ? "searching" : "pace");
+        appendMessages(createChatMessage("ai", t("heroChat.origin.ask" as never)));
+        setStep("origin");
         return;
       }
 
@@ -561,21 +614,43 @@ export function HeroChatFlow({
   }, [seedDestination, step, conversationStarted, startFlow, onSeedConsumed]);
 
   useEffect(() => {
-    if (!conversationStarted) return;
+    if (!conversationStarted || showSearchLoader) return;
     scrollToBottom();
-  }, [step, messages, showDatePicker, originFreeText, conversationStarted, scrollToBottom]);
+  }, [step, messages, showDatePicker, conversationStarted, showSearchLoader, scrollToBottom]);
+
+  // Pin the loader into view once when search starts, then freeze scrolling.
+  useEffect(() => {
+    if (!showSearchLoader) return;
+    const el = scrollRef.current;
+    if (!el) return;
+    window.requestAnimationFrame(() => {
+      el.scrollTo({ top: el.scrollHeight, behavior: "auto" });
+    });
+  }, [showSearchLoader]);
 
   useEffect(() => {
     if (step !== "searching" || searchSentRef.current) return;
+
+    // Block HKT→HKT before Make/Duffel (destination IATA mistaken as origin).
+    const safeOrigins = originsFromCollected(collected.destination, collected.origin);
+    if (safeOrigins.length === 0) {
+      setCollected((prev) => ({ ...prev, origin: undefined }));
+      setAfterOrigin("searching");
+      appendMessages(createChatMessage("ai", t("heroChat.origin.ask" as never)));
+      setStep("origin");
+      return;
+    }
+
     searchSentRef.current = true;
 
     const data = {
       ...(collected as HeroChatCollected),
+      origin: formatOriginSelection(safeOrigins),
       attachment: attachment ?? collected.attachment,
     } satisfies HeroChatCollected;
     const query = buildHeroMakeSearchQuery(data, mode);
     onSearch(query, data, mode);
-  }, [step, collected, attachment, onSearch, mode]);
+  }, [step, collected, attachment, onSearch, mode, appendMessages, t]);
 
   useEffect(() => {
     if (step === "destination") {
@@ -587,7 +662,10 @@ export function HeroChatFlow({
   useEffect(() => {
     if (loading || flights.length === 0 || flightsAnnouncedRef.current) return;
     flightsAnnouncedRef.current = true;
-    const namedOrigins = parseMakeSearchOriginAirports(collected.destination ?? "");
+    const namedOrigins = originsFromCollected(
+      collected.destination,
+      collected.origin,
+    );
     const resultOrigins = [
       ...new Set(
         flights
@@ -619,20 +697,84 @@ export function HeroChatFlow({
     );
   }
 
-  function startFlightSearch(dateLabel: string) {
-    appendMessages(createChatMessage("ai", t("heroChat.searchingFlights" as never)));
-    setCollected((prev) => ({ ...prev, dates: dateLabel.trim() || prev.dates || "" }));
+  function startFlightSearch(opts?: { origins?: string[] }) {
+    const origins = opts?.origins ?? [];
+    appendMessages(
+      createChatMessage(
+        "ai",
+        origins.length > 1
+          ? skyMessageWithVars(t("heroChat.searchingFlightsFrom" as never), {
+              origins: origins.join(", "),
+            })
+          : t("heroChat.searchingFlights" as never),
+      ),
+    );
     setStep("searching");
   }
 
-  function continueAfterDates(dateLabel: string) {
-    setCollected((prev) => ({ ...prev, dates: dateLabel.trim() || prev.dates || "" }));
-    if (isFlightsOnly) {
-      startFlightSearch(dateLabel);
+  function goToOriginStep(next: "searching" | "pace") {
+    setAfterOrigin(next);
+    appendMessages(createChatMessage("ai", t("heroChat.origin.ask" as never)));
+    setStep("origin");
+    scrollToBottom();
+  }
+
+  /** Skip the picker when the user already named airports in chat. */
+  function continueWithOptionalOrigin(
+    next: "searching" | "pace",
+    context: { destination?: string; origin?: string; dates?: string },
+  ) {
+    if (context.dates?.trim()) {
+      setCollected((prev) => ({
+        ...prev,
+        dates: context.dates!.trim() || prev.dates || "",
+      }));
+    }
+    const known = originsFromCollected(context.destination, context.origin);
+    if (known.length > 0) {
+      const label = formatOriginSelection(known);
+      setCollected((prev) => ({
+        ...prev,
+        origin: prev.origin?.trim() || label,
+      }));
+      if (next === "searching") {
+        startFlightSearch({ origins: known });
+        return;
+      }
+      appendMessages(createChatMessage("ai", t("heroChat.pace.ask" as never)));
+      setStep("pace");
       return;
     }
-    appendMessages(createChatMessage("ai", t("heroChat.pace.ask" as never)));
-    setStep("pace");
+    goToOriginStep(next);
+  }
+
+  function askPassengers(datesLabel?: string) {
+    const dates = (datesLabel ?? collected.dates)?.trim() || "";
+    appendMessages(
+      createChatMessage(
+        "ai",
+        dates
+          ? skyMessageWithVars(t("heroChat.passengers.tripReady" as never), { dates })
+          : t("heroChat.passengers.browserTitle" as never),
+      ),
+    );
+    setStep("passengers");
+    scrollToBottom();
+  }
+
+  function continueAfterDates(dateLabel: string) {
+    const dates = dateLabel.trim();
+    setCollected((prev) => ({ ...prev, dates: dates || prev.dates || "" }));
+    // Guided flow must collect party size before origin / search.
+    if (!collected.passengers?.trim()) {
+      askPassengers(dates);
+      return;
+    }
+    continueWithOptionalOrigin(isFlightsOnly ? "searching" : "pace", {
+      destination: collected.destination,
+      origin: collected.origin,
+      dates,
+    });
   }
 
   function advanceFromDates(label: string, options?: { silent?: boolean }) {
@@ -653,30 +795,47 @@ export function HeroChatFlow({
     setStep("budget");
   }
 
-  function advanceFromOrigin(label: string) {
-    setOriginFreeText(false);
-    if (isFlightsOnly) {
+  function advanceFromOrigin(label: string, iatas: string[] = []) {
+    const destCode =
+      parseMakeSearchDestination(collected.destination ?? "")?.toUpperCase() ?? null;
+    const codes = (
+      iatas.length > 0 ? iatas : parseMakeSearchOriginAirports(label)
+    ).filter((code) => !destCode || code !== destCode);
+    if (codes.length === 0) {
       appendMessages(
         createChatMessage("user", label),
-        createChatMessage("ai", t("heroChat.step6.loading" as never)),
+        createChatMessage("ai", t("heroSearch.originSameAsDestination" as never)),
       );
-      setCollected((prev) => ({
-        ...prev,
-        origin: label,
-        attachment: attachment ?? prev.attachment,
-      }));
-      setStep("searching");
+      goToOriginStep(afterOrigin);
       return;
     }
+    if (codes.length > 0) rememberRecentOrigins(codes);
+
+    const next = isFlightsOnly ? "searching" : afterOrigin;
+    setCollected((prev) => ({
+      ...prev,
+      origin: label,
+      attachment: attachment ?? prev.attachment,
+    }));
+
+    if (next === "searching") {
+      appendMessages(createChatMessage("user", label));
+      startFlightSearch({ origins: codes });
+      return;
+    }
+
     appendMessages(
       createChatMessage("user", label),
-      createChatMessage("ai", t("heroChat.step5.ai" as never)),
+      createChatMessage("ai", t("heroChat.pace.ask" as never)),
     );
-    setCollected((prev) => ({ ...prev, origin: label }));
-    setStep("budget");
+    setStep("pace");
   }
 
-  function advanceToDatesFromPassengers(label: string) {
+  function handleOriginPickerConfirm(iatas: string[], label: string) {
+    advanceFromOrigin(label, iatas);
+  }
+
+  function handlePassengersSelect(label: string) {
     const destination = collected.destination ?? "";
     const parsed = extractHeroChatDates(destination, lang);
     const knownDates =
@@ -686,23 +845,15 @@ export function HeroChatFlow({
     appendMessages(createChatMessage("user", label));
     setCollected((prev) => ({ ...prev, passengers: label }));
 
-    // Rich first message already had dates → search immediately after party size.
-    if (knownDates && (parsed.departDate || collected.dates || parsed.precision === "exact")) {
+    // Guided path: dates already chosen → ask origin, then pace / search.
+    if (knownDates) {
       const dateLabel = knownDates;
       setCollected((prev) => ({ ...prev, dates: dateLabel, passengers: label }));
-      const parsedSearch = parseMakeSearchUserMessage(destination);
-      const multiOrigin = parsedSearch.origin_airports.length > 1;
-      appendMessages(
-        createChatMessage(
-          "ai",
-          multiOrigin
-            ? skyMessageWithVars(t("heroChat.searchingFlightsFrom" as never), {
-                origins: parsedSearch.origin_airports.join(", "),
-              })
-            : t("heroChat.searchingFlights" as never),
-        ),
-      );
-      setStep("searching");
+      continueWithOptionalOrigin(isFlightsOnly ? "searching" : "pace", {
+        destination,
+        origin: collected.origin,
+        dates: dateLabel,
+      });
       return;
     }
 
@@ -742,23 +893,10 @@ export function HeroChatFlow({
     advanceFromDates(label);
   }
 
-  function handleOriginSelect(id: string, label: string) {
-    if (id === "other") {
-      setOriginFreeText(true);
-      scrollToBottom();
-      inputRef.current?.focus();
-      return;
-    }
-    advanceFromOrigin(label);
-  }
-
   function handleNightsSelect(_id: string, label: string) {
-    appendMessages(
-      createChatMessage("user", label),
-      createChatMessage("ai", t("heroChat.step3.ai" as never)),
-    );
+    appendMessages(createChatMessage("user", label));
     setCollected((prev) => ({ ...prev, nights: label }));
-    setStep("origin");
+    goToOriginStep(isFlightsOnly ? "searching" : "pace");
   }
 
   function handleBudgetSelect(_id: string, label: string) {
@@ -782,6 +920,12 @@ export function HeroChatFlow({
       return;
     }
     startFlow(trimmed);
+    setTextInput("");
+  }
+
+  function handleDestinationPick(destination: string, label: string) {
+    if (inputDisabled || fileProcessing) return;
+    startFlow(destination, label);
     setTextInput("");
   }
 
@@ -818,7 +962,7 @@ export function HeroChatFlow({
         break;
       case "passengers": {
         const parsed = extractHeroChatPassengers(trimmed, lang);
-        advanceToDatesFromPassengers(parsed?.label ?? trimmed);
+        handlePassengersSelect(parsed?.label ?? trimmed);
         break;
       }
       case "pace":
@@ -845,21 +989,9 @@ export function HeroChatFlow({
     [t],
   );
 
-  const showConversationChips =
-    conversationStarted &&
-    !isSearching &&
-    !(step === "origin" && originFreeText);
+  const showConversationChips = conversationStarted && !isSearching;
 
   const placeholder = chatPlaceholder(t);
-  const rotatingPlaceholderItems = useMemo(
-    () => [
-      placeholder,
-      ...HERO_PLACEHOLDER_EXAMPLE_KEYS.map((key) => t(key as never)),
-    ],
-    [placeholder, t],
-  );
-  const showRotatingPlaceholder =
-    !conversationStarted && !textInput.trim() && !inputDisabled && !fileProcessing;
   const canSubmit =
     !inputDisabled &&
     !fileProcessing &&
@@ -885,81 +1017,21 @@ export function HeroChatFlow({
       <div className="min-w-0">
       {!conversationStarted ? (
         <>
-          <form
-            onSubmit={handleTextSubmit}
-            className="flex min-h-[120px] w-full flex-col rounded-2xl border border-white/25 bg-white/10 p-5 shadow-lg backdrop-blur-md"
-          >
-            {selectedFilePreview ? (
-              <FilePreview
-                preview={selectedFilePreview}
-                onRemove={clearSelectedFile}
-                removeLabel={t("heroChat.removeFile" as never)}
-              />
-            ) : null}
-
-            {fileError ? (
-              <p className="mb-3 text-sm text-red-200" role="alert">
-                {fileError}
-              </p>
-            ) : null}
-
-            <div className="relative min-h-[4.5rem] w-full flex-1">
-              <RotatingTextareaPlaceholder
-                items={rotatingPlaceholderItems}
-                active={showRotatingPlaceholder}
-                className="text-base leading-relaxed sm:text-[17px]"
-              />
-              <textarea
-                ref={inputRef}
-                value={textInput}
-                onChange={(e) => setTextInput(e.target.value)}
-                onKeyDown={handleInputKeyDown}
-                disabled={inputDisabled || fileProcessing}
-                autoComplete="off"
-                rows={3}
-                placeholder={showRotatingPlaceholder ? "" : placeholder}
-                aria-label={placeholder}
-                className="relative z-10 min-h-[4.5rem] w-full flex-1 resize-none border-0 bg-transparent text-base leading-relaxed text-white placeholder:text-white/60 focus:outline-none focus:ring-0 disabled:cursor-not-allowed disabled:opacity-60 sm:text-[17px]"
-                style={{ color: "#fff", WebkitTextFillColor: "#fff" }}
-              />
-            </div>
-
-            <div className="mt-3 flex items-center justify-between">
-              <AttachmentToolbar
-                fileInputRef={fileInputRef}
-                onAttachClick={openFilePicker}
-                onFileChange={handleFileUpload}
-                fileProcessing={fileProcessing}
-                attachLabel={t("heroChat.attachFile" as never)}
-                processingLabel={t("heroChat.fileProcessing" as never)}
-              />
-
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  disabled
-                  aria-label="Voice input (coming soon)"
-                  className="flex h-9 w-9 items-center justify-center rounded-full text-white/50 transition-colors hover:text-white/70 disabled:cursor-default"
-                >
-                  <Mic className="h-5 w-5" strokeWidth={1.75} aria-hidden />
-                </button>
-                <button
-                  type="submit"
-                  disabled={!canSubmit}
-                  aria-label={t("heroChat.send" as never)}
-                  className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-gray-900 shadow-md transition-colors hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  <ArrowUp className="h-5 w-5" strokeWidth={2.5} aria-hidden />
-                </button>
-              </div>
-            </div>
-          </form>
-
-          <HeroCtaArea
-            ctaLabel={t("heroChat.startPlanningCta" as never)}
+          {fileError ? (
+            <p className="mb-3 text-center text-sm text-red-200" role="alert">
+              {fileError}
+            </p>
+          ) : null}
+          <HeroGuidedStart
+            onPickDestination={handleDestinationPick}
+            onTypeSubmit={handleStartPlanning}
+            textInput={textInput}
+            onTextChange={setTextInput}
+            canSubmit={canSubmit}
+            inputDisabled={inputDisabled}
+            fileProcessing={fileProcessing}
             featureBadges={featureBadges}
-            disabled={loading || inputDisabled || fileProcessing || !canSubmit}
-            onStartPlanning={handleStartPlanning}
+            t={t}
           />
         </>
       ) : (
@@ -1001,9 +1073,18 @@ export function HeroChatFlow({
       )}
 
       {conversationStarted ? (
+        <>
         <div
           ref={scrollRef}
-          className="mt-6 max-h-[min(420px,50vh)] space-y-3 overflow-x-hidden overflow-y-auto px-1 py-1"
+          className={cn(
+            "mt-6 space-y-3 overflow-x-hidden px-1 py-1",
+            // Calendar must sit fully visible — never trap it in a short scroll box.
+            showDatePicker && step === "dates"
+              ? "max-h-40 overflow-y-auto sm:max-h-48"
+              : showSearchLoader
+                ? "max-h-[min(420px,50vh)] overflow-y-hidden"
+                : "max-h-[min(420px,50vh)] overflow-y-auto",
+          )}
         >
           {messages.map((message) => (
             <div key={message.id} className="space-y-2">
@@ -1019,9 +1100,19 @@ export function HeroChatFlow({
             </div>
           ))}
 
-          {isSearching && loading ? (
-            <div className="flex items-center gap-2 pl-10 text-sm text-white/80">
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+          {showSearchLoader ? (
+            <div
+              className="hero-sky-enter mx-auto flex w-full max-w-xl items-center gap-3 rounded-2xl border border-white/30 bg-black/55 px-4 py-3 shadow-lg backdrop-blur-md sm:ml-10"
+              role="status"
+              aria-live="polite"
+            >
+              <Loader2
+                className="h-6 w-6 shrink-0 animate-spin text-sky-200 drop-shadow-[0_0_6px_rgba(255,255,255,0.7)]"
+                aria-hidden
+              />
+              <span className="text-sm font-medium tracking-wide text-white">
+                {t("cta.searchingFlights" as never)}
+              </span>
             </div>
           ) : null}
 
@@ -1055,7 +1146,7 @@ export function HeroChatFlow({
           {showConversationChips && step === "passengers" ? (
             <HeroPassengerBrowser
               disabled={loading}
-              onSelect={(label) => advanceToDatesFromPassengers(label)}
+              onSelect={(label) => handlePassengersSelect(label)}
             />
           ) : null}
 
@@ -1071,8 +1162,9 @@ export function HeroChatFlow({
           ) : null}
 
           {showConversationChips && step === "dates" && !showDatePicker ? (
-            <>
+            <div className="space-y-2">
               <QuickReplyChips
+                layout="grid"
                 disabled={loading}
                 options={DATE_CHIP_IDS.map((id) => ({
                   id,
@@ -1085,24 +1177,6 @@ export function HeroChatFlow({
                 disabled={loading}
                 onClick={handleToggleDatePicker}
               />
-            </>
-          ) : null}
-
-          {showDatePicker && step === "dates" ? (
-            <div className="hero-chips-enter space-y-2 pl-0 sm:pl-2">
-              <HeroDateRangeCalendar
-                lang={lang}
-                confirmLabel={t("heroChat.confirm" as never)}
-                disabled={loading}
-                onConfirm={handleDateRangeConfirm}
-              />
-              <div className="pl-10">
-                <PickExactDatesButton
-                  label={t("heroChat.pickExactDates" as never)}
-                  disabled={loading}
-                  onClick={handleToggleDatePicker}
-                />
-              </div>
             </div>
           ) : null}
 
@@ -1118,14 +1192,9 @@ export function HeroChatFlow({
           ) : null}
 
           {showConversationChips && step === "origin" ? (
-            <QuickReplyChips
-              disabled={loading}
-              options={ORIGIN_CHIP_IDS.map((id) => ({
-                id,
-                label: chipLabel("heroChat.origin", id),
-              }))}
-              onSelect={handleOriginSelect}
-            />
+            <div className="hero-chips-enter pl-0 sm:pl-10">
+              <OriginAirportPicker onConfirm={handleOriginPickerConfirm} />
+            </div>
           ) : null}
 
           {showConversationChips && step === "budget" && !isFlightsOnly ? (
@@ -1139,6 +1208,23 @@ export function HeroChatFlow({
             />
           ) : null}
         </div>
+
+        {showDatePicker && step === "dates" ? (
+          <div className="hero-chips-enter mt-3 space-y-2 pl-0 sm:pl-2">
+            <HeroDateRangeCalendar
+              lang={lang}
+              confirmLabel={t("heroChat.confirm" as never)}
+              disabled={loading}
+              onConfirm={handleDateRangeConfirm}
+            />
+            <PickExactDatesButton
+              label={t("heroChat.closeExactDates" as never)}
+              disabled={loading}
+              onClick={handleToggleDatePicker}
+            />
+          </div>
+        ) : null}
+        </>
       ) : null}
       </div>
 

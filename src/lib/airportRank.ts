@@ -1,3 +1,4 @@
+import { searchAirportCatalog } from "@/lib/airportCatalog";
 import type { PlaceSuggestion } from "@/lib/places.functions";
 
 /** Well-known hubs to surface when Duffel returns obscure homonyms (Sydney ≠ Sidney MT). */
@@ -88,13 +89,14 @@ export function rankAirportSuggestions(
   suggestions: PlaceSuggestion[],
 ): PlaceSuggestion[] {
   const injected = injectedForQuery(query);
+  const catalog = searchAirportCatalog(query, 8);
 
   const merged: PlaceSuggestion[] = [];
   const seen = new Set<string>();
 
-  for (const p of [...injected, ...suggestions]) {
+  for (const p of [...injected, ...catalog, ...suggestions]) {
     const key = p.iata.toUpperCase();
-    if (seen.has(key)) continue;
+    if (!/^[A-Z]{3}$/.test(key) || seen.has(key)) continue;
     seen.add(key);
     merged.push({ ...p, iata: key });
   }

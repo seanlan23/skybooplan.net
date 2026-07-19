@@ -62,17 +62,32 @@ export function formatHeroDateRangeLabel(range: DateRange, lang = "sl"): string 
 
 /** Parse hero chat date label — supports range "16. jun → 23. jun 2026" or month chips. */
 export function parseHeroDateRangeStart(label: string, lang = "sl"): string | null {
+  return parseHeroDateRange(label, lang)?.departDate ?? null;
+}
+
+/** Parse exact chat range label into depart + return ISO dates. */
+export function parseHeroDateRange(
+  label: string,
+  lang = "sl",
+): { departDate: string; returnDate?: string } | null {
   const trimmed = label.trim();
-  const rangeMatch = trimmed.match(/^(.+?)\s*→\s*(.+?)\s+(20\d{2})$/);
+  // Allow →, ->, en/em dashes between day-month parts.
+  const rangeMatch = trimmed.match(/^(.+?)\s*(?:→|->|–|—)\s*(.+?)\s+(20\d{2})$/);
   if (rangeMatch) {
-    const from = parseDayMonthWithYear(rangeMatch[1]!, Number.parseInt(rangeMatch[3]!, 10), lang);
-    return from ? toIsoDate(from) : null;
+    const year = Number.parseInt(rangeMatch[3]!, 10);
+    const from = parseDayMonthWithYear(rangeMatch[1]!, year, lang);
+    const to = parseDayMonthWithYear(rangeMatch[2]!, year, lang);
+    if (!from) return null;
+    return {
+      departDate: toIsoDate(from),
+      ...(to ? { returnDate: toIsoDate(to) } : {}),
+    };
   }
 
   const singleYear = trimmed.match(/^(.+?)\s+(20\d{2})$/);
   if (singleYear) {
     const from = parseDayMonthWithYear(singleYear[1]!, Number.parseInt(singleYear[2]!, 10), lang);
-    return from ? toIsoDate(from) : null;
+    return from ? { departDate: toIsoDate(from) } : null;
   }
 
   return null;

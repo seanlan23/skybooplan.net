@@ -8,6 +8,12 @@ describe("plannerInterests", () => {
     );
   });
 
+  it("formats German labels for AI wishes", () => {
+    expect(formatPlannerInterests(["beaches", "fun", "sights"], "de")).toBe(
+      "Traumstrände, viel Spaß, Sehenswürdigkeiten",
+    );
+  });
+
   it("requires at least 3 interests in UI constant", () => {
     expect(MIN_PLANNER_INTERESTS).toBe(3);
   });

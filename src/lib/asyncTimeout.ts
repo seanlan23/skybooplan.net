@@ -4,6 +4,54 @@ export const HTTP_API_TIMEOUT_MS = 30_000;
 /** Max wait for Gemini structured generation (single LLM call). */
 export const GEMINI_GENERATION_TIMEOUT_MS = 120_000;
 
+/** Abort itinerary stream if Gemini goes silent between partials. */
+export const GEMINI_STREAM_STALL_MS = 120_000;
+
+/** Absolute max for one itinerary stream (stall may fire earlier). */
+export const GEMINI_STREAM_HARD_MS = 240_000;
+
+/** Combine abort signals — aborts when any source signal aborts. */
+export function mergeAbortSignals(...signals: AbortSignal[]): AbortSignal {
+  const controller = new AbortController();
+  const onAbort = () => controller.abort();
+  for (const s of signals) {
+    if (s.aborted) {
+      controller.abort();
+      return controller.signal;
+    }
+    s.addEventListener("abort", onAbort, { once: true });
+  }
+  return controller.signal;
+}
+
+export type StallWatchdog = { signal: AbortSignal; bump: () => void; clear: () => void };
+
+/** Stall watchdog — aborts only when the upstream stream goes silent. */
+export function createStallWatchdog(stallMs: number, parent: AbortSignal): StallWatchdog {
+  const stall = new AbortController();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+
+  const clear = () => {
+    if (timer !== undefined) clearTimeout(timer);
+    timer = undefined;
+  };
+
+  const bump = () => {
+    clear();
+    timer = setTimeout(() => stall.abort(), stallMs);
+  };
+
+  const onParentAbort = () => {
+    clear();
+    stall.abort();
+  };
+  parent.addEventListener("abort", onParentAbort, { once: true });
+  if (parent.aborted) onParentAbort();
+  else bump();
+
+  return { signal: stall.signal, bump, clear };
+}
+
 export class OperationTimeoutError extends Error {
   readonly label: string;
   readonly timeoutMs: number;

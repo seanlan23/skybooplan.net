@@ -142,6 +142,31 @@ describe("curatedRoutes TH", () => {
     expect(route?.id).toBe("th-beaches-andaman");
   });
 
+  it("starts on Phuket when international arrival is HKT", () => {
+    const route = matchCuratedRoute(16, "HKT", ["beaches"], "phuket sproščeno");
+    expect(route?.id).toBe("th-phuket-andaman");
+    expect(route?.segments[0]?.[0]).toBe("Phuket");
+    expect(route?.segments.some(([c]) => c === "Bangkok")).toBe(false);
+  });
+
+  it("prompt for HKT forbids day-1 hop to Bangkok", () => {
+    const block = buildCuratedRoutePromptBlock({
+      nDays: 16,
+      destinationIata: "HKT",
+      priorities: ["beaches"],
+      wishes: "phuket",
+    });
+    expect(block).toMatch(/HKT/);
+    expect(block).toMatch(/Phuket/);
+    expect(block).toMatch(/Prepovedano: notranji let/i);
+  });
+
+  it("starts in Chiang Mai when arrival is CNX", () => {
+    const route = matchCuratedRoute(12, "CNX", ["sights"], "chiang mai");
+    expect(route?.id).toBe("th-chiangmai-north");
+    expect(route?.segments[0]?.[0]).toBe("Chiang Mai");
+  });
+
   it("uses train Bangkok → Kanchanaburi", () => {
     const leg = lookupCuratedTransportLeg("Bangkok", "Kanchanaburi");
     expect(leg?.type).toBe("train");

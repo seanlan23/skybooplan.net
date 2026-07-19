@@ -9,7 +9,7 @@ import {
 
 describe("getDestinationChipDisplay", () => {
   it("returns Slovenian names when lang is sl", () => {
-    const paris = HERO_DESTINATION_CHIPS[0]!;
+    const paris = HERO_DESTINATION_CHIPS.find((c) => c.id === "paris")!;
     const display = getDestinationChipDisplay(paris, (key) => translate("sl", key as never));
     expect(display.emoji).toBe("🗼");
     expect(display.name).toBe("Pariz");
@@ -17,7 +17,7 @@ describe("getDestinationChipDisplay", () => {
   });
 
   it("returns English names when lang is en", () => {
-    const japan = HERO_DESTINATION_CHIPS[4]!;
+    const japan = HERO_DESTINATION_CHIPS.find((c) => c.id === "japan")!;
     const display = getDestinationChipDisplay(japan, (key) => translate("en", key as never));
     expect(display.name).toBe("Japan");
     expect(display.label).toBe("🏯 Japan");

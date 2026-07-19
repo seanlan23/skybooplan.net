@@ -641,14 +641,9 @@ function Landing() {
       language: lang,
     });
 
-    if (mode === "all") {
-      window.setTimeout(() => {
-        document.getElementById("hero-ai-planner")?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
-      }, 120);
-    } else if (flightSearchOk) {
+    // Stay on flight cards after search — AI planner opens only when the user
+    // picks a flight ("Za AI načrt"), not automatically in "Vse skupaj" mode.
+    if (flightSearchOk || resolvedFlights.length > 0) {
       window.setTimeout(() => {
         document.getElementById("hero-chat-window")?.scrollIntoView({
           behavior: "smooth",
@@ -871,10 +866,11 @@ function Landing() {
       lastSearch?.to ||
       resolveDestinationIata(aiContext.destinationPlace || heroDreamPrompt || "") ||
       "";
+    // Keep the user's calendar range (e.g. 10 Nov) — offer return can be a shorter Make/Duffel slice.
     const departDate =
-      flight.depart_date || aiContext.departDate || lastSearch?.departDate || "";
+      aiContext.departDate || lastSearch?.departDate || flight.depart_date || "";
     const returnDate =
-      flight.return_date || aiContext.returnDate || lastSearch?.returnDate || undefined;
+      aiContext.returnDate || lastSearch?.returnDate || flight.return_date || undefined;
 
     const flightCtx =
       flight.outbound_depart && flight.outbound_arrive
@@ -1077,6 +1073,7 @@ function Landing() {
           ...groundTrip,
           language: ctx.language || lang,
           currency: planCurrency,
+          flightContext: ctx.flights,
         };
 
         const { plan, error: streamError } = await streamItinerary.start(streamInput);
@@ -1271,6 +1268,7 @@ function Landing() {
   const showHeroPlannerForm =
     heroSkyChatComplete &&
     heroChatMode === "all" &&
+    selectedHeroFlightId != null &&
     isActiveAiContext(aiContext) &&
     !lastPlannerForm &&
     !aiLoading &&

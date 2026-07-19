@@ -250,6 +250,65 @@ const TH_BEACHES_ANDAMAN: CuratedRoute = {
     "Tajska plaže: Bangkok → Ayutthaya → Chiang Mai → Krabi (Phi Phi) → Koh Lipe → Bangkok buffer ≥2 dni.",
 };
 
+/**
+ * South Thailand when the international flight lands at Phuket/Krabi.
+ * Must NOT start in Bangkok (that invents a bogus HKT→BKK day-1 hop).
+ */
+const TH_PHUKET_ANDAMAN: CuratedRoute = {
+  id: "th-phuket-andaman",
+  country: "TH",
+  hubIata: "HKT",
+  minDays: 8,
+  maxDays: 21,
+  priority: 28,
+  wishTest: /phuket|hkt|patong|kata|karon|rawai|andaman/i,
+  interests: ["beaches"],
+  segments: [
+    ["Phuket", 4],
+    ["Krabi", 0],
+    ["Koh Lipe", 0],
+    ["Phuket", 2],
+  ],
+  mustIncludeHighlights: [
+    "Old Phuket Town",
+    "Patong Beach",
+    "Koh Phi Phi",
+    "Maya Bay",
+    "Railay Beach",
+    "Koh Lipe",
+    "Sunrise Beach (Koh Lipe)",
+  ],
+  steer:
+    "Prihod HKT/KBV: Dan 1 = Phuket (ali Krabi). BREZ notranjega leta na Bangkok na dan 1. Andaman: Phuket → Krabi/Phi Phi → Koh Lipe → nazaj Phuket za mednarodni odhod. Bangkok samo če je odhod eksplicitno iz BKK.",
+};
+
+/** North Thailand when landing at Chiang Mai. */
+const TH_CHIANGMAI_NORTH: CuratedRoute = {
+  id: "th-chiangmai-north",
+  country: "TH",
+  hubIata: "CNX",
+  minDays: 8,
+  maxDays: 21,
+  priority: 28,
+  wishTest: /chiang mai|chiangmai|cnx|doi suthep|pai/i,
+  interests: ["sights", "nature"],
+  segments: [
+    ["Chiang Mai", 4],
+    ["Chiang Rai", 0],
+    ["Pai", 0],
+    ["Chiang Mai", 2],
+  ],
+  mustIncludeHighlights: [
+    "Doi Suthep",
+    "Old City Chiang Mai",
+    "Sunday Walking Street",
+    "White Temple",
+    "Pai Canyon",
+  ],
+  steer:
+    "Prihod CNX: Dan 1 = Chiang Mai. BREZ notranjega leta CNX→BKK na dan 1. Sever: Chiang Mai → Chiang Rai/Pai → nazaj Chiang Mai za odhod.",
+};
+
 /** Agency 16d: Java → Sulawesi/Toraja → Bali → Flores/Komodo → Jakarta. */
 const ID_GRAND_CIRCLE: CuratedRoute = {
   id: "id-grand-circle",
@@ -294,7 +353,16 @@ const AGENCY_ROUTES: CuratedRoute[] = [
   TH_CLASSIC_SHORT,
   TH_CLASSIC_CIRCLE,
   TH_BEACHES_ANDAMAN,
+  TH_PHUKET_ANDAMAN,
+  TH_CHIANGMAI_NORTH,
 ];
+
+/** Non-BKK Thailand arrival airports → start the trip there, not in Bangkok. */
+const TH_ARRIVAL_HUB_ROUTES: Record<string, CuratedRoute> = {
+  HKT: TH_PHUKET_ANDAMAN,
+  KBV: { ...TH_PHUKET_ANDAMAN, hubIata: "KBV", id: "th-krabi-andaman" },
+  CNX: TH_CHIANGMAI_NORTH,
+};
 
 function vnDefaultRoute(nDays: number, keys: string[]): CuratedRoute | null {
   if (nDays >= 9 && !keys.includes("beaches")) return VN_NORTH_SOUTH;
@@ -348,7 +416,16 @@ function idDefaultRoute(nDays: number, keys: string[], w: string): CuratedRoute 
   };
 }
 
-function thDefaultRoute(nDays: number, keys: string[]): CuratedRoute | null {
+function thDefaultRoute(
+  nDays: number,
+  keys: string[],
+  destinationIata?: string,
+): CuratedRoute | null {
+  const iata = (destinationIata ?? "").toUpperCase();
+  const arrivalHub = TH_ARRIVAL_HUB_ROUTES[iata];
+  if (arrivalHub && nDays >= arrivalHub.minDays && nDays <= arrivalHub.maxDays) {
+    return arrivalHub;
+  }
   if (keys.includes("beaches") && nDays >= 12) return TH_BEACHES_ANDAMAN;
   if (nDays >= 8 && nDays <= 9) return TH_CLASSIC_SHORT;
   if (nDays >= 10 && nDays <= 14) return TH_CLASSIC_CIRCLE;
@@ -438,6 +515,8 @@ function isRouteEligible(
   }
   if (route.id === "vn-north-south") return !tripCountries.includes("KH");
   if (route.id === "th-beaches-andaman" && route.wishTest?.test(w)) return true;
+  if (route.id === "th-phuket-andaman" || route.id === "th-krabi-andaman") return true;
+  if (route.id === "th-chiangmai-north") return true;
   if (route.id === "th-classic-circle") {
     return route.wishTest?.test(w) || (nDays >= 10 && /samet|otok/i.test(w));
   }
@@ -480,7 +559,7 @@ export function matchCuratedRoute(
       return hub;
     }
     const destCountry = lookupDestination(destinationIata)?.country;
-    if (destCountry === "TH") return thDefaultRoute(nDays, keys);
+    if (destCountry === "TH") return thDefaultRoute(nDays, keys, iata);
     if (destCountry === "VN" && !tripCountries.includes("KH")) {
       return vnDefaultRoute(nDays, keys);
     }
@@ -497,13 +576,30 @@ export function matchCuratedRoute(
     .map((r) => {
       let score = r.priority;
       if (r.wishTest?.test(w)) score += 50;
-      if (r.hubIata === iata) score += 8;
+      if (r.hubIata === iata) score += 40;
+      // Landing at Phuket/CNX must not pick Bangkok-first graphs.
+      if (
+        (iata === "HKT" || iata === "KBV" || iata === "CNX") &&
+        r.hubIata === "BKK"
+      ) {
+        score -= 60;
+      }
       if (r.interests?.some((i) => keys.includes(i))) score += 5;
       return { route: r, score };
     })
     .sort((a, b) => b.score - a.score);
 
-  return scored[0]?.route ?? null;
+  const best = scored[0]?.route ?? null;
+  const arrivalHub = TH_ARRIVAL_HUB_ROUTES[iata];
+  if (
+    arrivalHub &&
+    nDays >= arrivalHub.minDays &&
+    nDays <= arrivalHub.maxDays &&
+    (!best || best.hubIata === "BKK")
+  ) {
+    return arrivalHub;
+  }
+  return best;
 }
 
 export function lookupCuratedTransportLeg(
@@ -631,9 +727,19 @@ export function buildCuratedRoutePromptBlock(opts: {
     .map((b) => `  • Dan ${b.startDay}–${b.endDay}: ${b.city}`)
     .join("\n");
 
+  const arrivalCity = lookupDestination(opts.destinationIata)?.name;
+  const arrivalLock = arrivalCity
+    ? `
+PRIHODOVNO LETALIŠČE (PREDNOST PRED BLUEPRINTOM):
+- Mednarodni let pristane na ${opts.destinationIata} (${arrivalCity}).
+- Dan 1 MORA biti v ${arrivalCity}. Prepovedano: notranji let STRAN z ${opts.destinationIata} na dan 1 (npr. HKT→BKK, CNX→BKK).
+- Če bi blueprint predlagal drugo začetno mesto, začni v ${arrivalCity} in prilagodi vrstni red.`
+    : "";
+
   return `
 === KURIRANA POT (OBVEZNO — ima prednost pred splošnimi pravili o mestih) ===
 ${meta.steer}
+${arrivalLock}
 
 regionBlueprint — vsaka faza itinerar[] = ena baza; city mora ustrezati (NE podaljšuj enega mesta dlje):
 ${blueprintLines}
@@ -642,9 +748,9 @@ mustIncludeHighlights (vključi kot realne POI / aktivnosti):
 ${meta.mustIncludeHighlights.map((h) => `- ${h}`).join("\n")}
 
 Pravila kurirane poti:
-- Strogo sledi vrstnemu redu mest iz regionBlueprint — enosmerna pot, brez teleporta.
+- Strogo sledi vrstnemu redu mest iz regionBlueprint — enosmerna pot, brez teleporta — RAZEN če je v nasprotju s prihodovnim letališčem zgoraj.
 - Med fazami obvezno transportation[] (let/trajekt/vlak/kombi) in aktivnosti prevoza.
-- Hub mesto (npr. Bangkok, Manila) na začetku/koncu: kratka postavka za prilet/odlet — ne zapolni celotnega dopusta v enem mestu.
-- Število dni na mesto prilagodi na ${opts.nDays} dni skupaj, a NE spreminjaj vrstnega reda regij.
+- Hub mesto na začetku/koncu samo če je to mesto prihoda/odhoda mednarodnega leta — ne izmišljuj notranjega leta na hub.
+- Število dni na mesto prilagodi na ${opts.nDays} dni skupaj, a NE spreminjaj vrstnega reda regij (razen prihodovnega popravka).
 ===`;
 }

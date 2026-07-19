@@ -8,8 +8,8 @@ import {
   parseMakeSearchDates,
   parseMakeSearchDestination,
   parseMakeSearchFlights,
-  skyscannerUrlForMakeFlight,
   buildSkyscannerFlightUrl,
+  skyscannerUrlForMakeFlight,
   formatTravelDuration,
   parseDurationMinutes,
   pickTravelDurationRaw,
@@ -19,6 +19,11 @@ import {
   parseMakeSearchStatus,
   parseMakeSearchUserMessage,
   parseMakeWebhookBody,
+  repairMakeBrokenJson,
+  addMinutesToHm,
+  estimateArriveLocal,
+  elapsedMinutesBetween,
+  travelDurationMinutes,
   parseSearchRequestBody,
   tagMakeSearchFlightsWithOrigin,
   unwrapMakeSearchOffersPayload,
@@ -94,9 +99,163 @@ describe("parseMakeWebhookBody", () => {
       expect(isMakeAsyncAccepted(result.data)).toBe(true);
     }
   });
+
+  it("repairs Make empty-field JSON like offers:}", () => {
+    const broken = '{"key":"abc","status":"","offers":}';
+    expect(() => JSON.parse(broken)).toThrow();
+    const repaired = repairMakeBrokenJson(broken);
+    expect(JSON.parse(repaired)).toEqual({
+      key: "abc",
+      status: "",
+      offers: null,
+    });
+
+    const result = parseMakeWebhookBody(broken, 200);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.data).toEqual({
+        key: "abc",
+        status: "",
+        offers: null,
+      });
+      expect(isMakeAsyncAccepted(result.data)).toBe(false);
+    }
+  });
+});
+
+describe("addMinutesToHm", () => {
+  it("estimates arrival across midnight", () => {
+    expect(addMinutesToHm("22:10", 80)).toEqual({ time: "23:30", dayOffset: 0 });
+    expect(addMinutesToHm("23:30", 70)).toEqual({ time: "00:40", dayOffset: 1 });
+  });
+});
+
+describe("estimateArriveLocal", () => {
+  it("estimates arrival from real duration with timezone (MUC→HKT)", () => {
+    // 21:10 CET + 14h45 → 17:55 ICT (+1 day)
+    expect(
+      estimateArriveLocal({
+        departHm: "21:10",
+        departDate: "2026-10-26",
+        durationMinutes: 14 * 60 + 45,
+        fromIata: "MUC",
+        toIata: "HKT",
+      }),
+    ).toEqual({ time: "17:55", dayOffset: 1 });
+  });
+});
+
+describe("elapsedMinutesBetween / timezone", () => {
+  it("does not add timezone offset into travel time (MUC→HKT)", () => {
+    // Local clocks 21:10 → 17:55(+1) look like 20h45; real elapsed is 14h45.
+    expect(
+      elapsedMinutesBetween(
+        "2026-10-26T21:10:00",
+        "2026-10-27T17:55:00",
+        "MUC",
+        "HKT",
+      ),
+    ).toBe(14 * 60 + 45);
+  });
+
+  it("keeps naive gap when IATAs are missing", () => {
+    expect(
+      elapsedMinutesBetween("2026-10-26T21:10:00", "2026-10-27T17:55:00"),
+    ).toBe(20 * 60 + 45);
+  });
+});
+
+describe("travelDurationMinutes", () => {
+  it("fixes Make naive duration using local HH:mm + IATA (no arrive ISO)", () => {
+    // Provider times correct, duration field wrongly = wall-clock 20h45.
+    expect(
+      travelDurationMinutes({
+        departHm: "21:10",
+        arriveHm: "17:55",
+        departDate: "2026-10-26",
+        arriveDayOffset: 1,
+        fromIata: "MUC",
+        toIata: "HKT",
+        storedLabel: "20h 45m",
+      }),
+    ).toBe(14 * 60 + 45);
+  });
+
+  it("westbound New York uses timezone too (JFK→MUC)", () => {
+    // JFK 18:00 → MUC 08:00(+1); naive 14h, real ~8h (EDT UTC-4 → CEST UTC+2).
+    const mins = travelDurationMinutes({
+      departHm: "18:00",
+      arriveHm: "08:00",
+      departDate: "2026-07-10",
+      arriveDayOffset: 1,
+      fromIata: "JFK",
+      toIata: "MUC",
+      storedLabel: "14h",
+    });
+    expect(mins).toBeGreaterThan(7 * 60);
+    expect(mins).toBeLessThan(10 * 60);
+  });
 });
 
 describe("parseMakeSearchFlights", () => {
+  it("estimates arrive time when Make omits arrival_datetime", () => {
+    const result = parseMakeSearchFlights({
+      flights: [
+        {
+          origin_iata: "ZAG",
+          destination_iata: "SPU",
+          departure_datetime: "2026-10-26T14:35:00",
+          return_departure_datetime: "2026-11-09T12:05:00",
+          duration_outbound_minutes: 55,
+          duration_return_minutes: 55,
+          airline: { name: "Croatia Airlines", iata: "OU" },
+          price: { total: "109.00", currency: "EUR" },
+          stops_outbound: 0,
+          stops_return: 0,
+        },
+      ],
+    });
+    expect(result[0]).toMatchObject({
+      outbound_depart: "14:35",
+      outbound_arrive: "15:30",
+      inbound_depart: "12:05",
+      inbound_arrive: "13:00",
+      cena_eur: 109,
+      airline_iata: "OU",
+    });
+  });
+
+  it("keeps local arrive times and fixes duration with timezone (MUC→HKT)", () => {
+    const result = parseMakeSearchFlights({
+      flights: [
+        {
+          origin_iata: "MUC",
+          destination_iata: "HKT",
+          departure_datetime: "2026-10-26T21:10:00",
+          arrival_datetime: "2026-10-27T17:55:00",
+          return_departure_datetime: "2026-11-10T09:05:00",
+          return_arrival_datetime: "2026-11-10T17:55:00",
+          // Naive wall-clock field — must not win over TZ-aware elapsed.
+          duration_outbound_minutes: 20 * 60 + 45,
+          duration_return_minutes: 14 * 60 + 50,
+          airline: { name: "Etihad", iata: "EY" },
+          price: { total: "528.00", currency: "EUR" },
+          stops_outbound: 1,
+          stops_return: 1,
+        },
+      ],
+    });
+    expect(result[0]).toMatchObject({
+      outbound_depart: "21:10",
+      outbound_arrive: "17:55",
+      outbound_arrive_day_offset: 1,
+      outbound_duration: "14h 45m",
+      inbound_depart: "09:05",
+      inbound_arrive: "17:55",
+      inbound_duration: "14h 50m",
+    });
+  });
+
   it("parses a flights array from Make webhook JSON", () => {
     const result = parseMakeSearchFlights({
       flights: [
@@ -147,16 +306,15 @@ describe("parseMakeSearchFlights", () => {
       cena_eur: 669.91,
       prevoznik: "Turkish Airlines",
       postanki: "0",
-      badge: "Najboljsa vrednost",
+      // Value ranking always reassigns badges (ignores Make pre-set labels).
+      badge: "best",
       ai_povzetek: "",
       origin_iata: "LJU",
       destination_iata: "BKK",
       depart_date: "2026-10-15",
     });
     expect(result[0]?.odhod).toContain("2026");
-    expect(
-      skyscannerUrlForMakeFlight(result[0]!, 2),
-    ).toBe(
+    expect(skyscannerUrlForMakeFlight(result[0]!, 2)).toBe(
       "https://www.skyscanner.net/transport/flights/lju/bkk/261015/?adults=2",
     );
   });
@@ -195,6 +353,15 @@ describe("parseMakeSearchUserMessage", () => {
     });
   });
 
+  it("uses only the named chat origin and ignores GPS nearest airports", () => {
+    const parsed = parseMakeSearchUserMessage(
+      "Potovanje v Thailand, termin 26 Oct → 10 Nov 2026, iz Munich (MUC), tempo Relaxed",
+      ["HAJ", "BWE", "FRZ", "ENS", "MUC"],
+    );
+    expect(parsed.origin_airport).toBe("MUC");
+    expect(parsed.origin_airports).toEqual(["MUC"]);
+  });
+
   it("parses konec oktobra as late October departure", () => {
     const parsed = parseMakeSearchDates("Leti v Mehiko, konec oktobra", ref);
     expect(parsed.departure_date).toBe("2026-10-26");
@@ -227,6 +394,16 @@ describe("parseMakeSearchUserMessage", () => {
     expect(parseMakeSearchDestination("potovanje na južno tajsko (phuket)")).toBe("HKT");
     expect(parseMakeSearchDestination("južna tajska")).toBe("HKT");
     expect(parseMakeSearchDestination("jug tajske iz phuketa")).toBe("HKT");
+  });
+
+  it("does not use destination IATA in parentheses as origin (Phuket (HKT))", () => {
+    const parsed = parseMakeSearchUserMessage(
+      "Potovanje v Phuket (HKT), termin 26. okt → 10. nov 2026, 3 odrasli, iz Munich (MUC)",
+    );
+    expect(parsed.destination_airport).toBe("HKT");
+    expect(parsed.origin_airport).toBe("MUC");
+    expect(parsed.origin_airports).toEqual(["MUC"]);
+    expect(parsed.origin_airports).not.toContain("HKT");
   });
 
   it("does not treat Potovanje v … as destination IATA POT", () => {

@@ -442,8 +442,7 @@ async function searchSingleOriginViaMake(
   if (isMakeAsyncAccepted(webhook.data)) {
     return {
       ok: false,
-      error:
-        "Make.com je sprejel zahtevo brez podatkov o letih. Nastavite MAKE_STATUS_WEBHOOK_URL za polling ali sinhron webhook odgovor z offers.",
+      error: "heroSearch.makeStatusMissing",
       status: 502,
     };
   }
@@ -473,13 +472,23 @@ async function searchViaMakeWebhook(
 
   const origins = baseParsed.origin_airports
     .map((o) => o.trim().toUpperCase())
-    .filter((o) => /^[A-Z]{3}$/.test(o))
+    .filter((o) => /^[A-Z]{3}$/.test(o) && o !== dest)
     .slice(0, MAX_MULTI_ORIGIN_SEARCHES);
 
-  const uniqueOrigins = [...new Set(origins.length > 0 ? origins : [baseParsed.origin_airport])];
+  const uniqueOrigins = [
+    ...new Set(
+      (origins.length > 0 ? origins : [baseParsed.origin_airport])
+        .map((o) => o.trim().toUpperCase())
+        .filter((o) => /^[A-Z]{3}$/.test(o) && o !== dest),
+    ),
+  ];
+
+  if (uniqueOrigins.length === 0) {
+    return { ok: false, error: "heroSearch.originSameAsDestination", status: 422 };
+  }
 
   if (uniqueOrigins.length <= 1) {
-    const origin = uniqueOrigins[0] || baseParsed.origin_airport || "LJU";
+    const origin = uniqueOrigins[0]!;
     return searchSingleOriginViaMake(
       query,
       {
@@ -599,8 +608,7 @@ async function searchViaMakeWebhook(
   if (successful.length > 0) {
     return {
       ok: false,
-      error:
-        "Make.com je sprejel zahtevo brez podatkov o letih. Nastavite MAKE_STATUS_WEBHOOK_URL za polling ali sinhron webhook odgovor z offers.",
+      error: "heroSearch.makeStatusMissing",
       status: 502,
     };
   }
