@@ -1477,24 +1477,68 @@ const FALSE_IATA_TOKENS = new Set([
   "IZA", // "iz a…" fragments
 ]);
 
-export function parseMakeSearchDestination(text: string): string | null {
-  const upper = text.toUpperCase();
+/**
+ * Destination clause from hero Make queries — before "iz …" origins / dates pollute
+ * alias matching (e.g. "Potovanje v Manila … iz Milano (MXP)" must stay MNL, not MXP).
+ */
+function extractDestinationSegment(text: string): string | null {
+  const m =
+    text.match(
+      /(?:potovanje|leti)\s+(?:v|na)\s+(.+?)(?=,\s*(?:termin|iz|tempo|proračun|budget|odhod|\d+\s*odras)|$)/i,
+    ) ??
+    text.match(
+      /(?:trip|flights?)\s+to\s+(.+?)(?=,\s*(?:dates?|from|pace|budget|depart|\d+\s*adult)|$)/i,
+    );
+  const seg = m?.[1]?.trim();
+  return seg && seg.length > 0 ? seg : null;
+}
 
-  const arrowMatch = upper.match(/\b(?:→|->)\s*([A-Z]{3})\b/);
-  if (arrowMatch && !FALSE_IATA_TOKENS.has(arrowMatch[1]!)) return arrowMatch[1]!;
+function destinationFromChunk(chunk: string): string | null {
+  const upper = chunk.toUpperCase();
+
+  // "Manila (MNL)" / "Phuket (HKT)" — trust the label IATA when not an origin false-token.
+  const paren = upper.match(/\(([A-Z]{3})\)/);
+  if (paren && !FALSE_IATA_TOKENS.has(paren[1]!)) return paren[1]!;
 
   // Do NOT match bare "V/TO/IN + XXX" — Slovenian "Potovanje v …" false-positives (e.g. POT).
   const explicitIata = upper.match(/\b(?:DESTINACIJ[AO]|DESTINATION)\s+([A-Z]{3})\b/);
   if (explicitIata && !FALSE_IATA_TOKENS.has(explicitIata[1]!)) return explicitIata[1]!;
 
   for (const alias of DESTINATION_ALIASES) {
-    if (alias.pattern.test(text)) return alias.iata;
+    if (alias.pattern.test(chunk)) return alias.iata;
   }
 
   const looseIata = upper.match(/\b([A-Z]{3})\b/g);
   if (looseIata) {
     const found = looseIata.find((code) => !FALSE_IATA_TOKENS.has(code));
     if (found) return found;
+  }
+
+  return null;
+}
+
+export function parseMakeSearchDestination(text: string): string | null {
+  const segment = extractDestinationSegment(text);
+  if (segment) {
+    const fromSegment = destinationFromChunk(segment);
+    if (fromSegment) return fromSegment;
+  }
+
+  // Bare destination chips / short labels (no "Potovanje v …" wrapper).
+  const fromFull = destinationFromChunk(text);
+  if (fromFull) return fromFull;
+
+  // Last resort: "→ XXX" only when not a date arrow ("okt → 19. nov").
+  const upper = text.toUpperCase();
+  const arrowMatch = upper.match(/\b(?:→|->)\s*([A-Z]{3})\b/);
+  if (
+    arrowMatch &&
+    !FALSE_IATA_TOKENS.has(arrowMatch[1]!) &&
+    !/\b(?:OKT|OCT|NOV|DEC|JAN|FEB|MAR|APR|MAJ|MAY|JUN|JUL|AVG|AUG|SEP)\b/.test(
+      upper.slice(Math.max(0, (arrowMatch.index ?? 0) - 8), (arrowMatch.index ?? 0) + 12),
+    )
+  ) {
+    return arrowMatch[1]!;
   }
 
   return null;
