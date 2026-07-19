@@ -144,6 +144,20 @@ export function clearSession() {
   }
 }
 
+/**
+ * Clear only the AI plan fields — keep search draft, hero context, flights.
+ * Used by “Počisti načrt” so the user can generate a new plan without a full home reset.
+ */
+export function clearPlanFromSession() {
+  saveSession({
+    aiPlan: null,
+    aiSkeleton: null,
+    aiError: null,
+    aiGenStartedAt: null,
+    savedPlanId: null,
+  });
+}
+
 /** Mark the next landing mount (or same-page logo click) as an explicit home reset. */
 export function requestHomeReset(): void {
   if (typeof window === "undefined") return;

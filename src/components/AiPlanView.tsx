@@ -57,6 +57,7 @@ export function AiPlanView({
   stayInfo,
   protect = false,
   onDownloadClick,
+  onClearPlan,
   pax = 1,
   plannerWishes,
   plannerForm,
@@ -73,6 +74,8 @@ export function AiPlanView({
   stayInfo?: StayInfo;
   protect?: boolean;
   onDownloadClick?: () => void;
+  /** Clear persisted plan only (keep search / hero context). */
+  onClearPlan?: () => void;
   pax?: number;
   plannerWishes?: string;
   plannerForm?: AiPlannerSubmit | null;
@@ -463,7 +466,7 @@ export function AiPlanView({
     return <AiPlanLoader />;
   }
 
-  if (error) {
+  if (error && !plan) {
     return (
       <div className="mt-8 rounded-2xl border border-red-200 bg-red-50 p-5 text-red-700">
         {resolveErrorMessage(t, error)}
@@ -532,20 +535,41 @@ export function AiPlanView({
         </>
       )}
 
-      {onDownloadClick && (
+      {(onDownloadClick || onClearPlan) && (
         <div className="flex flex-col items-end gap-2 relative z-20">
-          <button
-            type="button"
-            onClick={onDownloadClick}
-            className="inline-flex items-center gap-2 rounded-xl bg-sky-500 px-5 py-2.5 text-sm font-semibold text-white shadow-md transition-shadow hover:bg-sky-600 hover:shadow-lg"
-          >
-            <span aria-hidden>⬇</span> {t("aiplan.downloadPdf" as never)}
-          </button>
-          <p className="text-xs text-slate-500 max-w-sm text-right">
-            {t("aiplan.pdfNotice" as never)}
-          </p>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {onClearPlan && !streaming ? (
+              <button
+                type="button"
+                onClick={onClearPlan}
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
+              >
+                {t("aiplan.clearPlan" as never)}
+              </button>
+            ) : null}
+            {onDownloadClick ? (
+              <button
+                type="button"
+                onClick={onDownloadClick}
+                className="inline-flex items-center gap-2 rounded-xl bg-sky-500 px-5 py-2.5 text-sm font-semibold text-white shadow-md transition-shadow hover:bg-sky-600 hover:shadow-lg"
+              >
+                <span aria-hidden>⬇</span> {t("aiplan.downloadPdf" as never)}
+              </button>
+            ) : null}
+          </div>
+          {onDownloadClick ? (
+            <p className="text-xs text-slate-500 max-w-sm text-right">
+              {t("aiplan.pdfNotice" as never)}
+            </p>
+          ) : null}
         </div>
       )}
+
+      {error ? (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          {resolveErrorMessage(t, error)}
+        </div>
+      ) : null}
 
       <div className="rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-6 shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">

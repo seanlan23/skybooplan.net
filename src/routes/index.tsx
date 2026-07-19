@@ -7,6 +7,7 @@ import {
   loadSession,
   saveSession,
   clearSession,
+  clearPlanFromSession,
   consumeHomeReset,
   purgeLegacySessionCache,
 } from "@/lib/sessionStore";
@@ -513,12 +514,18 @@ function Landing() {
   }, []);
 
   // Persist after hydration so a refresh never overwrites stored data with empty state.
+  // While streaming, prefer the live preview so a refresh keeps partial days.
   useEffect(() => {
     if (!sessionReady) return;
+    const preview = streamItinerary.previewPlan;
+    const planToPersist =
+      streamItinerary.isStreaming && preview?.days?.length
+        ? preview
+        : aiPlan;
     saveSession({
       searchDraft,
       lastSearch,
-      aiPlan,
+      aiPlan: planToPersist,
       aiSkeleton,
       aiError,
       aiContext: isActiveAiContext(aiContext) ? aiContext : null,
@@ -541,6 +548,8 @@ function Landing() {
     aiGenStartedAt,
     plannerMode,
     savedPlanId,
+    streamItinerary.previewPlan,
+    streamItinerary.isStreaming,
   ]);
 
   function beginNewSearch() {
@@ -553,6 +562,19 @@ function Landing() {
     setGenInterrupted(false);
     setSavedPlanId(null);
     streamItinerary.reset();
+  }
+
+  /** Clear AI plan only — keep search draft, hero context, and flight selection. */
+  function clearAiPlanOnly() {
+    setAiPlan(null);
+    setPreviewPhotoPlan(null);
+    setAiSkeleton(null);
+    setAiError(null);
+    setAiGenStartedAt(null);
+    setGenInterrupted(false);
+    setSavedPlanId(null);
+    streamItinerary.reset();
+    clearPlanFromSession();
   }
 
   function handleInspirationSelect(destination: string) {
@@ -1065,9 +1087,8 @@ function Landing() {
     const safeForm = normalizeLastPlannerForm(form) ?? form;
     setLastPlannerForm(safeForm);
     setHeroPlannerActive(true);
-    setAiPlan(null);
+    // Keep previous aiPlan until the new stream commits — refresh must not wipe it.
     setPreviewPhotoPlan(null);
-    setAiSkeleton(null);
     setAiError(null);
     streamItinerary.reset();
     setGenInterrupted(false);
@@ -1140,14 +1161,15 @@ function Landing() {
           { days: plan?.days.length ?? 0, error: streamError },
         );
 
+        if (plan?.days?.length) {
+          commitAiPlan(plan);
+          setSavedPlanId(null);
+        }
         if (streamError) {
           setAiError(streamError);
           return;
         }
-        if (plan?.days?.length) {
-          commitAiPlan(plan);
-          setSavedPlanId(null);
-        } else {
+        if (!plan?.days?.length) {
           setAiError(t("error.planInvalidFormat"));
         }
         return;
@@ -1318,12 +1340,15 @@ function Landing() {
   }
 
   const streamPreviewPlan = streamItinerary.previewPlan;
-  const displayPlan =
-    aiPlan ??
-    (streamPreviewPlan && previewPhotoPlan
+  const previewWithPhotos =
+    streamPreviewPlan && previewPhotoPlan
       ? mergePlanPhotos(streamPreviewPlan, previewPhotoPlan)
-      : streamPreviewPlan);
-  const isGeminiStreaming = streamItinerary.isStreaming && !aiPlan;
+      : streamPreviewPlan;
+  // While streaming, show live preview over the previous committed plan.
+  const displayPlan = streamItinerary.isStreaming
+    ? previewWithPhotos ?? aiPlan
+    : aiPlan ?? previewWithPhotos;
+  const isGeminiStreaming = streamItinerary.isStreaming;
 
   const showHeroPlannerForm =
     heroSkyChatComplete &&
@@ -1411,6 +1436,7 @@ function Landing() {
         buildWishes={buildWishes}
         normalizeLastPlannerForm={normalizeLastPlannerForm}
         onExpandFull={handleExpandFullPlan}
+        onClearPlan={clearAiPlanOnly}
         lastSearchPax={{
           adults: lastSearch?.adults ?? aiContext?.adults,
           childrenAges: lastSearch?.childrenAges ?? aiContext?.childrenAges,
@@ -1494,9 +1520,10 @@ function Landing() {
                   plan={displayPlan}
                   streaming={isGeminiStreaming}
                   expectedDayCount={streamItinerary.expectedDays}
-                  error={null}
+                  error={aiError}
                   pax={aiContext?.pax ?? 1}
                   protect={false}
+                  onClearPlan={clearAiPlanOnly}
                   onDownloadClick={
                     aiPlan
                       ? async () => {

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   PLAN_SCHEMA_VERSION,
+  clearPlanFromSession,
   clearSession,
   consumeHomeReset,
   loadSession,
@@ -95,6 +96,46 @@ describe("sessionStore cache invalidation", () => {
     };
     saveSession({ searchDraft: draft });
     expect(loadSession()?.searchDraft).toEqual(draft);
+  });
+
+  it("keeps aiPlan across partial session updates", () => {
+    const plan = {
+      destinationName: "New York",
+      days: [{ day: 1, city: "New York" }],
+    };
+    saveSession({ aiPlan: plan as never, searchDraft: { mode: "ai" as const, from: "VCE", to: "JFK", departDate: "2026-09-01", pax: 2 } });
+    saveSession({ aiError: "stream timeout — delni načrt" });
+    const s = loadSession();
+    expect(s?.aiPlan).toEqual(plan);
+    expect(s?.aiError).toMatch(/delni/);
+    expect(s?.searchDraft?.to).toBe("JFK");
+  });
+
+  it("clearPlanFromSession removes plan but keeps search draft", () => {
+    saveSession({
+      aiPlan: { destinationName: "Phuket", days: [] } as never,
+      aiSkeleton: { regions: [] } as never,
+      aiError: "x",
+      aiGenStartedAt: 123,
+      savedPlanId: "abc",
+      searchDraft: {
+        mode: "ai" as const,
+        from: "MUC",
+        to: "HKT",
+        departDate: "2026-10-26",
+        pax: 3,
+      },
+      aiContext: { from: "MUC", to: "HKT", departDate: "2026-10-26", pax: 3 },
+    });
+    clearPlanFromSession();
+    const s = loadSession();
+    expect(s?.aiPlan).toBeNull();
+    expect(s?.aiSkeleton).toBeNull();
+    expect(s?.aiError).toBeNull();
+    expect(s?.aiGenStartedAt).toBeNull();
+    expect(s?.savedPlanId).toBeNull();
+    expect(s?.searchDraft?.to).toBe("HKT");
+    expect(s?.aiContext?.to).toBe("HKT");
   });
 
   it("requestHomeReset is consumed once", () => {

@@ -25,6 +25,7 @@ type HeroAiPlanResultsProps = {
   buildWishes: (form: AiPlannerSubmit | null | undefined) => string;
   normalizeLastPlannerForm: (input: unknown) => AiPlannerSubmit | null;
   onExpandFull: () => void;
+  onClearPlan?: () => void;
   lastSearchPax?: { adults?: number; childrenAges?: number[]; rooms?: number };
 };
 
@@ -46,6 +47,7 @@ export function HeroAiPlanResults({
   buildWishes,
   normalizeLastPlannerForm,
   onExpandFull,
+  onClearPlan,
   lastSearchPax,
 }: HeroAiPlanResultsProps) {
   const { t } = useI18n();
@@ -92,9 +94,10 @@ export function HeroAiPlanResults({
               plan={displayPlan}
               streaming={isGeminiStreaming}
               expectedDayCount={streamExpectedDays}
-              error={null}
+              error={aiError}
               pax={aiContext?.pax ?? 1}
               protect={false}
+              onClearPlan={onClearPlan}
               onDownloadClick={
                 aiPlan
                   ? async () => {
