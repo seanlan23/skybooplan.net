@@ -13,6 +13,7 @@ import {
   formatTravelDuration,
   parseDurationMinutes,
   pickTravelDurationRaw,
+  scoreMakeSearchFlight,
   parseMakeSearchPassengers,
   flattenMakeDataStoreRecord,
   parseMakeSearchStatus,
@@ -493,7 +494,7 @@ describe("parseMakeSearchStatus", () => {
     expect(result.flights).toHaveLength(3);
     expect(result.flights[0]?.prevoznik).toBe("Air France");
     expect(result.flights[0]?.cena_eur).toBe(149.5);
-    expect(result.flights[0]?.badge).toBe("cheapest");
+    expect(result.flights[0]?.badge).toBe("best");
     expect(result.flights.map((f) => f.id)).toEqual([
       "off_cheap",
       "off_mid",
@@ -705,7 +706,45 @@ describe("mergeAndRankMakeSearchFlights", () => {
     ...partial,
   });
 
-  it("picks the global cheapest across origins and badges with hub codes", () => {
+  it("ranks by price + travel time, not raw cheapest marathon legs", () => {
+    const merged = mergeAndRankMakeSearchFlights(
+      [
+        flight({
+          id: "vie-marathon",
+          cena_eur: 517,
+          origin_iata: "VIE",
+          outbound_duration: "27h",
+          inbound_duration: "31h 30m",
+          duration_minutes: (27 + 31.5) * 60,
+        }),
+        flight({
+          id: "mxp-sane",
+          cena_eur: 603,
+          origin_iata: "MXP",
+          outbound_duration: "14h",
+          inbound_duration: "14h 20m",
+          duration_minutes: (14 + 14.333) * 60,
+        }),
+        flight({
+          id: "vie-ok",
+          cena_eur: 621,
+          origin_iata: "VIE",
+          outbound_duration: "13h 45m",
+          inbound_duration: "14h 20m",
+          duration_minutes: (13.75 + 14.333) * 60,
+        }),
+      ],
+      { showOriginBadge: true },
+    );
+
+    expect(merged.map((f) => f.id)).toEqual(["mxp-sane", "vie-ok", "vie-marathon"]);
+    expect(merged[0]?.badge).toMatch(/^best · MXP$/);
+    expect(scoreMakeSearchFlight(merged[0]!)).toBeLessThan(
+      scoreMakeSearchFlight(merged[2]!),
+    );
+  });
+
+  it("picks strong value across origins with hub badges", () => {
     const merged = mergeAndRankMakeSearchFlights(
       [
         flight({ id: "vie-cheap", cena_eur: 420, origin_iata: "VIE", duration_minutes: 900 }),
@@ -717,10 +756,8 @@ describe("mergeAndRankMakeSearchFlights", () => {
     );
 
     expect(merged).toHaveLength(3);
-    expect(merged.map((f) => f.id)).toEqual(["mxp-best", "vie-cheap", "vie-alt"]);
-    expect(merged[0]?.badge).toBe("cheapest · MXP");
-    expect(merged[1]?.badge).toBe("best_value · VIE");
-    expect(merged[2]?.badge).toBe("alternative · VIE");
+    expect(merged[0]?.badge).toMatch(/^best · /);
+    expect(merged.map((f) => f.id)).toContain("mxp-best");
   });
 
   it("dedupes identical offers before ranking", () => {

@@ -71,20 +71,25 @@ function localizeBadge(badge: string, t: (key: never) => string): string {
   const [keyPart, origin] = badge.split(" · ").map((s) => s.trim());
   const key = (keyPart || "").toLowerCase();
   const label =
-    key === "cheapest" || key.includes("najcenej")
-      ? t("results.cheapestBadge" as never)
-      : key === "best_value" || key.includes("vrednost") || key.includes("best value")
-        ? t("results.bestValueBadge" as never)
-        : key === "alternative" || key.includes("alternativa")
-          ? t("results.alternativeBadge" as never)
-          : keyPart || badge;
+    key === "best" || key === "najboljši" || key === "beste"
+      ? t("results.bestBadge" as never)
+      : key === "cheapest" || key.includes("najcenej") || key.includes("günstig")
+        ? t("results.cheapestBadge" as never)
+        : key === "best_value" || key.includes("vrednost") || key.includes("best value")
+          ? t("results.bestValueBadge" as never)
+          : key === "alternative" || key.includes("alternativa")
+            ? t("results.alternativeBadge" as never)
+            : keyPart || badge;
   return origin ? `${label} · ${origin}` : label;
 }
 
 function badgeClasses(badge: string): string {
   const lower = badge.toLowerCase();
-  if (lower.includes("najcenej") || lower.includes("cheap")) {
+  if (lower.includes("najcenej") || lower.includes("cheap") || lower.includes("günstig")) {
     return "bg-emerald-100 text-emerald-700";
+  }
+  if (lower.startsWith("best") || lower.includes("najbolj") || lower.includes("beste")) {
+    return "bg-sky-100 text-sky-800";
   }
   return "bg-sky-100 text-sky-700";
 }

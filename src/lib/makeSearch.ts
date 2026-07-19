@@ -221,11 +221,55 @@ function parseDuffelOfferAsMakeFlight(item: unknown, index: number): MakeSearchF
   };
 }
 
-/** Stable badge keys — UI translates via i18n. */
-const TOP_MAKE_FLIGHT_BADGES = ["cheapest", "best_value", "alternative"] as const;
+/** Stable badge keys — UI translates via i18n. Ranked by value, not raw price. */
+const TOP_MAKE_FLIGHT_BADGES = ["best", "best_value", "alternative"] as const;
 
 /** Max parallel Make/Duffel searches when user lists several departure airports. */
 export const MAX_MULTI_ORIGIN_SEARCHES = 5;
+
+/** Soft caps for long-haul legs (minutes). Above these, price alone must not win. */
+const LEG_OK_MINS = 18 * 60;
+const LEG_LONG_MINS = 22 * 60;
+const LEG_EXTREME_MINS = 26 * 60;
+
+function legMinutes(flight: MakeSearchFlight): { out: number; inn: number; total: number; worst: number } {
+  const out = parseDurationMinutes(flight.outbound_duration ?? "");
+  const inn = parseDurationMinutes(flight.inbound_duration ?? "");
+  const total =
+    flight.duration_minutes && flight.duration_minutes > 0
+      ? flight.duration_minutes
+      : out + inn;
+  const worst = Math.max(out, inn, 0);
+  return { out, inn, total, worst };
+}
+
+/**
+ * Skyscanner-style value score: price + time penalty.
+ * A €517 / 31h return loses to €603 / ~14h — nobody wants a day in PEK "for free".
+ */
+export function scoreMakeSearchFlight(flight: MakeSearchFlight): number {
+  const price = flight.cena_eur > 0 ? flight.cena_eur : 50_000;
+  const { total, worst } = legMinutes(flight);
+  const totalHours = total > 0 ? total / 60 : 0;
+  const worstHours = worst > 0 ? worst / 60 : totalHours;
+
+  // Baseline: ~€10 per hour of total travel (outbound+inbound).
+  let penalty = totalHours * 10;
+
+  if (worst > LEG_OK_MINS) {
+    penalty += ((worst - LEG_OK_MINS) / 60) * 45;
+  }
+  if (worst > LEG_LONG_MINS) {
+    penalty += ((worst - LEG_LONG_MINS) / 60) * 90;
+  }
+  if (worst > LEG_EXTREME_MINS) {
+    penalty += ((worst - LEG_EXTREME_MINS) / 60) * 220;
+  }
+
+  // Mild nudge so slightly longer but much cheaper still can win.
+  void worstHours;
+  return price + penalty;
+}
 
 export function selectTopMakeSearchFlights(
   flights: MakeSearchFlight[],
@@ -239,20 +283,30 @@ export function selectTopMakeSearchFlights(
     return flights;
   }
 
-  const ranked = [...flights]
-    .filter((f) => f.cena_eur > 0 || f.destinacija !== "—")
-    .sort((a, b) => {
-      // Price first, then shorter total travel time (user often cares about both).
-      if (a.cena_eur !== b.cena_eur) return a.cena_eur - b.cena_eur;
-      const da = a.duration_minutes ?? Number.POSITIVE_INFINITY;
-      const db = b.duration_minutes ?? Number.POSITIVE_INFINITY;
-      if (da !== db) return da - db;
-      return a.odhod.localeCompare(b.odhod);
-    })
-    .slice(0, 3);
+  const usable = [...flights].filter((f) => f.cena_eur > 0 || f.destinacija !== "—");
+
+  const ranked = [...usable].sort((a, b) => {
+    const sa = scoreMakeSearchFlight(a);
+    const sb = scoreMakeSearchFlight(b);
+    if (sa !== sb) return sa - sb;
+    const da = a.duration_minutes ?? Number.POSITIVE_INFINITY;
+    const db = b.duration_minutes ?? Number.POSITIVE_INFINITY;
+    if (da !== db) return da - db;
+    if (a.cena_eur !== b.cena_eur) return a.cena_eur - b.cena_eur;
+    return a.odhod.localeCompare(b.odhod);
+  }).slice(0, 3);
+
+  // Relabel: among top 3, put a true "cheapest" badge on the lowest price if not already #1.
+  const cheapestId = ranked.reduce(
+    (best, f) => (!best || f.cena_eur < best.cena_eur ? f : best),
+    null as MakeSearchFlight | null,
+  )?.id;
 
   return ranked.map((flight, index) => {
-    const base = TOP_MAKE_FLIGHT_BADGES[index] || `option_${index + 1}`;
+    let base: string = TOP_MAKE_FLIGHT_BADGES[index] || `option_${index + 1}`;
+    if (index > 0 && flight.id === cheapestId) {
+      base = "cheapest";
+    }
     const badge =
       opts?.showOriginBadge && flight.origin_iata
         ? `${base} · ${flight.origin_iata}`
@@ -260,7 +314,6 @@ export function selectTopMakeSearchFlights(
     return {
       ...flight,
       badge,
-      // Keep summary empty unless Make/Gemini provided a real one (don't echo the badge).
       ai_povzetek: flight.ai_povzetek?.trim() || "",
     };
   });
