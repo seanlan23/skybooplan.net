@@ -81,6 +81,43 @@ describe("tripMapModel", () => {
     expect(Math.abs(center![0] - 100.502)).toBeLessThan(0.05);
   });
 
+  it("resolveDayCenter keeps Tokyo sightseeing off HND/NRT runways", () => {
+    const d = day({
+      day: 4,
+      city: "Tokyo",
+      title: "Shinjuku in parki",
+      lat: 35.549, // HND
+      lng: 139.779,
+    });
+    const center = resolveDayCenter(d);
+    expect(center).not.toBeNull();
+    // Tokyo city ~139.65, not HND ~139.78
+    expect(Math.abs(center![0] - 139.65)).toBeLessThan(0.08);
+    expect(center![1]).toBeGreaterThan(35.65);
+  });
+
+  it("collectDayPins drops airport logistics on sightseeing days", () => {
+    const center: [number, number] = [139.65, 35.676];
+    const d = day({
+      day: 4,
+      city: "Tokyo",
+      title: "Tokyo sights",
+      lat: 35.676,
+      lng: 139.65,
+      mapPins: [
+        { name: "Prihod na letališče", lat: 35.549, lng: 139.779, category: "airport" },
+        { name: "Shinjuku Gyoen", lat: 35.685, lng: 139.71, category: "nature" },
+        { name: "Shinjuku Gyoen National Garden", lat: 35.6851, lng: 139.7102, category: "nature" },
+        { name: "Senso-ji", lat: 35.7148, lng: 139.7967, category: "sightseeing" },
+      ],
+    });
+    const pins = collectDayPins(d, center);
+    expect(pins.every((p) => p.category !== "airport")).toBe(true);
+    expect(pins.some((p) => /letališč|airport|haneda|narita/i.test(p.name))).toBe(false);
+    // Duplicate Shinjuku names merge
+    expect(pins.filter((p) => /shinjuku/i.test(p.name)).length).toBeLessThanOrEqual(1);
+  });
+
   it("collectDayPins caps count and stays near center", () => {
     const center: [number, number] = [98.3, 7.9];
     const d = day({
@@ -154,7 +191,7 @@ describe("tripMapModel", () => {
     expect(beach?.pins.some((x) => /railay/i.test(x.name))).toBe(true);
   });
 
-  it("cameraForDayView uses drone focus when provided", () => {
+  it("cameraForDayView stays on city center (ignores drone focus)", () => {
     const view = buildDayMapView(
       plan([
         day({
@@ -168,7 +205,6 @@ describe("tripMapModel", () => {
       1,
     )!;
     const cam = cameraForDayView(view, { focus: { lat: 7.82, lng: 98.3 } });
-    expect(cam.center).toEqual([98.3, 7.82]);
-    expect(cam.zoom).toBeGreaterThan(13);
+    expect(cam.center).toEqual(view.center);
   });
 });

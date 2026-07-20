@@ -71,7 +71,8 @@ const STYLE_STREETS = "mapbox://styles/mapbox/streets-v12";
 const STYLE_SATELLITE = "mapbox://styles/mapbox/satellite-streets-v12";
 const ROUTE_SOURCE = "skyboo-day-route";
 const ROUTE_LAYER = "skyboo-day-route-line";
-const CAMERA_MS = 1600;
+/** Slow, calm camera — never twitch between pins. */
+const CAMERA_MS = 2800;
 
 type MarkerEntry = { marker: mapboxgl.Marker; root: Root; id: string };
 
@@ -214,6 +215,14 @@ function TripMapInner({
     map.on("load", () => {
       readyRef.current = true;
       setBooting(false);
+      // Fix collapsed single-tile map when sticky column sizes late.
+      requestAnimationFrame(() => {
+        try {
+          map.resize();
+        } catch {
+          /* noop */
+        }
+      });
       setStyleEpoch((n) => n + 1);
     });
 
@@ -254,16 +263,18 @@ function TripMapInner({
       return;
     }
 
-    const key = `${activeDay}:${camera.center[0].toFixed(4)},${camera.center[1].toFixed(4)}:${camera.zoom}:${focusTarget?.key ?? 0}:${isPlaying ? "p" : "s"}`;
+    // Day + center only — ignore drone focus keys (they only highlight pins).
+    const key = `${activeDay}:${camera.center[0].toFixed(4)},${camera.center[1].toFixed(4)}:${camera.zoom}:${isPlaying ? "p" : "s"}`;
     if (lastCameraKeyRef.current === key) return;
     lastCameraKeyRef.current = key;
 
     map.stop();
-    map.flyTo({
+    map.easeTo({
       center: camera.center,
       zoom: camera.zoom,
       duration: CAMERA_MS,
       essential: true,
+      easing: (t) => 1 - Math.pow(1 - t, 3),
     });
   }, [camera, activeDay, focusTarget, isPlaying, styleEpoch]);
 

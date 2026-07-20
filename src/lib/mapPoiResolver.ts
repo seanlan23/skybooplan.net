@@ -265,6 +265,15 @@ export function shouldShowActivityOnMap(activity: Activity): boolean {
   const name = activity.name.trim();
   if (!name || /^prevoz:/i.test(name)) return false;
   if (/prosti dan|free day|raziskovanje okolice/i.test(name)) return false;
+  // Logistics / airport steps clutter the map and snap to runways.
+  if (activity.type === "TRANSPORT" || activity.transportType) return false;
+  if (
+    /^(odhod|departure|prihod na letališč|arrival at|check-?in|prevoz do hotela|transfer to hotel|mednarodni let|notranji let)\b/i.test(
+      name,
+    )
+  ) {
+    return false;
+  }
   return true;
 }
 

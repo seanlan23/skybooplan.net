@@ -1,7 +1,17 @@
 import { DESTINATION_BY_IATA } from "@/lib/destinationCoords";
 
-/** Known city centers — used when AI coords are wrong (multi-city trips). */
+/**
+ * Known city centers — used when AI coords are wrong (multi-city trips).
+ * Airport IATA entries come first as fallback; explicit city centers MUST win
+ * (otherwise Tokyo/HND/NRT overwrites tokyo city with runway coords).
+ */
 const REGION_COORDS: Record<string, { lat: number; lng: number }> = {
+  ...Object.fromEntries(
+    Object.values(DESTINATION_BY_IATA).map((m) => [
+      m.name.toLowerCase(),
+      { lat: m.lat, lng: m.lng },
+    ]),
+  ),
   bangkok: { lat: 13.756, lng: 100.502 },
   kanchanaburi: { lat: 14.022, lng: 99.532 },
   "ko samet": { lat: 12.555, lng: 101.451 },
@@ -114,12 +124,6 @@ const REGION_COORDS: Record<string, { lat: number; lng: number }> = {
   cancún: { lat: 21.161, lng: -86.851 },
   cancun: { lat: 21.161, lng: -86.851 },
   bali: { lat: -8.34, lng: 115.092 },
-  ...Object.fromEntries(
-    Object.values(DESTINATION_BY_IATA).map((m) => [
-      m.name.toLowerCase(),
-      { lat: m.lat, lng: m.lng },
-    ]),
-  ),
 };
 
 export function lookupRegionCoords(city: string): { lat: number; lng: number } | null {

@@ -1,8 +1,9 @@
 /**
  * Pure day-view model for the itinerary map.
- * One day → one center → few local pins. Routes never own the camera.
+ * One day → one city center → few local pins. Routes never own the camera.
+ * Airport hubs never steal sightseeing days (Tokyo ≠ HND/NRT).
  */
-import type { Activity, AiTripPlan, DayPlan } from "@/lib/aiPlan.functions";
+import type { AiTripPlan, DayPlan } from "@/lib/aiPlan.functions";
 import {
   normalizeMapPoiCategory,
   resolveMapPoiCategory,
@@ -18,68 +19,18 @@ import { lookupRegionCoords } from "@/lib/regionCoords";
 import { lookupPoiCoords } from "@/lib/tripGeo";
 import { haversineKm } from "@/lib/tripMapRoutes";
 
-const AIRPORT_HUB_IATAS = new Set([
-  "DMK",
-  "BKK",
-  "HKT",
-  "CNX",
-  "KBV",
-  "MUC",
-  "FRA",
-  "VIE",
-  "ZRH",
-]);
-
-function lookupHubByNameOrIata(text: string): { lat: number; lng: number } | null {
-  const raw = text.trim();
-  if (!raw) return null;
-  // Prefer explicit IATA tokens (MUC), not substrings inside words (INN in "dinner").
-  for (const m of raw.toUpperCase().matchAll(/\b([A-Z]{3})\b/g)) {
-    const meta = DESTINATION_BY_IATA[m[1]!];
-    if (meta) return { lat: meta.lat, lng: meta.lng };
-  }
-  const lower = raw.toLowerCase();
-  for (const meta of Object.values(DESTINATION_BY_IATA)) {
-    const name = meta.name.toLowerCase();
-    if (lower === name || lower.startsWith(`${name} `) || lower.includes(` ${name}`)) {
-      return { lat: meta.lat, lng: meta.lng };
-    }
-  }
-  return null;
-}
-
-function isAirportHubCoord(
-  coord: { lat: number; lng: number },
-  cityLabel: string,
-): boolean {
-  for (const code of AIRPORT_HUB_IATAS) {
-    const hub = DESTINATION_BY_IATA[code];
-    if (!hub) continue;
-    if (haversineKm([coord.lng, coord.lat], [hub.lng, hub.lat]) < 8) {
-      // City is the airport hub itself (e.g. departure day at MUC) → OK.
-      const city = cityLabel.toLowerCase();
-      if (city.includes(hub.name.toLowerCase()) || city.includes(code.toLowerCase())) {
-        return false;
-      }
-      // Bangkok city day with DMK coords → treat as airport pin, prefer city.
-      if (/bangkok|phuket|chiang mai|krabi|munich|wien|vienna/i.test(cityLabel)) {
-        return true;
-      }
-    }
-  }
-  return false;
-}
-
-export const MAX_DAY_PINS = 5;
+export const MAX_DAY_PINS = 4;
 /** Pins farther than this from the day center are dropped. */
-export const MAX_PIN_FROM_CENTER_KM = 80;
-/** Merge pins closer than this. */
-export const COLOCATE_KM = 0.55;
-export const DAY_VIEW_ZOOM = 11.8;
-export const PLAY_VIEW_ZOOM = 12.4;
-export const POI_FOCUS_ZOOM = 14.2;
+export const MAX_PIN_FROM_CENTER_KM = 55;
+/** Merge pins closer than this (stops duplicate stacks). */
+export const COLOCATE_KM = 1.2;
+export const DAY_VIEW_ZOOM = 11.5;
+export const PLAY_VIEW_ZOOM = 11.8;
+export const POI_FOCUS_ZOOM = 13.2;
 /** Inbound travel lines only when the leg is at least this long. */
 export const MIN_ROUTE_DRAW_KM = 40;
+/** Treat as airport runway if within this of a known hub. */
+const AIRPORT_SNAP_KM = 12;
 
 export type DayMapPin = {
   name: string;
@@ -129,54 +80,99 @@ export function normalizeMapLocationText(value: unknown): string {
     .trim();
 }
 
+/** True only for real travel/relocation days — not every day that mentions check-in. */
 export function isTravelDay(day: DayPlan): boolean {
   if (day.inFlightDay) return true;
   if ((day.transportation ?? []).some((t) => t.type === "flight" || t.type === "ferry")) {
     return true;
   }
-  const blob = `${day.title} ${day.morning} ${day.afternoon} ${day.evening} ${day.city ?? ""}`;
-  return /letalo|flight|airport|odlet|prilet|check-in|letališč|trajekt|ferry|transfer to|prevoz do/i.test(
-    blob,
+  const title = `${day.title} ${day.city ?? ""}`;
+  return /odhod|departure|prihod.*let|arrival.*flight|mednarodni let|notranji let|in-?flight|trajekt|ferry day/i.test(
+    title,
   );
+}
+
+/** IATA only — never match city name "Tokyo" to NRT runway coords. */
+function lookupIataHub(text: string): { lat: number; lng: number; code: string } | null {
+  for (const m of text.toUpperCase().matchAll(/\b([A-Z]{3})\b/g)) {
+    const code = m[1]!;
+    const meta = DESTINATION_BY_IATA[code];
+    if (meta) return { lat: meta.lat, lng: meta.lng, code };
+  }
+  return null;
+}
+
+function nearestAirportHub(coord: { lat: number; lng: number }): {
+  code: string;
+  lat: number;
+  lng: number;
+  km: number;
+} | null {
+  let best: { code: string; lat: number; lng: number; km: number } | null = null;
+  for (const [code, meta] of Object.entries(DESTINATION_BY_IATA)) {
+    const km = haversineKm([coord.lng, coord.lat], [meta.lng, meta.lat]);
+    if (km > AIRPORT_SNAP_KM) continue;
+    if (!best || km < best.km) best = { code, lat: meta.lat, lng: meta.lng, km };
+  }
+  return best;
+}
+
+function isAirportRunwayCoord(coord: { lat: number; lng: number }): boolean {
+  return nearestAirportHub(coord) != null;
+}
+
+function fuzzyNameKey(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9čšžćđäöüáéíóú\s]/gi, "")
+    .replace(/\b(the|a|an|hotel|temple|wat|plaža|beach)\b/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 28);
 }
 
 /**
  * Resolve the geographic center for a day.
- * City label wins over a stray airport/origin pin in AI lat/lng.
+ * City label wins; airport runways never win on sightseeing days.
  */
 export function resolveDayCenter(day: DayPlan): [number, number] | null {
   const city = normalizeMapLocationText(day.city);
   const focus = normalizeMapLocationText(day.focusName);
   const title = normalizeMapLocationText(day.title);
-  const known =
+  const travel = isTravelDay(day);
+
+  const cityKnown =
     (city ? lookupRegionCoords(city) : null) ??
     (focus ? lookupRegionCoords(focus) : null) ??
     (city ? lookupPoiCoords(city) : null) ??
-    (focus ? lookupPoiCoords(focus) : null) ??
-    lookupHubByNameOrIata(city) ??
-    lookupHubByNameOrIata(title) ??
-    lookupHubByNameOrIata(`${city} ${title}`);
+    (focus ? lookupPoiCoords(focus) : null);
+
+  // IATA hubs only when this is actually a flight day (MUC departure / NRT arrival).
+  const iataHub = travel
+    ? lookupIataHub(`${city} ${title}`) ?? lookupIataHub(title)
+    : null;
+
+  const known = cityKnown ?? (iataHub ? { lat: iataHub.lat, lng: iataHub.lng } : null);
 
   const ai =
     isValidMapCoord(day.lat, day.lng) ? ({ lat: day.lat, lng: day.lng } as const) : null;
 
   if (known && ai) {
     const dist = haversineKm([ai.lng, ai.lat], [known.lng, known.lat]);
-    // AI coords that disagree with the city name (Bangkok on a Munich day) → trust city.
-    if (dist > 75) return [known.lng, known.lat];
-    // Sightseeing in Bangkok with DMK/BKK runway coords → city center, not airport.
-    if (!isTravelDay(day) && isAirportHubCoord(ai, city || title)) {
-      return [known.lng, known.lat];
-    }
+    if (dist > 60) return [known.lng, known.lat];
+    if (!travel && isAirportRunwayCoord(ai)) return [known.lng, known.lat];
+    // Prefer city centroid over AI even when close — AI often dumps HND for "Tokyo".
+    if (!travel && cityKnown) return [cityKnown.lng, cityKnown.lat];
     return [ai.lng, ai.lat];
   }
   if (known) return [known.lng, known.lat];
-  if (ai) return [ai.lng, ai.lat];
+  if (ai && (travel || !isAirportRunwayCoord(ai))) return [ai.lng, ai.lat];
 
   for (const pin of day.mapPins ?? []) {
     if (!isValidMapCoord(pin.lat, pin.lng)) continue;
     const cat = normalizeMapPoiCategory(pin.category);
-    if (cat === "airport" && !isTravelDay(day)) continue;
+    if (cat === "airport" && !travel) continue;
+    if (!travel && isAirportRunwayCoord({ lat: pin.lat, lng: pin.lng })) continue;
     return [pin.lng, pin.lat];
   }
 
@@ -191,19 +187,31 @@ function isGenericCityPinName(name: string, city: string): boolean {
   return false;
 }
 
+function isLogisticsPinName(name: string): boolean {
+  return /^(odhod|departure|prihod|arrival|check-?in|prevoz|transfer|letališč|airport|mednarodni let|notranji let)\b/i.test(
+    name.trim(),
+  );
+}
+
 function pushPin(
   pins: DayMapPin[],
   center: [number, number],
   city: string,
   source: DayMapPin,
+  travel: boolean,
 ): void {
   if (!isValidMapCoord(source.lat, source.lng)) return;
   if (isGenericCityPinName(source.name, city)) return;
+  if (!travel && (source.category === "airport" || isLogisticsPinName(source.name))) return;
+  if (!travel && isAirportRunwayCoord({ lat: source.lat, lng: source.lng })) return;
   if (haversineKm(center, [source.lng, source.lat]) > MAX_PIN_FROM_CENTER_KM) return;
   if (pins.length >= MAX_DAY_PINS) return;
 
+  const nameKey = fuzzyNameKey(source.name);
   const existing = pins.find(
-    (p) => haversineKm([p.lng, p.lat], [source.lng, source.lat]) < COLOCATE_KM,
+    (p) =>
+      haversineKm([p.lng, p.lat], [source.lng, source.lat]) < COLOCATE_KM ||
+      (nameKey.length >= 5 && fuzzyNameKey(p.name) === nameKey),
   );
   if (existing) {
     if (source.name.trim().length > existing.name.trim().length) {
@@ -227,23 +235,28 @@ export function collectDayPins(day: DayPlan, center: [number, number]): DayMapPi
   for (const pin of day.mapPins ?? []) {
     if (!isValidMapCoord(pin.lat, pin.lng)) continue;
     const category = normalizeMapPoiCategory(pin.category);
-    if (category === "airport" && !travel) continue;
     const coords = resolveActivityCoordinates(
       { name: pin.name, lat: pin.lat, lng: pin.lng },
       day,
     );
     if (!coords) continue;
-    pushPin(pins, center, city, {
-      name: pin.name,
-      lat: coords.lat,
-      lng: coords.lng,
-      category,
-      description: pin.description,
-      arrivalTime: pin.arrivalTime,
-      departureTime: pin.departureTime,
-      estimatedCostEur: pin.estimatedCostEur,
-      imageUrl: pin.imageUrl,
-    });
+    pushPin(
+      pins,
+      center,
+      city,
+      {
+        name: pin.name,
+        lat: coords.lat,
+        lng: coords.lng,
+        category,
+        description: pin.description,
+        arrivalTime: pin.arrivalTime,
+        departureTime: pin.departureTime,
+        estimatedCostEur: pin.estimatedCostEur,
+        imageUrl: pin.imageUrl,
+      },
+      travel,
+    );
   }
 
   if (pins.length > 0) return pins;
@@ -252,6 +265,7 @@ export function collectDayPins(day: DayPlan, center: [number, number]): DayMapPi
   if (!slots) return pins;
   for (const act of [...slots.morning, ...slots.afternoon, ...slots.evening]) {
     if (!shouldShowActivityOnMap(act)) continue;
+    if (!travel && (act.transportType || act.type === "TRANSPORT")) continue;
     const coords = resolveActivityCoordinates(act, day);
     if (!coords) continue;
     const fuzzy = findActivityPinFuzzy(day, act);
@@ -262,18 +276,23 @@ export function collectDayPins(day: DayPlan, center: [number, number]): DayMapPi
       transportType: act.transportType,
       pinCategory: fuzzy?.category,
     });
-    if (category === "airport" && !travel) continue;
-    pushPin(pins, center, city, {
-      name: act.name,
-      lat: coords.lat,
-      lng: coords.lng,
-      category,
-      description: act.description,
-      arrivalTime: act.arrivalTime,
-      departureTime: act.departureTime,
-      estimatedCostEur: act.estimatedCostEur,
-      imageUrl: act.imageUrl ?? fuzzy?.imageUrl,
-    });
+    pushPin(
+      pins,
+      center,
+      city,
+      {
+        name: act.name,
+        lat: coords.lat,
+        lng: coords.lng,
+        category,
+        description: act.description,
+        arrivalTime: act.arrivalTime,
+        departureTime: act.departureTime,
+        estimatedCostEur: act.estimatedCostEur,
+        imageUrl: act.imageUrl ?? fuzzy?.imageUrl,
+      },
+      travel,
+    );
   }
 
   return pins;
@@ -284,9 +303,9 @@ function inferInboundMode(day: DayPlan, distKm: number): DayInboundRoute["mode"]
   if ((day.transportation ?? []).some((t) => t.type === "flight") || day.inFlightDay) {
     return "flight";
   }
-  const blob = `${day.title} ${day.morning}`;
-  if (/trajekt|ferry|boat|čoln/i.test(blob)) return "ferry";
-  if (/letalo|flight|airport|odlet|prilet/i.test(blob) || distKm > 900) return "flight";
+  const blob = `${day.title}`;
+  if (/trajekt|ferry/i.test(blob)) return "ferry";
+  if (/let|flight|airport/i.test(blob) || distKm > 900) return "flight";
   return "driving";
 }
 
@@ -301,16 +320,18 @@ export function buildDayMapView(
   if (!center) return null;
 
   const pins = collectDayPins(day, center);
-  const city = normalizeMapLocationText(day.city) || normalizeMapLocationText(day.focusName) || `Day ${day.day}`;
+  const city =
+    normalizeMapLocationText(day.city) ||
+    normalizeMapLocationText(day.focusName) ||
+    `Day ${day.day}`;
 
   let inboundRoute: DayInboundRoute | null = null;
-  if (isTravelDay(day) || activeDay > 1) {
+  if (isTravelDay(day)) {
     const prev = plan.days.find((d) => d.day === activeDay - 1);
     const prevCenter = prev ? resolveDayCenter(prev) : null;
     if (prevCenter) {
       const dist = haversineKm(prevCenter, center);
-      // Only draw a real relocation leg — never stretch sightseeing days across oceans.
-      if (dist >= MIN_ROUTE_DRAW_KM && (isTravelDay(day) || dist < 500)) {
+      if (dist >= MIN_ROUTE_DRAW_KM) {
         inboundRoute = {
           from: prevCenter,
           to: center,
@@ -320,26 +341,18 @@ export function buildDayMapView(
     }
   }
 
-  // Intercontinental inbound on a sightseeing day → drop the line entirely.
-  if (
-    inboundRoute &&
-    !isTravelDay(day) &&
-    haversineKm(inboundRoute.from, inboundRoute.to) > 500
-  ) {
-    inboundRoute = null;
-  }
-
   return { day: activeDay, city, center, pins, inboundRoute };
 }
 
-/** Camera target for a day — never uses route endpoints. */
+/**
+ * Camera always follows day city center.
+ * Drone/POI focus only highlights a pin — it must NOT yank the viewport (Layla-style).
+ */
 export function cameraForDayView(
   view: DayMapView,
   opts?: { playing?: boolean; focus?: { lat: number; lng: number } | null },
 ): { center: [number, number]; zoom: number } {
-  if (opts?.focus && isValidMapCoord(opts.focus.lat, opts.focus.lng)) {
-    return { center: [opts.focus.lng, opts.focus.lat], zoom: POI_FOCUS_ZOOM };
-  }
+  void opts?.focus;
   return {
     center: view.center,
     zoom: opts?.playing ? PLAY_VIEW_ZOOM : DAY_VIEW_ZOOM,
