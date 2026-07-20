@@ -84,12 +84,75 @@ type PdfLabels = {
   day: (n: number, end?: number) => string;
 };
 
-const BRAND = { r: 15, g: 23, b: 42 }; // slate-900
-const ACCENT = { r: 234, g: 88, b: 12 }; // brand orange
+const BRAND = { r: 15, g: 23, b: 42 }; // slate-900 header
+/** Match Logo.tsx — skybooplan brand blues (no orange). */
+const SKY = { r: 14, g: 165, b: 233 }; // #0EA5E9
+const SKY_DARK = { r: 2, g: 132, b: 199 }; // #0284C7
+const SKY_LIGHT = { r: 125, g: 211, b: 252 }; // #7DD3FC
+const ACCENT = SKY;
 const INK = { r: 30, g: 41, b: 59 };
 const MUTED = { r: 100, g: 116, b: 139 };
 const RULE = { r: 226, g: 232, b: 240 };
 const FONT = "DejaVuSans";
+
+/** Paper-plane mark from LogoMark (SVG 48×48 → PDF triangles). */
+function drawLogoMark(
+  doc: jsPDF,
+  x: number,
+  y: number,
+  size: number,
+) {
+  const s = size / 48;
+  const pt = (px: number, py: number): [number, number] => [x + px * s, y + py * s];
+  const tri = (
+    a: [number, number],
+    b: [number, number],
+    c: [number, number],
+    color: { r: number; g: number; b: number },
+  ) => {
+    doc.setFillColor(color.r, color.g, color.b);
+    doc.triangle(a[0], a[1], b[0], b[1], c[0], c[1], "F");
+  };
+  // Paths from Logo.tsx viewBox 0 0 48 48
+  tri(pt(8, 36), pt(40, 8), pt(40, 24), SKY);
+  tri(pt(8, 36), pt(40, 24), pt(22, 36), SKY_LIGHT);
+  tri(pt(22, 36), pt(40, 24), pt(40, 38), SKY_DARK);
+}
+
+function drawBrandWordmark(
+  doc: jsPDF,
+  x: number,
+  y: number,
+  opts: { size?: number; onDark?: boolean } = {},
+) {
+  const size = opts.size ?? 11;
+  const onDark = opts.onDark ?? false;
+  const ink = onDark ? { r: 255, g: 255, b: 255 } : INK;
+  try {
+    doc.setFont(FONT, "bold");
+  } catch {
+    doc.setFont("helvetica", "bold");
+  }
+  doc.setFontSize(size);
+  doc.setTextColor(ink.r, ink.g, ink.b);
+  doc.text("sky", x, y);
+  const skyW = doc.getTextWidth("sky");
+  try {
+    doc.setFont(FONT, "normal");
+  } catch {
+    doc.setFont("helvetica", "normal");
+  }
+  doc.setTextColor(SKY.r, SKY.g, SKY.b);
+  doc.text("boo", x + skyW, y);
+  const booW = doc.getTextWidth("boo");
+  try {
+    doc.setFont(FONT, "bold");
+  } catch {
+    doc.setFont("helvetica", "bold");
+  }
+  doc.setTextColor(ink.r, ink.g, ink.b);
+  doc.text("plan", x + skyW + booW, y);
+}
 
 const PROMO_RE =
   /\b(eSIM|esim|zavarovan|insurance|popust|discount|ekskluzivn[iae]?|exclusive)\b/i;
@@ -465,12 +528,18 @@ export async function generatePlanPdf(plan: PlanForPdf) {
   // ===== COVER =====
   doc.setFillColor(BRAND.r, BRAND.g, BRAND.b);
   doc.rect(0, 0, pageW, 168, "F");
-  doc.setFillColor(ACCENT.r, ACCENT.g, ACCENT.b);
+  doc.setFillColor(SKY.r, SKY.g, SKY.b);
   doc.rect(0, 168, pageW, 4, "F");
 
-  setFont("bold", 11, { r: 255, g: 255, b: 255 });
-  doc.setTextColor(255, 255, 255);
-  safeText(model.labels.brand, margin, 44);
+  const markSize = 22;
+  drawLogoMark(doc, margin, 28, markSize);
+  drawBrandWordmark(doc, margin + markSize + 8, 44, { size: 14, onDark: true });
+  setFont("normal", 9, { r: 186, g: 230, b: 253 });
+  doc.setTextColor(186, 230, 253);
+  const brandTag = model.labels.brand.includes("Potovalni")
+    ? "Potovalni načrt"
+    : "Travel plan";
+  safeText(brandTag, margin + markSize + 8, 58);
 
   setFont("bold", 26, { r: 255, g: 255, b: 255 });
   doc.setTextColor(255, 255, 255);
@@ -479,7 +548,7 @@ export async function generatePlanPdf(plan: PlanForPdf) {
     contentW,
   ) as string[];
   for (let i = 0; i < Math.min(3, titleLines.length); i++) {
-    safeText(titleLines[i]!, margin, 88 + i * 28);
+    safeText(titleLines[i]!, margin, 96 + i * 28);
   }
 
   setFont("normal", 12, { r: 255, g: 255, b: 255 });
@@ -602,8 +671,9 @@ export async function generatePlanPdf(plan: PlanForPdf) {
   const pageCount = doc.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
+    drawLogoMark(doc, margin, pageH - 38, 12);
+    drawBrandWordmark(doc, margin + 16, pageH - 24, { size: 8.5, onDark: false });
     setFont("normal", 8.5, MUTED);
-    safeText("skybooplan.com", margin, pageH - 24);
     safeText(model.labels.pageOf(i, pageCount), pageW - margin, pageH - 24, {
       align: "right",
     });
