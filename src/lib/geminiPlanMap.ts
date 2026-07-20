@@ -13,6 +13,7 @@ import {
   normalizeMapPoiCategory,
   resolveMapPoiCategory,
 } from "@/lib/mapPoiCategory";
+import { finalizeItineraryMapCoords } from "@/lib/itineraryMapModel";
 import { attachActivityCoordinates } from "@/lib/mapPoiResolver";
 import { stripMisplacedCityPois } from "@/lib/cityPoiGuard";
 import { lookupRegionCoords } from "@/lib/regionCoords";
@@ -877,6 +878,8 @@ export function enrichGeminiCatalogPlan(
   }
 
   plan.totalBudgetEur = computeTripTotalBudgetEur(plan.days, travelers);
+  // One map-coord pass: city centroids win; runway AI dumps stripped from sightseeing days.
+  finalizeItineraryMapCoords(plan);
 }
 
 export function isCatalogTripPlan(value: unknown): value is AiTripPlan {

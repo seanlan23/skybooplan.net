@@ -1,6 +1,6 @@
 import { memo, useRef } from "react";
 import { Pause, Play } from "lucide-react";
-import { TripMap, type MapFocusTarget } from "@/components/TripMap";
+import { TripMap } from "@/components/TripMap";
 import type { AiTripPlan } from "@/lib/aiPlan.functions";
 import type { PoiDetailsData } from "@/lib/poiDetails.types";
 import { useI18n } from "@/lib/i18n";
@@ -9,8 +9,8 @@ type Props = {
   plan: AiTripPlan;
   activeDay: number;
   hasCoords: boolean;
-  focusTarget: MapFocusTarget | null;
-  scrollSpyPaused: boolean;
+  /** Pin name highlight only — never moves camera. */
+  highlightPoiName: string | null;
   onDaySelect: (day: number) => void;
   onOpenPoiDetails: (poi: PoiDetailsData) => void;
   streaming: boolean;
@@ -24,14 +24,13 @@ type Props = {
 
 /**
  * Stable map column — lives outside the day-card list so day switches never
- * unmount the Mapbox instance. Camera is owned solely by TripMap (active day).
+ * unmount the Mapbox instance. Camera follows activeDay only.
  */
 export const AiTripMapPanel = memo(function AiTripMapPanel({
   plan,
   activeDay,
   hasCoords,
-  focusTarget,
-  scrollSpyPaused,
+  highlightPoiName,
   onDaySelect,
   onOpenPoiDetails,
   streaming,
@@ -84,8 +83,7 @@ export const AiTripMapPanel = memo(function AiTripMapPanel({
         <TripMap
           plan={plan}
           activeDay={activeDay}
-          focusTarget={focusTarget}
-          scrollSpyPaused={scrollSpyPaused}
+          highlightPoiName={highlightPoiName}
           onDaySelect={onDaySelect}
           onOpenPoiDetails={onOpenPoiDetails}
           streaming={streaming}

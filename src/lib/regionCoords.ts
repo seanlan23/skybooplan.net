@@ -1,17 +1,8 @@
-import { DESTINATION_BY_IATA } from "@/lib/destinationCoords";
-
 /**
- * Known city centers — used when AI coords are wrong (multi-city trips).
- * Airport IATA entries come first as fallback; explicit city centers MUST win
- * (otherwise Tokyo/HND/NRT overwrites tokyo city with runway coords).
+ * Known city centers only — never seed from IATA runway coords.
+ * Airports live in destinationCoords and are for flights/weather, not map cities.
  */
 const REGION_COORDS: Record<string, { lat: number; lng: number }> = {
-  ...Object.fromEntries(
-    Object.values(DESTINATION_BY_IATA).map((m) => [
-      m.name.toLowerCase(),
-      { lat: m.lat, lng: m.lng },
-    ]),
-  ),
   bangkok: { lat: 13.756, lng: 100.502 },
   kanchanaburi: { lat: 14.022, lng: 99.532 },
   "ko samet": { lat: 12.555, lng: 101.451 },

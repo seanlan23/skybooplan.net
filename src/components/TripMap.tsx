@@ -1,6 +1,6 @@
 /**
- * Itinerary map — single camera owner, active-day pins only.
- * Routes may draw; they never drive fitBounds/zoom.
+ * Dumb itinerary map: Mapbox renderer only.
+ * Camera follows active-day city center. Pins/routes never own the camera.
  */
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -13,14 +13,14 @@ import type { AiTripPlan } from "@/lib/aiPlan.functions";
 import { MapCityMarker, MapPoiMarker } from "@/components/MapPoiMarker";
 import { mapPinToPoiDetails, type PoiDetailsData } from "@/lib/poiDetails.types";
 import { useI18n } from "@/lib/i18n";
-import { buildGreatCircleCoords } from "@/lib/tripMapRoutes";
+import { buildGreatCircleCoords } from "@/lib/geoMath";
+import { fetchDrivingDirections } from "@/lib/mapboxDirections";
 import {
-  buildDayMapView,
-  cameraForDayView,
-  isValidMapCoord,
-  type DayMapPin,
-  type DayMapView,
-} from "@/lib/tripMapModel";
+  buildMapDay,
+  cameraForMapDay,
+  type MapDay,
+  type MapDayPin,
+} from "@/lib/itineraryMapModel";
 
 export type ActivityMapFocus = {
   lat: number;
@@ -29,6 +29,7 @@ export type ActivityMapFocus = {
   poiName?: string;
 };
 
+/** Highlight-only focus — must never move the camera. */
 export type MapFocusTarget = ActivityMapFocus & {
   mode: "drone" | "day";
   key: number;
@@ -58,8 +59,8 @@ export function matchesPoiFocus(
 type Props = {
   plan: AiTripPlan;
   activeDay: number;
-  focusTarget?: MapFocusTarget | null;
-  scrollSpyPaused?: boolean;
+  /** Pin highlight only — ignored for camera. */
+  highlightPoiName?: string | null;
   onDaySelect?: (day: number) => void;
   onOpenPoiDetails?: (poi: PoiDetailsData) => void;
   streaming?: boolean;
@@ -71,7 +72,6 @@ const STYLE_STREETS = "mapbox://styles/mapbox/streets-v12";
 const STYLE_SATELLITE = "mapbox://styles/mapbox/satellite-streets-v12";
 const ROUTE_SOURCE = "skyboo-day-route";
 const ROUTE_LAYER = "skyboo-day-route-line";
-/** Slow, calm camera — never twitch between pins. */
 const CAMERA_MS = 2800;
 
 type MarkerEntry = { marker: mapboxgl.Marker; root: Root; id: string };
@@ -84,28 +84,20 @@ function clearMarkers(list: MarkerEntry[]) {
   list.length = 0;
 }
 
-function setRouteLine(
+function paintRoute(
   map: mapboxgl.Map,
-  view: DayMapView | null,
+  coordinates: [number, number][],
+  mode: string,
 ) {
-  const coords =
-    view?.inboundRoute != null
-      ? buildGreatCircleCoords(
-          view.inboundRoute.from,
-          view.inboundRoute.to,
-          view.inboundRoute.mode === "flight" ? 96 : 64,
-        )
-      : [];
-
   const data: GeoJSON.FeatureCollection = {
     type: "FeatureCollection",
     features:
-      coords.length >= 2
+      coordinates.length >= 2
         ? [
             {
               type: "Feature",
-              properties: { mode: view?.inboundRoute?.mode ?? "driving" },
-              geometry: { type: "LineString", coordinates: coords },
+              properties: { mode },
+              geometry: { type: "LineString", coordinates },
             },
           ]
         : [],
@@ -114,7 +106,7 @@ function setRouteLine(
   const src = map.getSource(ROUTE_SOURCE) as mapboxgl.GeoJSONSource | undefined;
   if (src) {
     src.setData(data);
-  } else if (coords.length >= 2) {
+  } else if (coordinates.length >= 2) {
     map.addSource(ROUTE_SOURCE, { type: "geojson", data });
     map.addLayer({
       id: ROUTE_LAYER,
@@ -125,21 +117,27 @@ function setRouteLine(
         "line-color": "#0ea5e9",
         "line-width": 3.5,
         "line-opacity": 0.85,
-        "line-dasharray": [1.5, 1.2],
+        "line-dasharray": mode === "flight" ? [1.5, 1.2] : [1, 0],
       },
     });
   }
 
   if (map.getLayer(ROUTE_LAYER)) {
-    map.setPaintProperty(ROUTE_LAYER, "line-opacity", coords.length >= 2 ? 0.85 : 0);
+    map.setPaintProperty(ROUTE_LAYER, "line-opacity", coordinates.length >= 2 ? 0.85 : 0);
+    if (coordinates.length >= 2) {
+      map.setPaintProperty(
+        ROUTE_LAYER,
+        "line-dasharray",
+        mode === "flight" ? [1.5, 1.2] : [1, 0],
+      );
+    }
   }
 }
 
 function TripMapInner({
   plan,
   activeDay,
-  focusTarget,
-  scrollSpyPaused = false,
+  highlightPoiName,
   onDaySelect,
   onOpenPoiDetails,
   isPlaying = false,
@@ -150,12 +148,11 @@ function TripMapInner({
   const markersRef = useRef<MarkerEntry[]>([]);
   const readyRef = useRef(false);
   const lastCameraKeyRef = useRef("");
-  const scrollSpyPausedRef = useRef(scrollSpyPaused);
-  scrollSpyPausedRef.current = scrollSpyPaused;
   const onDaySelectRef = useRef(onDaySelect);
   onDaySelectRef.current = onDaySelect;
   const onOpenPoiDetailsRef = useRef(onOpenPoiDetails);
   onOpenPoiDetailsRef.current = onOpenPoiDetails;
+  const tokenRef = useRef<string | null>(null);
 
   const tokenFn = useServerFn(getMapboxToken);
   const [token, setToken] = useState<string | null>(null);
@@ -164,23 +161,13 @@ function TripMapInner({
   const [isSatellite, setIsSatellite] = useState(false);
   const [styleEpoch, setStyleEpoch] = useState(0);
 
-  const dayView = useMemo(
-    () => buildDayMapView(plan, activeDay),
-    [plan, activeDay],
+  const dayView = useMemo(() => buildMapDay(plan, activeDay), [plan, activeDay]);
+
+  const camera = useMemo(
+    () => (dayView ? cameraForMapDay(dayView, { playing: isPlaying }) : null),
+    [dayView, isPlaying],
   );
 
-  const camera = useMemo(() => {
-    if (!dayView) return null;
-    const drone =
-      focusTarget?.mode === "drone" &&
-      focusTarget.day === activeDay &&
-      isValidMapCoord(focusTarget.lat, focusTarget.lng)
-        ? { lat: focusTarget.lat, lng: focusTarget.lng }
-        : null;
-    return cameraForDayView(dayView, { playing: isPlaying, focus: drone });
-  }, [dayView, focusTarget, activeDay, isPlaying]);
-
-  // Token
   useEffect(() => {
     let cancelled = false;
     void tokenFn().then((res) => {
@@ -191,13 +178,13 @@ function TripMapInner({
         return;
       }
       setToken(res.token);
+      tokenRef.current = res.token;
     });
     return () => {
       cancelled = true;
     };
-  }, [tokenFn, t]);
+  }, [tokenFn]);
 
-  // Create map once
   useEffect(() => {
     if (!token || !containerRef.current || mapRef.current) return;
 
@@ -205,7 +192,9 @@ function TripMapInner({
     const map = new mapboxgl.Map({
       container: containerRef.current,
       style: STYLE_STREETS,
-      center: dayView?.center ?? [14.5, 46.05],
+      center: dayView
+        ? ([dayView.center.lng, dayView.center.lat] as [number, number])
+        : [14.5, 46.05],
       zoom: 3,
       attributionControl: true,
     });
@@ -215,7 +204,6 @@ function TripMapInner({
     map.on("load", () => {
       readyRef.current = true;
       setBooting(false);
-      // Fix collapsed single-tile map when sticky column sizes late.
       requestAnimationFrame(() => {
         try {
           map.resize();
@@ -237,7 +225,6 @@ function TripMapInner({
 
   const appliedStyleRef = useRef(STYLE_STREETS);
 
-  // Style toggle (skip initial streets — map already loads that style)
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !readyRef.current) return;
@@ -250,20 +237,11 @@ function TripMapInner({
     });
   }, [isSatellite]);
 
-  // Single camera owner
+  // Camera: active day city center only
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !readyRef.current || !camera) return;
-    if (
-      scrollSpyPausedRef.current &&
-      !isPlaying &&
-      focusTarget?.mode !== "day" &&
-      focusTarget?.mode !== "drone"
-    ) {
-      return;
-    }
 
-    // Day + center only — ignore drone focus keys (they only highlight pins).
     const key = `${activeDay}:${camera.center[0].toFixed(4)},${camera.center[1].toFixed(4)}:${camera.zoom}:${isPlaying ? "p" : "s"}`;
     if (lastCameraKeyRef.current === key) return;
     lastCameraKeyRef.current = key;
@@ -276,19 +254,58 @@ function TripMapInner({
       essential: true,
       easing: (t) => 1 - Math.pow(1 - t, 3),
     });
-  }, [camera, activeDay, focusTarget, isPlaying, styleEpoch]);
+  }, [camera, activeDay, isPlaying, styleEpoch]);
 
-  // Markers + route for active day only
+  // Markers + inbound leg
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !readyRef.current) return;
 
     clearMarkers(markersRef.current);
-    setRouteLine(map, dayView);
+    let cancelled = false;
 
-    if (!dayView) return;
+    async function drawLeg(view: MapDay) {
+      if (!view.legIn) {
+        paintRoute(map!, [], "drive");
+        return;
+      }
+      const from: [number, number] = [view.legIn.from.lng, view.legIn.from.lat];
+      const to: [number, number] = [view.legIn.to.lng, view.legIn.to.lat];
+      const mode = view.legIn.mode;
 
-    // City pin
+      if (mode === "flight") {
+        if (!cancelled) {
+          paintRoute(map!, buildGreatCircleCoords(from, to, 96), "flight");
+        }
+        return;
+      }
+
+      const tok = tokenRef.current;
+      if (tok) {
+        const result = await fetchDrivingDirections(from, to, tok);
+        if (cancelled) return;
+        if (result.fromMapbox) {
+          paintRoute(map!, result.coordinates, mode);
+          return;
+        }
+      }
+      // Ferry / Directions miss → short arc (still not a camera fitBounds)
+      if (!cancelled) {
+        paintRoute(
+          map!,
+          mode === "ferry" ? buildGreatCircleCoords(from, to, 48) : [from, to],
+          mode,
+        );
+      }
+    }
+
+    if (!dayView) {
+      paintRoute(map, [], "drive");
+      return;
+    }
+
+    void drawLeg(dayView);
+
     {
       const el = document.createElement("div");
       el.className = "layla-city-marker layla-city-marker--active";
@@ -298,7 +315,7 @@ function TripMapInner({
           isActive
           dayNumber={dayView.day}
           imageUrl={plan.days.find((d) => d.day === dayView.day)?.imageUrl}
-          city={dayView.city}
+          city={dayView.cityLabel}
         />,
       );
       el.addEventListener("click", (e) => {
@@ -306,32 +323,31 @@ function TripMapInner({
         onDaySelectRef.current?.(dayView.day);
       });
       const marker = new mapboxgl.Marker({ element: el, anchor: "bottom" })
-        .setLngLat(dayView.center)
+        .setLngLat([dayView.center.lng, dayView.center.lat])
         .addTo(map);
       markersRef.current.push({ marker, root, id: `city-${dayView.day}` });
     }
-
-    const focusedName =
-      focusTarget?.mode === "drone" && focusTarget.day === activeDay
-        ? focusTarget.poiName
-        : undefined;
 
     for (const pin of dayView.pins) {
       const el = document.createElement("div");
       const root = createRoot(el);
       const focused = Boolean(
-        focusedName &&
+        highlightPoiName &&
           matchesPoiFocus(pin, {
-            poiName: focusedName,
-            lat: focusTarget!.lat,
-            lng: focusTarget!.lng,
+            poiName: highlightPoiName,
+            lat: pin.lat,
+            lng: pin.lng,
           }),
       );
+      // Prefer name match when highlight is set
+      const nameFocused =
+        Boolean(highlightPoiName) &&
+        pin.name.trim().toLowerCase() === highlightPoiName!.trim().toLowerCase();
       root.render(
         <MapPoiMarker
           category={pin.category}
           isActive
-          isFocused={focused}
+          isFocused={nameFocused || focused}
           name={pin.name}
           imageUrl={pin.imageUrl}
         />,
@@ -360,13 +376,14 @@ function TripMapInner({
       const marker = new mapboxgl.Marker({ element: el, anchor: "bottom" })
         .setLngLat([pin.lng, pin.lat])
         .addTo(map);
-      markersRef.current.push({ marker, root, id: `poi-${pin.name}` });
+      markersRef.current.push({ marker, root, id: pin.id });
     }
 
     return () => {
+      cancelled = true;
       clearMarkers(markersRef.current);
     };
-  }, [dayView, plan, focusTarget, activeDay, styleEpoch]);
+  }, [dayView, plan, highlightPoiName, styleEpoch]);
 
   if (error) {
     return (
@@ -412,14 +429,9 @@ function TripMapInner({
 function propsEqual(prev: Props, next: Props): boolean {
   if (prev.activeDay !== next.activeDay) return false;
   if (prev.isPlaying !== next.isPlaying) return false;
-  if (prev.scrollSpyPaused !== next.scrollSpyPaused) return false;
   if (prev.streaming !== next.streaming) return false;
-  const pf = prev.focusTarget;
-  const nf = next.focusTarget;
-  if ((pf?.key ?? 0) !== (nf?.key ?? 0)) return false;
-  if ((pf?.mode ?? "") !== (nf?.mode ?? "")) return false;
+  if ((prev.highlightPoiName ?? "") !== (next.highlightPoiName ?? "")) return false;
   if (prev.plan.days.length !== next.plan.days.length) return false;
-  // Cheap geo signature — rebuild when day centers / pins change
   const sig = (p: AiTripPlan) =>
     p.days
       .map((d) => {
@@ -435,5 +447,4 @@ function propsEqual(prev: Props, next: Props): boolean {
 
 export const TripMap = memo(TripMapInner, propsEqual);
 
-// Re-export model helpers used by tests / callers
-export type { DayMapPin, DayMapView };
+export type { MapDay, MapDayPin };

@@ -3,7 +3,7 @@ import { DESTINATION_BY_IATA } from "@/lib/destinationCoords";
 import { resolveMapPoiCategory, type MapPoiCategory } from "@/lib/mapPoiCategory";
 import { lookupPoiCoords } from "@/lib/tripGeo";
 import { lookupRegionCoords } from "@/lib/regionCoords";
-import { haversineKm } from "@/lib/tripMapRoutes";
+import { haversineKm } from "@/lib/geoMath";
 
 const MAX_DAY_PIN_KM = 45;
 

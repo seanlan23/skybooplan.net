@@ -132,6 +132,7 @@ import {
   resolveMultiCountryBlueprint,
 } from "@/lib/multiCountryRoutes";
 import { extractTripIntent, tripIntentPromptRule } from "@/lib/tripIntent";
+import { finalizeItineraryMapCoords } from "@/lib/itineraryMapModel";
 import { attachActivityCoordinates } from "@/lib/mapPoiResolver";
 import { lookupRegionCoords } from "@/lib/regionCoords";
 import { lookupDestination } from "@/lib/destinationCoords";
@@ -3326,7 +3327,7 @@ export function skeletonToPreviewPlan(
   const first = skeleton.regions[0];
   const days = buildSkeletonDayPlans(skeleton, opts);
   const pax = Math.max(1, opts?.pax ?? 1);
-  return {
+  const preview: AiTripPlan = {
     destinationName: skeleton.destinationName,
     summary: skeleton.summary,
     totalBudgetEur: computeTripTotalBudgetEur(days, pax),
@@ -3356,6 +3357,7 @@ export function skeletonToPreviewPlan(
           category: "sight" as const,
         })),
   };
+  return finalizeItineraryMapCoords(preview);
 }
 
 function normalizeSkeletonRegion(

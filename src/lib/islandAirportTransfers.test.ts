@@ -5,10 +5,6 @@ import {
   enrichIslandAirportTransfers,
   getIslandAirportAccessDef,
 } from "@/lib/islandAirportTransfers";
-import {
-  buildIslandAccessSegmentSpecs,
-  buildSegmentSpecs,
-} from "@/lib/tripMapRoutes";
 
 function day(partial: Partial<DayPlan> & Pick<DayPlan, "day" | "city">): DayPlan {
   return {
@@ -76,34 +72,5 @@ describe("islandAirportTransfers", () => {
     const t = detectIslandAccessTransition(prev, curr, "MPH");
     expect(t?.direction).toBe("arrival");
     expect(t?.def.id).toBe("boracay");
-  });
-});
-
-describe("tripMapRoutes island access", () => {
-  it("builds flight + driving + ferry segments for Boracay arrival", () => {
-    const def = getIslandAirportAccessDef("Boracay")!;
-    const hub: [number, number] = [120.984, 14.599];
-    const island: [number, number] = [121.9248, 11.9674];
-    const specs = buildIslandAccessSegmentSpecs(def, "arrival", hub, island, 2, "leg-1-2");
-
-    expect(specs).toHaveLength(3);
-    expect(specs.map((s) => s.mode)).toEqual(["flight", "driving", "ferry"]);
-    expect(specs[0]!.from).toEqual(hub);
-    expect(specs[1]!.mode).toBe("driving");
-    expect(specs[2]!.mode).toBe("ferry");
-    expect(specs[2]!.to).toEqual(island);
-  });
-
-  it("uses island access chain instead of straight Manila–Boracay line", () => {
-    const validDays = [
-      { day: day({ day: 1, city: "Manila", lat: 14.599, lng: 120.984 }), coord: [120.984, 14.599] as [number, number] },
-      {
-        day: day({ day: 2, city: "Boracay", lat: 11.9674, lng: 121.9248 }),
-        coord: [121.9248, 11.9674] as [number, number],
-      },
-    ];
-    const specs = buildSegmentSpecs(validDays, null, { destinationIata: "MPH" });
-    const modes = specs.map((s) => s.mode);
-    expect(modes).toEqual(["flight", "driving", "ferry"]);
   });
 });

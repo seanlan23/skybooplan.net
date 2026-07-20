@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AiTripPlan, DayPlan } from "@/lib/aiPlan.functions";
-import { type ActivityMapFocus, type MapFocusTarget } from "@/components/TripMap";
+import { type ActivityMapFocus } from "@/components/TripMap";
 import { AiTripMapPanel } from "@/components/AiTripMapPanel";
 import { AiPlanDayCard, StreamingDayPlaceholder, activityFocusKey } from "@/components/AiPlanDayCard";
 import { POIDetailsModal } from "@/components/POIDetailsModal";
@@ -116,8 +116,7 @@ export function AiPlanView({
   const [activeDay, setActiveDay] = useState<number>(1);
   const dayRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const planScrollRef = useRef<HTMLDivElement>(null);
-  const focusKeyRef = useRef(0);
-  const [mapFocus, setMapFocus] = useState<MapFocusTarget | null>(null);
+  const [highlightPoiName, setHighlightPoiName] = useState<string | null>(null);
   const [poiModal, setPoiModal] = useState<PoiDetailsData | null>(null);
   const [poiModalOpen, setPoiModalOpen] = useState(false);
   const [scrollSpyPaused, setScrollSpyPaused] = useState(false);
@@ -215,15 +214,8 @@ export function AiPlanView({
       isClickNavigatingRef.current = true;
       setScrollSpyPaused(true);
       setFocusedActivityKey(null);
-      focusKeyRef.current += 1;
+      setHighlightPoiName(null);
       setActiveDay(day.day);
-      setMapFocus({
-        lat: day.lat ?? 0,
-        lng: day.lng ?? 0,
-        day: day.day,
-        mode: "day",
-        key: focusKeyRef.current,
-      });
       scrollDayIntoView(day.day);
       if (clickNavTimerRef.current) clearTimeout(clickNavTimerRef.current);
       clickNavTimerRef.current = setTimeout(() => {
@@ -249,19 +241,12 @@ export function AiPlanView({
   const handleActivityFocus = useCallback(
     (coords: ActivityMapFocus) => {
       pauseScrollSpy(4000);
-      focusKeyRef.current += 1;
       setActiveDay(coords.day);
+      // Highlight pin only — camera stays on day city center.
+      setHighlightPoiName(coords.poiName ?? null);
       if (coords.poiName) {
         setFocusedActivityKey(activityFocusKey(coords.day, coords.poiName));
       }
-      setMapFocus({
-        lat: coords.lat,
-        lng: coords.lng,
-        day: coords.day,
-        poiName: coords.poiName,
-        mode: "drone",
-        key: focusKeyRef.current,
-      });
       if (typeof window !== "undefined" && window.innerWidth < 1024) {
         window.setTimeout(() => {
           document.getElementById("ai-trip-map")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -320,7 +305,7 @@ export function AiPlanView({
       }
       const firstDay = sortedDayNumbers[0] ?? 1;
       setActiveDay(firstDay);
-      setMapFocus(null);
+      setHighlightPoiName(null);
       setScrollSpyPaused(true);
       isClickNavigatingRef.current = true;
       return true;
@@ -373,7 +358,7 @@ export function AiPlanView({
   useEffect(() => {
     if (!plan?.days?.length || !tripSessionKey) return;
     setActiveDay(plan.days[0].day);
-    setMapFocus(null);
+    setHighlightPoiName(null);
   }, [tripSessionKey]);
 
   // Track active day while scrolling — IntersectionObserver + scroll fallback.
@@ -408,7 +393,11 @@ export function AiPlanView({
       for (const [day, el] of els) {
         const r = el.getBoundingClientRect();
         if (r.top <= lineY && r.bottom >= lineY) {
-          setActiveDay((prev) => (prev === day ? prev : day));
+          setActiveDay((prev) => {
+            if (prev === day) return prev;
+            setHighlightPoiName(null);
+            return day;
+          });
           return;
         }
         const center = (r.top + r.bottom) / 2;
@@ -418,7 +407,13 @@ export function AiPlanView({
           bestDay = day;
         }
       }
-      if (bestDay != null) setActiveDay((prev) => (prev === bestDay ? prev : bestDay));
+      if (bestDay != null) {
+        setActiveDay((prev) => {
+          if (prev === bestDay) return prev;
+          setHighlightPoiName(null);
+          return bestDay;
+        });
+      }
     };
 
     const onScroll = () => {
@@ -451,7 +446,13 @@ export function AiPlanView({
               bestDay = day;
             }
           }
-          if (bestDay != null) setActiveDay((prev) => (prev === bestDay ? prev : bestDay));
+          if (bestDay != null) {
+        setActiveDay((prev) => {
+          if (prev === bestDay) return prev;
+          setHighlightPoiName(null);
+          return bestDay;
+        });
+      }
         },
         {
           root,
@@ -753,8 +754,7 @@ export function AiPlanView({
             plan={plan}
             activeDay={activeDay}
             hasCoords={hasCoords}
-            focusTarget={mapFocus}
-            scrollSpyPaused={scrollSpyPaused || isPlaying}
+            highlightPoiName={highlightPoiName}
             onDaySelect={handleMapCitySelect}
             onOpenPoiDetails={handleActivityDetails}
             streaming={streaming}
