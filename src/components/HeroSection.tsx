@@ -4,6 +4,7 @@ import { HeroChatFlow } from "@/components/HeroChatFlow";
 import { HeroModeTabs } from "@/components/HeroModeTabs";
 import { HeroRotatingBackground } from "@/components/HeroRotatingBackground";
 import type { HeroChatCollected, HeroChatMode } from "@/lib/heroChatFlow";
+import type { HeroStaySearchParams } from "@/lib/heroStaySearch";
 
 export function HeroSection({
   onSearch,
@@ -17,6 +18,7 @@ export function HeroSection({
   onSelectFlightForAiPlan,
   flightSearchMeta = null,
   flightAdults = 1,
+  staySearch = null,
 }: {
   onSearch: (query: string, collected: HeroChatCollected, mode: HeroChatMode) => void;
   loading?: boolean;
@@ -34,6 +36,7 @@ export function HeroSection({
     returnDate?: string;
   } | null;
   flightAdults?: number;
+  staySearch?: HeroStaySearchParams | null;
 }) {
   const { t } = useI18n();
   const [mode, setMode] = useState<HeroChatMode>("all");
@@ -89,6 +92,7 @@ export function HeroSection({
           onSelectFlightForAiPlan={onSelectFlightForAiPlan}
           flightSearchMeta={flightSearchMeta}
           flightAdults={flightAdults}
+          staySearch={staySearch}
         />
       </div>
     </section>

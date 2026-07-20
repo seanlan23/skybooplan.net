@@ -21,6 +21,7 @@ import { HeroDateRangeCalendar } from "@/components/HeroDateRangeCalendar";
 import { HeroDestinationAutocomplete } from "@/components/HeroDestinationAutocomplete";
 import {
   buildHeroMakeSearchQuery,
+  buildHeroStaysSearchQuery,
   createChatMessage,
   getDestinationChipDisplay,
   HERO_DESTINATION_CHIPS,
@@ -34,7 +35,9 @@ import {
   extractHeroChatPassengers,
   resolveHeroChatBootstrap,
 } from "@/lib/heroChatExtract";
+import type { HeroStaySearchParams } from "@/lib/heroStaySearch";
 import { FlightCard } from "@/components/FlightCard";
+import { HotelsSection } from "@/components/HotelsSection";
 import { HeroPassengerBrowser } from "@/components/HeroPassengerBrowser";
 import { HeroTripChecklist } from "@/components/HeroTripChecklist";
 import { OriginAirportPicker } from "@/components/OriginAirportPicker";
@@ -90,6 +93,8 @@ type HeroChatFlowProps = {
     returnDate?: string;
   } | null;
   flightAdults?: number;
+  /** When set, show Booking hotel results (Stays mode). */
+  staySearch?: HeroStaySearchParams | null;
 };
 
 function SkyAvatar() {
@@ -369,14 +374,19 @@ export function HeroChatFlow({
   onSelectFlightForAiPlan,
   flightSearchMeta = null,
   flightAdults = 1,
+  staySearch = null,
 }: HeroChatFlowProps) {
   const { t, lang } = useI18n();
   const isFlightsOnly = mode === "flights";
+  const isStaysOnly = mode === "stays";
+  /** Skip pace/budget — flights and stays go straight to results after party size. */
+  const isQuickSearchMode = isFlightsOnly || isStaysOnly;
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const searchSentRef = useRef(false);
   const flightsAnnouncedRef = useRef(false);
+  const staysAnnouncedRef = useRef(false);
 
   const [step, setStep] = useState<HeroChatStep>("destination");
   const [conversationStarted, setConversationStarted] = useState(false);
@@ -394,7 +404,9 @@ export function HeroChatFlow({
   const agentName = t("heroChat.agentName" as never);
   const isSearching = step === "searching";
   const showSearchLoader =
-    isSearching && flights.length === 0 && !searchError;
+    isSearching &&
+    !searchError &&
+    (isStaysOnly ? !staySearch : flights.length === 0);
   const inputDisabled = isSearching;
   const showTripChecklist = conversationStarted && mode === "all";
 
@@ -405,14 +417,14 @@ export function HeroChatFlow({
 
   const scrollToBottom = useCallback(() => {
     // While the search loader is up, freeze auto-scroll so the spinner stays in view.
-    if (step === "searching" && flights.length === 0 && !searchError) return;
+    if (showSearchLoader) return;
     window.requestAnimationFrame(() => {
       scrollRef.current?.scrollTo({
         top: scrollRef.current.scrollHeight,
         behavior: "smooth",
       });
     });
-  }, [step, flights.length, searchError]);
+  }, [showSearchLoader]);
 
   const appendMessages = useCallback(
     (...next: HeroChatMessage[]) => {
@@ -496,7 +508,10 @@ export function HeroChatFlow({
         if (bootOrigins.length > 0) {
           const originLabel = formatOriginSelection(bootOrigins);
           setCollected((prev) => ({ ...prev, origin: originLabel }));
-          if (isFlightsOnly) {
+          if (isStaysOnly) {
+            appendMessages(createChatMessage("ai", t("cta.searchingStays" as never)));
+            setStep("searching");
+          } else if (isFlightsOnly) {
             appendMessages(
               createChatMessage(
                 "ai",
@@ -512,6 +527,11 @@ export function HeroChatFlow({
             appendMessages(createChatMessage("ai", t("heroChat.pace.ask" as never)));
             setStep("pace");
           }
+          return;
+        }
+        if (isStaysOnly) {
+          appendMessages(createChatMessage("ai", t("cta.searchingStays" as never)));
+          setStep("searching");
           return;
         }
         setAfterOrigin(isFlightsOnly ? "searching" : "pace");
@@ -550,7 +570,7 @@ export function HeroChatFlow({
       }
       setStep("dates");
     },
-    [appendMessages, attachment, isFlightsOnly, lang, step, t],
+    [appendMessages, attachment, isFlightsOnly, isStaysOnly, lang, step, t],
   );
 
   useEffect(() => {
@@ -631,6 +651,17 @@ export function HeroChatFlow({
   useEffect(() => {
     if (step !== "searching" || searchSentRef.current) return;
 
+    // Stays: no origin airport — search Booking with city + dates + guests.
+    if (isStaysOnly) {
+      searchSentRef.current = true;
+      const data = {
+        ...(collected as HeroChatCollected),
+        attachment: attachment ?? collected.attachment,
+      } satisfies HeroChatCollected;
+      onSearch(buildHeroStaysSearchQuery(data), data, mode);
+      return;
+    }
+
     // Block HKT→HKT before Make/Duffel (destination IATA mistaken as origin).
     const safeOrigins = originsFromCollected(collected.destination, collected.origin);
     if (safeOrigins.length === 0) {
@@ -650,12 +681,13 @@ export function HeroChatFlow({
     } satisfies HeroChatCollected;
     const query = buildHeroMakeSearchQuery(data, mode);
     onSearch(query, data, mode);
-  }, [step, collected, attachment, onSearch, mode, appendMessages, t]);
+  }, [step, collected, attachment, onSearch, mode, appendMessages, t, isStaysOnly]);
 
   useEffect(() => {
     if (step === "destination") {
       searchSentRef.current = false;
       flightsAnnouncedRef.current = false;
+      staysAnnouncedRef.current = false;
     }
   }, [step]);
 
@@ -712,6 +744,11 @@ export function HeroChatFlow({
     setStep("searching");
   }
 
+  function startStaySearch() {
+    appendMessages(createChatMessage("ai", t("cta.searchingStays" as never)));
+    setStep("searching");
+  }
+
   function goToOriginStep(next: "searching" | "pace") {
     setAfterOrigin(next);
     appendMessages(createChatMessage("ai", t("heroChat.origin.ask" as never)));
@@ -729,6 +766,10 @@ export function HeroChatFlow({
         ...prev,
         dates: context.dates!.trim() || prev.dates || "",
       }));
+    }
+    if (isStaysOnly) {
+      startStaySearch();
+      return;
     }
     const known = originsFromCollected(context.destination, context.origin);
     if (known.length > 0) {
@@ -770,7 +811,7 @@ export function HeroChatFlow({
       askPassengers(dates);
       return;
     }
-    continueWithOptionalOrigin(isFlightsOnly ? "searching" : "pace", {
+    continueWithOptionalOrigin(isQuickSearchMode ? "searching" : "pace", {
       destination: collected.destination,
       origin: collected.origin,
       dates,
@@ -811,7 +852,7 @@ export function HeroChatFlow({
     }
     if (codes.length > 0) rememberRecentOrigins(codes);
 
-    const next = isFlightsOnly ? "searching" : afterOrigin;
+    const next = isQuickSearchMode ? "searching" : afterOrigin;
     setCollected((prev) => ({
       ...prev,
       origin: label,
@@ -820,6 +861,10 @@ export function HeroChatFlow({
 
     if (next === "searching") {
       appendMessages(createChatMessage("user", label));
+      if (isStaysOnly) {
+        startStaySearch();
+        return;
+      }
       startFlightSearch({ origins: codes });
       return;
     }
@@ -849,7 +894,7 @@ export function HeroChatFlow({
     if (knownDates) {
       const dateLabel = knownDates;
       setCollected((prev) => ({ ...prev, dates: dateLabel, passengers: label }));
-      continueWithOptionalOrigin(isFlightsOnly ? "searching" : "pace", {
+      continueWithOptionalOrigin(isQuickSearchMode ? "searching" : "pace", {
         destination,
         origin: collected.origin,
         dates: dateLabel,
@@ -896,6 +941,10 @@ export function HeroChatFlow({
   function handleNightsSelect(_id: string, label: string) {
     appendMessages(createChatMessage("user", label));
     setCollected((prev) => ({ ...prev, nights: label }));
+    if (isStaysOnly) {
+      startStaySearch();
+      return;
+    }
     goToOriginStep(isFlightsOnly ? "searching" : "pace");
   }
 
@@ -1083,7 +1132,9 @@ export function HeroChatFlow({
               ? "max-h-40 overflow-y-auto sm:max-h-48"
               : showSearchLoader
                 ? "max-h-[min(420px,50vh)] overflow-y-hidden"
-                : "max-h-[min(420px,50vh)] overflow-y-auto",
+                : staySearch
+                  ? "max-h-[min(640px,70vh)] overflow-y-auto"
+                  : "max-h-[min(420px,50vh)] overflow-y-auto",
           )}
         >
           {messages.map((message) => (
@@ -1111,7 +1162,7 @@ export function HeroChatFlow({
                 aria-hidden
               />
               <span className="text-sm font-medium tracking-wide text-white">
-                {t("cta.searchingFlights" as never)}
+                {t((isStaysOnly ? "cta.searchingStays" : "cta.searchingFlights") as never)}
               </span>
             </div>
           ) : null}
@@ -1127,7 +1178,22 @@ export function HeroChatFlow({
             </div>
           ) : null}
 
-          {!loading && flights.length > 0 ? (
+          {!loading && staySearch ? (
+            <div className="hero-sky-enter mx-auto w-full max-w-xl overflow-hidden rounded-2xl bg-white p-3 shadow-lg sm:ml-10 sm:p-4">
+              <HotelsSection
+                city={staySearch.city}
+                checkIn={staySearch.checkIn}
+                checkOut={staySearch.checkOut}
+                stayInfo={{
+                  adults: staySearch.adults,
+                  childrenAges: staySearch.childrenAges,
+                  rooms: staySearch.rooms,
+                }}
+              />
+            </div>
+          ) : null}
+
+          {!loading && !staySearch && flights.length > 0 ? (
             <div className="hero-sky-enter mx-auto w-full max-w-xl space-y-2 pl-0 pr-1 sm:pl-10">
               {flights.map((flight, index) => (
                 <FlightCard
@@ -1150,7 +1216,7 @@ export function HeroChatFlow({
             />
           ) : null}
 
-          {showConversationChips && step === "pace" && !isFlightsOnly ? (
+          {showConversationChips && step === "pace" && !isQuickSearchMode ? (
             <QuickReplyChips
               disabled={loading}
               options={PACE_CHIP_IDS.map((id) => ({
@@ -1180,7 +1246,7 @@ export function HeroChatFlow({
             </div>
           ) : null}
 
-          {showConversationChips && step === "nights" && !isFlightsOnly ? (
+          {showConversationChips && step === "nights" && !isQuickSearchMode ? (
             <QuickReplyChips
               disabled={loading}
               options={NIGHT_CHIP_IDS.map((id) => ({
@@ -1197,7 +1263,7 @@ export function HeroChatFlow({
             </div>
           ) : null}
 
-          {showConversationChips && step === "budget" && !isFlightsOnly ? (
+          {showConversationChips && step === "budget" && !isQuickSearchMode ? (
             <QuickReplyChips
               disabled={loading}
               options={BUDGET_CHIP_IDS.map((id) => ({

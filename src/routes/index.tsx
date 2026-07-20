@@ -13,7 +13,11 @@ import {
 } from "@/lib/sessionStore";
 import { SiteHeader } from "@/components/SiteHeader";
 import { HeroSection } from "@/components/HeroSection";
-import type { HeroChatMode } from "@/lib/heroChatFlow";
+import type { HeroChatCollected, HeroChatMode } from "@/lib/heroChatFlow";
+import {
+  staySearchFromCollected,
+  type HeroStaySearchParams,
+} from "@/lib/heroStaySearch";
 import { HeroAiPlanResults } from "@/components/HeroAiPlanResults";
 import { SocialProofSection } from "@/components/SocialProofSection";
 import { TripInspiration } from "@/components/TripInspiration";
@@ -62,7 +66,6 @@ import { inferArriveDayOffset, parseMakeFlightRoute, type MakeSearchFlight } fro
 import { parsePostankiLeg } from "@/lib/returnFlightSummary";
 import { resolveHeroSearchData } from "@/lib/heroSearchPoll";
 import { heroChatToPlannerPayload, resolveDestinationIata } from "@/lib/heroChatPlanner";
-import type { HeroChatCollected } from "@/lib/heroChatFlow";
 import { useUserLocation } from "@/lib/hooks/useUserLocation";
 
 /** Full-screen fatal error — visible without devtools. */
@@ -300,6 +303,7 @@ function Landing() {
   const [heroDreamPrompt, setHeroDreamPrompt] = useState("");
   const [heroChatSeed, setHeroChatSeed] = useState<string | null>(null);
   const [heroFlights, setHeroFlights] = useState<MakeSearchFlight[]>([]);
+  const [heroStaySearch, setHeroStaySearch] = useState<HeroStaySearchParams | null>(null);
   const [selectedHeroFlightId, setSelectedHeroFlightId] = useState<string | null>(null);
   const [heroSearchLoading, setHeroSearchLoading] = useState(false);
   const [heroSearchError, setHeroSearchError] = useState<string | null>(null);
@@ -599,10 +603,62 @@ function Landing() {
     setHeroSearchLoading(true);
     setHeroSearchError(null);
     setHeroFlights([]);
+    setHeroStaySearch(null);
     setSelectedHeroFlightId(null);
     setError(null);
     beginNewSearch();
     setHeroDreamPrompt(trimmed);
+
+    // Stays-only: Booking.com search cards (same deep-link pattern as Skyscanner flights).
+    if (mode === "stays") {
+      try {
+        const stay = staySearchFromCollected(collected, lang);
+        if (!stay.city) {
+          setHeroSearchError("error.destinationRequired");
+          return;
+        }
+        setHeroStaySearch(stay);
+        setLastSearch({
+          mode: "stays",
+          from: "",
+          to: stay.city,
+          destinationPlace: stay.city,
+          departDate: stay.checkIn,
+          returnDate: stay.checkOut,
+          tripType: "return",
+          pax: stay.adults + stay.childrenAges.length,
+          adults: stay.adults,
+          children: stay.childrenAges.length,
+          childrenAges: stay.childrenAges,
+          rooms: stay.rooms,
+          language: lang,
+        });
+        setAiContext({
+          from: "",
+          to: stay.city,
+          destinationPlace: stay.city,
+          departDate: stay.checkIn,
+          returnDate: stay.checkOut,
+          pax: stay.adults + stay.childrenAges.length,
+          adults: stay.adults,
+          childrenAges: stay.childrenAges,
+          language: lang,
+        });
+        setPlannerMode("stays");
+        window.setTimeout(() => {
+          document.getElementById("hero-chat-window")?.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+          });
+        }, 120);
+      } catch (err) {
+        console.error("Stays search setup failed", err);
+        setHeroSearchError("heroSearch.error");
+      } finally {
+        setHeroSearchLoading(false);
+      }
+      return;
+    }
 
     let flightSearchOk = false;
     let resolvedFlights: MakeSearchFlight[] = [];
@@ -1371,6 +1427,7 @@ function Landing() {
           onSearch={handleHeroDreamSubmit}
           loading={heroSearchLoading}
           flights={heroFlights}
+          staySearch={heroStaySearch}
           searchError={heroSearchError}
           seedDestination={heroChatSeed}
           onSeedConsumed={() => setHeroChatSeed(null)}
@@ -1396,6 +1453,7 @@ function Landing() {
           }
           onModeChange={() => {
             setHeroFlights([]);
+            setHeroStaySearch(null);
             setSelectedHeroFlightId(null);
             setHeroSearchError(null);
             setHeroSearchAttempted(false);

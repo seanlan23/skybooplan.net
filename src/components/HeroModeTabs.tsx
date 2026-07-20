@@ -17,7 +17,8 @@ const TAB_LABEL_KEYS: Record<HeroChatMode, string> = {
   all: "heroMode.all",
 };
 
-const DISABLED_MODES = new Set<HeroChatMode>(["stays", "plan"]);
+/** Plan tab still gated; Stays is live (Booking search + deep links). */
+const DISABLED_MODES = new Set<HeroChatMode>(["plan"]);
 
 type HeroModeTabsProps = {
   value: HeroChatMode;

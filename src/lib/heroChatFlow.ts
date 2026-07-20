@@ -153,6 +153,17 @@ export function buildHeroFlightsSearchQuery(data: HeroChatCollected): string {
   return buildHeroMakeSearchQuery(data, "flights");
 }
 
+/** Query label for stays-only hero search (Booking). */
+export function buildHeroStaysSearchQuery(data: HeroChatCollected): string {
+  const dest = data.destination?.trim();
+  const parts: string[] = [];
+  if (dest) parts.push(`Nastanitve v ${dest}`);
+  if (data.dates?.trim()) parts.push(`termin ${data.dates.trim()}`);
+  if (data.passengers?.trim()) parts.push(data.passengers.trim());
+  if (data.nights?.trim()) parts.push(data.nights.trim());
+  return parts.join(", ");
+}
+
 /** Natural-language query for Make.com / hero search from whatever the chat collected. */
 export function buildHeroMakeSearchQuery(
   data: HeroChatCollected,
@@ -161,7 +172,13 @@ export function buildHeroMakeSearchQuery(
   const dest = data.destination?.trim();
   const parts: string[] = [];
   if (dest) {
-    parts.push(mode === "flights" ? `Leti v ${dest}` : `Potovanje v ${dest}`);
+    parts.push(
+      mode === "flights"
+        ? `Leti v ${dest}`
+        : mode === "stays"
+          ? `Nastanitve v ${dest}`
+          : `Potovanje v ${dest}`,
+    );
   }
   if (data.dates?.trim()) parts.push(`termin ${data.dates.trim()}`);
   if (data.passengers?.trim()) parts.push(data.passengers.trim());
