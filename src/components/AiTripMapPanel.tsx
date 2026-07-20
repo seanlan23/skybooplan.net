@@ -24,7 +24,7 @@ type Props = {
 
 /**
  * Stable map column — lives outside the day-card list so day switches never
- * unmount the Mapbox instance. TripMap itself is memoized on geo props.
+ * unmount the Mapbox instance. Camera is owned solely by TripMap (active day).
  */
 export const AiTripMapPanel = memo(function AiTripMapPanel({
   plan,
