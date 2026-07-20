@@ -1318,7 +1318,7 @@ const DESTINATION_ALIASES: Array<{ pattern: RegExp; iata: string }> = [
       /\bphuket[aeu]?\b|\bhkt\b|\bju[gzž]n[aeo]?\s+tajsk|\bjug\s+tajsk|\bsouth(?:ern)?\s+thailand\b/i,
     iata: "HKT",
   },
-  { pattern: /\bkuala lumpur\b|\bkul\b/i, iata: "KUL" },
+  { pattern: /\bkuala lumpur\b|\bkul\b|\bmalezij[ao]\b|\bmalaysia\b/i, iata: "KUL" },
   { pattern: /\bcape town\b|\bcpt\b/i, iata: "CPT" },
   { pattern: /\bho chi minh city\b/i, iata: "SGN" },
   { pattern: /\btajsk[ao]\b|\bthailand\b|\bbangkok\b|\bbkk\b/i, iata: "BKK" },

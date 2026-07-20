@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   formatDestinationAirportPick,
+  resolveCountryDestinationHubs,
   searchDestinationAirports,
 } from "@/lib/popularDestinationAirports";
 
@@ -31,5 +32,26 @@ describe("searchDestinationAirports", () => {
         type: "airport",
       }),
     ).toEqual({ value: "Barcelona (BCN)", label: "Barcelona (BCN)" });
+  });
+
+  it.each([
+    ["egipt", ["CAI", "HRG"]],
+    ["Egypt", ["CAI", "HRG"]],
+    ["Malezija", ["KUL", "PEN"]],
+    ["malaysia", ["KUL", "PEN"]],
+    ["Indonezija", ["CGK", "DPS"]],
+    ["Indonesia", ["CGK", "DPS"]],
+    ["✈️ Indonezija", ["CGK", "DPS"]],
+    ["tajska", ["BKK", "HKT"]],
+    ["filipini", ["MNL", "CEB"]],
+    ["japonska", ["NRT", "HND"]],
+  ])("country %s returns ≥2 main hubs", (query, expected) => {
+    const hits = searchDestinationAirports(query);
+    const iatas = hits.map((h) => h.iata);
+    expect(iatas.length).toBeGreaterThanOrEqual(2);
+    for (const code of expected) {
+      expect(iatas).toContain(code);
+    }
+    expect(resolveCountryDestinationHubs(query).length).toBeGreaterThanOrEqual(2);
   });
 });

@@ -19,17 +19,12 @@ function mergeSuggestions(
   query: string,
   remote: PlaceSuggestion[],
 ): PlaceSuggestion[] {
-  const q = query.trim().toLowerCase();
+  // Local country→hubs first. Do NOT require Duffel city/name to contain the
+  // typed country word ("egipt" must keep Cairo/Hurghada even if city is English).
   const local = searchDestinationAirports(query, 8);
-  const remoteFiltered = remote.filter((s) => {
-    const iata = s.iata.toLowerCase();
-    const city = (s.city || "").toLowerCase();
-    const name = (s.name || "").toLowerCase();
-    return iata.startsWith(q) || city.includes(q) || name.includes(q);
-  });
   const seen = new Set<string>();
   const out: PlaceSuggestion[] = [];
-  for (const s of [...local, ...remoteFiltered]) {
+  for (const s of [...local, ...remote]) {
     const key = s.iata.toUpperCase();
     if (!/^[A-Z]{3}$/.test(key) || seen.has(key)) continue;
     seen.add(key);
