@@ -8,6 +8,8 @@ import {
   getAirportHub,
   type AirportHub,
 } from "@/lib/airportCatalog";
+import { suggestOriginHubs } from "@/lib/originGeo.functions";
+import { DEFAULT_ORIGIN_IATAS } from "@/lib/originHubsByGeo";
 import { searchDestinationAirports } from "@/lib/popularDestinationAirports";
 import { readRecentOrigins } from "@/lib/recentOrigins";
 import { searchPlaces, type PlaceSuggestion } from "@/lib/places.functions";
@@ -20,9 +22,6 @@ type OriginAirportPickerProps = {
   className?: string;
 };
 
-/** Main cities — city name first, one tap. */
-const PRIMARY_IATAS = ["LJU", "VIE", "ZAG", "MXP", "BUD", "MUC"] as const;
-
 /** Sensible “also check these” companions per home airport. */
 const NEARBY_BY_HOME: Record<string, string[]> = {
   LJU: ["VIE", "ZAG", "TRS"],
@@ -30,12 +29,36 @@ const NEARBY_BY_HOME: Record<string, string[]> = {
   ZAG: ["LJU", "VIE", "TRS"],
   MXP: ["VCE", "VIE", "ZRH"],
   BUD: ["VIE", "LJU", "ZAG"],
-  MUC: ["VIE", "FRA", "ZRH"],
-  FRA: ["MUC", "ZRH", "VIE"],
-  ZRH: ["MUC", "FRA", "MXP"],
+  MUC: ["FRA", "VIE", "ZRH"],
+  FRA: ["MUC", "DUS", "CGN"],
+  HAM: ["BER", "FRA", "DUS"],
+  BER: ["HAM", "FRA", "MUC"],
+  DUS: ["CGN", "FRA", "AMS"],
+  CGN: ["DUS", "FRA", "BRU"],
+  ZRH: ["MUC", "FRA", "BSL"],
+  GVA: ["ZRH", "LYS", "MXP"],
+  BSL: ["ZRH", "FRA", "GVA"],
   VCE: ["MXP", "LJU", "TRS"],
   TRS: ["LJU", "VCE", "VIE"],
+  CDG: ["ORY", "BRU", "AMS"],
+  LHR: ["LGW", "MAN", "AMS"],
+  AMS: ["BRU", "DUS", "CGN"],
+  PRG: ["VIE", "MUC", "BER"],
+  WAW: ["KRK", "BER", "VIE"],
 };
+
+function hubsFromIatas(iatas: readonly string[]): AirportHub[] {
+  const out: AirportHub[] = [];
+  const seen = new Set<string>();
+  for (const code of [...iatas, ...DEFAULT_ORIGIN_IATAS]) {
+    const hub = getAirportHub(code);
+    if (!hub || seen.has(hub.iata)) continue;
+    seen.add(hub.iata);
+    out.push(hub);
+    if (out.length >= 6) break;
+  }
+  return out;
+}
 
 function mergeSuggestions(
   local: PlaceSuggestion[],
@@ -69,6 +92,7 @@ export function OriginAirportPicker({ onConfirm, className }: OriginAirportPicke
   const placesFn = useServerFn(searchPlaces);
   const placesFnRef = useRef(placesFn);
   placesFnRef.current = placesFn;
+  const suggestOriginsFn = useServerFn(suggestOriginHubs);
 
   const [phase, setPhase] = useState<Phase>("pickCity");
   const [home, setHome] = useState<string | null>(null);
@@ -78,25 +102,38 @@ export function OriginAirportPicker({ onConfirm, className }: OriginAirportPicke
   const [remote, setRemote] = useState<PlaceSuggestion[]>([]);
   const [loading, setLoading] = useState(false);
   const [recent, setRecent] = useState<string[]>([]);
+  const [primaryIatas, setPrimaryIatas] = useState<string[]>([...DEFAULT_ORIGIN_IATAS]);
 
   useEffect(() => {
     setRecent(readRecentOrigins());
   }, []);
 
-  const primaryHubs = useMemo(
-    () =>
-      PRIMARY_IATAS.map((code) => getAirportHub(code)).filter((h): h is AirportHub => Boolean(h)),
-    [],
-  );
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await suggestOriginsFn();
+        if (cancelled || !res?.iatas?.length) return;
+        setPrimaryIatas(res.iatas);
+      } catch (err) {
+        console.warn("Origin geo suggest failed — using default hubs", err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [suggestOriginsFn]);
+
+  const primaryHubs = useMemo(() => hubsFromIatas(primaryIatas), [primaryIatas]);
 
   const recentHubs = useMemo(() => {
-    const primarySet = new Set<string>(PRIMARY_IATAS);
+    const primarySet = new Set(primaryIatas);
     return recent
       .filter((code) => !primarySet.has(code))
       .map((code) => getAirportHub(code))
       .filter((h): h is AirportHub => Boolean(h))
       .slice(0, 3);
-  }, [recent]);
+  }, [recent, primaryIatas]);
 
   const nearbyHubs = useMemo(() => {
     if (!home) return [];
