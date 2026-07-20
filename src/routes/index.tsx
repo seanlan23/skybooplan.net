@@ -1535,6 +1535,7 @@ function Landing() {
                               start_date: aiContext?.departDate ?? null,
                               end_date: aiContext?.returnDate ?? null,
                               itinerary: aiPlan as never,
+                              language: aiContext?.language,
                             });
                           } catch (e) {
                             console.error("PDF export failed", e);
