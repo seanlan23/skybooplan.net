@@ -8,6 +8,7 @@ import {
   Scripts,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
+import { Analytics } from "@vercel/analytics/react";
 import { Toaster } from "sonner";
 
 import appCss from "../styles.css?url";
@@ -139,6 +140,7 @@ function RootComponent() {
           <Outlet />
           <CookieConsentBanner />
           <Toaster richColors position="top-center" />
+          <Analytics />
         </AuthProvider>
       </I18nProvider>
     </QueryClientProvider>

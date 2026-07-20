@@ -53,6 +53,7 @@
     "@tanstack/router-plugin": "^1.167.28",
     "@turf/great-circle": "^7.3.5",
     "@turf/helpers": "^7.3.5",
+    "@vercel/analytics": "^2.0.1",
     "ai": "^6.0.197",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
