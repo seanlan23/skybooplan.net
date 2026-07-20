@@ -1,4 +1,5 @@
 import { lookupDestination } from "@/lib/destinationCoords";
+import { formatSlHours } from "@/lib/flightScheduling";
 import { normalizePlanLangCode, type PlanLang } from "@/lib/planLanguages";
 import {
   formatPlanMoneyRange,
@@ -346,7 +347,7 @@ export function airportTransferDescription(
   const slo = locale.slo;
   const modes = locale.transferLabel;
   if (slo) {
-    return `Let odhaja ob ${dep}. Na mednarodne lete odidi iz hotela približno ${leaveHours} uri prej (promet + varnostna kontrola). Rezerviraj ${modes} z rezervo časa.`;
+    return `Let odhaja ob ${dep}. Na mednarodne lete odidi iz hotela približno ${formatSlHours(leaveHours)} prej (promet + varnostna kontrola). Rezerviraj ${modes} z rezervo časa.`;
   }
   return `Return flight at ${dep}. Leave about ${leaveHours} hours early. Pre-book ${modes} with buffer time.`;
 }

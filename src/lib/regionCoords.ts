@@ -26,6 +26,8 @@ const REGION_COORDS: Record<string, { lat: number; lng: number }> = {
   "tonsai pier": { lat: 7.7405, lng: 98.7782 },
   "chiang mai": { lat: 18.788, lng: 98.985 },
   ayutthaya: { lat: 14.353, lng: 100.569 },
+  munich: { lat: 48.137, lng: 11.575 },
+  münchen: { lat: 48.137, lng: 11.575 },
   krabi: { lat: 8.086, lng: 98.906 },
   "koh lipe": { lat: 6.486, lng: 99.301 },
   "el nido": { lat: 11.194, lng: 119.411 },

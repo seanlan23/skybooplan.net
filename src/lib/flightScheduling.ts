@@ -82,6 +82,28 @@ export function originAirportLeadHours(depart: string): number {
   return 2.5;
 }
 
+/** Slovenian hour noun: 1 ura, 2 uri, 2,5 ure, 3 ure, 5 ur. */
+export function formatSlHours(hours: number): string {
+  const n = Math.round(hours * 10) / 10;
+  const label = Number.isInteger(n) ? String(n) : String(n).replace(".", ",");
+  if (n === 1) return `${label} ura`;
+  if (n === 2) return `${label} uri`;
+  if (n >= 5) return `${label} ur`;
+  return `${label} ure`;
+}
+
+/** Fixed lead-time phrase — never emit "2.5–3" or "3–3". */
+export function originAirportLeadPhrase(depart: string, langCode = "sl"): string {
+  const slo = langCode === "sl" || langCode.startsWith("sl");
+  const leadH = originAirportLeadHours(depart);
+  if (slo) {
+    return leadH >= 3
+      ? "vsaj 3 ure pred odletom"
+      : "2–3 ure pred odletom";
+  }
+  return leadH >= 3 ? "at least 3 hours early" : "2–3 hours early";
+}
+
 /** Travel-hack copy for the home / outbound airport (parking, early arrival). */
 export function buildOriginDepartureHint(
   originIata: string,
@@ -93,7 +115,7 @@ export function buildOriginDepartureHint(
   const name = hub?.name ?? iata;
   const dep = flights.outboundDepart;
   const slo = langCode === "sl" || langCode.startsWith("sl");
-  const leadH = originAirportLeadHours(dep);
+  const leadPhrase = originAirportLeadPhrase(dep, langCode);
   const euParking =
     hub?.country && EU_PARKING_ORIGIN_COUNTRIES.has(hub.country);
 
@@ -104,8 +126,8 @@ export function buildOriginDepartureHint(
     : "";
 
   return slo
-    ? `Odhod z domačega letališča ${name} (${iata}) ob ${dep}. Na mednarodni let pridi ${leadH}–3 ure pred odletom (check-in, oddaja prtljage, varnostna kontrola).${parking}`
-    : `Home airport ${name} (${iata}), flight departs ${dep}. Arrive ${leadH}–3 hours early (check-in, bags, security).${parking}`;
+    ? `Odhod z domačega letališča ${name} (${iata}) ob ${dep}. Na mednarodni let pridi ${leadPhrase} (check-in, oddaja prtljage, varnostna kontrola).${parking}`
+    : `Home airport ${name} (${iata}), flight departs ${dep}. Arrive ${leadPhrase} (check-in, bags, security).${parking}`;
 }
 
 /** Day-1 morning steps at the outbound airport before the international leg. */
@@ -119,7 +141,7 @@ export function buildOriginDepartureLogistics(
   const name = hub?.name ?? iata;
   const dep = flights.outboundDepart;
   const slo = langCode === "sl" || langCode.startsWith("sl");
-  const leadH = originAirportLeadHours(dep);
+  const leadPhrase = originAirportLeadPhrase(dep, langCode);
   const hint = buildOriginDepartureHint(originIata, flights, langCode);
 
   return [
@@ -132,8 +154,8 @@ export function buildOriginDepartureLogistics(
       name: slo ? "Check-in in varnostni pregled" : "Check-in and security",
       type: "TRANSPORT",
       description: slo
-        ? `Na letališču ${iata} oddaj prtljago (če jo imaš), opravi check-in in varnostni pregled. Za mednarodne lete računaj vsaj ${leadH} uri pred odletom ob ${dep} — ob konicah in počitniških terminih raje še več rezerve.`
-        : `Check in, drop bags if needed, and clear security at ${iata}. Allow at least ${leadH} hours before your ${dep} departure — more in peak season.`,
+        ? `Na letališču ${iata} oddaj prtljago (če jo imaš), opravi check-in in varnostni pregled. Za mednarodne lete računaj ${leadPhrase} ob ${dep} — ob konicah in počitniških terminih raje še več rezerve.`
+        : `Check in, drop bags if needed, and clear security at ${iata}. Allow ${leadPhrase} before your ${dep} departure — more in peak season.`,
     },
   ];
 }

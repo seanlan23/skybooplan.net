@@ -13,9 +13,62 @@ import {
   resolveActivityCoordinates,
   shouldShowActivityOnMap,
 } from "@/lib/mapPoiResolver";
+import { DESTINATION_BY_IATA } from "@/lib/destinationCoords";
 import { lookupRegionCoords } from "@/lib/regionCoords";
 import { lookupPoiCoords } from "@/lib/tripGeo";
 import { haversineKm } from "@/lib/tripMapRoutes";
+
+const AIRPORT_HUB_IATAS = new Set([
+  "DMK",
+  "BKK",
+  "HKT",
+  "CNX",
+  "KBV",
+  "MUC",
+  "FRA",
+  "VIE",
+  "ZRH",
+]);
+
+function lookupHubByNameOrIata(text: string): { lat: number; lng: number } | null {
+  const raw = text.trim();
+  if (!raw) return null;
+  // Prefer explicit IATA tokens (MUC), not substrings inside words (INN in "dinner").
+  for (const m of raw.toUpperCase().matchAll(/\b([A-Z]{3})\b/g)) {
+    const meta = DESTINATION_BY_IATA[m[1]!];
+    if (meta) return { lat: meta.lat, lng: meta.lng };
+  }
+  const lower = raw.toLowerCase();
+  for (const meta of Object.values(DESTINATION_BY_IATA)) {
+    const name = meta.name.toLowerCase();
+    if (lower === name || lower.startsWith(`${name} `) || lower.includes(` ${name}`)) {
+      return { lat: meta.lat, lng: meta.lng };
+    }
+  }
+  return null;
+}
+
+function isAirportHubCoord(
+  coord: { lat: number; lng: number },
+  cityLabel: string,
+): boolean {
+  for (const code of AIRPORT_HUB_IATAS) {
+    const hub = DESTINATION_BY_IATA[code];
+    if (!hub) continue;
+    if (haversineKm([coord.lng, coord.lat], [hub.lng, hub.lat]) < 8) {
+      // City is the airport hub itself (e.g. departure day at MUC) → OK.
+      const city = cityLabel.toLowerCase();
+      if (city.includes(hub.name.toLowerCase()) || city.includes(code.toLowerCase())) {
+        return false;
+      }
+      // Bangkok city day with DMK coords → treat as airport pin, prefer city.
+      if (/bangkok|phuket|chiang mai|krabi|munich|wien|vienna/i.test(cityLabel)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
 
 export const MAX_DAY_PINS = 5;
 /** Pins farther than this from the day center are dropped. */
@@ -94,19 +147,27 @@ export function isTravelDay(day: DayPlan): boolean {
 export function resolveDayCenter(day: DayPlan): [number, number] | null {
   const city = normalizeMapLocationText(day.city);
   const focus = normalizeMapLocationText(day.focusName);
+  const title = normalizeMapLocationText(day.title);
   const known =
     (city ? lookupRegionCoords(city) : null) ??
     (focus ? lookupRegionCoords(focus) : null) ??
     (city ? lookupPoiCoords(city) : null) ??
-    (focus ? lookupPoiCoords(focus) : null);
+    (focus ? lookupPoiCoords(focus) : null) ??
+    lookupHubByNameOrIata(city) ??
+    lookupHubByNameOrIata(title) ??
+    lookupHubByNameOrIata(`${city} ${title}`);
 
   const ai =
     isValidMapCoord(day.lat, day.lng) ? ({ lat: day.lat, lng: day.lng } as const) : null;
 
   if (known && ai) {
     const dist = haversineKm([ai.lng, ai.lat], [known.lng, known.lat]);
-    // AI coords that disagree with the city name (MUC on a Phuket day) → trust city.
+    // AI coords that disagree with the city name (Bangkok on a Munich day) → trust city.
     if (dist > 75) return [known.lng, known.lat];
+    // Sightseeing in Bangkok with DMK/BKK runway coords → city center, not airport.
+    if (!isTravelDay(day) && isAirportHubCoord(ai, city || title)) {
+      return [known.lng, known.lat];
+    }
     return [ai.lng, ai.lat];
   }
   if (known) return [known.lng, known.lat];

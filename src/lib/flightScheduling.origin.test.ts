@@ -15,10 +15,11 @@ describe("origin airport departure hints", () => {
     expect(hint).toMatch(/LJU|Ljubljana/i);
     expect(hint).toMatch(/08:15/);
     expect(hint).toMatch(/Parkvia/i);
-    expect(hint).toMatch(/2,5|3.*ur/i);
+    expect(hint).toMatch(/vsaj 3 ure pred odletom|2–3 ure pred odletom/i);
+    expect(hint).not.toMatch(/3–3|2\.5–3|uri pred/i);
   });
 
-  it("builds origin logistics activities", () => {
+  it("builds origin logistics activities with correct hour grammar", () => {
     const acts = buildOriginDepartureLogistics("MXP", {
       outboundDepart: "11:00",
       outboundArrive: "23:30",
@@ -26,6 +27,8 @@ describe("origin airport departure hints", () => {
     });
     expect(acts[0]!.name).toMatch(/MXP|Milan/i);
     expect(acts[1]!.description).toMatch(/check-in|varnostni/i);
+    expect(acts[1]!.description).toMatch(/2–3 ure pred odletom/i);
+    expect(acts[1]!.description).not.toMatch(/uri pred|2\. 5|3–3/i);
   });
 
   it("prepends origin departure on day 1 of skeleton plan", () => {
@@ -66,7 +69,6 @@ describe("origin airport departure hints", () => {
     });
     const day1 = days.find((d) => d.day === 1);
     expect(day1?.travelHack).toMatch(/Parkvia|LJU/i);
-    const morning = day1?.activities?.morning ?? [];
-    expect(morning.some((a) => /Odhod.*LJU/i.test(a.name))).toBe(true);
+    expect(day1?.travelHack).toMatch(/vsaj 3 ure|2–3 ure/i);
   });
 });

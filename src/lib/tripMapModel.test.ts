@@ -52,6 +52,35 @@ describe("tripMapModel", () => {
     expect(center![0]).toBeGreaterThan(90);
   });
 
+  it("resolveDayCenter keeps Munich day in Europe (not Bangkok AI coords)", () => {
+    const d = day({
+      day: 1,
+      city: "Munich",
+      title: "Odhod iz MUC",
+      lat: 13.75,
+      lng: 100.5,
+      inFlightDay: true,
+    });
+    const center = resolveDayCenter(d);
+    expect(center).not.toBeNull();
+    expect(center![0]).toBeLessThan(20); // Europe
+    expect(center![1]).toBeGreaterThan(45);
+  });
+
+  it("resolveDayCenter prefers Bangkok city over nearby DMK hub", () => {
+    const d = day({
+      day: 3,
+      city: "Bangkok",
+      title: "Znamenitosti",
+      lat: 13.9126, // DMK
+      lng: 100.6068,
+    });
+    const center = resolveDayCenter(d);
+    expect(center).not.toBeNull();
+    // City center ~100.502, not DMK ~100.607
+    expect(Math.abs(center![0] - 100.502)).toBeLessThan(0.05);
+  });
+
   it("collectDayPins caps count and stays near center", () => {
     const center: [number, number] = [98.3, 7.9];
     const d = day({

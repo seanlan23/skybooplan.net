@@ -35,6 +35,7 @@ import {
 import { addDays } from "@/lib/dateUtils";
 import { sortActivitiesByTime } from "@/lib/dayPlanUi";
 import { enrichDayActivities } from "@/lib/dayEnrichers";
+import { reconcileWeekdayGatedActivities } from "@/lib/tripContent";
 import { resolveTripLocale } from "@/lib/tripLocale";
 import {
   detectAccommodationMode,
@@ -757,7 +758,7 @@ export function enrichGeminiCatalogPlan(
       const dayInRegion = (cityDayIndex.get(city) ?? 0) + 1;
       cityDayIndex.set(city, dayInRegion);
 
-      const enriched = enrichDayActivities(
+      let enriched = enrichDayActivities(
         {
           morning: [...day.activities.morning],
           afternoon: [...day.activities.afternoon],
@@ -774,6 +775,13 @@ export function enrichGeminiCatalogPlan(
           tripDate: day.date,
           priorScheduledText,
         },
+      );
+      // Chatuchak / weekend markets — same gate as skeleton path.
+      enriched = reconcileWeekdayGatedActivities(
+        enriched,
+        opts.departDate,
+        day.day,
+        locale.langCode,
       );
       syncDayActivitySlots(day, enriched);
       priorScheduledText += [

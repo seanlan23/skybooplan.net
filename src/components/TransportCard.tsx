@@ -25,8 +25,8 @@ const TYPE_META: Record<
   van: {
     label: "Kombi",
     icon: Bus,
-    accent: "border-amber-200 bg-gradient-to-br from-amber-50 to-white",
-    badge: "bg-amber-600",
+    accent: "border-sky-200 bg-gradient-to-br from-sky-50 to-white",
+    badge: "bg-sky-600",
   },
   train: {
     label: "Vlak",

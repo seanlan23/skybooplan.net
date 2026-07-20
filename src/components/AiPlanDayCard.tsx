@@ -107,7 +107,7 @@ const VARIANT_CONF = {
     icon: AlarmClock,
   },
   afternoon: {
-    border: "border-amber-500",
+    border: "border-sky-500",
     bg: "bg-slate-50",
     emoji: "🌤",
     icon: CloudSun,
@@ -175,20 +175,23 @@ function ActivityCostPill({ activity }: { activity: Activity }) {
 function ActivityTypePill({ type, activity }: { type?: string; activity?: Activity }) {
   if (!type || activity?.transportType) return null;
   const labels: Record<string, string> = {
-    SIGHT: "Znamenitost",
+    SIGHT: "Ogled",
     SIGHTSEEING: "Ogled",
     ACTIVITY: "Aktivnost",
     EAT: "Hrana",
     FOOD: "Hrana",
     TRANSPORT: "Prevoz",
     AIRPORT: "Let",
+    HOTEL: "Hotel",
     NATURE: "Narava",
     BEACH: "Plaža",
     ENTERTAINMENT: "Zabava",
   };
-  const label = labels[type.toUpperCase()] ?? type;
+  const key = type.trim().toUpperCase();
+  const label = labels[key] ?? labels[key.replace(/[^A-Z]/g, "")] ?? null;
+  if (!label) return null;
   return (
-    <span className="inline-flex items-center rounded-full bg-slate-100 text-slate-600 px-3 py-1 text-xs font-semibold uppercase tracking-wide">
+    <span className="inline-flex items-center rounded-full bg-slate-100 text-slate-600 px-3 py-1 text-xs font-semibold tracking-wide">
       {label}
     </span>
   );
@@ -216,17 +219,17 @@ const TRANSPORT_PILL_META: Record<
   van: {
     label: "Kombi",
     icon: Bus,
-    className: "bg-amber-50 text-amber-800",
+    className: "bg-sky-50 text-sky-800",
   },
   bus: {
     label: "Avtobus",
     icon: Bus,
-    className: "bg-amber-50 text-amber-800",
+    className: "bg-sky-50 text-sky-800",
   },
   taxi: {
     label: "Taxi",
     icon: Car,
-    className: "bg-yellow-50 text-yellow-800",
+    className: "bg-sky-50 text-sky-800",
   },
 };
 
@@ -788,9 +791,9 @@ export function AiPlanDayCard({
         )}
 
         {day.travelHack && (
-          <div className="flex items-start gap-3 rounded-r-lg border-l-4 border-amber-500 bg-amber-50 px-4 py-3">
+          <div className="flex items-start gap-3 rounded-r-lg border-l-4 border-sky-500 bg-sky-50 px-4 py-3">
             <span aria-hidden className="text-lg leading-none">💡</span>
-            <p className="text-sm text-amber-900">
+            <p className="text-sm text-sky-900">
               <span className="font-bold">{t("aiplan.travelHack" as never)}:</span>{" "}
               {sanitizeLegacyTemplateLeak(day.travelHack)}
             </p>
