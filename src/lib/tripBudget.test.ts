@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  applyMotorhomeBudgetCeil,
+  applyMotorhomeBudgetFloor,
   applySafariBudgetFloor,
   applyUsBudgetFloor,
   classifyDayBudgetKind,
@@ -7,6 +9,7 @@ import {
   dayBudgetParams,
   estimateDayBudgetEur,
   normalizeGeminiDailyBudgetPerPerson,
+  normalizeMotorhomeDailyBudgetPerPerson,
   parsePriceLabelToEur,
 } from "@/lib/tripBudget";
 
@@ -83,6 +86,23 @@ describe("computeTripTotalBudgetEur", () => {
         2,
       ),
     ).toBe(2140);
+  });
+});
+
+describe("normalizeMotorhomeDailyBudgetPerPerson", () => {
+  it("splits household Gemini daily across travellers", () => {
+    // Classic bug: AI returns ~180 for the whole RV (fuel+camp+food), UI ×3 → €12k.
+    expect(normalizeMotorhomeDailyBudgetPerPerson(180, 60, 3)).toBe(60);
+    expect(normalizeMotorhomeDailyBudgetPerPerson(240, 70, 3)).toBe(80);
+  });
+
+  it("keeps already-sane per-person figures", () => {
+    expect(normalizeMotorhomeDailyBudgetPerPerson(70, 55, 3)).toBe(70);
+  });
+
+  it("caps inflated per-person days", () => {
+    expect(applyMotorhomeBudgetCeil(160, "sightseeing")).toBe(100);
+    expect(applyMotorhomeBudgetFloor(20, "sightseeing", 3)).toBe(45);
   });
 });
 

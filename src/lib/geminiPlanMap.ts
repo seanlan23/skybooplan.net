@@ -22,7 +22,9 @@ import {
   computeTripTotalBudgetEur,
   dayBudgetParams,
   estimateDayBudgetEur,
+  applyMotorhomeBudgetCeil,
   applyMotorhomeBudgetFloor,
+  normalizeMotorhomeDailyBudgetPerPerson,
   applyHotelRestBudgetFloor,
   applyCanadaBudgetFloor,
   applyUsBudgetFloor,
@@ -43,6 +45,7 @@ import type { Lang } from "@/lib/i18n";
 import type { GroundTransportMode } from "@/lib/aiPlan.functions";
 import { repairTransportLegs } from "@/lib/transportLegRepair";
 import { sanitizeReturnFlightSummary } from "@/lib/returnFlightSummary";
+import { sanitizeActivity, sanitizeForLang } from "@/lib/textSanitize";
 
 export type GeminiPlanMapOpts = {
   originIata?: string;
@@ -697,13 +700,19 @@ function extractReturnFlightFromLastDay(
 
 export function enrichGeminiCatalogPlan(
   plan: AiTripPlan,
-  opts: { budget: TripBudgetTier; pax: number; wishesText?: string },
+  opts: {
+    budget: TripBudgetTier;
+    pax: number;
+    wishesText?: string;
+    language?: string;
+  },
 ): void {
   const tier = opts.budget === "budget" ? "budget" : opts.budget === "premium" ? "premium" : "mid";
   const mealsFullDay = tier === "premium" ? 68 : tier === "mid" ? 45 : 28;
   const totalDays = plan.days.length;
   const travelers = Math.max(1, opts.pax);
   const wishesText = opts.wishesText ?? "";
+  const planLang = opts.language ?? "sl";
 
   if (!plan.accommodationMode) {
     plan.accommodationMode = detectAccommodationMode(wishesText);
@@ -712,12 +721,17 @@ export function enrichGeminiCatalogPlan(
     plan.hotelRestEveryNDays = detectHotelRestInterval(wishesText) ?? undefined;
   }
 
-  const motorhome = plan.accommodationMode === "motorhome";
+  const motorhome =
+    plan.accommodationMode === "motorhome" ||
+    plan.groundTransportMode === "motorhome";
+  if (motorhome && plan.accommodationMode !== "motorhome") {
+    plan.accommodationMode = "motorhome";
+  }
   const hotelRestInterval = plan.hotelRestEveryNDays;
   const locale = resolveTripLocale(
     plan.destinationIata ?? "",
     plan.destinationName,
-    "sl",
+    planLang,
   );
   const usedEveningVenues = new Set<string>();
   const cityDayIndex = new Map<string, number>();
@@ -793,12 +807,18 @@ export function enrichGeminiCatalogPlan(
     );
 
     if (finalDay.dailyBudgetEur > 0) {
-      daily = normalizeGeminiDailyBudgetPerPerson(
-        finalDay.dailyBudgetEur,
-        daily,
-        sumListedActivityEur(finalDay.activities),
-        travelers,
-      );
+      daily = motorhome
+        ? normalizeMotorhomeDailyBudgetPerPerson(
+            finalDay.dailyBudgetEur,
+            daily,
+            travelers,
+          )
+        : normalizeGeminiDailyBudgetPerPerson(
+            finalDay.dailyBudgetEur,
+            daily,
+            sumListedActivityEur(finalDay.activities),
+            travelers,
+          );
     }
 
     daily = applyUsBudgetFloor(
@@ -823,9 +843,26 @@ export function enrichGeminiCatalogPlan(
       ) {
         daily = applyHotelRestBudgetFloor(daily, true, travelers);
       }
+      daily = applyMotorhomeBudgetCeil(daily, kind);
     }
 
     finalDay.dailyBudgetEur = daily;
+
+    // Force activity/title language (Gemini often leaks English into SL/DE plans).
+    finalDay.title = sanitizeForLang(finalDay.title ?? "", planLang, locale.country);
+    if (finalDay.activities) {
+      finalDay.activities = {
+        morning: finalDay.activities.morning.map((a) =>
+          sanitizeActivity(a, planLang, locale.country),
+        ),
+        afternoon: finalDay.activities.afternoon.map((a) =>
+          sanitizeActivity(a, planLang, locale.country),
+        ),
+        evening: finalDay.activities.evening.map((a) =>
+          sanitizeActivity(a, planLang, locale.country),
+        ),
+      };
+    }
   }
 
   plan.totalBudgetEur = computeTripTotalBudgetEur(plan.days, travelers);

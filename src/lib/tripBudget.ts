@@ -302,20 +302,32 @@ export function applyUsBudgetFloor(
   return Math.max(eur, listed + 35, 110);
 }
 
-/** Floor for motorhome trips — rental share, fuel, campsite, tolls (per person). */
+/**
+ * Floor for motorhome day spend PER PERSON (food, sights, fuel/camp share).
+ * Do NOT bake full vehicle rental into the daily figure — rental is excluded from the trip total.
+ */
 export function applyMotorhomeBudgetFloor(
   eur: number,
   kind: DayBudgetKind,
-  pax: number,
+  _pax: number,
 ): number {
-  const rentalShare = Math.round(95 / Math.max(1, pax));
   if (kind === "cross-country-travel") {
-    return Math.max(eur, rentalShare + 35, 110);
+    return Math.max(eur, 55);
   }
   if (kind === "departure" || kind === "arrival") {
-    return Math.max(eur, rentalShare + 15, 70);
+    return Math.max(eur, 35);
   }
-  return Math.max(eur, rentalShare + 25, 85);
+  return Math.max(eur, 45);
+}
+
+/** Cap absurd per-person motorhome days (Gemini often returns household totals). */
+export function applyMotorhomeBudgetCeil(
+  eur: number,
+  kind: DayBudgetKind,
+): number {
+  if (kind === "cross-country-travel") return Math.min(eur, 120);
+  if (kind === "departure" || kind === "arrival") return Math.min(eur, 75);
+  return Math.min(eur, 100);
 }
 
 /** Hybrid motorhome + periodic hotel night — bump budget on hotel rest days. Per person. */
@@ -325,8 +337,31 @@ export function applyHotelRestBudgetFloor(
   pax: number,
 ): number {
   if (!isHotelRestDay) return eur;
-  const hotelShare = Math.round(130 / Math.max(1, pax));
-  return Math.max(eur, hotelShare + 90, 200);
+  const hotelShare = Math.round(90 / Math.max(1, pax));
+  return Math.max(eur, hotelShare + 45, 120);
+}
+
+/**
+ * Motorhome prompts historically ask for household daily (fuel + camp + food).
+ * Normalize to per-person before UI multiplies by pax again.
+ */
+export function normalizeMotorhomeDailyBudgetPerPerson(
+  geminiDaily: number,
+  computedPerPerson: number,
+  travelers: number,
+): number {
+  const pax = Math.max(1, travelers);
+  if (geminiDaily <= 0) {
+    return Math.min(Math.max(computedPerPerson, 40), 100);
+  }
+  // Already looks per-person (solo camper or explicit pp figure).
+  if (geminiDaily <= 85) {
+    return Math.max(geminiDaily, Math.round(computedPerPerson * 0.85), 35);
+  }
+  // Household / inflated — split across travellers.
+  const split = Math.round(geminiDaily / pax);
+  const floor = Math.max(35, Math.round(computedPerPerson * 0.75));
+  return Math.min(Math.max(split, floor), 100);
 }
 
 /**

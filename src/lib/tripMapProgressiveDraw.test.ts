@@ -1,11 +1,14 @@
 import { describe, it, expect } from "vitest";
 import {
   buildActiveDayWaypoints,
+  filterBoundsNearDay,
   pickPrimarySegment,
   progressAlongRoute,
+  resolveActiveDayRoute,
   resolveSegmentCoordsForDay,
   shouldDrawDrivingRoute,
   MIN_ROAD_TRIP_DRAW_KM,
+  MAX_DAY_CAMERA_SPAN_KM,
 } from "@/lib/tripMapProgressiveDraw";
 import type { TripRouteSegment } from "@/lib/tripMapRoutes";
 import type { DayPlan } from "@/lib/aiPlan.functions";
@@ -43,18 +46,104 @@ describe("tripMapProgressiveDraw", () => {
     expect(coords[0]).toEqual([12, 45]);
   });
 
-  it("buildActiveDayWaypoints chains inter-day anchor with day POIs", () => {
+  it("buildActiveDayWaypoints stays on active-day POIs (no previous-city stretch)", () => {
     const dayPlan = {
       day: 2,
       mapPins: [{ name: "Temple", lat: 8.1, lng: 98.3 }],
     } as unknown as DayPlan;
     const dayCoords = new Map<number, [number, number]>([
-      [1, [98.0, 7.9]],
-      [2, [98.5, 8.2]],
+      [1, [11.5, 48.1]], // Munich
+      [2, [98.5, 8.2]], // Phuket
     ]);
-    const waypoints = buildActiveDayWaypoints(2, dayPlan, dayCoords, null, []);
-    expect(waypoints.length).toBeGreaterThanOrEqual(2);
-    expect(waypoints.some((c) => c[0] === 98.0 && c[1] === 7.9)).toBe(true);
+    const waypoints = buildActiveDayWaypoints(2, dayPlan, dayCoords, [11.5, 48.1], []);
+    expect(waypoints.some((c) => c[0] === 98.3 && c[1] === 8.1)).toBe(true);
+    expect(waypoints.some((c) => c[0] === 11.5 && c[1] === 48.1)).toBe(false);
+  });
+
+  it("filterBoundsNearDay drops intercontinental origin from camera bounds", () => {
+    const phuket: [number, number] = [98.3, 7.9];
+    const munich: [number, number] = [11.5, 48.1];
+    const local = filterBoundsNearDay(phuket, [[phuket], [munich, phuket]]);
+    expect(local).toContainEqual(phuket);
+    expect(local.some((c) => c[0] === munich[0] && c[1] === munich[1])).toBe(false);
+    expect(MAX_DAY_CAMERA_SPAN_KM).toBeLessThan(1000);
+  });
+
+  it("resolveActiveDayRoute flight keeps camera on destination side", async () => {
+    const munich: [number, number] = [11.58, 48.14];
+    const phuket: [number, number] = [98.3, 7.88];
+    const dayPlan = {
+      day: 2,
+      city: "Phuket",
+      title: "Prihod v Phuket",
+      mapPins: [{ name: "Hotel", lat: 7.89, lng: 98.29 }],
+    } as unknown as DayPlan;
+    const route: TripRouteSegment[] = [
+      {
+        id: "fly",
+        mode: "flight",
+        from: munich,
+        to: phuket,
+        coordinates: [munich, [50, 30], phuket],
+        dayTo: 2,
+        durationSeconds: 40000,
+        durationLabel: "11h",
+      },
+    ];
+    const dayCoords = new Map<number, [number, number]>([
+      [1, munich],
+      [2, phuket],
+    ]);
+    const result = await resolveActiveDayRoute({
+      activeDay: 2,
+      dayPlan,
+      routeData: route,
+      dayCoords,
+      origin: munich,
+      finalizedDays: [],
+      token: null,
+      preferDriving: false,
+    });
+    expect(result.drawRoute).toBe(true);
+    expect(result.coordinates.length).toBeGreaterThan(2);
+    expect(result.boundsPoints.some((c) => c[0] === munich[0] && c[1] === munich[1])).toBe(
+      false,
+    );
+    expect(
+      result.boundsPoints.every(
+        (c) =>
+          Math.hypot(c[0] - phuket[0], c[1] - phuket[1]) < 5 ||
+          Math.abs(c[0] - 98.29) < 0.1,
+      ),
+    ).toBe(true);
+  });
+
+  it("resolveActiveDayRoute sightseeing ignores far previous-day endpoint", async () => {
+    const munich: [number, number] = [11.58, 48.14];
+    const aoNang: [number, number] = [98.83, 8.03];
+    const dayPlan = {
+      day: 7,
+      city: "Ao Nang",
+      title: "Plaže in otoki",
+      mapPins: [{ name: "Railay", lat: 8.01, lng: 98.84 }],
+    } as unknown as DayPlan;
+    const dayCoords = new Map<number, [number, number]>([
+      [6, munich], // bad leftover
+      [7, aoNang],
+    ]);
+    const result = await resolveActiveDayRoute({
+      activeDay: 7,
+      dayPlan,
+      routeData: [],
+      dayCoords,
+      origin: munich,
+      finalizedDays: [],
+      token: null,
+      preferDriving: false,
+    });
+    expect(result.drawRoute).toBe(false);
+    expect(result.boundsPoints.some((c) => c[0] === munich[0])).toBe(false);
+    expect(result.boundsPoints.some((c) => Math.abs(c[0] - 98.84) < 0.05)).toBe(true);
   });
 
   it("pickPrimarySegment prefers flight over driving on same day", () => {

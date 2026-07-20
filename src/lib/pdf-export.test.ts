@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { normalizePlanForPdf } from "@/lib/pdf-export";
+import { normalizePlanForPdf, sanitizePdfText } from "@/lib/pdf-export";
+
+describe("sanitizePdfText", () => {
+  it("strips emoji that break jsPDF custom fonts", () => {
+    expect(sanitizePdfText("Odhod 🚐 iz Mežice")).toBe("Odhod iz Mežice");
+  });
+});
 
 describe("normalizePlanForPdf", () => {
   it("maps AiTripPlan activities into morning/afternoon/evening slots", () => {

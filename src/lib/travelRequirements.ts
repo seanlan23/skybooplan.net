@@ -1,6 +1,11 @@
 import { targetResidentsForOrigin } from "@/lib/originResidents";
 import { DESTINATION_BY_IATA } from "@/lib/destinationCoords";
 import { normalizeIata } from "@/lib/geminiPro.shared";
+import {
+  curatedTravelPackForCountry,
+  looksConcreteTravelCopy,
+  looksGenericTravelCopy,
+} from "@/lib/travelRequirementsFallback";
 
 export type TravelVisaInfo = {
   /** Display label — "EU" when Schengen/EU rules match, else country names. */
@@ -219,11 +224,16 @@ export function buildFallbackTravelRequirements(
   destinationIata: string | undefined | null,
   lang: LangCode = "en",
 ): TravelRequirements | null {
-  const rawResidents = targetResidentsForOrigin(originIata);
-  if (!rawResidents.length) return null;
+  // Ground trips (motorhome) often lack a hub IATA — assume Central-EU passports.
+  let rawResidents = targetResidentsForOrigin(originIata);
+  if (!rawResidents.length) {
+    rawResidents = ["Slovenia", "Austria", "Italy", "Croatia"];
+  }
 
   const targetResidents = collapseResidentLabels(rawResidents);
   const destCountry = destinationCountry(destinationIata);
+  const destLabel = destinationLabelForRequirements(destinationIata, lang);
+  const langCode = lang.toLowerCase().slice(0, 2);
 
   if (destCountry === "TH") {
     const euGroup = rawResidents.filter((c) => EU_SCHENGEN_RESIDENTS.has(c));
@@ -239,7 +249,6 @@ export function buildFallbackTravelRequirements(
       });
     }
 
-    const langCode = lang.toLowerCase().slice(0, 2);
     for (const country of otherGroup) {
       visaInfo.push({
         country,
@@ -266,8 +275,22 @@ export function buildFallbackTravelRequirements(
     };
   }
 
-  const destLabel = destinationLabelForRequirements(destinationIata, lang);
-  const langCode = lang.toLowerCase().slice(0, 2);
+  const curated = curatedTravelPackForCountry(destCountry, lang);
+  if (curated) {
+    return {
+      targetResidents,
+      visaInfo: [
+        {
+          country: euVisaCountryLabel(lang),
+          requirement: curated.visaRequirement,
+          howToApply: curated.howToApply,
+        },
+      ],
+      vaccinations: curated.vaccinations,
+      estimatedCosts: curated.estimatedCosts,
+    };
+  }
+
   return {
     targetResidents,
     visaInfo: [
@@ -275,30 +298,30 @@ export function buildFallbackTravelRequirements(
         country: targetResidents.join(" · "),
         requirement:
           langCode === "sl"
-            ? `Preveri aktualne vizumske zahteve za potnike s potnimi listi (${targetResidents.join(", ")}) ob vstopu v ${destLabel}. Pravila se pogosto spreminjajo — vedno preveri uradne vire pred odhodom.`
+            ? `Za ${destLabel}: preveri vizumske zahteve za potnike z EU/Schengen potnim listom (brezvizumsko / e-viza / VOA). Potni list naj bo veljaven; pravila preveri na gov.si (MZV) pred odhodom.`
             : langCode === "de"
-              ? `Aktuelle Visabestimmungen für Reisende mit Pässen aus (${targetResidents.join(", ")}) bei Einreise nach ${destLabel} prüfen. Regeln ändern sich oft — immer offizielle Quellen vor Abreise checken.`
-              : `Check current visa requirements for travellers with passports from ${targetResidents.join(", ")} entering ${destLabel}. Rules change often — always verify official sources before you go.`,
+              ? `Für ${destLabel}: Visabestimmungen für EU-/Schengen-Pässe prüfen (visumfrei / E-Visum / VOA). Reisepass gültig halten; vor Abreise offizielle Quellen checken.`
+              : `For ${destLabel}: confirm visa rules for EU/Schengen passports (visa-free / e-visa / VOA). Keep your passport valid; verify on your foreign ministry site before you go.`,
         howToApply:
           langCode === "sl"
-            ? "Uradni viri: gov.si (MZV) ali ustrezno veleposlaništvo / e-viza, če je na voljo."
+            ? "Uradni viri: gov.si (MZV) ali veleposlaništvo / e-viza destinacije."
             : langCode === "de"
-              ? "Offizielle Quellen: Außenministerium oder Botschaft des Ziellandes / E-Visum-Portal, falls vorhanden."
-              : "Use your foreign ministry site or the destination embassy / e-visa portal if available.",
+              ? "Offizielle Quellen: Außenministerium oder Botschaft / E-Visum-Portal des Ziellandes."
+              : "Official sources: your foreign ministry or the destination embassy / e-visa portal.",
       },
     ],
     vaccinations:
       langCode === "sl"
-        ? "Posvetuj se s potovalno medicino 4–6 tednov pred odhodom. Rutinska cepljenja morajo biti posodobljena; dodatna cepljenja so odvisna od regije in načina potovanja."
+        ? `Za ${destLabel}: posvetuj se s potovalno medicino 4–6 tednov pred odhodom. Rutinska cepljenja posodobi; dodatna (hepatitis A, tifus …) so odvisna od regije.`
         : langCode === "de"
-          ? "Reiseimpfberatung 4–6 Wochen vor Abreise. Routineimpfungen aktuell halten; Zusatzimpfungen hängen von Region und Reiseart ab."
-          : "See a travel clinic 4–6 weeks before departure. Keep routine vaccines up to date; extras depend on region and how you travel.",
+          ? `Für ${destLabel}: Reiseimpfberatung 4–6 Wochen vor Abreise. Routineimpfungen aktualisieren; Zusatzimpfungen (Hepatitis A, Typhus …) je nach Region.`
+          : `For ${destLabel}: see a travel clinic 4–6 weeks before departure. Update routine vaccines; extras (hepatitis A, typhoid…) depend on the region.`,
     estimatedCosts:
       langCode === "sl"
-        ? "Stroški viz in cepljenj so odvisni od destinacije — načrtuj 0–150 € na osebo (e-viza + osnovna cepljenja)."
+        ? `Za ${destLabel}: načrtuj 0–150 € na osebo za morebitno e-vizo in osnovna cepljenja — točen znesek preveri pred odhodom.`
         : langCode === "de"
-          ? "Visa- und Impfkosten hängen vom Ziel ab — plane ca. 0–150 € pro Person (E-Visum + Basisimpfungen)."
-          : "Visa and vaccine costs vary by destination — budget about €0–150 per person (e-visa + basic vaccines).",
+          ? `Für ${destLabel}: plane ca. 0–150 € pro Person für ggf. E-Visum und Basisimpfungen — Betrag vor Abreise prüfen.`
+          : `For ${destLabel}: budget about €0–150 per person for a possible e-visa and basic vaccines — confirm the amount before travel.`,
   };
 }
 
@@ -309,27 +332,41 @@ export function resolveTravelRequirements(
   destinationIata: string | undefined | null,
   lang: LangCode = "en",
 ): TravelRequirements | null {
+  const fb = buildFallbackTravelRequirements(originIata, destinationIata, lang);
+
   if (fromPlan?.visaInfo?.length) {
-    const sample = fromPlan.visaInfo.map((v) => v.requirement).join(" ");
-    // UI is English but plan/fallback body arrived in Slovenian → prefer EN curated copy.
-    if (lang !== "sl" && looksSlovenianTravelCopy(sample)) {
-      const fb = buildFallbackTravelRequirements(originIata, destinationIata, lang);
-      if (fb) return fb;
+    const sample = [
+      ...fromPlan.visaInfo.map((v) => v.requirement),
+      fromPlan.vaccinations ?? "",
+      fromPlan.estimatedCosts ?? "",
+    ].join(" ");
+
+    // UI language mismatch → prefer curated.
+    if (lang !== "sl" && looksSlovenianTravelCopy(sample) && fb) return fb;
+
+    // Boilerplate / thin AI copy → prefer curated country pack.
+    if (
+      fb &&
+      (looksGenericTravelCopy(sample) || !looksConcreteTravelCopy(sample))
+    ) {
+      return fb;
     }
 
     return {
       targetResidents: collapseResidentLabels(
         fromPlan.targetResidents.length
           ? fromPlan.targetResidents
-          : targetResidentsForOrigin(originIata),
+          : targetResidentsForOrigin(originIata).length
+            ? targetResidentsForOrigin(originIata)
+            : fb?.targetResidents ?? [],
       ),
       visaInfo: groupVisaInfoEntries(fromPlan.visaInfo, lang),
-      vaccinations: fromPlan.vaccinations?.trim() || "",
-      estimatedCosts: fromPlan.estimatedCosts?.trim() || "",
+      vaccinations: fromPlan.vaccinations?.trim() || fb?.vaccinations || "",
+      estimatedCosts: fromPlan.estimatedCosts?.trim() || fb?.estimatedCosts || "",
     };
   }
 
-  return buildFallbackTravelRequirements(originIata, destinationIata, lang);
+  return fb;
 }
 
 export function destinationLabelForRequirements(
@@ -350,8 +387,10 @@ export function travelRequirementsPromptBlock(opts: {
   destinationLabel: string;
   language?: string;
 }): string {
-  const residents = targetResidentsForOrigin(opts.originIata);
-  if (!residents.length) return "";
+  let residents = targetResidentsForOrigin(opts.originIata);
+  if (!residents.length) {
+    residents = ["Slovenia", "Austria", "Italy", "Croatia"];
+  }
 
   const lang = opts.language ?? "en";
   const dest = destinationLabelForRequirements(opts.destinationIata, lang);
@@ -371,10 +410,12 @@ SMART TRAVEL REQUIREMENTS (travel_requirements — required in JSON):
 - target_residents: exactly [${residentList}] — for EU/Schengen hubs use ["EU"] when rules are identical across member states (do NOT list Slovenia, Austria, Italy, Croatia separately).
 - visa_info: one entry when rules match. country must be "EU" or "EU / Schengen" for shared EU rules — never repeat the same paragraph per country.
   • country — "EU" / "EU / Schengen" or a non-EU country name,
-  • requirement — visa/eTA/visa-free, price, validity,
-  • how_to_apply — official site / e-visa / on arrival.
-- Tailor everything to ${opts.destinationLabel} (${dest}) with real 2026 rules.
+  • requirement — concrete rule: visa-free / e-visa / ESTA / ETA / VOA, length of stay, passport validity, approximate fee,
+  • how_to_apply — official site / e-visa portal / on arrival steps.
+- FORBIDDEN boilerplate: do NOT write only “check official sources”, “rules change often”, or “see a travel clinic 4–6 weeks” without stating the actual rule for this destination first.
+- Tailor everything to ${opts.destinationLabel} (${dest}) with real 2025–2026 rules for EU/Schengen passport holders.
+- Intra-EU/Schengen (Spain, Italy, France, Croatia, Greece, Netherlands, Germany, Austria…): free movement, ID/passport enough, visa €0, no special vaccines.
 - THAILAND 2026: visa-free for EU/Schengen is 30 days (temporary 60-day scheme ended May 2026), max 2 entries/year — do NOT write 60 days visa-free.
-- vaccinations / estimated_costs: concise, practical.
+- vaccinations / estimated_costs: destination-specific and practical (fees in €/USD where known).
 - ${langLine}`;
 }

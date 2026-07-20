@@ -91,6 +91,7 @@ export const DESTINATION_BY_IATA: Record<string, DestinationMeta> = {
   LIS: { name: "Lisbon", lat: 38.774, lng: -9.134, country: "PT" },
   OPO: { name: "Porto", lat: 41.248, lng: -8.681, country: "PT" },
   ATH: { name: "Athens", lat: 37.936, lng: 23.944, country: "GR" },
+  TIA: { name: "Tirana", lat: 41.415, lng: 19.721, country: "AL" },
   JTR: { name: "Santorini", lat: 36.399, lng: 25.479, country: "GR" },
   IST: { name: "Istanbul", lat: 41.275, lng: 28.752, country: "TR" },
   DBV: { name: "Dubrovnik", lat: 42.561, lng: 18.268, country: "HR" },

@@ -161,6 +161,7 @@ export function partialTripPlanToPreviewPlan(
         budget: opts.budget,
         pax: opts.pax,
         wishesText: opts.wishesText,
+        language: opts.language,
       });
     }
     return plan;

@@ -674,7 +674,13 @@ export function AiPlanView({
             <div className="text-2xl sm:text-3xl font-bold text-slate-900">
               {formatMoney(displayTotalBudget)}
             </div>
-            <TripTotalBreakdown pax={pax} />
+            <TripTotalBreakdown
+              pax={pax}
+              motorhome={
+                plan.groundTransportMode === "motorhome" ||
+                plan.accommodationMode === "motorhome"
+              }
+            />
           </div>
         </div>
       </div>

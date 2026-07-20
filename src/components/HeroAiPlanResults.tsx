@@ -104,8 +104,12 @@ export function HeroAiPlanResults({
                       try {
                         const { generatePlanPdf } = await import("@/lib/pdf-export");
                         await generatePlanPdf({
-                          title: `${aiContext?.from ?? ""} → ${aiContext?.to ?? ""}`,
-                          destination: aiPlan.destinationName ?? aiContext?.to ?? "",
+                          title: `${aiContext?.from ?? aiPlan.originPlace ?? ""} → ${aiContext?.to ?? aiPlan.destinationPlace ?? aiPlan.destinationName ?? ""}`,
+                          destination:
+                            aiPlan.destinationName ||
+                            aiPlan.destinationPlace ||
+                            aiContext?.to ||
+                            "",
                           start_date: aiContext?.departDate ?? null,
                           end_date: aiContext?.returnDate ?? null,
                           itinerary: aiPlan as never,

@@ -391,7 +391,8 @@
   transition: filter 0.3s ease, opacity 0.3s ease;
 }
 .layla-city-marker:not(.layla-city-marker--active):not(.layla-city-marker--origin) {
-  opacity: 0.86;
+  opacity: 0.28;
+  pointer-events: none;
 }
 .layla-city-label {
   background: #fff;

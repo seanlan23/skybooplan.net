@@ -40,6 +40,7 @@ import {
   type RouteDayStop,
 } from "@/lib/tripMapRouteState";
 import {
+  MAX_DAY_CAMERA_SPAN_KM,
   ROUTE_DRAW_DURATION_MS,
   coordsBoundsKey,
   progressAlongRoute,
@@ -643,7 +644,8 @@ function isGenericCityPinName(name: string, city: string): boolean {
 
 function collectPlanPoiPins(plan: AiTripPlan): MapPoiPin[] {
   const pins: MapPoiPin[] = [];
-  const COLOCATE_KM = 0.12;
+  const COLOCATE_KM = 0.55;
+  const MAX_PINS_PER_DAY = 6;
 
   const pushResolved = (day: DayPlan, source: {
     name: string;
@@ -660,6 +662,7 @@ function collectPlanPoiPins(plan: AiTripPlan): MapPoiPin[] {
     if (!isValidCoord(source.lat, source.lng)) return;
     const city = dayCityName(day);
     if (isGenericCityPinName(source.name, city)) return;
+    if (pins.filter((p) => p.day === day.day).length >= MAX_PINS_PER_DAY) return;
 
     const existing = pins.find(
       (p) =>
@@ -701,6 +704,7 @@ function collectPlanPoiPins(plan: AiTripPlan): MapPoiPin[] {
   };
 
   for (const day of plan.days) {
+    const pinsBefore = pins.filter((p) => p.day === day.day).length;
     for (const pin of day.mapPins ?? []) {
       if (!isValidCoord(pin.lat, pin.lng)) continue;
       const coords = resolveActivityCoordinates(
@@ -721,6 +725,9 @@ function collectPlanPoiPins(plan: AiTripPlan): MapPoiPin[] {
         unsplashQuery: pin.unsplashQuery,
       });
     }
+
+    // Prefer curated mapPins — skip activity duplicates that clutter the map.
+    if (pins.filter((p) => p.day === day.day).length > pinsBefore) continue;
 
     const slots = day.activities;
     if (!slots) continue;
@@ -773,6 +780,15 @@ function fitActiveDayView(
     bounds.extend(opts.fallbackCenter);
   }
   if (bounds.isEmpty()) return;
+
+  const sw = bounds.getSouthWest();
+  const ne = bounds.getNorthEast();
+  const spanKm = haversineKm([sw.lng, sw.lat], [ne.lng, ne.lat]);
+  // Intercontinental leftover bounds → fly to day center instead of framing ocean.
+  if (spanKm > MAX_DAY_CAMERA_SPAN_KM && opts.fallbackCenter) {
+    flyToDayCenter(map, opts.fallbackCenter);
+    return;
+  }
 
   padBoundsIfPoint(bounds);
   map.stop();
@@ -1191,10 +1207,7 @@ function resolveActiveDayCoord(
 ): [number, number] | null {
   const day = plan.days.find((d) => d.day === activeDay);
 
-  for (const pin of day?.mapPins ?? []) {
-    if (isValidCoord(pin.lat, pin.lng)) return [pin.lng, pin.lat];
-  }
-
+  // City / day center first — first mapPin is often an origin airport on arrival days.
   const geocoded = dayCoords.get(activeDay);
   if (geocoded) return geocoded;
 
@@ -1204,7 +1217,13 @@ function resolveActiveDayCoord(
   if (stop) return stop.coord;
 
   const byDay = validDayCoordForDay(activeDay, plan, dayCoords);
-  return byDay;
+  if (byDay) return byDay;
+
+  for (const pin of day?.mapPins ?? []) {
+    if (isValidCoord(pin.lat, pin.lng)) return [pin.lng, pin.lat];
+  }
+
+  return null;
 }
 
 function validDayCoordForDay(
@@ -1411,12 +1430,6 @@ function TripMapInner({
       for (const d of plan.days) {
         if (cancelled) return;
 
-        // Gemini / catalog plans ship exact city coords — use them first.
-        if (isValidCoord(d.lat, d.lng)) {
-          next.set(d.day, [d.lng, d.lat]);
-          continue;
-        }
-
         const focus = normalizeLocationText(d.focusName);
         const city = normalizeLocationText(d.city);
         const title = normalizeLocationText(d.title);
@@ -1430,6 +1443,8 @@ function TripMapInner({
         }
 
         const aiCoord = isValidCoord(d.lat, d.lng) ? ([d.lng, d.lat] as [number, number]) : null;
+
+        // Even when AI ships coords, verify against the city label (MUC coords on a Phuket day).
         const queries = uniqueQueries([
           city && dest ? `${city}, ${dest}` : city,
           city,
@@ -1443,7 +1458,7 @@ function TripMapInner({
           const match = await lookup(query);
           if (!match) continue;
           if (!cityCoord) cityCoord = match;
-          if (query.toLowerCase().startsWith(city.toLowerCase())) {
+          if (city && query.toLowerCase().startsWith(city.toLowerCase())) {
             cityCoord = match;
             break;
           }
@@ -1454,7 +1469,7 @@ function TripMapInner({
           const distKm = haversineKm(aiCoord, cityCoord);
           chosen = distKm > 75 ? cityCoord : aiCoord;
         } else {
-          chosen = aiCoord ?? cityCoord;
+          chosen = cityCoord ?? aiCoord;
         }
 
         if (focus && cityCoord) {
@@ -2022,13 +2037,16 @@ function TripMapInner({
           : `${isPlaying ? "play" : "scroll"}:${activeDay}:${dayFocusKey}:${coordsBoundsKey(coords)}:${drawRoute}:${focusKey}`;
         if (!skipDayCamera && lastFlyTargetKeyRef.current !== camKey) {
           lastFlyTargetKeyRef.current = camKey;
-          const center = boundsPoints[0] ?? activeDayCoord;
+          // Prefer day destination — boundsPoints[0] is often the Munich start of a flight arc.
+          const center =
+            activeDayCoord ??
+            (boundsPoints.length > 0 ? boundsPoints[boundsPoints.length - 1]! : null);
           if (isPlaying && center) {
             flyToDayCenter(map, center);
           } else {
             fitActiveDayView(map, {
               boundsPoints,
-              fallbackCenter: activeDayCoord,
+              fallbackCenter: center,
             });
           }
         }

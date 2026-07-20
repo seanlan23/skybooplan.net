@@ -1,3 +1,5 @@
+import { localizeTravelCopy } from "@/lib/localizeTravelCopy";
+
 /** Strip Cyrillic / wrong-script leaks in Slovenian UI copy. */
 export function sanitizeSlText(text: string): string {
   const CYRILLIC_FIX: Record<string, string> = {
@@ -112,6 +114,7 @@ export function sanitizeDestinationText(text: string, country?: string): string 
 export function sanitizeForLang(text: string, langCode: string, country?: string): string {
   if (!text) return text;
   let out = sanitizeLegacyTemplateLeak(sanitizeDestinationText(text, country));
+  out = localizeTravelCopy(out, langCode);
   if (langCode === "sl" || langCode.startsWith("sl")) {
     out = sanitizeSlText(out);
   }

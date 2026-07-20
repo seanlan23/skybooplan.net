@@ -91,6 +91,6 @@ export function motorhomeTravelDayDescription(km: number, destCity: string): str
 
 export function motorhomePromptRules(slo: boolean): string {
   return slo
-    ? "NAČIN: AVTODOM — parkiraj na kampih IZVEN mestnih jeder. NE mestni hoteli. Med mesti samo VOŽNJA (ZDA: 400–800 km = cel dan, ne 'lokalni 1h30'). Nikoli notranji let z RV. V mesto javni prevoz/P+R."
-    : "MODE: MOTORHOME — campgrounds outside city centers. Inter-city = DRIVING full days (US hops 400–800 km are NOT 90-minute local trips). No domestic flights with RV.";
+    ? "NAČIN: AVTODOM — parkiraj na kampih IZVEN mestnih jeder. NE mestni hoteli. Med mesti samo VOŽNJA (ZDA: 400–800 km = cel dan, ne 'lokalni 1h30'). Nikoli notranji let z RV. V mesto javni prevoz/P+R. dailyBudget = NA OSEBO (gorivo/kamp deli s pax); tipično 45–90 €/osebo/dan, NE skupinski 200+."
+    : "MODE: MOTORHOME — campgrounds outside city centers. Inter-city = DRIVING full days (US hops 400–800 km are NOT 90-minute local trips). No domestic flights with RV. dailyBudget = PER PERSON (split fuel/camp by pax); typical 45–90 €/person/day, NOT household 200+.";
 }

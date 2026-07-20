@@ -1622,16 +1622,21 @@ function Landing() {
                   protect={false}
                   onClearPlan={clearAiPlanOnly}
                   onDownloadClick={
-                    aiPlan
+                    displayPlan
                       ? async () => {
                           try {
                             const { generatePlanPdf } = await import("@/lib/pdf-export");
+                            const planForPdf = displayPlan;
                             await generatePlanPdf({
-                              title: `${aiContext?.from ?? ""} → ${aiContext?.to ?? ""}`,
-                              destination: aiPlan?.destinationName ?? aiContext?.to ?? "",
+                              title: `${aiContext?.from ?? planForPdf.originPlace ?? ""} → ${aiContext?.to ?? planForPdf.destinationPlace ?? planForPdf.destinationName ?? ""}`,
+                              destination:
+                                planForPdf.destinationName ||
+                                planForPdf.destinationPlace ||
+                                aiContext?.to ||
+                                "",
                               start_date: aiContext?.departDate ?? null,
                               end_date: aiContext?.returnDate ?? null,
-                              itinerary: aiPlan as never,
+                              itinerary: planForPdf as never,
                               language: aiContext?.language,
                             });
                           } catch (e) {

@@ -7,6 +7,7 @@ import {
   type FormEvent,
   type KeyboardEvent,
   type ChangeEvent,
+  type ReactNode,
 } from "react";
 import { ArrowUp, Loader2, X } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
@@ -190,12 +191,14 @@ function QuickReplyChips({
   onSelect,
   disabled,
   layout = "wrap",
+  footer,
 }: {
   options: ChipOption[];
   onSelect: (id: string, label: string) => void;
   disabled?: boolean;
   /** `grid` = 2 columns (better for longer date labels). */
   layout?: "wrap" | "grid";
+  footer?: ReactNode;
 }) {
   return (
     <div className="hero-chips-enter pl-0 pr-1 sm:pl-10">
@@ -222,6 +225,64 @@ function QuickReplyChips({
           </button>
         ))}
       </div>
+      {footer ? <div className="mt-3">{footer}</div> : null}
+    </div>
+  );
+}
+
+function MotorhomeTypeEndField({
+  value,
+  onChange,
+  onSubmit,
+  disabled,
+  t,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  onSubmit: () => void;
+  disabled?: boolean;
+  t: (key: never) => string;
+}) {
+  const [open, setOpen] = useState(false);
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => setOpen(true)}
+        className="w-full rounded-xl border border-dashed border-white/35 bg-white/10 py-2.5 text-sm font-medium text-white/90 transition hover:bg-white/15 disabled:opacity-50"
+      >
+        {t("heroChat.motorhome.typeEnd" as never)}
+      </button>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <input
+        autoFocus
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            onSubmit();
+          }
+        }}
+        disabled={disabled}
+        placeholder={t("heroChat.motorhome.typeEndPlaceholder" as never)}
+        className="min-w-0 flex-1 rounded-xl border border-white/30 bg-white/15 px-3 py-2.5 text-sm text-white placeholder:text-white/50 outline-none focus:border-white/50"
+      />
+      <button
+        type="button"
+        disabled={disabled || !value.trim()}
+        onClick={onSubmit}
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-500 text-white disabled:opacity-40"
+        aria-label={t("heroChat.send" as never)}
+      >
+        <ArrowUp className="h-4 w-4" />
+      </button>
     </div>
   );
 }
@@ -1366,19 +1427,37 @@ export function HeroChatFlow({
           ) : null}
 
           {showConversationChips && step === "destination" && isMotorhomeOnly ? (
-            <QuickReplyChips
-              layout="grid"
-              disabled={loading}
-              options={HERO_MOTORHOME_END_CHIPS.map((chip) => {
-                const name = t(chip.nameKey as never);
-                const label = name.startsWith("hero.mhEnd.") ? chip.place : name;
-                return { id: chip.id, label: `${chip.emoji} ${label}` };
-              })}
-              onSelect={(id, label) => {
-                const chip = HERO_MOTORHOME_END_CHIPS.find((c) => c.id === id);
-                handleDestinationPick(chip?.place ?? label, label);
-              }}
-            />
+            <div className="space-y-2">
+              <p className="pl-0 text-center text-xs text-white/65 sm:pl-10 sm:text-left">
+                {t("heroChat.motorhome.endHint" as never)}
+              </p>
+              <QuickReplyChips
+                layout="grid"
+                disabled={loading}
+                options={HERO_MOTORHOME_END_CHIPS.map((chip) => {
+                  const name = t(chip.nameKey as never);
+                  const label = name.startsWith("hero.mhEnd.") ? chip.place : name;
+                  return { id: chip.id, label: `${chip.emoji} ${label}` };
+                })}
+                onSelect={(id, label) => {
+                  const chip = HERO_MOTORHOME_END_CHIPS.find((c) => c.id === id);
+                  handleDestinationPick(chip?.place ?? label, label);
+                }}
+                footer={
+                  <MotorhomeTypeEndField
+                    value={textInput}
+                    onChange={setTextInput}
+                    disabled={loading}
+                    t={t}
+                    onSubmit={() => {
+                      const trimmed = textInput.trim();
+                      if (!trimmed || loading) return;
+                      handleDestinationPick(trimmed, trimmed);
+                    }}
+                  />
+                }
+              />
+            </div>
           ) : null}
 
           {!loading && searchError ? (

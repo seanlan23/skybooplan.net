@@ -136,6 +136,15 @@ function labelsFor(lang: PlanForPdf["language"], sampleText: string): PdfLabels 
   };
 }
 
+/** jsPDF custom fonts choke on emoji / some symbols — strip for layout stability. */
+export function sanitizePdfText(input: string): string {
+  return input
+    .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, "")
+    .replace(/\u0000/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function fmtDate(d: string | null | undefined) {
   if (!d) return "";
   const raw = String(d).trim();
@@ -163,7 +172,7 @@ function fmtDate(d: string | null | undefined) {
 }
 
 function textOf(v: unknown): string {
-  if (typeof v === "string") return v.trim();
+  if (typeof v === "string") return sanitizePdfText(v);
   if (typeof v === "number" && Number.isFinite(v)) return String(v);
   return "";
 }
@@ -343,17 +352,26 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
   };
 }
 
+/** Convert font bytes → binary string without blowing Safari's apply/spread stack. */
+function uint8ToBinaryString(bytes: Uint8Array): string {
+  const chunk = 0x2000; // 8KB — safe for Safari argument limits
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += chunk) {
+    const slice = bytes.subarray(i, i + chunk);
+    let part = "";
+    for (let j = 0; j < slice.length; j++) {
+      part += String.fromCharCode(slice[j]!);
+    }
+    binary += part;
+  }
+  return binary;
+}
+
 async function loadFontBinary(url: string): Promise<string> {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Failed to load PDF font: ${res.status}`);
   const buf = await res.arrayBuffer();
-  const bytes = new Uint8Array(buf);
-  const chunk = 0x8000;
-  let binary = "";
-  for (let i = 0; i < bytes.length; i += chunk) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
-  }
-  return binary;
+  return uint8ToBinaryString(new Uint8Array(buf));
 }
 
 let fontCache: { regular: string; bold: string } | null = null;
@@ -385,9 +403,24 @@ export async function generatePlanPdf(plan: PlanForPdf) {
   let y = margin;
 
   const setFont = (style: "normal" | "bold", size: number, color = INK) => {
-    doc.setFont(FONT, style);
+    try {
+      doc.setFont(FONT, style);
+    } catch {
+      doc.setFont("helvetica", style === "bold" ? "bold" : "normal");
+    }
     doc.setFontSize(size);
     doc.setTextColor(color.r, color.g, color.b);
+  };
+
+  const safeText = (value: string, x: number, yPos: number, opts?: { align?: "left" | "right" | "center" }) => {
+    const cleaned = sanitizePdfText(value);
+    if (!cleaned) return;
+    try {
+      if (opts?.align) doc.text(cleaned, x, yPos, { align: opts.align });
+      else doc.text(cleaned, x, yPos);
+    } catch (err) {
+      console.warn("PDF text skipped", cleaned.slice(0, 80), err);
+    }
   };
 
   const ensureSpace = (needed: number) => {
@@ -409,7 +442,7 @@ export async function generatePlanPdf(plan: PlanForPdf) {
     ensureSpace(36);
     y += 6;
     setFont("bold", 13, ACCENT);
-    doc.text(text.toUpperCase(), margin, y);
+    safeText(text.toUpperCase(), margin, y);
     y += 8;
     doc.setDrawColor(ACCENT.r, ACCENT.g, ACCENT.b);
     doc.setLineWidth(1.5);
@@ -418,12 +451,13 @@ export async function generatePlanPdf(plan: PlanForPdf) {
   };
 
   const para = (text: string, size = 10, color = INK, indent = 0) => {
-    if (!text) return;
+    const cleaned = sanitizePdfText(text);
+    if (!cleaned) return;
     setFont("normal", size, color);
-    const lines = doc.splitTextToSize(text, contentW - indent) as string[];
+    const lines = doc.splitTextToSize(cleaned, contentW - indent) as string[];
     for (const line of lines) {
       ensureSpace(size + 5);
-      doc.text(line, margin + indent, y);
+      safeText(line, margin + indent, y);
       y += size + 4;
     }
   };
@@ -436,19 +470,24 @@ export async function generatePlanPdf(plan: PlanForPdf) {
 
   setFont("bold", 11, { r: 255, g: 255, b: 255 });
   doc.setTextColor(255, 255, 255);
-  doc.text(model.labels.brand, margin, 44);
+  safeText(model.labels.brand, margin, 44);
 
   setFont("bold", 26, { r: 255, g: 255, b: 255 });
   doc.setTextColor(255, 255, 255);
-  const titleLines = doc.splitTextToSize(model.title.replace(/\s*→\s*/g, " → "), contentW) as string[];
-  doc.text(titleLines.slice(0, 3), margin, 88);
+  const titleLines = doc.splitTextToSize(
+    sanitizePdfText(model.title.replace(/\s*→\s*/g, " → ")),
+    contentW,
+  ) as string[];
+  for (let i = 0; i < Math.min(3, titleLines.length); i++) {
+    safeText(titleLines[i]!, margin, 88 + i * 28);
+  }
 
   setFont("normal", 12, { r: 255, g: 255, b: 255 });
   doc.setTextColor(226, 232, 240);
   const meta = [model.destination, [model.startDate, model.endDate].filter(Boolean).join("  –  ")]
     .filter(Boolean)
     .join("  ·  ");
-  if (meta) doc.text(meta, margin, 148);
+  if (meta) safeText(meta, margin, 148);
 
   y = 200;
 
@@ -482,14 +521,14 @@ export async function generatePlanPdf(plan: PlanForPdf) {
         .join("  ·  ");
 
       setFont("bold", 12, ACCENT);
-      doc.text(head, margin, y);
+      safeText(head, margin, y);
       y += 15;
 
       setFont("bold", 11, INK);
-      const titleLinesDay = doc.splitTextToSize(d.title, contentW) as string[];
+      const titleLinesDay = doc.splitTextToSize(sanitizePdfText(d.title), contentW) as string[];
       for (const line of titleLinesDay) {
         ensureSpace(14);
-        doc.text(line, margin, y);
+        safeText(line, margin, y);
         y += 14;
       }
       y += 2;
@@ -509,16 +548,19 @@ export async function generatePlanPdf(plan: PlanForPdf) {
       for (const slot of d.slots) {
         ensureSpace(18);
         setFont("bold", 9.5, MUTED);
-        doc.text(slot.label.toUpperCase(), margin + 4, y);
+        safeText(slot.label.toUpperCase(), margin + 4, y);
         y += 13;
 
         for (const it of slot.items) {
           const lead = [it.time, it.title].filter(Boolean).join("  ·  ");
           setFont("bold", 10, INK);
-          const leadLines = doc.splitTextToSize(`•  ${lead}`, contentW - 8) as string[];
+          const leadLines = doc.splitTextToSize(
+            sanitizePdfText(`•  ${lead}`),
+            contentW - 8,
+          ) as string[];
           for (const line of leadLines) {
             ensureSpace(13);
-            doc.text(line, margin + 4, y);
+            safeText(line, margin + 4, y);
             y += 12;
           }
           if (it.price) para(it.price, 9, MUTED, 16);
@@ -561,8 +603,10 @@ export async function generatePlanPdf(plan: PlanForPdf) {
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
     setFont("normal", 8.5, MUTED);
-    doc.text("skybooplan.com", margin, pageH - 24);
-    doc.text(model.labels.pageOf(i, pageCount), pageW - margin, pageH - 24, { align: "right" });
+    safeText("skybooplan.com", margin, pageH - 24);
+    safeText(model.labels.pageOf(i, pageCount), pageW - margin, pageH - 24, {
+      align: "right",
+    });
   }
 
   const safe =

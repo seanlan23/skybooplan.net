@@ -51,6 +51,7 @@ export function buildCatalogPlanFromResponse(
     budget: data.budget,
     pax: data.pax.adults + data.pax.childrenAges.length,
     wishesText,
+    language: data.language,
   });
 
   enrichIslandAirportTransfers(catalogPlan, {

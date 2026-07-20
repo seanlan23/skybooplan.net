@@ -476,7 +476,15 @@ export function buildSegmentSpecs(
   if (origin && validDays.length > 0) {
     const last = validDays[validDays.length - 1]!;
     const dist = haversineKm(last.coord, origin);
-    if (dist > 50 || last.day.inFlightDay || FLIGHT_TEXT.test(collectDayText(last.day))) {
+    const lastText = collectDayText(last.day);
+    // Only attach return on a real departure / in-flight day — not every last sightseeing day.
+    const returnDay =
+      last.day.inFlightDay ||
+      FLIGHT_TEXT.test(lastText) ||
+      /odhod|departure|return home|pot nazaj|nazaj domov|letališč/i.test(
+        `${last.day.title} ${last.day.city ?? ""} ${lastText}`,
+      );
+    if (returnDay && dist > 50) {
       specs.push({
         id: "return-origin",
         mode: segmentDriving && dist <= MAX_DRIVING_SEGMENT_KM ? "driving" : "flight",

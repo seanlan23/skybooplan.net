@@ -582,7 +582,7 @@ STROGO PRAVILO — AVTODOM / RV / CAMPERVAN:
 OPISI (jasno, ne naporno):
 - description: 2–4 konkretni stavki na aktivnost (ne esej 150–300 besed/dan — uporabnik hoče berljiv, sproščen plan).
 - Vsaka aktivnost mora imeti estimatedCostEur z realno cifro v ${displayCurrency} (vstopnine, hrana, gorivo — ne 0, razen res brezplačnih). Polje se imenuje estimatedCostEur, vrednost pa je v ${displayCurrency}.
-- dailyBudget na vsakem dnevu mora biti realna vsota dnevnih stroškov v ${displayCurrency} — nikoli 0. Prilagodi rang državi (npr. večerja na Šrilanki ≈ 5–15 ${displayCurrency === "USD" ? "$" : "€"}, ne 40).
+- dailyBudget na vsakem dnevu mora biti realna vsota dnevnih stroškov NA OSEBO v ${displayCurrency} — nikoli 0. Skupinske postavke (gorivo, kamp) deli s številom potnikov. Prilagodi rang državi (npr. večerja na Šrilanki ≈ 5–15 ${displayCurrency === "USD" ? "$" : "€"}, ne 40; EU avtodom tipično 45–90 €/osebo/dan).
 ${flightReturnEuRule}
 
 STROGA GEOGRAFSKA NATANČNOST:
@@ -660,7 +660,7 @@ OTOK Z LETALIŠČEM NA CELINI (Boracay/MPH in podobno — obvezno):
 - Polje city naj ostane ime otoka (Boracay); coordinates (lat/lng) naj kažejo sredi otoka, ne na letališče MPH.
 
 OBVEZNA DNEVNA LOGISTIKA (itinerar[].days[] — za vsak dan):
-- dailyBudget: ocena dnevnih stroškov v EUR (gorivo, hrana, kamping pristojbine) — realna številka, ne 0.
+- dailyBudget: ocena dnevnih stroškov v EUR NA OSEBO (ne za celotno skupino). Skupne postavke (gorivo, kamp, cestnine) razdeli na število potnikov, nato prištej hrano/vstopnine na osebo. Tipično EU avtodom: 45–90 €/osebo/dan — NE 150–400.
 - drivingDistanceKm: točna ocena dolžine vožnje za ta dan v km (0 le če ni vožnje).
 - drivingDurationHours: trajanje vožnje npr. "3h 45m" (0h le če ni vožnje — uporabi "0h").
 

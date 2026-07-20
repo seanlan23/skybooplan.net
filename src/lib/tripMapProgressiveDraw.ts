@@ -19,6 +19,12 @@ export const MIN_ROAD_TRIP_DRAW_KM = 30;
 /** Max km for Mapbox driving Directions — longer legs are drawn as great-circle flights. */
 const MAX_DRIVING_DIRECTIONS_KM = 900;
 
+/**
+ * Camera fitBounds stays local to the active day.
+ * Route lines may still span continents; the viewport must not.
+ */
+export const MAX_DAY_CAMERA_SPAN_KM = 450;
+
 const MODE_PRIORITY: RouteMode[] = ["flight", "ferry", "driving", "transit"];
 
 export type ActiveDayLineStyle = RouteMode;
@@ -90,6 +96,19 @@ function mergeBoundsPoints(...groups: [number, number][][]): [number, number][] 
   return out;
 }
 
+/** Keep only points within MAX_DAY_CAMERA_SPAN_KM of the day center (or all if no center). */
+export function filterBoundsNearDay(
+  dayCoord: [number, number] | null,
+  groups: [number, number][][],
+  maxKm = MAX_DAY_CAMERA_SPAN_KM,
+): [number, number][] {
+  if (!dayCoord) return mergeBoundsPoints(...groups);
+  const filtered = groups.map((group) =>
+    group.filter((c) => haversineKm(dayCoord, c) <= maxKm),
+  );
+  return mergeBoundsPoints(...filtered);
+}
+
 /** POI / activity coords for fitBounds on sightseeing days (no road line). */
 export function buildPoiBoundsPoints(
   dayPlan: DayPlan | undefined,
@@ -97,8 +116,11 @@ export function buildPoiBoundsPoints(
 ): [number, number][] {
   if (!dayPlan && !dayCoord) return [];
   const coords = dayPlan ? buildDayWaypointCoords(dayPlan, dayCoord) : [];
-  if (coords.length === 0 && dayCoord) return [dayCoord];
-  return coords;
+  const local = dayCoord
+    ? coords.filter((c) => haversineKm(dayCoord, c) <= MAX_DAY_CAMERA_SPAN_KM)
+    : coords;
+  if (local.length === 0 && dayCoord) return [dayCoord];
+  return local;
 }
 
 export function segmentsForDay(
@@ -220,18 +242,22 @@ export function resolveSegmentCoordsForDay(
 function sightseeingRoute(
   dayPlan: DayPlan | undefined,
   dayCoord: [number, number] | null,
-  endpoints: { from: [number, number]; to: [number, number] } | null,
 ): ActiveDayRoute {
-  const poiBounds = buildPoiBoundsPoints(dayPlan, dayCoord);
-  const boundsPoints = endpoints
-    ? mergeBoundsPoints(poiBounds, [endpoints.from, endpoints.to])
-    : poiBounds;
+  // Markers only — never pull previous-day / origin endpoints into the camera.
   return {
     coordinates: [],
     lineStyle: "driving",
-    boundsPoints,
+    boundsPoints: buildPoiBoundsPoints(dayPlan, dayCoord),
     drawRoute: false,
   };
+}
+
+function dayLooksLikeFlightDay(dayPlan?: DayPlan): boolean {
+  if (!dayPlan) return false;
+  if (dayPlan.inFlightDay) return true;
+  if ((dayPlan.transportation ?? []).some((t) => t.type === "flight")) return true;
+  const blob = `${dayPlan.title} ${dayPlan.morning} ${dayPlan.afternoon} ${dayPlan.evening}`;
+  return /letalo|flight|airport|odlet|prilet|check-in|letališč/i.test(blob);
 }
 
 function dayHasGroundTransfer(dayPlan?: DayPlan): boolean {
@@ -279,24 +305,34 @@ export async function resolveActiveDayRoute(opts: {
   const poiBounds = buildPoiBoundsPoints(dayPlan, dayCoord);
   const allSegmentCoords = daySegments.flatMap((s) => s.coordinates);
 
-  // Flight / ferry — always show great-circle arc.
+  // Flight / ferry — draw full arc, but camera stays on the active-day side.
   if (primarySeg && (primarySeg.mode === "flight" || primarySeg.mode === "ferry")) {
     const coordinates = enrichSegmentCoords(primarySeg);
     return {
       coordinates,
       lineStyle: primarySeg.mode,
-      boundsPoints: mergeBoundsPoints(poiBounds, coordinates, allSegmentCoords),
+      boundsPoints: filterBoundsNearDay(dayCoord, [
+        poiBounds,
+        [primarySeg.to],
+        [primarySeg.from],
+        coordinates,
+        allSegmentCoords,
+      ]),
       drawRoute: true,
     };
   }
 
-  // Long intercontinental hop — flight arc.
-  if (endpoints && haversineKm(endpoints.from, endpoints.to) > MAX_DRIVING_DIRECTIONS_KM) {
+  // Long intercontinental hop — only on real flight/arrival days (not sightseeing).
+  if (
+    endpoints &&
+    haversineKm(endpoints.from, endpoints.to) > MAX_DRIVING_DIRECTIONS_KM &&
+    dayLooksLikeFlightDay(dayPlan)
+  ) {
     const arc = greatCircleForMode(endpoints.from, endpoints.to, "flight");
     return {
       coordinates: arc,
       lineStyle: "flight",
-      boundsPoints: mergeBoundsPoints(poiBounds, arc),
+      boundsPoints: filterBoundsNearDay(dayCoord, [poiBounds, [endpoints.to], [endpoints.from], arc]),
       drawRoute: true,
     };
   }
@@ -322,7 +358,11 @@ export async function resolveActiveDayRoute(opts: {
       return {
         coordinates: primarySeg.coordinates,
         lineStyle: "driving",
-        boundsPoints: mergeBoundsPoints(poiBounds, primarySeg.coordinates),
+        boundsPoints: filterBoundsNearDay(dayCoord, [
+          poiBounds,
+          primarySeg.coordinates,
+          [endpoints.from, endpoints.to],
+        ]),
         drawRoute: true,
       };
     }
@@ -341,7 +381,11 @@ export async function resolveActiveDayRoute(opts: {
         return {
           coordinates: road.coordinates,
           lineStyle,
-          boundsPoints: mergeBoundsPoints(poiBounds, road.coordinates),
+          boundsPoints: filterBoundsNearDay(dayCoord, [
+            poiBounds,
+            road.coordinates,
+            [endpoints.from, endpoints.to],
+          ]),
           drawRoute: true,
         };
       }
@@ -351,7 +395,11 @@ export async function resolveActiveDayRoute(opts: {
       return {
         coordinates: primarySeg.coordinates,
         lineStyle: "driving",
-        boundsPoints: mergeBoundsPoints(poiBounds, primarySeg.coordinates),
+        boundsPoints: filterBoundsNearDay(dayCoord, [
+          poiBounds,
+          primarySeg.coordinates,
+          [endpoints.from, endpoints.to],
+        ]),
         drawRoute: true,
       };
     }
@@ -360,13 +408,16 @@ export async function resolveActiveDayRoute(opts: {
     return {
       coordinates: [endpoints.from, endpoints.to],
       lineStyle: "driving",
-      boundsPoints: mergeBoundsPoints(poiBounds, [endpoints.from, endpoints.to]),
+      boundsPoints: filterBoundsNearDay(dayCoord, [
+        poiBounds,
+        [endpoints.from, endpoints.to],
+      ]),
       drawRoute: true,
     };
   }
 
   // Sightseeing / same-city day — markers + bounds, no road line.
-  return sightseeingRoute(dayPlan, dayCoord, endpoints);
+  return sightseeingRoute(dayPlan, dayCoord);
 }
 
 /** @deprecated Use resolveActiveDayRoute — kept for tests. */
@@ -394,21 +445,17 @@ export function coordsBoundsKey(coords: [number, number][]): string {
   return `${coords.length}:${first[0].toFixed(4)},${first[1].toFixed(4)}:${last[0].toFixed(4)},${last[1].toFixed(4)}`;
 }
 
-/** @deprecated Use buildPoiBoundsPoints */
+/** @deprecated Use buildPoiBoundsPoints — local day bounds only (no intercontinental stretch). */
 export function buildActiveDayWaypoints(
   activeDay: number,
   dayPlan: DayPlan | undefined,
   dayCoords: Map<number, [number, number]>,
-  origin: [number, number] | null,
+  _origin: [number, number] | null,
   finalizedDays: RouteDayStop[],
 ): [number, number][] {
-  const endpoints = resolveDayRouteEndpoints(activeDay, dayCoords, origin, finalizedDays);
   const dayCoord =
     dayCoords.get(activeDay) ??
     finalizedDays.find((d) => d.day.day === activeDay)?.coord ??
     null;
-  const poiBounds = buildPoiBoundsPoints(dayPlan, dayCoord);
-  return endpoints
-    ? mergeBoundsPoints(poiBounds, [endpoints.from, endpoints.to])
-    : poiBounds;
+  return buildPoiBoundsPoints(dayPlan, dayCoord);
 }
