@@ -25,7 +25,9 @@ import {
 import { enrichDayActivities } from "@/lib/dayEnrichers";
 import {
   applyCanadaBudgetFloor,
+  applyGlobalDayBudgetCeil,
   applyHotelRestBudgetFloor,
+  applyMotorhomeBudgetCeil,
   applyMotorhomeBudgetFloor,
   applySafariBudgetFloor,
   applyUsBudgetFloor,
@@ -3294,12 +3296,13 @@ export function buildSkeletonDayPlans(
             Math.max(1, opts?.pax ?? 1),
           );
           const interval = skeleton.hotelRestEveryNDays;
-          if (interval && isHotelRestDay(d, interval, { totalDays: nDays })) {
-            return applyHotelRestBudgetFloor(motorhomeFloored, true, Math.max(1, opts?.pax ?? 1));
-          }
-          return motorhomeFloored;
+          const withHotel =
+            interval && isHotelRestDay(d, interval, { totalDays: nDays })
+              ? applyHotelRestBudgetFloor(motorhomeFloored, true, Math.max(1, opts?.pax ?? 1))
+              : motorhomeFloored;
+          return applyMotorhomeBudgetCeil(withHotel, kind);
         }
-        return floored;
+        return applyGlobalDayBudgetCeil(floored, kind, priceTier);
       })(),
       lat: primaryCoord?.lat ?? region.lat,
       lng: primaryCoord?.lng ?? region.lng,

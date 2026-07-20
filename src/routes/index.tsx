@@ -567,6 +567,7 @@ function Landing() {
     setGenInterrupted(false);
     setSavedPlanId(null);
     streamItinerary.reset();
+    clearPlanFromSession();
   }
 
   /** Clear AI plan only — keep search draft, hero context, and flight selection. */
@@ -1011,6 +1012,7 @@ function Landing() {
     setPreviewPhotoPlan(null);
     setAiError(null);
     setHeroPlannerActive(false);
+    clearPlanFromSession();
 
     const route = parseMakeFlightRoute(flight.destinacija);
     const from = flight.origin_iata || route.from || aiContext.from || lastSearch?.from || "LJU";
@@ -1074,6 +1076,7 @@ function Landing() {
     setAiPlan(null);
     setPreviewPhotoPlan(null);
     setAiError(null);
+    clearPlanFromSession();
     const openJaw =
       f.tripKind === "multicity" ||
       (f.inbound && !isClassicRoundTrip(f.outbound, f.inbound));
@@ -1182,9 +1185,13 @@ function Landing() {
     const safeForm = normalizeLastPlannerForm(form) ?? form;
     setLastPlannerForm(safeForm);
     setHeroPlannerActive(true);
-    // Keep previous aiPlan until the new stream commits — refresh must not wipe it.
+    // Drop stale plan from React + localStorage immediately — never show old €/map while regenerating.
+    setAiPlan(null);
+    setAiSkeleton(null);
     setPreviewPhotoPlan(null);
     setAiError(null);
+    setSavedPlanId(null);
+    clearPlanFromSession();
     streamItinerary.reset();
     setGenInterrupted(false);
     setAiGenStartedAt(Date.now());

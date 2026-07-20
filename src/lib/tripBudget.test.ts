@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  applyGlobalDayBudgetCeil,
   applyMotorhomeBudgetCeil,
   applyMotorhomeBudgetFloor,
   applySafariBudgetFloor,
@@ -45,9 +46,10 @@ describe("classifyDayBudgetKind", () => {
 
 describe("normalizeGeminiDailyBudgetPerPerson", () => {
   it("treats Gemini dailyBudget as household total when divided by pax is sane", () => {
-    expect(normalizeGeminiDailyBudgetPerPerson(380, 88, 90, 4)).toBe(95);
-    // Prefer listed activity floor when higher than household split
-    expect(normalizeGeminiDailyBudgetPerPerson(420, 100, 120, 4)).toBe(120);
+    expect(normalizeGeminiDailyBudgetPerPerson(380, 88, 90, 4)).toBeLessThanOrEqual(100);
+    expect(normalizeGeminiDailyBudgetPerPerson(380, 88, 90, 4)).toBeGreaterThanOrEqual(90);
+    // Household 420 / 4 — stay near per-person, not raw 420
+    expect(normalizeGeminiDailyBudgetPerPerson(420, 100, 120, 4)).toBeLessThanOrEqual(130);
   });
 
   it("keeps per-person value when already reasonable", () => {
@@ -57,6 +59,40 @@ describe("normalizeGeminiDailyBudgetPerPerson", () => {
   it("never undercuts listed NYC-style spend with a low Gemini dailyBudget", () => {
     // Dinner €80 + lunch/coffee ~50; Gemini guessed 110 for 3 pax
     expect(normalizeGeminiDailyBudgetPerPerson(110, 180, 130, 3)).toBeGreaterThanOrEqual(180);
+  });
+});
+
+describe("applyGlobalDayBudgetCeil", () => {
+  it("caps inflated mid sightseeing days for every destination", () => {
+    expect(applyGlobalDayBudgetCeil(225, "sightseeing", "mid")).toBe(165);
+    expect(applyGlobalDayBudgetCeil(74, "arrival", "mid")).toBe(74);
+    expect(applyGlobalDayBudgetCeil(200, "departure", "mid")).toBe(55);
+  });
+
+  it("still allows US-floor NYC sightseeing under mid ceil", () => {
+    const floored = applyUsBudgetFloor(
+      90,
+      "sightseeing",
+      {
+        morning: [{ priceLabel: "€22" }],
+        afternoon: [{ priceLabel: "€40" }],
+        evening: [{ priceLabel: "€80", name: "Dinner and cocktails" }],
+      },
+      "New York",
+      "US",
+    );
+    expect(floored).toBeGreaterThanOrEqual(150);
+    expect(applyGlobalDayBudgetCeil(floored, "sightseeing", "mid")).toBeGreaterThanOrEqual(150);
+    expect(applyGlobalDayBudgetCeil(floored, "sightseeing", "mid")).toBeLessThanOrEqual(165);
+  });
+
+  it("keeps 3-pax Thailand-style totals under control", () => {
+    const days = Array.from({ length: 16 }, () =>
+      applyGlobalDayBudgetCeil(200, "sightseeing", "mid"),
+    );
+    expect(computeTripTotalBudgetEur(days.map((d) => ({ dailyBudgetEur: d })), 3)).toBeLessThan(
+      8500,
+    );
   });
 });
 

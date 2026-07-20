@@ -330,6 +330,52 @@ export function applyMotorhomeBudgetCeil(
   return Math.min(eur, 100);
 }
 
+type BudgetTier = "premium" | "mid" | "budget";
+
+/**
+ * Hard per-person daily ceilings for ALL destinations.
+ * Stops Gemini household leaks (e.g. €200+/pp → ×3 pax = €6k+ trips).
+ * Ceils sit above regional floors (US sightseeing ≥150 still fits mid=165).
+ */
+export function applyGlobalDayBudgetCeil(
+  eur: number,
+  kind: DayBudgetKind,
+  tier: BudgetTier = "mid",
+): number {
+  const caps: Record<BudgetTier, Record<DayBudgetKind, number>> = {
+    budget: {
+      arrival: 55,
+      departure: 40,
+      sightseeing: 85,
+      "ticket-heavy": 160,
+      safari: 420,
+      "safari-balloon": 650,
+      "cross-country-travel": 140,
+    },
+    mid: {
+      arrival: 85,
+      departure: 55,
+      // Above US NYC floor (~150); still kills €200–400 Gemini leaks.
+      sightseeing: 165,
+      "ticket-heavy": 220,
+      safari: 480,
+      "safari-balloon": 700,
+      "cross-country-travel": 180,
+    },
+    premium: {
+      arrival: 130,
+      departure: 90,
+      sightseeing: 200,
+      "ticket-heavy": 320,
+      safari: 550,
+      "safari-balloon": 780,
+      "cross-country-travel": 260,
+    },
+  };
+  const cap = caps[tier][kind] ?? caps[tier].sightseeing;
+  return Math.min(Math.max(0, Math.round(eur)), cap);
+}
+
 /** Hybrid motorhome + periodic hotel night — bump budget on hotel rest days. Per person. */
 export function applyHotelRestBudgetFloor(
   eur: number,
@@ -385,15 +431,25 @@ export function normalizeGeminiDailyBudgetPerPerson(
   const floor = Math.max(computedPerPerson, activityFloor);
 
   const looksLikeHousehold =
-    geminiDaily >= 200 &&
+    pax >= 2 &&
+    geminiDaily >= 140 &&
     asGroupPerPerson >= 15 &&
     asGroupPerPerson <= 220 &&
-    geminiDaily >= computedPerPerson * 2.2 &&
-    Math.abs(asGroupPerPerson - computedPerPerson) <=
-      Math.abs(geminiDaily - computedPerPerson);
+    (geminiDaily >= computedPerPerson * 1.8 ||
+      geminiDaily >= activityFloor * 2.2 ||
+      geminiDaily >= 180);
 
   if (looksLikeHousehold) {
-    return Math.max(asGroupPerPerson, activityTotalEur, Math.round(computedPerPerson * 0.9));
+    return Math.max(
+      asGroupPerPerson,
+      Math.min(activityFloor, asGroupPerPerson + 25),
+      Math.round(computedPerPerson * 0.85),
+    );
+  }
+
+  // Solo / already-pp: still don't trust absurd Gemini guesses when activities are light.
+  if (geminiDaily > 160 && activityTotalEur > 0 && activityTotalEur < 70) {
+    return Math.max(floor, Math.min(geminiDaily, activityFloor + 45, 120));
   }
 
   return Math.max(geminiDaily, floor);

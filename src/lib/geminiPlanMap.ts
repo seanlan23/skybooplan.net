@@ -30,6 +30,7 @@ import {
   applyUsBudgetFloor,
   applySafariBudgetFloor,
   normalizeGeminiDailyBudgetPerPerson,
+  applyGlobalDayBudgetCeil,
   sumListedActivityEur,
 } from "@/lib/tripBudget";
 import { addDays } from "@/lib/dateUtils";
@@ -852,6 +853,8 @@ export function enrichGeminiCatalogPlan(
         daily = applyHotelRestBudgetFloor(daily, true, travelers);
       }
       daily = applyMotorhomeBudgetCeil(daily, kind);
+    } else {
+      daily = applyGlobalDayBudgetCeil(daily, kind, tier);
     }
 
     finalDay.dailyBudgetEur = daily;

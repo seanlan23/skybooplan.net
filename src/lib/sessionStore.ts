@@ -13,8 +13,11 @@ import type { AiTripPlan, TripSkeleton } from "@/lib/aiPlan.functions";
 import type { DuffelFlight } from "@/lib/flights.functions";
 import type { TripFlightContext } from "@/lib/flightScheduling";
 
-/** Bump when AI plan / skeleton shape or enrichment logic changes materially. */
-export const PLAN_SCHEMA_VERSION = 2;
+/**
+ * Bump when AI plan / budget / map enrichment changes materially so old
+ * inflated cached plans are never restored after deploy.
+ */
+export const PLAN_SCHEMA_VERSION = 3;
 
 const KEY = `skybooplan:lastSession:v${PLAN_SCHEMA_VERSION}`;
 
@@ -23,6 +26,7 @@ const HOME_RESET_KEY = "skybooplan:pendingHomeReset";
 
 /** Older keys — removed on load and clear to prevent stale plan leaks. */
 const LEGACY_KEYS = [
+  "skybooplan:lastSession:v2",
   "skybooplan:lastSession:v1",
   "skybooplan:lastSession",
 ] as const;
