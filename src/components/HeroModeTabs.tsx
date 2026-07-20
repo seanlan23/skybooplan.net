@@ -8,16 +8,17 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
-const TAB_ORDER: HeroChatMode[] = ["flights", "stays", "plan", "all"];
+const TAB_ORDER: HeroChatMode[] = ["flights", "stays", "motorhome", "plan", "all"];
 
 const TAB_LABEL_KEYS: Record<HeroChatMode, string> = {
   flights: "heroMode.flights",
   stays: "heroMode.stays",
+  motorhome: "heroMode.motorhome",
   plan: "heroMode.plan",
   all: "heroMode.all",
 };
 
-/** Plan tab still gated; Stays is live (Booking search + deep links). */
+/** Plan tab still gated; Stays + Avtodom are live. */
 const DISABLED_MODES = new Set<HeroChatMode>(["plan"]);
 
 type HeroModeTabsProps = {

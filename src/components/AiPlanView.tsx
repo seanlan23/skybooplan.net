@@ -32,8 +32,32 @@ import { ReturnHomeCard } from "@/components/ReturnHomeCard";
 import { SupportCard } from "@/components/SupportCard";
 import { TransportDashboard } from "@/components/TransportDashboard";
 import type { AiPlannerSubmit } from "@/components/AiPlannerPreview";
+import {
+  buildAppleMapsRoadTripUrl,
+  buildGoogleMapsRoadTripUrl,
+} from "@/lib/navigationService";
 
 export type { StayInfo };
+
+function roadTripMapStops(plan: AiTripPlan): string[] {
+  const stops: string[] = [];
+  const origin = plan.originPlace?.trim() || plan.originIata?.trim();
+  if (origin) stops.push(origin);
+  for (const day of plan.days ?? []) {
+    const city = day.city?.trim() || day.focusName?.trim();
+    if (!city) continue;
+    if (stops[stops.length - 1]?.toLowerCase() === city.toLowerCase()) continue;
+    stops.push(city);
+  }
+  const dest = plan.destinationPlace?.trim();
+  if (dest && stops[stops.length - 1]?.toLowerCase() !== dest.toLowerCase()) {
+    // Destination often already appears as a day city — only append if missing.
+    if (!stops.some((s) => s.toLowerCase() === dest.toLowerCase())) {
+      stops.push(dest);
+    }
+  }
+  return stops;
+}
 
 function scrollElementIntoPlanColumn(
   container: HTMLElement,
@@ -489,6 +513,12 @@ export function AiPlanView({
   const mapPlayLabel = t("aiplan.mapPlay" as never);
   const mapStopLabel = t("aiplan.mapStop" as never);
   const displaySummary = stripPlanTeaser(plan.summary, lang);
+  const roadTripStops = useMemo(() => roadTripMapStops(plan), [plan]);
+  const showRoadTripMaps =
+    (plan.groundTransportMode === "motorhome" ||
+      plan.groundTransportMode === "car" ||
+      plan.accommodationMode === "motorhome") &&
+    roadTripStops.length >= 2;
   const isGenerating = streaming || pendingDayNumbers.length > 0;
 
   return (
@@ -581,6 +611,29 @@ export function AiPlanView({
               {plan.destinationName}
             </h2>
             <ItineraryRouteOverview plan={plan} />
+            {showRoadTripMaps ? (
+              <div className="mt-3 flex flex-wrap gap-2">
+                <a
+                  href={buildGoogleMapsRoadTripUrl(roadTripStops)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-emerald-700"
+                >
+                  {t("heroChat.motorhome.openGoogleMaps" as never)}
+                </a>
+                <a
+                  href={buildAppleMapsRoadTripUrl(
+                    roadTripStops[0]!,
+                    roadTripStops[roadTripStops.length - 1]!,
+                  )}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+                >
+                  {t("heroChat.motorhome.openAppleMaps" as never)}
+                </a>
+              </div>
+            ) : null}
             <DestinationInsightBanner
               context={destCtx}
               flights={flights}

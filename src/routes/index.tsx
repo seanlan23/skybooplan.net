@@ -18,6 +18,7 @@ import {
   staySearchFromCollected,
   type HeroStaySearchParams,
 } from "@/lib/heroStaySearch";
+import { motorhomePlannerFromCollected } from "@/lib/heroMotorhome";
 import { HeroAiPlanResults } from "@/components/HeroAiPlanResults";
 import { SocialProofSection } from "@/components/SocialProofSection";
 import { TripInspiration } from "@/components/TripInspiration";
@@ -608,6 +609,44 @@ function Landing() {
     setError(null);
     beginNewSearch();
     setHeroDreamPrompt(trimmed);
+
+    // Avtodom: start → end → dates → people → AI road-trip plan + Mapbox.
+    if (mode === "motorhome") {
+      try {
+        const { ctx, form } = motorhomePlannerFromCollected(collected, lang);
+        if (!ctx.originPlace?.trim() || !ctx.destinationPlace?.trim()) {
+          setHeroSearchError("error.destinationRequired");
+          return;
+        }
+        setHeroStaySearch(null);
+        setHeroFlights([]);
+        setAiContext(ctx);
+        setPlannerMode("trip");
+        setLastSearch({
+          mode: "ai",
+          from: ctx.from || ctx.originPlace,
+          to: ctx.to || ctx.destinationPlace,
+          originPlace: ctx.originPlace,
+          destinationPlace: ctx.destinationPlace,
+          groundTransportMode: "motorhome",
+          departDate: ctx.departDate,
+          returnDate: ctx.returnDate ?? "",
+          tripType: "return",
+          pax: ctx.pax,
+          adults: ctx.adults,
+          children: ctx.childrenAges.length,
+          childrenAges: ctx.childrenAges,
+          language: lang,
+        });
+        setHeroSearchLoading(false);
+        await handleGeneratePlan(form, ctx, "trip", "hero-trip-plan");
+      } catch (err) {
+        console.error("Motorhome plan setup failed", err);
+        setHeroSearchError("heroSearch.error");
+        setHeroSearchLoading(false);
+      }
+      return;
+    }
 
     // Stays-only: Booking.com search cards (same deep-link pattern as Skyscanner flights).
     if (mode === "stays") {

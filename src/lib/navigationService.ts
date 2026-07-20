@@ -57,6 +57,30 @@ export function buildGoogleMapsDirectionsUrl(
 }
 
 /**
+ * Multi-stop road-trip URL for Google Maps (origin → waypoints → destination).
+ * Uses path form: /maps/dir/A/B/C — works well for motorhome day cities.
+ */
+export function buildGoogleMapsRoadTripUrl(stops: string[]): string {
+  const parts = stops
+    .map((s) => s.replace(/\s+/g, " ").trim())
+    .filter((s) => s.length > 0);
+  if (parts.length < 2) return "https://www.google.com/maps/";
+  // Cap waypoints — Google Maps URL length / UX.
+  const capped = parts.length > 10 ? [parts[0]!, ...parts.slice(1, -1).slice(0, 8), parts[parts.length - 1]!] : parts;
+  return `https://www.google.com/maps/dir/${capped.map(encodeURIComponent).join("/")}`;
+}
+
+/** Apple Maps driving directions (origin + destination; limited waypoint support). */
+export function buildAppleMapsRoadTripUrl(origin: string, destination: string): string {
+  const params = new URLSearchParams({
+    dirflg: "d",
+    saddr: origin.trim(),
+    daddr: destination.trim(),
+  });
+  return `https://maps.apple.com/?${params.toString()}`;
+}
+
+/**
  * Opens Google Maps directions to `destination` in a new tab.
  */
 export function openInGoogleMaps(

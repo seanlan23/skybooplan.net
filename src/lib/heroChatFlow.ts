@@ -1,8 +1,44 @@
 export const HERO_CHAT_TOTAL_STEPS = 5;
 
-export type HeroChatMode = "all" | "flights" | "stays" | "plan";
+export type HeroChatMode = "all" | "flights" | "stays" | "plan" | "motorhome";
 
-export const HERO_CHAT_MODES: HeroChatMode[] = ["flights", "stays", "plan", "all"];
+export const HERO_CHAT_MODES: HeroChatMode[] = [
+  "flights",
+  "stays",
+  "motorhome",
+  "plan",
+  "all",
+];
+
+/** Start-city chips for Avtodom guided flow. */
+export const HERO_MOTORHOME_START_CHIPS: Array<{
+  id: string;
+  place: string;
+  emoji: string;
+  nameKey: string;
+}> = [
+  { id: "vienna", place: "Vienna", emoji: "🇦🇹", nameKey: "hero.mhStart.vienna" },
+  { id: "ljubljana", place: "Ljubljana", emoji: "🇸🇮", nameKey: "hero.mhStart.ljubljana" },
+  { id: "munich", place: "Munich", emoji: "🇩🇪", nameKey: "hero.mhStart.munich" },
+  { id: "zagreb", place: "Zagreb", emoji: "🇭🇷", nameKey: "hero.mhStart.zagreb" },
+  { id: "milan", place: "Milan", emoji: "🇮🇹", nameKey: "hero.mhStart.milan" },
+  { id: "budapest", place: "Budapest", emoji: "🇭🇺", nameKey: "hero.mhStart.budapest" },
+];
+
+/** End / destination chips for Avtodom. */
+export const HERO_MOTORHOME_END_CHIPS: Array<{
+  id: string;
+  place: string;
+  emoji: string;
+  nameKey: string;
+}> = [
+  { id: "amsterdam", place: "Amsterdam", emoji: "🇳🇱", nameKey: "hero.mhEnd.amsterdam" },
+  { id: "croatia", place: "Croatia", emoji: "🌊", nameKey: "hero.mhEnd.croatia" },
+  { id: "albania", place: "Albania", emoji: "🇦🇱", nameKey: "hero.mhEnd.albania" },
+  { id: "italy", place: "Italy", emoji: "🇮🇹", nameKey: "hero.mhEnd.italy" },
+  { id: "spain", place: "Spain", emoji: "🇪🇸", nameKey: "hero.mhEnd.spain" },
+  { id: "greece", place: "Greece", emoji: "🇬🇷", nameKey: "hero.mhEnd.greece" },
+];
 
 export type HeroChatStep =
   | "destination"

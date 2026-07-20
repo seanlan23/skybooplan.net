@@ -25,11 +25,14 @@ import {
   createChatMessage,
   getDestinationChipDisplay,
   HERO_DESTINATION_CHIPS,
+  HERO_MOTORHOME_END_CHIPS,
+  HERO_MOTORHOME_START_CHIPS,
   type HeroChatCollected,
   type HeroChatMessage,
   type HeroChatMode,
   type HeroChatStep,
 } from "@/lib/heroChatFlow";
+import { buildHeroMotorhomeSearchQuery } from "@/lib/heroMotorhome";
 import { extractHeroChatDates } from "@/lib/heroChatDates";
 import {
   extractHeroChatPassengers,
@@ -328,6 +331,95 @@ function HeroGuidedStart({
   );
 }
 
+function HeroMotorhomeGuidedStart({
+  onPickStart,
+  onTypeSubmit,
+  textInput,
+  onTextChange,
+  canSubmit,
+  inputDisabled,
+  t,
+}: {
+  onPickStart: (place: string, label: string) => void;
+  onTypeSubmit: () => void;
+  textInput: string;
+  onTextChange: (value: string) => void;
+  canSubmit: boolean;
+  inputDisabled: boolean;
+  t: (key: never) => string;
+}) {
+  const [showTypeBox, setShowTypeBox] = useState(false);
+
+  return (
+    <div className="relative z-20 w-full">
+      <div className="rounded-2xl border border-white/25 bg-white/12 p-5 shadow-lg backdrop-blur-md sm:p-6">
+        <p className="text-center text-lg font-semibold text-white sm:text-xl">
+          {t("heroChat.motorhome.startTitle" as never)}
+        </p>
+        <p className="mt-1.5 text-center text-sm text-white/70">
+          {t("heroChat.motorhome.startHint" as never)}
+        </p>
+
+        <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {HERO_MOTORHOME_START_CHIPS.map((chip) => {
+            const name = t(chip.nameKey as never);
+            const label = name.startsWith("hero.mhStart.") ? chip.place : name;
+            return (
+              <button
+                key={chip.id}
+                type="button"
+                disabled={inputDisabled}
+                onClick={() => onPickStart(chip.place, `${chip.emoji} ${label}`)}
+                className="flex flex-col items-center justify-center gap-1 rounded-2xl border border-white/25 bg-white/15 px-3 py-4 text-white shadow-sm transition hover:bg-white/25 active:scale-[0.98] disabled:opacity-50"
+              >
+                <span className="text-2xl" aria-hidden>
+                  {chip.emoji}
+                </span>
+                <span className="text-sm font-semibold sm:text-[15px]">{label}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {!showTypeBox ? (
+          <button
+            type="button"
+            onClick={() => setShowTypeBox(true)}
+            className="mt-4 w-full rounded-xl border border-dashed border-white/30 py-2.5 text-sm font-medium text-white/85 hover:bg-white/10"
+          >
+            {t("heroChat.motorhome.typeStart" as never)}
+          </button>
+        ) : (
+          <div className="relative z-30 mt-4 flex items-center gap-2">
+            <input
+              value={textInput}
+              onChange={(e) => onTextChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  onTypeSubmit();
+                }
+              }}
+              disabled={inputDisabled}
+              placeholder="Vienna, Munich…"
+              className="min-w-0 flex-1 rounded-xl border border-white/30 bg-white/15 px-3 py-2.5 text-sm text-white placeholder:text-white/50 outline-none focus:border-white/50"
+            />
+            <button
+              type="button"
+              disabled={!canSubmit}
+              onClick={onTypeSubmit}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-500 text-white disabled:opacity-40"
+              aria-label="OK"
+            >
+              <ArrowUp className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function PickExactDatesButton({
   label,
   onClick,
@@ -379,8 +471,9 @@ export function HeroChatFlow({
   const { t, lang } = useI18n();
   const isFlightsOnly = mode === "flights";
   const isStaysOnly = mode === "stays";
-  /** Skip pace/budget — flights and stays go straight to results after party size. */
-  const isQuickSearchMode = isFlightsOnly || isStaysOnly;
+  const isMotorhomeOnly = mode === "motorhome";
+  /** Skip pace/budget — flights / stays / avtodom go straight to results after party size. */
+  const isQuickSearchMode = isFlightsOnly || isStaysOnly || isMotorhomeOnly;
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -406,7 +499,11 @@ export function HeroChatFlow({
   const showSearchLoader =
     isSearching &&
     !searchError &&
-    (isStaysOnly ? !staySearch : flights.length === 0);
+    (isStaysOnly
+      ? !staySearch
+      : isMotorhomeOnly
+        ? Boolean(loading)
+        : flights.length === 0);
   const inputDisabled = isSearching;
   const showTripChecklist = conversationStarted && mode === "all";
 
@@ -439,12 +536,44 @@ export function HeroChatFlow({
     [t],
   );
 
+  const startMotorhomeFromOrigin = useCallback(
+    (originPlace: string, displayLabel?: string) => {
+      const trimmed = originPlace.trim();
+      if (!trimmed || conversationStarted) return;
+      const userLabel = displayLabel?.trim() || trimmed;
+      setConversationStarted(true);
+      setCollected({ origin: trimmed });
+      appendMessages(
+        createChatMessage("user", userLabel),
+        createChatMessage("ai", t("heroChat.motorhome.askEnd" as never)),
+      );
+      setStep("destination");
+      setTextInput("");
+    },
+    [appendMessages, conversationStarted, t],
+  );
+
   const startFlow = useCallback(
     (destination: string, displayLabel?: string) => {
       const trimmed = destination.trim();
       const fileFallback = t("heroChat.fileOnlyDestination" as never);
       const resolved = trimmed || (attachment ? fileFallback : "");
       if (!resolved || step !== "destination") return;
+
+      // Avtodom: destination step = END place (origin already collected).
+      if (isMotorhomeOnly) {
+        const userLabel = displayLabel?.trim() || trimmed;
+        setCollected((prev) => ({ ...prev, destination: resolved }));
+        appendMessages(
+          createChatMessage("user", userLabel),
+          createChatMessage("ai", t("heroChat.stepDates.ask" as never), {
+            offerDatePicker: true,
+          }),
+        );
+        setStep("dates");
+        setTextInput("");
+        return;
+      }
 
       const userLabel = displayLabel?.trim() || trimmed || fileFallback;
       const userMessage =
@@ -570,7 +699,16 @@ export function HeroChatFlow({
       }
       setStep("dates");
     },
-    [appendMessages, attachment, isFlightsOnly, isStaysOnly, lang, step, t],
+    [
+      appendMessages,
+      attachment,
+      isFlightsOnly,
+      isMotorhomeOnly,
+      isStaysOnly,
+      lang,
+      step,
+      t,
+    ],
   );
 
   useEffect(() => {
@@ -662,6 +800,24 @@ export function HeroChatFlow({
       return;
     }
 
+    // Avtodom: origin + destination places already in collected — generate road plan.
+    if (isMotorhomeOnly) {
+      if (!collected.origin?.trim() || !collected.destination?.trim()) {
+        appendMessages(
+          createChatMessage("ai", t("heroChat.motorhome.askEnd" as never)),
+        );
+        setStep(collected.origin?.trim() ? "destination" : "origin");
+        return;
+      }
+      searchSentRef.current = true;
+      const data = {
+        ...(collected as HeroChatCollected),
+        attachment: attachment ?? collected.attachment,
+      } satisfies HeroChatCollected;
+      onSearch(buildHeroMotorhomeSearchQuery(data), data, mode);
+      return;
+    }
+
     // Block HKT→HKT before Make/Duffel (destination IATA mistaken as origin).
     const safeOrigins = originsFromCollected(collected.destination, collected.origin);
     if (safeOrigins.length === 0) {
@@ -681,7 +837,17 @@ export function HeroChatFlow({
     } satisfies HeroChatCollected;
     const query = buildHeroMakeSearchQuery(data, mode);
     onSearch(query, data, mode);
-  }, [step, collected, attachment, onSearch, mode, appendMessages, t, isStaysOnly]);
+  }, [
+    step,
+    collected,
+    attachment,
+    onSearch,
+    mode,
+    appendMessages,
+    t,
+    isStaysOnly,
+    isMotorhomeOnly,
+  ]);
 
   useEffect(() => {
     if (step === "destination") {
@@ -767,7 +933,12 @@ export function HeroChatFlow({
         dates: context.dates!.trim() || prev.dates || "",
       }));
     }
-    if (isStaysOnly) {
+    if (isStaysOnly || isMotorhomeOnly) {
+      if (isMotorhomeOnly) {
+        appendMessages(createChatMessage("ai", t("heroChat.motorhome.searching" as never)));
+        setStep("searching");
+        return;
+      }
       startStaySearch();
       return;
     }
@@ -945,6 +1116,11 @@ export function HeroChatFlow({
       startStaySearch();
       return;
     }
+    if (isMotorhomeOnly) {
+      appendMessages(createChatMessage("ai", t("heroChat.motorhome.searching" as never)));
+      setStep("searching");
+      return;
+    }
     goToOriginStep(isFlightsOnly ? "searching" : "pace");
   }
 
@@ -966,6 +1142,10 @@ export function HeroChatFlow({
     const trimmed = textInput.trim();
     if (!trimmed && !attachment) {
       inputRef.current?.focus();
+      return;
+    }
+    if (isMotorhomeOnly && !conversationStarted) {
+      startMotorhomeFromOrigin(trimmed);
       return;
     }
     startFlow(trimmed);
@@ -1071,17 +1251,29 @@ export function HeroChatFlow({
               {fileError}
             </p>
           ) : null}
-          <HeroGuidedStart
-            onPickDestination={handleDestinationPick}
-            onTypeSubmit={handleStartPlanning}
-            textInput={textInput}
-            onTextChange={setTextInput}
-            canSubmit={canSubmit}
-            inputDisabled={inputDisabled}
-            fileProcessing={fileProcessing}
-            featureBadges={featureBadges}
-            t={t}
-          />
+          {isMotorhomeOnly ? (
+            <HeroMotorhomeGuidedStart
+              onPickStart={startMotorhomeFromOrigin}
+              onTypeSubmit={handleStartPlanning}
+              textInput={textInput}
+              onTextChange={setTextInput}
+              canSubmit={Boolean(textInput.trim()) && !inputDisabled}
+              inputDisabled={inputDisabled}
+              t={t}
+            />
+          ) : (
+            <HeroGuidedStart
+              onPickDestination={handleDestinationPick}
+              onTypeSubmit={handleStartPlanning}
+              textInput={textInput}
+              onTextChange={setTextInput}
+              canSubmit={canSubmit}
+              inputDisabled={inputDisabled}
+              fileProcessing={fileProcessing}
+              featureBadges={featureBadges}
+              t={t}
+            />
+          )}
         </>
       ) : (
         <form
@@ -1162,9 +1354,31 @@ export function HeroChatFlow({
                 aria-hidden
               />
               <span className="text-sm font-medium tracking-wide text-white">
-                {t((isStaysOnly ? "cta.searchingStays" : "cta.searchingFlights") as never)}
+                {t(
+                  (isMotorhomeOnly
+                    ? "heroChat.motorhome.searching"
+                    : isStaysOnly
+                      ? "cta.searchingStays"
+                      : "cta.searchingFlights") as never,
+                )}
               </span>
             </div>
+          ) : null}
+
+          {showConversationChips && step === "destination" && isMotorhomeOnly ? (
+            <QuickReplyChips
+              layout="grid"
+              disabled={loading}
+              options={HERO_MOTORHOME_END_CHIPS.map((chip) => {
+                const name = t(chip.nameKey as never);
+                const label = name.startsWith("hero.mhEnd.") ? chip.place : name;
+                return { id: chip.id, label: `${chip.emoji} ${label}` };
+              })}
+              onSelect={(id, label) => {
+                const chip = HERO_MOTORHOME_END_CHIPS.find((c) => c.id === id);
+                handleDestinationPick(chip?.place ?? label, label);
+              }}
+            />
           ) : null}
 
           {!loading && searchError ? (
@@ -1257,7 +1471,7 @@ export function HeroChatFlow({
             />
           ) : null}
 
-          {showConversationChips && step === "origin" ? (
+          {showConversationChips && step === "origin" && !isMotorhomeOnly ? (
             <div className="hero-chips-enter pl-0 sm:pl-10">
               <OriginAirportPicker onConfirm={handleOriginPickerConfirm} />
             </div>
