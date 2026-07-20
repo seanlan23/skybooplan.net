@@ -1,9 +1,13 @@
 export type DonationTier = {
   id: string;
-  labelKey: "donation.tier5" | "donation.tier10" | "donation.tier15" | "donation.tier50" | "donation.contact";
+  labelKey:
+    | "donation.tier5"
+    | "donation.tier10"
+    | "donation.tier50"
+    | "donation.contact";
   href: string;
   external?: boolean;
-  /** Full width on mobile grid (2x2 + 1 row) */
+  /** Full width on mobile grid */
   fullWidthMobile?: boolean;
 };
 
@@ -18,12 +22,6 @@ export const DONATION_TIERS: DonationTier[] = [
     id: "10",
     labelKey: "donation.tier10",
     href: "https://buy.stripe.com/8x228r8vl7HndJg3qB6J203",
-    external: true,
-  },
-  {
-    id: "15",
-    labelKey: "donation.tier15",
-    href: "https://buy.stripe.com/14AfZh5j9d1H20yf9j6J202",
     external: true,
   },
   {

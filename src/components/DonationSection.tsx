@@ -4,9 +4,7 @@ import { useI18n } from "@/lib/i18n";
 import { DONATION_TIERS } from "@/lib/donationLinks";
 
 const tierButtonClass =
-  "inline-flex min-h-[2.75rem] items-center justify-center whitespace-nowrap rounded-full border border-white/20 bg-white/10 px-6 py-3 text-sm font-semibold text-white backdrop-blur-md transition-colors hover:bg-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent";
-
-const buttonTextStyle = { color: "#fff", WebkitTextFillColor: "#fff" } as const;
+  "inline-flex min-h-[2.5rem] items-center justify-center whitespace-nowrap rounded-lg border border-white/15 bg-white/[0.06] px-5 py-2.5 text-sm font-medium tracking-wide text-white/95 transition-colors hover:border-white/30 hover:bg-white/12 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30";
 
 function DonationButton({
   label,
@@ -31,7 +29,6 @@ function DonationButton({
         target="_blank"
         rel="noopener noreferrer"
         className={className}
-        style={buttonTextStyle}
       >
         {label}
       </a>
@@ -39,7 +36,7 @@ function DonationButton({
   }
 
   return (
-    <Link to={href} className={className} style={buttonTextStyle}>
+    <Link to={href} className={className}>
       {label}
     </Link>
   );
@@ -50,22 +47,22 @@ export function DonationSection() {
 
   return (
     <section
-      className="relative overflow-hidden bg-gradient-to-b from-slate-950 to-slate-900/50 py-14 sm:py-16"
+      className="relative overflow-hidden bg-gradient-to-b from-slate-950 to-slate-900/60 py-14 sm:py-16"
       aria-labelledby="donation-heading"
     >
-      <div className="mx-auto max-w-4xl px-6">
-        <div className="rounded-2xl border border-white/20 bg-white/10 p-6 text-center shadow-lg backdrop-blur-md sm:p-8">
+      <div className="mx-auto max-w-3xl px-6">
+        <div className="rounded-xl border border-white/10 bg-white/[0.04] px-6 py-8 text-center sm:px-10 sm:py-10">
           <h2
             id="donation-heading"
-            className="text-xl font-bold text-white sm:text-2xl"
+            className="text-lg font-semibold tracking-tight text-white sm:text-xl"
           >
             {t("donation.title" as never)}
           </h2>
-          <p className="mx-auto mt-3 max-w-lg text-sm leading-relaxed text-white/75 sm:text-base">
+          <p className="mx-auto mt-2.5 max-w-md text-sm leading-relaxed text-white/60">
             {t("donation.subtitle" as never)}
           </p>
 
-          <div className="mt-6 grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:justify-center">
+          <div className="mt-7 grid grid-cols-2 gap-2.5 sm:flex sm:flex-wrap sm:justify-center sm:gap-3">
             {DONATION_TIERS.map((tier) => (
               <DonationButton
                 key={tier.id}
@@ -77,7 +74,7 @@ export function DonationSection() {
             ))}
           </div>
 
-          <p className="mt-5 text-center text-xs text-white/40">
+          <p className="mt-6 text-center text-[11px] tracking-wide text-white/35">
             {t("donation.stripeNote" as never)}
           </p>
         </div>
