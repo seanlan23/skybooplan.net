@@ -244,8 +244,10 @@ function tierPriceBands(
     if (!m) return s;
     return formatPlanMoneyRange(Number(m[1]), Number(m[2]), currency);
   };
+  // TH airport→beach (HKT→Patong etc.) is mid-tier Grab/taxi, not tuk-tuk 5–15 €.
+  const transferBand = country === "TH" ? EUR_BANDS.mid.transfer : band.transfer;
   return {
-    transfer: parse(band.transfer),
+    transfer: parse(transferBand),
     meal: parse(band.meal),
     massage: parse(band.massage),
   };
@@ -332,10 +334,11 @@ export function airportArrivalHint(city: string, locale: TripLocale): string {
 export function hotelTransferDescription(city: string, locale: TripLocale): string {
   const slo = locale.slo;
   const modes = locale.transferLabel;
+  const price = locale.transferPrice;
   if (slo) {
-    return `Iz letališča do hotela v ${city} uporabi ${modes} — v večini mest je na voljo tudi prevozna aplikacija ali uradni taxi. Do centra računaj 20–90 min, odvisno od prometa in razdalje.`;
+    return `Iz letališča do hotela v ${city} uporabi ${modes} (orientacijsko ${price}) — v večini mest je na voljo tudi prevozna aplikacija ali uradni taxi. Do centra računaj 20–90 min, odvisno od prometa in razdalje.`;
   }
-  return `From the airport to your hotel in ${city}, use ${modes}. Allow 20–90 minutes depending on traffic.`;
+  return `From the airport to your hotel in ${city}, use ${modes} (about ${price}). Allow 20–90 minutes depending on traffic.`;
 }
 
 export function airportTransferDescription(

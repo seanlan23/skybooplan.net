@@ -215,6 +215,13 @@ describe("curatedRoutes TH", () => {
     expect(leg?.type).toBe("ferry");
     expect(leg?.howTo).toMatch(/Pakbara/i);
   });
+
+  it("uses Pak Bara + HDY route for Koh Lipe → Phuket", () => {
+    const leg = lookupCuratedTransportLeg("Koh Lipe", "Phuket", "TH");
+    expect(leg?.type).toBe("ferry+flight");
+    expect(leg?.howTo).toMatch(/Pak Bara|HDY/i);
+    expect(leg?.howTo).toMatch(/Ni neposrednega leta/i);
+  });
 });
 
 describe("curatedRoutes ID", () => {

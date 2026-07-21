@@ -1,7 +1,6 @@
 import type { AiTripPlan } from "@/lib/aiPlan.functions";
 import type { TripPlanResponse } from "@/lib/geminiPro.shared";
 import { tripPlanSchema } from "@/lib/geminiPro.shared";
-import { enrichIslandAirportTransfers } from "@/lib/islandAirportTransfers";
 import { enrichGroundTransportPlan } from "@/lib/groundTransport";
 import {
   enrichGeminiCatalogPlan,
@@ -52,10 +51,6 @@ export function buildCatalogPlanFromResponse(
     pax: data.pax.adults + data.pax.childrenAges.length,
     wishesText,
     language: data.language,
-  });
-
-  enrichIslandAirportTransfers(catalogPlan, {
-    destinationIata: data.destinationIata,
   });
 
   enrichGroundTransportPlan(catalogPlan, {

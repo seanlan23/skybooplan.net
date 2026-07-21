@@ -6,6 +6,7 @@ import {
   isEarlyClosingPoi,
   isEveningOnlyPoi,
   isEveningStrollPoi,
+  isFullDayExcursion,
   isNightlifeOnlyPoi,
   isSunsetTemplePoi,
   stripFalseArrivalCopy,
@@ -1164,6 +1165,17 @@ function isWeakFillerActivity(a: Activity): boolean {
   );
 }
 
+/** Beach breakfast / siesta / pool before the plane has landed. */
+function isPreArrivalFiller(a: Activity): boolean {
+  const t = `${a.name} ${a.description ?? ""} ${a.type ?? ""}`.toLowerCase();
+  if (/letališč|airport|transfer|check-?in|odhod|mednarodn|\blet\b|flight|prihod/i.test(t)) {
+    return false;
+  }
+  return /zajtrk|breakfast|siesta|tropska\s*pavza|bazen|\bpool\b|beach\s*caf|promenad|plaž|senčnik|brunch|klimatiziran/i.test(
+    t,
+  );
+}
+
 function stripWeakFillers(slots: DaySlots): DaySlots {
   const keep = (list: Activity[]) => list.filter((a) => !isWeakFillerActivity(a));
   return {
@@ -1642,13 +1654,20 @@ export function enrichDayActivities(
           ? 5
           : 4;
   const hasMorningSight = slotHasRealSight(result.morning);
+  const hasFullDayExcursion = [...result.morning, ...result.afternoon, ...result.evening].some(
+    (a) => isFullDayExcursion({ name: a.name, description: a.description ?? "" }),
+  );
   const skipAfternoonFiller =
     locale.country === "US" ||
+    hasFullDayExcursion ||
     result.afternoon.some((a) => a.type === "SIGHT" || a.type === "ACTIVITY");
 
-  if (intensive) {
+  if (intensive || hasFullDayExcursion) {
     result.afternoon = result.afternoon.filter((a) => !isWeakFillerActivity(a));
-    if (hasMorningSight && result.afternoon.every(isWeakFillerActivity)) {
+    if (
+      (hasMorningSight || hasFullDayExcursion) &&
+      result.afternoon.every(isWeakFillerActivity)
+    ) {
       result.afternoon = [];
     }
   }

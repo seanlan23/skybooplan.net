@@ -1,6 +1,7 @@
 import jsPDF from "jspdf";
 import fontRegularUrl from "dejavu-fonts-ttf/ttf/DejaVuSans.ttf?url";
 import fontBoldUrl from "dejavu-fonts-ttf/ttf/DejaVuSans-Bold.ttf?url";
+import { formatActivityClockRange } from "@/lib/activityTime";
 
 /** Legacy / loose shape accepted from callers. */
 export type PlanItinerary = {
@@ -274,7 +275,7 @@ function activityFromUnknown(raw: unknown): PdfActivity | null {
   const time =
     textOf(o.time) ||
     textOf(o.timeSlot) ||
-    [textOf(o.departureTime), textOf(o.arrivalTime)].filter(Boolean).join(" – ") ||
+    formatActivityClockRange(textOf(o.arrivalTime), textOf(o.departureTime)) ||
     undefined;
   const price =
     textOf(o.priceLabel) ||

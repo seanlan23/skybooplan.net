@@ -178,7 +178,7 @@ TRANSPORT IN PREMIKANJE (obvezno — več plasti):
 - Vsaka aktivnost, ki predstavlja premik med lokacijami (category "airport", notranji let, trajekt, vlak, speedboat, kombi, taxi), MORA imeti OBVEZNA polja:
   • transport_type: "flight" | "ferry" | "train" | "van" | "bus" | "taxi"
   • duration: natančen čas premika (npr. "1h 10min", "45min", "2h 30min") — nikoli prazno
-- Primer aktivnosti z letom:
+- Primer aktivnosti z letom (arrivalTime = začetek aktivnosti/odhod, departureTime = konec/pristanek — kronološko):
   { "title": "Notranji let Bangkok → Chiang Mai", "category": "airport", "transport_type": "flight", "duration": "1h 10min", "timeSlot": "dopoldan", "arrivalTime": "08:00", "departureTime": "09:10", ... }
 - UI prikaže ikono prevoza + trajanje iz teh polj — brez njih značke NE delujejo!
 
@@ -192,6 +192,7 @@ TRANSPORT IN PREMIKANJE (obvezno — več plasti):
   • priporočene lokalne aplikacije (npr. Grab/Bolt v Bangkoku, InDrive na Phuketu, Uber v ZDA, Citymapper v Evropi — izberi realne za lokacijo),
   • kako rezervirati / kupiti vstopnice za javni prevoz (npr. Rabbit Card, BTS day pass),
   • opozorila (promet, dež, zaprte ceste) specifična za ta dan.
+- Cene letališče↔hotel / Grab-taxi v transportTip morajo biti usklajene z realnim pasom destinacije (Tajska tipično 15–35 € za HKT→Patong) — NE piši 5–15 € in hkrati 25–35 €.
 - Ne ponavljaj identičnega transportTip na več dneh — prilagodi mesto (Bangkok ≠ Chiang Mai ≠ Phuket).
 
 3) MEDMESTNI / OTOŠKI PREVOZ (days[].transportation[] — obvezno ko relevantno):
@@ -202,6 +203,7 @@ TRANSPORT IN PREMIKANJE (obvezno — več plasti):
   "transportation": [{ "type": "flight", "from": "Bangkok BKK", "to": "Chiang Mai CNX", "duration": "1h 10min", "estimatedPrice": 45 }]
 - Za otoke: navedi urnike trajektov in hitrih čolnov (speedboat), sezonske odpovedi (Andaman dež), rezervacijo vnaprej, pristanišča (jetty) in transfer letališče → pristanišče.
 - Otok z letališčem na celini: 3 koraki (flight → van → ferry) — glej pravilo spodaj.
+- Koh Lipe: NI neposrednega leta z otoka. Odhod = ferry/speedboat → Pak Bara → kombi Hat Yai (HDY) → let HDY → HKT/Phuket (ali BKK). Prihod obratno. PREPOVEDANO: "letališče → letališče z letalom" na Lipe ali Lipe→Phuket kot en sam flight.
 
 TAJSKA — POSEBNA OPOZORILA (obvezno ko je destinacija Tajska ali faza v Tajske):
 - V transportTip ali localWarnings na vsakem dnevu v Tajske vključi vsaj eno specifično opozorilo, rotirano po dneh (ne isto vsak dan):
@@ -404,7 +406,8 @@ ${flightReturnLine}
 - Za vsako fazo obvezno izpolni city (angleško ime), lat in lng (centrum mesta ali kamp ob poti).
 - Vsaka aktivnost mora imeti category (sightseeing, nature, beach, food, entertainment, hotel, airport) in koordinate za oglede.
 - PREPOVEDANO: Grand Palace, Wat Pho, Wat Arun, Khao San na dnevih zunaj Bangkoka (npr. Khao Sok, Phuket, Krabi, Ao Nang). To so samo Bangkok znamenitosti.
-- Vsaka aktivnost mora imeti arrivalTime in departureTime v formatu "HH:MM" (npr. "09:00", "11:30") — realen časovni okvir obiska.
+- PREPOVEDANO vulgarno/spolno opisovanje Phra Nang (penis temple, phallic, fertility shrine, lingam). Piši kot Phra Nang Cave Beach / Princess Cave — plaža in jama ob Railayu.
+- Vsaka aktivnost mora imeti arrivalTime in departureTime v formatu "HH:MM" (npr. "09:00", "11:30") — arrivalTime = začetek, departureTime = konec (kronološko; pri nočnem letu lahko konec < začetek na uri).
 - Vsaka aktivnost mora imeti timeSlot: "dopoldan", "popoldan" ali "vecer".
 - ČASOVNA STRUKTURA: glej HIERARHIJA PRAVIL zgoraj — prazni sloti pred/za letom in ob mirnem tempu SO dovoljeni; ne polni dneva na silo.
 - Vsak dan obvezno izpolni travelHack (unikaten insider nasvet) in transportTip (dnevni pregled prevoza) — glej podrobna pravila spodaj.

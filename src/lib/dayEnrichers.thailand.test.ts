@@ -352,3 +352,29 @@ describe("rewriteActivityCityLeak Koh Lipe", () => {
     expect(fixed).toMatch(/walking street|koh lipe/i);
   });
 });
+
+describe("enrichDayActivities Phi Phi full-day", () => {
+  const hktLocale = resolveTripLocale("HKT", "Phuket", "sl");
+
+  it("does not inject afternoon siesta after morning Phi Phi excursion", () => {
+    const out = enrichDayActivities(
+      {
+        morning: [
+          {
+            name: "Koh Phi Phi / Maya Bay",
+            type: "SIGHT",
+            description: "Celodnevni izlet z ladjo, odhod zjutraj.",
+          },
+        ],
+        afternoon: [],
+        evening: [],
+      },
+      "Phuket",
+      3,
+      hktLocale,
+      { plannedSights: 1 },
+    );
+    const afternoonBlob = out.afternoon.map((a) => `${a.name} ${a.description}`).join(" ");
+    expect(afternoonBlob).not.toMatch(/siesta|bazen|13:00/i);
+  });
+});

@@ -3566,6 +3566,7 @@ function buildRegionFillSystem(
   const transportModes = locale.localTransportModes;
   const sym = displayCurrency === "USD" ? "$" : "€";
   const priceRule = `All priceLabel values in ${displayCurrency} (${sym}) only — realistic for ${locale.countryName}, never mix currencies.`;
+  const transferRule = `Airport↔hotel / Grab-taxi transfer band MUST be exactly "${locale.transferPrice}" — do not invent higher private-taxi fantasy bands.`;
   return `${STRICT_LLM_LANGUAGE_RULE}
 
 ${STRICT_LLM_CURRENCY_RULE}
@@ -3573,7 +3574,7 @@ ${STRICT_LLM_CURRENCY_RULE}
 You are an experienced trip planner filling ONE region of a preview itinerary.
 Return ONLY valid JSON:
 {
-  "localTransportTips": "2 sentences: ${transportModes} — ${priceRule} (max 200 chars)",
+  "localTransportTips": "2 sentences: ${transportModes}; airport transfer ${locale.transferPrice}. ${transferRule} (max 200 chars)",
   "travelTips": "2 practical insider tips (max 180 chars)",
   "highlights": [
     { "day": 1, "name": "Ben Thanh Market", "visitDuration": "2h", "description": "2–3 stavki: kaj vidiš, zakaj je vredno, praktičen nasvet (120–280 znakov)", "priceLabel": "brezplačno", "lat": 10.772, "lng": 106.698 },
@@ -3595,6 +3596,7 @@ Rules:
 - If flightScheduling.day1 in user JSON: day 1 sights only AFTER implied check-in — light schedule if late arrival
 - If flightScheduling.lastDay: respect airport timing on final day of trip
 - ${priceRule}
+- ${transferRule}
 - Accurate lat/lng within the region city — never coords from a different city/island`;
 }
 
@@ -3770,8 +3772,8 @@ function applyProgrammaticSkeletonFill(
   const slo = locale.slo;
   const sym = locale.displayCurrency === "USD" ? "$" : "€";
   const priceHint = slo
-    ? `cene v ${locale.displayCurrency} (${sym})`
-    : `prices in ${locale.displayCurrency} (${sym})`;
+    ? `cene v ${locale.displayCurrency} (${sym}); letališki transfer ${locale.transferPrice}`
+    : `prices in ${locale.displayCurrency} (${sym}); airport transfer ${locale.transferPrice}`;
   let regions = ensureEveryDayHasHighlight(skeleton.regions);
   regions = injectVietnamCuratedHighlights(regions, langCode);
   regions = regions.map((r) => ({

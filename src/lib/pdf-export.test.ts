@@ -39,8 +39,8 @@ describe("normalizePlanForPdf", () => {
               morning: [
                 {
                   name: "Notranji let MNL → El Nido",
-                  departureTime: "08:00",
-                  arrivalTime: "09:20",
+                  arrivalTime: "08:00",
+                  departureTime: "09:20",
                   description: "Let iz Manile na Palawan.",
                   estimatedCostEur: 60,
                 },
@@ -68,8 +68,41 @@ describe("normalizePlanForPdf", () => {
     expect(day.transportation[0]?.from).toBe("MNL");
     expect(day.slots.map((s) => s.label)).toEqual(["Dopoldan", "Popoldan"]);
     expect(day.slots[0]!.items[0]!.title).toMatch(/MNL/i);
-    expect(day.slots[0]!.items[0]!.time).toContain("08:00");
+    // arrivalTime – departureTime (same order as UI), not reversed.
+    expect(day.slots[0]!.items[0]!.time).toBe("08:00 – 09:20");
     expect(model.totalBudgetEur).toBe(2400);
+  });
+
+  it("formats overnight activity clocks with +1 (not reversed)", () => {
+    const model = normalizePlanForPdf({
+      title: "MUC → HKT",
+      destination: "Phuket",
+      start_date: "2026-10-26",
+      end_date: "2026-11-10",
+      language: "sl",
+      itinerary: {
+        days: [
+          {
+            day: 1,
+            title: "Mednarodni let",
+            city: "Munich",
+            activities: {
+              morning: [
+                {
+                  name: "Mednarodni let",
+                  arrivalTime: "21:10",
+                  departureTime: "17:55",
+                  description: "Nočni let.",
+                },
+              ],
+              afternoon: [],
+              evening: [],
+            },
+          },
+        ],
+      },
+    });
+    expect(model.days[0]!.slots[0]!.items[0]!.time).toBe("21:10 – 17:55 (+1)");
   });
 
   it("falls back to legacy items[] when activities are missing", () => {

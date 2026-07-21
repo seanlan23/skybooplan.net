@@ -97,6 +97,20 @@ export function sanitizeLegacyTemplateLeak(text: string): string {
     .trim();
 }
 
+/** Neutralize crude Phra Nang / fertility-shrine wording from LLM copy. */
+export function scrubInappropriatePoiCopy(text: string): string {
+  if (!text) return text;
+  return text
+    .replace(/\bpenis\s+temple\b/gi, "Phra Nang Cave Beach")
+    .replace(/\bpenis\s+shrine\b/gi, "seaside shrine")
+    .replace(/\bphallic\s+(symbols?|carvings?|offerings?|shrine|rocks?)\b/gi, "shrine offerings")
+    .replace(/\bfertility\s+shrine\b/gi, "seaside shrine")
+    .replace(/\blingams?\b/gi, "shrine symbols")
+    .replace(/\bpenises?\b/gi, "carved symbols")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
 export function sanitizeDestinationText(text: string, country?: string): string {
   let out = text;
   out = out.replace(/maid of the mist/gi, "Hornblower Niagara City Cruises");
@@ -113,7 +127,9 @@ export function sanitizeDestinationText(text: string, country?: string): string 
 
 export function sanitizeForLang(text: string, langCode: string, country?: string): string {
   if (!text) return text;
-  let out = sanitizeLegacyTemplateLeak(sanitizeDestinationText(text, country));
+  let out = scrubInappropriatePoiCopy(
+    sanitizeLegacyTemplateLeak(sanitizeDestinationText(text, country)),
+  );
   out = localizeTravelCopy(out, langCode);
   if (langCode === "sl" || langCode.startsWith("sl")) {
     out = sanitizeSlText(out);

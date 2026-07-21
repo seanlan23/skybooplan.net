@@ -73,4 +73,27 @@ describe("islandAirportTransfers", () => {
     expect(t?.direction).toBe("arrival");
     expect(t?.def.id).toBe("boracay");
   });
+
+  it("builds Koh Lipe → Phuket departure via Pak Bara + HDY", () => {
+    expect(getIslandAirportAccessDef("Koh Lipe")?.id).toBe("koh-lipe");
+
+    const plan: AiTripPlan = {
+      destinationName: "Thailand",
+      destinationIata: "HKT",
+      days: [
+        day({ day: 10, city: "Koh Lipe", lat: 6.48, lng: 99.31 }),
+        day({ day: 11, city: "Phuket", lat: 7.88, lng: 98.39 }),
+      ],
+    } as AiTripPlan;
+
+    enrichIslandAirportTransfers(plan, { destinationIata: "HKT" });
+
+    const lipe = plan.days[0]!;
+    expect(lipe.transportation).toHaveLength(3);
+    expect(lipe.transportation!.map((l) => l.type)).toEqual(["ferry", "van", "flight"]);
+    expect(lipe.transportation![0]!.to).toMatch(/Pak Bara/i);
+    expect(lipe.transportation![1]!.to).toMatch(/Hat Yai|HDY/i);
+    expect(lipe.transportation![2]!.to).toMatch(/Phuket/i);
+    expect(lipe.islandAccessRoute).toEqual({ defId: "koh-lipe", direction: "departure" });
+  });
 });

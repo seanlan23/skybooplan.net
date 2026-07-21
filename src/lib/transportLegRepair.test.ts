@@ -58,4 +58,47 @@ describe("repairTransportLegs", () => {
     expect(legs![0]!.from).toBe("Bangkok");
     expect(legs![0]!.to).toBe("Koh Samui");
   });
+
+  it("does not invent a direct flight from Koh Lipe to Phuket", () => {
+    const legs = repairTransportLegs(
+      [
+        {
+          type: "flight",
+          from: "Koh Lipe",
+          to: "Koh Lipe",
+          duration: "1h",
+          estimatedPrice: 80,
+        },
+      ],
+      {
+        dayNumber: 12,
+        city: "Koh Lipe",
+        previousCity: "Phuket",
+        destinationIata: "HKT",
+      },
+    );
+
+    expect(legs).toBeUndefined();
+  });
+
+  it("drops same-IATA airport-to-airport flight nonsense", () => {
+    const legs = repairTransportLegs(
+      [
+        {
+          type: "flight",
+          from: "Phuket (HKT)",
+          to: "Phuket (HKT)",
+          duration: "45min",
+          estimatedPrice: 40,
+        },
+      ],
+      {
+        dayNumber: 3,
+        city: "Phuket",
+        destinationIata: "HKT",
+      },
+    );
+
+    expect(legs).toBeUndefined();
+  });
 });

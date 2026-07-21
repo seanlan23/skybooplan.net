@@ -4,12 +4,29 @@ import {
   fixSlotTimeMismatch,
   rewriteActivityCityLeak,
   rewriteCountryFoodLeak,
+  sanitizeForLang,
   sanitizeSlText,
+  scrubInappropriatePoiCopy,
 } from "@/lib/textSanitize";
 
 describe("sanitizeSlText", () => {
   it("replaces Cyrillic оживи with Slovenian", () => {
     expect(sanitizeSlText("ko se tržnica оживи.")).toBe("ko se tržnica oživi.");
+  });
+});
+
+describe("scrubInappropriatePoiCopy", () => {
+  it("rewrites penis temple / fertility shrine wording for Phra Nang", () => {
+    const out = scrubInappropriatePoiCopy(
+      "Visit the penis temple fertility shrine with phallic offerings at Phra Nang.",
+    );
+    expect(out).not.toMatch(/penis|phallic|fertility shrine/i);
+    expect(out).toMatch(/Phra Nang|seaside shrine|shrine offerings/i);
+  });
+
+  it("runs via sanitizeForLang", () => {
+    const out = sanitizeForLang("Famous penis temple near Railay.", "sl", "TH");
+    expect(out).not.toMatch(/penis temple/i);
   });
 });
 

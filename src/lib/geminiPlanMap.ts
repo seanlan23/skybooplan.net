@@ -48,6 +48,7 @@ import {
 } from "@/lib/tripMode";
 import type { Lang } from "@/lib/i18n";
 import type { GroundTransportMode } from "@/lib/aiPlan.functions";
+import { enrichIslandAirportTransfers } from "@/lib/islandAirportTransfers";
 import { repairTransportLegs } from "@/lib/transportLegRepair";
 import { sanitizeReturnFlightSummary } from "@/lib/returnFlightSummary";
 import { sanitizeActivity, sanitizeForLang } from "@/lib/textSanitize";
@@ -899,6 +900,7 @@ export function enrichGeminiCatalogPlan(
   }
 
   plan.totalBudgetEur = computeTripTotalBudgetEur(plan.days, travelers);
+  enrichIslandAirportTransfers(plan, { destinationIata: plan.destinationIata });
   // One map-coord pass: city centroids win; runway AI dumps stripped from sightseeing days.
   finalizeItineraryMapCoords(plan);
 }

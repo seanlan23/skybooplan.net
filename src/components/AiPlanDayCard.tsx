@@ -23,6 +23,7 @@ import { parseLocalDate } from "@/lib/dateUtils";
 import { isHotelRestDay, motorhomeCampingHint, resolveTripAccommodation } from "@/lib/tripMode";
 import { formatDayCardTitle, sortActivitiesByTime } from "@/lib/dayPlanUi";
 import { formatStayDateRange } from "@/lib/islandStays";
+import { formatActivityClockRange } from "@/lib/activityTime";
 import { sanitizeLegacyTemplateLeak } from "@/lib/textSanitize";
 import type { ActivityMapFocus } from "@/components/TripMap";
 import {
@@ -149,11 +150,8 @@ function activityDescriptionBullets(text?: string): string[] {
 }
 
 function ActivityTimePill({ activity }: { activity: Activity }) {
-  if (!activity.arrivalTime && !activity.departureTime) return null;
-  const label =
-    activity.arrivalTime && activity.departureTime
-      ? `${activity.arrivalTime} – ${activity.departureTime}`
-      : activity.arrivalTime ?? activity.departureTime;
+  const label = formatActivityClockRange(activity.arrivalTime, activity.departureTime);
+  if (!label) return null;
   return (
     <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 text-blue-600 px-3 py-1 text-sm font-medium tabular-nums">
       <Clock className="h-3.5 w-3.5 shrink-0 opacity-80" />
@@ -233,8 +231,15 @@ const TRANSPORT_PILL_META: Record<
   },
 };
 
-function ActivityTransportPill({ activity }: { activity: Activity }) {
-  if (!activity.transportType || !activity.transportDuration) return null;
+function ActivityTransportPill({
+  activity,
+  hide = false,
+}: {
+  activity: Activity;
+  /** When day already has transportation[] cards, hide duplicate VAN/FERRY/FLIGHT pills. */
+  hide?: boolean;
+}) {
+  if (hide || !activity.transportType || !activity.transportDuration) return null;
   const meta = TRANSPORT_PILL_META[activity.transportType];
   if (!meta) return null;
   const Icon = meta.icon;
@@ -321,7 +326,10 @@ function ActivityItem({
         <div className="min-w-0 flex-1">
           <h4 className="font-bold text-slate-900 text-[15px] leading-snug">{activity.name}</h4>
           <div className="mt-2 flex flex-wrap gap-1.5">
-            <ActivityTransportPill activity={activity} />
+            <ActivityTransportPill
+              activity={activity}
+              hide={(day.transportation?.length ?? 0) > 0}
+            />
             <ActivityTimePill activity={activity} />
             <ActivityCostPill activity={activity} />
             <ActivityTypePill type={activity.type} activity={activity} />

@@ -9,6 +9,12 @@ export type IslandAirportAccessDef = {
   airport: { label: string; lat: number; lng: number };
   port: { label: string; lat: number; lng: number };
   island: { name: string; lat: number; lng: number };
+  flightDuration?: string;
+  vanDuration?: string;
+  ferryDuration?: string;
+  flightPrice?: number;
+  vanPrice?: number;
+  ferryPrice?: number;
 };
 
 export type { IslandAccessRoute };
@@ -33,6 +39,38 @@ const ISLAND_AIRPORT_ACCESS: IslandAirportAccessDef[] = [
       lat: 11.9674,
       lng: 121.9248,
     },
+    flightDuration: "1h–1h 20m",
+    vanDuration: "10–15 min",
+    ferryDuration: "15–20 min",
+    flightPrice: 45,
+    vanPrice: 4,
+    ferryPrice: 6,
+  },
+  {
+    id: "koh-lipe",
+    matchIsland: /koh\s*lipe|\blipe\b/i,
+    gatewayIata: "HDY",
+    airport: {
+      label: "Hat Yai (HDY)",
+      lat: 6.9332,
+      lng: 100.393,
+    },
+    port: {
+      label: "Pak Bara Pier",
+      lat: 6.860,
+      lng: 99.723,
+    },
+    island: {
+      name: "Koh Lipe",
+      lat: 6.487,
+      lng: 99.310,
+    },
+    flightDuration: "1h–1h 20m",
+    vanDuration: "1.5–2h",
+    ferryDuration: "1.5–2h",
+    flightPrice: 55,
+    vanPrice: 12,
+    ferryPrice: 30,
   },
 ];
 
@@ -71,7 +109,7 @@ function hasCompleteIslandAccessLegs(legs: DayTransportLeg[]): boolean {
 function singleFlightToIsland(legs: DayTransportLeg[], def: IslandAirportAccessDef): boolean {
   if (legs.length !== 1 || legs[0]?.type !== "flight") return false;
   const to = legs[0].to.toLowerCase();
-  return def.matchIsland.test(to) || /caticlan|mph/i.test(to);
+  return def.matchIsland.test(to) || new RegExp(def.gatewayIata ?? "____", "i").test(to);
 }
 
 function buildArrivalLegs(def: IslandAirportAccessDef, hubCity: string): DayTransportLeg[] {
@@ -80,22 +118,22 @@ function buildArrivalLegs(def: IslandAirportAccessDef, hubCity: string): DayTran
       type: "flight",
       from: hubCity,
       to: def.airport.label,
-      duration: "1h–1h 20m",
-      estimatedPrice: 45,
+      duration: def.flightDuration ?? "1h–1h 20m",
+      estimatedPrice: def.flightPrice ?? 45,
     },
     {
       type: "van",
       from: def.airport.label,
       to: def.port.label,
-      duration: "10–15 min",
-      estimatedPrice: 4,
+      duration: def.vanDuration ?? "10–15 min",
+      estimatedPrice: def.vanPrice ?? 4,
     },
     {
       type: "ferry",
       from: def.port.label,
       to: def.island.name,
-      duration: "15–20 min",
-      estimatedPrice: 6,
+      duration: def.ferryDuration ?? "15–20 min",
+      estimatedPrice: def.ferryPrice ?? 6,
     },
   ];
 }
@@ -106,31 +144,37 @@ function buildDepartureLegs(def: IslandAirportAccessDef, hubCity: string): DayTr
       type: "ferry",
       from: def.island.name,
       to: def.port.label,
-      duration: "15–20 min",
-      estimatedPrice: 6,
+      duration: def.ferryDuration ?? "15–20 min",
+      estimatedPrice: def.ferryPrice ?? 6,
     },
     {
       type: "van",
       from: def.port.label,
       to: def.airport.label,
-      duration: "10–15 min",
-      estimatedPrice: 4,
+      duration: def.vanDuration ?? "10–15 min",
+      estimatedPrice: def.vanPrice ?? 4,
     },
     {
       type: "flight",
       from: def.airport.label,
       to: hubCity,
-      duration: "1h–1h 20m",
-      estimatedPrice: 45,
+      duration: def.flightDuration ?? "1h–1h 20m",
+      estimatedPrice: def.flightPrice ?? 45,
     },
   ];
 }
 
 function arrivalTransportTip(def: IslandAirportAccessDef): string {
+  if (def.id === "koh-lipe") {
+    return `Koh Lipe nima letališča — let do ${def.airport.label}, nato kombi do ${def.port.label} in speedboat/ferry na otok. Rezerviraj čoln vnaprej (sezonski urniki).`;
+  }
   return `Boracay ni neposredno na letališču — let do ${def.airport.label}, nato kombi do ${def.port.label} in trajekt na otok (${def.island.name}). Rezerviraj trajekt vnaprej v sezoni.`;
 }
 
 function departureTransportTip(def: IslandAirportAccessDef): string {
+  if (def.id === "koh-lipe") {
+    return `Odhod z otoka: speedboat/ferry ${def.island.name} → ${def.port.label}, kombi do ${def.airport.label} (${def.gatewayIata ?? "HDY"}), nato notranji let (npr. proti Phuketu/HKT). Ni neposrednega leta z Lipe.`;
+  }
   return `Odhod z otoka: trajekt ${def.island.name} → ${def.port.label}, kombi do ${def.airport.label} (${def.gatewayIata ?? "MPH"}), nato notranji let.`;
 }
 
@@ -179,7 +223,7 @@ export function enrichIslandAirportTransfers(
     const legs = day.transportation ?? [];
 
     if (isArrivalDay) {
-      const hubCity = prevCity || "Manila";
+      const hubCity = prevCity || (def.id === "koh-lipe" ? "Phuket" : "Manila");
       if (!hasCompleteIslandAccessLegs(legs) || singleFlightToIsland(legs, def)) {
         day.transportation = buildArrivalLegs(def, hubCity);
       }
@@ -190,7 +234,7 @@ export function enrichIslandAirportTransfers(
     }
 
     if (isDepartureDay) {
-      const hubCity = nextCity || "Manila";
+      const hubCity = nextCity || (def.id === "koh-lipe" ? "Phuket" : "Manila");
       const depLegs = buildDepartureLegs(def, hubCity);
       const hasDepartureLegs =
         legs.length >= 3 &&
