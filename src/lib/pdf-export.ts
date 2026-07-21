@@ -24,6 +24,8 @@ export type PlanForPdf = {
   cover_image_url?: string | null;
   itinerary: PlanItinerary | Record<string, unknown>;
   language?: string | null;
+  /** Travelers — total budget is daily × pax; label it so €6k isn't read as solo. */
+  pax?: number | null;
 };
 
 type PdfActivity = {
@@ -60,6 +62,7 @@ type NormalizedPdfPlan = {
   endDate: string;
   summary: string;
   totalBudgetEur?: number;
+  pax: number;
   days: PdfDay[];
   flights: string[];
   hotels: string[];
@@ -76,7 +79,9 @@ type PdfLabels = {
   evening: string;
   transport: string;
   budget: string;
+  budgetForPax: (n: number) => string;
   dailyBudget: string;
+  dailyBudgetPerPerson: string;
   flights: string;
   stays: string;
   packing: string;
@@ -173,7 +178,10 @@ function labelsFor(lang: PlanForPdf["language"], sampleText: string): PdfLabels 
       evening: "Večer",
       transport: "Prevoz",
       budget: "Proračun",
+      budgetForPax: (n) =>
+        n <= 1 ? "Skupaj (ocena na destinaciji, brez mednarodnih letov)" : `Skupaj za ${n} oseb (ocena na destinaciji, brez mednarodnih letov)`,
       dailyBudget: "Dnevni proračun",
+      dailyBudgetPerPerson: "na osebo",
       flights: "Leti",
       stays: "Namestitve",
       packing: "Seznam za pakiranje",
@@ -190,7 +198,12 @@ function labelsFor(lang: PlanForPdf["language"], sampleText: string): PdfLabels 
     evening: "Evening",
     transport: "Transport",
     budget: "Budget",
+    budgetForPax: (n) =>
+      n <= 1
+        ? "Total (on-destination estimate, excl. international flights)"
+        : `Total for ${n} travelers (on-destination estimate, excl. international flights)`,
     dailyBudget: "Daily budget",
+    dailyBudgetPerPerson: "per person",
     flights: "Flights",
     stays: "Stays",
     packing: "Packing list",
@@ -400,6 +413,11 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
     textOf((itin as { destination?: string }).destination) ||
     "";
 
+  const pax =
+    typeof plan.pax === "number" && Number.isFinite(plan.pax) && plan.pax >= 1
+      ? Math.round(plan.pax)
+      : 1;
+
   return {
     title: plan.title || destination || "Skybooplan",
     destination,
@@ -407,6 +425,7 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
     endDate: fmtDate(plan.end_date),
     summary: cleanSummary(textOf(itin.summary)),
     totalBudgetEur,
+    pax,
     days,
     flights,
     hotels,
@@ -569,6 +588,7 @@ export async function generatePlanPdf(plan: PlanForPdf) {
   if (model.totalBudgetEur != null) {
     heading(model.labels.budget);
     para(`€${Math.round(model.totalBudgetEur)}`, 14, INK);
+    para(model.labels.budgetForPax(model.pax), 9, MUTED, 4);
     y += 2;
   }
 
@@ -640,7 +660,12 @@ export async function generatePlanPdf(plan: PlanForPdf) {
       }
 
       if (d.dailyBudgetEur != null) {
-        para(`${model.labels.dailyBudget}: €${Math.round(d.dailyBudgetEur)}`, 9, MUTED, 4);
+        para(
+          `${model.labels.dailyBudget}: €${Math.round(d.dailyBudgetEur)} ${model.labels.dailyBudgetPerPerson}`,
+          9,
+          MUTED,
+          4,
+        );
       }
       if (d.transportTips) {
         para(`${model.labels.transport}: ${d.transportTips}`, 9, MUTED, 4);

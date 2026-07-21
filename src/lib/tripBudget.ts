@@ -376,6 +376,70 @@ export function applyGlobalDayBudgetCeil(
   return Math.min(Math.max(0, Math.round(eur)), cap);
 }
 
+/** SE Asia / similar value destinations — global mid ceil is NYC-sized and ×pax blows up to €6k. */
+const VALUE_BUDGET_COUNTRIES = new Set([
+  "TH",
+  "VN",
+  "KH",
+  "LA",
+  "ID",
+  "MY",
+  "PH",
+  "MM",
+  "LK",
+  "IN",
+  "NP",
+  "BD",
+]);
+
+export function isValueDestinationBudget(country?: string, city?: string): boolean {
+  const cc = (country ?? "").trim().toUpperCase();
+  if (VALUE_BUDGET_COUNTRIES.has(cc)) return true;
+  return /phuket|bangkok|krabi|chiang\s*mai|patong|karon|ao\s*nang|railay|koh\s*|ko\s*|bali|ubud|kuta|hanoi|saigon|ho\s*chi\s*minh|siem\s*reap|manila|cebu|boracay|el\s*nido|kuala|penang|hkt|bkk|cnx|kbv|dps|sgn|han|mnl/i.test(
+    city ?? "",
+  );
+}
+
+/**
+ * Tighter per-person daily caps for value destinations (Thailand, Vietnam, …).
+ * Apply AFTER applyGlobalDayBudgetCeil. No-op outside value regions / safari days.
+ */
+export function applyValueDestinationDayBudgetCeil(
+  eur: number,
+  kind: DayBudgetKind,
+  tier: BudgetTier = "mid",
+  opts?: { country?: string; city?: string },
+): number {
+  if (kind === "safari" || kind === "safari-balloon") return eur;
+  if (!isValueDestinationBudget(opts?.country, opts?.city)) return eur;
+
+  const caps: Record<BudgetTier, Partial<Record<DayBudgetKind, number>>> = {
+    budget: {
+      arrival: 45,
+      departure: 30,
+      sightseeing: 65,
+      "ticket-heavy": 110,
+      "cross-country-travel": 85,
+    },
+    mid: {
+      arrival: 70,
+      departure: 45,
+      sightseeing: 95,
+      "ticket-heavy": 140,
+      "cross-country-travel": 100,
+    },
+    premium: {
+      arrival: 100,
+      departure: 70,
+      sightseeing: 130,
+      "ticket-heavy": 180,
+      "cross-country-travel": 140,
+    },
+  };
+  const cap = caps[tier][kind] ?? caps[tier].sightseeing ?? eur;
+  return Math.min(Math.max(0, Math.round(eur)), cap);
+}
+
 /** Hybrid motorhome + periodic hotel night — bump budget on hotel rest days. Per person. */
 export function applyHotelRestBudgetFloor(
   eur: number,

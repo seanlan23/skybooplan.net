@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   applyGlobalDayBudgetCeil,
+  applyValueDestinationDayBudgetCeil,
   applyMotorhomeBudgetCeil,
   applyMotorhomeBudgetFloor,
   applySafariBudgetFloor,
@@ -88,11 +89,35 @@ describe("applyGlobalDayBudgetCeil", () => {
 
   it("keeps 3-pax Thailand-style totals under control", () => {
     const days = Array.from({ length: 16 }, () =>
-      applyGlobalDayBudgetCeil(200, "sightseeing", "mid"),
+      applyValueDestinationDayBudgetCeil(
+        applyGlobalDayBudgetCeil(200, "sightseeing", "mid"),
+        "sightseeing",
+        "mid",
+        { country: "TH", city: "Phuket" },
+      ),
     );
+    // Was ~€6k+ with NYC-sized global ceil × 3 pax; value band must stay saner.
     expect(computeTripTotalBudgetEur(days.map((d) => ({ dailyBudgetEur: d })), 3)).toBeLessThan(
-      8500,
+      4600,
     );
+    expect(days[0]).toBeLessThanOrEqual(95);
+  });
+});
+
+describe("applyValueDestinationDayBudgetCeil", () => {
+  it("tightens Phuket sightseeing but leaves NYC alone", () => {
+    expect(
+      applyValueDestinationDayBudgetCeil(165, "sightseeing", "mid", {
+        country: "TH",
+        city: "Phuket",
+      }),
+    ).toBe(95);
+    expect(
+      applyValueDestinationDayBudgetCeil(165, "sightseeing", "mid", {
+        country: "US",
+        city: "New York",
+      }),
+    ).toBe(165);
   });
 });
 

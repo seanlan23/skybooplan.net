@@ -114,6 +114,7 @@ export function HeroAiPlanResults({
                           end_date: aiContext?.returnDate ?? null,
                           itinerary: aiPlan as never,
                           language: aiContext?.language,
+                          pax: aiContext?.pax ?? 1,
                         });
                       } catch (e) {
                         console.error("PDF export failed", e);

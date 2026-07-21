@@ -32,6 +32,8 @@ import {
   applySafariBudgetFloor,
   normalizeGeminiDailyBudgetPerPerson,
   applyGlobalDayBudgetCeil,
+  applyValueDestinationDayBudgetCeil,
+  isValueDestinationBudget,
   sumListedActivityEur,
 } from "@/lib/tripBudget";
 import { addDays } from "@/lib/dateUtils";
@@ -708,10 +710,10 @@ export function enrichGeminiCatalogPlan(
     pax: number;
     wishesText?: string;
     language?: string;
+    departDate?: string;
   },
 ): void {
   const tier = opts.budget === "budget" ? "budget" : opts.budget === "premium" ? "premium" : "mid";
-  const mealsFullDay = tier === "premium" ? 68 : tier === "mid" ? 45 : 28;
   const totalDays = plan.days.length;
   const travelers = Math.max(1, opts.pax);
   const wishesText = opts.wishesText ?? "";
@@ -736,6 +738,21 @@ export function enrichGeminiCatalogPlan(
     plan.destinationName,
     planLang,
   );
+  const valueDest = isValueDestinationBudget(
+    locale.country,
+    `${plan.destinationName ?? ""} ${plan.destinationIata ?? ""}`,
+  );
+  const mealsFullDay = valueDest
+    ? tier === "premium"
+      ? 40
+      : tier === "mid"
+        ? 28
+        : 18
+    : tier === "premium"
+      ? 68
+      : tier === "mid"
+        ? 45
+        : 28;
   const usedEveningVenues = new Set<string>();
   const cityDayIndex = new Map<string, number>();
   let priorScheduledText = "";
@@ -856,6 +873,10 @@ export function enrichGeminiCatalogPlan(
       daily = applyMotorhomeBudgetCeil(daily, kind);
     } else {
       daily = applyGlobalDayBudgetCeil(daily, kind, tier);
+      daily = applyValueDestinationDayBudgetCeil(daily, kind, tier, {
+        country: locale.country,
+        city: `${finalDay.city ?? ""} ${plan.destinationName ?? ""} ${plan.destinationIata ?? ""}`,
+      });
     }
 
     finalDay.dailyBudgetEur = daily;

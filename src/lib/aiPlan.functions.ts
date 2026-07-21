@@ -31,6 +31,7 @@ import {
   applyMotorhomeBudgetFloor,
   applySafariBudgetFloor,
   applyUsBudgetFloor,
+  applyValueDestinationDayBudgetCeil,
   classifyDayBudgetKind,
   computeTripTotalBudgetEur,
   dayBudgetParams,
@@ -3303,7 +3304,15 @@ export function buildSkeletonDayPlans(
               : motorhomeFloored;
           return applyMotorhomeBudgetCeil(withHotel, kind);
         }
-        return applyGlobalDayBudgetCeil(floored, kind, priceTier);
+        return applyValueDestinationDayBudgetCeil(
+          applyGlobalDayBudgetCeil(floored, kind, priceTier),
+          kind,
+          priceTier,
+          {
+            country: locale.country,
+            city: `${region.city} ${destIata ?? ""} ${skeleton.destinationName ?? ""}`,
+          },
+        );
       })(),
       lat: primaryCoord?.lat ?? region.lat,
       lng: primaryCoord?.lng ?? region.lng,
