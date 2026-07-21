@@ -16,12 +16,25 @@ import { DestinationInsightBanner } from "@/components/DestinationInsightBanner"
 import type { TripFlightContext } from "@/lib/flightScheduling";
 import { parsePlannerInterestKeys } from "@/lib/plannerInterests";
 
-/** Hold at each stop during "Predvajaj pot" after the fly animation settles. */
-const PLAY_ROUTE_HOLD_MS = 3200;
-/** Matches TripMap easeTo — calm day-to-day playback, not pin twitch. */
-const PLAY_ROUTE_FLY_ESTIMATE_MS = 2800;
-const PLAY_ROUTE_STEP_MS = PLAY_ROUTE_HOLD_MS + PLAY_ROUTE_FLY_ESTIMATE_MS;
 import { parseLocalDate } from "@/lib/dateUtils";
+import { haversineKm } from "@/lib/geoMath";
+import {
+  cameraMoveDurationMs,
+  resolveCityCenter,
+} from "@/lib/itineraryMapModel";
+
+/** Hold at each stop during "Predvajaj pot" after the camera settles. */
+const PLAY_ROUTE_HOLD_MS = 3200;
+
+function playStepMs(plan: AiTripPlan, fromDay: number, toDay: number): number {
+  const a = plan.days.find((d) => d.day === fromDay);
+  const b = plan.days.find((d) => d.day === toDay);
+  const ca = a ? resolveCityCenter(a) : null;
+  const cb = b ? resolveCityCenter(b) : null;
+  const dist =
+    ca && cb ? haversineKm([ca.lng, ca.lat], [cb.lng, cb.lat]) : 0;
+  return PLAY_ROUTE_HOLD_MS + cameraMoveDurationMs(dist);
+}
 import type { StayInfo } from "@/components/HotelsSection";
 import { PlannerChoicesSummary } from "@/components/PlannerChoicesSummary";
 import { PlanIntroInsightBlocks } from "@/components/PlanIntroInsightBlocks";
@@ -312,28 +325,38 @@ export function AiPlanView({
     });
   }, [sortedDayNumbers]);
 
-  // Auto-advance during route playback — fly animation + hold per stop.
+  // Auto-advance during route playback — wait for long-haul flyTo before next day.
   useEffect(() => {
-    if (!isPlaying || sortedDayNumbers.length < 2) return;
+    if (!isPlaying || !plan || sortedDayNumbers.length < 2) return;
 
-    const timer = window.setInterval(() => {
-      setActiveDay((current) => {
-        const idx = sortedDayNumbers.indexOf(current);
-        const nextIdx = idx < 0 ? 0 : idx + 1;
-        if (nextIdx >= sortedDayNumbers.length) {
-          window.setTimeout(() => {
-            setIsPlaying(false);
-            setScrollSpyPaused(false);
-            isClickNavigatingRef.current = false;
-          }, 0);
-          return sortedDayNumbers[sortedDayNumbers.length - 1]!;
-        }
-        return sortedDayNumbers[nextIdx]!;
-      });
-    }, PLAY_ROUTE_STEP_MS);
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
 
-    return () => window.clearInterval(timer);
-  }, [isPlaying, sortedDayNumbers]);
+    const advanceFrom = (current: number) => {
+      const idx = sortedDayNumbers.indexOf(current);
+      const nextIdx = idx < 0 ? 0 : idx + 1;
+      if (nextIdx >= sortedDayNumbers.length) {
+        setIsPlaying(false);
+        setScrollSpyPaused(false);
+        isClickNavigatingRef.current = false;
+        return;
+      }
+      const next = sortedDayNumbers[nextIdx]!;
+      const wait = playStepMs(plan, current, next);
+      timer = window.setTimeout(() => {
+        if (cancelled) return;
+        setActiveDay(next);
+        advanceFrom(next);
+      }, wait);
+    };
+
+    // Always start from day 1 (toggle resets activeDay); don't depend on activeDay ticks.
+    advanceFrom(sortedDayNumbers[0]!);
+    return () => {
+      cancelled = true;
+      if (timer) window.clearTimeout(timer);
+    };
+  }, [isPlaying, plan, sortedDayNumbers]);
 
   const tripSessionKey = useMemo(() => {
     if (!plan?.days.length) return "";

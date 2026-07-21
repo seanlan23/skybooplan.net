@@ -13,11 +13,13 @@ import type { AiTripPlan } from "@/lib/aiPlan.functions";
 import { MapCityMarker, MapPoiMarker } from "@/components/MapPoiMarker";
 import { mapPinToPoiDetails, type PoiDetailsData } from "@/lib/poiDetails.types";
 import { useI18n } from "@/lib/i18n";
-import { buildGreatCircleCoords } from "@/lib/geoMath";
+import { buildGreatCircleCoords, haversineKm } from "@/lib/geoMath";
 import { fetchDrivingDirections } from "@/lib/mapboxDirections";
 import {
   buildMapDay,
   cameraForMapDay,
+  cameraMoveDurationMs,
+  isLongHaulCameraMove,
   type MapDay,
   type MapDayPin,
 } from "@/lib/itineraryMapModel";
@@ -72,7 +74,6 @@ const STYLE_STREETS = "mapbox://styles/mapbox/streets-v12";
 const STYLE_SATELLITE = "mapbox://styles/mapbox/satellite-streets-v12";
 const ROUTE_SOURCE = "skyboo-day-route";
 const ROUTE_LAYER = "skyboo-day-route-line";
-const CAMERA_MS = 2800;
 
 type MarkerEntry = { marker: mapboxgl.Marker; root: Root; id: string };
 
@@ -237,7 +238,8 @@ function TripMapInner({
     });
   }, [isSatellite]);
 
-  // Camera: active day city center only
+  // Camera: active day city center only.
+  // Long hauls (MUC→BKK) MUST use flyTo — easeTo at city zoom = black void across oceans.
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !readyRef.current || !camera) return;
@@ -246,14 +248,31 @@ function TripMapInner({
     if (lastCameraKeyRef.current === key) return;
     lastCameraKeyRef.current = key;
 
+    const current = map.getCenter();
+    const distKm = haversineKm(
+      [current.lng, current.lat],
+      [camera.center[0], camera.center[1]],
+    );
+    const duration = cameraMoveDurationMs(distKm);
+
     map.stop();
-    map.easeTo({
-      center: camera.center,
-      zoom: camera.zoom,
-      duration: CAMERA_MS,
-      essential: true,
-      easing: (t) => 1 - Math.pow(1 - t, 3),
-    });
+    if (isLongHaulCameraMove(distKm)) {
+      map.flyTo({
+        center: camera.center,
+        zoom: camera.zoom,
+        duration,
+        essential: true,
+        curve: 1.6,
+      });
+    } else {
+      map.easeTo({
+        center: camera.center,
+        zoom: camera.zoom,
+        duration,
+        essential: true,
+        easing: (t) => 1 - Math.pow(1 - t, 3),
+      });
+    }
   }, [camera, activeDay, isPlaying, styleEpoch]);
 
   // Markers + inbound leg

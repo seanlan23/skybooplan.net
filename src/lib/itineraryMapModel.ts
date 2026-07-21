@@ -15,10 +15,23 @@ import { lookupRegionCoords } from "@/lib/regionCoords";
 export const MAX_DAY_PINS = 4;
 export const MAX_PIN_FROM_CENTER_KM = 55;
 export const COLOCATE_KM = 1.2;
-export const DAY_VIEW_ZOOM = 11.5;
-export const PLAY_VIEW_ZOOM = 11.8;
+export const DAY_VIEW_ZOOM = 11.2;
+export const PLAY_VIEW_ZOOM = 11.2;
+/** Beyond this, easeTo at city zoom paints a black void mid-ocean — use flyTo. */
+export const LONG_HAUL_CAMERA_KM = 800;
+export const CAMERA_MS_LOCAL = 2800;
 export const MIN_ROUTE_DRAW_KM = 40;
 const AIRPORT_SNAP_KM = 12;
+
+/** Duration for a camera move — long hauls are slow and use flyTo (zoom-out arc). */
+export function cameraMoveDurationMs(distKm: number): number {
+  if (!Number.isFinite(distKm) || distKm < LONG_HAUL_CAMERA_KM) return CAMERA_MS_LOCAL;
+  return Math.min(9000, Math.max(5000, Math.round(distKm * 0.4)));
+}
+
+export function isLongHaulCameraMove(distKm: number): boolean {
+  return Number.isFinite(distKm) && distKm >= LONG_HAUL_CAMERA_KM;
+}
 
 export type LngLat = { lat: number; lng: number };
 

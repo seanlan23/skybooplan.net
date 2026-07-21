@@ -7,7 +7,9 @@ import type { AiTripPlan, DayPlan } from "@/lib/aiPlan.functions";
 import {
   buildMapDay,
   cameraForMapDay,
+  cameraMoveDurationMs,
   finalizeItineraryMapCoords,
+  isLongHaulCameraMove,
   resolveCityCenter,
 } from "@/lib/itineraryMapModel";
 
@@ -155,6 +157,13 @@ describe("map smoke checklist", () => {
     expect(sights.legIn).toBeUndefined();
     const cam = cameraForMapDay(sights);
     expect(cam.center).toEqual([sights.center.lng, sights.center.lat]);
+  });
+
+  it("long-haul camera (MUC→BKK) is slow flyTo, not instant easeTo", () => {
+    // ~8800 km Munich–Bangkok
+    expect(isLongHaulCameraMove(8800)).toBe(true);
+    expect(cameraMoveDurationMs(8800)).toBeGreaterThanOrEqual(5000);
+    expect(cameraMoveDurationMs(50)).toBeLessThan(4000);
   });
 
   it("finalize strips runway dumps before map sees them", () => {
