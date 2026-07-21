@@ -437,9 +437,15 @@ function propsEqual(prev: Props, next: Props): boolean {
       .map((d) => {
         const pins = (d.mapPins ?? [])
           .slice(0, 6)
-          .map((x) => `${x.name}:${x.lat}:${x.lng}`)
+          .map((x) => `${x.name}:${x.lat}:${x.lng}:${x.imageUrl ?? ""}`)
           .join("|");
-        return `${d.day}:${d.city}:${d.lat}:${d.lng}:${pins}:${d.imageUrl ?? ""}`;
+        const acts = ["morning", "afternoon", "evening"] as const;
+        const actImgs = acts
+          .flatMap((s) => d.activities?.[s] ?? [])
+          .slice(0, 8)
+          .map((a) => a.imageUrl ?? "")
+          .join("|");
+        return `${d.day}:${d.city}:${d.lat}:${d.lng}:${pins}:${d.imageUrl ?? ""}:${actImgs}`;
       })
       .join(";");
   return sig(prev.plan) === sig(next.plan);

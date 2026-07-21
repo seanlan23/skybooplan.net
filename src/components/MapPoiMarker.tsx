@@ -43,11 +43,12 @@ const CATEGORY_ICON_CLASS: Record<MapPoiCategory, string> = {
   transport: "text-amber-700",
 };
 
+/** Inner photo only — never scale the Mapbox marker root (it owns transform). */
 const MARKER_IMG_CLASS =
-  "h-11 w-11 rounded-full border-2 border-white object-cover shadow-md transition-[opacity,box-shadow,border-color] duration-200 ease-out";
+  "h-11 w-11 rounded-full border-2 border-white object-cover shadow-md transition-[transform,opacity,box-shadow,border-color] duration-200 ease-out group-hover/poi:scale-[1.35] group-hover/poi:shadow-lg group-hover/poi:z-30";
 
 const MARKER_ICON_SHELL_CLASS =
-  "flex h-11 w-11 items-center justify-center rounded-full border-2 border-white bg-white/75 shadow-md backdrop-blur-sm transition-[opacity,box-shadow,border-color] duration-200 ease-out";
+  "flex h-11 w-11 items-center justify-center rounded-full border-2 border-white bg-white/75 shadow-md backdrop-blur-sm transition-[transform,opacity,box-shadow,border-color] duration-200 ease-out group-hover/poi:scale-[1.25] group-hover/poi:shadow-lg";
 
 type MarkerShellProps = {
   isActive?: boolean;
@@ -78,7 +79,7 @@ function MarkerShell({
 
   return (
     <div
-      className="pointer-events-auto flex shrink-0 cursor-pointer flex-col items-center"
+      className="group/poi pointer-events-auto flex shrink-0 cursor-pointer flex-col items-center"
       title={name}
     >
       {labelVisible ? (
@@ -171,7 +172,7 @@ export function MapPoiMarker({
   const hasPhoto = Boolean(imageUrl?.trim()) && !photoFailed;
 
   const photoRingClass = isFocused
-    ? " ring-[3px] ring-amber-400 ring-offset-2 shadow-lg"
+    ? " ring-[3px] ring-amber-400 ring-offset-2 shadow-lg scale-[1.2]"
     : isActive
       ? " ring-2 ring-sky-400/50 ring-offset-1"
       : "";
@@ -187,7 +188,7 @@ export function MapPoiMarker({
       >
         <img
           src={imageUrl}
-          alt=""
+          alt={name ?? ""}
           loading="lazy"
           decoding="async"
           onError={() => setPhotoFailed(true)}

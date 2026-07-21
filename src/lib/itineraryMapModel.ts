@@ -143,6 +143,18 @@ function fuzzyNameKey(name: string): string {
     .slice(0, 28);
 }
 
+function activityImageByName(day: DayPlan, name: string): string | undefined {
+  const key = fuzzyNameKey(name);
+  if (key.length < 4) return undefined;
+  const slots = day.activities;
+  if (!slots) return undefined;
+  for (const act of [...(slots.morning ?? []), ...(slots.afternoon ?? []), ...(slots.evening ?? [])]) {
+    if (!act.imageUrl?.trim()) continue;
+    if (fuzzyNameKey(act.name) === key) return act.imageUrl;
+  }
+  return undefined;
+}
+
 function collectPins(day: DayPlan, center: LngLat): MapDayPin[] {
   const travel = isTravelDay(day);
   const city = normalizeCityLabel(day.city);
@@ -160,6 +172,8 @@ function collectPins(day: DayPlan, center: LngLat): MapDayPin[] {
     if (!n || n === city.toLowerCase()) continue;
 
     const nameKey = fuzzyNameKey(pin.name);
+    const imageUrl =
+      pin.imageUrl?.trim() || activityImageByName(day, pin.name) || undefined;
     const existing = pins.find(
       (p) =>
         haversineKm([p.lng, p.lat], [pin.lng, pin.lat]) < COLOCATE_KM ||
@@ -169,8 +183,8 @@ function collectPins(day: DayPlan, center: LngLat): MapDayPin[] {
       if (pin.name.trim().length > existing.name.trim().length) {
         existing.name = pin.name;
         existing.description = pin.description ?? existing.description;
-        existing.imageUrl = pin.imageUrl ?? existing.imageUrl;
       }
+      if (!existing.imageUrl && imageUrl) existing.imageUrl = imageUrl;
       continue;
     }
     if (pins.length >= MAX_DAY_PINS) break;
@@ -184,7 +198,7 @@ function collectPins(day: DayPlan, center: LngLat): MapDayPin[] {
       arrivalTime: pin.arrivalTime,
       departureTime: pin.departureTime,
       estimatedCostEur: pin.estimatedCostEur,
-      imageUrl: pin.imageUrl,
+      imageUrl,
     });
   }
 

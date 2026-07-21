@@ -1,0 +1,36 @@
+---
+description: Locked itinerary map success criteria and freeze — no map experiments
+alwaysApply: true
+---
+
+# Itinerary map — locked truth (freeze)
+
+## Success (1 sentence)
+
+Kamera sledi samo dnevu; max 4 pini z fotkami; hover poveča; klik odpre opis; sightseeing nikoli na letališču.
+
+## Reference UX
+
+Layla-style: day city center owns the camera; pins highlight only; no drone/route thrash. Past CR videos (CR_047 etc.) are failure references, not the target.
+
+## Architecture (do not reopen)
+
+- One model: `src/lib/itineraryMapModel.ts` (`MapDay`)
+- One renderer: `src/components/TripMap.tsx` (dumb Mapbox)
+- City centers: `src/lib/regionCoords.ts` — never seed from IATA runways
+- IATA hubs: `src/lib/destinationCoords.ts` — flights/weather only
+
+## Freeze (2 weeks from 2026-07-21)
+
+Do **not** start: TripAdvisor/Terra, Google Maps rewrite, resurrecting `tripMapRoutes` / progressive draw / fitBounds camera, or parallel coordinate resolvers.
+
+If a map bug remains after smoke: **one bug → one fix** in `itineraryMapModel.ts` or `TripMap.tsx` only.
+
+## Smoke checklist (pass/fail)
+
+1. Scroll days → calm easeTo on day city
+2. Sightseeing ≠ runway (Tokyo/Ubud)
+3. Max ~4 pins, no logistics stack
+4. Hover enlarges photo pin (after Unsplash)
+5. Click opens description modal
+6. Play route = day-by-day, no pin twitch

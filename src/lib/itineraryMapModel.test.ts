@@ -190,6 +190,40 @@ describe("itineraryMapModel", () => {
     expect(cam.center).toEqual([view.center.lng, view.center.lat]);
   });
 
+  it("collectPins pulls imageUrl from matching activity when pin lacks photo", () => {
+    const view = buildMapDay(
+      plan([
+        day({
+          day: 2,
+          city: "Ubud",
+          lat: -8.506,
+          lng: 115.263,
+          mapPins: [
+            {
+              name: "Tegallalang Rice Terraces",
+              lat: -8.4312,
+              lng: 115.2792,
+              category: "nature",
+            },
+          ],
+          activities: {
+            morning: [
+              {
+                name: "Tegallalang Rice Terraces",
+                type: "ATTRACTION",
+                imageUrl: "https://images.example/tegallalang.jpg",
+              },
+            ],
+            afternoon: [],
+            evening: [],
+          },
+        }),
+      ]),
+      2,
+    );
+    expect(view?.pins[0]?.imageUrl).toBe("https://images.example/tegallalang.jpg");
+  });
+
   it("finalizeItineraryMapCoords rewrites runway AI lat/lng to city center", () => {
     const p = plan([
       day({
