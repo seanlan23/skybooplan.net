@@ -76,6 +76,56 @@ describe("itineraryMapModel", () => {
     expect(md!.pins[0]!.name).toMatch(/oia/i);
   });
 
+  it("backfills activities even when Gemini returned a single mapPin", () => {
+    const md = buildMapDay(
+      plan([
+        day({
+          day: 2,
+          city: "Lisbon",
+          lat: 38.722,
+          lng: -9.139,
+          mapPins: [
+            { name: "Praça do Comércio", lat: 38.707, lng: -9.136, category: "sightseeing" },
+          ],
+          activities: {
+            morning: [
+              {
+                name: "Alfama walk",
+                type: "SIGHT",
+                description: "Old town",
+                lat: 38.712,
+                lng: -9.13,
+              },
+            ],
+            afternoon: [
+              {
+                name: "Belém tower",
+                type: "SIGHT",
+                description: "Tower",
+                lat: 38.6916,
+                lng: -9.216,
+              },
+            ],
+            evening: [
+              {
+                name: "LX Factory",
+                type: "SIGHT",
+                lat: 38.7036,
+                lng: -9.1789,
+              },
+            ],
+          },
+        }),
+      ]),
+      2,
+    );
+    expect(md).not.toBeNull();
+    // Gemini's single pin + activity backfill (nearby POIs may co-locate/merge).
+    expect(md!.pins.length).toBeGreaterThanOrEqual(3);
+    expect(md!.pins.some((p) => /belém|belem/i.test(p.name))).toBe(true);
+    expect(md!.pins.some((p) => /lx factory/i.test(p.name))).toBe(true);
+  });
+
   it("resolveCityCenter prefers city label over mismatched AI coords", () => {
     const d = day({
       day: 2,

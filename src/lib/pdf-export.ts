@@ -451,6 +451,25 @@ function uint8ToBinaryString(bytes: Uint8Array): string {
 }
 
 async function loadFontBinary(url: string): Promise<string> {
+  // Vite serves `?url` imports as absolute paths in Node/Vitest — read from disk.
+  if (typeof window === "undefined") {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
+    const cleaned = url.split("?")[0] || url;
+    const abs = cleaned.startsWith("/")
+      ? cleaned
+      : resolve(process.cwd(), cleaned.replace(/^\.\//, ""));
+    try {
+      return uint8ToBinaryString(new Uint8Array(readFileSync(abs)));
+    } catch {
+      const fallback = resolve(
+        process.cwd(),
+        "node_modules/dejavu-fonts-ttf/ttf",
+        abs.includes("Bold") ? "DejaVuSans-Bold.ttf" : "DejaVuSans.ttf",
+      );
+      return uint8ToBinaryString(new Uint8Array(readFileSync(fallback)));
+    }
+  }
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Failed to load PDF font: ${res.status}`);
   const buf = await res.arrayBuffer();
@@ -474,7 +493,11 @@ async function ensureFonts(doc: jsPDF) {
   doc.setFont(FONT, "normal");
 }
 
-export async function generatePlanPdf(plan: PlanForPdf) {
+export async function generatePlanPdf(plan: PlanForPdf): Promise<{
+  buffer: ArrayBuffer;
+  fileName: string;
+  doc: jsPDF;
+}> {
   const model = normalizePlanForPdf(plan);
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   await ensureFonts(doc);
@@ -711,5 +734,10 @@ export async function generatePlanPdf(plan: PlanForPdf) {
       .replace(/→/g, "-")
       .trim()
       .replace(/\s+/g, "_") || "travel_plan";
-  doc.save(`${safe}.pdf`);
+
+  const buffer = doc.output("arraybuffer");
+  if (typeof window !== "undefined") {
+    doc.save(`${safe}.pdf`);
+  }
+  return { buffer, fileName: `${safe}.pdf`, doc };
 }

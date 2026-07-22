@@ -42,3 +42,4 @@ make/ready/
 
 # Local AI plan QA dumps
 .tmp-plan-qa/
+.tmp-plan-continents/

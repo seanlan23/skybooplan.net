@@ -12,8 +12,9 @@ import {
 } from "@/lib/mapPoiCategory";
 import { lookupRegionCoords } from "@/lib/regionCoords";
 
-export const MAX_DAY_PINS = 4;
-export const MAX_PIN_FROM_CENTER_KM = 55;
+export const MAX_DAY_PINS = 7;
+/** Allow day-trips (e.g. Blue Mountains from Sydney, Sintra from Lisbon). */
+export const MAX_PIN_FROM_CENTER_KM = 120;
 export const COLOCATE_KM = 1.2;
 export const DAY_VIEW_ZOOM = 11.2;
 export const PLAY_VIEW_ZOOM = 11.2;
@@ -244,18 +245,36 @@ function collectPins(day: DayPlan, center: LngLat): MapDayPin[] {
     pushPinCandidate(pins, day, center, city, travel, pin);
   }
 
-  // Fallback: when Gemini omitted mapPins, still show activity coords on the map.
-  if (pins.length === 0 && day.activities) {
-    for (const act of [
+  // Always backfill from activities — Gemini often returns 0–1 mapPins while
+  // activities already carry usable coords (or we fan out near city center).
+  if (day.activities && pins.length < MAX_DAY_PINS) {
+    const acts = [
       ...(day.activities.morning ?? []),
       ...(day.activities.afternoon ?? []),
       ...(day.activities.evening ?? []),
-    ]) {
-      if (!isValidMapCoord(act.lat, act.lng)) continue;
+    ];
+    let fanIndex = 0;
+    for (const act of acts) {
+      if (pins.length >= MAX_DAY_PINS) break;
+      if (isLogisticsName(act.name)) continue;
+      let lat = act.lat;
+      let lng = act.lng;
+      if (!isValidMapCoord(lat, lng)) {
+        // Spread nameless/coord-less POIs around the city so the map isn't empty.
+        const angle = (fanIndex * 2.4) % (Math.PI * 2);
+        const radiusKm = 1.2 + (fanIndex % 3) * 0.9;
+        const dLat = (radiusKm / 111) * Math.cos(angle);
+        const dLng =
+          (radiusKm / (111 * Math.max(0.2, Math.cos((center.lat * Math.PI) / 180)))) *
+          Math.sin(angle);
+        lat = center.lat + dLat;
+        lng = center.lng + dLng;
+        fanIndex += 1;
+      }
       pushPinCandidate(pins, day, center, city, travel, {
         name: act.name,
-        lat: act.lat!,
-        lng: act.lng!,
+        lat: lat!,
+        lng: lng!,
         category: act.type,
         description: act.description,
         arrivalTime: act.arrivalTime,
@@ -263,8 +282,18 @@ function collectPins(day: DayPlan, center: LngLat): MapDayPin[] {
         estimatedCostEur: act.estimatedCostEur,
         imageUrl: act.imageUrl,
       });
-      if (pins.length >= MAX_DAY_PINS) break;
     }
+  }
+
+  // Arrival / soft days often only have logistics text — still show a city pin.
+  if (pins.length === 0 && city && !day.inFlightDay) {
+    pins.push({
+      id: `pin-${day.day}-city-hub`,
+      name: `Središče — ${city}`,
+      lat: center.lat,
+      lng: center.lng,
+      category: "sightseeing",
+    });
   }
 
   return pins;

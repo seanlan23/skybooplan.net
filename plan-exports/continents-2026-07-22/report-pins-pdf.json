@@ -1,0 +1,106 @@
+{
+  "generatedAt": "2026-07-22T21:13:32.211Z",
+  "report": [
+    {
+      "id": "AS-BKK",
+      "continent": "Asia",
+      "destinationName": "Thailand",
+      "days": 9,
+      "daysWithPins": "8/9",
+      "totalPins": 28,
+      "avgPinsPerDay": 3.11,
+      "pinCounts": [
+        0,
+        1,
+        2,
+        5,
+        5,
+        4,
+        3,
+        6,
+        2
+      ],
+      "pdf": "/Users/rokkricej/Desktop/Skybooplan_ Your Dream Trip, Crafted/.tmp-plan-continents/AS-BKK.pdf"
+    },
+    {
+      "id": "AU-SYD",
+      "continent": "Australia",
+      "destinationName": "Sydney, Australia",
+      "days": 9,
+      "daysWithPins": "7/9",
+      "totalPins": 20,
+      "avgPinsPerDay": 2.22,
+      "pinCounts": [
+        0,
+        0,
+        1,
+        3,
+        3,
+        4,
+        3,
+        2,
+        4
+      ],
+      "pdf": "/Users/rokkricej/Desktop/Skybooplan_ Your Dream Trip, Crafted/.tmp-plan-continents/AU-SYD.pdf"
+    },
+    {
+      "id": "EU-LIS",
+      "continent": "Europe",
+      "destinationName": "Portugal",
+      "days": 7,
+      "daysWithPins": "7/7",
+      "totalPins": 21,
+      "avgPinsPerDay": 3,
+      "pinCounts": [
+        3,
+        3,
+        3,
+        4,
+        2,
+        3,
+        3
+      ],
+      "pdf": "/Users/rokkricej/Desktop/Skybooplan_ Your Dream Trip, Crafted/.tmp-plan-continents/EU-LIS.pdf"
+    },
+    {
+      "id": "SA-LIM",
+      "continent": "South America",
+      "destinationName": "Peru",
+      "days": 9,
+      "daysWithPins": "9/9",
+      "totalPins": 26,
+      "avgPinsPerDay": 2.89,
+      "pinCounts": [
+        1,
+        3,
+        3,
+        4,
+        5,
+        3,
+        3,
+        2,
+        2
+      ],
+      "pdf": "/Users/rokkricej/Desktop/Skybooplan_ Your Dream Trip, Crafted/.tmp-plan-continents/SA-LIM.pdf"
+    },
+    {
+      "id": "US-JFK",
+      "continent": "USA",
+      "destinationName": "New York",
+      "days": 7,
+      "daysWithPins": "7/7",
+      "totalPins": 23,
+      "avgPinsPerDay": 3.29,
+      "pinCounts": [
+        2,
+        3,
+        4,
+        5,
+        3,
+        3,
+        3
+      ],
+      "pdf": "/Users/rokkricej/Desktop/Skybooplan_ Your Dream Trip, Crafted/.tmp-plan-continents/US-JFK.pdf"
+    }
+  ]
+}
