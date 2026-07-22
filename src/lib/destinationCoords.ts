@@ -136,6 +136,9 @@ export const DESTINATION_BY_IATA: Record<string, DestinationMeta> = {
   EZE: { name: "Buenos Aires", lat: -34.822, lng: -58.536, country: "AR" },
   LIM: { name: "Lima", lat: -12.022, lng: -77.114, country: "PE" },
   CUZ: { name: "Cusco", lat: -13.535, lng: -71.939, country: "PE" },
+  BOG: { name: "Bogotá", lat: 4.701, lng: -74.146, country: "CO" },
+  CTG: { name: "Cartagena", lat: 10.442, lng: -75.513, country: "CO" },
+  MDE: { name: "Medellín", lat: 6.164, lng: -75.423, country: "CO" },
 };
 
 /** Phase-1 tourist hubs (~95% traffic) — used for coverage smoke tests. */

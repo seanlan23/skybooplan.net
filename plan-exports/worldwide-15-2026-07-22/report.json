@@ -1,0 +1,479 @@
+{
+  "generatedAt": "2026-07-22T21:33:25.832Z",
+  "totals": {
+    "ok": 15,
+    "issues": 0,
+    "fail": 0,
+    "avgPinsPerDay": 3.3
+  },
+  "results": [
+    {
+      "id": "01-PRG-AMS",
+      "region": "Europe",
+      "route": "PRG→AMS",
+      "budget": "standard",
+      "pace": "balanced",
+      "pax": 2,
+      "status": "ok",
+      "ms": 55679,
+      "days": 5,
+      "destinationName": "Nizozemska",
+      "cities": [
+        "Amsterdam"
+      ],
+      "daysWithPins": "5/5",
+      "totalPins": 15,
+      "avgPinsPerDay": 3,
+      "pinCounts": [
+        1,
+        3,
+        6,
+        4,
+        1
+      ],
+      "issues": [],
+      "ok": true,
+      "pdf": "plan-exports/worldwide-15-2026-07-22/01-PRG-AMS.pdf"
+    },
+    {
+      "id": "02-ZAG-IST",
+      "region": "Europe/Asia",
+      "route": "ZAG→IST",
+      "budget": "budget",
+      "pace": "relaxed",
+      "pax": 2,
+      "status": "ok",
+      "ms": 74602,
+      "days": 7,
+      "destinationName": "Istanbul, Turčija",
+      "cities": [
+        "Istanbul"
+      ],
+      "daysWithPins": "7/7",
+      "totalPins": 12,
+      "avgPinsPerDay": 1.71,
+      "pinCounts": [
+        2,
+        1,
+        2,
+        2,
+        2,
+        2,
+        1
+      ],
+      "issues": [],
+      "ok": true,
+      "pdf": "plan-exports/worldwide-15-2026-07-22/02-ZAG-IST.pdf"
+    },
+    {
+      "id": "03-VIE-DXB",
+      "region": "Middle East",
+      "route": "VIE→DXB",
+      "budget": "luxury",
+      "pace": "balanced",
+      "pax": 2,
+      "status": "ok",
+      "ms": 61633,
+      "days": 6,
+      "destinationName": "Dubai",
+      "cities": [
+        "Dubai"
+      ],
+      "daysWithPins": "6/6",
+      "totalPins": 18,
+      "avgPinsPerDay": 3,
+      "pinCounts": [
+        1,
+        3,
+        3,
+        4,
+        5,
+        2
+      ],
+      "issues": [],
+      "ok": true,
+      "pdf": "plan-exports/worldwide-15-2026-07-22/03-VIE-DXB.pdf"
+    },
+    {
+      "id": "04-MXP-CAI",
+      "region": "Africa",
+      "route": "MXP→CAI",
+      "budget": "standard",
+      "pace": "packed",
+      "pax": 3,
+      "status": "ok",
+      "ms": 84233,
+      "days": 7,
+      "destinationName": "Egipt",
+      "cities": [
+        "Cairo"
+      ],
+      "daysWithPins": "7/7",
+      "totalPins": 19,
+      "avgPinsPerDay": 2.71,
+      "pinCounts": [
+        2,
+        3,
+        3,
+        3,
+        2,
+        3,
+        3
+      ],
+      "issues": [],
+      "ok": true,
+      "pdf": "plan-exports/worldwide-15-2026-07-22/04-MXP-CAI.pdf"
+    },
+    {
+      "id": "05-FRA-CPT",
+      "region": "Africa",
+      "route": "FRA→CPT",
+      "budget": "standard",
+      "pace": "balanced",
+      "pax": 2,
+      "status": "ok",
+      "ms": 68331,
+      "days": 9,
+      "destinationName": "Cape Town, South Africa",
+      "cities": [
+        "Frankfurt",
+        "Cape Town"
+      ],
+      "daysWithPins": "8/9",
+      "totalPins": 28,
+      "avgPinsPerDay": 3.11,
+      "pinCounts": [
+        0,
+        1,
+        3,
+        6,
+        2,
+        5,
+        4,
+        4,
+        3
+      ],
+      "issues": [],
+      "ok": true,
+      "pdf": "plan-exports/worldwide-15-2026-07-22/05-FRA-CPT.pdf"
+    },
+    {
+      "id": "06-CDG-NRT",
+      "region": "Asia",
+      "route": "CDG→NRT",
+      "budget": "standard",
+      "pace": "balanced",
+      "pax": 2,
+      "status": "ok",
+      "ms": 84745,
+      "days": 9,
+      "destinationName": "Japan",
+      "cities": [
+        "Paris",
+        "Tokyo",
+        "Kyoto"
+      ],
+      "daysWithPins": "8/9",
+      "totalPins": 35,
+      "avgPinsPerDay": 3.89,
+      "pinCounts": [
+        0,
+        4,
+        6,
+        6,
+        6,
+        5,
+        5,
+        2,
+        1
+      ],
+      "issues": [],
+      "ok": true,
+      "pdf": "plan-exports/worldwide-15-2026-07-22/06-CDG-NRT.pdf"
+    },
+    {
+      "id": "07-AMS-BKK",
+      "region": "Asia",
+      "route": "AMS→BKK",
+      "budget": "budget",
+      "pace": "relaxed",
+      "pax": 1,
+      "status": "ok",
+      "ms": 72751,
+      "days": 9,
+      "destinationName": "Tajska",
+      "cities": [
+        "Amsterdam",
+        "Bangkok",
+        "Chiang Mai"
+      ],
+      "daysWithPins": "7/9",
+      "totalPins": 17,
+      "avgPinsPerDay": 1.89,
+      "pinCounts": [
+        0,
+        1,
+        4,
+        3,
+        1,
+        3,
+        3,
+        2,
+        0
+      ],
+      "issues": [],
+      "ok": true,
+      "pdf": "plan-exports/worldwide-15-2026-07-22/07-AMS-BKK.pdf"
+    },
+    {
+      "id": "08-MUC-SIN",
+      "region": "Asia",
+      "route": "MUC→SIN",
+      "budget": "luxury",
+      "pace": "packed",
+      "pax": 2,
+      "status": "ok",
+      "ms": 47893,
+      "days": 6,
+      "destinationName": "Singapore",
+      "cities": [
+        "Munich",
+        "Singapore"
+      ],
+      "daysWithPins": "5/6",
+      "totalPins": 25,
+      "avgPinsPerDay": 4.17,
+      "pinCounts": [
+        0,
+        5,
+        4,
+        5,
+        6,
+        5
+      ],
+      "issues": [],
+      "ok": true,
+      "pdf": "plan-exports/worldwide-15-2026-07-22/08-MUC-SIN.pdf"
+    },
+    {
+      "id": "09-LHR-JFK",
+      "region": "USA",
+      "route": "LHR→JFK",
+      "budget": "standard",
+      "pace": "packed",
+      "pax": 4,
+      "status": "ok",
+      "ms": 71843,
+      "days": 6,
+      "destinationName": "New York",
+      "cities": [
+        "New York"
+      ],
+      "daysWithPins": "6/6",
+      "totalPins": 20,
+      "avgPinsPerDay": 3.33,
+      "pinCounts": [
+        2,
+        3,
+        5,
+        2,
+        4,
+        4
+      ],
+      "issues": [],
+      "ok": true,
+      "pdf": "plan-exports/worldwide-15-2026-07-22/09-LHR-JFK.pdf"
+    },
+    {
+      "id": "10-FCO-MIA",
+      "region": "USA",
+      "route": "FCO→MIA",
+      "budget": "standard",
+      "pace": "relaxed",
+      "pax": 2,
+      "status": "ok",
+      "ms": 69706,
+      "days": 7,
+      "destinationName": "Miami",
+      "cities": [
+        "Miami"
+      ],
+      "daysWithPins": "7/7",
+      "totalPins": 32,
+      "avgPinsPerDay": 4.57,
+      "pinCounts": [
+        2,
+        3,
+        7,
+        6,
+        4,
+        5,
+        5
+      ],
+      "issues": [],
+      "ok": true,
+      "pdf": "plan-exports/worldwide-15-2026-07-22/10-FCO-MIA.pdf"
+    },
+    {
+      "id": "11-BCN-GRU",
+      "region": "South America",
+      "route": "BCN→GRU",
+      "budget": "standard",
+      "pace": "balanced",
+      "pax": 2,
+      "status": "ok",
+      "ms": 76624,
+      "days": 9,
+      "destinationName": "Brazilija",
+      "cities": [
+        "Barcelona",
+        "Sao Paulo",
+        "Rio de Janeiro",
+        "São Paulo"
+      ],
+      "daysWithPins": "7/9",
+      "totalPins": 32,
+      "avgPinsPerDay": 3.56,
+      "pinCounts": [
+        0,
+        4,
+        3,
+        4,
+        5,
+        6,
+        7,
+        3,
+        0
+      ],
+      "issues": [],
+      "ok": true,
+      "pdf": "plan-exports/worldwide-15-2026-07-22/11-BCN-GRU.pdf"
+    },
+    {
+      "id": "12-MAD-BOG",
+      "region": "South America",
+      "route": "MAD→BOG",
+      "budget": "budget",
+      "pace": "balanced",
+      "pax": 2,
+      "status": "ok",
+      "ms": 87013,
+      "days": 8,
+      "destinationName": "Colombia",
+      "cities": [
+        "Bogota",
+        "Cartagena"
+      ],
+      "daysWithPins": "8/8",
+      "totalPins": 33,
+      "avgPinsPerDay": 4.13,
+      "pinCounts": [
+        4,
+        4,
+        4,
+        4,
+        5,
+        4,
+        4,
+        4
+      ],
+      "issues": [],
+      "ok": true,
+      "pdf": "plan-exports/worldwide-15-2026-07-22/12-MAD-BOG.pdf"
+    },
+    {
+      "id": "13-ZRH-SYD",
+      "region": "Australia",
+      "route": "ZRH→SYD",
+      "budget": "luxury",
+      "pace": "relaxed",
+      "pax": 2,
+      "status": "ok",
+      "ms": 86612,
+      "days": 10,
+      "destinationName": "Australia",
+      "cities": [
+        "Zurich",
+        "Sydney"
+      ],
+      "daysWithPins": "8/10",
+      "totalPins": 24,
+      "avgPinsPerDay": 2.4,
+      "pinCounts": [
+        0,
+        0,
+        1,
+        4,
+        4,
+        4,
+        2,
+        3,
+        3,
+        3
+      ],
+      "issues": [],
+      "ok": true,
+      "pdf": "plan-exports/worldwide-15-2026-07-22/13-ZRH-SYD.pdf"
+    },
+    {
+      "id": "14-WAW-ICN",
+      "region": "Asia",
+      "route": "WAW→ICN",
+      "budget": "standard",
+      "pace": "packed",
+      "pax": 2,
+      "status": "ok",
+      "ms": 74727,
+      "days": 7,
+      "destinationName": "Južna Koreja",
+      "cities": [
+        "Warsaw",
+        "Seoul"
+      ],
+      "daysWithPins": "6/7",
+      "totalPins": 21,
+      "avgPinsPerDay": 3,
+      "pinCounts": [
+        0,
+        3,
+        4,
+        4,
+        3,
+        4,
+        3
+      ],
+      "issues": [],
+      "ok": true,
+      "pdf": "plan-exports/worldwide-15-2026-07-22/14-WAW-ICN.pdf"
+    },
+    {
+      "id": "15-BUD-REK",
+      "region": "Europe",
+      "route": "BUD→KEF",
+      "budget": "standard",
+      "pace": "balanced",
+      "pax": 2,
+      "status": "ok",
+      "ms": 56312,
+      "days": 6,
+      "destinationName": "Iceland",
+      "cities": [
+        "Reykjavik"
+      ],
+      "daysWithPins": "6/6",
+      "totalPins": 30,
+      "avgPinsPerDay": 5,
+      "pinCounts": [
+        4,
+        6,
+        6,
+        6,
+        5,
+        3
+      ],
+      "issues": [],
+      "ok": true,
+      "pdf": "plan-exports/worldwide-15-2026-07-22/15-BUD-REK.pdf"
+    }
+  ]
+}
