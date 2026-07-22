@@ -12,7 +12,7 @@ import { useT } from "@/lib/i18n";
 export const Route = createFileRoute("/login")({
   head: () => ({
     meta: [
-      { title: "Sign in — Skybooplan" },
+      { title: "Prijava — skybooplan" },
       { name: "description", content: "Sign in to access your travel plans and saved trips." },
     ],
   }),
@@ -34,63 +34,86 @@ function LoginPage() {
   useEffect(() => {
     const err = new URLSearchParams(window.location.search).get("error");
     if (err === "csrf" || err === "google") {
-      toast.error("Google prijava ni uspela. Poskusi znova.");
+      toast.error(t("auth.googleBridgeFailed"));
     }
-  }, []);
+  }, [t]);
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
-    if (error) toast.error(error.message);
-    else toast.success(t("auth.welcomeToast"));
-  };
-
-  const handleGoogle = () => {
-    setLoading(true);
-    window.location.href = googleSignInHref();
+    if (error) {
+      const msg = /load failed|failed to fetch/i.test(error.message)
+        ? t("auth.googleBridgeFailed")
+        : error.message;
+      toast.error(msg);
+    } else toast.success(t("auth.welcomeToast"));
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-6" style={{ background: "var(--gradient-hero)" }}>
+    <div
+      className="flex min-h-screen items-center justify-center px-6"
+      style={{
+        background:
+          "linear-gradient(165deg, oklch(0.99 0.01 240) 0%, oklch(0.96 0.04 235) 42%, oklch(0.98 0.03 70) 100%)",
+      }}
+    >
       <div className="w-full max-w-md">
-        <Link to="/" className="mb-8 flex items-center justify-center text-foreground">
+        <Link to="/" className="mb-8 flex items-center justify-center text-slate-900">
           <Logo size="md" />
         </Link>
 
-        <div className="rounded-3xl bg-card border border-border shadow-[var(--shadow-card)] p-8">
-          <h1 className="text-2xl font-bold text-foreground">{t("auth.welcomeBack")}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{t("auth.loginSub")}</p>
+        <div className="rounded-[28px] border border-sky-200/60 bg-white p-8 shadow-[0_18px_40px_rgba(2,132,199,0.1)]">
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+            {t("auth.welcomeBack")}
+          </h1>
+          <p className="mt-1 text-sm text-slate-500">{t("auth.loginSub")}</p>
 
-          <button
-            onClick={handleGoogle}
-            disabled={loading}
-            className="mt-6 w-full inline-flex items-center justify-center gap-3 rounded-2xl border border-border bg-background py-3 text-sm font-semibold hover:bg-muted/50 transition-colors disabled:opacity-50"
+          <a
+            href={googleSignInHref()}
+            className="mt-6 flex w-full items-center justify-center gap-3 rounded-2xl border border-sky-200 bg-sky-50/80 py-3 text-sm font-semibold text-slate-800 transition-colors hover:border-sky-300 hover:bg-sky-50"
           >
             <GoogleIcon /> {t("nav.signInGoogle")}
-          </button>
+          </a>
 
-          <div className="my-6 flex items-center gap-3 text-xs text-muted-foreground">
-            <div className="h-px flex-1 bg-border" /> {t("auth.or")} <div className="h-px flex-1 bg-border" />
+          <div className="my-6 flex items-center gap-3 text-xs text-slate-400">
+            <div className="h-px flex-1 bg-sky-100" /> {t("auth.or")}{" "}
+            <div className="h-px flex-1 bg-sky-100" />
           </div>
 
           <form onSubmit={handleEmailLogin} className="space-y-4">
-            <Field icon={Mail} type="email" placeholder={t("auth.emailPh")} value={email} onChange={setEmail} />
-            <Field icon={Lock} type="password" placeholder={t("auth.passwordPh")} value={password} onChange={setPassword} />
+            <Field
+              icon={Mail}
+              type="email"
+              placeholder={t("auth.emailPh")}
+              value={email}
+              onChange={setEmail}
+            />
+            <Field
+              icon={Lock}
+              type="password"
+              placeholder={t("auth.passwordPh")}
+              value={password}
+              onChange={setPassword}
+            />
             <button
               type="submit"
               disabled={loading || !email || !password}
-              className="w-full inline-flex items-center justify-center gap-2 rounded-2xl py-3 font-semibold text-primary-foreground shadow-md transition-all hover:shadow-lg disabled:opacity-50"
-              style={{ background: "var(--gradient-warm)" }}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-2xl py-3 font-semibold text-white shadow-md transition-all hover:shadow-lg disabled:opacity-50"
+              style={{ background: "linear-gradient(135deg, #0EA5E9, #0284C7)" }}
             >
               {t("auth.signInBtn")} <ArrowRight className="h-4 w-4" />
             </button>
           </form>
 
           <div className="mt-6 flex items-center justify-between text-sm">
-            <Link to="/reset-password" className="text-muted-foreground hover:text-foreground">{t("auth.forgot")}</Link>
-            <Link to="/signup" className="font-semibold text-brand hover:underline">{t("auth.createAccount")}</Link>
+            <Link to="/reset-password" className="text-slate-500 hover:text-slate-800">
+              {t("auth.forgot")}
+            </Link>
+            <Link to="/signup" className="font-semibold text-sky-600 hover:underline">
+              {t("auth.createAccount")}
+            </Link>
           </div>
         </div>
       </div>
@@ -98,7 +121,13 @@ function LoginPage() {
   );
 }
 
-function Field({ icon: Icon, type, placeholder, value, onChange }: {
+function Field({
+  icon: Icon,
+  type,
+  placeholder,
+  value,
+  onChange,
+}: {
   icon: React.ComponentType<{ className?: string }>;
   type: string;
   placeholder: string;
@@ -107,15 +136,14 @@ function Field({ icon: Icon, type, placeholder, value, onChange }: {
 }) {
   return (
     <div className="relative">
-      <Icon className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      <Icon className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-sky-400" />
       <input
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full rounded-2xl border border-border bg-background pl-11 pr-4 py-3 text-[15px] placeholder:text-muted-foreground/60 focus:outline-none focus:border-brand transition-colors"
+        className="w-full rounded-2xl border border-sky-100 bg-slate-50/80 py-3 pl-11 pr-4 text-[15px] text-slate-900 placeholder:text-slate-400 transition-colors focus:border-sky-400 focus:bg-white focus:outline-none"
       />
     </div>
   );
 }
-
