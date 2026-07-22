@@ -20,6 +20,7 @@ import { Route as AboutRouteImport } from './routes/about'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CheckoutReturnRouteImport } from './routes/checkout.return'
+import { Route as AuthGoogleRouteImport } from './routes/auth/google'
 import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
 import { Route as ApiSearchRouteImport } from './routes/api/search'
 import { Route as ApiHeroPhotoRouteImport } from './routes/api/hero-photo'
@@ -87,6 +88,11 @@ const IndexRoute = IndexRouteImport.update({
 const CheckoutReturnRoute = CheckoutReturnRouteImport.update({
   id: '/checkout/return',
   path: '/checkout/return',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthGoogleRoute = AuthGoogleRouteImport.update({
+  id: '/auth/google',
+  path: '/auth/google',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
@@ -182,6 +188,7 @@ export interface FileRoutesByFullPath {
   '/api/hero-photo': typeof ApiHeroPhotoRoute
   '/api/search': typeof ApiSearchRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
+  '/auth/google': typeof AuthGoogleRoute
   '/checkout/return': typeof CheckoutReturnRoute
   '/admin/pdf-downloads': typeof AuthenticatedAdminPdfDownloadsRoute
   '/admin/webhooks': typeof AuthenticatedAdminWebhooksRoute
@@ -208,6 +215,7 @@ export interface FileRoutesByTo {
   '/api/hero-photo': typeof ApiHeroPhotoRoute
   '/api/search': typeof ApiSearchRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
+  '/auth/google': typeof AuthGoogleRoute
   '/checkout/return': typeof CheckoutReturnRoute
   '/admin/pdf-downloads': typeof AuthenticatedAdminPdfDownloadsRoute
   '/admin/webhooks': typeof AuthenticatedAdminWebhooksRoute
@@ -236,6 +244,7 @@ export interface FileRoutesById {
   '/api/hero-photo': typeof ApiHeroPhotoRoute
   '/api/search': typeof ApiSearchRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
+  '/auth/google': typeof AuthGoogleRoute
   '/checkout/return': typeof CheckoutReturnRoute
   '/_authenticated/admin/pdf-downloads': typeof AuthenticatedAdminPdfDownloadsRoute
   '/_authenticated/admin/webhooks': typeof AuthenticatedAdminWebhooksRoute
@@ -264,6 +273,7 @@ export interface FileRouteTypes {
     | '/api/hero-photo'
     | '/api/search'
     | '/auth/callback'
+    | '/auth/google'
     | '/checkout/return'
     | '/admin/pdf-downloads'
     | '/admin/webhooks'
@@ -290,6 +300,7 @@ export interface FileRouteTypes {
     | '/api/hero-photo'
     | '/api/search'
     | '/auth/callback'
+    | '/auth/google'
     | '/checkout/return'
     | '/admin/pdf-downloads'
     | '/admin/webhooks'
@@ -317,6 +328,7 @@ export interface FileRouteTypes {
     | '/api/hero-photo'
     | '/api/search'
     | '/auth/callback'
+    | '/auth/google'
     | '/checkout/return'
     | '/_authenticated/admin/pdf-downloads'
     | '/_authenticated/admin/webhooks'
@@ -342,6 +354,7 @@ export interface RootRouteChildren {
   ApiHeroPhotoRoute: typeof ApiHeroPhotoRoute
   ApiSearchRoute: typeof ApiSearchRouteWithChildren
   AuthCallbackRoute: typeof AuthCallbackRoute
+  AuthGoogleRoute: typeof AuthGoogleRoute
   CheckoutReturnRoute: typeof CheckoutReturnRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
@@ -424,6 +437,13 @@ declare module '@tanstack/react-router' {
       path: '/checkout/return'
       fullPath: '/checkout/return'
       preLoaderRoute: typeof CheckoutReturnRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/google': {
+      id: '/auth/google'
+      path: '/auth/google'
+      fullPath: '/auth/google'
+      preLoaderRoute: typeof AuthGoogleRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth/callback': {
@@ -586,6 +606,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiHeroPhotoRoute: ApiHeroPhotoRoute,
   ApiSearchRoute: ApiSearchRouteWithChildren,
   AuthCallbackRoute: AuthCallbackRoute,
+  AuthGoogleRoute: AuthGoogleRoute,
   CheckoutReturnRoute: CheckoutReturnRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,

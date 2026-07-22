@@ -1,7 +1,10 @@
 const AUTH_CALLBACK_PATH = "/auth/callback";
 
-/** Auth.js Google OAuth entrypoint (TanStack Start — src/routes/api/auth/$.ts). */
+/** Auth.js Google OAuth POST endpoint (never navigate here with GET). */
 export const GOOGLE_SIGN_IN_PATH = "/api/auth/signin/google";
+
+/** Safe entry URL — client page that CSRF-POSTs into Auth.js. */
+export const GOOGLE_AUTH_START_PATH = "/auth/google";
 
 function resolveAuthOrigin(origin?: string): string {
   if (origin?.trim()) return origin.replace(/\/$/, "");
@@ -21,18 +24,15 @@ export function googleAuthCallbackUrl(origin?: string): string {
   return `${base}${AUTH_CALLBACK_PATH}`;
 }
 
-/**
- * @deprecated Auth.js v5 rejects GET /signin/google (UnknownAction).
- * Use `startGoogleSignIn()` which POSTs with CSRF.
- */
+/** Safe href for links — lands on /auth/google (never GET /api/auth/signin/google). */
 export function googleSignInHref(origin?: string): string {
   const callbackUrl = googleAuthCallbackUrl(origin);
-  return `${GOOGLE_SIGN_IN_PATH}?callbackUrl=${encodeURIComponent(callbackUrl)}`;
+  return `${GOOGLE_AUTH_START_PATH}?callbackUrl=${encodeURIComponent(callbackUrl)}`;
 }
 
 /**
  * Start Google OAuth the Auth.js v5 way: CSRF + POST form submit.
- * GET /api/auth/signin/google throws UnknownAction("Unsupported action").
+ * GET /api/auth/signin/google throws UnknownAction → "Server error / configuration".
  */
 export async function startGoogleSignIn(origin?: string): Promise<void> {
   const callbackUrl = googleAuthCallbackUrl(origin);
