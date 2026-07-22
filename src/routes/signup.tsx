@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Plane, Mail, Lock, User as UserIcon, ArrowRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { googleSignInHref } from "@/lib/auth.urls";
+import { startGoogleSignIn } from "@/lib/auth.urls";
 import { GoogleIcon } from "@/components/GoogleIcon";
 import { useAuth } from "@/hooks/use-auth";
 import { useT } from "@/lib/i18n";
@@ -47,8 +47,14 @@ function SignupPage() {
     else toast.success(t("auth.createdToast"));
   };
 
-  const handleGoogle = () => {
-    window.location.href = googleSignInHref();
+  const handleGoogle = async () => {
+    setLoading(true);
+    try {
+      await startGoogleSignIn();
+    } catch (err) {
+      setLoading(false);
+      toast.error(err instanceof Error ? err.message : "Google prijava ni uspela");
+    }
   };
 
   return (

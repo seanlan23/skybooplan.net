@@ -96,6 +96,23 @@ describe("ensureBangkokMustSee", () => {
     expect(out.morning.some((a) => /siam paragon|centralworld/i.test(a.name))).toBe(true);
   });
 
+  it("does not re-inject Siam Paragon when already scheduled earlier", () => {
+    const out = ensureBangkokMustSee(
+      {
+        morning: [{ name: "Asiatique", type: "SIGHT", description: "Večer." }],
+        afternoon: [],
+        evening: [],
+      },
+      locale,
+      {
+        priorScheduledText:
+          "Grand Palace Wat Pho Wat Arun Siam Paragon / CentralWorld dan 2",
+        dayInRegion: 3,
+      },
+    );
+    expect(out.morning.some((a) => /siam paragon|centralworld/i.test(a.name))).toBe(false);
+  });
+
   it("injects Grand Palace into skeleton when AI omitted it", () => {
     const regions: TripRegion[] = [
       {

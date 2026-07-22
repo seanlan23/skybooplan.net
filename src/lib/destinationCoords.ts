@@ -40,6 +40,8 @@ export const DESTINATION_BY_IATA: Record<string, DestinationMeta> = {
   AKL: { name: "Auckland", lat: -37.008, lng: 174.792, country: "NZ" },
   ZQN: { name: "Queenstown", lat: -45.021, lng: 168.739, country: "NZ" },
   DEL: { name: "Delhi", lat: 28.556, lng: 77.103, country: "IN" },
+  CMB: { name: "Colombo", lat: 7.1808, lng: 79.8841, country: "LK" },
+  HRI: { name: "Hambantota", lat: 6.2844, lng: 81.1239, country: "LK" },
 
   // — Europe —
   CDG: { name: "Paris", lat: 49.009, lng: 2.548, country: "FR" },
@@ -173,6 +175,8 @@ export const PHASE1_HUB_IATA = [
   "SYD",
   "MEL",
   "MLE",
+  "CMB",
+  "HRI",
   "AKL",
   "ZQN",
   "JFK",

@@ -39,19 +39,27 @@ export function ensureAuthEnv(): void {
     process.env.NEXTAUTH_URL = process.env.NEXTAUTH_URL.replace(/\/api\/auth\/?$/, "");
   }
 
-  // @auth/core setEnvDefaults reads AUTH_GOOGLE_ID / AUTH_GOOGLE_SECRET
+  // @auth/core setEnvDefaults reads AUTH_GOOGLE_ID / AUTH_GOOGLE_SECRET.
+  // Always prefer non-empty GOOGLE_* (empty .env keys must not win over .env.local).
   const publicGoogleId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID?.trim();
-  if (!process.env.AUTH_GOOGLE_ID) {
-    process.env.AUTH_GOOGLE_ID =
-      process.env.GOOGLE_CLIENT_ID?.trim() ||
-      publicGoogleId ||
-      undefined;
+  const googleId = (
+    process.env.GOOGLE_CLIENT_ID?.trim() ||
+    process.env.AUTH_GOOGLE_ID?.trim() ||
+    publicGoogleId ||
+    ""
+  ).trim();
+  const googleSecret = (
+    process.env.GOOGLE_CLIENT_SECRET?.trim() ||
+    process.env.AUTH_GOOGLE_SECRET?.trim() ||
+    ""
+  ).trim();
+  if (googleId) {
+    process.env.GOOGLE_CLIENT_ID = googleId;
+    process.env.AUTH_GOOGLE_ID = googleId;
   }
-  if (!process.env.GOOGLE_CLIENT_ID && publicGoogleId) {
-    process.env.GOOGLE_CLIENT_ID = publicGoogleId;
-  }
-  if (!process.env.AUTH_GOOGLE_SECRET && process.env.GOOGLE_CLIENT_SECRET) {
-    process.env.AUTH_GOOGLE_SECRET = process.env.GOOGLE_CLIENT_SECRET;
+  if (googleSecret) {
+    process.env.GOOGLE_CLIENT_SECRET = googleSecret;
+    process.env.AUTH_GOOGLE_SECRET = googleSecret;
   }
 
   // Required behind reverse proxies (Vercel, Cloudflare) so Auth.js trusts x-forwarded-host.

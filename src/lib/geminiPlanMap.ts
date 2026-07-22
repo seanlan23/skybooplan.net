@@ -111,6 +111,35 @@ function parseActivitySlot(time: string, index: number, total: number): DaySlot 
   return "afternoon";
 }
 
+/** Calendar span from day numbers — never use `days.length` when Gemini duplicated day_number. */
+export function planCalendarDayCount(days: Array<{ day: number }>): number {
+  if (!days.length) return 0;
+  return Math.max(...days.map((d) => d.day));
+}
+
+function dayActivityScore(day: DayPlan): number {
+  const a = day.activities;
+  if (!a) return day.mapPins?.length ?? 0;
+  return (
+    (a.morning?.length ?? 0) +
+    (a.afternoon?.length ?? 0) +
+    (a.evening?.length ?? 0) +
+    (day.mapPins?.length ?? 0)
+  );
+}
+
+/** Gemini sometimes re-emits the same day_number in two itinerar phases — keep the richer copy. */
+export function dedupePlanDaysByNumber(days: DayPlan[]): DayPlan[] {
+  const byDay = new Map<number, DayPlan>();
+  for (const d of days) {
+    const prev = byDay.get(d.day);
+    if (!prev || dayActivityScore(d) > dayActivityScore(prev)) {
+      byDay.set(d.day, d);
+    }
+  }
+  return [...byDay.values()].sort((a, b) => a.day - b.day);
+}
+
 function isDepartureLogisticsDay(day: DayPlan, totalDays: number): boolean {
   if (day.day !== totalDays) return false;
   const blob = `${day.title} ${day.city} ${day.morning} ${day.afternoon}`.toLowerCase();
@@ -599,9 +628,11 @@ export function tripPlanResponseToAiTripPlan(
     }
   }
 
-  days.sort((a, b) => a.day - b.day);
+  const uniqueDays = dedupePlanDaysByNumber(days);
+  days.length = 0;
+  days.push(...uniqueDays);
 
-  const totalDays = days.length;
+  const totalDays = planCalendarDayCount(days);
   for (const day of days) {
     if (isDepartureLogisticsDay(day, totalDays)) {
       day.inFlightDay = true;
@@ -719,7 +750,8 @@ export function enrichGeminiCatalogPlan(
   },
 ): void {
   const tier = opts.budget === "budget" ? "budget" : opts.budget === "premium" ? "premium" : "mid";
-  const totalDays = plan.days.length;
+  plan.days = dedupePlanDaysByNumber(plan.days);
+  const totalDays = planCalendarDayCount(plan.days);
   const travelers = Math.max(1, opts.pax);
   const wishesText = opts.wishesText ?? "";
   const planLang = opts.language ?? "sl";

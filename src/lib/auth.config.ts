@@ -23,9 +23,16 @@ export function createAuthConfig(): StartAuthJSConfig {
     assertAuthEnvReady();
   }
 
-  const clientId = process.env.GOOGLE_CLIENT_ID || process.env.AUTH_GOOGLE_ID;
-  const clientSecret =
-    process.env.GOOGLE_CLIENT_SECRET || process.env.AUTH_GOOGLE_SECRET;
+  const clientId = (
+    process.env.GOOGLE_CLIENT_ID ||
+    process.env.AUTH_GOOGLE_ID ||
+    ""
+  ).trim();
+  const clientSecret = (
+    process.env.GOOGLE_CLIENT_SECRET ||
+    process.env.AUTH_GOOGLE_SECRET ||
+    ""
+  ).trim();
 
   const config: StartAuthJSConfig = {
     secret: AUTH_SECRET,
@@ -58,15 +65,21 @@ export function createAuthConfig(): StartAuthJSConfig {
     },
   };
 
-  // AUTH_URL already includes /api/auth — do not set basePath (Auth.js Configuration error).
-  if (!process.env.AUTH_URL?.trim()) {
-    config.basePath = "/api/auth";
-  }
+  // Always keep basePath — start-authjs deletes it when AUTH_URL is set, which
+  // breaks action parsing for /api/auth/signin/google in some Nitro setups.
+  config.basePath = "/api/auth";
 
   setEnvDefaults(process.env, config);
   config.trustHost = true;
-  // setEnvDefaults may read empty process.env.AUTH_SECRET — keep injected secret.
+  config.basePath = "/api/auth";
+  // setEnvDefaults may wipe secrets / provider creds when .env has empty placeholders.
   config.secret = AUTH_SECRET;
+  config.providers = [
+    Google({
+      clientId,
+      clientSecret,
+    }),
+  ];
 
   return config;
 }

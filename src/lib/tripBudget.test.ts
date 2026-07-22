@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { lookupDestination } from "@/lib/destinationCoords";
+import { resolveTripLocale } from "@/lib/tripLocale";
 import {
   applyGlobalDayBudgetCeil,
   applyValueDestinationDayBudgetCeil,
@@ -10,6 +12,7 @@ import {
   computeTripTotalBudgetEur,
   dayBudgetParams,
   estimateDayBudgetEur,
+  isValueDestinationBudget,
   normalizeGeminiDailyBudgetPerPerson,
   normalizeMotorhomeDailyBudgetPerPerson,
   parsePriceLabelToEur,
@@ -42,6 +45,19 @@ describe("classifyDayBudgetKind", () => {
         { isArrival: false, isDeparture: false },
       ),
     ).toBe("ticket-heavy");
+  });
+
+  it("does not treat dinner-heavy Sri Lanka days as ticket-heavy", () => {
+    expect(
+      classifyDayBudgetKind(
+        {
+          morning: [{ name: "Gangaramaya", priceLabel: "€10", type: "SIGHT" }],
+          afternoon: [{ name: "Pettah", priceLabel: "€25", type: "SIGHT" }],
+          evening: [{ name: "Večerja in nočno življenje", priceLabel: "€35", type: "EAT" }],
+        },
+        { isArrival: false, isDeparture: false, regionCity: "Colombo" },
+      ),
+    ).toBe("sightseeing");
   });
 });
 
@@ -98,9 +114,29 @@ describe("applyGlobalDayBudgetCeil", () => {
     );
     // Was ~€6k+ with NYC-sized global ceil × 3 pax; value band must stay saner.
     expect(computeTripTotalBudgetEur(days.map((d) => ({ dailyBudgetEur: d })), 3)).toBeLessThan(
-      4600,
+      4000,
     );
-    expect(days[0]).toBeLessThanOrEqual(95);
+    expect(days[0]).toBeLessThanOrEqual(75);
+  });
+
+  it("keeps 3-pax Sri Lanka totals well under €6k (CMB value ceil)", () => {
+    expect(lookupDestination("CMB")?.country).toBe("LK");
+    expect(resolveTripLocale("CMB", "Šrilanka", "sl").country).toBe("LK");
+    expect(isValueDestinationBudget("LK", "Colombo")).toBe(true);
+
+    const days = Array.from({ length: 16 }, () =>
+      applyValueDestinationDayBudgetCeil(
+        applyGlobalDayBudgetCeil(200, "sightseeing", "mid"),
+        "sightseeing",
+        "mid",
+        { country: "LK", city: "Colombo CMB Šrilanka" },
+      ),
+    );
+    expect(days[0]).toBeLessThanOrEqual(75);
+    // Was €6069 on a MUC→CMB PDF when country resolved to XX (no CMB coords).
+    expect(computeTripTotalBudgetEur(days.map((d) => ({ dailyBudgetEur: d })), 3)).toBeLessThanOrEqual(
+      3600,
+    );
   });
 });
 
@@ -111,7 +147,7 @@ describe("applyValueDestinationDayBudgetCeil", () => {
         country: "TH",
         city: "Phuket",
       }),
-    ).toBe(95);
+    ).toBe(75);
     expect(
       applyValueDestinationDayBudgetCeil(165, "sightseeing", "mid", {
         country: "US",

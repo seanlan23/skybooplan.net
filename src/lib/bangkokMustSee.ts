@@ -198,7 +198,13 @@ function fillBangkokReturnBlock(
   const present = bangkokIconsPresent(`${priorText} ${slotText(result)}`);
 
   const addIfMissing = (id: string, test: RegExp, slot: "morning" | "afternoon" | "evening", act: Activity) => {
-    if (present.has(id) || result[slot].some((a) => test.test(`${a.name} ${a.description}`))) return;
+    if (
+      present.has(id) ||
+      test.test(priorText) ||
+      result[slot].some((a) => test.test(`${a.name} ${a.description}`))
+    ) {
+      return;
+    }
     if (result[slot].length >= 2) return;
     result[slot].push(act);
     present.add(id);

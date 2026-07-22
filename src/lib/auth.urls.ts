@@ -15,11 +15,56 @@ function resolveAuthOrigin(origin?: string): string {
   return fromEnv || "";
 }
 
-/** URL that starts the Auth.js Google OAuth flow. */
-export function googleSignInHref(origin?: string): string {
+/** Callback URL after Google OAuth (bridges into Supabase). */
+export function googleAuthCallbackUrl(origin?: string): string {
   const base = resolveAuthOrigin(origin);
-  const callbackUrl = `${base}${AUTH_CALLBACK_PATH}`;
+  return `${base}${AUTH_CALLBACK_PATH}`;
+}
+
+/**
+ * @deprecated Auth.js v5 rejects GET /signin/google (UnknownAction).
+ * Use `startGoogleSignIn()` which POSTs with CSRF.
+ */
+export function googleSignInHref(origin?: string): string {
+  const callbackUrl = googleAuthCallbackUrl(origin);
   return `${GOOGLE_SIGN_IN_PATH}?callbackUrl=${encodeURIComponent(callbackUrl)}`;
+}
+
+/**
+ * Start Google OAuth the Auth.js v5 way: CSRF + POST form submit.
+ * GET /api/auth/signin/google throws UnknownAction("Unsupported action").
+ */
+export async function startGoogleSignIn(origin?: string): Promise<void> {
+  const callbackUrl = googleAuthCallbackUrl(origin);
+  const csrfRes = await fetch("/api/auth/csrf", { credentials: "same-origin" });
+  if (!csrfRes.ok) {
+    throw new Error("Failed to fetch auth CSRF token");
+  }
+  const data = (await csrfRes.json()) as { csrfToken?: string };
+  const csrfToken = data.csrfToken?.trim();
+  if (!csrfToken) {
+    throw new Error("Missing auth CSRF token");
+  }
+
+  const form = document.createElement("form");
+  form.method = "POST";
+  form.action = GOOGLE_SIGN_IN_PATH;
+  form.style.display = "none";
+
+  const csrfInput = document.createElement("input");
+  csrfInput.type = "hidden";
+  csrfInput.name = "csrfToken";
+  csrfInput.value = csrfToken;
+  form.appendChild(csrfInput);
+
+  const callbackInput = document.createElement("input");
+  callbackInput.type = "hidden";
+  callbackInput.name = "callbackUrl";
+  callbackInput.value = callbackUrl;
+  form.appendChild(callbackInput);
+
+  document.body.appendChild(form);
+  form.submit();
 }
 
 /** URL that clears the Auth.js session cookie. */

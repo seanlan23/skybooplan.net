@@ -178,6 +178,14 @@ export function dayBudgetParams(
   }
 }
 
+function isMealLikeActivity(a: ActivityLike): boolean {
+  const t = (a.type ?? "").toUpperCase();
+  if (t === "EAT" || t === "FOOD" || t === "MEAL") return true;
+  return /zajtrk|kosilo|večerja|breakfast|lunch|dinner|seafood|kavarn|café|cafe\b|restavrac/i.test(
+    `${a.name ?? ""}`,
+  );
+}
+
 function activityListTotalEur(
   activities: { morning: ActivityLike[]; afternoon: ActivityLike[]; evening: ActivityLike[] } | undefined,
 ): number {
@@ -186,6 +194,21 @@ function activityListTotalEur(
   for (const slot of ["morning", "afternoon", "evening"] as const) {
     for (const a of activities[slot]) {
       if (a.type === "TRANSPORT" || a.type === "STAY") continue;
+      sum += activityCostEur(a);
+    }
+  }
+  return sum;
+}
+
+/** Tickets/sights only — meals must not push a tuk-tuk day into "ticket-heavy". */
+function activityTicketTotalEur(
+  activities: { morning: ActivityLike[]; afternoon: ActivityLike[]; evening: ActivityLike[] } | undefined,
+): number {
+  if (!activities) return 0;
+  let sum = 0;
+  for (const slot of ["morning", "afternoon", "evening"] as const) {
+    for (const a of activities[slot]) {
+      if (a.type === "TRANSPORT" || a.type === "STAY" || isMealLikeActivity(a)) continue;
       sum += activityCostEur(a);
     }
   }
@@ -223,7 +246,7 @@ export function classifyDayBudgetKind(
   }
   if (/balloon/i.test(text)) return "safari-balloon";
 
-  const ticketTotal = activityListTotalEur(activities);
+  const ticketTotal = activityTicketTotalEur(activities);
   if (isSafariRegionCity(opts.regionCity ?? "") || /safari|game drive|ngorongoro/i.test(text)) {
     if (ticketTotal >= 300) return "safari-balloon";
     return "safari";
@@ -395,7 +418,7 @@ const VALUE_BUDGET_COUNTRIES = new Set([
 export function isValueDestinationBudget(country?: string, city?: string): boolean {
   const cc = (country ?? "").trim().toUpperCase();
   if (VALUE_BUDGET_COUNTRIES.has(cc)) return true;
-  return /phuket|bangkok|krabi|chiang\s*mai|patong|karon|ao\s*nang|railay|koh\s*|ko\s*|bali|ubud|kuta|hanoi|saigon|ho\s*chi\s*minh|siem\s*reap|manila|cebu|boracay|el\s*nido|kuala|penang|hkt|bkk|cnx|kbv|dps|sgn|han|mnl/i.test(
+  return /phuket|bangkok|krabi|chiang\s*mai|patong|karon|ao\s*nang|railay|koh\s*|ko\s*|bali|ubud|kuta|hanoi|saigon|ho\s*chi\s*minh|siem\s*reap|manila|cebu|boracay|el\s*nido|kuala|penang|šri\s*lanka|sri\s*lanka|srilanka|colombo|galle|ella|negombo|unawatuna|hkt|bkk|cnx|kbv|dps|sgn|han|mnl|cmb|hri/i.test(
     city ?? "",
   );
 }
@@ -422,11 +445,11 @@ export function applyValueDestinationDayBudgetCeil(
       "cross-country-travel": 85,
     },
     mid: {
-      arrival: 70,
-      departure: 45,
-      sightseeing: 95,
-      "ticket-heavy": 140,
-      "cross-country-travel": 100,
+      arrival: 55,
+      departure: 40,
+      sightseeing: 75,
+      "ticket-heavy": 110,
+      "cross-country-travel": 90,
     },
     premium: {
       arrival: 100,

@@ -44,6 +44,8 @@ const COUNTRY_NAMES: Record<string, { sl: string; en: string }> = {
   VN: { sl: "Vietnam", en: "Vietnam" },
   PH: { sl: "Filipini", en: "Philippines" },
   ID: { sl: "Indonezija", en: "Indonesia" },
+  LK: { sl: "Šrilanka", en: "Sri Lanka" },
+  IN: { sl: "Indija", en: "India" },
   JP: { sl: "Japonska", en: "Japan" },
   KR: { sl: "Južna Koreja", en: "South Korea" },
   AU: { sl: "Avstralija", en: "Australia" },
@@ -93,6 +95,11 @@ const TIER_BY_COUNTRY: Record<string, PriceTier> = {
   PH: "budget",
   ID: "budget",
   MY: "budget",
+  LK: "budget",
+  IN: "budget",
+  KH: "budget",
+  LA: "budget",
+  NP: "budget",
 };
 
 const EUR_BANDS: Record<PriceTier, { transfer: string; meal: string; massage: string }> = {
@@ -124,6 +131,14 @@ const TRANSPORT_BY_COUNTRY: Record<
   MY: {
     label: { sl: "Grab / taxi", en: "Grab / taxi" },
     modes: { sl: "Grab, LRT/MRT, taxi", en: "Grab, LRT/MRT, taxi" },
+  },
+  LK: {
+    label: { sl: "PickMe / tuk-tuk", en: "PickMe / tuk-tuk" },
+    modes: { sl: "PickMe, tuk-tuk, vlak, taxi", en: "PickMe, tuk-tuk, train, taxi" },
+  },
+  IN: {
+    label: { sl: "Uber / Ola / tuk-tuk", en: "Uber / Ola / auto" },
+    modes: { sl: "Uber, Ola, tuk-tuk, metro", en: "Uber, Ola, auto-rickshaw, metro" },
   },
   SG: {
     label: { sl: "MRT / taxi", en: "MRT / taxi" },
@@ -227,10 +242,25 @@ const DEFAULT_TRANSPORT = {
   modes: { sl: "javni prevoz, taxi, lokalna prevozna aplikacija", en: "public transit, taxi, local ride app" },
 };
 
+function inferCountryFromName(destinationName: string): string | null {
+  const n = destinationName.trim().toLowerCase();
+  if (!n) return null;
+  if (/šri\s*lanka|sri\s*lanka|srilanka|cejlon|colombo|galle|ella|negombo/.test(n)) {
+    return "LK";
+  }
+  if (/tajska|thailand|bangkok|phuket|krabi|chiang\s*mai/.test(n)) return "TH";
+  if (/vietnam|saigon|hanoi|ho\s*chi\s*minh|da\s*nang|hoi\s*an/.test(n)) return "VN";
+  if (/filipini|philippines|manila|boracay|cebu|palawan/.test(n)) return "PH";
+  if (/indonezija|indonesia|bali|jakarta/.test(n)) return "ID";
+  if (/indija|india|delhi|mumbai|goa/.test(n)) return "IN";
+  if (/malezija|malaysia|kuala|penang/.test(n)) return "MY";
+  return null;
+}
+
 function inferCountry(destinationIata: string, destinationName: string): string {
   const meta = lookupDestination(destinationIata);
   if (meta?.country) return meta.country;
-  return "XX";
+  return inferCountryFromName(destinationName) ?? "XX";
 }
 
 function tierPriceBands(

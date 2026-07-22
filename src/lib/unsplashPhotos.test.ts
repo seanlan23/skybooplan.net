@@ -119,7 +119,38 @@ describe("plan photo helpers", () => {
     expect(merged.days[0]?.title).toBe("Bangkok");
   });
 
-  it("uses a 2 second Unsplash timeout budget", () => {
-    expect(UNSPLASH_REQUEST_TIMEOUT_MS).toBe(2000);
+  it("uses a 4 second Unsplash timeout budget", () => {
+    expect(UNSPLASH_REQUEST_TIMEOUT_MS).toBe(4000);
+  });
+
+  it("does not require photo enrichment for logistics-only days when city photo exists", () => {
+    const logisticsOnly = {
+      ...basePlan,
+      days: [
+        {
+          ...basePlan.days[0]!,
+          imageUrl: "https://images.example/city.jpg",
+          mapPins: [],
+          activities: {
+            morning: [
+              {
+                name: "Odhod: Munich (MUC)",
+                type: "TRANSPORT",
+                description: "Let do Bangkoka",
+              },
+            ],
+            afternoon: [
+              {
+                name: "Check-in v hotel",
+                type: "LOGISTICS",
+                description: "Prihod in namestitev",
+              },
+            ],
+            evening: [],
+          },
+        },
+      ],
+    } as AiTripPlan;
+    expect(planNeedsPhotoEnrichment(logisticsOnly)).toBe(false);
   });
 });

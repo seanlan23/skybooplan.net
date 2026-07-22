@@ -20,6 +20,10 @@ import {
   type TripFlightContext,
 } from "@/lib/flightScheduling";
 import { lookupDestination } from "@/lib/destinationCoords";
+import {
+  dedupePlanDaysByNumber,
+  planCalendarDayCount,
+} from "@/lib/geminiPlanMap";
 import { buildReturnFlightSummary } from "@/lib/returnFlightSummary";
 import { resolveTripLocale } from "@/lib/tripLocale";
 
@@ -300,7 +304,8 @@ export function applyFlightContextToGeminiPlan(
   flights: TripFlightContext,
   opts?: { originIata?: string; language?: string },
 ): void {
-  const totalDays = plan.days.length;
+  plan.days = dedupePlanDaysByNumber(plan.days);
+  const totalDays = planCalendarDayCount(plan.days);
   if (!totalDays) return;
 
   const lang = opts?.language ?? "sl";
@@ -440,6 +445,14 @@ export function applyFlightContextToGeminiPlan(
       if (isOvernightDeparture(flights)) {
         day.inFlightDay = true;
         day.category = "transport";
+      }
+      // Prefer destination hub over a stale island city (e.g. Krabi on BKK departure day).
+      const destHub = plan.destinationIata
+        ? lookupDestination(plan.destinationIata)
+        : undefined;
+      if (destHub?.name) {
+        day.city = destHub.name;
+        day.focusName = destHub.name;
       }
       const logistics = buildDepartureLogistics(day.city || plan.destinationName, flights, locale, {
         accommodationMode: plan.accommodationMode,

@@ -945,7 +945,8 @@ function poolKey(city: string, country: string, destinationIata?: string): strin
   ) {
     return "philippines";
   }
-  if (SEA_GRAB.has(country)) return country === "TH" ? "bangkok" : "vietnam";
+  // Do NOT map unknown cities (incl. origin hubs like Milan) onto Bangkok/Vietnam pools.
+  if (SEA_GRAB.has(country)) return "generic";
   if (
     country === "CA" ||
     /toronto|vancouver|ottawa|banff|niagara|calgary|montreal|quebec/.test(c)

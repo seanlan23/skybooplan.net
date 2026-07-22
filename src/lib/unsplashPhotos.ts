@@ -4,7 +4,7 @@ import { fetchWithTimeout, withTimeout } from "@/lib/asyncTimeout";
 const UNSPLASH_SEARCH_URL = "https://api.unsplash.com/search/photos";
 
 /** Hard cap per Unsplash lookup — skip image on timeout instead of blocking the plan. */
-export const UNSPLASH_REQUEST_TIMEOUT_MS = 2_000;
+export const UNSPLASH_REQUEST_TIMEOUT_MS = 4_000;
 
 type UnsplashSearchResponse = {
   results?: Array<{
@@ -118,9 +118,26 @@ export function normalizeImageUrl(url?: string): string | undefined {
   return trimmed && /^https?:\/\//i.test(trimmed) ? trimmed : undefined;
 }
 
-function shouldFetchPoiPhoto(category?: string): boolean {
+function isLogisticsPhotoName(name: string): boolean {
+  return /^(odhod|departure|prihod|arrival|check-?in|prevoz|transfer|mednarodni let|notranji let|osvežitev|short rest)\b/i.test(
+    name.trim(),
+  );
+}
+
+function shouldFetchPoiPhoto(category?: string, name?: string): boolean {
   const c = (category ?? "").toLowerCase();
-  return c !== "airport" && c !== "hotel";
+  if (
+    c === "airport" ||
+    c === "hotel" ||
+    c === "transport" ||
+    c === "train" ||
+    c === "ferry" ||
+    c === "logistics"
+  ) {
+    return false;
+  }
+  if (name && isLogisticsPhotoName(name)) return false;
+  return true;
 }
 
 type FetchJob = {
@@ -176,7 +193,7 @@ function collectFetchJobs(plan: AiTripPlan): Map<string, FetchJob> {
     }
 
     for (const pin of day.mapPins ?? []) {
-      if (!shouldFetchPoiPhoto(pin.category)) continue;
+      if (!shouldFetchPoiPhoto(pin.category, pin.name)) continue;
       const poiKey = `poi:${pin.name.trim().toLowerCase()}|${city.toLowerCase()}`;
       const unsplashQuery = resolvePoiUnsplashQuery(pin.unsplashQuery, pin.name, city);
       if (!jobs.has(poiKey)) {
@@ -199,6 +216,7 @@ function collectFetchJobs(plan: AiTripPlan): Map<string, FetchJob> {
         ...(slots.afternoon ?? []),
         ...(slots.evening ?? []),
       ]) {
+        if (!shouldFetchPoiPhoto(act.type, act.name)) continue;
         const poiKey = `poi:${act.name.trim().toLowerCase()}|${city.toLowerCase()}`;
         const unsplashQuery = resolvePoiUnsplashQuery(act.unsplashQuery, act.name, city);
         const existing = jobs.get(poiKey);
@@ -316,11 +334,12 @@ export function buildPlanPhotoRequestKey(plan: AiTripPlan): string {
     .map((d) => {
       const city = dayCity(d);
       const pins = (d.mapPins ?? [])
-        .filter((p) => shouldFetchPoiPhoto(p.category))
+        .filter((p) => shouldFetchPoiPhoto(p.category, p.name))
         .map((p) => `${p.name}:${p.unsplashQuery ?? ""}:${p.imageUrl ?? ""}`)
         .join(",");
       const acts = d.activities
         ? [...d.activities.morning, ...d.activities.afternoon, ...d.activities.evening]
+            .filter((a) => shouldFetchPoiPhoto(a.type, a.name))
             .map((a) => `${a.name}:${a.unsplashQuery ?? ""}:${a.imageUrl ?? ""}`)
             .join(",")
         : "";
@@ -334,12 +353,12 @@ export function planNeedsPhotoEnrichment(plan: AiTripPlan): boolean {
     const city = dayCity(day);
     if (city && !day.imageUrl?.trim()) return true;
     for (const pin of day.mapPins ?? []) {
-      if (shouldFetchPoiPhoto(pin.category) && !pin.imageUrl?.trim()) return true;
+      if (shouldFetchPoiPhoto(pin.category, pin.name) && !pin.imageUrl?.trim()) return true;
     }
     const slots = day.activities;
     if (!slots) continue;
     for (const act of [...slots.morning, ...slots.afternoon, ...slots.evening]) {
-      if (!act.imageUrl?.trim()) return true;
+      if (shouldFetchPoiPhoto(act.type, act.name) && !act.imageUrl?.trim()) return true;
     }
   }
   return false;
