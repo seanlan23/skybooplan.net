@@ -2,15 +2,7 @@ import { Auth } from "@auth/core";
 import { createFileRoute } from "@tanstack/react-router";
 import { createAuthConfig } from "@/lib/auth.config";
 import { ensureAuthEnv } from "@/lib/auth.env";
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-}
+import { buildGoogleOAuthStartHtml } from "@/lib/authGoogleStartHtml";
 
 /**
  * Server-side Google OAuth starter.
@@ -43,24 +35,7 @@ export const Route = createFileRoute("/api/auth/google-start")({
             return Response.redirect(`${url.origin}/login?error=csrf`, 302);
           }
 
-          const html = `<!DOCTYPE html>
-<html lang="sl">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Google prijava — Skybooplan</title>
-  </head>
-  <body>
-    <p style="font-family:system-ui,sans-serif;text-align:center;margin-top:20vh">
-      Preusmerjam na Google…
-    </p>
-    <form id="google-oauth" method="POST" action="/api/auth/signin/google">
-      <input type="hidden" name="csrfToken" value="${escapeHtml(csrfToken)}" />
-      <input type="hidden" name="callbackUrl" value="${escapeHtml(callbackUrl)}" />
-    </form>
-    <script>document.getElementById("google-oauth").submit();</script>
-  </body>
-</html>`;
+          const html = buildGoogleOAuthStartHtml({ csrfToken, callbackUrl });
 
           const headers = new Headers({
             "Content-Type": "text/html; charset=utf-8",

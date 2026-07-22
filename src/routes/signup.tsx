@@ -1,8 +1,9 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Plane, Mail, Lock, User as UserIcon, ArrowRight } from "lucide-react";
+import { Mail, Lock, User as UserIcon, ArrowRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { Logo } from "@/components/Logo";
 import { googleSignInHref } from "@/lib/auth.urls";
 import { GoogleIcon } from "@/components/GoogleIcon";
 import { useAuth } from "@/hooks/use-auth";
@@ -55,9 +56,8 @@ function SignupPage() {
   return (
     <div className="min-h-screen flex items-center justify-center px-6 py-12" style={{ background: "var(--gradient-hero)" }}>
       <div className="w-full max-w-md">
-        <Link to="/" className="flex items-center justify-center gap-2 mb-8 text-foreground">
-          <Plane className="h-6 w-6 text-brand" />
-          <span className="font-bold text-xl">Skybooplan</span>
+        <Link to="/" className="mb-8 flex items-center justify-center text-foreground">
+          <Logo size="md" />
         </Link>
 
         <div className="rounded-3xl bg-card border border-border shadow-[var(--shadow-card)] p-8">
