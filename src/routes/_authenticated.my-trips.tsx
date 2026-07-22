@@ -5,11 +5,14 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { useT } from "@/lib/i18n";
+import { readStoredLang, translate, useT } from "@/lib/i18n";
 import { formatLocalDate } from "@/lib/dateUtils";
 
 export const Route = createFileRoute("/_authenticated/my-trips")({
-  head: () => ({ meta: [{ title: "My trips — Skybooplan" }] }),
+  head: () => {
+    const lang = readStoredLang();
+    return { meta: [{ title: translate(lang, "trips.metaTitle") }] };
+  },
   component: MyTripsPage,
 });
 

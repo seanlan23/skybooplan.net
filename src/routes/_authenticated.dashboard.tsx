@@ -13,11 +13,14 @@ import { SiteFooter } from "@/components/SiteFooter";
 import { LogoMark } from "@/components/Logo";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { useT } from "@/lib/i18n";
+import { readStoredLang, translate, useT } from "@/lib/i18n";
 import { formatLocalDate } from "@/lib/dateUtils";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
-  head: () => ({ meta: [{ title: "Dashboard — skybooplan" }] }),
+  head: () => {
+    const lang = readStoredLang();
+    return { meta: [{ title: translate(lang, "dashboard.metaTitle") }] };
+  },
   component: DashboardPage,
 });
 

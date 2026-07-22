@@ -7,15 +7,18 @@ import { Logo } from "@/components/Logo";
 import { googleSignInHref } from "@/lib/auth.urls";
 import { GoogleIcon } from "@/components/GoogleIcon";
 import { useAuth } from "@/hooks/use-auth";
-import { useT } from "@/lib/i18n";
+import { readStoredLang, translate, useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/login")({
-  head: () => ({
-    meta: [
-      { title: "Prijava — skybooplan" },
-      { name: "description", content: "Sign in to access your travel plans and saved trips." },
-    ],
-  }),
+  head: () => {
+    const lang = readStoredLang();
+    return {
+      meta: [
+        { title: translate(lang, "auth.loginMetaTitle") },
+        { name: "description", content: translate(lang, "auth.loginSub") },
+      ],
+    };
+  },
   component: LoginPage,
 });
 

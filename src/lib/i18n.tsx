@@ -1,5 +1,6 @@
 import { planUiByLang } from "@/lib/i18n.planUi";
 import { homepageUiByLang } from "@/lib/i18n.homepage";
+import { authDashboardByLang } from "@/lib/i18n.authDashboard";
 import {
   currencySymbol,
   formatPlanMoney,
@@ -532,6 +533,7 @@ const en: Dict = {
   "dashboard.openPlan": "Open plan",
   "dashboard.addPlan": "New AI plan",
   "dashboard.addPlanHint": "Craft another dream trip",
+  "dashboard.metaTitle": "Dashboard — skybooplan",
   "pricing.badge": "Pricing",
   "pricing.title1": "Simple pricing.",
   "pricing.title2": "Pay only for what you need.",
@@ -694,6 +696,12 @@ const en: Dict = {
   "auth.loginSub": "Sign in to plan your next adventure.",
   "auth.continueGoogle": "Continue with Google",
   "auth.completingSignIn": "Completing sign in…",
+  "auth.completingTitle": "Completing sign in",
+  "auth.failedTitle": "Sign-in failed",
+  "auth.backToLogin": "Back to sign in",
+  "auth.connectingGoogle": "Connecting to Google",
+  "auth.connectingGoogleSub":
+    "One moment — opening secure Google sign-in for your skybooplan account.",
   "auth.googleBridgeFailed": "Google sign-in could not be completed. Please try again.",
   "auth.or": "OR",
   "auth.emailPh": "you@email.com",
@@ -708,7 +716,12 @@ const en: Dict = {
   "auth.haveAccount": "Already have an account?",
   "auth.welcomeToast": "Welcome back!",
   "auth.createdToast": "Account created! Check your email to confirm.",
+  "auth.loginMetaTitle": "Sign in — skybooplan",
+  "auth.signupMetaTitle": "Create account — skybooplan",
+  "auth.googleMetaTitle": "Google sign-in — skybooplan",
+  "auth.callbackMetaTitle": "Sign in — skybooplan",
   "trips.title": "My trips",
+  "trips.metaTitle": "My trips — skybooplan",
   "trips.subtitle": "All your saved travel plans, ready to download as PDF.",
   "trips.new": "New plan",
   "trips.loading": "Loading…",
@@ -1429,6 +1442,7 @@ const dicts: Record<Lang, Dict> = {
     "dashboard.openPlan": "Odpri plan",
     "dashboard.addPlan": "Nov AI plan",
     "dashboard.addPlanHint": "Ustvari novo sanjsko potovanje",
+    "dashboard.metaTitle": "Nadzorna plošča — skybooplan",
     "pricing.badge": "Cenik",
     "pricing.title1": "Preprosta cena.",
     "pricing.title2": "Plačaj samo to, kar potrebuješ.",
@@ -1594,6 +1608,12 @@ const dicts: Record<Lang, Dict> = {
     "auth.loginSub": "Prijavi se in načrtuj svojo naslednjo avanturo.",
     "auth.continueGoogle": "Nadaljuj z Googlom",
     "auth.completingSignIn": "Dokončujem prijavo …",
+    "auth.completingTitle": "Dokončujem prijavo",
+    "auth.failedTitle": "Prijava ni uspela",
+    "auth.backToLogin": "Nazaj na prijavo",
+    "auth.connectingGoogle": "Povezujem z Googlom",
+    "auth.connectingGoogleSub":
+      "Trenutek — odpiram varno Google prijavo za tvoj skybooplan račun.",
     "auth.googleBridgeFailed": "Google prijave ni bilo mogoče dokončati. Poskusite znova.",
     "auth.or": "ALI",
     "auth.emailPh": "ti@email.com",
@@ -1608,7 +1628,12 @@ const dicts: Record<Lang, Dict> = {
     "auth.haveAccount": "Že imaš račun?",
     "auth.welcomeToast": "Dobrodošel nazaj!",
     "auth.createdToast": "Račun ustvarjen! Preveri e-pošto za potrditev.",
+    "auth.loginMetaTitle": "Prijava — skybooplan",
+    "auth.signupMetaTitle": "Ustvari račun — skybooplan",
+    "auth.googleMetaTitle": "Google prijava — skybooplan",
+    "auth.callbackMetaTitle": "Prijava — skybooplan",
     "trips.title": "Moja potovanja",
+    "trips.metaTitle": "Moja potovanja — skybooplan",
     "trips.subtitle": "Vsi tvoji shranjeni potovalni plani, pripravljeni za prenos v PDF.",
     "trips.new": "Nov plan",
     "trips.loading": "Nalagam…",
@@ -1860,6 +1885,7 @@ const dicts: Record<Lang, Dict> = {
     "aiplan.tipsTitle": "¿Sabías que?",
     ...homepageUiByLang.es,
     ...planUiByLang.es,
+    ...authDashboardByLang.es,
   }),
   fr: withEnglishFallback({
     "tab.flights": "Vols","tab.stays": "Hébergements","tab.ai": "Planificateur IA",
@@ -2033,6 +2059,7 @@ const dicts: Record<Lang, Dict> = {
     "aiplan.tipsTitle": "Le saviez-vous ?",
     ...homepageUiByLang.fr,
     ...planUiByLang.fr,
+    ...authDashboardByLang.fr,
   }),
   de: withEnglishFallback({
     "tab.flights": "Flüge","tab.stays": "Nur Unterkünfte","tab.ai": "KI-Planer",
@@ -2258,6 +2285,7 @@ const dicts: Record<Lang, Dict> = {
     "travelReq.howToApply": "So beantragen",
     "travelReq.vaccinations": "Impfungen & Gesundheit",
     "travelReq.costs": "Geschätzte Kosten",
+    ...authDashboardByLang.de,
   }),
   it: withEnglishFallback({
     "tab.flights": "Voli","tab.stays": "Solo alloggi","tab.ai": "Planner IA",
@@ -2332,6 +2360,7 @@ const dicts: Record<Lang, Dict> = {
     "aiplan.tipsTitle": "Lo sapevi?",
     ...homepageUiByLang.it,
     ...planUiByLang.it,
+    ...authDashboardByLang.it,
   }),
 };
 

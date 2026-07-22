@@ -4,16 +4,19 @@ import { Logo, LogoMark } from "@/components/Logo";
 import { googleAuthCallbackUrl } from "@/lib/auth.urls";
 import { supabase } from "@/integrations/supabase/client";
 import { withSupabaseApiKey } from "@/lib/supabasePublic";
-import { useT } from "@/lib/i18n";
+import { readStoredLang, translate, useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/auth/google")({
   validateSearch: (search: Record<string, unknown>) => ({
     callbackUrl:
       typeof search.callbackUrl === "string" ? search.callbackUrl : undefined,
   }),
-  head: () => ({
-    meta: [{ title: "Google prijava — skybooplan" }],
-  }),
+  head: () => {
+    const lang = readStoredLang();
+    return {
+      meta: [{ title: translate(lang, "auth.googleMetaTitle") }],
+    };
+  },
   component: GoogleAuthStartPage,
 });
 
@@ -76,11 +79,10 @@ function GoogleAuthStartPage() {
           <Logo size="md" />
         </Link>
         <h1 className="text-lg font-semibold tracking-tight text-slate-900">
-          {error ? "Prijava ni uspela" : "Povezujem z Googlom"}
+          {error ? t("auth.failedTitle") : t("auth.connectingGoogle")}
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-slate-500">
-          {error ||
-            "Trenutek — odpiram varno Google prijavo za tvoj skybooplan račun."}
+          {error || t("auth.connectingGoogleSub")}
         </p>
         {!error ? (
           <div
@@ -100,7 +102,7 @@ function GoogleAuthStartPage() {
             className="mt-6 inline-flex rounded-2xl px-5 py-2.5 text-sm font-semibold text-white"
             style={{ background: "linear-gradient(135deg, #0EA5E9, #0284C7)" }}
           >
-            Nazaj na prijavo
+            {t("auth.backToLogin")}
           </Link>
         )}
         <p className="mt-6 text-xs text-slate-500">

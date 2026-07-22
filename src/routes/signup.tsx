@@ -7,18 +7,18 @@ import { Logo } from "@/components/Logo";
 import { googleSignInHref } from "@/lib/auth.urls";
 import { GoogleIcon } from "@/components/GoogleIcon";
 import { useAuth } from "@/hooks/use-auth";
-import { useT } from "@/lib/i18n";
+import { readStoredLang, translate, useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/signup")({
-  head: () => ({
-    meta: [
-      { title: "Ustvari račun — skybooplan" },
-      {
-        name: "description",
-        content: "Create your skybooplan account to save AI travel plans, flights and stays.",
-      },
-    ],
-  }),
+  head: () => {
+    const lang = readStoredLang();
+    return {
+      meta: [
+        { title: translate(lang, "auth.signupMetaTitle") },
+        { name: "description", content: translate(lang, "auth.signupSub") },
+      ],
+    };
+  },
   component: SignupPage,
 });
 

@@ -3,10 +3,15 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Logo, LogoMark } from "@/components/Logo";
 import { supabase } from "@/integrations/supabase/client";
-import { useT } from "@/lib/i18n";
+import { readStoredLang, translate, useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/auth/callback")({
-  head: () => ({ meta: [{ title: "Prijava — skybooplan" }] }),
+  head: () => {
+    const lang = readStoredLang();
+    return {
+      meta: [{ title: translate(lang, "auth.callbackMetaTitle") }],
+    };
+  },
   component: AuthCallbackPage,
 });
 
@@ -98,7 +103,7 @@ function AuthCallbackPage() {
           <Logo size="md" />
         </Link>
         <h1 className="text-lg font-semibold tracking-tight text-slate-900">
-          {error ? "Prijava ni uspela" : "Dokončujem prijavo"}
+          {error ? t("auth.failedTitle") : t("auth.completingTitle")}
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-slate-500">
           {error || t("auth.completingSignIn")}
@@ -121,7 +126,7 @@ function AuthCallbackPage() {
             className="mt-6 inline-flex rounded-2xl px-5 py-2.5 text-sm font-semibold text-white"
             style={{ background: "linear-gradient(135deg, #0EA5E9, #0284C7)" }}
           >
-            Nazaj na prijavo
+            {t("auth.backToLogin")}
           </Link>
         )}
       </div>

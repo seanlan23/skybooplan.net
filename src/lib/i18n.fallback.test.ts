@@ -72,4 +72,49 @@ describe("i18n strict fallback", () => {
     expect(translate("de", "aiplan.paceChip")).toBe("Tempo: {pace}");
     expect(translate("de", "travelReq.vaccinations")).toContain("Impfungen");
   });
+
+  it("auth + dashboard strings exist in every UI language (not English-only)", () => {
+    const keys = [
+      "nav.signIn",
+      "nav.signInGoogle",
+      "dashboard.greeting",
+      "dashboard.emptyTitle",
+      "dashboard.metaTitle",
+      "auth.welcomeBack",
+      "auth.continueGoogle",
+      "auth.completingTitle",
+      "auth.failedTitle",
+      "auth.connectingGoogle",
+      "auth.loginMetaTitle",
+      "auth.signupMetaTitle",
+      "trips.title",
+      "trips.metaTitle",
+    ] as const;
+
+    const localized: Record<string, RegExp> = {
+      sl: /prijav|nadzorn|dobrodo|dokonč|povezuj|moja potovan/i,
+      es: /iniciar|panel|bienven|completan|conectan|viajes/i,
+      fr: /connexion|tableau|bon retour|finalisation|google|voyages/i,
+      it: /acced|dashboard|bentorn|completament|connessione|viaggi/i,
+      de: /anmeld|dashboard|willkommen|verbind|reisen/i,
+    };
+
+    for (const lang of SUPPORTED_LANGS) {
+      for (const key of keys) {
+        const value = translate(lang, key);
+        expect(value).not.toBe(key);
+        expect(value.trim().length).toBeGreaterThan(2);
+      }
+    }
+
+    expect(translate("es", "nav.signIn")).toBe("Iniciar sesión");
+    expect(translate("fr", "auth.continueGoogle")).toContain("Google");
+    expect(translate("it", "dashboard.emptyTitle")).toMatch(/viaggio/i);
+    expect(translate("de", "auth.failedTitle")).toMatch(/fehlgeschlagen/i);
+    expect(translate("sl", "auth.failedTitle")).toBe("Prijava ni uspela");
+
+    for (const [lang, re] of Object.entries(localized)) {
+      expect(translate(lang as "sl", "auth.loginMetaTitle")).toMatch(re);
+    }
+  });
 });
