@@ -1,0 +1,39 @@
+---
+description: Skybooplan project rules for infrastructure, API costs, and deployment
+alwaysApply: true
+---
+
+# Project Context: skybooplan
+
+- Framework: TanStack Start, Nitro (Vite)
+- Deployment: Vercel (Serverless functions)
+- Database: Supabase
+- APIs: Gemini, Mapbox, Duffel
+
+# Rules & Constraints
+
+## 1. Deployment & Infrastructure
+
+- Always use `vite.config.ts` for Nitro/Vercel configuration.
+- Output directory must be handled by Nitro's Vercel preset (`.vercel/output/`).
+- Do not rely on manual Vercel UI configuration; keep it in code.
+- Avoid `vercel.json` rewrites unless absolutely necessary for serverless routing.
+- On Vercel CI, Nitro preset must be `vercel` (not `cloudflare-module`).
+- Lovable's vite-tanstack-config defaults output to `dist/` — override `output.dir` to `.vercel/output/` when deploying to Vercel.
+
+## 2. API Cost Optimization (Gemini)
+
+- Minimize API calls. Use stream responses for itineraries.
+- Avoid redundant requests. Skeleton and full plan generation should be optimized.
+- Always check if the current request logic causes "retry loops" or excessive token usage.
+
+## 3. Environment Variables
+
+- Client-side variables (exposed to browser) MUST be prefixed with `VITE_`.
+- Server-side secrets must NOT have `VITE_` prefix and must be handled in `.server` files or API routes only.
+
+## 4. Development Standards
+
+- Prioritize SSR/Server-side logic via Nitro routes.
+- Ensure all new features align with the TanStack Start architecture.
+- If a build error occurs, check output directory settings first.

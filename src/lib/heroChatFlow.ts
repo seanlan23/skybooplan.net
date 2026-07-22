@@ -1,3 +1,5 @@
+import { localizeOriginLabel } from "@/lib/airportCatalog";
+
 export const HERO_CHAT_TOTAL_STEPS = 5;
 
 export type HeroChatMode = "all" | "flights" | "stays" | "plan" | "motorhome";
@@ -143,6 +145,72 @@ export function getDestinationChipDisplay(
       ? translatedName
       : chip.destination;
   return { emoji: chip.emoji, name, label: `${chip.emoji} ${name}` };
+}
+
+/** Checklist / UI label for a stored chip destination (search value stays English). */
+export function localizeDestinationDisplay(
+  destination: string,
+  translate: (key: string) => string,
+): string {
+  const trimmed = destination.trim();
+  if (!trimmed) return trimmed;
+  const normalized = trimmed
+    .replace(/^[\p{Emoji_Presentation}\p{Extended_Pictographic}\s]+/u, "")
+    .trim()
+    .toLowerCase();
+  const chip = HERO_DESTINATION_CHIPS.find(
+    (c) =>
+      c.destination.toLowerCase() === normalized ||
+      c.destination.toLowerCase() === trimmed.toLowerCase(),
+  );
+  if (!chip) return trimmed;
+  return getDestinationChipDisplay(chip, translate).name;
+}
+
+/**
+ * Localize destination/origin labels for search query + wishes UI.
+ * Stored chip values stay English for IATA matching; display strings follow `lang`.
+ */
+export function localizeHeroCollectedForUi(
+  data: HeroChatCollected,
+  lang: string,
+  translate: (key: string) => string,
+): HeroChatCollected {
+  return {
+    ...data,
+    destination: localizeDestinationDisplay(data.destination, translate),
+    origin: localizeOriginLabel(data.origin, lang),
+  };
+}
+
+/** Rewrite English place names inside a wishes blob for the active UI language. */
+export function localizeWishesDisplay(
+  wishes: string,
+  lang: string,
+  translate: (key: string) => string,
+): string {
+  let out = wishes.trim();
+  if (!out) return out;
+
+  for (const chip of HERO_DESTINATION_CHIPS) {
+    const localized = localizeDestinationDisplay(chip.destination, translate);
+    if (localized === chip.destination) continue;
+    out = out.replace(new RegExp(`\\b${escapeRegExp(chip.destination)}\\b`, "gi"), localized);
+  }
+
+  out = out.replace(
+    /([A-Za-zÀ-žÄÖÜäöüß]+)(\s*\(([A-Z]{3})\))/g,
+    (full, _city: string, rest: string, iata: string) => {
+      const localized = localizeOriginLabel(`${_city}${rest}`, lang);
+      return localized || full;
+    },
+  );
+
+  return out;
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 export function heroChatStepNumber(step: HeroChatStep): number {

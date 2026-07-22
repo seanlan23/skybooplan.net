@@ -1,5 +1,6 @@
 import { CheckSquare, Gauge, Heart, MessageSquareQuote } from "lucide-react";
 import type { AiPlannerSubmit } from "@/components/AiPlannerPreview";
+import { localizeWishesDisplay } from "@/lib/heroChatFlow";
 import { useI18n } from "@/lib/i18n";
 import { formatPlannerInterests } from "@/lib/plannerInterests";
 
@@ -19,7 +20,10 @@ export function PlannerChoicesSummary({
   const { t, lang } = useI18n();
   if (!form) return null;
 
-  const wishesText = typeof form.wishes === "string" ? form.wishes.trim() : "";
+  const wishesRaw = typeof form.wishes === "string" ? form.wishes.trim() : "";
+  const wishesText = wishesRaw
+    ? localizeWishesDisplay(wishesRaw, lang, (key) => t(key as never))
+    : "";
   const hasWishes = wishesText.length > 0;
   const tags = Array.isArray(form.tags) ? form.tags : [];
   const paceText = t("aiplan.paceChip").replace("{pace}", paceLabel(form.pace, t));

@@ -39,6 +39,43 @@ function plan(days: DayPlan[]): AiTripPlan {
 }
 
 describe("itineraryMapModel", () => {
+  it("resolveCityCenter knows Santorini / Hong Kong hubs", () => {
+    expect(resolveCityCenter(day({ day: 5, city: "Santorini" }))).toMatchObject({
+      lat: expect.any(Number),
+      lng: expect.any(Number),
+    });
+    expect(resolveCityCenter(day({ day: 3, city: "Hong Kong" }))!.lat).toBeCloseTo(22.32, 1);
+  });
+
+  it("collects activity coords when mapPins are empty", () => {
+    const md = buildMapDay(
+      plan([
+        day({
+          day: 5,
+          city: "Santorini",
+          mapPins: [],
+          activities: {
+            morning: [
+              {
+                name: "Oia sunset walk",
+                type: "SIGHT",
+                description: "Caldera views",
+                lat: 36.461,
+                lng: 25.375,
+              },
+            ],
+            afternoon: [],
+            evening: [],
+          },
+        }),
+      ]),
+      5,
+    );
+    expect(md).not.toBeNull();
+    expect(md!.pins.length).toBeGreaterThan(0);
+    expect(md!.pins[0]!.name).toMatch(/oia/i);
+  });
+
   it("resolveCityCenter prefers city label over mismatched AI coords", () => {
     const d = day({
       day: 2,

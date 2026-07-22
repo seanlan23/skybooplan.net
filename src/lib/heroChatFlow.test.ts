@@ -5,6 +5,9 @@ import {
   buildHeroMakeSearchQuery,
   buildHeroSearchQuery,
   getDestinationChipDisplay,
+  localizeDestinationDisplay,
+  localizeHeroCollectedForUi,
+  localizeWishesDisplay,
 } from "@/lib/heroChatFlow";
 
 describe("getDestinationChipDisplay", () => {
@@ -22,7 +25,17 @@ describe("getDestinationChipDisplay", () => {
     expect(display.name).toBe("Japan");
     expect(display.label).toBe("🏯 Japan");
   });
+
+  it("localizes stored English chip destination for checklist", () => {
+    expect(
+      localizeDestinationDisplay("Thailand", (key) => translate("sl", key as never)),
+    ).toBe("Tajska");
+    expect(
+      localizeDestinationDisplay("Paris", (key) => translate("sl", key as never)),
+    ).toBe("Pariz");
+  });
 });
+
 
 describe("buildHeroMakeSearchQuery", () => {
   it("builds a query from destination, dates, and passengers only", () => {
@@ -43,6 +56,42 @@ describe("buildHeroMakeSearchQuery", () => {
     expect(query).toContain("Konec oktobra");
     expect(query).toContain("2 odrasla");
     expect(query).not.toContain("proračun");
+  });
+
+  it("localizes English chip destination + Munich origin for SL wishes/query", () => {
+    const t = (key: string) => translate("sl", key as never);
+    const localized = localizeHeroCollectedForUi(
+      {
+        destination: "Thailand",
+        dates: "Oktober–november",
+        nights: "",
+        origin: "Munich (MUC)",
+        passengers: "2 odrasla",
+        pace: "Sproščen",
+        budget: "500–1000€ / osebo",
+      },
+      "sl",
+      t,
+    );
+    const query = buildHeroMakeSearchQuery(localized, "all");
+    expect(query).toContain("Tajska");
+    expect(query).toContain("München (MUC)");
+    expect(query).not.toMatch(/\bThailand\b/);
+    expect(query).not.toMatch(/\bMunich\b/);
+  });
+});
+
+describe("localizeWishesDisplay", () => {
+  it("rewrites stored English wishes for Slovenian UI", () => {
+    const out = localizeWishesDisplay(
+      "Potovanje v Thailand, termin Oktober–november, iz Munich (MUC), tempo Sproščen",
+      "sl",
+      (key) => translate("sl", key as never),
+    );
+    expect(out).toContain("Tajska");
+    expect(out).toContain("München (MUC)");
+    expect(out).not.toMatch(/\bThailand\b/);
+    expect(out).not.toMatch(/\bMunich\b/);
   });
 });
 

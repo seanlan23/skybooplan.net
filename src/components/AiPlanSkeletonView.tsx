@@ -150,7 +150,15 @@ export function AiPlanSkeletonView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dayPlans]);
 
-  if (loading) return <AiPlanLoader tripDays={tripDays} startedAt={genStartedAt} />;
+  if (loading) {
+    return (
+      <AiPlanLoader
+        tripDays={tripDays}
+        startedAt={genStartedAt}
+        destination={destinationIata}
+      />
+    );
+  }
 
   if (error) {
     return (

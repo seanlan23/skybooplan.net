@@ -168,51 +168,103 @@ function activityImageByName(day: DayPlan, name: string): string | undefined {
   return undefined;
 }
 
+function pushPinCandidate(
+  pins: MapDayPin[],
+  day: DayPlan,
+  center: LngLat,
+  city: string,
+  travel: boolean,
+  candidate: {
+    name: string;
+    lat: number;
+    lng: number;
+    category?: string;
+    description?: string;
+    arrivalTime?: string;
+    departureTime?: string;
+    estimatedCostEur?: number;
+    imageUrl?: string;
+  },
+): void {
+  if (!isValidMapCoord(candidate.lat, candidate.lng)) return;
+  const category = normalizeMapPoiCategory(candidate.category);
+  if (!travel && (category === "airport" || isLogisticsName(candidate.name))) return;
+  // Only drop runway snaps for airport-category pins — small islands (e.g. Santorini/Oia)
+  // sit within AIRPORT_SNAP_KM of JTR and must still show sightseeing pins.
+  if (
+    !travel &&
+    category === "airport" &&
+    isAirportRunwayCoord({ lat: candidate.lat, lng: candidate.lng })
+  ) {
+    return;
+  }
+  if (haversineKm([center.lng, center.lat], [candidate.lng, candidate.lat]) > MAX_PIN_FROM_CENTER_KM) {
+    return;
+  }
+  const n = candidate.name.trim().toLowerCase();
+  if (!n || n === city.toLowerCase()) return;
+
+  const nameKey = fuzzyNameKey(candidate.name);
+  const imageUrl =
+    candidate.imageUrl?.trim() || activityImageByName(day, candidate.name) || undefined;
+  const existing = pins.find(
+    (p) =>
+      haversineKm([p.lng, p.lat], [candidate.lng, candidate.lat]) < COLOCATE_KM ||
+      (nameKey.length >= 5 && fuzzyNameKey(p.name) === nameKey),
+  );
+  if (existing) {
+    if (candidate.name.trim().length > existing.name.trim().length) {
+      existing.name = candidate.name;
+      existing.description = candidate.description ?? existing.description;
+    }
+    if (!existing.imageUrl && imageUrl) existing.imageUrl = imageUrl;
+    return;
+  }
+  if (pins.length >= MAX_DAY_PINS) return;
+  pins.push({
+    id: `pin-${day.day}-${pins.length}-${nameKey || "x"}`,
+    name: candidate.name,
+    lat: candidate.lat,
+    lng: candidate.lng,
+    category,
+    description: candidate.description,
+    arrivalTime: candidate.arrivalTime,
+    departureTime: candidate.departureTime,
+    estimatedCostEur: candidate.estimatedCostEur,
+    imageUrl,
+  });
+}
+
 function collectPins(day: DayPlan, center: LngLat): MapDayPin[] {
   const travel = isTravelDay(day);
   const city = normalizeCityLabel(day.city);
   const pins: MapDayPin[] = [];
 
   for (const pin of day.mapPins ?? []) {
-    if (!isValidMapCoord(pin.lat, pin.lng)) continue;
-    const category = normalizeMapPoiCategory(pin.category);
-    if (!travel && (category === "airport" || isLogisticsName(pin.name))) continue;
-    if (!travel && isAirportRunwayCoord({ lat: pin.lat, lng: pin.lng })) continue;
-    if (haversineKm([center.lng, center.lat], [pin.lng, pin.lat]) > MAX_PIN_FROM_CENTER_KM) {
-      continue;
-    }
-    const n = pin.name.trim().toLowerCase();
-    if (!n || n === city.toLowerCase()) continue;
+    pushPinCandidate(pins, day, center, city, travel, pin);
+  }
 
-    const nameKey = fuzzyNameKey(pin.name);
-    const imageUrl =
-      pin.imageUrl?.trim() || activityImageByName(day, pin.name) || undefined;
-    const existing = pins.find(
-      (p) =>
-        haversineKm([p.lng, p.lat], [pin.lng, pin.lat]) < COLOCATE_KM ||
-        (nameKey.length >= 5 && fuzzyNameKey(p.name) === nameKey),
-    );
-    if (existing) {
-      if (pin.name.trim().length > existing.name.trim().length) {
-        existing.name = pin.name;
-        existing.description = pin.description ?? existing.description;
-      }
-      if (!existing.imageUrl && imageUrl) existing.imageUrl = imageUrl;
-      continue;
+  // Fallback: when Gemini omitted mapPins, still show activity coords on the map.
+  if (pins.length === 0 && day.activities) {
+    for (const act of [
+      ...(day.activities.morning ?? []),
+      ...(day.activities.afternoon ?? []),
+      ...(day.activities.evening ?? []),
+    ]) {
+      if (!isValidMapCoord(act.lat, act.lng)) continue;
+      pushPinCandidate(pins, day, center, city, travel, {
+        name: act.name,
+        lat: act.lat!,
+        lng: act.lng!,
+        category: act.type,
+        description: act.description,
+        arrivalTime: act.arrivalTime,
+        departureTime: act.departureTime,
+        estimatedCostEur: act.estimatedCostEur,
+        imageUrl: act.imageUrl,
+      });
+      if (pins.length >= MAX_DAY_PINS) break;
     }
-    if (pins.length >= MAX_DAY_PINS) break;
-    pins.push({
-      id: `pin-${day.day}-${pins.length}-${nameKey || "x"}`,
-      name: pin.name,
-      lat: pin.lat,
-      lng: pin.lng,
-      category,
-      description: pin.description,
-      arrivalTime: pin.arrivalTime,
-      departureTime: pin.departureTime,
-      estimatedCostEur: pin.estimatedCostEur,
-      imageUrl,
-    });
   }
 
   return pins;

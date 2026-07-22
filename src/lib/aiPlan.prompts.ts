@@ -25,9 +25,9 @@ The user message is JSON trip parameters. Return ONE JSON object only.
     "lat": 10.823,
     "lng": 106.629,
     "highlights": [
-      { "day": 1, "name": "Ben Thanh Market", "visitDuration": "2h", "description": "2–3 stavki: kaj vidiš, zakaj je vredno, praktičen nasvet (max 280 znakov). Dan 1: šele PO prihodu/check-inu — ne načrtuj ogledov pred prevozom z letališča.", "priceLabel": "brezplačno", "lat": 10.772, "lng": 106.698 },
-      { "day": 2, "name": "War Remnants Museum", "visitDuration": "pol dneva", "description": "2–3 stavki z nasvetom (ura, vstopnina).", "priceLabel": "5 €", "lat": 10.779, "lng": 106.692 },
-      { "day": 2, "name": "Notre-Dame Cathedral Basilica of Saigon", "visitDuration": "1h", "description": "2–3 stavki — konkretno, berljivo.", "priceLabel": "brezplačno", "lat": 10.780, "lng": 106.699 }
+      { "day": 1, "name": "Ben Thanh Market", "visitDuration": "2h", "description": "2–3 sentences: what you see, why it matters, one practical tip (max 280 chars). Day 1: only AFTER arrival/check-in — no sights before the airport transfer.", "priceLabel": "free", "lat": 10.772, "lng": 106.698 },
+      { "day": 2, "name": "War Remnants Museum", "visitDuration": "half day", "description": "2–3 sentences with a tip (hours, ticket).", "priceLabel": "€5", "lat": 10.779, "lng": 106.692 },
+      { "day": 2, "name": "Notre-Dame Cathedral Basilica of Saigon", "visitDuration": "1h", "description": "2–3 concrete, readable sentences.", "priceLabel": "free", "lat": 10.780, "lng": 106.699 }
     ],
     "transportToNext": { "type": "train", "duration": "2h", "costLabel": "35 €", "howTo": "short booking tip" }
   }]

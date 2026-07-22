@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Plane, Sparkles, Lightbulb } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import { AI_PLAN_TIP_KEYS, shuffleTipOrder } from "@/lib/aiPlanTips";
+import { shuffleTipOrder, tipKeysForDestination } from "@/lib/aiPlanTips";
 
 /** Bundled Earth texture (local) — looks like the real planet, not green blobs. */
 const EARTH_TEXTURE = "/earth-blue-marble.jpg";
@@ -13,9 +13,12 @@ const EARTH_TEXTURE = "/earth-blue-marble.jpg";
 export function AiPlanLoader({
   tripDays = 7,
   startedAt,
+  destination,
 }: {
   tripDays?: number;
   startedAt?: number | null;
+  /** Filters place-specific tips (no Rome tip on Thailand plans). */
+  destination?: string | null;
 } = {}) {
   const { t, lang } = useI18n();
 
@@ -30,17 +33,30 @@ export function AiPlanLoader({
     [lang, t],
   );
 
+  const tipKeys = useMemo(
+    () => tipKeysForDestination(destination),
+    [destination],
+  );
+
   const tips = useMemo(
-    () => AI_PLAN_TIP_KEYS.map((key) => t(key as never)).filter(Boolean),
-    [lang, t],
+    () => tipKeys.map((key) => t(key as never)).filter(Boolean),
+    [lang, t, tipKeys],
   );
 
   const [phase, setPhase] = useState(0);
-  const [tipOrder] = useState(() =>
-    shuffleTipOrder(AI_PLAN_TIP_KEYS.length, Math.floor(Math.random() * AI_PLAN_TIP_KEYS.length)),
-  );
   const [tipStep, setTipStep] = useState(0);
-  const tipIdx = tipOrder[tipStep % tipOrder.length] ?? 0;
+  const [tipOrder, setTipOrder] = useState(() =>
+    shuffleTipOrder(tipKeys.length, Math.floor(Math.random() * Math.max(1, tipKeys.length))),
+  );
+  useEffect(() => {
+    setTipOrder(
+      shuffleTipOrder(tipKeys.length, Math.floor(Math.random() * Math.max(1, tipKeys.length))),
+    );
+    setTipStep(0);
+  }, [tipKeys]);
+  const tipIdx = tipOrder.length
+    ? (tipOrder[tipStep % tipOrder.length] ?? 0)
+    : 0;
   const [progress, setProgress] = useState(0);
   const [elapsedSec, setElapsedSec] = useState(0);
   const [earthOk, setEarthOk] = useState(true);

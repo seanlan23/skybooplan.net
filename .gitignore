@@ -39,3 +39,6 @@ make/ready/
 *.sln
 *.sw?
 .vercel
+
+# Local AI plan QA dumps
+.tmp-plan-qa/

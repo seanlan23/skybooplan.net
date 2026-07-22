@@ -13,7 +13,11 @@ import {
 } from "@/lib/sessionStore";
 import { SiteHeader } from "@/components/SiteHeader";
 import { HeroSection } from "@/components/HeroSection";
-import type { HeroChatCollected, HeroChatMode } from "@/lib/heroChatFlow";
+import {
+  localizeWishesDisplay,
+  type HeroChatCollected,
+  type HeroChatMode,
+} from "@/lib/heroChatFlow";
 import {
   staySearchFromCollected,
   type HeroStaySearchParams,
@@ -54,7 +58,7 @@ import { AiPlanSkeletonView } from "@/components/AiPlanSkeletonView";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { resolveErrorMessage, useI18n } from "@/lib/i18n";
+import { resolveErrorMessage, translate, useI18n } from "@/lib/i18n";
 import { normalizePlanLangCode } from "@/lib/planLanguages";
 import { normalizePlanCurrency } from "@/lib/planCurrency";
 import { applyFlightContextToGeminiPlan } from "@/lib/geminiFlightContext";
@@ -1115,7 +1119,10 @@ function Landing() {
       const wishTags = safe.wishTags ?? [];
       const chips =
         wishTags.length > 0 ? `Posebne zahteve: ${wishTags.join(", ")}.` : "";
-      const wishesText = typeof safe.wishes === "string" ? safe.wishes.trim() : "";
+      const wishesRaw = typeof safe.wishes === "string" ? safe.wishes.trim() : "";
+      const wishesText = wishesRaw
+        ? localizeWishesDisplay(wishesRaw, lang, (key) => translate(lang, key as never))
+        : "";
       return [wishesText, interests, budget, chips].filter(Boolean).join(" ");
     } catch (err) {
       console.warn("[buildWishes] fallback:", err);
@@ -1683,6 +1690,7 @@ function Landing() {
                       : 7
                   }
                   startedAt={aiGenStartedAt}
+                  destination={aiContext?.to}
                 />
                 ) : (
                 <AiPlanSkeletonView

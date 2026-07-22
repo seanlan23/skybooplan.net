@@ -134,7 +134,11 @@ export function HeroAiPlanResults({
               flights={aiContext?.flights as TripFlightContext | undefined}
             />
           ) : aiLoading || aiExpandingFull ? (
-            <AiPlanLoader tripDays={tripDays} startedAt={aiGenStartedAt} />
+            <AiPlanLoader
+              tripDays={tripDays}
+              startedAt={aiGenStartedAt}
+              destination={aiContext?.to}
+            />
           ) : (
             <AiPlanSkeletonView
               skeleton={aiSkeleton}

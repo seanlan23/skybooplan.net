@@ -329,10 +329,14 @@ function slotActivities(
   );
   for (let i = 0; i < acts.length; i++) {
     const act = acts[i]!;
+    const clock = act.arrivalTime ?? act.time ?? "";
+    // Prefer clock hour over LLM timeSlot — Gemini often tags 22:30 departures as "dopoldan".
     const slot =
-      act.timeSlot != null
-        ? slotFromTimeSlot(act.timeSlot)
-        : parseActivitySlot(act.arrivalTime ?? act.time ?? "", i, acts.length);
+      parseHour(clock) !== null
+        ? parseActivitySlot(clock, i, acts.length)
+        : act.timeSlot != null
+          ? slotFromTimeSlot(act.timeSlot)
+          : parseActivitySlot(clock, i, acts.length);
     const item = toActivity(act, poiGuideByName);
     if (slot === "morning") morningActs.push(item);
     else if (slot === "afternoon") afternoonActs.push(item);

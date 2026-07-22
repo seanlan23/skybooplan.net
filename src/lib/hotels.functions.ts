@@ -5,6 +5,10 @@ import {
   normalizeHotelSearchDate,
   resolveHotelBookingUrl,
 } from "./bookingUrl";
+import {
+  hotelSearchQueryAlias,
+  pickBestBookingDestination,
+} from "./hotelDestinationPick";
 
 const RAPID_HOST = "booking-com15.p.rapidapi.com";
 const BASE = `https://${RAPID_HOST}/api/v1/hotels`;
@@ -102,31 +106,33 @@ export const searchHotels = createServerFn({ method: "POST" })
         return { hotels: [], error: "BOOKING_API_KEY not configured" };
       }
 
-      const destParams = { query: city };
+      const searchQuery = hotelSearchQueryAlias(city);
+      const destParams = { query: searchQuery };
       console.log("[searchHotels] searchDestination", destParams);
       const dest = await rapid("/searchDestination", destParams);
       const destRows = Array.isArray(dest?.data) ? dest.data : [];
-      const first = destRows[0] ?? null;
+      const best = pickBestBookingDestination(searchQuery, destRows);
 
       console.log("[searchHotels] searchDestination result", {
         city,
+        searchQuery,
         matchCount: destRows.length,
-        first: first
+        best: best
           ? {
-              dest_id: first.dest_id,
-              search_type: first.search_type,
-              label: first.label ?? first.name,
+              dest_id: best.dest_id,
+              search_type: best.search_type,
+              label: best.label ?? best.name,
             }
           : null,
       });
 
-      if (!first?.dest_id) {
+      if (!best?.dest_id) {
         return { hotels: [], error: `No destination found for "${city}"` };
       }
 
       const params: Record<string, string> = {
-        dest_id: String(first.dest_id),
-        search_type: String(first.search_type || "city"),
+        dest_id: String(best.dest_id),
+        search_type: String(best.search_type || "city"),
         arrival_date: arrival,
         departure_date: departure,
         adults: String(data.adults),

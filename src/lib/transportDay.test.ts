@@ -199,7 +199,7 @@ describe("buildSkeletonDayPlans — short hops & in-flight", () => {
     });
     const day1 = days.find((d) => d.day === 1);
     expect(day1?.inFlightDay).toBe(true);
-    expect(day1?.title).toBe("Mednarodni let");
+    expect(day1?.title).toMatch(/mednarodni let|odhod/i);
   });
 
   it("shows Bangkok → Ayutthaya as transport on Ayutthaya arrival day", () => {

@@ -39,3 +39,19 @@ describe("hero origin vs destination", () => {
     expect(checklistFromLabel("Phuket (HKT)", "Munich (MUC)")).toBe("Munich (MUC)");
   });
 });
+
+describe("checklist display localization helpers", () => {
+  it("maps English destination storage to Slovenian label", async () => {
+    const { localizeDestinationDisplay } = await import("@/lib/heroChatFlow");
+    const { translate } = await import("@/lib/i18n");
+    expect(
+      localizeDestinationDisplay("Thailand", (key) => translate("sl", key as never)),
+    ).toBe("Tajska");
+  });
+
+  it("maps English origin storage to Slovenian label", async () => {
+    const { localizeOriginLabel } = await import("@/lib/airportCatalog");
+    expect(localizeOriginLabel("Munich (MUC)", "sl")).toBe("München (MUC)");
+  });
+});
+

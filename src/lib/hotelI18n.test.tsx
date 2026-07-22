@@ -149,9 +149,9 @@ describe("hotel empty-state + fallback notice — i18n coverage", () => {
 
 // --- regression: component still references the keyed copy --------------
 
-describe("AiPlanView wiring", () => {
+describe("HotelsSection wiring", () => {
   const component = readFileSync(
-    resolve(process.cwd(), "src/components/AiPlanView.tsx"),
+    resolve(process.cwd(), "src/components/HotelsSection.tsx"),
     "utf8",
   );
 

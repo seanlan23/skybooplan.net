@@ -9,6 +9,8 @@ export type DestinationContextOpts = {
   returnDate?: string;
   priorities?: string[];
   wishes?: string;
+  /** Actual itinerary cities — preferred over interest-anchor inference. */
+  regionCities?: string[];
 };
 
 export function useDestinationContext(
@@ -24,12 +26,20 @@ export function useDestinationContext(
   const returnDate = extra?.returnDate;
   const prioritiesKey = extra?.priorities?.join(",") ?? "";
   const wishes = extra?.wishes;
+  const regionCitiesKey = (extra?.regionCities ?? [])
+    .map((c) => c.trim())
+    .filter(Boolean)
+    .join("|");
 
   useEffect(() => {
     if (!destinationIata || !tripDate) {
       setCtx(null);
       return;
     }
+
+    const regionCities = regionCitiesKey
+      ? regionCitiesKey.split("|").filter(Boolean)
+      : undefined;
 
     let cancelled = false;
     setLoading(true);
@@ -41,6 +51,7 @@ export function useDestinationContext(
         language,
         priorities: extra?.priorities,
         wishes: wishes?.trim() || undefined,
+        regionCities,
       },
     })
       .then((res) => {
@@ -56,7 +67,7 @@ export function useDestinationContext(
     return () => {
       cancelled = true;
     };
-  }, [destinationIata, tripDate, language, returnDate, prioritiesKey, wishes, fn]);
+  }, [destinationIata, tripDate, language, returnDate, prioritiesKey, wishes, regionCitiesKey, fn]);
 
   return { ctx, loading };
 }

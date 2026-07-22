@@ -16,6 +16,8 @@ const Input = z.object({
   language: z.string().min(2).max(5).optional(),
   priorities: z.array(z.string()).optional(),
   wishes: z.string().max(2000).optional(),
+  /** When set (from plan days), region climate tips only cover these cities. */
+  regionCities: z.array(z.string().min(1).max(80)).max(24).optional(),
 });
 
 export type DestinationContext = {
@@ -68,7 +70,10 @@ export const getDestinationContext = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => Input.parse(data))
   .handler(async ({ data }): Promise<DestinationContext> => {
     const lang = data.language ?? "sl";
-    const regionCities = inferLikelyRegionCities(data.destinationIata, data.priorities);
+    const regionCities =
+      data.regionCities?.map((c) => c.trim()).filter(Boolean).length
+        ? [...new Set(data.regionCities.map((c) => c.trim()).filter(Boolean))]
+        : inferLikelyRegionCities(data.destinationIata, data.priorities);
     const climate = buildTripClimate({
       destinationIata: data.destinationIata,
       departDate: data.tripDate,

@@ -1,7 +1,12 @@
 import type { AiPlannerContext, AiPlannerSubmit } from "@/components/AiPlannerPreview";
 import { defaultDateFrom, defaultDateTo } from "@/lib/heroFlightSearch";
 import { parseHeroDateRange } from "@/lib/heroDateRange";
-import type { HeroChatCollected } from "@/lib/heroChatFlow";
+import {
+  localizeDestinationDisplay,
+  type HeroChatCollected,
+} from "@/lib/heroChatFlow";
+import { localizeOriginLabel } from "@/lib/airportCatalog";
+import { translate } from "@/lib/i18n";
 import { normalizeIata, type TripBudgetTier } from "@/lib/geminiPro.shared";
 import { parseMakeSearchDestination, parseMakeSearchOriginAirports } from "@/lib/makeSearch";
 
@@ -213,6 +218,9 @@ export function heroChatToPlannerPayload(
   const { adults, childrenAges } = parseChatPassengers(collected.passengers);
   const originPlace = collected.origin?.trim() || "Ljubljana";
   const destinationPlace = (collected.destination ?? "").trim() || "Thailand";
+  const t = (key: string) => translate(language, key as never);
+  const destinationLabel = localizeDestinationDisplay(destinationPlace, t);
+  const originLabel = localizeOriginLabel(originPlace, language);
 
   const ctx: AiPlannerContext & { language?: string; currency?: "EUR" | "USD" } = {
     from: resolveOriginIata(originPlace),
@@ -239,9 +247,10 @@ export function heroChatToPlannerPayload(
   const form: AiPlannerSubmit = {
     pace,
     wishes: [
-      `Destinacija: ${destinationPlace}`,
+      `Destinacija: ${destinationLabel}`,
       `Datumi: ${collected.dates}`,
       nightsLabel || undefined,
+      originLabel ? `Odhod: ${originLabel}` : "",
       collected.pace ? `Tempo: ${collected.pace}` : "",
       /\b(osebo|person)\b/i.test(budgetLabel)
         ? `Proračun: ${budgetLabel}`

@@ -2350,11 +2350,11 @@ function reconcileActivitySlots(
       }
     } else if (isHillTempleExcursion(a.name, a.description)) {
       afternoon.splice(i, 1);
-      const morningBusy = morning.some((m) =>
-        /emerald pool|hot spring|klong thom/i.test(`${m.name} ${m.description}`),
-      );
-      if (!morningBusy && morning.length < 2) {
+      if (morning.length < 2) {
         morning.push(activityForSlot(a, "morning"));
+      } else {
+        // Keep the activity — never drop a hill temple when morning is full.
+        afternoon.push(activityForSlot(a, "afternoon"));
       }
     }
   }
@@ -2376,15 +2376,19 @@ function reconcileActivitySlots(
   const travelMorning = morning.filter(isArrivalLogisticsActivity);
   const sightsMorning = morning.filter((a) => !isArrivalLogisticsActivity(a));
   if (travelMorning.length > 0 && sightsMorning.length > 0) {
-    return reconcileActivitySlots(
-      {
-        morning: travelMorning,
-        afternoon: [...sightsMorning, ...afternoon].slice(0, 3),
-        evening,
-      },
-      opts,
-      depth + 1,
-    );
+    const next = {
+      morning: travelMorning,
+      afternoon: [...sightsMorning, ...afternoon].slice(0, 3),
+      evening,
+    };
+    // Avoid oscillating forever when a sight is misclassified as logistics.
+    const same =
+      next.morning.length === morning.length &&
+      next.afternoon.length === afternoon.length &&
+      next.morning.every((a, i) => a.name === morning[i]?.name);
+    if (!same) {
+      return reconcileActivitySlots(next, opts, depth + 1);
+    }
   }
 
   const out = { morning, afternoon, evening };
@@ -2548,6 +2552,14 @@ function logisticsToActivity(a: LogisticsActivity): Activity {
 
 function isArrivalLogisticsActivity(a: Activity): boolean {
   const t = `${a.name} ${a.description ?? ""}`.toLowerCase();
+  // "Osvežitev v džungelskem bazenu" is a sight — not airport recovery.
+  if (
+    /pool|emerald|hot spring|waterfall|slap|bazen|beach|plaž|temple|tempelj|cave|jama/i.test(
+      t,
+    )
+  ) {
+    return false;
+  }
   return (
     isTransportActivity(a) ||
     a.type === "STAY" ||
@@ -3137,6 +3149,7 @@ export function buildSkeletonDayPlans(
         lateArrival: d === arrivalDayNum && isLateArrival(flights),
         tightArrivalDay: d === arrivalDayNum && isTightArrivalDay(flights),
         redEyeArrival: d === arrivalDayNum && isRedEyeArrival(flights),
+        arrivalSlot: d === arrivalDayNum ? arrivalDaySlot(flights) : undefined,
         destinationIata: destIata,
         plannedSights: dayHighlights.length,
         dayHighlightNames: dayHighlights.map((h) => h.name),

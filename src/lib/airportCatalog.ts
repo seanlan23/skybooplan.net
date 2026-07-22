@@ -365,13 +365,67 @@ export function formatAirportLabel(hub: Pick<AirportHub, "iata" | "city">): stri
   return `${hub.city} (${hub.iata})`;
 }
 
-export function formatOriginSelection(iatas: string[]): string {
+/** Localized city name for origin chips / checklist (keeps IATA English in search). */
+export function localizedAirportCity(
+  hub: Pick<AirportHub, "iata" | "city">,
+  lang?: string,
+): string {
+  const code = (lang ?? "en").toLowerCase().slice(0, 2);
+  if (code === "sl") {
+    switch (hub.iata) {
+      case "VIE":
+        return "Dunaj";
+      case "MXP":
+        return "Milano";
+      case "VCE":
+        return "Benetke";
+      case "MUC":
+        return "München";
+      case "BUD":
+        return "Budimpešta";
+      default:
+        return hub.city;
+    }
+  }
+  if (code === "de") {
+    switch (hub.iata) {
+      case "VIE":
+        return "Wien";
+      case "MUC":
+        return "München";
+      default:
+        return hub.city;
+    }
+  }
+  return hub.city;
+}
+
+export function formatAirportLabelForLang(
+  hub: Pick<AirportHub, "iata" | "city">,
+  lang?: string,
+): string {
+  return `${localizedAirportCity(hub, lang)} (${hub.iata})`;
+}
+
+export function formatOriginSelection(iatas: string[], lang?: string): string {
   return iatas
     .map((code) => {
       const hub = getAirportHub(code);
-      return hub ? formatAirportLabel(hub) : code;
+      return hub ? formatAirportLabelForLang(hub, lang) : code;
     })
     .join(" · ");
+}
+
+/** Re-label a stored origin string (e.g. "Munich (MUC)") for the active UI language. */
+export function localizeOriginLabel(origin: string, lang?: string): string {
+  const trimmed = origin.trim();
+  if (!trimmed) return trimmed;
+  const codes = [...trimmed.toUpperCase().matchAll(/\(([A-Z]{3})\)/g)]
+    .map((m) => m[1]!)
+    .filter((code) => getAirportHub(code));
+  const unique = [...new Set(codes)];
+  if (unique.length === 0) return trimmed;
+  return formatOriginSelection(unique, lang);
 }
 
 /** Strip diacritics for fuzzy compare (ljubljana ≈ ljűbljana). */

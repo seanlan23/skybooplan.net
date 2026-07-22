@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   didYouMeanAirport,
   formatOriginSelection,
+  localizeOriginLabel,
+  localizedAirportCity,
   searchAirportCatalog,
 } from "@/lib/airportCatalog";
 
@@ -34,4 +36,12 @@ describe("airportCatalog", () => {
   it("formats multi-origin labels", () => {
     expect(formatOriginSelection(["LJU", "VIE"])).toBe("Ljubljana (LJU) · Vienna (VIE)");
   });
+
+  it("localizes Munich / Vienna for Slovenian UI", () => {
+    expect(localizedAirportCity({ iata: "MUC", city: "Munich" }, "sl")).toBe("München");
+    expect(localizedAirportCity({ iata: "VIE", city: "Vienna" }, "sl")).toBe("Dunaj");
+    expect(formatOriginSelection(["MUC"], "sl")).toBe("München (MUC)");
+    expect(localizeOriginLabel("Munich (MUC)", "sl")).toBe("München (MUC)");
+  });
 });
+

@@ -1,6 +1,6 @@
 import type { AiTripPlan } from "@/lib/aiPlan.functions";
 import type { TripPlanResponse } from "@/lib/geminiPro.shared";
-import { tripPlanSchema } from "@/lib/geminiPro.shared";
+import { parseCoercedTripPlan, tripPlanSchema } from "@/lib/geminiPro.shared";
 import { enrichGroundTransportPlan } from "@/lib/groundTransport";
 import {
   enrichGeminiCatalogPlan,
@@ -15,7 +15,7 @@ export function buildCatalogPlanFromResponse(
   raw: TripPlanResponse,
   data: GenerateGeminiProTripInput,
 ): { plan: AiTripPlan | null; error: string | null } {
-  const parsed = tripPlanSchema.safeParse(raw);
+  const parsed = parseCoercedTripPlan(raw);
   if (!parsed.success) {
     console.error("buildCatalogPlanFromResponse: validation failed", parsed.error.flatten());
     return {

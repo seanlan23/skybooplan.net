@@ -28,6 +28,7 @@ import {
   HERO_DESTINATION_CHIPS,
   HERO_MOTORHOME_END_CHIPS,
   HERO_MOTORHOME_START_CHIPS,
+  localizeHeroCollectedForUi,
   type HeroChatCollected,
   type HeroChatMessage,
   type HeroChatMode,
@@ -696,7 +697,7 @@ export function HeroChatFlow({
         );
         const bootOrigins = originsFromCollected(resolved, "");
         if (bootOrigins.length > 0) {
-          const originLabel = formatOriginSelection(bootOrigins);
+          const originLabel = formatOriginSelection(bootOrigins, lang);
           setCollected((prev) => ({ ...prev, origin: originLabel }));
           if (isStaysOnly) {
             appendMessages(createChatMessage("ai", t("cta.searchingStays" as never)));
@@ -893,10 +894,14 @@ export function HeroChatFlow({
 
     const data = {
       ...(collected as HeroChatCollected),
-      origin: formatOriginSelection(safeOrigins),
+      origin: formatOriginSelection(safeOrigins, lang),
       attachment: attachment ?? collected.attachment,
     } satisfies HeroChatCollected;
-    const query = buildHeroMakeSearchQuery(data, mode);
+    // Keep English chip destination on `data` for IATA; localize only the Make/wishes query.
+    const query = buildHeroMakeSearchQuery(
+      localizeHeroCollectedForUi(data, lang, (key) => t(key as never)),
+      mode,
+    );
     onSearch(query, data, mode);
   }, [
     step,
@@ -906,6 +911,7 @@ export function HeroChatFlow({
     mode,
     appendMessages,
     t,
+    lang,
     isStaysOnly,
     isMotorhomeOnly,
   ]);
@@ -1005,7 +1011,7 @@ export function HeroChatFlow({
     }
     const known = originsFromCollected(context.destination, context.origin);
     if (known.length > 0) {
-      const label = formatOriginSelection(known);
+      const label = formatOriginSelection(known, lang);
       setCollected((prev) => ({
         ...prev,
         origin: prev.origin?.trim() || label,

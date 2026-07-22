@@ -289,6 +289,12 @@ const en: Dict = {
   "inspiration.title": "Trip inspiration",
   "inspiration.subtitle": "Pick an idea — text flows into the AI planner where you add dates and preferences.",
   "inspiration.cta": "Start planning",
+  "inspiration.paris.title": "Romantic Paris",
+  "inspiration.paris.query": "Plan a romantic 5-day trip to Paris",
+  "inspiration.croatia.title": "Croatia road trip",
+  "inspiration.croatia.query": "Plan a 7-day road trip around Croatia",
+  "inspiration.asia.title": "Bangkok & Bali",
+  "inspiration.asia.query": "Plan a 10-day trip to Bangkok and Bali",
   "testimonials.title": "What travelers say",
   "testimonials.matej.quote":
     "AI built a perfect 7-day Japan itinerary in 2 minutes. I saved hours of research!",
@@ -1180,6 +1186,12 @@ const dicts: Record<Lang, Dict> = {
     "inspiration.title": "Navdih za naslednje potovanje",
     "inspiration.subtitle": "Izberi idejo — besedilo se prenese v AI načrtovalec, kjer dodaš datume in preference.",
     "inspiration.cta": "Začni načrt",
+    "inspiration.paris.title": "Romantični Pariz",
+    "inspiration.paris.query": "Načrtuj mi 5-dnevni romantični trip v Pariz",
+    "inspiration.croatia.title": "Roadtrip po Hrvaški",
+    "inspiration.croatia.query": "Načrtuj roadtrip po Hrvaški za 7 dni",
+    "inspiration.asia.title": "Bangkok & Bali",
+    "inspiration.asia.query": "Načrtuj 10-dnevni trip Bangkok in Bali",
     "testimonials.title": "Kar pravijo popotniki",
     "testimonials.matej.quote":
       "AI mi je v 2 minutah sestavil popoln 7-dnevni itinerar za Japonsko. Prihranil sem ure iskanja!",
@@ -2033,7 +2045,7 @@ const dicts: Record<Lang, Dict> = {
     "field.selectDate": "Datum wählen",
     "field.travellers": "Reisende","field.guests": "Gäste","field.pax": "Pers.","field.guestsUnit": "Gäste",
     "cta.searchFlights": "Flüge suchen","cta.searchStays": "Unterkünfte suchen","cta.generateAi": "KI-Plan erstellen",
-    "cta.searchingFlights": "Suche…","cta.searchingStays": "Suche Unterkünfte…","cta.generating": "Erstelle…",
+    "cta.searchingFlights": "Suche Flüge…","cta.searchingStays": "Suche Unterkünfte…","cta.generating": "Erstelle…",
     "hero.title.a": "Wohin geht deine","hero.title.b": "nächste","hero.title.c": "Reise?",
     "hero.subtitle": "Finde Flüge, plane deine Route und buche Unterkünfte — alles mit KI.",
     "trav.adults": "Erwachsene",
@@ -2155,7 +2167,6 @@ const dicts: Record<Lang, Dict> = {
       "Vergleiche Flüge ab {{origins}} — Preis und Reisezeit… 🔍",
     "heroSearch.timeout":
       "Make.com hat die Flugergebnisse nicht rechtzeitig gespeichert. In Make → Suchszenario → History prüfen, ob der Data-store-Schritt status: done und offers schreibt.",
-    "cta.searchingFlights": "Suche Flüge…",
     "heroChat.flightResultsIntro":
       "Hier sind die besten Flüge. Tippe auf „Für KI-Plan wählen“, um weiterzumachen:",
     "heroChat.flightResultsIntroFrom":

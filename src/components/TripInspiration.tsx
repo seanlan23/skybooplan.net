@@ -2,42 +2,38 @@ import { ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 
-export type InspirationCard = {
-  id: string;
-  title: string;
+type InspirationCardDef = {
+  id: "paris" | "croatia" | "asia";
   emoji: string;
+  /** English search destination — stable across languages. */
   destination: string;
-  query: string;
+  titleKey: string;
   /** Fixed curated photo — no API dependency (reliable on cards). */
   imageUrl: string;
 };
 
-const CARDS: InspirationCard[] = [
+const CARDS: InspirationCardDef[] = [
   {
     id: "paris",
-    title: "Romantični Pariz",
     emoji: "🗼",
-    destination: "Pariz",
-    query: "Načrtuj mi 5-dnevni romantični trip v Pariz",
+    destination: "Paris",
+    titleKey: "inspiration.paris.title",
     imageUrl:
       "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=1200&q=80",
   },
   {
     id: "croatia",
-    title: "Roadtrip po Hrvaški",
     emoji: "🌊",
-    destination: "Hrvaška",
-    query: "Načrtuj roadtrip po Hrvaški za 7 dni",
-    // Dubrovnik / Adriatic coast — stable Unsplash id
+    destination: "Croatia",
+    titleKey: "inspiration.croatia.title",
     imageUrl:
       "https://images.unsplash.com/photo-1555881400-74d7acaacd8b?auto=format&fit=crop&w=1200&q=80",
   },
   {
     id: "asia",
-    title: "Bangkok & Bali",
     emoji: "🌴",
     destination: "Bali",
-    query: "Načrtuj 10-dnevni trip Bangkok in Bali",
+    titleKey: "inspiration.asia.title",
     imageUrl:
       "https://images.unsplash.com/photo-1537953773345-d172ccf13cf1?auto=format&fit=crop&w=1200&q=80",
   },
@@ -47,7 +43,7 @@ function InspirationCardItem({
   card,
   onSelect,
 }: {
-  card: InspirationCard;
+  card: InspirationCardDef;
   onSelect: (destination: string) => void;
 }) {
   const { t } = useI18n();
@@ -74,7 +70,9 @@ function InspirationCardItem({
         <p className="text-2xl leading-none" aria-hidden>
           {card.emoji}
         </p>
-        <h3 className="mt-2 text-lg font-bold text-white sm:text-xl">{card.title}</h3>
+        <h3 className="mt-2 text-lg font-bold text-white sm:text-xl">
+          {t(card.titleKey as never)}
+        </h3>
         <button
           type="button"
           className="mt-4 inline-flex h-9 items-center gap-1.5 rounded-lg bg-white/95 px-3 text-sm font-semibold text-foreground transition hover:bg-white"

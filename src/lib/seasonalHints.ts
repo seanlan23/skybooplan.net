@@ -133,8 +133,8 @@ const REGION_HINTS: RegionHint[] = [
     countries: ["TH"],
     cityTest: /phuket|krabi|koh lipe|koh lanta|phi phi|railay|ao nang|andaman|satun|patong|kata/i,
     months: [5, 6, 7, 8, 9, 10],
-    sl: "Andamanska obala (Phuket, Krabi, Koh Lipe) — SW monsun: valovi, občasno odpadejo čolni/feriji, slabša vidnost pri snorkljanju; imej rezervni dan na kopnem.",
-    en: "Andaman coast (Phuket, Krabi, Koh Lipe) — SW monsoon: rough seas, occasional boat/ferry cancellations, poorer snorkel visibility; keep a land backup day.",
+    sl: "Andamanska obala — SW monsun: valovi, občasno odpadejo čolni/feriji, slabša vidnost pri snorkljanju; imej rezervni dan na kopnem.",
+    en: "Andaman coast — SW monsoon: rough seas, occasional boat/ferry cancellations, poorer snorkel visibility; keep a land backup day.",
   },
   {
     id: "th-gulf-rain",

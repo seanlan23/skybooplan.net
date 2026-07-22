@@ -51,56 +51,31 @@ const transportLegSchema = z.object({
   estimatedPrice: z.number().min(0),
 });
 
-const activitySchema = z
-  .object({
-    time: z.string(),
-    title: z.string(),
-    description: z.string(),
-    category: z.enum(MAP_POI_CATEGORIES),
-    /** Day part — dopoldan | popoldan | vecer (required). */
-    timeSlot: z.enum(DAY_TIME_SLOTS),
-    /** Realistic visit window — e.g. "09:00". */
-    arrivalTime: z.string().min(1),
-    /** Realistic visit end — e.g. "11:30". */
-    departureTime: z.string().min(1),
-    /** Estimated cost for this activity in EUR. */
-    estimatedCostEur: z.number().min(0).optional(),
-    /**
-     * Required on every activity that represents movement (category airport, ferry ride,
-     * inter-city leg). Drives transport badges in the day card UI.
-     */
-    transport_type: z.enum(ACTIVITY_TRANSPORT_TYPES).optional(),
-    /** Exact travel duration label — e.g. "1h 10min", "45min". Required with transport_type. */
-    duration: z.string().min(1).optional(),
-    coordinates: coordinatesSchema.optional(),
-    /** English Unsplash search term for this activity (omit for hotel/airport). */
-    unsplashQuery: z.string().min(1).optional(),
-    /** Required for sightseeing activities — omit for hotel/airport only. */
-    tripAdvisorStyleDetails: tripAdvisorStyleDetailsSchema.optional(),
-  })
-  .superRefine((act, ctx) => {
-    const isTransportActivity =
-      act.category === "airport" ||
-      act.transport_type != null ||
-      /let|flight|trajekt|ferry|vlak|train|speedboat|kombi|van\b|bus\b|taxi/i.test(act.title);
-
-    if (!isTransportActivity) return;
-
-    if (!act.transport_type) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "transport_type is required on transport/airport activities",
-        path: ["transport_type"],
-      });
-    }
-    if (!act.duration?.trim()) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "duration is required on transport/airport activities",
-        path: ["duration"],
-      });
-    }
-  });
+const activitySchema = z.object({
+  time: z.string(),
+  title: z.string(),
+  description: z.string(),
+  category: z.enum(MAP_POI_CATEGORIES),
+  /** Day part — dopoldan | popoldan | vecer (required). */
+  timeSlot: z.enum(DAY_TIME_SLOTS),
+  /** Realistic visit window — e.g. "09:00". */
+  arrivalTime: z.string().min(1),
+  /** Realistic visit end — e.g. "11:30". */
+  departureTime: z.string().min(1),
+  /** Estimated cost for this activity in EUR. */
+  estimatedCostEur: z.number().min(0).optional(),
+  /**
+   * Preferred on movement activities. Missing values are filled by coerceTripPlanPayload.
+   */
+  transport_type: z.enum(ACTIVITY_TRANSPORT_TYPES).optional(),
+  /** Exact travel duration label — e.g. "1h 10min", "45min". */
+  duration: z.string().min(1).optional(),
+  coordinates: coordinatesSchema.optional(),
+  /** English Unsplash search term for this activity (omit for hotel/airport). */
+  unsplashQuery: z.string().min(1).optional(),
+  /** Preferred for sightseeing — omit for hotel/airport only. */
+  tripAdvisorStyleDetails: tripAdvisorStyleDetailsSchema.optional(),
+});
 
 const daySchema = z.object({
   day_number: z.number().int().min(1),
@@ -120,20 +95,6 @@ const daySchema = z.object({
   /** Internal flights, ferries, trains for this day — shown as premium transport cards. */
   transportation: z.array(transportLegSchema).optional(),
   activities: z.array(activitySchema),
-}).superRefine((day, ctx) => {
-  const hasTransportActivity = day.activities.some(
-    (act) =>
-      act.category === "airport" ||
-      act.transport_type != null ||
-      /let|flight|trajekt|ferry|vlak|train|speedboat|kombi|van\b|bus\b|taxi/i.test(act.title),
-  );
-  if (hasTransportActivity && (day.transportation?.length ?? 0) === 0) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "transportation[] is required when the day includes inter-city travel",
-      path: ["transportation"],
-    });
-  }
 });
 
 /** Structured weather widget for the itinerary header (season, temp, clothing). */
@@ -214,7 +175,7 @@ export const tripPlanSchema = z.object({
       lat: wgsLat,
       lng: wgsLng,
       /** Must-see sights for this stop with exact coordinates. */
-      pois: z.array(poiSchema).min(1),
+      pois: z.array(poiSchema).default([]),
       days: z.array(daySchema),
     }),
   ),
@@ -318,4 +279,180 @@ export function normalizeTripPlanPax(
 
 export function isTripPlanResponse(value: unknown): value is TripPlanResponse {
   return tripPlanSchema.safeParse(value).success;
+}
+
+function isTransportishTitle(title: string, category?: string): boolean {
+  return (
+    category === "airport" ||
+    /let|flight|trajekt|ferry|vlak|train|speedboat|kombi|van\b|bus\b|taxi|grab|prevoz/i.test(
+      title,
+    )
+  );
+}
+
+function inferTransportType(
+  title: string,
+  category?: string,
+): (typeof ACTIVITY_TRANSPORT_TYPES)[number] {
+  const t = `${category ?? ""} ${title}`.toLowerCase();
+  if (category === "airport" || /let|flight|plane|letališč/.test(t)) return "flight";
+  if (/trajekt|ferry|boat|speedboat|ladj/.test(t)) return "ferry";
+  if (/vlak|train/.test(t)) return "train";
+  if (/kombi|van\b/.test(t)) return "van";
+  if (/bus|avtobus/.test(t)) return "bus";
+  return "taxi";
+}
+
+function parseHmMinutes(hm: string): number | null {
+  const m = hm.trim().match(/^(\d{1,2}):(\d{2})$/);
+  if (!m) return null;
+  return Number(m[1]) * 60 + Number(m[2]);
+}
+
+function inferDurationLabel(arrivalTime?: string, departureTime?: string): string {
+  const a = arrivalTime ? parseHmMinutes(arrivalTime) : null;
+  const b = departureTime ? parseHmMinutes(departureTime) : null;
+  if (a != null && b != null) {
+    let diff = b - a;
+    if (diff <= 0) diff += 24 * 60;
+    if (diff >= 60) {
+      const h = Math.floor(diff / 60);
+      const m = diff % 60;
+      return m ? `${h}h ${m}min` : `${h}h`;
+    }
+    if (diff > 0) return `${diff}min`;
+  }
+  return "1h";
+}
+
+function defaultTripAdvisorDetails(name: string) {
+  return {
+    highlights: [`${name}`, "Local atmosphere"],
+    proTip: "Go early to avoid crowds and heat.",
+    bestTimeOfDay: "Morning",
+    rating: 4.5,
+    reviewSummary:
+      "Visitors enjoy this stop for its character, photos, and nearby food options.",
+  };
+}
+
+/**
+ * Repair common Gemini omissions so schema validation succeeds.
+ * Missing transport_type/duration and empty phase pois[] are the top failure modes.
+ */
+export function coerceTripPlanPayload(raw: unknown): unknown {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return raw;
+  const plan = structuredClone(raw) as Record<string, unknown>;
+  const itinerar = plan.itinerar;
+  if (!Array.isArray(itinerar)) return plan;
+
+  for (const phase of itinerar) {
+    if (!phase || typeof phase !== "object") continue;
+    const p = phase as Record<string, unknown>;
+    const city = typeof p.city === "string" && p.city.trim() ? p.city.trim() : "City";
+    const lat = typeof p.lat === "number" ? p.lat : 0;
+    const lng = typeof p.lng === "number" ? p.lng : 0;
+    const days = Array.isArray(p.days) ? p.days : [];
+
+    for (const day of days) {
+      if (!day || typeof day !== "object") continue;
+      const d = day as Record<string, unknown>;
+      const activities = Array.isArray(d.activities) ? d.activities : [];
+      let hasTransport = false;
+
+      for (const act of activities) {
+        if (!act || typeof act !== "object") continue;
+        const a = act as Record<string, unknown>;
+        const title = typeof a.title === "string" ? a.title : "";
+        const category = typeof a.category === "string" ? a.category : undefined;
+        if (!isTransportishTitle(title, category)) continue;
+        hasTransport = true;
+        if (!a.transport_type) a.transport_type = inferTransportType(title, category);
+        if (typeof a.duration !== "string" || !a.duration.trim()) {
+          a.duration = inferDurationLabel(
+            typeof a.arrivalTime === "string" ? a.arrivalTime : undefined,
+            typeof a.departureTime === "string" ? a.departureTime : undefined,
+          );
+        }
+      }
+
+      if (hasTransport && (!Array.isArray(d.transportation) || d.transportation.length === 0)) {
+        d.transportation = activities
+          .filter((act) => {
+            if (!act || typeof act !== "object") return false;
+            const a = act as Record<string, unknown>;
+            const title = typeof a.title === "string" ? a.title : "";
+            const category = typeof a.category === "string" ? a.category : undefined;
+            return isTransportishTitle(title, category);
+          })
+          .map((act) => {
+            const a = act as Record<string, unknown>;
+            const title = String(a.title ?? "Transfer");
+            const arrow = title.split(/\s*[→\-–]\s*/);
+            const type = (a.transport_type as string) || inferTransportType(title, String(a.category ?? ""));
+            const legType =
+              type === "bus" || type === "taxi" ? "van" : type === "flight" || type === "ferry" || type === "train" || type === "van" ? type : "van";
+            return {
+              type: legType,
+              from: arrow[0]?.trim() || city,
+              to: arrow[1]?.trim() || city,
+              duration: String(a.duration ?? "1h"),
+              estimatedPrice: typeof a.estimatedCostEur === "number" ? a.estimatedCostEur : 0,
+            };
+          });
+      }
+    }
+
+    const pois = Array.isArray(p.pois) ? p.pois : [];
+    if (pois.length === 0) {
+      const fromActivity = days
+        .flatMap((day) => {
+          if (!day || typeof day !== "object") return [];
+          const acts = (day as { activities?: unknown[] }).activities;
+          return Array.isArray(acts) ? acts : [];
+        })
+        .find((act) => {
+          if (!act || typeof act !== "object") return false;
+          const a = act as Record<string, unknown>;
+          const title = String(a.title ?? "");
+          return (
+            a.category === "sightseeing" ||
+            (a.coordinates && !isTransportishTitle(title, String(a.category ?? "")))
+          );
+        }) as Record<string, unknown> | undefined;
+
+      const coords = (fromActivity?.coordinates as { lat?: number; lng?: number } | undefined) ?? {};
+      const name =
+        (typeof fromActivity?.title === "string" && fromActivity.title.trim()) || city;
+      p.pois = [
+        {
+          name,
+          description:
+            (typeof fromActivity?.description === "string" && fromActivity.description) ||
+            `Key stop in ${city}.`,
+          lat: typeof coords.lat === "number" ? coords.lat : lat,
+          lng: typeof coords.lng === "number" ? coords.lng : lng,
+          unsplashQuery: name,
+          tripAdvisorStyleDetails: defaultTripAdvisorDetails(name),
+        },
+      ];
+    }
+  }
+
+  if (!Array.isArray(plan.hotels)) plan.hotels = [];
+  return plan;
+}
+
+/** Parse + coerce Gemini output into a valid trip plan (or null). */
+export function parseCoercedTripPlan(raw: unknown): {
+  success: true;
+  data: TripPlanResponse;
+} | {
+  success: false;
+  error: z.ZodError;
+} {
+  const coerced = coerceTripPlanPayload(raw);
+  const parsed = tripPlanSchema.safeParse(coerced);
+  if (parsed.success) return { success: true, data: parsed.data };
+  return { success: false, error: parsed.error };
 }

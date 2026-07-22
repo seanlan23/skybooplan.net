@@ -1315,9 +1315,11 @@ function fixVietnamDaySlots(
   if (c.includes("ho chi minh") || c.includes("saigon")) {
     const notFirstArrival =
       !opts?.isTripDay1 && !opts?.isArrivalDay && dayIndexInRegion > 1;
-    const badAfternoonPopoldan =
+    const hadBenThanhOrBitexco =
       notFirstArrival &&
-      slots.afternoon.some((a) => /ben thanh|bitexco/i.test(`${a.name} ${a.description}`));
+      [...slots.morning, ...slots.afternoon, ...slots.evening].some((a) =>
+        /ben thanh|bitexco/i.test(`${a.name} ${a.description}`),
+      );
     if (notFirstArrival) {
       const cleanDesc = (a: Activity) => ({
         ...a,
@@ -1341,7 +1343,7 @@ function fixVietnamDaySlots(
         : "Historic balconied building on Nguyen Hue Walking Street — cafés, boutiques, people-watching.",
     };
     if (
-      badAfternoonPopoldan ||
+      hadBenThanhOrBitexco ||
       result.afternoon.some((a) => bitexcoRe.test(`${a.name} ${a.description}`))
     ) {
       result.afternoon = result.afternoon
@@ -1523,7 +1525,9 @@ export function enrichDayActivities(
   }
 
   if (opts?.lateArrival || opts?.tightArrivalDay || opts?.redEyeArrival) {
-    const slot = opts.arrivalSlot ?? (opts.lateArrival ? "evening" : "afternoon");
+    const slot =
+      opts.arrivalSlot ??
+      (opts.lateArrival ? "evening" : opts.redEyeArrival ? "morning" : "afternoon");
     // Never invent breakfast / siesta before the plane lands.
     if (slot === "evening" || opts.lateArrival) {
       result.morning = [];

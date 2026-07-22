@@ -157,6 +157,12 @@ export function AiPlanView({
     () => parsePlannerInterestKeys(plannerForm?.tags),
     [plannerForm?.tags],
   );
+  const planRegionCities = useMemo(() => {
+    const cities = (plan?.days ?? [])
+      .map((d) => (d.city ?? "").trim())
+      .filter(Boolean);
+    return [...new Set(cities)];
+  }, [plan?.days]);
   const { ctx: destCtx, loading: destLoading } = useDestinationContext(
     destinationIata ?? plan?.destinationIata,
     departDate ?? plan?.days[0]?.date,
@@ -165,6 +171,7 @@ export function AiPlanView({
       returnDate,
       priorities: plannerPriorities,
       wishes: plannerWishes,
+      regionCities: planRegionCities.length > 0 ? planRegionCities : undefined,
     },
   );
 
@@ -511,7 +518,11 @@ export function AiPlanView({
   }, [plan, plan?.days.length]);
 
   if (loading && !plan) {
-    return <AiPlanLoader />;
+    return (
+      <AiPlanLoader
+        destination={destinationIata ?? plan?.destinationName}
+      />
+    );
   }
 
   if (error && !plan) {

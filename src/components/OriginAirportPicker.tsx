@@ -6,6 +6,7 @@ import {
   didYouMeanAirport,
   formatOriginSelection,
   getAirportHub,
+  localizedAirportCity,
   type AirportHub,
 } from "@/lib/airportCatalog";
 import { suggestOriginHubs } from "@/lib/originGeo.functions";
@@ -77,14 +78,7 @@ function mergeSuggestions(
 }
 
 function cityButtonLabel(hub: AirportHub, lang: string): string {
-  const code = lang.toLowerCase().slice(0, 2);
-  if (hub.iata === "VIE" && (code === "sl" || code === "de")) {
-    return code === "sl" ? "Dunaj" : "Wien";
-  }
-  if (hub.iata === "MXP" && code === "sl") return "Milano";
-  if (hub.iata === "VCE" && code === "sl") return "Benetke";
-  if (hub.iata === "MUC" && code === "de") return "München";
-  return hub.city;
+  return localizedAirportCity(hub, lang);
 }
 
 export function OriginAirportPicker({ onConfirm, className }: OriginAirportPickerProps) {

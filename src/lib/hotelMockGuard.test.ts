@@ -10,6 +10,7 @@ import { resolve } from "node:path";
 
 const files = [
   "src/components/AiPlanView.tsx",
+  "src/components/HotelsSection.tsx",
   "src/lib/hotelSelection.ts",
 ];
 

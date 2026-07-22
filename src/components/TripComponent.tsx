@@ -61,6 +61,11 @@ export default function TripComponent({
     [data, originIata, destinationIata, departDate],
   );
 
+  const planRegionCities = useMemo(() => {
+    const cities = mapPlan.days.map((d) => (d.city ?? "").trim()).filter(Boolean);
+    return [...new Set(cities)];
+  }, [mapPlan.days]);
+
   const { ctx: destCtx, loading: destLoading } = useDestinationContext(
     destinationIata,
     departDate,
@@ -69,6 +74,7 @@ export default function TripComponent({
       returnDate,
       priorities: plannerForm?.tags,
       wishes: plannerWishes ?? plannerForm?.wishes,
+      regionCities: planRegionCities.length > 0 ? planRegionCities : undefined,
     },
   );
 

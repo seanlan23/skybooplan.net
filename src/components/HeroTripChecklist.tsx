@@ -1,7 +1,11 @@
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
-import type { HeroChatCollected } from "@/lib/heroChatFlow";
+import { localizeOriginLabel } from "@/lib/airportCatalog";
+import {
+  localizeDestinationDisplay,
+  type HeroChatCollected,
+} from "@/lib/heroChatFlow";
 import {
   parseMakeSearchDestination,
   parseMakeSearchOriginAirports,
@@ -18,6 +22,7 @@ type ChecklistItem = {
 function buildItems(
   collected: Partial<HeroChatCollected>,
   t: (key: never) => string,
+  lang: string,
 ): ChecklistItem[] {
   // Never infer "Odkod" from destination text like "Phuket (HKT)".
   const destCode = parseMakeSearchDestination(collected.destination ?? "")?.toUpperCase();
@@ -29,18 +34,19 @@ function buildItems(
   const rawOrigin = collected.origin?.trim() || "";
   const fromLabel =
     originCodes.length > 0
-      ? rawOrigin
+      ? localizeOriginLabel(rawOrigin, lang)
       : rawOrigin && destCode && !rawOrigin.toUpperCase().includes(destCode)
-        ? rawOrigin
+        ? localizeOriginLabel(rawOrigin, lang)
         : undefined;
+  const destRaw = collected.destination?.trim();
 
   return [
     {
       id: "whereTo",
       labelKey: "heroChat.checklist.whereTo",
       hintKey: "heroChat.checklist.whereToHint",
-      done: Boolean(collected.destination?.trim()),
-      value: collected.destination?.trim(),
+      done: Boolean(destRaw),
+      value: destRaw ? localizeDestinationDisplay(destRaw, t) : undefined,
     },
     {
       id: "whereFrom",
@@ -86,8 +92,8 @@ export function HeroTripChecklist({
   collected: Partial<HeroChatCollected>;
   className?: string;
 }) {
-  const { t } = useI18n();
-  const items = buildItems(collected, t);
+  const { t, lang } = useI18n();
+  const items = buildItems(collected, t, lang);
   const doneCount = items.filter((i) => i.done).length;
 
   return (

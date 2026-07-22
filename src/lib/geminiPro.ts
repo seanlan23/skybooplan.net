@@ -8,6 +8,7 @@ import {
   withTimeout,
 } from "@/lib/asyncTimeout";
 import {
+  parseCoercedTripPlan,
   tripPlanSchema,
   type GenerateTripPlanParams,
   type TripPlanPax,
@@ -156,9 +157,15 @@ ${paceBlock}
 - Aktivnosti ene baze / dneva NE smejo “prehitevati” naslednje baze (npr. dan v Ao Nangu ≠ trajekt na Koh Phi Phi; to šele na dnevu premika).
 
 FAZE vs DNEVI (brez mešanja):
-- itinerar[].pois[] = samo znamenitosti TE faze/baze.
+- itinerar[].pois[] = samo znamenitosti TE faze/baze — vsaka faza MORA imeti ≥1 POI z realnimi lat/lng v istem mestu.
 - days[].activities in transportation[] = samo ta koledarski dan.
 - Naslednji premik (npr. Ao Nang → Phi Phi) gre na dan ODHODA, ne na prvi dan bivanja.
+
+MAPBOX / KOORDINATE (obvezno):
+- Vsaka sightseeing aktivnost in vsak POI: natančen lat/lng V MESTU faze (ne letališki runway, ne sosednje mesto).
+- PREPOVEDANO: Bangkok POI na danu v Phuketu/Krabiju; Paris POI v Barceloni; itd.
+- NE ponavljaj istega POI/imena na dveh različnih dneh (razen hotela/check-ina).
+- season_warning = samo sezona/vreme/praktični nasvet — BREZ promocij (eSIM, zavarovanje, popusti, “tvoj AI načrt”).
 ===`.trim();
 }
 
@@ -771,6 +778,23 @@ export function createTripPlanStream(
   });
 }
 
+function extractGeneratedObject(error: unknown): unknown | null {
+  if (!error || typeof error !== "object") return null;
+  const e = error as {
+    value?: unknown;
+    cause?: { value?: unknown; data?: unknown };
+    text?: string;
+  };
+  if (e.cause?.value != null) return e.cause.value;
+  if (e.cause?.data != null) return e.cause.data;
+  if (e.value != null) return e.value;
+  if (typeof e.text === "string" && e.text.trim()) {
+    const parsed = safeJsonParse(e.text, "gemini:recover");
+    if (parsed.ok) return parsed.value;
+  }
+  return null;
+}
+
 export async function generateTripPlan(params: GenerateTripPlanParams): Promise<TripPlanResponse> {
   try {
     pipelineLog("gemini:generateObject START");
@@ -800,12 +824,28 @@ export async function generateTripPlan(params: GenerateTripPlanParams): Promise<
       payload = parsed.value;
     }
 
-    return payload as TripPlanResponse;
+    const coerced = parseCoercedTripPlan(payload);
+    if (!coerced.success) {
+      console.error("Gemini Pro coerce/parse failed", coerced.error.flatten());
+      throw new Error("Napaka pri generiranju načrta preko Gemini Pro");
+    }
+    return coerced.data;
   } catch (error) {
     if (error instanceof Error && error.name === "OperationTimeoutError") {
       console.error("Gemini Pro timeout:", error.message);
       throw new Error("Generiranje načrta je preseglo časovno mejo. Poskusi znova.");
     }
+
+    const recovered = extractGeneratedObject(error);
+    if (recovered != null) {
+      const coerced = parseCoercedTripPlan(recovered);
+      if (coerced.success) {
+        pipelineLog("gemini:recovered via coerceTripPlanPayload");
+        return coerced.data;
+      }
+      console.error("Gemini Pro recovery parse failed", coerced.error.flatten());
+    }
+
     console.error("Gemini Pro napaka:", error);
     throw new Error("Napaka pri generiranju načrta preko Gemini Pro");
   }

@@ -45,7 +45,7 @@ export function createAuthConfig(): StartAuthJSConfig {
           token.id_token = account.id_token;
         }
         if (profile?.name) token.name = profile.name;
-        if (profile.picture) token.picture = profile.picture;
+        if (profile?.picture) token.picture = profile.picture;
         return token;
       },
       async session({ session, token }) {
