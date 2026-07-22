@@ -1,15 +1,10 @@
+import { Auth } from "@auth/core";
 import { createFileRoute } from "@tanstack/react-router";
-import { StartAuthJS } from "start-authjs";
 import { createAuthConfig } from "@/lib/auth.config";
 import { ensureAuthEnv } from "@/lib/auth.env";
-import { GOOGLE_AUTH_START_PATH } from "@/lib/auth.urls";
+import { GOOGLE_AUTH_PAGE_PATH } from "@/lib/auth.urls";
 
 ensureAuthEnv();
-
-const { GET, POST } = StartAuthJS(() => {
-  ensureAuthEnv();
-  return createAuthConfig();
-});
 
 /** Auth.js v5 rejects GET /signin/:provider — send users to the CSRF POST starter. */
 function redirectGoogleGetToStarter(request: Request): Response | null {
@@ -19,9 +14,17 @@ function redirectGoogleGetToStarter(request: Request): Response | null {
   const callbackUrl =
     url.searchParams.get("callbackUrl")?.trim() ||
     `${url.origin}/auth/callback`;
-  const target = new URL(GOOGLE_AUTH_START_PATH, url.origin);
+  // Send legacy GET hits to the client page, which immediately jumps to google-start.
+  const target = new URL(GOOGLE_AUTH_PAGE_PATH, url.origin);
   target.searchParams.set("callbackUrl", callbackUrl);
   return Response.redirect(target.toString(), 302);
+}
+
+async function handle(request: Request): Promise<Response> {
+  ensureAuthEnv();
+  const config = createAuthConfig();
+  // Call Auth directly — StartAuthJS runs setEnvDefaults again and can wipe Google creds.
+  return Auth(request, config);
 }
 
 /**
@@ -35,7 +38,7 @@ export const Route = createFileRoute("/api/auth/$")({
         try {
           const redirect = redirectGoogleGetToStarter(request);
           if (redirect) return redirect;
-          return await GET({ request, response: new Response() });
+          return await handle(request);
         } catch (error) {
           console.error("[auth] GET error:", error);
           const message =
@@ -48,7 +51,7 @@ export const Route = createFileRoute("/api/auth/$")({
       },
       POST: async ({ request }) => {
         try {
-          return await POST({ request, response: new Response() });
+          return await handle(request);
         } catch (error) {
           console.error("[auth] POST error:", error);
           const message =

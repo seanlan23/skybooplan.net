@@ -65,15 +65,17 @@ export function createAuthConfig(): StartAuthJSConfig {
     },
   };
 
-  // Always keep basePath — start-authjs deletes it when AUTH_URL is set, which
-  // breaks action parsing for /api/auth/signin/google in some Nitro setups.
   config.basePath = "/api/auth";
-
   setEnvDefaults(process.env, config);
+  // setEnvDefaults (and StartAuthJS) may wipe empty-env placeholders — force finals.
   config.trustHost = true;
   config.basePath = "/api/auth";
-  // setEnvDefaults may wipe secrets / provider creds when .env has empty placeholders.
   config.secret = AUTH_SECRET;
+  if (!clientId || !clientSecret) {
+    throw new Error(
+      "[auth] Missing required environment variables: GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET",
+    );
+  }
   config.providers = [
     Google({
       clientId,

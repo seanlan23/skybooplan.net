@@ -30,6 +30,13 @@ function LoginPage() {
     if (user) navigate({ to: "/", replace: true });
   }, [user, navigate]);
 
+  useEffect(() => {
+    const err = new URLSearchParams(window.location.search).get("error");
+    if (err === "csrf" || err === "google") {
+      toast.error("Google prijava ni uspela. Poskusi znova.");
+    }
+  }, []);
+
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);

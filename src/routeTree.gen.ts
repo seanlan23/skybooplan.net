@@ -30,6 +30,7 @@ import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedMyTripsRouteImport } from './routes/_authenticated.my-trips'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated.dashboard'
 import { Route as ApiSearchStatusRouteImport } from './routes/api/search/status'
+import { Route as ApiAuthGoogleStartRouteImport } from './routes/api/auth/google-start'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as AuthenticatedMyTripsPlanIdRouteImport } from './routes/_authenticated.my-trips.$planId'
 import { Route as AuthenticatedAdminWebhooksRouteImport } from './routes/_authenticated.admin.webhooks'
@@ -140,6 +141,11 @@ const ApiSearchStatusRoute = ApiSearchStatusRouteImport.update({
   path: '/status',
   getParentRoute: () => ApiSearchRoute,
 } as any)
+const ApiAuthGoogleStartRoute = ApiAuthGoogleStartRouteImport.update({
+  id: '/api/auth/google-start',
+  path: '/api/auth/google-start',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
@@ -194,6 +200,7 @@ export interface FileRoutesByFullPath {
   '/admin/webhooks': typeof AuthenticatedAdminWebhooksRoute
   '/my-trips/$planId': typeof AuthenticatedMyTripsPlanIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/auth/google-start': typeof ApiAuthGoogleStartRoute
   '/api/search/status': typeof ApiSearchStatusRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
@@ -221,6 +228,7 @@ export interface FileRoutesByTo {
   '/admin/webhooks': typeof AuthenticatedAdminWebhooksRoute
   '/my-trips/$planId': typeof AuthenticatedMyTripsPlanIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/auth/google-start': typeof ApiAuthGoogleStartRoute
   '/api/search/status': typeof ApiSearchStatusRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
@@ -250,6 +258,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/webhooks': typeof AuthenticatedAdminWebhooksRoute
   '/_authenticated/my-trips/$planId': typeof AuthenticatedMyTripsPlanIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/auth/google-start': typeof ApiAuthGoogleStartRoute
   '/api/search/status': typeof ApiSearchStatusRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
@@ -279,6 +288,7 @@ export interface FileRouteTypes {
     | '/admin/webhooks'
     | '/my-trips/$planId'
     | '/api/auth/$'
+    | '/api/auth/google-start'
     | '/api/search/status'
     | '/api/public/payments/webhook'
   fileRoutesByTo: FileRoutesByTo
@@ -306,6 +316,7 @@ export interface FileRouteTypes {
     | '/admin/webhooks'
     | '/my-trips/$planId'
     | '/api/auth/$'
+    | '/api/auth/google-start'
     | '/api/search/status'
     | '/api/public/payments/webhook'
   id:
@@ -334,6 +345,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/webhooks'
     | '/_authenticated/my-trips/$planId'
     | '/api/auth/$'
+    | '/api/auth/google-start'
     | '/api/search/status'
     | '/api/public/payments/webhook'
   fileRoutesById: FileRoutesById
@@ -357,6 +369,7 @@ export interface RootRouteChildren {
   AuthGoogleRoute: typeof AuthGoogleRoute
   CheckoutReturnRoute: typeof CheckoutReturnRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiAuthGoogleStartRoute: typeof ApiAuthGoogleStartRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
 }
 
@@ -509,6 +522,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiSearchStatusRouteImport
       parentRoute: typeof ApiSearchRoute
     }
+    '/api/auth/google-start': {
+      id: '/api/auth/google-start'
+      path: '/api/auth/google-start'
+      fullPath: '/api/auth/google-start'
+      preLoaderRoute: typeof ApiAuthGoogleStartRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -609,6 +629,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthGoogleRoute: AuthGoogleRoute,
   CheckoutReturnRoute: CheckoutReturnRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiAuthGoogleStartRoute: ApiAuthGoogleStartRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
 }
 export const routeTree = rootRouteImport

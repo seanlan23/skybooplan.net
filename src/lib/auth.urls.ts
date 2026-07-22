@@ -3,8 +3,14 @@ const AUTH_CALLBACK_PATH = "/auth/callback";
 /** Auth.js Google OAuth POST endpoint (never navigate here with GET). */
 export const GOOGLE_SIGN_IN_PATH = "/api/auth/signin/google";
 
-/** Safe entry URL — client page that CSRF-POSTs into Auth.js. */
-export const GOOGLE_AUTH_START_PATH = "/auth/google";
+/**
+ * Server HTML starter — issues CSRF cookie + auto-POSTs to Auth.js.
+ * Prefer this over client fetch (Safari: TypeError "Load failed").
+ */
+export const GOOGLE_AUTH_START_PATH = "/api/auth/google-start";
+
+/** Legacy client page (kept for bookmarks). */
+export const GOOGLE_AUTH_PAGE_PATH = "/auth/google";
 
 function resolveAuthOrigin(origin?: string): string {
   if (origin?.trim()) return origin.replace(/\/$/, "");
@@ -24,47 +30,21 @@ export function googleAuthCallbackUrl(origin?: string): string {
   return `${base}${AUTH_CALLBACK_PATH}`;
 }
 
-/** Safe href for links — lands on /auth/google (never GET /api/auth/signin/google). */
+/** Safe href for Google login buttons — full navigation, no client fetch. */
 export function googleSignInHref(origin?: string): string {
   const callbackUrl = googleAuthCallbackUrl(origin);
   return `${GOOGLE_AUTH_START_PATH}?callbackUrl=${encodeURIComponent(callbackUrl)}`;
 }
 
 /**
- * Start Google OAuth the Auth.js v5 way: CSRF + POST form submit.
- * GET /api/auth/signin/google throws UnknownAction → "Server error / configuration".
+ * @deprecated Prefer `googleSignInHref()` (server starter).
+ * Kept for `/auth/google` fallback page.
  */
 export async function startGoogleSignIn(origin?: string): Promise<void> {
-  const callbackUrl = googleAuthCallbackUrl(origin);
-  const csrfRes = await fetch("/api/auth/csrf", { credentials: "same-origin" });
-  if (!csrfRes.ok) {
-    throw new Error("Failed to fetch auth CSRF token");
+  if (typeof window === "undefined") {
+    throw new Error("startGoogleSignIn is browser-only");
   }
-  const data = (await csrfRes.json()) as { csrfToken?: string };
-  const csrfToken = data.csrfToken?.trim();
-  if (!csrfToken) {
-    throw new Error("Missing auth CSRF token");
-  }
-
-  const form = document.createElement("form");
-  form.method = "POST";
-  form.action = GOOGLE_SIGN_IN_PATH;
-  form.style.display = "none";
-
-  const csrfInput = document.createElement("input");
-  csrfInput.type = "hidden";
-  csrfInput.name = "csrfToken";
-  csrfInput.value = csrfToken;
-  form.appendChild(csrfInput);
-
-  const callbackInput = document.createElement("input");
-  callbackInput.type = "hidden";
-  callbackInput.name = "callbackUrl";
-  callbackInput.value = callbackUrl;
-  form.appendChild(callbackInput);
-
-  document.body.appendChild(form);
-  form.submit();
+  window.location.assign(googleSignInHref(origin));
 }
 
 /** URL that clears the Auth.js session cookie. */
