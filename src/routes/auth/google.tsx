@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { Logo, LogoMark } from "@/components/Logo";
 import { googleAuthCallbackUrl } from "@/lib/auth.urls";
 import { supabase } from "@/integrations/supabase/client";
+import { withSupabaseApiKey } from "@/lib/supabasePublic";
 import { useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/auth/google")({
@@ -57,7 +58,8 @@ function GoogleAuthStartPage() {
         return;
       }
 
-      window.location.assign(data.url);
+      // Full-page redirect cannot send apikey headers — put it on the URL.
+      window.location.assign(withSupabaseApiKey(data.url));
     })();
   }, [callbackUrl, t]);
 
