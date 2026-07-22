@@ -21,45 +21,66 @@ function AuthCallbackPage() {
     started.current = true;
 
     (async () => {
-      try {
-        const res = await fetch("/api/auth/complete-google", {
-          credentials: "same-origin",
-          headers: { Accept: "application/json" },
-        });
-        const data = (await res.json()) as {
-          ok?: boolean;
-          error?: string;
-          session?: { access_token: string; refresh_token: string };
-        };
+      const fail = (message: string) => {
+        setError(message);
+        toast.error(message);
+        window.setTimeout(() => navigate({ to: "/login", replace: true }), 1800);
+      };
 
-        if (!res.ok || !data.ok || !data.session) {
-          const message = t("auth.googleBridgeFailed");
-          setError(message);
-          toast.error(message);
-          window.setTimeout(() => navigate({ to: "/login", replace: true }), 1600);
+      try {
+        const url = new URL(window.location.href);
+        const oauthError =
+          url.searchParams.get("error_description") ||
+          url.searchParams.get("error");
+        if (oauthError) {
+          fail(t("auth.googleBridgeFailed"));
           return;
         }
 
-        const { error: sessionError } = await supabase.auth.setSession({
-          access_token: data.session.access_token,
-          refresh_token: data.session.refresh_token,
-        });
+        const code = url.searchParams.get("code");
+        if (code) {
+          const { error: exchangeError } =
+            await supabase.auth.exchangeCodeForSession(code);
+          if (exchangeError) {
+            console.error("[auth/callback] exchange:", exchangeError.message);
+            fail(t("auth.googleBridgeFailed"));
+            return;
+          }
+        } else {
+          // Hash tokens / detectSessionInUrl may already have a session.
+          const { data, error: sessionError } = await supabase.auth.getSession();
+          if (sessionError || !data.session) {
+            // Legacy Auth.js cookie path (if still used).
+            const bridge = await fetch("/api/auth/complete-google", {
+              credentials: "same-origin",
+              headers: { Accept: "application/json" },
+            });
+            const payload = (await bridge.json().catch(() => null)) as {
+              ok?: boolean;
+              session?: { access_token: string; refresh_token: string };
+            } | null;
 
-        if (sessionError) {
-          const message = t("auth.googleBridgeFailed");
-          setError(message);
-          toast.error(message);
-          window.setTimeout(() => navigate({ to: "/login", replace: true }), 1600);
-          return;
+            if (bridge.ok && payload?.ok && payload.session) {
+              const { error: setErr } = await supabase.auth.setSession({
+                access_token: payload.session.access_token,
+                refresh_token: payload.session.refresh_token,
+              });
+              if (setErr) {
+                fail(t("auth.googleBridgeFailed"));
+                return;
+              }
+            } else {
+              fail(t("auth.googleBridgeFailed"));
+              return;
+            }
+          }
         }
 
         toast.success(t("auth.welcomeToast"));
         navigate({ to: "/dashboard", replace: true });
-      } catch {
-        const message = t("auth.googleBridgeFailed");
-        setError(message);
-        toast.error(message);
-        window.setTimeout(() => navigate({ to: "/login", replace: true }), 1600);
+      } catch (e) {
+        console.error("[auth/callback] failed:", e);
+        fail(t("auth.googleBridgeFailed"));
       }
     })();
   }, [navigate, t]);

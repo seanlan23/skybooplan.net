@@ -18,6 +18,20 @@ function useSecureAuthCookie(request: Request): boolean {
   }
 }
 
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
+  try {
+    const part = token.split(".")[1];
+    if (!part) return null;
+    const json =
+      typeof atob === "function"
+        ? atob(part.replace(/-/g, "+").replace(/_/g, "/"))
+        : Buffer.from(part, "base64url").toString("utf8");
+    return JSON.parse(json) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
 async function readGoogleIdToken(request: Request): Promise<string | null> {
   const secret = createAuthConfig().secret;
   const preferSecure = useSecureAuthCookie(request);
@@ -71,9 +85,14 @@ export const Route = createFileRoute("/api/auth/complete-google")({
             auth: { persistSession: false, autoRefreshToken: false },
           });
 
+          const payload = decodeJwtPayload(idToken);
+          const nonce =
+            typeof payload?.nonce === "string" ? payload.nonce : undefined;
+
           const { data, error } = await supabase.auth.signInWithIdToken({
             provider: "google",
             token: idToken,
+            ...(nonce ? { nonce } : {}),
           });
 
           if (error || !data.session) {

@@ -76,6 +76,27 @@ export function createAuthConfig(): StartAuthJSConfig {
       "[auth] Missing required environment variables: GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET",
     );
   }
+  // Re-apply after setEnvDefaults — it can drop custom JWT callbacks (id_token bridge).
+  config.callbacks = {
+    async jwt({ token, account, profile }) {
+      if (account?.id_token) {
+        token.id_token = account.id_token;
+      }
+      if (account?.access_token) {
+        token.access_token = account.access_token;
+      }
+      if (profile?.name) token.name = profile.name;
+      if (profile?.picture) token.picture = profile.picture;
+      return token;
+    },
+    async session({ session, token }) {
+      if (session.user) {
+        if (token.name) session.user.name = token.name as string;
+        if (token.picture) session.user.image = token.picture as string;
+      }
+      return session;
+    },
+  };
   config.providers = [
     Google({
       clientId,

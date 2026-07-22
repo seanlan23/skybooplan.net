@@ -1,16 +1,13 @@
 const AUTH_CALLBACK_PATH = "/auth/callback";
 
-/** Auth.js Google OAuth POST endpoint (never navigate here with GET). */
+/** Branded client starter that launches Supabase Google OAuth (full page redirect). */
+export const GOOGLE_AUTH_PAGE_PATH = "/auth/google";
+
+/** @deprecated Auth.js path — kept for legacy bookmarks / redirects. */
 export const GOOGLE_SIGN_IN_PATH = "/api/auth/signin/google";
 
-/**
- * Server HTML starter — issues CSRF cookie + auto-POSTs to Auth.js.
- * Prefer this over client fetch (Safari: TypeError "Load failed").
- */
+/** @deprecated Auth.js CSRF starter — login now uses Supabase via /auth/google. */
 export const GOOGLE_AUTH_START_PATH = "/api/auth/google-start";
-
-/** Legacy client page (kept for bookmarks). */
-export const GOOGLE_AUTH_PAGE_PATH = "/auth/google";
 
 function resolveAuthOrigin(origin?: string): string {
   if (origin?.trim()) return origin.replace(/\/$/, "");
@@ -24,21 +21,20 @@ function resolveAuthOrigin(origin?: string): string {
   return fromEnv || "";
 }
 
-/** Callback URL after Google OAuth (bridges into Supabase). */
+/** Callback URL after Google OAuth (Supabase redirects here with ?code=). */
 export function googleAuthCallbackUrl(origin?: string): string {
   const base = resolveAuthOrigin(origin);
   return `${base}${AUTH_CALLBACK_PATH}`;
 }
 
-/** Safe href for Google login buttons — full navigation, no client fetch. */
+/** Safe href for Google login buttons — branded page, then Supabase OAuth. */
 export function googleSignInHref(origin?: string): string {
   const callbackUrl = googleAuthCallbackUrl(origin);
-  return `${GOOGLE_AUTH_START_PATH}?callbackUrl=${encodeURIComponent(callbackUrl)}`;
+  return `${GOOGLE_AUTH_PAGE_PATH}?callbackUrl=${encodeURIComponent(callbackUrl)}`;
 }
 
 /**
- * @deprecated Prefer `googleSignInHref()` (server starter).
- * Kept for `/auth/google` fallback page.
+ * @deprecated Prefer navigating to `googleSignInHref()`.
  */
 export async function startGoogleSignIn(origin?: string): Promise<void> {
   if (typeof window === "undefined") {
@@ -47,7 +43,7 @@ export async function startGoogleSignIn(origin?: string): Promise<void> {
   window.location.assign(googleSignInHref(origin));
 }
 
-/** URL that clears the Auth.js session cookie. */
+/** URL that clears the Auth.js session cookie (legacy). */
 export function authSignOutHref(origin?: string): string {
   const base = resolveAuthOrigin(origin) || "/";
   return `/api/auth/signout?callbackUrl=${encodeURIComponent(base)}`;

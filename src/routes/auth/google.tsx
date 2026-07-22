@@ -1,7 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Logo, LogoMark } from "@/components/Logo";
-import { googleSignInHref } from "@/lib/auth.urls";
+import { googleAuthCallbackUrl } from "@/lib/auth.urls";
+import { supabase } from "@/integrations/supabase/client";
+import { useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/auth/google")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -14,18 +16,50 @@ export const Route = createFileRoute("/auth/google")({
   component: GoogleAuthStartPage,
 });
 
-/** Bookmark-compatible page → server CSRF starter. */
+/** Branded handoff → Supabase Google OAuth (full navigation, Safari-safe). */
 function GoogleAuthStartPage() {
   const { callbackUrl } = Route.useSearch();
+  const t = useT();
+  const started = useRef(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
+    if (started.current) return;
+    started.current = true;
+
+    let redirectTo = googleAuthCallbackUrl();
     if (callbackUrl?.startsWith("http")) {
-      const origin = new URL(callbackUrl).origin;
-      window.location.replace(googleSignInHref(origin));
-      return;
+      try {
+        if (new URL(callbackUrl).origin === window.location.origin) {
+          redirectTo = callbackUrl;
+        }
+      } catch {
+        /* keep default */
+      }
     }
-    window.location.replace(googleSignInHref());
-  }, [callbackUrl]);
+
+    (async () => {
+      const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo,
+          skipBrowserRedirect: true,
+          queryParams: {
+            access_type: "offline",
+            prompt: "select_account",
+          },
+        },
+      });
+
+      if (oauthError || !data?.url) {
+        console.error("[auth/google] oauth:", oauthError?.message);
+        setError(t("auth.googleBridgeFailed"));
+        return;
+      }
+
+      window.location.assign(data.url);
+    })();
+  }, [callbackUrl, t]);
 
   return (
     <div
@@ -40,22 +74,33 @@ function GoogleAuthStartPage() {
           <Logo size="md" />
         </Link>
         <h1 className="text-lg font-semibold tracking-tight text-slate-900">
-          Povezujem z Googlom
+          {error ? "Prijava ni uspela" : "Povezujem z Googlom"}
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-slate-500">
-          Trenutek — odpiram varno Google prijavo za tvoj skybooplan račun.
+          {error ||
+            "Trenutek — odpiram varno Google prijavo za tvoj skybooplan račun."}
         </p>
-        <div
-          className="relative mx-auto mt-8 grid h-16 w-16 place-items-center rounded-full"
-          style={{
-            background:
-              "linear-gradient(145deg, rgba(14,165,233,0.12), rgba(244,162,97,0.16))",
-          }}
-          aria-hidden
-        >
-          <span className="absolute inset-[-4px] animate-spin rounded-full border-2 border-transparent border-t-sky-500 border-r-orange-400" />
-          <LogoMark size={28} />
-        </div>
+        {!error ? (
+          <div
+            className="relative mx-auto mt-8 grid h-16 w-16 place-items-center rounded-full"
+            style={{
+              background:
+                "linear-gradient(145deg, rgba(14,165,233,0.12), rgba(244,162,97,0.16))",
+            }}
+            aria-hidden
+          >
+            <span className="absolute inset-[-4px] animate-spin rounded-full border-2 border-transparent border-t-sky-500 border-r-orange-400" />
+            <LogoMark size={28} />
+          </div>
+        ) : (
+          <Link
+            to="/login"
+            className="mt-6 inline-flex rounded-2xl px-5 py-2.5 text-sm font-semibold text-white"
+            style={{ background: "linear-gradient(135deg, #0EA5E9, #0284C7)" }}
+          >
+            Nazaj na prijavo
+          </Link>
+        )}
         <p className="mt-6 text-xs text-slate-500">
           AI travel agent · <span className="font-semibold text-sky-700">skybooplan</span>
         </p>

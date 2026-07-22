@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useState, useRef, useEffect, type MouseEvent } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useT } from "@/lib/i18n";
-import { GOOGLE_AUTH_START_PATH, googleSignInHref } from "@/lib/auth.urls";
+import { googleSignInHref } from "@/lib/auth.urls";
 import { HOME_RESET_EVENT, requestHomeReset } from "@/lib/sessionStore";
 import { cn } from "@/lib/utils";
 
@@ -202,7 +202,6 @@ export function SiteHeader({
             <a
               href={googleSignInHref()}
               aria-label={t("nav.signInGoogle")}
-              data-sign-in-path={GOOGLE_AUTH_START_PATH}
               className={subtleTextClass}
             >
               {t("nav.signIn")} →
