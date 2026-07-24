@@ -102,7 +102,7 @@ export function MotorhomeSearchBrowser({ disabled, onSubmit }: MotorhomeSearchBr
 
   return (
     <div className="relative z-20 w-full">
-      <div className="rounded-2xl border border-white/25 bg-white/95 p-4 text-slate-900 shadow-xl backdrop-blur-md sm:p-5">
+      <div className="overflow-hidden rounded-2xl border border-white/25 bg-white/95 p-4 text-slate-900 shadow-xl backdrop-blur-md sm:p-5">
         <div className="mb-4 text-center">
           <p className="text-lg font-semibold tracking-tight sm:text-xl">
             {t("mh.browser.title" as never)}
@@ -169,14 +169,16 @@ export function MotorhomeSearchBrowser({ disabled, onSubmit }: MotorhomeSearchBr
             />
           </label>
 
-          <div className="flex min-h-[76px] flex-col justify-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 shadow-sm sm:col-span-2 lg:col-span-1">
+          <div className="flex min-h-[76px] min-w-0 flex-col justify-center overflow-hidden rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm sm:col-span-2 lg:col-span-1 sm:px-4">
             <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-              <Users className="h-3.5 w-3.5" />
+              <Users className="h-3.5 w-3.5 shrink-0" />
               {t("mh.browser.travelers" as never)}
             </span>
-            <div className="mt-1 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-500">{t("mh.browser.adults" as never)}</span>
+            <div className="mt-1.5 flex min-w-0 flex-col gap-1.5">
+              <div className="flex min-w-0 items-center justify-between gap-2">
+                <span className="truncate text-xs text-slate-500">
+                  {t("mh.browser.adults" as never)}
+                </span>
                 <Stepper
                   value={adults}
                   min={1}
@@ -185,8 +187,10 @@ export function MotorhomeSearchBrowser({ disabled, onSubmit }: MotorhomeSearchBr
                   onChange={setAdults}
                 />
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-500">{t("mh.browser.children" as never)}</span>
+              <div className="flex min-w-0 items-center justify-between gap-2">
+                <span className="truncate text-xs text-slate-500">
+                  {t("mh.browser.children" as never)}
+                </span>
                 <Stepper
                   value={children}
                   min={0}
@@ -227,7 +231,7 @@ function Stepper({
   onChange: (n: number) => void;
 }) {
   return (
-    <div className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-1">
+    <div className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-slate-200 bg-slate-50 px-0.5">
       <button
         type="button"
         disabled={disabled || value <= min}
@@ -237,7 +241,9 @@ function Stepper({
       >
         <Minus className="h-3.5 w-3.5" />
       </button>
-      <span className="min-w-[1.25rem] text-center text-sm font-semibold tabular-nums">{value}</span>
+      <span className="min-w-[1.25rem] text-center text-sm font-semibold tabular-nums text-slate-900">
+        {value}
+      </span>
       <button
         type="button"
         disabled={disabled || value >= max}
