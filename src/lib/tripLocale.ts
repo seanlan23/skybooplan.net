@@ -345,6 +345,9 @@ export function airportArrivalHint(city: string, locale: TripLocale): string {
       sl: `Preveri letališče na vstopnici — prihod je na ${locale.destinationIata} (${hub.name}).`,
       en: `Check your ticket — you arrive at ${locale.destinationIata} (${hub.name}).`,
       de: `Prüfe dein Ticket — Ankunft auf ${locale.destinationIata} (${hub.name}).`,
+      it: `Controlla il biglietto — arrivi a ${locale.destinationIata} (${hub.name}).`,
+      es: `Revisa tu billete — llegas a ${locale.destinationIata} (${hub.name}).`,
+      fr: `Vérifiez votre billet — arrivée à ${locale.destinationIata} (${hub.name}).`,
     });
   }
 
@@ -377,6 +380,9 @@ export function hotelTransferDescription(city: string, locale: TripLocale): stri
     sl: `Iz letališča do hotela v ${city} uporabi ${modes} (orientacijsko ${price}) — v večini mest je na voljo tudi prevozna aplikacija ali uradni taxi. Do centra računaj 20–90 min, odvisno od prometa in razdalje.`,
     en: `From the airport to your hotel in ${city}, use ${modes} (about ${price}). Allow 20–90 minutes depending on traffic.`,
     de: `Vom Flughafen zum Hotel in ${city} mit ${modes} (ca. ${price}). Plane 20–90 Minuten je nach Verkehr ein.`,
+    it: `Dall'aeroporto all'hotel a ${city} usa ${modes} (circa ${price}). Conta 20–90 minuti a seconda del traffico.`,
+    es: `Del aeropuerto al hotel en ${city} usa ${modes} (aprox. ${price}). Reserva 20–90 minutos según el tráfico.`,
+    fr: `De l'aéroport à l'hôtel à ${city}, utilisez ${modes} (env. ${price}). Prévoyez 20–90 minutes selon le trafic.`,
   });
 }
 

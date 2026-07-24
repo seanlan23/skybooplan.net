@@ -116,6 +116,17 @@ describe("i18n strict fallback", () => {
     expect(translate("fr", "support.amountCustom")).toBe("Autre montant");
   });
 
+  it("it/es/fr planner shell tips and checklist are not English", () => {
+    expect(translate("it", "aiplan.tip2")).toMatch(/martedì|20%/i);
+    expect(translate("it", "aiplan.tip2")).not.toBe(translate("en", "aiplan.tip2"));
+    expect(translate("it", "heroChat.checklist.title")).toMatch(/viaggio/i);
+    expect(translate("it", "results.selectAiPlan")).toMatch(/piano IA|Seleziona/i);
+    expect(translate("it", "travelReq.title")).toMatch(/Requisiti/i);
+    expect(translate("it", "aiplan.yourChoices")).toMatch(/impostazioni/i);
+    expect(translate("es", "aiplan.tip2")).toMatch(/martes|20%/i);
+    expect(translate("fr", "heroChat.checklist.title")).toMatch(/voyage/i);
+  });
+
   it("de never falls back to Slovenian for untranslated keys", () => {
     expect(translate("de", "error.networkFetch")).not.toBe("Težava s povezavo");
     expect(translate("de", "error.networkFetch")).toMatch(/connection|server/i);

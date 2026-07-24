@@ -101,12 +101,18 @@ export function originAirportLeadPhrase(depart: string, langCode = "sl"): string
       sl: "vsaj 3 ure pred odletom",
       en: "at least 3 hours early",
       de: "mindestens 3 Stunden vor Abflug",
+      it: "almeno 3 ore prima del decollo",
+      es: "al menos 3 horas antes del despegue",
+      fr: "au moins 3 heures avant le décollage",
     });
   }
   return planLangCopy(langCode, {
     sl: "2–3 ure pred odletom",
     en: "2–3 hours early",
     de: "2–3 Stunden vor Abflug",
+    it: "2–3 ore prima del decollo",
+    es: "2–3 horas antes del despegue",
+    fr: "2–3 heures avant le décollage",
   });
 }
 
@@ -129,6 +135,9 @@ export function buildOriginDepartureHint(
         sl: " Če se pripelješ z avtom, primerjaj parkiranje prek Parkvia, Parkos ali MyWay (terminal vs. zunanji P+R + shuttle) — pogosto ceneje za večdnevne počitnice.",
         en: " Driving? Compare terminal vs off-site parking via Parkvia, Parkos, or MyWay — often cheaper for multi-day trips.",
         de: " Mit dem Auto? Vergleiche Terminal- vs. Außenparkplatz über Parkvia, Parkos oder MyWay — oft günstiger für mehrtägige Reisen.",
+        it: " In auto? Confronta parcheggio terminal vs esterno con Parkvia, Parkos o MyWay — spesso più economico per viaggi di più giorni.",
+        es: " ¿En coche? Compara parking de terminal vs exterior con Parkvia, Parkos o MyWay — a menudo más barato en viajes largos.",
+        fr: " En voiture ? Comparez parking terminal vs extérieur via Parkvia, Parkos ou MyWay — souvent moins cher pour les séjours.",
       })
     : "";
 
@@ -136,6 +145,9 @@ export function buildOriginDepartureHint(
     sl: `Odhod z domačega letališča ${name} (${iata}) ob ${dep}. Na mednarodni let pridi ${leadPhrase} (check-in, oddaja prtljage, varnostna kontrola).${parking}`,
     en: `Home airport ${name} (${iata}), flight departs ${dep}. Arrive ${leadPhrase} (check-in, bags, security).${parking}`,
     de: `Heimatflughafen ${name} (${iata}), Abflug ${dep}. Sei ${leadPhrase} am Flughafen (Check-in, Gepäck, Sicherheitskontrolle).${parking}`,
+    it: `Aeroporto di casa ${name} (${iata}), decollo ${dep}. Arriva ${leadPhrase} (check-in, bagagli, controlli).${parking}`,
+    es: `Aeropuerto de origen ${name} (${iata}), salida ${dep}. Llega ${leadPhrase} (check-in, maletas, seguridad).${parking}`,
+    fr: `Aéroport de départ ${name} (${iata}), décollage ${dep}. Arrivez ${leadPhrase} (check-in, bagages, sécurité).${parking}`,
   });
 }
 
@@ -158,6 +170,9 @@ export function buildOriginDepartureLogistics(
         sl: `Odhod: ${name} (${iata})`,
         en: `Departure: ${name} (${iata})`,
         de: `Abflug: ${name} (${iata})`,
+        it: `Partenza: ${name} (${iata})`,
+        es: `Salida: ${name} (${iata})`,
+        fr: `Départ : ${name} (${iata})`,
       }),
       type: "TRANSPORT",
       description: hint,
@@ -167,12 +182,18 @@ export function buildOriginDepartureLogistics(
         sl: "Check-in in varnostni pregled",
         en: "Check-in and security",
         de: "Check-in und Sicherheitskontrolle",
+        it: "Check-in e controlli di sicurezza",
+        es: "Check-in y seguridad",
+        fr: "Enregistrement et contrôle de sécurité",
       }),
       type: "TRANSPORT",
       description: planLangCopy(langCode, {
         sl: `Na letališču ${iata} oddaj prtljago (če jo imaš), opravi check-in in varnostni pregled. Za mednarodne lete računaj ${leadPhrase} ob ${dep} — ob konicah in počitniških terminih raje še več rezerve.`,
         en: `Check in, drop bags if needed, and clear security at ${iata}. Allow ${leadPhrase} before your ${dep} departure — more in peak season.`,
         de: `Am Flughafen ${iata} Gepäck aufgeben (falls nötig), Check-in und Sicherheitskontrolle. Für internationale Flüge plane ${leadPhrase} vor ${dep} — in Stoßzeiten lieber mehr Puffer.`,
+        it: `All'aeroporto ${iata} consegna i bagagli (se serve), fai check-in e controlli. Per i voli internazionali conta ${leadPhrase} prima delle ${dep} — in alta stagione ancora più margine.`,
+        es: `En ${iata} facture el equipaje si hace falta, haz check-in y seguridad. Para vuelos internacionales calcula ${leadPhrase} antes de las ${dep} — en temporada alta aún más margen.`,
+        fr: `À ${iata}, déposez les bagages si besoin, faites l'enregistrement et la sécurité. Pour les vols internationaux, prévoyez ${leadPhrase} avant ${dep} — davantage en haute saison.`,
       }),
     },
   ];
@@ -405,6 +426,9 @@ export function buildArrivalLogistics(
         sl: "Prihod na letališče",
         en: "Airport arrival",
         de: "Ankunft am Flughafen",
+        it: "Arrivo in aeroporto",
+        es: "Llegada al aeropuerto",
+        fr: "Arrivée à l'aéroport",
       }),
       type: "TRANSPORT",
       arrivalTime: landHm,
@@ -412,6 +436,9 @@ export function buildArrivalLogistics(
         sl: `Polet pristane na destinaciji ob ${arriveLabel}. Po izhodu sledi kontrola, prevzem prtljage in orientacija v arrival hallu. ${airportHint}`,
         en: `Your flight lands at ${arriveLabel}. Clear immigration, collect luggage, and orient yourself in arrivals. ${airportHint}`,
         de: `Dein Flug landet um ${arriveLabel}. Danach Einreise, Gepäck und Orientierung in der Ankunftshalle. ${airportHint}`,
+        it: `Il volo atterra alle ${arriveLabel}. Poi controlli, ritiro bagagli e orientamento in arrivi. ${airportHint}`,
+        es: `Tu vuelo aterriza a las ${arriveLabel}. Luego inmigración, equipaje y orientación en llegadas. ${airportHint}`,
+        fr: `Votre vol atterrit à ${arriveLabel}. Puis contrôles, bagages et orientation aux arrivées. ${airportHint}`,
       }),
     },
     {
@@ -420,11 +447,17 @@ export function buildArrivalLogistics(
             sl: `Prevoz do najema avtodoma / avtokampa (${locale.transferLabel})`,
             en: `Transfer to RV rental / campsite (${locale.transferLabel})`,
             de: `Transfer zur Wohnmobil-Vermietung / Campingplatz (${locale.transferLabel})`,
+            it: `Transfer al noleggio camper / campeggio (${locale.transferLabel})`,
+            es: `Traslado al alquiler de autocaravana / camping (${locale.transferLabel})`,
+            fr: `Transfert location camping-car / camping (${locale.transferLabel})`,
           })
         : planLangCopy(lang, {
             sl: `Prevoz do hotela (${locale.transferLabel})`,
             en: `Transfer to hotel (${locale.transferLabel})`,
             de: `Transfer zum Hotel (${locale.transferLabel})`,
+            it: `Transfer all'hotel (${locale.transferLabel})`,
+            es: `Traslado al hotel (${locale.transferLabel})`,
+            fr: `Transfert à l'hôtel (${locale.transferLabel})`,
           }),
       type: "TRANSPORT",
       priceLabel: locale.transferPrice,

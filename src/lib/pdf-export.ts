@@ -174,12 +174,12 @@ const PROMO_RE =
   /\b(eSIM|esim|zavarovan|insurance|popust|discount|ekskluzivn[iae]?|exclusive)\b/i;
 
 function labelsFor(lang: PlanForPdf["language"], sampleText: string): PdfLabels {
-  const normalized = (lang ?? "").toLowerCase();
+  const normalized = (lang ?? "").toLowerCase().slice(0, 2);
   const sl =
     normalized === "sl" ||
     (!normalized &&
       /[čšžćđČŠŽĆĐ]|\b(dan|dopoldan|popoldan|večer|načrt|potovanje)\b/i.test(sampleText));
-  if (sl) {
+  if (sl || normalized === "sl") {
     return {
       brand: "SKYBOOPLAN  ·  Potovalni načrt",
       overview: "Pregled",
@@ -198,6 +198,98 @@ function labelsFor(lang: PlanForPdf["language"], sampleText: string): PdfLabels 
       packing: "Seznam za pakiranje",
       pageOf: (page, total) => `${page} / ${total}`,
       day: (n, end) => (end && end !== n ? `Dan ${n}–${end}` : `Dan ${n}`),
+    };
+  }
+  if (normalized === "it") {
+    return {
+      brand: "SKYBOOPLAN  ·  Piano di viaggio",
+      overview: "Panoramica",
+      daily: "Itinerario giornaliero",
+      morning: "Mattina",
+      afternoon: "Pomeriggio",
+      evening: "Sera",
+      transport: "Trasporto",
+      budget: "Budget",
+      budgetForPax: (n) =>
+        n <= 1
+          ? "Totale (stima a destinazione, esclusi voli internazionali)"
+          : `Totale per ${n} viaggiatori (stima a destinazione, esclusi voli internazionali)`,
+      dailyBudget: "Budget giornaliero",
+      dailyBudgetPerPerson: "a persona",
+      flights: "Voli",
+      stays: "Alloggi",
+      packing: "Lista bagaglio",
+      pageOf: (page, total) => `${page} / ${total}`,
+      day: (n, end) => (end && end !== n ? `Giorno ${n}–${end}` : `Giorno ${n}`),
+    };
+  }
+  if (normalized === "de") {
+    return {
+      brand: "SKYBOOPLAN  ·  Reiseplan",
+      overview: "Überblick",
+      daily: "Tagesplan",
+      morning: "Morgen",
+      afternoon: "Nachmittag",
+      evening: "Abend",
+      transport: "Transport",
+      budget: "Budget",
+      budgetForPax: (n) =>
+        n <= 1
+          ? "Gesamt (Schätzung vor Ort, ohne internationale Flüge)"
+          : `Gesamt für ${n} Reisende (Schätzung vor Ort, ohne internationale Flüge)`,
+      dailyBudget: "Tagesbudget",
+      dailyBudgetPerPerson: "pro Person",
+      flights: "Flüge",
+      stays: "Unterkünfte",
+      packing: "Packliste",
+      pageOf: (page, total) => `${page} / ${total}`,
+      day: (n, end) => (end && end !== n ? `Tag ${n}–${end}` : `Tag ${n}`),
+    };
+  }
+  if (normalized === "es") {
+    return {
+      brand: "SKYBOOPLAN  ·  Plan de viaje",
+      overview: "Resumen",
+      daily: "Itinerario diario",
+      morning: "Mañana",
+      afternoon: "Tarde",
+      evening: "Noche",
+      transport: "Transporte",
+      budget: "Presupuesto",
+      budgetForPax: (n) =>
+        n <= 1
+          ? "Total (estimación en destino, sin vuelos internacionales)"
+          : `Total para ${n} viajeros (estimación en destino, sin vuelos internacionales)`,
+      dailyBudget: "Presupuesto diario",
+      dailyBudgetPerPerson: "por persona",
+      flights: "Vuelos",
+      stays: "Alojamientos",
+      packing: "Lista de equipaje",
+      pageOf: (page, total) => `${page} / ${total}`,
+      day: (n, end) => (end && end !== n ? `Día ${n}–${end}` : `Día ${n}`),
+    };
+  }
+  if (normalized === "fr") {
+    return {
+      brand: "SKYBOOPLAN  ·  Plan de voyage",
+      overview: "Aperçu",
+      daily: "Itinéraire jour par jour",
+      morning: "Matin",
+      afternoon: "Après-midi",
+      evening: "Soir",
+      transport: "Transport",
+      budget: "Budget",
+      budgetForPax: (n) =>
+        n <= 1
+          ? "Total (estimation sur place, hors vols internationaux)"
+          : `Total pour ${n} voyageurs (estimation sur place, hors vols internationaux)`,
+      dailyBudget: "Budget journalier",
+      dailyBudgetPerPerson: "par personne",
+      flights: "Vols",
+      stays: "Hébergements",
+      packing: "Liste de bagages",
+      pageOf: (page, total) => `${page} / ${total}`,
+      day: (n, end) => (end && end !== n ? `Jour ${n}–${end}` : `Jour ${n}`),
     };
   }
   return {
@@ -221,6 +313,18 @@ function labelsFor(lang: PlanForPdf["language"], sampleText: string): PdfLabels 
     pageOf: (page, total) => `${page} / ${total}`,
     day: (n, end) => (end && end !== n ? `Day ${n}–${end}` : `Day ${n}`),
   };
+}
+
+/** Map Gemini/internal slot tokens (often Slovenian) to PDF morning/afternoon/evening labels. */
+function localizePdfTimeToken(raw: string | undefined, labels: PdfLabels): string | undefined {
+  if (!raw?.trim()) return undefined;
+  const s = raw.trim().toLowerCase();
+  if (/^(dopoldan|morning|mattina|morgen|matin|mañana)$/i.test(s)) return labels.morning;
+  if (/^(popoldan|afternoon|pomeriggio|nachmittag|après-midi|apres-midi|tarde)$/i.test(s)) {
+    return labels.afternoon;
+  }
+  if (/^(večer|vecer|evening|sera|abend|soir|noche|nuit)$/i.test(s)) return labels.evening;
+  return raw.trim();
 }
 
 /** jsPDF custom fonts choke on emoji / some symbols — strip for layout stability. */
@@ -274,7 +378,7 @@ function cleanSummary(raw: string): string {
   return (parts.length ? parts : [raw]).join(" ").replace(/\s+/g, " ").trim();
 }
 
-function activityFromUnknown(raw: unknown): PdfActivity | null {
+function activityFromUnknown(raw: unknown, labels?: PdfLabels): PdfActivity | null {
   if (!raw || typeof raw !== "object") {
     const s = textOf(raw);
     return s ? { title: s } : null;
@@ -282,7 +386,7 @@ function activityFromUnknown(raw: unknown): PdfActivity | null {
   const o = raw as Record<string, unknown>;
   const title = textOf(o.name) || textOf(o.title);
   if (!title) return null;
-  const time =
+  const rawTime =
     textOf(o.time) ||
     textOf(o.timeSlot) ||
     formatActivityClockLabel({
@@ -294,6 +398,7 @@ function activityFromUnknown(raw: unknown): PdfActivity | null {
       departureTime: textOf(o.departureTime) || undefined,
     }) ||
     undefined;
+  const time = labels ? localizePdfTimeToken(rawTime, labels) : rawTime;
   const price =
     textOf(o.priceLabel) ||
     textOf(o.price) ||
@@ -312,10 +417,13 @@ function activityFromUnknown(raw: unknown): PdfActivity | null {
 function slotItems(
   day: Record<string, unknown>,
   key: "morning" | "afternoon" | "evening",
+  labels?: PdfLabels,
 ): PdfActivity[] {
   const activities = (day.activities ?? {}) as Record<string, unknown>;
   const fromSlots = Array.isArray(activities[key]) ? (activities[key] as unknown[]) : [];
-  const fromItems = fromSlots.map(activityFromUnknown).filter(Boolean) as PdfActivity[];
+  const fromItems = fromSlots
+    .map((a) => activityFromUnknown(a, labels))
+    .filter(Boolean) as PdfActivity[];
   if (fromItems.length) return fromItems;
 
   // Legacy markdown / string slots
@@ -328,9 +436,11 @@ function slotItems(
     .map((title) => ({ title }));
 }
 
-function legacyItems(day: Record<string, unknown>): PdfActivity[] {
+function legacyItems(day: Record<string, unknown>, labels?: PdfLabels): PdfActivity[] {
   if (!Array.isArray(day.items)) return [];
-  return (day.items as unknown[]).map(activityFromUnknown).filter(Boolean) as PdfActivity[];
+  return (day.items as unknown[])
+    .map((a) => activityFromUnknown(a, labels))
+    .filter(Boolean) as PdfActivity[];
 }
 
 /** Normalize AI / saved plan shapes into a clean PDF model. */
@@ -368,14 +478,14 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
       : [];
 
     const slots: PdfDay["slots"] = [
-      { label: labels.morning, items: slotItems(d, "morning") },
-      { label: labels.afternoon, items: slotItems(d, "afternoon") },
-      { label: labels.evening, items: slotItems(d, "evening") },
+      { label: labels.morning, items: slotItems(d, "morning", labels) },
+      { label: labels.afternoon, items: slotItems(d, "afternoon", labels) },
+      { label: labels.evening, items: slotItems(d, "evening", labels) },
     ].filter((s) => s.items.length > 0);
 
     // Fallback: legacy items[] or island stay blurb
     if (!slots.length) {
-      const items = legacyItems(d);
+      const items = legacyItems(d, labels);
       if (items.length) slots.push({ label: labels.daily, items });
     }
     if (!slots.length) {

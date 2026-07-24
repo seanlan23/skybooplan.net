@@ -2,6 +2,7 @@ import { planUiByLang } from "@/lib/i18n.planUi";
 import { homepageUiByLang } from "@/lib/i18n.homepage";
 import { authDashboardByLang } from "@/lib/i18n.authDashboard";
 import { motorhomeUiByLang } from "@/lib/i18n.motorhome";
+import { plannerShellByLang } from "@/lib/i18n.plannerShell";
 import {
   currencySymbol,
   formatPlanMoney,
@@ -2053,6 +2054,7 @@ const dicts: Record<Lang, Dict> = {
     "aiplan.phase5": "Optimizando presupuesto y tiempo …",
     "aiplan.tipsTitle": "¿Sabías que?",
     ...homepageUiByLang.es,
+    ...plannerShellByLang.es,
     ...planUiByLang.es,
     ...authDashboardByLang.es,
     ...motorhomeUiByLang.es,
@@ -2239,6 +2241,7 @@ const dicts: Record<Lang, Dict> = {
     "aiplan.phase5": "Optimisation du budget et du temps …",
     "aiplan.tipsTitle": "Le saviez-vous ?",
     ...homepageUiByLang.fr,
+    ...plannerShellByLang.fr,
     ...planUiByLang.fr,
     ...authDashboardByLang.fr,
     ...motorhomeUiByLang.fr,
@@ -2551,6 +2554,7 @@ const dicts: Record<Lang, Dict> = {
     "aiplan.phase5": "Ottimizziamo budget e tempi …",
     "aiplan.tipsTitle": "Lo sapevi?",
     ...homepageUiByLang.it,
+    ...plannerShellByLang.it,
     ...planUiByLang.it,
     ...authDashboardByLang.it,
     ...motorhomeUiByLang.it,
