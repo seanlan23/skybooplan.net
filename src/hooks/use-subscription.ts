@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { hasUnlimitedAccess } from "@/lib/unlimitedAccess";
 
 export type SubscriptionInfo = {
   loading: boolean;
@@ -36,6 +37,17 @@ export function useSubscription(): SubscriptionInfo {
       setInfo({ loading: false, isActive: false, tier: null, currentPeriodEnd: null });
       return;
     }
+
+    if (hasUnlimitedAccess(user?.email)) {
+      setInfo({
+        loading: false,
+        isActive: true,
+        tier: "yearly",
+        currentPeriodEnd: null,
+      });
+      return;
+    }
+
     const { data } = await supabase
       .from("subscriptions")
       .select("tier,status,current_period_end")
@@ -50,7 +62,7 @@ export function useSubscription(): SubscriptionInfo {
     const notExpired = !periodEnd || new Date(periodEnd).getTime() > Date.now();
     const isActive = tier !== "free" && status === "active" && notExpired;
     setInfo({ loading: false, isActive, tier, currentPeriodEnd: periodEnd });
-  }, []);
+  }, [user?.email]);
 
   useEffect(() => {
     fetchOnce();

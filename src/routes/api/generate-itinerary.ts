@@ -53,8 +53,12 @@ export const Route = createFileRoute("/api/generate-itinerary")({
         if (!authResult.ok) return authResult.response;
 
         const userId = authResult.userId;
+        const email =
+          typeof authResult.auth?.claims?.email === "string"
+            ? authResult.auth.claims.email
+            : null;
 
-        const quota = await enforceItineraryQuota(request, userId);
+        const quota = await enforceItineraryQuota(request, userId, email);
         if (!quota.ok) return quota.response;
 
         if (!geminiApiKey()) {

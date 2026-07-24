@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'node:crypto';
+import { hasUnlimitedAccess } from '@/lib/unlimitedAccess';
 
 let _supabase: ReturnType<typeof createClient> | null = null;
 let _quotaSkipLogged = false;
@@ -110,6 +111,13 @@ export async function checkUserQuota(userId: string): Promise<QuotaCheck> {
     logQuotaSkippedOnce();
     return { allowed: true, reason: 'ok', tier: 'free', remaining: 999 };
   }
+
+  const { data: authUser } = await db.auth.admin.getUserById(userId);
+  if (hasUnlimitedAccess(authUser?.user?.email)) {
+    // tier free = recordPlanGeneration won't decrement/bump usage
+    return { allowed: true, reason: 'ok', tier: 'free', remaining: 999 };
+  }
+
   const { data, error } = await db.rpc('can_user_create_plan', { _user_id: userId });
   if (error) {
     console.error('can_user_create_plan failed', error);
@@ -149,6 +157,11 @@ export async function recordPlanGeneration(
   request?: Request,
 ): Promise<void> {
   if (userId) {
+    const db = svc();
+    if (db) {
+      const { data: authUser } = await db.auth.admin.getUserById(userId);
+      if (hasUnlimitedAccess(authUser?.user?.email)) return;
+    }
     if (tier === "one_time") {
       await decrementOneTimePlan(userId);
     } else if (tier === "monthly" || tier === "annual") {
@@ -170,7 +183,12 @@ export type ItineraryQuotaResult =
 export async function enforceItineraryQuota(
   request: Request,
   userId: string | null,
+  email?: string | null,
 ): Promise<ItineraryQuotaResult> {
+  if (hasUnlimitedAccess(email)) {
+    return { ok: true, tier: "free" };
+  }
+
   if (userId) {
     const quota = await checkUserQuota(userId);
     if (!quota.allowed) {
