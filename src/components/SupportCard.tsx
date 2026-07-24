@@ -1,4 +1,5 @@
 import { CreditCard } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import { SUPPORT_TIERS } from "@/lib/supportLinks";
 import { useI18n } from "@/lib/i18n";
 

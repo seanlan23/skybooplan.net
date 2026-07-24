@@ -1,44 +1,53 @@
-/** Stripe Payment Link URLs — paste your live links here when ready. */
-export const STRIPE_LINK_10 = "";
-export const STRIPE_LINK_20 = "";
-export const STRIPE_LINK_50 = "";
-export const STRIPE_LINK_CUSTOM = "";
+import { DONATION_TIERS } from "@/lib/donationLinks";
 
 export type SupportTier = {
   id: string;
   amountLabel: string;
-  labelKey: "support.tier10" | "support.tier20" | "support.tier50" | "support.tierCustom";
+  labelKey:
+    | "support.tier5"
+    | "support.tier10"
+    | "support.tier20"
+    | "support.tierCustom";
   emoji: string;
   href: string;
+  /** Internal app route (e.g. /about) — open in same tab. */
+  external?: boolean;
 };
 
+const donationById = Object.fromEntries(DONATION_TIERS.map((t) => [t.id, t]));
+
+/** Same Stripe amounts as homepage donations: 5 / 10 / 20 € + other. */
 export const SUPPORT_TIERS: SupportTier[] = [
+  {
+    id: "tier-5",
+    amountLabel: "5 €",
+    labelKey: "support.tier5",
+    emoji: "⚡",
+    href: donationById["5"]!.href,
+    external: true,
+  },
   {
     id: "tier-10",
     amountLabel: "10 €",
     labelKey: "support.tier10",
-    emoji: "⚡",
-    href: STRIPE_LINK_10,
+    emoji: "☕",
+    href: donationById["10"]!.href,
+    external: true,
   },
   {
     id: "tier-20",
     amountLabel: "20 €",
     labelKey: "support.tier20",
-    emoji: "🔒",
-    href: STRIPE_LINK_20,
-  },
-  {
-    id: "tier-50",
-    amountLabel: "50 €",
-    labelKey: "support.tier50",
     emoji: "🚀",
-    href: STRIPE_LINK_50,
+    href: donationById["20"]!.href,
+    external: true,
   },
   {
     id: "tier-custom",
     amountLabel: "support.amountCustom",
     labelKey: "support.tierCustom",
     emoji: "🎯",
-    href: STRIPE_LINK_CUSTOM,
+    href: donationById.contact!.href,
+    external: false,
   },
 ];
