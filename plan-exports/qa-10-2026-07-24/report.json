@@ -1,0 +1,339 @@
+{
+  "generatedAt": "2026-07-24T09:11:22.168Z",
+  "totals": {
+    "ok": 10,
+    "issues": 0,
+    "fail": 0,
+    "avgPinsPerDay": 3.33
+  },
+  "results": [
+    {
+      "id": "01-MUC-BKK",
+      "region": "Asia",
+      "route": "MUC\u2192BKK",
+      "expectedDays": 8,
+      "budget": "standard",
+      "pace": "relaxed",
+      "cached": true,
+      "status": "ok",
+      "ms": 314,
+      "days": 8,
+      "destinationName": "Tajska",
+      "cities": [
+        "Munich",
+        "Bangkok",
+        "Krabi"
+      ],
+      "daysWithPins": "6/8",
+      "totalPins": 18,
+      "avgPinsPerDay": 2.25,
+      "pinCounts": [
+        0,
+        1,
+        2,
+        2,
+        4,
+        4,
+        5,
+        0
+      ],
+      "issues": [],
+      "warnings": [],
+      "ok": true,
+      "pdf": "plan-exports/qa-10-2026-07-24/01-MUC-BKK.pdf"
+    },
+    {
+      "id": "02-LJU-BCN",
+      "region": "Europe",
+      "route": "LJU\u2192BCN",
+      "expectedDays": 6,
+      "budget": "standard",
+      "pace": "balanced",
+      "cached": true,
+      "status": "ok",
+      "ms": 240,
+      "days": 6,
+      "destinationName": "Barcelona",
+      "cities": [
+        "Barcelona"
+      ],
+      "daysWithPins": "6/6",
+      "totalPins": 28,
+      "avgPinsPerDay": 4.67,
+      "pinCounts": [
+        5,
+        4,
+        6,
+        3,
+        5,
+        5
+      ],
+      "issues": [],
+      "warnings": [],
+      "ok": true,
+      "pdf": "plan-exports/qa-10-2026-07-24/02-LJU-BCN.pdf"
+    },
+    {
+      "id": "03-FRA-NRT",
+      "region": "Asia",
+      "route": "FRA\u2192NRT",
+      "expectedDays": 8,
+      "budget": "standard",
+      "pace": "balanced",
+      "cached": true,
+      "status": "ok",
+      "ms": 214,
+      "days": 8,
+      "destinationName": "Japonska",
+      "cities": [
+        "Frankfurt",
+        "Tokyo"
+      ],
+      "daysWithPins": "6/8",
+      "totalPins": 30,
+      "avgPinsPerDay": 3.75,
+      "pinCounts": [
+        0,
+        5,
+        5,
+        3,
+        6,
+        5,
+        6,
+        0
+      ],
+      "issues": [],
+      "warnings": [],
+      "ok": true,
+      "pdf": "plan-exports/qa-10-2026-07-24/03-FRA-NRT.pdf"
+    },
+    {
+      "id": "04-VIE-KEF",
+      "region": "Europe",
+      "route": "VIE\u2192KEF",
+      "expectedDays": 6,
+      "budget": "standard",
+      "pace": "relaxed",
+      "cached": true,
+      "status": "ok",
+      "ms": 218,
+      "days": 6,
+      "destinationName": "Islandija",
+      "cities": [
+        "Reykjavik"
+      ],
+      "daysWithPins": "6/6",
+      "totalPins": 11,
+      "avgPinsPerDay": 1.83,
+      "pinCounts": [
+        1,
+        1,
+        4,
+        2,
+        2,
+        1
+      ],
+      "issues": [],
+      "warnings": [],
+      "ok": true,
+      "pdf": "plan-exports/qa-10-2026-07-24/04-VIE-KEF.pdf"
+    },
+    {
+      "id": "05-CDG-JFK",
+      "region": "USA",
+      "route": "CDG\u2192JFK",
+      "expectedDays": 7,
+      "budget": "luxury",
+      "pace": "balanced",
+      "cached": true,
+      "status": "ok",
+      "ms": 226,
+      "days": 7,
+      "destinationName": "New York",
+      "cities": [
+        "New York"
+      ],
+      "daysWithPins": "7/7",
+      "totalPins": 23,
+      "avgPinsPerDay": 3.29,
+      "pinCounts": [
+        2,
+        6,
+        4,
+        2,
+        3,
+        2,
+        4
+      ],
+      "issues": [],
+      "warnings": [],
+      "ok": true,
+      "pdf": "plan-exports/qa-10-2026-07-24/05-CDG-JFK.pdf"
+    },
+    {
+      "id": "06-AMS-CPT",
+      "region": "Africa",
+      "route": "AMS\u2192CPT",
+      "expectedDays": 8,
+      "budget": "standard",
+      "pace": "balanced",
+      "cached": true,
+      "status": "ok",
+      "ms": 243,
+      "days": 8,
+      "destinationName": "Cape Town",
+      "cities": [
+        "Amsterdam",
+        "Cape Town"
+      ],
+      "daysWithPins": "7/8",
+      "totalPins": 39,
+      "avgPinsPerDay": 4.88,
+      "pinCounts": [
+        0,
+        4,
+        6,
+        6,
+        6,
+        7,
+        6,
+        4
+      ],
+      "issues": [],
+      "warnings": [],
+      "ok": true,
+      "pdf": "plan-exports/qa-10-2026-07-24/06-AMS-CPT.pdf"
+    },
+    {
+      "id": "07-ZRH-DXB",
+      "region": "Middle East",
+      "route": "ZRH\u2192DXB",
+      "expectedDays": 6,
+      "budget": "luxury",
+      "pace": "packed",
+      "cached": true,
+      "status": "ok",
+      "ms": 217,
+      "days": 6,
+      "destinationName": "Dubai",
+      "cities": [
+        "Dubai"
+      ],
+      "daysWithPins": "6/6",
+      "totalPins": 17,
+      "avgPinsPerDay": 2.83,
+      "pinCounts": [
+        3,
+        2,
+        2,
+        4,
+        3,
+        3
+      ],
+      "issues": [],
+      "warnings": [],
+      "ok": true,
+      "pdf": "plan-exports/qa-10-2026-07-24/07-ZRH-DXB.pdf"
+    },
+    {
+      "id": "08-FCO-ATH",
+      "region": "Europe",
+      "route": "FCO\u2192ATH",
+      "expectedDays": 7,
+      "budget": "budget",
+      "pace": "relaxed",
+      "cached": true,
+      "status": "ok",
+      "ms": 219,
+      "days": 7,
+      "destinationName": "Gr\u010dija",
+      "cities": [
+        "Athens",
+        "Santorini"
+      ],
+      "daysWithPins": "6/7",
+      "totalPins": 21,
+      "avgPinsPerDay": 3,
+      "pinCounts": [
+        3,
+        3,
+        5,
+        4,
+        4,
+        2,
+        0
+      ],
+      "issues": [],
+      "warnings": [],
+      "ok": true,
+      "pdf": "plan-exports/qa-10-2026-07-24/08-FCO-ATH.pdf"
+    },
+    {
+      "id": "09-MAD-LIM",
+      "region": "South America",
+      "route": "MAD\u2192LIM",
+      "expectedDays": 9,
+      "budget": "standard",
+      "pace": "balanced",
+      "cached": true,
+      "status": "ok",
+      "ms": 218,
+      "days": 9,
+      "destinationName": "Peru",
+      "cities": [
+        "Lima",
+        "Cusco"
+      ],
+      "daysWithPins": "9/9",
+      "totalPins": 32,
+      "avgPinsPerDay": 3.56,
+      "pinCounts": [
+        1,
+        3,
+        5,
+        3,
+        6,
+        5,
+        5,
+        2,
+        2
+      ],
+      "issues": [],
+      "warnings": [],
+      "ok": true,
+      "pdf": "plan-exports/qa-10-2026-07-24/09-MAD-LIM.pdf"
+    },
+    {
+      "id": "10-WAW-LIS",
+      "region": "Europe",
+      "route": "WAW\u2192LIS",
+      "expectedDays": 7,
+      "budget": "budget",
+      "pace": "relaxed",
+      "status": "ok",
+      "ms": 74364,
+      "days": 7,
+      "destinationName": "Portugal",
+      "cities": [
+        "Lisbon",
+        "Sintra"
+      ],
+      "daysWithPins": "7/7",
+      "totalPins": 23,
+      "avgPinsPerDay": 3.29,
+      "pinCounts": [
+        2,
+        5,
+        5,
+        4,
+        2,
+        3,
+        2
+      ],
+      "issues": [],
+      "warnings": [],
+      "ok": true,
+      "pdf": "plan-exports/qa-10-2026-07-24/10-WAW-LIS.pdf"
+    }
+  ]
+}

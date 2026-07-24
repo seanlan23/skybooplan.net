@@ -62,6 +62,24 @@ function flattenDayActivities(day: DayPlan): Activity[] {
   return [...(a.morning ?? []), ...(a.afternoon ?? []), ...(a.evening ?? [])];
 }
 
+function normalizeCityToken(name: string): string {
+  return name
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+/** Loose city match for hub-hop detection (Krabi ≠ Bangkok). */
+function cityNamesMatch(a: string, b: string): boolean {
+  const left = normalizeCityToken(a);
+  const right = normalizeCityToken(b);
+  if (!left || !right) return false;
+  if (left === right) return true;
+  return left.includes(right) || right.includes(left);
+}
+
 function mergeArrivalDay(
   day: DayPlan,
   flights: TripFlightContext,
@@ -241,12 +259,20 @@ function patchArrivalActivityClockTimes(
   const patchList = (list: Activity[] | undefined): Activity[] =>
     (list ?? []).map((a) => {
       const blob = `${a.name} ${a.description ?? ""} ${a.type ?? ""}`.toLowerCase();
+      // Never rewrite origin-airport departure logistics (same-day arrival day 1).
+      if (
+        /odhod:\s|domačega letališča|home airport|parkvia|parkos|m\+r\b|p\+r\b/i.test(blob) ||
+        (/check-in in varnostni pregled|security screening/i.test(a.name) &&
+          !/prihod na letališč|airport arrival|pristane|lands?\b/i.test(blob))
+      ) {
+        return a;
+      }
       const isAirport =
         /letališč|airport|prihod|pristane|landing|transfer|check-?in|hotel|prtljag/i.test(blob);
       if (!isAirport) return a;
       let description = a.description;
       if (description) {
-        // Rewrite "pristane ob 12:00" → real land time (first clock in airport copy).
+        // Rewrite first landing clock only — do not blanket-replace every "ob HH:MM".
         let replaced = false;
         description = description.replace(/\b\d{1,2}:\d{2}\b/g, (match) => {
           if (!replaced) {
@@ -255,10 +281,6 @@ function patchArrivalActivityClockTimes(
           }
           return match;
         });
-        description = description.replace(
-          /ob\s+\d{1,2}:\d{2}/gi,
-          `ob ${land}`,
-        );
       }
       return {
         ...a,
@@ -347,8 +369,8 @@ export function applyFlightContextToGeminiPlan(
         description: locale.slo
           ? `Še v letu proti destinaciji — dan ${day.day} od ${totalDays}. Po pristanku (dan ${arrivalDay}, ${formatArrivalTime(flights, locale.slo)}) sledi check-in.`
           : `Still en route — day ${day.day} of ${totalDays}. Landing day ${arrivalDay} at ${formatArrivalTime(flights, false)}; then check-in.`,
-        arrivalTime: flights.outboundDepart,
-        departureTime: flights.outboundArrive,
+        departureTime: flights.outboundDepart,
+        arrivalTime: flights.outboundArrive,
       };
       const originActs =
         day.day === 1 && originIata && flights.outboundDepart
@@ -446,13 +468,35 @@ export function applyFlightContextToGeminiPlan(
         day.inFlightDay = true;
         day.category = "transport";
       }
+      const prevDay = [...plan.days]
+        .reverse()
+        .find((d) => d.day < totalDays && !d.inFlightDay);
+      const prevCity = (prevDay?.city || prevDay?.focusName || "").trim();
       // Prefer destination hub over a stale island city (e.g. Krabi on BKK departure day).
       const destHub = plan.destinationIata
         ? lookupDestination(plan.destinationIata)
         : undefined;
-      if (destHub?.name) {
-        day.city = destHub.name;
-        day.focusName = destHub.name;
+      const hubName = destHub?.name?.trim();
+      const needsHubHop = Boolean(
+        hubName &&
+          prevCity &&
+          !cityNamesMatch(prevCity, hubName) &&
+          !cityNamesMatch(prevCity, plan.destinationName ?? ""),
+      );
+      if (hubName) {
+        day.city = hubName;
+        day.focusName = hubName;
+        day.title = locale.slo
+          ? needsHubHop
+            ? `Prevoz v ${hubName} in mednarodni odhod`
+            : `Odhod iz ${hubName} / mednarodni let`
+          : needsHubHop
+            ? `Transfer to ${hubName} and international departure`
+            : `Departure from ${hubName} / international flight`;
+        if (destHub?.lat != null && destHub?.lng != null) {
+          day.lat = destHub.lat;
+          day.lng = destHub.lng;
+        }
       }
       const logistics = buildDepartureLogistics(day.city || plan.destinationName, flights, locale, {
         accommodationMode: plan.accommodationMode,
@@ -462,6 +506,18 @@ export function applyFlightContextToGeminiPlan(
         afternoon: [],
         evening: [],
       };
+      if (needsHubHop && hubName && prevCity) {
+        const hop: Activity = {
+          name: locale.slo
+            ? `Notranji prevoz ${prevCity} → ${hubName}`
+            : `Domestic transfer ${prevCity} → ${hubName}`,
+          type: "TRANSPORT",
+          description: locale.slo
+            ? `Pred mednarodnim odhodom ob ${flights.inboundDepart} se vrneš v ${hubName} (ne ostani v ${prevCity}). Računaj na notranji let ali dolg transfer — rezerviraj vnaprej.`
+            : `Before the international departure at ${flights.inboundDepart}, return to ${hubName} (do not stay in ${prevCity}). Budget a domestic flight or long transfer — book ahead.`,
+        };
+        merged.morning = [hop, ...(merged.morning ?? [])].slice(0, 4);
+      }
       day.activities = patchAirportActivityTimes(
         merged,
         flights.inboundDepart,

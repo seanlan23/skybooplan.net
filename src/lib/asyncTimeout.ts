@@ -2,7 +2,7 @@
 export const HTTP_API_TIMEOUT_MS = 30_000;
 
 /** Max wait for Gemini structured generation (single LLM call). */
-export const GEMINI_GENERATION_TIMEOUT_MS = 120_000;
+export const GEMINI_GENERATION_TIMEOUT_MS = 180_000;
 
 /** Abort itinerary stream if Gemini goes silent between partials. */
 export const GEMINI_STREAM_STALL_MS = 120_000;

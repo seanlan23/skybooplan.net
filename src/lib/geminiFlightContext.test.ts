@@ -212,4 +212,220 @@ describe("applyFlightContextToGeminiPlan", () => {
     expect(eveningText).not.toMatch(/12:00/);
     expect(eveningText).toMatch(/transfer|check|Prihod|hotel|letališ/i);
   });
+
+  it("keeps origin departure time on same-day arrival (does not overwrite with land time)", () => {
+    const plan = basePlan({
+      destinationName: "Lima",
+      destinationIata: "LIM",
+      days: [
+        {
+          day: 1,
+          date: "2026-08-14",
+          title: "Prihod v Limo",
+          morning: "",
+          afternoon: "",
+          evening: "",
+          travelHack: "",
+          transportationTips: "",
+          localWarnings: "",
+          dailyBudgetEur: 80,
+          lat: -12.05,
+          lng: -77.04,
+          focusName: "Lima",
+          city: "Lima",
+          category: "activity",
+          activities: {
+            morning: [],
+            afternoon: [],
+            evening: [{ name: "Sprehod Miraflores", type: "ACTIVITY", description: "Večer" }],
+          },
+        },
+        {
+          day: 2,
+          date: "2026-08-15",
+          title: "Mesto",
+          morning: "",
+          afternoon: "",
+          evening: "",
+          travelHack: "",
+          transportationTips: "",
+          localWarnings: "",
+          dailyBudgetEur: 90,
+          lat: -12.05,
+          lng: -77.04,
+          focusName: "Lima",
+          city: "Lima",
+          category: "city",
+          activities: {
+            morning: [{ name: "Muzej", type: "SIGHT", description: "Ogled" }],
+            afternoon: [],
+            evening: [],
+          },
+        },
+        {
+          day: 3,
+          date: "2026-08-16",
+          title: "Odhod",
+          morning: "",
+          afternoon: "",
+          evening: "",
+          travelHack: "",
+          transportationTips: "",
+          localWarnings: "",
+          dailyBudgetEur: 40,
+          lat: -12.05,
+          lng: -77.04,
+          focusName: "Lima",
+          city: "Lima",
+          category: "transport",
+          activities: { morning: [], afternoon: [], evening: [] },
+        },
+      ],
+    });
+
+    applyFlightContextToGeminiPlan(
+      plan,
+      {
+        outboundDepart: "12:40",
+        outboundArrive: "18:15",
+        outboundArriveDayOffset: 0,
+        inboundDepart: "20:50",
+        inboundArrive: "14:40",
+      },
+      { originIata: "MAD", language: "sl" },
+    );
+
+    const day1 = JSON.stringify(plan.days[0]?.activities);
+    expect(day1).toMatch(/12:40/);
+    expect(day1).toMatch(/18:15/);
+    // Origin depart logistics must not be rewritten to landing time only.
+    const originBlob = (plan.days[0]?.activities?.morning ?? [])
+      .filter((a) => /Odhod|Check-in in varnostni/i.test(a.name))
+      .map((a) => a.description ?? "")
+      .join(" ");
+    expect(originBlob).toContain("12:40");
+    expect(originBlob).not.toMatch(/ob 18:15/);
+  });
+
+  it("injects domestic hop when last night city differs from international hub", () => {
+    const plan = basePlan({
+      destinationName: "Thailand",
+      destinationIata: "BKK",
+      days: [
+        {
+          day: 1,
+          date: "2026-09-19",
+          title: "Let",
+          morning: "",
+          afternoon: "",
+          evening: "",
+          travelHack: "",
+          transportationTips: "",
+          localWarnings: "",
+          dailyBudgetEur: 40,
+          lat: 48.35,
+          lng: 11.78,
+          focusName: "Munich",
+          city: "Munich",
+          category: "transport",
+          inFlightDay: true,
+          activities: { morning: [], afternoon: [], evening: [] },
+        },
+        {
+          day: 2,
+          date: "2026-09-20",
+          title: "Bangkok",
+          morning: "",
+          afternoon: "",
+          evening: "",
+          travelHack: "",
+          transportationTips: "",
+          localWarnings: "",
+          dailyBudgetEur: 80,
+          lat: 13.75,
+          lng: 100.5,
+          focusName: "Bangkok",
+          city: "Bangkok",
+          category: "city",
+          activities: {
+            morning: [{ name: "Tempelj", type: "SIGHT", description: "Ogled" }],
+            afternoon: [],
+            evening: [],
+          },
+        },
+        {
+          day: 3,
+          date: "2026-09-21",
+          title: "Krabi plaže",
+          morning: "",
+          afternoon: "",
+          evening: "",
+          travelHack: "",
+          transportationTips: "",
+          localWarnings: "",
+          dailyBudgetEur: 90,
+          lat: 8.08,
+          lng: 98.91,
+          focusName: "Krabi",
+          city: "Krabi",
+          category: "beach",
+          activities: {
+            morning: [{ name: "Ao Nang", type: "beach", description: "Plaža" }],
+            afternoon: [],
+            evening: [],
+          },
+        },
+        {
+          day: 4,
+          date: "2026-09-22",
+          title: "Odhod iz Krabija in povratek",
+          morning: "",
+          afternoon: "",
+          evening: "",
+          travelHack: "",
+          transportationTips: "",
+          localWarnings: "",
+          dailyBudgetEur: 40,
+          lat: 8.08,
+          lng: 98.91,
+          focusName: "Krabi",
+          city: "Krabi",
+          category: "transport",
+          activities: {
+            morning: [],
+            afternoon: [],
+            evening: [
+              {
+                name: "Odlet",
+                type: "TRANSPORT",
+                description: "Odhod 23:40",
+              },
+            ],
+          },
+        },
+      ],
+    });
+
+    applyFlightContextToGeminiPlan(
+      plan,
+      {
+        outboundDepart: "22:30",
+        outboundArrive: "18:10",
+        outboundArriveDayOffset: 1,
+        inboundDepart: "23:40",
+        inboundArrive: "06:15",
+      },
+      { originIata: "MUC", language: "sl" },
+    );
+
+    const last = plan.days[3]!;
+    expect(last.city).toMatch(/Bangkok/i);
+    expect(last.title).toMatch(/Bangkok|Prevoz/i);
+    const names = [
+      ...(last.activities?.morning ?? []),
+      ...(last.activities?.afternoon ?? []),
+      ...(last.activities?.evening ?? []),
+    ].map((a) => a.name);
+    expect(names.join(" | ")).toMatch(/Krabi.*Bangkok|Notranji prevoz/i);
+  });
 });
