@@ -12,12 +12,17 @@ import {
   isSunsetTemplePoi,
   stripFalseArrivalCopy,
 } from "@/lib/tripContent";
+import { planLangCopy } from "@/lib/planLangCopy";
 import type { TripLocale } from "@/lib/tripLocale";
 import {
   rewriteActivityCityLeak,
   rewriteCountryFoodLeak,
   sanitizeDaySlots,
 } from "@/lib/textSanitize";
+
+function loc(locale: TripLocale, copies: Parameters<typeof planLangCopy>[1]): string {
+  return planLangCopy(locale.langCode, copies);
+}
 
 type DaySlots = { morning: Activity[]; afternoon: Activity[]; evening: Activity[] };
 
@@ -377,34 +382,70 @@ const PHILIPPINES_POOL: PoolEntry[] = [
   {
     slot: "morning",
     activity: (locale) => ({
-      name: locale.slo ? "Filipinski zajtrk (Tapsilog)" : "Filipino breakfast (Tapsilog)",
+      name: loc(locale, {
+        sl: "Filipinski zajtrk (Tapsilog)",
+        en: "Filipino breakfast (Tapsilog)",
+        it: "Colazione filippina (Tapsilog)",
+        es: "Desayuno filipino (Tapsilog)",
+        fr: "Petit-déjeuner philippin (Tapsilog)",
+        de: "Philippinisches Frühstück (Tapsilog)",
+      }),
       type: "EAT",
       priceLabel: priceEur(locale, "80–150 PHP"),
-      description: locale.slo
-        ? "Začni z tapsilog (sušena govedina, jajce, riž) ali sinangag — lokalni zajtrk, ne vietnamski pho."
-        : "Start with tapsilog or sinangag — local Filipino breakfast.",
+      description: loc(locale, {
+        sl: "Začni z tapsilog (sušena govedina, jajce, riž) ali sinangag — lokalni zajtrk, ne vietnamski pho.",
+        en: "Start with tapsilog or sinangag — local Filipino breakfast.",
+        it: "Inizia con tapsilog o sinangag — colazione tipica filippina.",
+        es: "Empieza con tapsilog o sinangag — desayuno filipino local.",
+        fr: "Commencez par tapsilog ou sinangag — petit-déjeuner philippin local.",
+        de: "Starte mit Tapsilog oder Sinangag — lokales philippinisches Frühstück.",
+      }),
     }),
   },
   {
     slot: "afternoon",
     activity: (locale) => ({
-      name: locale.slo ? "Pavza v klimatiziranem kavarni" : "Air-con café break",
+      name: loc(locale, {
+        sl: "Pavza v klimatiziranem kavarni",
+        en: "Air-con café break",
+        it: "Pausa in caffè climatizzato",
+        es: "Pausa en café con aire acondicionado",
+        fr: "Pause café climatisé",
+        de: "Pause im klimatisierten Café",
+      }),
       type: "EAT",
       priceLabel: priceEur(locale, "100–200 PHP"),
-      description: locale.slo
-        ? "Popoldanska pavza — halo-halo ali kava v mallu; monsun prinaša plohe."
-        : "Afternoon break — halo-halo or mall coffee; monsoon showers possible.",
+      description: loc(locale, {
+        sl: "Popoldanska pavza — halo-halo ali kava v mallu; monsun prinaša plohe.",
+        en: "Afternoon break — halo-halo or mall coffee; monsoon showers possible.",
+        it: "Pausa pomeridiana — halo-halo o caffè al mall; possibili piogge monsoniche.",
+        es: "Pausa de tarde — halo-halo o café en el centro comercial; posibles lluvias monzónicas.",
+        fr: "Pause de l'après-midi — halo-halo ou café au mall ; averses de mousson possibles.",
+        de: "Nachmittagspause — Halo-Halo oder Mall-Kaffee; Monsunregen möglich.",
+      }),
     }),
   },
   {
     slot: "evening",
     activity: (locale) => ({
-      name: locale.slo ? "Seafood / night market" : "Seafood / night market",
+      name: loc(locale, {
+        sl: "Morski sadeži / nočni trg",
+        en: "Seafood / night market",
+        it: "Pesce / mercato notturno",
+        es: "Mariscos / mercado nocturno",
+        fr: "Fruits de mer / marché de nuit",
+        de: "Meeresfrüchte / Nachtmarkt",
+      }),
       type: "EAT",
       priceLabel: priceEur(locale, "200–500 PHP"),
-      description: locale.slo
-        ? "Večerja z morskimi sadeži ali nočni trg — D'Talipapa (Boracay), Binondo (Manila) ali lokalni BBQ."
-        : "Seafood dinner or night market — D'Talipapa, Binondo, or local BBQ.",
+      description: loc(locale, {
+        sl: "Večerja z morskimi sadeži ali nočni trg — D'Talipapa (Boracay), Binondo (Manila) ali lokalni BBQ.",
+        en: "Seafood dinner or night market — D'Talipapa, Binondo, or local BBQ.",
+        it: "Cena di pesce o mercato notturno — D'Talipapa, Binondo o BBQ locale.",
+        es: "Cena de mariscos o mercado nocturno — D'Talipapa, Binondo o BBQ local.",
+        fr: "Dîner fruits de mer ou marché de nuit — D'Talipapa, Binondo ou BBQ local.",
+        de: "Meeresfrüchte-Abendessen oder Nachtmarkt — D'Talipapa, Binondo oder lokales BBQ.",
+      }),
     }),
   },
 ];

@@ -705,6 +705,42 @@ function philippinesPack(lang: LangCode): CuratedTravelPack {
         "Visum (30 Tage): 0 €. Verlängerung lokal gebührenpflichtig. Impfungen: ca. 80–200 €.",
     };
   }
+  if (L === "it") {
+    return {
+      visaRequirement:
+        "I cittadini UE possono entrare nelle Filippine senza visto fino a 30 giorni (turismo). Passaporto valido 6+ mesi; biglietto di ritorno spesso richiesto.",
+      howToApply:
+        "Nessun visto in anticipo per 30 giorni. All'ingresso mostra passaporto e prova di partenza. Proroga possibile all'immigrazione a pagamento.",
+      vaccinations:
+        "Consigliati: epatite A/B, tifo; routine. Malaria su alcune isole — verifica la regione. Porta repellente.",
+      estimatedCosts:
+        "Visto (30 giorni): 0 €. Proroga: tariffa locale. Vaccini: circa 80–200 €.",
+    };
+  }
+  if (L === "es") {
+    return {
+      visaRequirement:
+        "Los ciudadanos UE pueden entrar en Filipinas sin visado hasta 30 días (turismo). Pasaporte válido 6+ meses; billete de vuelta a menudo exigido.",
+      howToApply:
+        "Sin visado previo para 30 días. A la entrada muestra pasaporte y prueba de salida. Prórroga posible en inmigración con tasa.",
+      vaccinations:
+        "Recomendado: hepatitis A/B, tifus; rutina. Malaria en algunas islas — comprueba la región. Lleva repelente.",
+      estimatedCosts:
+        "Visado (30 días): 0 €. Prórroga: tasa local. Vacunas: unos 80–200 €.",
+    };
+  }
+  if (L === "fr") {
+    return {
+      visaRequirement:
+        "Les citoyens UE peuvent entrer aux Philippines sans visa jusqu'à 30 jours (tourisme). Passeport valide 6+ mois ; billet retour souvent exigé.",
+      howToApply:
+        "Pas de visa à l'avance pour 30 jours. À l'entrée, présentez passeport et preuve de départ. Prolongation possible à l'immigration contre frais.",
+      vaccinations:
+        "Recommandé : hépatite A/B, typhoïde ; routines. Paludisme sur certaines îles — vérifiez la région. Emportez un répulsif.",
+      estimatedCosts:
+        "Visa (30 jours) : 0 €. Prolongation : frais locaux. Vaccins : environ 80–200 €.",
+    };
+  }
   return {
     visaRequirement:
       "EU citizens can enter the Philippines visa-free for up to 30 days (tourism). Passport valid 6+ months; return ticket often required.",

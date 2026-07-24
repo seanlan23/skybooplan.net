@@ -1,9 +1,17 @@
 import { lookupDestination } from "@/lib/destinationCoords";
 import { getInterestAnchor } from "@/lib/interestAnchors";
+import { planLangCopy } from "@/lib/planLangCopy";
 import type { PlannerInterestKey } from "@/lib/plannerInterests";
 import { parsePlannerInterestKeys } from "@/lib/plannerInterests";
 
-type HintText = { sl: string; en: string };
+type HintText = {
+  sl: string;
+  en: string;
+  it?: string;
+  es?: string;
+  fr?: string;
+  de?: string;
+};
 
 type CountryHint = HintText & {
   countries: string[];
@@ -27,6 +35,10 @@ const COUNTRY_HINTS: CountryHint[] = [
     group: "PH-season",
     sl: "Na Filipinih je običajno obdobje monsunskih dežjev — pogoste popoldanske plohe in višja vlažnost.",
     en: "Philippines wet/monsoon season — frequent afternoon showers and high humidity.",
+    it: "Filippine: stagione delle piogge/monsone — frequenti rovesci pomeridiani e alta umidità.",
+    es: "Filipinas: temporada de lluvias/monzón — chaparrones por la tarde y alta humedad.",
+    fr: "Philippines : saison des pluies/mousson — averses l'après-midi et forte humidité.",
+    de: "Philippinen: Regen-/Monsunzeit — häufige Nachmittags-Schauer und hohe Luftfeuchtigkeit.",
   },
   {
     countries: ["PH"],
@@ -34,6 +46,10 @@ const COUNTRY_HINTS: CountryHint[] = [
     group: "PH-season",
     sl: "Sušna sezona na Filipinih — manj dežja, primerno za otoke in potapljanje.",
     en: "Philippines dry season — less rain, good for islands and diving.",
+    it: "Filippine: stagione secca — meno pioggia, ideale per isole e immersioni.",
+    es: "Filipinas: estación seca — menos lluvia, ideal para islas y buceo.",
+    fr: "Philippines : saison sèche — moins de pluie, idéal pour îles et plongée.",
+    de: "Philippinen: Trockenzeit — weniger Regen, gut für Inseln und Tauchen.",
   },
   {
     countries: ["AU"],
@@ -258,12 +274,15 @@ export type TripClimateResult = {
   regionClimate: RegionClimateBlock[];
 };
 
-function useSl(lang: string): boolean {
-  return lang.startsWith("sl");
-}
-
 function pickText(h: HintText, lang: string): string {
-  return useSl(lang) ? h.sl : h.en;
+  return planLangCopy(lang, {
+    sl: h.sl,
+    en: h.en,
+    it: h.it,
+    es: h.es,
+    fr: h.fr,
+    de: h.de,
+  });
 }
 
 /** Central Vietnam (Hoi An, Hue) — peak rain/flood months per vn-central-flood hint. */
@@ -551,22 +570,31 @@ function hemisphereHints(
   lang: string,
 ): string[] {
   const out: string[] = [];
-  const useSl = lang.startsWith("sl");
 
   if (dest.lat < 0 && months.some((m) => m >= 6 && m <= 8)) {
     out.push(
-      useSl
-        ? "Destinacija je na južni polobli — v tem obdobju je tam zima (v Evropi poletje)."
-        : "Southern hemisphere destination — winter there while Europe has summer.",
+      planLangCopy(lang, {
+        sl: "Destinacija je na južni polobli — v tem obdobju je tam zima (v Evropi poletje).",
+        en: "Southern hemisphere destination — winter there while Europe has summer.",
+        it: "Destinazione nell'emisfero sud — lì è inverno mentre in Europa è estate.",
+        es: "Destino en el hemisferio sur — allí es invierno mientras en Europa es verano.",
+        fr: "Destination dans l'hémisphère sud — hiver là-bas pendant l'été en Europe.",
+        de: "Ziel auf der Südhalbkugel — dort ist Winter, während Europa Sommer hat.",
+      }),
     );
   }
   if (dest.lat > 0 && months.some((m) => m >= 12 || m <= 2)) {
     if (dest.country !== "AE" && dest.lat < 35) {
       if (["TH", "PH", "ID", "VN", "MY", "SG", "MX", "BR"].includes(dest.country)) {
         out.push(
-          useSl
-            ? "Evropska zima — na destinaciji je običajno toplo in sončno."
-            : "European winter — destination is typically warm and sunny.",
+          planLangCopy(lang, {
+            sl: "Evropska zima — na destinaciji je običajno toplo in sončno.",
+            en: "European winter — destination is typically warm and sunny.",
+            it: "Inverno europeo — a destinazione di solito è caldo e soleggiato.",
+            es: "Invierno europeo — en destino suele hacer calor y sol.",
+            fr: "Hiver européen — la destination est généralement chaude et ensoleillée.",
+            de: "Europäischer Winter — am Ziel ist es typischerweise warm und sonnig.",
+          }),
         );
       }
     }

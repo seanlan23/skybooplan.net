@@ -7,6 +7,7 @@ import {
   isCoastalTripCity,
   lookupCoastalCoords,
 } from "@/lib/lunarTides";
+import { planLangCopy } from "@/lib/planLangCopy";
 import { inferLikelyRegionCities, buildTripClimate } from "@/lib/seasonalHints";
 
 const Input = z.object({
@@ -33,15 +34,84 @@ export type DestinationContext = {
 };
 
 function weatherLabel(code: number, lang: string): string {
-  const sl = lang.startsWith("sl");
-  if (code === 0) return sl ? "jasno" : "clear";
-  if (code <= 3) return sl ? "delno oblačno" : "partly cloudy";
-  if (code <= 48) return sl ? "megla" : "fog";
-  if (code <= 67) return sl ? "dež" : "rain";
-  if (code <= 77) return sl ? "sneg" : "snow";
-  if (code <= 82) return sl ? "plohe" : "showers";
-  if (code <= 99) return sl ? "nevihta" : "thunderstorm";
-  return sl ? "spremenljivo" : "variable";
+  if (code === 0) {
+    return planLangCopy(lang, {
+      sl: "jasno",
+      en: "clear",
+      it: "sereno",
+      es: "despejado",
+      fr: "clair",
+      de: "klar",
+    });
+  }
+  if (code <= 3) {
+    return planLangCopy(lang, {
+      sl: "delno oblačno",
+      en: "partly cloudy",
+      it: "parzialmente nuvoloso",
+      es: "parcialmente nublado",
+      fr: "partiellement nuageux",
+      de: "teilweise bewölkt",
+    });
+  }
+  if (code <= 48) {
+    return planLangCopy(lang, {
+      sl: "megla",
+      en: "fog",
+      it: "nebbia",
+      es: "niebla",
+      fr: "brouillard",
+      de: "Nebel",
+    });
+  }
+  if (code <= 67) {
+    return planLangCopy(lang, {
+      sl: "dež",
+      en: "rain",
+      it: "pioggia",
+      es: "lluvia",
+      fr: "pluie",
+      de: "Regen",
+    });
+  }
+  if (code <= 77) {
+    return planLangCopy(lang, {
+      sl: "sneg",
+      en: "snow",
+      it: "neve",
+      es: "nieve",
+      fr: "neige",
+      de: "Schnee",
+    });
+  }
+  if (code <= 82) {
+    return planLangCopy(lang, {
+      sl: "plohe",
+      en: "showers",
+      it: "rovesci",
+      es: "chubascos",
+      fr: "averses",
+      de: "Schauer",
+    });
+  }
+  if (code <= 99) {
+    return planLangCopy(lang, {
+      sl: "nevihta",
+      en: "thunderstorm",
+      it: "temporale",
+      es: "tormenta",
+      fr: "orage",
+      de: "Gewitter",
+    });
+  }
+  return planLangCopy(lang, {
+    sl: "spremenljivo",
+    en: "variable",
+    it: "variabile",
+    es: "variable",
+    fr: "variable",
+    de: "wechselhaft",
+  });
 }
 
 async function fetchCurrentWeather(

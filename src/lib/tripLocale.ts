@@ -409,7 +409,7 @@ const WRITING_RULES: Record<PlanLang, string> = {
   en: "CRITICAL: All text in English only. Never mix languages or provide dual translations in the same field. Proper nouns and airport codes may stay as-is.",
   es: "CRÍTICO: Todo el texto solo en español. Nunca mezcles idiomas ni ofrezcas traducciones duales en el mismo campo. Nombres propios y códigos de aeropuerto pueden quedar como están.",
   fr: "CRITIQUE : Tout le texte uniquement en français. Ne mélangez jamais les langues ni ne fournissez de double traduction dans le même champ. Noms propres et codes aéroport inchangés.",
-  it: "CRITICO: Tutto il testo solo in italiano. Non mescolare mai le lingue né fornire doppie traduzioni nello stesso campo. Nomi propri e codici aeroporto invariati.",
+  it: "CRITICO: Tutto il testo solo in italiano — titoli, descrizioni, tip e slot (mattina/pomeriggio/sera). Non mescolare mai inglese o sloveno. Niente titoli tipo «Air-con café break» o «Filipino breakfast» in inglese: traducili (es. «Pausa in caffè climatizzato», «Colazione filippina»). Nomi propri e codici aeroporto invariati.",
   de: "KRITISCH: Gesamter Text nur auf Deutsch. Niemals Sprachen mischen oder Doppelübersetzungen im selben Feld. Eigennamen und Flughafencodes unverändert.",
 };
 

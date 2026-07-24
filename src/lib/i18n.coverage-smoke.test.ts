@@ -29,6 +29,18 @@ const SURFACE_KEYS = [
   "terms.title",
   "pricing.title1",
   "weather.summaryClothing",
+  "ai.interests",
+  "ai.interest.beaches",
+  "ai.budget",
+  "ai.specialWishes",
+  "ai.wishesOptional",
+  "heroTrip.planTitle",
+  "aiplan.downloadPdf",
+  "aiplan.totalIncludes",
+  "dashboard.donationBadge",
+  "dashboard.donationTitle",
+  "context.flightLand",
+  "aiplan.streamingProgress",
 ] as const;
 
 describe("i18n surface coverage", () => {
@@ -65,5 +77,11 @@ describe("i18n surface coverage", () => {
       expect(uk!.visaInfo[0]!.requirement).not.toMatch(/do not need a visa for short UK/i);
       expect(us!.visaInfo[0]!.requirement).not.toMatch(/need ESTA \(Visa Waiver Program\)/i);
     }
+  });
+
+  it("Philippines travel-req bodies are localized for it", () => {
+    const req = buildFallbackTravelRequirements("MNL", "MNL", "it");
+    expect(req!.visaInfo[0]!.requirement).toMatch(/Filippine|visto/i);
+    expect(req!.visaInfo[0]!.requirement).not.toMatch(/visa-free for up to 30 days/i);
   });
 });

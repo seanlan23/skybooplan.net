@@ -948,6 +948,15 @@ export function HeroChatFlow({
     const query = buildHeroMakeSearchQuery(
       localizeHeroCollectedForUi(data, lang, (key) => t(key as never)),
       mode,
+      (key, vars) => {
+        let out = t(key as never);
+        if (vars) {
+          for (const [k, v] of Object.entries(vars)) {
+            out = out.replace(`{${k}}`, v);
+          }
+        }
+        return out;
+      },
     );
     onSearch(query, data, mode);
   }, [
