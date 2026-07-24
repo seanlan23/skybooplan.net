@@ -1,8 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { MapPin, Calendar, Plus, Sparkles } from "lucide-react";
+import { Calendar, Loader2, MapPin, Plus, Sparkles } from "lucide-react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
+import { LogoMark } from "@/components/Logo";
+import { DashboardDonateCard } from "@/components/DashboardDonateCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { readStoredLang, translate, useT } from "@/lib/i18n";
@@ -26,6 +28,10 @@ type Plan = {
   created_at: string;
 };
 
+const heroBg =
+  "linear-gradient(165deg, oklch(0.99 0.01 240) 0%, oklch(0.96 0.04 235) 42%, oklch(0.98 0.03 70) 100%)";
+const skyBtn = { background: "linear-gradient(135deg, #0EA5E9, #0284C7)" };
+
 function MyTripsPage() {
   const { user } = useAuth();
   const [plans, setPlans] = useState<Plan[]>([]);
@@ -34,7 +40,8 @@ function MyTripsPage() {
 
   useEffect(() => {
     if (!user) return;
-    supabase.from("travel_plans")
+    supabase
+      .from("travel_plans")
       .select("id,title,destination,start_date,end_date,cover_image_url,created_at")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
@@ -45,62 +52,138 @@ function MyTripsPage() {
   }, [user]);
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: "var(--gradient-hero)" }}>
+    <div className="flex min-h-screen flex-col" style={{ background: heroBg }}>
       <SiteHeader />
-      <main className="flex-1 mx-auto max-w-7xl w-full px-6 py-12">
-        <div className="flex items-center justify-between gap-4 mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">{t("trips.title")}</h1>
-            <p className="mt-2 text-muted-foreground">{t("trips.subtitle")}</p>
-          </div>
-          <Link to="/" className="inline-flex items-center gap-2 rounded-2xl px-5 py-2.5 font-semibold text-primary-foreground shadow-md"
-            style={{ background: "var(--gradient-warm)" }}>
-            <Plus className="h-4 w-4" /> {t("trips.new")}
-          </Link>
-        </div>
 
-        {loading ? (
-          <div className="text-muted-foreground">{t("trips.loading")}</div>
-        ) : plans.length === 0 ? (
-          <div className="rounded-3xl border-2 border-dashed border-border bg-card/50 p-16 text-center">
-            <Sparkles className="h-10 w-10 mx-auto text-brand mb-4" />
-            <h2 className="text-xl font-semibold text-foreground">{t("trips.none")}</h2>
-            <p className="mt-2 text-muted-foreground">{t("trips.noneSub")}</p>
-            <Link to="/" className="mt-6 inline-flex items-center gap-2 rounded-2xl px-5 py-2.5 font-semibold text-primary-foreground"
-              style={{ background: "var(--gradient-warm)" }}>
-              {t("trips.planTrip")}
+      <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-12">
+        <section className="mb-8 overflow-hidden rounded-[28px] border border-sky-200/60 bg-white/90 px-6 py-8 shadow-[0_18px_40px_rgba(2,132,199,0.08)] sm:px-10 sm:py-10">
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+            <div className="min-w-0">
+              <div className="mb-3 inline-flex items-center gap-2 text-sky-600">
+                <LogoMark size={22} />
+                <span className="text-xs font-semibold uppercase tracking-[0.14em]">
+                  {t("trips.badge")}
+                </span>
+              </div>
+              <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+                {t("trips.title")}
+              </h1>
+              <p className="mt-3 max-w-xl text-sm leading-relaxed text-slate-500 sm:text-[15px]">
+                {t("trips.subtitle")}
+              </p>
+            </div>
+            <Link
+              to="/"
+              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm font-semibold text-white shadow-md transition-shadow hover:shadow-lg"
+              style={skyBtn}
+            >
+              <Plus className="h-4 w-4" />
+              {t("trips.new")}
             </Link>
           </div>
-        ) : (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {plans.map((p) => (
-              <Link
-                key={p.id}
-                to="/my-trips/$planId"
-                params={{ planId: p.id }}
-                className="group rounded-3xl bg-card border border-border shadow-[var(--shadow-card)] overflow-hidden hover:shadow-lg transition-shadow flex flex-col"
+        </section>
+
+        {loading ? (
+          <div className="flex items-center justify-center gap-3 rounded-[28px] border border-sky-200/60 bg-white/80 py-24 shadow-[0_12px_30px_rgba(2,132,199,0.06)]">
+            <Loader2 className="h-6 w-6 animate-spin text-sky-500" />
+            <span className="text-slate-500">{t("trips.loading")}</span>
+          </div>
+        ) : plans.length === 0 ? (
+          <section className="rounded-[28px] border border-sky-200/60 bg-white px-8 py-14 text-center shadow-[0_18px_40px_rgba(2,132,199,0.08)] sm:px-14">
+            <div className="mx-auto flex max-w-md flex-col items-center">
+              <div
+                className="mb-6 grid h-16 w-16 place-items-center rounded-full"
+                style={{
+                  background:
+                    "linear-gradient(145deg, rgba(14,165,233,0.12), rgba(244,162,97,0.16))",
+                }}
               >
-                {p.cover_image_url && (
-                  <img src={p.cover_image_url} alt={p.destination} className="h-40 w-full object-cover" />
-                )}
-                <div className="p-5 flex-1 flex flex-col">
-                  <h3 className="font-semibold text-foreground truncate group-hover:text-brand transition-colors">{p.title}</h3>
-                  <div className="mt-2 flex items-center gap-1.5 text-sm text-muted-foreground">
-                    <MapPin className="h-3.5 w-3.5" /> {p.destination}
-                  </div>
-                  {p.start_date && (
-                    <div className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
-                      <Calendar className="h-3.5 w-3.5" />
-                      {formatLocalDate(p.start_date)}
-                      {p.end_date && ` – ${formatLocalDate(p.end_date)}`}
+                <Sparkles className="h-7 w-7 text-sky-600" />
+              </div>
+              <h2 className="text-xl font-semibold tracking-tight text-slate-900">
+                {t("trips.none")}
+              </h2>
+              <p className="mt-2 text-sm leading-relaxed text-slate-500">
+                {t("trips.noneSub")}
+              </p>
+              <Link
+                to="/"
+                className="mt-8 inline-flex items-center gap-2 rounded-2xl px-6 py-3 text-sm font-semibold text-white shadow-md transition-shadow hover:shadow-lg"
+                style={skyBtn}
+              >
+                <Sparkles className="h-4 w-4" />
+                {t("trips.planTrip")}
+              </Link>
+            </div>
+          </section>
+        ) : (
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {plans.map((plan) => (
+              <Link
+                key={plan.id}
+                to="/my-trips/$planId"
+                params={{ planId: plan.id }}
+                className="group flex flex-col overflow-hidden rounded-[24px] border border-sky-200/60 bg-white shadow-[0_12px_30px_rgba(2,132,199,0.06)] transition-all hover:-translate-y-0.5 hover:border-sky-300 hover:shadow-[0_18px_40px_rgba(2,132,199,0.12)]"
+              >
+                <div className="relative h-44 w-full overflow-hidden bg-sky-50">
+                  {plan.cover_image_url ? (
+                    <img
+                      src={plan.cover_image_url}
+                      alt={plan.destination}
+                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
+                  ) : (
+                    <div
+                      className="flex h-full w-full items-center justify-center"
+                      style={{
+                        background:
+                          "linear-gradient(145deg, rgba(14,165,233,0.12), rgba(244,162,97,0.14))",
+                      }}
+                    >
+                      <MapPin className="h-10 w-10 text-sky-400/70" />
                     </div>
                   )}
                 </div>
+                <div className="flex flex-1 flex-col p-5">
+                  <h3 className="truncate font-semibold text-slate-900 transition-colors group-hover:text-sky-700">
+                    {plan.title}
+                  </h3>
+                  <div className="mt-2 flex items-center gap-1.5 text-sm text-slate-500">
+                    <MapPin className="h-3.5 w-3.5 shrink-0 text-sky-400" />
+                    <span className="truncate">{plan.destination}</span>
+                  </div>
+                  {plan.start_date && (
+                    <div className="mt-1.5 flex items-center gap-1.5 text-sm text-slate-500">
+                      <Calendar className="h-3.5 w-3.5 shrink-0 text-sky-400" />
+                      {formatLocalDate(plan.start_date)}
+                      {plan.end_date && ` – ${formatLocalDate(plan.end_date)}`}
+                    </div>
+                  )}
+                  <p className="mt-4 text-xs font-semibold text-sky-600 opacity-0 transition-opacity group-hover:opacity-100">
+                    {t("dashboard.openPlan")} →
+                  </p>
+                </div>
               </Link>
             ))}
+
+            <Link
+              to="/"
+              className="flex min-h-[280px] flex-col items-center justify-center rounded-[24px] border-2 border-dashed border-sky-200 bg-white/50 p-6 text-center transition-colors hover:border-sky-400 hover:bg-sky-50/80"
+            >
+              <div className="mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-sky-100 text-sky-600">
+                <Plus className="h-6 w-6" />
+              </div>
+              <p className="text-sm font-semibold text-slate-900">{t("dashboard.addPlan")}</p>
+              <p className="mt-1 text-xs text-slate-500">{t("dashboard.addPlanHint")}</p>
+            </Link>
           </div>
         )}
+
+        <div className="mt-8">
+          <DashboardDonateCard />
+        </div>
       </main>
+
       <SiteFooter />
     </div>
   );

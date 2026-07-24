@@ -11,7 +11,15 @@ export function SiteFooter() {
           <Logo size="lg" showTagline />
           <p className="text-sm text-muted-foreground max-w-xs">{t("footer.tagline")}</p>
         </div>
-        <FooterCol title={t("footer.product")} links={[{ label: t("nav.flights"), to: "/" }, { label: t("nav.stays"), to: "/" }, { label: t("nav.ai"), to: "/" }, { label: t("nav.myPlans"), to: "/my-trips" }]} />
+        <FooterCol
+          title={t("footer.product")}
+          links={[
+            { label: t("nav.flights"), to: "/" },
+            { label: t("nav.stays"), to: "/" },
+            { label: t("nav.ai"), to: "/" },
+            { label: t("nav.myPlans"), to: "/dashboard" },
+          ]}
+        />
         <FooterCol
           title={t("footer.company")}
           links={[{ label: `${t("footer.about")} & ${t("footer.contact")}`, to: "/about" }]}
