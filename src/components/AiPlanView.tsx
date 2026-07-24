@@ -427,6 +427,26 @@ export function AiPlanView({
     plan?.days.length,
   ]);
 
+  // Must stay above loading/error early returns — conditional useMemo crashes (Rules of Hooks).
+  const roadTripStops = useMemo(
+    () => (plan ? roadTripMapStops(plan) : []),
+    [plan],
+  );
+  const motorhomeMapStops = useMemo(() => {
+    if (!plan) return [];
+    if (plan.groundTransportMode !== "motorhome" && plan.accommodationMode !== "motorhome") {
+      return [];
+    }
+    return collectMotorhomeMapStops(plan, lang);
+  }, [plan, lang]);
+  const kmlStopCount = useMemo(() => {
+    if (!plan) return 0;
+    if (plan.groundTransportMode !== "motorhome" && plan.accommodationMode !== "motorhome") {
+      return 0;
+    }
+    return countMotorhomeStopsWithCoords(plan, lang);
+  }, [plan, lang]);
+
   // Keep sidebar in sync while the map plays through days.
   useEffect(() => {
     if (!isPlaying) return;
