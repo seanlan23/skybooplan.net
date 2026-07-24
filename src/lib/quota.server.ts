@@ -58,7 +58,28 @@ export function checkPlacesSearchRateLimit(ip: string): { allowed: boolean } {
   return { allowed: true };
 }
 
-/** Returns { allowed, plansUsed }. Anonymous users get exactly 1 free plan. */
+/** Free complete AI plans per IP before asking the guest to take a break / sign in. */
+export const ANON_FREE_COMPLETE_PLANS = 2;
+
+function quotaErrorResponse(errorKey: string): Response {
+  return Response.json({ error: errorKey }, { status: 429 });
+}
+
+function userQuotaErrorKey(reason: QuotaCheck["reason"]): string {
+  switch (reason) {
+    case "daily_limit":
+      return "error.quotaDailyLimit";
+    case "one_time_used":
+      return "error.quotaOneTimeUsed";
+    case "expired":
+      return "error.quotaExpired";
+    case "no_subscription":
+    default:
+      return "error.quotaSignIn";
+  }
+}
+
+/** Returns { allowed, plansUsed }. Anonymous users get ANON_FREE_COMPLETE_PLANS free complete plans. */
 export async function checkAnonQuota(ip: string): Promise<{ allowed: boolean; plansUsed: number }> {
   const db = svc();
   if (!db) {
@@ -72,7 +93,7 @@ export async function checkAnonQuota(ip: string): Promise<{ allowed: boolean; pl
     .eq('ip_hash', ipHash)
     .maybeSingle();
   const used = data?.plan_count ?? 0;
-  return { allowed: used < 1, plansUsed: used };
+  return { allowed: used < ANON_FREE_COMPLETE_PLANS, plansUsed: used };
 }
 
 export async function bumpAnonQuota(ip: string, userAgent?: string): Promise<void> {
@@ -194,7 +215,7 @@ export async function enforceItineraryQuota(
     if (!quota.allowed) {
       return {
         ok: false,
-        response: Response.json({ error: "Quota exceeded" }, { status: 429 }),
+        response: quotaErrorResponse(userQuotaErrorKey(quota.reason)),
       };
     }
     return { ok: true, tier: quota.tier };
@@ -204,7 +225,7 @@ export async function enforceItineraryQuota(
   if (!anon.allowed) {
     return {
       ok: false,
-      response: Response.json({ error: "Quota exceeded" }, { status: 429 }),
+      response: quotaErrorResponse("error.quotaAnonLimit"),
     };
   }
   return { ok: true, tier: "free" };

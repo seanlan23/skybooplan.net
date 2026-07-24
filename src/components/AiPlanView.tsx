@@ -7,7 +7,7 @@ import { POIDetailsModal } from "@/components/POIDetailsModal";
 import { refreshPoiDetailsImage, type PoiDetailsData } from "@/lib/poiDetails.types";
 import { DayScrollDebug } from "@/components/DayScrollDebug";
 import { AiPlanLoader } from "@/components/AiPlanLoader";
-import { resolveErrorMessage, useI18n } from "@/lib/i18n";
+import { isSoftQuotaError, resolveErrorMessage, useI18n } from "@/lib/i18n";
 import { stripPlanTeaser } from "@/lib/planTeaser";
 import { computeTripTotalBudgetEur } from "@/lib/tripBudget";
 import { buildWeatherWidgetFallback } from "@/lib/weatherWidgetFallback";
@@ -529,8 +529,15 @@ export function AiPlanView({
   }
 
   if (error && !plan) {
+    const soft = isSoftQuotaError(error);
     return (
-      <div className="mt-8 rounded-2xl border border-red-200 bg-red-50 p-5 text-red-700">
+      <div
+        className={
+          soft
+            ? "mt-8 rounded-2xl border border-sky-200 bg-sky-50 p-5 text-sky-950"
+            : "mt-8 rounded-2xl border border-red-200 bg-red-50 p-5 text-red-700"
+        }
+      >
         {resolveErrorMessage(t, error)}
       </div>
     );
@@ -634,7 +641,13 @@ export function AiPlanView({
       )}
 
       {error ? (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <div
+          className={
+            isSoftQuotaError(error)
+              ? "rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-950"
+              : "rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+          }
+        >
           {resolveErrorMessage(t, error)}
         </div>
       ) : null}

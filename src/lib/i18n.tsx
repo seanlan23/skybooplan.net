@@ -670,6 +670,16 @@ const en: Dict = {
     "AI created an illogical route (cities repeat or it jumps back and forth). Try again with different wishes.",
   "error.geminiRateLimit":
     "Gemini API daily quota reached. Wait a few minutes or set SKELETON_MODEL=gemini-2.0-flash in .env.local, then try again.",
+  "error.quotaAnonLimit":
+    "You've already created 2 free complete plans from this connection. Sign in to keep planning — that way your trips are saved too.",
+  "error.quotaSignIn":
+    "To create more AI plans, please sign in. Signed-in travelers can keep generating and save plans to their dashboard.",
+  "error.quotaDailyLimit":
+    "You've already created 2 plans today. Come back tomorrow for more — or wait until the daily limit resets.",
+  "error.quotaOneTimeUsed":
+    "Your one-time plan credit is used up. Sign in again later or start a new search tomorrow.",
+  "error.quotaExpired":
+    "Your plan access has expired. Sign in again or try tomorrow for a new free allowance.",
   "plan.saved": "✓ Plan saved to your trips.",
   "plan.openDashboard": "Open in dashboard →",
   "plan.loginToSave": "🔒 Sign in to save the plan to your dashboard.",
@@ -1614,6 +1624,16 @@ const dicts: Record<Lang, Dict> = {
       "AI je ustvaril nelogično pot (mesta se ponavljajo ali skače sem in tja). Poskusi znova z drugačnimi željami.",
     "error.geminiRateLimit":
       "Dosežena je dnevna kvota Gemini API. Počakaj nekaj minut ali v .env.local nastavi SKELETON_MODEL=gemini-2.0-flash, nato poskusi znova.",
+    "error.quotaAnonLimit":
+      "Z te povezave si že ustvaril 2 brezplačna popolna načrta. Za nove se prijavi — tako se ti plani tudi shranijo.",
+    "error.quotaSignIn":
+      "Za več AI načrtov se prijavi. Prijavljeni uporabniki lahko še naprej generirajo in shranjujejo plane v nadzorno ploščo.",
+    "error.quotaDailyLimit":
+      "Danes si že ustvaril 2 načrta. Vrni se jutri — dnevna omejitev se potem ponastavi.",
+    "error.quotaOneTimeUsed":
+      "Enkratni kredit za načrt je porabljen. Poskusi znova jutri ali se prijavi z drugim računom.",
+    "error.quotaExpired":
+      "Dostop do načrtov je potekel. Prijavi se znova ali poskusi jutri z novo brezplačno kvoto.",
     "plan.saved": "✓ Plan je shranjen v tvoja potovanja.",
     "plan.openDashboard": "Odpri v nadzorni plošči →",
     "plan.loginToSave": "🔒 Prijavi se, da se plan shrani v tvojo nadzorno ploščo.",
@@ -2532,6 +2552,11 @@ export function resolveErrorMessage(
   if (isNetworkFetchError(code)) return t("error.networkFetch");
   if (code in dicts.en) return t(code as keyof typeof en);
   return code;
+}
+
+/** Soft informational quota messages — not red “system failure” banners. */
+export function isSoftQuotaError(code: string | null | undefined): boolean {
+  return Boolean(code?.startsWith("error.quota"));
 }
 
 export function I18nProvider({ children }: { children: ReactNode }) {

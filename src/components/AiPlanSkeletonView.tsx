@@ -5,7 +5,7 @@ import { buildSkeletonDayPlans, skeletonToPreviewPlan } from "@/lib/aiPlan.funct
 import { TripMap } from "@/components/TripMap";
 import { AiPlanDayCard } from "@/components/AiPlanDayCard";
 import { AiPlanLoader } from "@/components/AiPlanLoader";
-import { resolveErrorMessage, useI18n } from "@/lib/i18n";
+import { isSoftQuotaError, resolveErrorMessage, useI18n } from "@/lib/i18n";
 import { parseLocalDate } from "@/lib/dateUtils";
 import { PlannerChoicesSummary } from "@/components/PlannerChoicesSummary";
 import { TripTotalBreakdown } from "@/components/TripTotalBreakdown";
@@ -161,8 +161,15 @@ export function AiPlanSkeletonView({
   }
 
   if (error) {
+    const soft = isSoftQuotaError(error);
     return (
-      <div className="mt-8 rounded-2xl border border-red-200 bg-red-50 p-5 text-red-700">
+      <div
+        className={
+          soft
+            ? "mt-8 rounded-2xl border border-sky-200 bg-sky-50 p-5 text-sky-950"
+            : "mt-8 rounded-2xl border border-red-200 bg-red-50 p-5 text-red-700"
+        }
+      >
         {resolveErrorMessage(t, error)}
       </div>
     );

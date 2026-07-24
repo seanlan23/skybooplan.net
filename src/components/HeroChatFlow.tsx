@@ -1482,7 +1482,13 @@ export function HeroChatFlow({
 
           {!loading && searchError ? (
             <div className="hero-sky-enter pl-10 pr-1">
-              <p className="rounded-2xl border border-red-300/30 bg-red-500/10 px-4 py-3 text-sm text-red-100">
+              <p
+                className={
+                  searchError.startsWith("error.quota")
+                    ? "rounded-2xl border border-sky-300/40 bg-sky-500/15 px-4 py-3 text-sm text-sky-50"
+                    : "rounded-2xl border border-red-300/30 bg-red-500/10 px-4 py-3 text-sm text-red-100"
+                }
+              >
                 {searchError.startsWith("heroSearch.") ||
                 searchError.startsWith("error.")
                   ? t(searchError as never)
