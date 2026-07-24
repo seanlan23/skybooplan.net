@@ -387,6 +387,11 @@ export type SafetyWarning = {
 export type AiTripPlan = {
   destinationName: string;
   summary: string;
+  /**
+   * Language the itinerary body was generated in (days, titles, tips).
+   * UI chrome may differ when the user switches language later.
+   */
+  contentLanguage?: "en" | "sl" | "es" | "fr" | "it" | "de";
   /** Critical safety alert — shown as red card when set. */
   safetyWarning?: SafetyWarning | null;
   /** Weather + season + clothing widget from LLM. */

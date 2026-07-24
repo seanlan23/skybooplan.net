@@ -40,6 +40,15 @@ export const plannerFormByLang: Record<"es" | "fr" | "it" | "de", Dict> = {
     "aiplan.downloadPdf": "Descargar plan PDF",
     "aiplan.pdfNotice": "Descarga una copia PDF de tu itinerario para leerla sin conexión.",
     "aiplan.streamingProgress": "Generando plan… {n}/{total} días",
+    "aiplan.langMismatch":
+      "Este itinerario está escrito en {lang}. Botones, visados y clima siguen tu idioma actual; el texto día a día permanece en {lang}. Genera de nuevo para un plan completo en tu idioma.",
+    "aiplan.langMismatchCta": "Generar de nuevo en el idioma actual",
+    "aiplan.langName.en": "inglés",
+    "aiplan.langName.sl": "esloveno",
+    "aiplan.langName.es": "español",
+    "aiplan.langName.fr": "francés",
+    "aiplan.langName.it": "italiano",
+    "aiplan.langName.de": "alemán",
     "dashboard.donationBadge": "Mantenerlo gratis",
     "dashboard.donationTitle": "Skybooplan sigue gratis gracias a ti",
     "dashboard.donationHint":
@@ -94,6 +103,15 @@ export const plannerFormByLang: Record<"es" | "fr" | "it" | "de", Dict> = {
     "aiplan.downloadPdf": "Télécharger le plan PDF",
     "aiplan.pdfNotice": "Téléchargez une copie PDF de votre itinéraire pour le lire hors ligne.",
     "aiplan.streamingProgress": "Génération du plan… {n}/{total} jours",
+    "aiplan.langMismatch":
+      "Cet itinéraire a été rédigé en {lang}. Boutons, visas et météo suivent votre langue actuelle ; le texte jour par jour reste en {lang}. Régénérez pour un plan complet dans votre langue.",
+    "aiplan.langMismatchCta": "Régénérer dans la langue actuelle",
+    "aiplan.langName.en": "anglais",
+    "aiplan.langName.sl": "slovène",
+    "aiplan.langName.es": "espagnol",
+    "aiplan.langName.fr": "français",
+    "aiplan.langName.it": "italien",
+    "aiplan.langName.de": "allemand",
     "dashboard.donationBadge": "Restez gratuit",
     "dashboard.donationTitle": "Skybooplan reste gratuit grâce à vous",
     "dashboard.donationHint":
@@ -148,6 +166,15 @@ export const plannerFormByLang: Record<"es" | "fr" | "it" | "de", Dict> = {
     "aiplan.downloadPdf": "Scarica piano PDF",
     "aiplan.pdfNotice": "Scarica una copia PDF del tuo itinerario da leggere offline.",
     "aiplan.streamingProgress": "Generazione piano… {n}/{total} giorni",
+    "aiplan.langMismatch":
+      "Questo itinerario è scritto in {lang}. Pulsanti, visti e meteo seguono la lingua attuale; il testo giorno per giorno resta in {lang}. Genera di nuovo per un piano completo nella tua lingua.",
+    "aiplan.langMismatchCta": "Genera di nuovo nella lingua attuale",
+    "aiplan.langName.en": "inglese",
+    "aiplan.langName.sl": "sloveno",
+    "aiplan.langName.es": "spagnolo",
+    "aiplan.langName.fr": "francese",
+    "aiplan.langName.it": "italiano",
+    "aiplan.langName.de": "tedesco",
     "dashboard.donationBadge": "Restiamo gratis",
     "dashboard.donationTitle": "Skybooplan resta gratis grazie a te",
     "dashboard.donationHint":
@@ -202,6 +229,15 @@ export const plannerFormByLang: Record<"es" | "fr" | "it" | "de", Dict> = {
     "aiplan.downloadPdf": "PDF-Plan herunterladen",
     "aiplan.pdfNotice": "Lade eine PDF-Kopie deines Plans für offline Lesen herunter.",
     "aiplan.streamingProgress": "Plan wird erstellt… {n}/{total} Tage",
+    "aiplan.langMismatch":
+      "Dieser Reiseplan ist auf {lang} geschrieben. Buttons, Visa und Wetter folgen deiner aktuellen Sprache; der Tages-Text bleibt auf {lang}. Neu generieren für einen vollständigen Plan in deiner Sprache.",
+    "aiplan.langMismatchCta": "In aktueller Sprache neu generieren",
+    "aiplan.langName.en": "Englisch",
+    "aiplan.langName.sl": "Slowenisch",
+    "aiplan.langName.es": "Spanisch",
+    "aiplan.langName.fr": "Französisch",
+    "aiplan.langName.it": "Italienisch",
+    "aiplan.langName.de": "Deutsch",
     "dashboard.donationBadge": "Kostenlos halten",
     "dashboard.donationTitle": "Skybooplan bleibt dank dir kostenlos",
     "dashboard.donationHint":

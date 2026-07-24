@@ -46,8 +46,16 @@ export function isPointInTimeActivity(activity: ActivityClockFields): boolean {
 /** True when the activity is an intercity flight / overnight air leg. */
 export function isFlightRangeActivity(activity: ActivityClockFields): boolean {
   if (activity.transportType === "flight") return true;
+  const name = (activity.name ?? "").toLowerCase();
+  // Logistics that only mention a flight in the description (transfer tip) are NOT air legs.
+  if (
+    /transfer|check-?out|check-?in|prevoz na letališč|grab|taxi|shuttle|kombi|van\b/i.test(name) &&
+    !/\b(let|flight|volo|vuelo|flug)\b/i.test(name)
+  ) {
+    return false;
+  }
   const blob = `${activity.name ?? ""} ${activity.description ?? ""}`.toLowerCase();
-  return /mednarodni\s*let|international\s*flight|notranji\s*let|domestic\s*flight|flight\s*home|povratek\s*domov|return\s*flight|prihod na letališče in odlet|airport arrival and departure/i.test(
+  return /mednarodni\s*(povratni\s*)?let|international\s*(return\s*)?flight|notranji\s*let|domestic\s*flight|flight\s*home|povratek\s*domov|volo internazionale|vuelo internacional|vol international|internationaler\s*(rück)?flug|prihod na letališče in odlet|airport arrival and departure/i.test(
     blob,
   );
 }

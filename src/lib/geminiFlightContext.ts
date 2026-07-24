@@ -30,17 +30,23 @@ import {
   planCalendarDayCount,
 } from "@/lib/geminiPlanMap";
 import { repairPlanDaySequence } from "@/lib/daySequence";
+import { scrubImpossibleIslandDayTrips } from "@/lib/islandHopGuard";
 import { planLangCopy } from "@/lib/planLangCopy";
 import { buildReturnFlightSummary } from "@/lib/returnFlightSummary";
 import { resolveTripLocale } from "@/lib/tripLocale";
 import { stripArrivalLabelSpam } from "@/lib/textSanitize";
 
 function logisticsToActivity(a: LogisticsActivity): Activity {
+  const isIntlFlight =
+    /\b(mednarodni (povratni )?let|international return flight|volo internazionale|internationaler rückflug)\b/i.test(
+      a.name,
+    );
   return {
     name: a.name,
     type: a.type,
     description: a.description,
     priceLabel: a.priceLabel,
+    ...(isIntlFlight ? { transportType: "flight" as const } : {}),
     ...(a.arrivalTime ? { arrivalTime: a.arrivalTime } : {}),
     ...(a.departureTime ? { departureTime: a.departureTime } : {}),
   };
@@ -159,32 +165,61 @@ function mergeDepartureDay(
   };
 }
 
+function hmFromMinutes(totalMin: number): string {
+  const m = ((Math.round(totalMin) % (24 * 60)) + 24 * 60) % (24 * 60);
+  const h = Math.floor(m / 60);
+  const mm = m % 60;
+  return `${String(h).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
+}
+
+/**
+ * Departure-day clocks: checkout → transfer → airport (single clocks before depart),
+ * then international flight alone may use depart→arrive (overnight +1 OK).
+ */
 function patchAirportActivityTimes(
   activities: NonNullable<DayPlan["activities"]>,
   depart: string,
   arrive?: string,
 ): NonNullable<DayPlan["activities"]> {
+  const depMin = parseHmSafe(depart);
+  const checkoutAt = hmFromMinutes(depMin - 4 * 60);
+  const transferAt = hmFromMinutes(depMin - 3.5 * 60);
+  const airportAt = hmFromMinutes(depMin - 3 * 60);
+
   const patch = (list: Activity[] | undefined): Activity[] =>
     (list ?? []).map((a) => {
       const blob = `${a.name} ${a.description ?? ""} ${a.type ?? ""}`.toLowerCase();
-      if (!/airport|letališč|odlet|povratek|return|flight home|mednarodn/i.test(blob)) {
-        return normalizeActivityClocks(a);
-      }
+      const isIntlFlight =
+        (a.transportType === "flight" ||
+          isFlightRangeActivity(a) ||
+          /\b(mednarodni (povratni )?let|international (return )?flight|volo internazionale|internationaler rückflug|vuelo internacional|vol international)\b/i.test(
+            a.name,
+          )) &&
+        !/transfer|check-?out|check-?in(?!.*flight)|grab|taxi/i.test(a.name);
 
       let description = a.description;
-      if (description) {
+      if (description && /airport|letališč|odlet|povratek|return|flight|check-?out|prevoz|transfer/i.test(blob)) {
         let clockIdx = 0;
         description = description.replace(/\b\d{1,2}:\d{2}\b/g, (match) => {
           clockIdx += 1;
-          if (clockIdx === 1) return depart;
-          if (clockIdx === 2 && arrive) return arrive;
+          if (isIntlFlight) {
+            if (clockIdx === 1) return depart;
+            if (clockIdx === 2 && arrive) return arrive;
+            return match;
+          }
+          if (clockIdx === 1) {
+            if (/check-?out|odhod iz hotela|hotel check-out|vrnitev avtodoma/i.test(blob)) {
+              return checkoutAt;
+            }
+            if (/prevoz|transfer|flughafentransfer/i.test(blob)) return transferAt;
+            return airportAt;
+          }
           return match;
         });
         description = stripArrivalLabelSpam(description);
       }
 
-      // Full flight leg: depart → arrive range.
-      if (isFlightRangeActivity(a) || /prihod na letališče in odlet|airport arrival and departure/i.test(a.name)) {
+      if (isIntlFlight) {
         return normalizeActivityClocks({
           ...a,
           arrivalTime: depart,
@@ -194,20 +229,50 @@ function patchAirportActivityTimes(
         });
       }
 
-      // Check-in / transfer / hotel → single boarding-pass clock (never inverted range).
-      if (isPointInTimeActivity(a) || /check-?in|check-?out|prevoz|transfer/i.test(blob)) {
+      // Order matters: transfer before generic “airport + security” (transfer tips mention security).
+      if (/check-?out|odhod iz hotela|hotel check-out|vrnitev avtodoma/i.test(a.name)) {
         return normalizeActivityClocks({
           ...a,
-          arrivalTime: depart,
+          arrivalTime: checkoutAt,
           departureTime: undefined,
           description,
         });
       }
 
+      if (/prevoz na letališč|airport transfer|flughafentransfer|transfer in aeroporto|traslado al aeropuerto|transfert aéroport/i.test(a.name)) {
+        return normalizeActivityClocks({
+          ...a,
+          arrivalTime: transferAt,
+          departureTime: undefined,
+          description,
+        });
+      }
+
+      // Airport gate / check-in — single clock before departure (never overnight +1).
+      if (
+        /prihod na letališče|airport arrival|airport check-in|check-in e (controlli|sicurezza)|ankunft am flughafen|check-in in aeroporto|check-in en el aeropuerto|enregistrement à l'aéroport/i.test(
+          a.name,
+        ) ||
+        (/check-?in|security|varnostni|controlli/i.test(a.name) &&
+          /letališč|airport|flughafen|aeroporto|aéroport/i.test(a.name))
+      ) {
+        return normalizeActivityClocks({
+          ...a,
+          arrivalTime: airportAt,
+          departureTime: undefined,
+          description,
+        });
+      }
+
+      if (!/airport|letališč|odlet|povratek|return|flight home|mednarodn|check-?out|prevoz|transfer/i.test(blob)) {
+        return normalizeActivityClocks(a);
+      }
+
+      // Fallback logistics: single pre-depart clock — never copy overnight arrive onto checkout.
       return normalizeActivityClocks({
         ...a,
-        arrivalTime: depart,
-        departureTime: arrive ?? undefined,
+        arrivalTime: airportAt,
+        departureTime: undefined,
         description,
       });
     });
@@ -277,6 +342,12 @@ export function flightContextPromptBlock(
     slo
       ? `- PRIORITETA NAD “polnim dnem”: na dan prihoda in odhoda so prazni sloti PRED/ZA letom OBVEZNI. PREPOVEDANO: zajtrk, siesta, plaža, “tropska pavza” ali dopoldanske aktivnosti na destinaciji, preden let pristane.`
       : `- PRIORITY OVER “full day”: empty slots before/after flights on arrival/departure days are REQUIRED. FORBIDDEN: breakfast, siesta, beach, or morning destination activities before the plane lands.`,
+    slo
+      ? `- URE: na dan 1 je prihod na odhodno letališče = odhod − buffer (ne ura pristanka). Na zadnjem dnevu: check-out < transfer < letališče < let; samo mednarodni let sme imeti okno čez noč (npr. 18:10–06:00 +1).`
+      : `- CLOCKS: day-1 origin airport arrive = depart − buffer (never destination land time). Last day: checkout < transfer < airport < flight; only the international flight may show an overnight window (e.g. 18:10–06:00 +1).`,
+    slo
+      ? `- GEO: nikoli enodnevni izlet med nedosežnimi PH otoki (npr. Boracay ↔ Malapascua). Ostani na lokalnih plažah/otokih tega dne.`
+      : `- GEO: never schedule same-day hops between non-adjacent PH islands (e.g. Boracay ↔ Malapascua). Keep local beaches/islands for that day.`,
   );
 
   return lines.join("\n");
@@ -382,6 +453,9 @@ function patchArrivalDayTitle(
       sl: `Prihod (${land}) in namestitev`,
       en: `Arrival (${land}) and check-in`,
       de: `Ankunft (${land}) und Check-in`,
+      it: `Arrivo (${land}) e check-in`,
+      es: `Llegada (${land}) y check-in`,
+      fr: `Arrivée (${land}) et check-in`,
     });
   }
   // Drop misleading “sproščanje na Patong Beach” style titles that ignore landing time.
@@ -390,6 +464,9 @@ function patchArrivalDayTitle(
       sl: `Prihod ob ${land} in namestitev`,
       en: `Arrival at ${land} and check-in`,
       de: `Ankunft um ${land} und Check-in`,
+      it: `Arrivo alle ${land} e check-in`,
+      es: `Llegada a las ${land} y check-in`,
+      fr: `Arrivée à ${land} et check-in`,
     });
   }
   return t;
@@ -463,6 +540,9 @@ export function applyFlightContextToGeminiPlan(
           sl: `Še v letu proti destinaciji — dan ${day.day} od ${totalDays}. Po pristanku (dan ${arrivalDay}, ${arriveShort}) sledi check-in.`,
           en: `Still en route — day ${day.day} of ${totalDays}. Landing day ${arrivalDay} at ${arriveShort}; then check-in.`,
           de: `Noch im Flug — Tag ${day.day} von ${totalDays}. Landung an Tag ${arrivalDay} um ${arriveShort}; danach Check-in.`,
+          it: `Ancora in volo — giorno ${day.day} di ${totalDays}. Atterraggio il giorno ${arrivalDay} alle ${arriveShort}; poi check-in.`,
+          es: `Aún en vuelo — día ${day.day} de ${totalDays}. Aterrizaje el día ${arrivalDay} a las ${arriveShort}; luego check-in.`,
+          fr: `Toujours en vol — jour ${day.day} sur ${totalDays}. Atterrissage le jour ${arrivalDay} à ${arriveShort}; puis check-in.`,
         }),
         // Window start = depart, end = arrive (formatActivityClockLabel overnight +1).
         arrivalTime: flights.outboundDepart,
@@ -592,11 +672,17 @@ export function applyFlightContextToGeminiPlan(
               sl: `Prevoz v ${hubName} in mednarodni odhod`,
               en: `Transfer to ${hubName} and international departure`,
               de: `Transfer nach ${hubName} und internationaler Abflug`,
+              it: `Transfer a ${hubName} e partenza internazionale`,
+              es: `Traslado a ${hubName} y salida internacional`,
+              fr: `Transfert vers ${hubName} et départ international`,
             })
           : planLangCopy(lang, {
               sl: `Odhod iz ${hubName} / mednarodni let`,
               en: `Departure from ${hubName} / international flight`,
               de: `Abflug von ${hubName} / internationaler Flug`,
+              it: `Partenza da ${hubName} / volo internazionale`,
+              es: `Salida desde ${hubName} / vuelo internacional`,
+              fr: `Départ de ${hubName} / vol international`,
             });
         if (destHub?.lat != null && destHub?.lng != null) {
           day.lat = destHub.lat;
@@ -617,12 +703,18 @@ export function applyFlightContextToGeminiPlan(
             sl: `Notranji prevoz ${prevCity} → ${hubName}`,
             en: `Domestic transfer ${prevCity} → ${hubName}`,
             de: `Inlands-Transfer ${prevCity} → ${hubName}`,
+            it: `Transfer interno ${prevCity} → ${hubName}`,
+            es: `Traslado doméstico ${prevCity} → ${hubName}`,
+            fr: `Transfert intérieur ${prevCity} → ${hubName}`,
           }),
           type: "TRANSPORT",
           description: planLangCopy(lang, {
             sl: `Pred mednarodnim odhodom ob ${flights.inboundDepart} se vrneš v ${hubName} (ne ostani v ${prevCity}). Računaj na notranji let ali dolg transfer — rezerviraj vnaprej.`,
             en: `Before the international departure at ${flights.inboundDepart}, return to ${hubName} (do not stay in ${prevCity}). Budget a domestic flight or long transfer — book ahead.`,
             de: `Vor dem internationalen Abflug um ${flights.inboundDepart} zurück nach ${hubName} (nicht in ${prevCity} bleiben). Plane einen Inlandsflug oder langen Transfer — im Voraus buchen.`,
+            it: `Prima della partenza internazionale alle ${flights.inboundDepart} torna a ${hubName} (non restare a ${prevCity}). Previsto un volo interno o un lungo transfer — prenota in anticipo.`,
+            es: `Antes de la salida internacional a las ${flights.inboundDepart} vuelve a ${hubName} (no te quedes en ${prevCity}). Cuenta con un vuelo doméstico o un traslado largo — reserva con antelación.`,
+            fr: `Avant le départ international à ${flights.inboundDepart}, retournez à ${hubName} (ne restez pas à ${prevCity}). Prévoyez un vol intérieur ou un long transfert — réservez à l'avance.`,
           }),
         };
         merged.morning = [hop, ...(merged.morning ?? [])].slice(0, 4);
@@ -636,4 +728,6 @@ export function applyFlightContextToGeminiPlan(
 
     normalizeDayActivityClocks(day);
   }
+
+  scrubImpossibleIslandDayTrips(plan, lang);
 }

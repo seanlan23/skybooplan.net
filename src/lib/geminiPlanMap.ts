@@ -55,6 +55,7 @@ import { repairTransportLegs } from "@/lib/transportLegRepair";
 import { sanitizeReturnFlightSummary } from "@/lib/returnFlightSummary";
 import { enrichMotorhomePlanTips } from "@/lib/motorhomePlanTips";
 import { driveTypeLabel } from "@/lib/planLangCopy";
+import { normalizePlanLangCode } from "@/lib/planLanguages";
 import { sanitizeActivity, sanitizeForLang } from "@/lib/textSanitize";
 
 export type GeminiPlanMapOpts = {
@@ -697,6 +698,7 @@ export function tripPlanResponseToAiTripPlan(
   return {
     destinationName: meta?.destination ?? "Potovanje",
     summary: rawSummary,
+    contentLanguage: normalizePlanLangCode(lang),
     safetyWarning: safetyWarning ?? null,
     weatherWidget,
     totalBudgetEur: 0,
@@ -962,7 +964,10 @@ export function enrichGeminiCatalogPlan(
   }
 
   plan.totalBudgetEur = computeTripTotalBudgetEur(plan.days, travelers);
-  enrichIslandAirportTransfers(plan, { destinationIata: plan.destinationIata });
+  enrichIslandAirportTransfers(plan, {
+    destinationIata: plan.destinationIata,
+    language: plan.contentLanguage ?? planLang,
+  });
   dedupeCrossDayBoilerplate(plan);
   if (motorhome) {
     enrichMotorhomePlanTips(plan, planLang);

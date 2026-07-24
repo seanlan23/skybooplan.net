@@ -36,7 +36,6 @@ function priceEur(locale: TripLocale, _local: string): string {
 
 /** Afternoon sights on heavy inbound travel days (after flight/train into a new city). */
 export function buildInboundArrivalAfternoonSights(city: string, locale: TripLocale): Activity[] {
-  const slo = locale.slo;
   const c = normCity(city);
 
   if (c.includes("ayutthaya")) {
@@ -45,9 +44,14 @@ export function buildInboundArrivalAfternoonSights(city: string, locale: TripLoc
         name: "Wat Phra Si Sanphet",
         type: "SIGHT",
         priceLabel: "50 THB (~1,5 €)",
-        description: slo
-          ? "Tri stolpične stope — obišči takoj ob prihodu (popoldan 13:00–16:00), pred Wat Mahathat. Vstopnina 50 THB."
-          : "Three chedis — visit right after arrival (afternoon 1–4 pm), before Wat Mahathat. 50 THB entry.",
+        description: loc(locale, {
+          sl: "Tri stolpične stope — obišči takoj ob prihodu (popoldan 13:00–16:00), pred Wat Mahathat. Vstopnina 50 THB.",
+          en: "Three chedis — visit right after arrival (afternoon 1–4 pm), before Wat Mahathat. 50 THB entry.",
+          it: "Tre chedi — visita subito dopo l'arrivo (pomeriggio 13:00–16:00), prima di Wat Mahathat. Ingresso 50 THB.",
+          es: "Tres chedis — visita justo después de llegar (tarde 13:00–16:00), antes de Wat Mahathat. Entrada 50 THB.",
+          fr: "Trois chedis — visite juste après l'arrivée (après-midi 13h–16h), avant Wat Mahathat. Entrée 50 THB.",
+          de: "Drei Chedis — gleich nach der Ankunft besuchen (Nachmittag 13:00–16:00), vor Wat Mahathat. Eintritt 50 THB.",
+        }),
       },
     ];
   }
@@ -55,12 +59,24 @@ export function buildInboundArrivalAfternoonSights(city: string, locale: TripLoc
   if (c.includes("chiang mai")) {
     return [
       {
-        name: slo ? "Wat Phra That Doi Suthep" : "Doi Suthep Temple",
+        name: loc(locale, {
+          sl: "Wat Phra That Doi Suthep",
+          en: "Doi Suthep Temple",
+          it: "Tempio Doi Suthep",
+          es: "Templo Doi Suthep",
+          fr: "Temple Doi Suthep",
+          de: "Doi-Suthep-Tempel",
+        }),
         type: "SIGHT",
         priceLabel: "30 THB",
-        description: slo
-          ? "Popoldanski vzpon na Doi Suthep (pred 17:00) — zlata pagoda in razgled na mesto. Songthaew ali Grab iz hotela."
-          : "Afternoon trip to Doi Suthep (before 5 pm) — golden pagoda and city views. Songthaew or Grab from hotel.",
+        description: loc(locale, {
+          sl: "Popoldanski vzpon na Doi Suthep (pred 17:00) — zlata pagoda in razgled na mesto. Songthaew ali Grab iz hotela.",
+          en: "Afternoon trip to Doi Suthep (before 5 pm) — golden pagoda and city views. Songthaew or Grab from hotel.",
+          it: "Escursione pomeridiana a Doi Suthep (prima delle 17:00) — pagoda dorata e vista sulla città. Songthaew o Grab dall'hotel.",
+          es: "Excursión por la tarde a Doi Suthep (antes de las 17:00) — pagoda dorada y vistas de la ciudad. Songthaew o Grab desde el hotel.",
+          fr: "Excursion l'après-midi à Doi Suthep (avant 17h) — pagode dorée et vue sur la ville. Songthaew ou Grab depuis l'hôtel.",
+          de: "Nachmittagsausflug zum Doi Suthep (vor 17:00) — goldene Pagode und Stadtblick. Songthaew oder Grab vom Hotel.",
+        }),
       },
     ];
   }
@@ -259,22 +275,58 @@ const HOI_AN_POOL: PoolEntry[] = [
     activity: (locale, dayIdx = 1) => {
       const options = [
         {
-          name: locale.slo ? "Ancient Town — japonski most" : "Ancient Town — Japanese Bridge",
-          description: locale.slo
-            ? "Zgodnji sprehod po starem mestu — japonski most Chùa Cầu brez dopoldanske gneče."
-            : "Early old-town stroll — Chùa Cầu bridge before midday crowds.",
+          name: loc(locale, {
+            sl: "Ancient Town — japonski most",
+            en: "Ancient Town — Japanese Bridge",
+            it: "Città antica — Ponte Giapponese",
+            es: "Casco antiguo — Puente Japonés",
+            fr: "Vieille ville — Pont Japonais",
+            de: "Altstadt — Japanische Brücke",
+          }),
+          description: loc(locale, {
+            sl: "Zgodnji sprehod po starem mestu — japonski most Chùa Cầu brez dopoldanske gneče.",
+            en: "Early old-town stroll — Chùa Cầu bridge before midday crowds.",
+            it: "Passeggiata mattutina nella città vecchia — ponte Chùa Cầu prima della folla di mezzogiorno.",
+            es: "Paseo matutino por el casco antiguo — puente Chùa Cầu antes de la multitud del mediodía.",
+            fr: "Promenade matinale dans la vieille ville — pont Chùa Cầu avant la foule de midi.",
+            de: "Früher Spaziergang durch die Altstadt — Chùa-Cầu-Brücke vor dem Mittagsandrang.",
+          }),
         },
         {
-          name: locale.slo ? "Tra Que Village — zelišča" : "Tra Que herb village",
-          description: locale.slo
-            ? "Kolesarski izlet v vas Tra Que — zelišča, riževi njivi in lokalni zajtrk."
-            : "Bike to Tra Que — herb gardens, rice fields, local breakfast.",
+          name: loc(locale, {
+            sl: "Tra Que Village — zelišča",
+            en: "Tra Que herb village",
+            it: "Villaggio delle erbe Tra Que",
+            es: "Aldea de hierbas Tra Que",
+            fr: "Village aux herbes Tra Que",
+            de: "Kräuterdorf Tra Que",
+          }),
+          description: loc(locale, {
+            sl: "Kolesarski izlet v vas Tra Que — zelišča, riževi njivi in lokalni zajtrk.",
+            en: "Bike to Tra Que — herb gardens, rice fields, local breakfast.",
+            it: "Gita in bici a Tra Que — giardini di erbe, risaie e colazione locale.",
+            es: "Paseo en bici a Tra Que — jardines de hierbas, arrozales y desayuno local.",
+            fr: "Balade à vélo à Tra Que — jardins d'herbes, rizières et petit-déjeuner local.",
+            de: "Radtour nach Tra Que — Kräutergärten, Reisfelder und lokales Frühstück.",
+          }),
         },
         {
-          name: locale.slo ? "Basket boat v mangrovah" : "Basket boat mangroves",
-          description: locale.slo
-            ? "Kratka vožnja s košarnimi čolni v mangrovah — tipičen Hoi An, rezerviraj zjutraj."
-            : "Short basket-boat ride in the mangroves — classic Hoi An morning trip.",
+          name: loc(locale, {
+            sl: "Basket boat v mangrovah",
+            en: "Basket boat mangroves",
+            it: "Barca cestino nelle mangrovie",
+            es: "Barco cesta en manglares",
+            fr: "Barque panier dans les mangroves",
+            de: "Korbfahrten in den Mangroven",
+          }),
+          description: loc(locale, {
+            sl: "Kratka vožnja s košarnimi čolni v mangrovah — tipičen Hoi An, rezerviraj zjutraj.",
+            en: "Short basket-boat ride in the mangroves — classic Hoi An morning trip.",
+            it: "Breve gita in barca cestino nelle mangrovie — classico Hoi An al mattino.",
+            es: "Breve paseo en barco cesta por los manglares — clásico de Hoi An por la mañana.",
+            fr: "Courte balade en barque panier dans les mangroves — classique du matin à Hoi An.",
+            de: "Kurze Korbfahrten in den Mangroven — klassischer Hoi-An-Morgenausflug.",
+          }),
         },
       ];
       const pick = options[(dayIdx - 1) % options.length]!;
@@ -286,29 +338,72 @@ const HOI_AN_POOL: PoolEntry[] = [
     activity: (locale, dayIdx = 1) => {
       const options = [
         {
-          name: locale.slo ? "Kuharski tečaj (Hoi An)" : "Cooking class (Hoi An)",
-          description: locale.slo
-            ? "Tržnica + kuhanje pod streho — odlična popoldanska aktivnost ob vročini ali dežju."
-            : "Market tour and indoor cooking — great afternoon when hot or rainy.",
+          name: loc(locale, {
+            sl: "Kuharski tečaj (Hoi An)",
+            en: "Cooking class (Hoi An)",
+            it: "Corso di cucina (Hoi An)",
+            es: "Clase de cocina (Hoi An)",
+            fr: "Cours de cuisine (Hoi An)",
+            de: "Kochkurs (Hoi An)",
+          }),
+          description: loc(locale, {
+            sl: "Tržnica + kuhanje pod streho — odlična popoldanska aktivnost ob vročini ali dežju.",
+            en: "Market tour and indoor cooking — great afternoon when hot or rainy.",
+            it: "Mercato e cucina al coperto — ottimo pomeriggio con caldo o pioggia.",
+            es: "Mercado y cocina bajo techo — excelente tarde con calor o lluvia.",
+            fr: "Marché et cuisine à l'intérieur — parfait l'après-midi par chaleur ou pluie.",
+            de: "Marktbesuch und Kochen unter Dach — ideal am Nachmittag bei Hitze oder Regen.",
+          }),
         },
         {
-          name: locale.slo ? "Delavnica lampionov" : "Lantern workshop",
-          description: locale.slo
-            ? "Izdelava svetlečih lampionov v pokriti delavnici v starem mestu."
-            : "Lantern-making in a covered old-town workshop.",
+          name: loc(locale, {
+            sl: "Delavnica lampionov",
+            en: "Lantern workshop",
+            it: "Laboratorio di lanterne",
+            es: "Taller de linternas",
+            fr: "Atelier de lanternes",
+            de: "Laternen-Workshop",
+          }),
+          description: loc(locale, {
+            sl: "Izdelava svetlečih lampionov v pokriti delavnici v starem mestu.",
+            en: "Lantern-making in a covered old-town workshop.",
+            it: "Creazione di lanterne in un laboratorio coperto nella città vecchia.",
+            es: "Elaboración de linternas en un taller cubierto del casco antiguo.",
+            fr: "Fabrication de lanternes dans un atelier couvert de la vieille ville.",
+            de: "Laternen basteln in einer überdachten Werkstatt in der Altstadt.",
+          }),
         },
         {
-          name: locale.slo ? "Reka Thu Bon — vožnja s čolnom" : "Thu Bon river boat",
-          description: locale.slo
-            ? "Popoldanska vožnja po reki — ribiške vasice in fotogenični sončni zahodi ob vodi."
-            : "Afternoon river cruise — fishing villages and waterfront views.",
+          name: loc(locale, {
+            sl: "Reka Thu Bon — vožnja s čolnom",
+            en: "Thu Bon river boat",
+            it: "Gita in barca sul fiume Thu Bon",
+            es: "Paseo en barca por el río Thu Bon",
+            fr: "Balade en bateau sur la Thu Bon",
+            de: "Bootsfahrt auf dem Thu-Bon-Fluss",
+          }),
+          description: loc(locale, {
+            sl: "Popoldanska vožnja po reki — ribiške vasice in fotogenični sončni zahodi ob vodi.",
+            en: "Afternoon river cruise — fishing villages and waterfront views.",
+            it: "Crociera pomeridiana sul fiume — villaggi di pescatori e tramonti sulle rive.",
+            es: "Crucero vespertino por el río — pueblos pesqueros y atardeceres junto al agua.",
+            fr: "Croisière l'après-midi sur la rivière — villages de pêcheurs et couchers de soleil.",
+            de: "Nachmittagsbootsfahrt auf dem Fluss — Fischerdörfer und Sonnenuntergänge am Wasser.",
+          }),
         },
       ];
       const pick = options[(dayIdx - 1) % options.length]!;
       return {
         name: pick.name,
         type: "ACTIVITY" as const,
-        priceLabel: locale.slo ? "15–40 €" : "€15–40",
+        priceLabel: loc(locale, {
+          sl: "15–40 €",
+          en: "€15–40",
+          it: "15–40 €",
+          es: "15–40 €",
+          fr: "15–40 €",
+          de: "15–40 €",
+        }),
         description: pick.description,
       };
     },
@@ -318,22 +413,58 @@ const HOI_AN_POOL: PoolEntry[] = [
     activity: (locale, dayIdx = 1) => {
       const options = [
         {
-          name: locale.slo ? "Ancient Town ob mraku" : "Ancient Town at dusk",
-          description: locale.slo
-            ? "Lanterne in ozke ulice ob mraku — brez ponavljanja plažnega dne."
-            : "Lanterns and alleys at dusk — not a repeat beach block.",
+          name: loc(locale, {
+            sl: "Ancient Town ob mraku",
+            en: "Ancient Town at dusk",
+            it: "Città antica al tramonto",
+            es: "Casco antiguo al atardecer",
+            fr: "Vieille ville au crépuscule",
+            de: "Altstadt in der Dämmerung",
+          }),
+          description: loc(locale, {
+            sl: "Lanterne in ozke ulice ob mraku — brez ponavljanja plažnega dne.",
+            en: "Lanterns and alleys at dusk — not a repeat beach block.",
+            it: "Lanterne e vicoli al tramonto — niente ripetizione della giornata in spiaggia.",
+            es: "Linternas y callejones al atardecer — sin repetir el día de playa.",
+            fr: "Lanternes et ruelles au crépuscule — pas de répétition de la journée plage.",
+            de: "Laternen und Gassen in der Dämmerung — kein Wiederholen des Strandtages.",
+          }),
         },
         {
-          name: locale.slo ? "Central Market — večerja" : "Central Market dinner",
-          description: locale.slo
-            ? "Cao lau ali white rose dumplings na lokalnem trgu — avtentična večerja."
-            : "Cao lau or white rose dumplings at the central market.",
+          name: loc(locale, {
+            sl: "Central Market — večerja",
+            en: "Central Market dinner",
+            it: "Cena al mercato centrale",
+            es: "Cena en el mercado central",
+            fr: "Dîner au marché central",
+            de: "Abendessen auf dem Zentralmarkt",
+          }),
+          description: loc(locale, {
+            sl: "Cao lau ali white rose dumplings na lokalnem trgu — avtentična večerja.",
+            en: "Cao lau or white rose dumplings at the central market.",
+            it: "Cao lau o ravioli white rose al mercato centrale — cena autentica.",
+            es: "Cao lau o dumplings white rose en el mercado central — cena auténtica.",
+            fr: "Cao lau ou raviolis white rose au marché central — dîner authentique.",
+            de: "Cao lau oder White-Rose-Dumplings auf dem Zentralmarkt — authentisches Abendessen.",
+          }),
         },
         {
-          name: locale.slo ? "Riverside BBQ" : "Riverside BBQ",
-          description: locale.slo
-            ? "Večerja ob reki Thu Bon — sveže morske sadeže ali BBQ, manj turistično kot An Bang."
-            : "Thu Bon riverside BBQ — fresh seafood, less touristy than the beach strip.",
+          name: loc(locale, {
+            sl: "Riverside BBQ",
+            en: "Riverside BBQ",
+            it: "BBQ sul fiume",
+            es: "BBQ junto al río",
+            fr: "BBQ au bord de la rivière",
+            de: "BBQ am Flussufer",
+          }),
+          description: loc(locale, {
+            sl: "Večerja ob reki Thu Bon — sveže morske sadeže ali BBQ, manj turistično kot An Bang.",
+            en: "Thu Bon riverside BBQ — fresh seafood, less touristy than the beach strip.",
+            it: "Cena sul Thu Bon — pesce fresco o BBQ, meno turistico di An Bang.",
+            es: "Cena junto al Thu Bon — mariscos frescos o BBQ, menos turístico que An Bang.",
+            fr: "Dîner au bord de la Thu Bon — fruits de mer frais ou BBQ, moins touristique qu'An Bang.",
+            de: "Abendessen am Thu Bon — frische Meeresfrüchte oder BBQ, weniger touristisch als An Bang.",
+          }),
         },
       ];
       const pick = options[(dayIdx - 1) % options.length]!;
@@ -346,34 +477,70 @@ const VIETNAM_POOL: PoolEntry[] = [
   {
     slot: "morning",
     activity: (locale) => ({
-      name: locale.slo ? "Lokalni zajtrk / kava" : "Local breakfast",
+      name: loc(locale, {
+        sl: "Lokalni zajtrk / kava",
+        en: "Local breakfast",
+        it: "Colazione locale",
+        es: "Desayuno local",
+        fr: "Petit-déjeuner local",
+        de: "Lokales Frühstück",
+      }),
       type: "EAT",
       priceLabel: locale.mealPrice,
-      description: locale.slo
-        ? "Začni z pho ali banh mi na uličnem stojalu — poceni, hitro, avtentično. Idealno pred večjimi znamenitostmi."
-        : "Start with pho or banh mi at a street stall before major sights.",
+      description: loc(locale, {
+        sl: "Začni z pho ali banh mi na uličnem stojalu — poceni, hitro, avtentično. Idealno pred večjimi znamenitostmi.",
+        en: "Start with pho or banh mi at a street stall before major sights.",
+        it: "Inizia con pho o banh mi da un banco di strada — economico, veloce, autentico. Ideale prima delle attrazioni principali.",
+        es: "Empieza con pho o banh mi en un puesto callejero — barato, rápido, auténtico. Ideal antes de las atracciones principales.",
+        fr: "Commencez par un pho ou banh mi au stand de rue — bon marché, rapide, authentique. Idéal avant les sites majeurs.",
+        de: "Starte mit Pho oder Banh Mi an einem Straßenstand — günstig, schnell, authentisch. Ideal vor den Hauptsehenswürdigkeiten.",
+      }),
     }),
   },
   {
     slot: "afternoon",
     activity: (locale) => ({
-      name: locale.slo ? "Pavza v kavarni / klimatiziranem prostoru" : "Café break",
+      name: loc(locale, {
+        sl: "Pavza v kavarni / klimatiziranem prostoru",
+        en: "Café break",
+        it: "Pausa caffè",
+        es: "Pausa en cafetería",
+        fr: "Pause café",
+        de: "Kaffeepause",
+      }),
       type: "EAT",
       priceLabel: locale.mealPrice,
-      description: locale.slo
-        ? "Med 12:00 in 15:00 je vroče — planiraj pavzo v kavarni ali nakupovalnem centru. Hladna pijača, načrt za popoldan."
-        : "Midday heat break in an air-conditioned café.",
+      description: loc(locale, {
+        sl: "Med 12:00 in 15:00 je vroče — planiraj pavzo v kavarni ali nakupovalnem centru. Hladna pijača, načrt za popoldan.",
+        en: "Midday heat break in an air-conditioned café.",
+        it: "Pausa dal caldo di mezzogiorno in un caffè climatizzato.",
+        es: "Pausa del calor del mediodía en una cafetería con aire acondicionado.",
+        fr: "Pause fraîcheur de midi dans un café climatisé.",
+        de: "Mittags-Hitzepause in einem klimatisierten Café.",
+      }),
     }),
   },
   {
     slot: "evening",
     activity: (locale) => ({
-      name: locale.slo ? "Ulična hrana / nočni trg" : "Street food / night market",
+      name: loc(locale, {
+        sl: "Ulična hrana / nočni trg",
+        en: "Street food / night market",
+        it: "Cibo di strada / mercato notturno",
+        es: "Comida callejera / mercado nocturno",
+        fr: "Street food / marché de nuit",
+        de: "Streetfood / Nachtmarkt",
+      }),
       type: "EAT",
       priceLabel: locale.mealPrice,
-      description: locale.slo
-        ? "Zaključi dan z ulično hrano ali nočnim trgom — lokalno, poceni, živahno. Grab nazaj v hotel."
-        : "End the day at a street food stall or night market — Grab back to hotel.",
+      description: loc(locale, {
+        sl: "Zaključi dan z ulično hrano ali nočnim trgom — lokalno, poceni, živahno. Grab nazaj v hotel.",
+        en: "End the day at a street food stall or night market — Grab back to hotel.",
+        it: "Concludi la giornata con street food o mercato notturno — Grab per tornare in hotel.",
+        es: "Termina el día con comida callejera o mercado nocturno — Grab de vuelta al hotel.",
+        fr: "Terminez la journée au street food ou marché de nuit — Grab pour retourner à l'hôtel.",
+        de: "Beende den Tag mit Streetfood oder Nachtmarkt — Grab zurück zum Hotel.",
+      }),
     }),
   },
 ];
@@ -454,34 +621,70 @@ const CANADA_POOL: PoolEntry[] = [
   {
     slot: "morning",
     activity: (locale) => ({
-      name: locale.slo ? "Lokalni zajtrk / kava" : "Local breakfast",
+      name: loc(locale, {
+        sl: "Lokalni zajtrk / kava",
+        en: "Local breakfast",
+        it: "Colazione locale",
+        es: "Desayuno local",
+        fr: "Petit-déjeuner local",
+        de: "Lokales Frühstück",
+      }),
       type: "EAT",
       priceLabel: locale.mealPrice,
-      description: locale.slo
-        ? "Začni z zajtrkom v lokalni kavarni — idealno pred večjimi znamenitostmi."
-        : "Start with breakfast at a local café before major sights.",
+      description: loc(locale, {
+        sl: "Začni z zajtrkom v lokalni kavarni — idealno pred večjimi znamenitostmi.",
+        en: "Start with breakfast at a local café before major sights.",
+        it: "Inizia con colazione in un caffè locale — ideale prima delle attrazioni principali.",
+        es: "Empieza con desayuno en una cafetería local — ideal antes de las atracciones principales.",
+        fr: "Commencez par un petit-déjeuner dans un café local — idéal avant les sites majeurs.",
+        de: "Starte mit Frühstück in einem lokalen Café — ideal vor den Hauptsehenswürdigkeiten.",
+      }),
     }),
   },
   {
     slot: "afternoon",
     activity: (locale) => ({
-      name: locale.slo ? "Pavza v kavarni" : "Café break",
+      name: loc(locale, {
+        sl: "Pavza v kavarni",
+        en: "Café break",
+        it: "Pausa caffè",
+        es: "Pausa en cafetería",
+        fr: "Pause café",
+        de: "Kaffeepause",
+      }),
       type: "EAT",
       priceLabel: locale.mealPrice,
-      description: locale.slo
-        ? "Kratka popoldanska pavza — kava, načrt za večer."
-        : "Short afternoon café break.",
+      description: loc(locale, {
+        sl: "Kratka popoldanska pavza — kava, načrt za večer.",
+        en: "Short afternoon café break.",
+        it: "Breve pausa pomeridiana al caffè.",
+        es: "Breve pausa vespertina en cafetería.",
+        fr: "Courte pause café l'après-midi.",
+        de: "Kurze Nachmittags-Kaffeepause.",
+      }),
     }),
   },
   {
     slot: "evening",
     activity: (locale) => ({
-      name: locale.slo ? "Lokalna večerja" : "Local dinner",
+      name: loc(locale, {
+        sl: "Lokalna večerja",
+        en: "Local dinner",
+        it: "Cena locale",
+        es: "Cena local",
+        fr: "Dîner local",
+        de: "Lokales Abendessen",
+      }),
       type: "EAT",
       priceLabel: locale.mealPrice,
-      description: locale.slo
-        ? "Večerja v restavraciji, kamor hodijo domačini. Uber ali javni prevoz nazaj — Grab v Kanadi ne obstaja."
-        : "Dinner where locals eat. Uber or transit back — no Grab in Canada.",
+      description: loc(locale, {
+        sl: "Večerja v restavraciji, kamor hodijo domačini. Uber ali javni prevoz nazaj — Grab v Kanadi ne obstaja.",
+        en: "Dinner where locals eat. Uber or transit back — no Grab in Canada.",
+        it: "Cena dove mangiano i locali. Uber o trasporto pubblico per tornare — niente Grab in Canada.",
+        es: "Cena donde comen los locales. Uber o transporte público de vuelta — no hay Grab en Canadá.",
+        fr: "Dîner où mangent les locaux. Uber ou transports en commun pour le retour — pas de Grab au Canada.",
+        de: "Abendessen, wo Einheimische essen. Uber oder ÖPNV zurück — kein Grab in Kanada.",
+      }),
     }),
   },
 ];
@@ -493,34 +696,70 @@ const CITY_DAY_POOLS: Record<string, PoolEntry[]> = {
     {
       slot: "morning",
       activity: (locale) => ({
-        name: locale.slo ? "Lokalni zajtrk / kava" : "Local breakfast",
+        name: loc(locale, {
+          sl: "Lokalni zajtrk / kava",
+          en: "Local breakfast",
+          it: "Colazione locale",
+          es: "Desayuno local",
+          fr: "Petit-déjeuner local",
+          de: "Lokales Frühstück",
+        }),
         type: "EAT",
         priceLabel: priceEur(locale, "80–150 THB"),
-        description: locale.slo
-          ? "Začni z jajčnim rižem (khao pad) ali mango sticky rice na uličnem stojalu."
-          : "Street breakfast before major sights.",
+        description: loc(locale, {
+          sl: "Začni z jajčnim rižem (khao pad) ali mango sticky rice na uličnem stojalu.",
+          en: "Street breakfast before major sights.",
+          it: "Colazione di strada prima delle attrazioni principali.",
+          es: "Desayuno callejero antes de las atracciones principales.",
+          fr: "Petit-déjeuner de rue avant les sites majeurs.",
+          de: "Straßenfrühstück vor den Hauptsehenswürdigkeiten.",
+        }),
       }),
     },
     {
       slot: "afternoon",
       activity: (locale) => ({
-        name: locale.slo ? "Odmor v klimatiziranem kavarni" : "Air-con café break",
+        name: loc(locale, {
+          sl: "Odmor v klimatiziranem kavarni",
+          en: "Air-con café break",
+          it: "Pausa in caffè climatizzato",
+          es: "Pausa en café con aire acondicionado",
+          fr: "Pause café climatisé",
+          de: "Pause im klimatisierten Café",
+        }),
         type: "EAT",
         priceLabel: priceEur(locale, "100–200 THB"),
-        description: locale.slo
-          ? "Med 12:00 in 15:00 je vroče — pavza v kavarni ali nakupovalnem centru."
-          : "Midday heat break in air-conditioned café.",
+        description: loc(locale, {
+          sl: "Med 12:00 in 15:00 je vroče — pavza v kavarni ali nakupovalnem centru.",
+          en: "Midday heat break in air-conditioned café.",
+          it: "Pausa dal caldo di mezzogiorno in un caffè climatizzato.",
+          es: "Pausa del calor del mediodía en una cafetería con aire acondicionado.",
+          fr: "Pause fraîcheur de midi dans un café climatisé.",
+          de: "Mittags-Hitzepause in einem klimatisierten Café.",
+        }),
       }),
     },
     {
       slot: "evening",
       activity: (locale) => ({
-        name: locale.slo ? "Rooftop bar ali večernji trg" : "Rooftop or night market",
+        name: loc(locale, {
+          sl: "Rooftop bar ali večernji trg",
+          en: "Rooftop or night market",
+          it: "Rooftop bar o mercato notturno",
+          es: "Bar en azotea o mercado nocturno",
+          fr: "Rooftop bar ou marché de nuit",
+          de: "Rooftop-Bar oder Nachtmarkt",
+        }),
         type: "EAT",
         priceLabel: priceEur(locale, "200–600 THB"),
-        description: locale.slo
-          ? "Zaključi dan z razgledom ali hrano na nočnem trgu. Grab nazaj v hotel."
-          : "Rooftop bar or night market to end the day.",
+        description: loc(locale, {
+          sl: "Zaključi dan z razgledom ali hrano na nočnem trgu. Grab nazaj v hotel.",
+          en: "Rooftop bar or night market to end the day.",
+          it: "Rooftop bar o mercato notturno per concludere la giornata.",
+          es: "Bar en azotea o mercado nocturno para terminar el día.",
+          fr: "Rooftop bar ou marché de nuit pour clôturer la journée.",
+          de: "Rooftop-Bar oder Nachtmarkt zum Tagesabschluss.",
+        }),
       }),
     },
   ],
@@ -528,34 +767,77 @@ const CITY_DAY_POOLS: Record<string, PoolEntry[]> = {
     {
       slot: "morning",
       activity: (locale) => ({
-        name: locale.slo ? "Kava v old city" : "Old city coffee",
+        name: loc(locale, {
+          sl: "Kava v old city",
+          en: "Old city coffee",
+          it: "Caffè nella città vecchia",
+          es: "Café en el casco antiguo",
+          fr: "Café dans la vieille ville",
+          de: "Kaffee in der Altstadt",
+        }),
         type: "EAT",
         priceLabel: priceEur(locale, "80–120 THB"),
-        description: locale.slo
-          ? "Začni v specialty kavarni v stari mestni coni."
-          : "Specialty coffee in the old city.",
+        description: loc(locale, {
+          sl: "Začni v specialty kavarni v stari mestni coni.",
+          en: "Specialty coffee in the old city.",
+          it: "Caffè specialty nella città vecchia.",
+          es: "Café de especialidad en el casco antiguo.",
+          fr: "Café de spécialité dans la vieille ville.",
+          de: "Spezialitätenkaffee in der Altstadt.",
+        }),
       }),
     },
     {
       slot: "afternoon",
       activity: (locale) => ({
-        name: locale.slo ? "Pavza v Nimman" : "Nimman area break",
+        name: loc(locale, {
+          sl: "Pavza v Nimman",
+          en: "Nimman area break",
+          it: "Pausa nel quartiere Nimman",
+          es: "Pausa en la zona Nimman",
+          fr: "Pause dans le quartier Nimman",
+          de: "Pause im Nimman-Viertel",
+        }),
         type: "ACTIVITY",
-        priceLabel: locale.slo ? "brezplačno" : "free",
-        description: locale.slo
-          ? "Popoldanski odmor v Nimman Road coni — galerije, klimatizirani prostori."
-          : "Afternoon break in Nimman area.",
+        priceLabel: loc(locale, {
+          sl: "brezplačno",
+          en: "free",
+          it: "gratuito",
+          es: "gratis",
+          fr: "gratuit",
+          de: "kostenlos",
+        }),
+        description: loc(locale, {
+          sl: "Popoldanski odmor v Nimman Road coni — galerije, klimatizirani prostori.",
+          en: "Afternoon break in Nimman area.",
+          it: "Pausa pomeridiana nel quartiere Nimman — gallerie e spazi climatizzati.",
+          es: "Pausa vespertina en la zona Nimman — galerías y espacios con aire acondicionado.",
+          fr: "Pause l'après-midi dans le quartier Nimman — galeries et espaces climatisés.",
+          de: "Nachmittagspause im Nimman-Viertel — Galerien und klimatisierte Räume.",
+        }),
       }),
     },
     {
       slot: "evening",
       activity: (locale) => ({
-        name: locale.slo ? "Night Bazaar" : "Night market",
+        name: loc(locale, {
+          sl: "Night Bazaar",
+          en: "Night market",
+          it: "Mercato notturno",
+          es: "Mercado nocturno",
+          fr: "Marché de nuit",
+          de: "Nachtmarkt",
+        }),
         type: "EAT",
         priceLabel: priceEur(locale, "150–350 THB"),
-        description: locale.slo
-          ? "Večer na trgu — rokodelstvo, ulična hrana."
-          : "Evening market — crafts and street food.",
+        description: loc(locale, {
+          sl: "Večer na trgu — rokodelstvo, ulična hrana.",
+          en: "Evening market — crafts and street food.",
+          it: "Serata al mercato — artigianato e street food.",
+          es: "Noche en el mercado — artesanía y comida callejera.",
+          fr: "Soirée au marché — artisanat et street food.",
+          de: "Abend auf dem Markt — Handwerk und Streetfood.",
+        }),
       }),
     },
   ],
@@ -563,34 +845,77 @@ const CITY_DAY_POOLS: Record<string, PoolEntry[]> = {
     {
       slot: "morning",
       activity: (locale) => ({
-        name: locale.slo ? "Zgodnji obisk ruševin" : "Early ruins visit",
+        name: loc(locale, {
+          sl: "Zgodnji obisk ruševin",
+          en: "Early ruins visit",
+          it: "Visita mattutina alle rovine",
+          es: "Visita matutina a las ruinas",
+          fr: "Visite matinale des ruines",
+          de: "Früher Besuch der Ruinen",
+        }),
         type: "SIGHT",
         priceLabel: priceEur(locale, "50–100 THB"),
-        description: locale.slo
-          ? "Ruševine obišči zjutraj (8:00–11:00). Najem kolesa ali tuk-tuk med lokacijami."
-          : "Visit ruins early morning; bike or tuk-tuk between sites.",
+        description: loc(locale, {
+          sl: "Ruševine obišči zjutraj (8:00–11:00). Najem kolesa ali tuk-tuk med lokacijami.",
+          en: "Visit ruins early morning; bike or tuk-tuk between sites.",
+          it: "Visita le rovine al mattino presto (8:00–11:00). Bici o tuk-tuk tra i siti.",
+          es: "Visita las ruinas por la mañana (8:00–11:00). Bici o tuk-tuk entre los sitios.",
+          fr: "Visitez les ruines tôt le matin (8h–11h). Vélo ou tuk-tuk entre les sites.",
+          de: "Ruinen am Morgen besuchen (8:00–11:00). Fahrrad oder Tuk-Tuk zwischen den Stätten.",
+        }),
       }),
     },
     {
       slot: "afternoon",
       activity: (locale) => ({
-        name: locale.slo ? "Pavza ob reki + lokalna hrana" : "River lunch break",
+        name: loc(locale, {
+          sl: "Pavza ob reki + lokalna hrana",
+          en: "River lunch break",
+          it: "Pausa pranzo sul fiume",
+          es: "Pausa para almorzar junto al río",
+          fr: "Pause déjeuner au bord de la rivière",
+          de: "Mittagspause am Fluss",
+        }),
         type: "EAT",
         priceLabel: priceEur(locale, "100–250 THB"),
-        description: locale.slo
-          ? "Popoldanski odmor ob reki — pad thai, počasi."
-          : "Lunch by the river — slow pace.",
+        description: loc(locale, {
+          sl: "Popoldanski odmor ob reki — pad thai, počasi.",
+          en: "Lunch by the river — slow pace.",
+          it: "Pausa pomeridiana sul fiume — pad thai, ritmo lento.",
+          es: "Descanso vespertino junto al río — pad thai, ritmo pausado.",
+          fr: "Pause l'après-midi au bord de la rivière — pad thai, rythme lent.",
+          de: "Nachmittagspause am Fluss — Pad Thai, gemütliches Tempo.",
+        }),
       }),
     },
     {
       slot: "evening",
       activity: (locale) => ({
-        name: locale.slo ? "Večernji sprehod med ruševinami" : "Evening ruins walk",
+        name: loc(locale, {
+          sl: "Večernji sprehod med ruševinami",
+          en: "Evening ruins walk",
+          it: "Passeggiata serale tra le rovine",
+          es: "Paseo vespertino entre las ruinas",
+          fr: "Promenade du soir parmi les ruines",
+          de: "Abendspaziergang zwischen den Ruinen",
+        }),
         type: "SIGHT",
-        priceLabel: locale.slo ? "brezplačno" : "free",
-        description: locale.slo
-          ? "Nekateri templji so čudoviti ob sončnem zahodu."
-          : "Some temples are stunning at sunset.",
+        priceLabel: loc(locale, {
+          sl: "brezplačno",
+          en: "free",
+          it: "gratuito",
+          es: "gratis",
+          fr: "gratuit",
+          de: "kostenlos",
+        }),
+        description: loc(locale, {
+          sl: "Nekateri templji so čudoviti ob sončnem zahodu.",
+          en: "Some temples are stunning at sunset.",
+          it: "Alcuni templi sono spettacolari al tramonto.",
+          es: "Algunos templos son impresionantes al atardecer.",
+          fr: "Certains temples sont magnifiques au coucher du soleil.",
+          de: "Manche Tempel sind bei Sonnenuntergang atemberaubend.",
+        }),
       }),
     },
   ],
@@ -598,34 +923,77 @@ const CITY_DAY_POOLS: Record<string, PoolEntry[]> = {
     {
       slot: "morning",
       activity: (locale) => ({
-        name: locale.slo ? "Zajtrk ob morju" : "Beach breakfast",
+        name: loc(locale, {
+          sl: "Zajtrk ob morju",
+          en: "Beach breakfast",
+          it: "Colazione in spiaggia",
+          es: "Desayuno en la playa",
+          fr: "Petit-déjeuner à la plage",
+          de: "Strandfrühstück",
+        }),
         type: "EAT",
         priceLabel: priceEur(locale, "150–300 THB"),
-        description: locale.slo
-          ? "Zajtrk v beach café — počasi pred izletom."
-          : "Relaxed beach café breakfast.",
+        description: loc(locale, {
+          sl: "Zajtrk v beach café — počasi pred izletom.",
+          en: "Relaxed beach café breakfast.",
+          it: "Colazione rilassata in un beach café prima dell'escursione.",
+          es: "Desayuno relajado en un café de playa antes de la excursión.",
+          fr: "Petit-déjeuner détendu au beach café avant l'excursion.",
+          de: "Entspanntes Frühstück im Beach-Café vor dem Ausflug.",
+        }),
       }),
     },
     {
       slot: "afternoon",
       activity: (locale) => ({
-        name: locale.slo ? "Siesta / bazen" : "Pool siesta",
+        name: loc(locale, {
+          sl: "Siesta / bazen",
+          en: "Pool siesta",
+          it: "Siesta / piscina",
+          es: "Siesta / piscina",
+          fr: "Sieste / piscine",
+          de: "Siesta / Pool",
+        }),
         type: "ACTIVITY",
-        priceLabel: locale.slo ? "vključeno v hotel" : "hotel included",
-        description: locale.slo
-          ? "Tropska pavza 13:00–16:00 — bazen ali senčnik."
-          : "Tropical afternoon pause.",
+        priceLabel: loc(locale, {
+          sl: "vključeno v hotel",
+          en: "hotel included",
+          it: "incluso in hotel",
+          es: "incluido en hotel",
+          fr: "inclus à l'hôtel",
+          de: "im Hotel inbegriffen",
+        }),
+        description: loc(locale, {
+          sl: "Tropska pavza 13:00–16:00 — bazen ali senčnik.",
+          en: "Tropical afternoon pause.",
+          it: "Pausa tropicale pomeridiana 13:00–16:00 — piscina o ombrellone.",
+          es: "Pausa tropical vespertina 13:00–16:00 — piscina o sombrilla.",
+          fr: "Pause tropicale l'après-midi 13h–16h — piscine ou parasol.",
+          de: "Tropische Nachmittagspause 13:00–16:00 — Pool oder Sonnenschirm.",
+        }),
       }),
     },
     {
       slot: "evening",
       activity: (locale) => ({
-        name: locale.slo ? "Seafood ali nočni trg" : "Seafood or night market",
+        name: loc(locale, {
+          sl: "Seafood ali nočni trg",
+          en: "Seafood or night market",
+          it: "Pesce o mercato notturno",
+          es: "Mariscos o mercado nocturno",
+          fr: "Fruits de mer ou marché de nuit",
+          de: "Meeresfrüchte oder Nachtmarkt",
+        }),
         type: "EAT",
         priceLabel: priceEur(locale, "300–700 THB"),
-        description: locale.slo
-          ? "Večerja z morskimi sadeži ali nočni trg v Phuket Town."
-          : "Seafood dinner or Phuket Town night market.",
+        description: loc(locale, {
+          sl: "Večerja z morskimi sadeži ali nočni trg v Phuket Town.",
+          en: "Seafood dinner or Phuket Town night market.",
+          it: "Cena di pesce o mercato notturno a Phuket Town.",
+          es: "Cena de mariscos o mercado nocturno en Phuket Town.",
+          fr: "Dîner fruits de mer ou marché de nuit à Phuket Town.",
+          de: "Meeresfrüchte-Abendessen oder Nachtmarkt in Phuket Town.",
+        }),
       }),
     },
   ],
@@ -633,42 +1001,95 @@ const CITY_DAY_POOLS: Record<string, PoolEntry[]> = {
     {
       slot: "morning",
       activity: (locale, dayIdx, ctx) => ({
-        name: locale.slo ? "Zajtrk v Ao Nang" : "Ao Nang breakfast",
+        name: loc(locale, {
+          sl: "Zajtrk v Ao Nang",
+          en: "Ao Nang breakfast",
+          it: "Colazione ad Ao Nang",
+          es: "Desayuno en Ao Nang",
+          fr: "Petit-déjeuner à Ao Nang",
+          de: "Frühstück in Ao Nang",
+        }),
         type: "EAT",
         priceLabel: priceEur(locale, "150–300 THB"),
-        description: locale.slo
-          ? ctx?.phiPhiDone
-            ? "Zajtrk ob plaži v Ao Nang — dan za Railay, snorkljanje ali počasen ritem ob morju."
-            : dayIdx && dayIdx > 1
-              ? "Zajtrk v Ao Nang — dan za Railay, plaže v zalivu ali lokalni izlet z ladjo."
-              : "Zajtrk ob plaži v Ao Nang — pred celodnevnim izletom na Phi Phi ali Railay."
-          : ctx?.phiPhiDone
-            ? "Beach breakfast in Ao Nang — Railay, snorkel, or slow beach day."
-            : dayIdx && dayIdx > 1
-              ? "Ao Nang breakfast — Railay, bay beaches, or local boat trip."
-              : "Beach breakfast before a Phi Phi or Railay day trip.",
+        description: ctx?.phiPhiDone
+          ? loc(locale, {
+              sl: "Zajtrk ob plaži v Ao Nang — dan za Railay, snorkljanje ali počasen ritem ob morju.",
+              en: "Beach breakfast in Ao Nang — Railay, snorkel, or slow beach day.",
+              it: "Colazione in spiaggia ad Ao Nang — Railay, snorkeling o giornata lenta al mare.",
+              es: "Desayuno en la playa de Ao Nang — Railay, snorkel o día tranquilo en la playa.",
+              fr: "Petit-déjeuner à la plage à Ao Nang — Railay, snorkeling ou journée plage tranquille.",
+              de: "Strandfrühstück in Ao Nang — Railay, Schnorcheln oder entspannter Strandtag.",
+            })
+          : dayIdx && dayIdx > 1
+            ? loc(locale, {
+                sl: "Zajtrk v Ao Nang — dan za Railay, plaže v zalivu ali lokalni izlet z ladjo.",
+                en: "Ao Nang breakfast — Railay, bay beaches, or local boat trip.",
+                it: "Colazione ad Ao Nang — Railay, spiagge della baia o gita in barca locale.",
+                es: "Desayuno en Ao Nang — Railay, playas de la bahía o excursión en barco local.",
+                fr: "Petit-déjeuner à Ao Nang — Railay, plages de la baie ou excursion en bateau local.",
+                de: "Frühstück in Ao Nang — Railay, Buchtstrände oder lokaler Bootsausflug.",
+              })
+            : loc(locale, {
+                sl: "Zajtrk ob plaži v Ao Nang — pred celodnevnim izletom na Phi Phi ali Railay.",
+                en: "Beach breakfast before a Phi Phi or Railay day trip.",
+                it: "Colazione in spiaggia ad Ao Nang — prima dell'escursione giornaliera a Phi Phi o Railay.",
+                es: "Desayuno en la playa de Ao Nang — antes de la excursión de día completo a Phi Phi o Railay.",
+                fr: "Petit-déjeuner à la plage à Ao Nang — avant l'excursion d'une journée à Phi Phi ou Railay.",
+                de: "Strandfrühstück in Ao Nang — vor dem Ganztagesausflug nach Phi Phi oder Railay.",
+              }),
       }),
     },
     {
       slot: "afternoon",
       activity: (locale) => ({
-        name: locale.slo ? "Siesta ob morju" : "Beach siesta",
+        name: loc(locale, {
+          sl: "Siesta ob morju",
+          en: "Beach siesta",
+          it: "Siesta in spiaggia",
+          es: "Siesta en la playa",
+          fr: "Sieste à la plage",
+          de: "Strandsiesta",
+        }),
         type: "ACTIVITY",
-        priceLabel: locale.slo ? "brezplačno" : "free",
-        description: locale.slo
-          ? "Popoldanska pavza v senčniku ali na plaži — tropična vročina."
-          : "Afternoon shade or beach pause.",
+        priceLabel: loc(locale, {
+          sl: "brezplačno",
+          en: "free",
+          it: "gratuito",
+          es: "gratis",
+          fr: "gratuit",
+          de: "kostenlos",
+        }),
+        description: loc(locale, {
+          sl: "Popoldanska pavza v senčniku ali na plaži — tropična vročina.",
+          en: "Afternoon shade or beach pause.",
+          it: "Pausa pomeridiana all'ombra o in spiaggia — caldo tropicale.",
+          es: "Pausa vespertina a la sombra o en la playa — calor tropical.",
+          fr: "Pause l'après-midi à l'ombre ou à la plage — chaleur tropicale.",
+          de: "Nachmittagspause im Schatten oder am Strand — tropische Hitze.",
+        }),
       }),
     },
     {
       slot: "evening",
       activity: (locale) => ({
-        name: locale.slo ? "Seafood v Ao Nang" : "Ao Nang seafood",
+        name: loc(locale, {
+          sl: "Seafood v Ao Nang",
+          en: "Ao Nang seafood",
+          it: "Pesce ad Ao Nang",
+          es: "Mariscos en Ao Nang",
+          fr: "Fruits de mer à Ao Nang",
+          de: "Meeresfrüchte in Ao Nang",
+        }),
         type: "EAT",
         priceLabel: priceEur(locale, "300–700 THB"),
-        description: locale.slo
-          ? "Večerja z morskimi sadeži ob Ao Nang ali nočni trg v Krabiju."
-          : "Seafood dinner in Ao Nang or Krabi night market.",
+        description: loc(locale, {
+          sl: "Večerja z morskimi sadeži ob Ao Nang ali nočni trg v Krabiju.",
+          en: "Seafood dinner in Ao Nang or Krabi night market.",
+          it: "Cena di pesce ad Ao Nang o mercato notturno a Krabi.",
+          es: "Cena de mariscos en Ao Nang o mercado nocturno en Krabi.",
+          fr: "Dîner fruits de mer à Ao Nang ou marché de nuit à Krabi.",
+          de: "Meeresfrüchte-Abendessen in Ao Nang oder Nachtmarkt in Krabi.",
+        }),
       }),
     },
   ],
@@ -676,23 +1097,47 @@ const CITY_DAY_POOLS: Record<string, PoolEntry[]> = {
     {
       slot: "morning",
       activity: (locale) => ({
-        name: locale.slo ? "Zajtrk na otoku" : "Island breakfast",
+        name: loc(locale, {
+          sl: "Zajtrk na otoku",
+          en: "Island breakfast",
+          it: "Colazione sull'isola",
+          es: "Desayuno en la isla",
+          fr: "Petit-déjeuner sur l'île",
+          de: "Inselfrühstück",
+        }),
         type: "EAT",
         priceLabel: priceEur(locale, "150–300 THB"),
-        description: locale.slo
-          ? "Počasen zajtrk v beach baru — otok je majhen, brez naglice."
-          : "Slow island beach breakfast.",
+        description: loc(locale, {
+          sl: "Počasen zajtrk v beach baru — otok je majhen, brez naglice.",
+          en: "Slow island beach breakfast.",
+          it: "Colazione lenta in un beach bar — l'isola è piccola, senza fretta.",
+          es: "Desayuno tranquilo en un bar de playa — la isla es pequeña, sin prisas.",
+          fr: "Petit-déjeuner tranquille au beach bar — l'île est petite, sans précipitation.",
+          de: "Gemütliches Frühstück in der Beach-Bar — die Insel ist klein, kein Stress.",
+        }),
       }),
     },
     {
       slot: "evening",
       activity: (locale) => ({
-        name: locale.slo ? "Walking Street" : "Walking Street dinner",
+        name: loc(locale, {
+          sl: "Walking Street",
+          en: "Walking Street dinner",
+          it: "Cena in Walking Street",
+          es: "Cena en Walking Street",
+          fr: "Dîner à Walking Street",
+          de: "Abendessen in der Walking Street",
+        }),
         type: "EAT",
         priceLabel: priceEur(locale, "300–600 THB"),
-        description: locale.slo
-          ? "Večerja na Walking Street — morski sadeži in ulična hrana na Koh Lipeju."
-          : "Walking Street seafood and street food on Koh Lipe.",
+        description: loc(locale, {
+          sl: "Večerja na Walking Street — morski sadeži in ulična hrana na Koh Lipeju.",
+          en: "Walking Street seafood and street food on Koh Lipe.",
+          it: "Cena in Walking Street — pesce e street food a Koh Lipe.",
+          es: "Cena en Walking Street — mariscos y comida callejera en Koh Lipe.",
+          fr: "Dîner à Walking Street — fruits de mer et street food à Koh Lipe.",
+          de: "Abendessen in der Walking Street — Meeresfrüchte und Streetfood auf Koh Lipe.",
+        }),
       }),
     },
   ],
@@ -702,34 +1147,84 @@ const CITY_DAY_POOLS: Record<string, PoolEntry[]> = {
     {
       slot: "morning",
       activity: (locale) => ({
-        name: locale.slo ? "Jutranji sprehod do prve znamenitosti" : "Morning walk to first sight",
+        name: loc(locale, {
+          sl: "Jutranji sprehod do prve znamenitosti",
+          en: "Morning walk to first sight",
+          it: "Passeggiata mattutina verso la prima tappa",
+          es: "Paseo matutino hasta la primera visita",
+          fr: "Promenade matinale vers le premier site",
+          de: "Morgenspaziergang zur ersten Sehenswürdigkeit",
+        }),
         type: "ACTIVITY",
-        priceLabel: locale.slo ? "brezplačno" : "free",
-        description: locale.slo
-          ? "Peš ali z javnim prevozom do prve točke dneva — mesto je zjutraj mirnejše in bolj fotogenično."
-          : "Walk or take transit to your first stop — cities are calmer and photogenic in the morning.",
+        priceLabel: loc(locale, {
+          sl: "brezplačno",
+          en: "free",
+          it: "gratuito",
+          es: "gratis",
+          fr: "gratuit",
+          de: "kostenlos",
+        }),
+        description: loc(locale, {
+          sl: "Peš ali z javnim prevozom do prve točke dneva — mesto je zjutraj mirnejše in bolj fotogenično.",
+          en: "Walk or take transit to your first stop — cities are calmer and photogenic in the morning.",
+          it: "A piedi o con i mezzi pubblici fino alla prima tappa — la città è più tranquilla e fotogenica al mattino.",
+          es: "A pie o en transporte público hasta la primera parada — la ciudad es más tranquila y fotogénica por la mañana.",
+          fr: "À pied ou en transports en commun jusqu'à la première étape — la ville est plus calme et photogénique le matin.",
+          de: "Zu Fuß oder mit öffentlichen Verkehrsmitteln zur ersten Station — Städte sind morgens ruhiger und fotogener.",
+        }),
       }),
     },
     {
       slot: "afternoon",
       activity: (locale) => ({
-        name: locale.slo ? "Pavza na trgu / v parku" : "Square or park break",
+        name: loc(locale, {
+          sl: "Pavza na trgu / v parku",
+          en: "Square or park break",
+          it: "Pausa in piazza o al parco",
+          es: "Pausa en la plaza o el parque",
+          fr: "Pause sur la place ou au parc",
+          de: "Pause auf dem Platz oder im Park",
+        }),
         type: "ACTIVITY",
-        priceLabel: locale.slo ? "brezplačno" : "free",
-        description: locale.slo
-          ? "Popoldanski odmor na glavnem trgu ali v mestnem parku — people-watching in počasnejši ritem."
-          : "Afternoon pause on a main square or in a city park.",
+        priceLabel: loc(locale, {
+          sl: "brezplačno",
+          en: "free",
+          it: "gratuito",
+          es: "gratis",
+          fr: "gratuit",
+          de: "kostenlos",
+        }),
+        description: loc(locale, {
+          sl: "Popoldanski odmor na glavnem trgu ali v mestnem parku — people-watching in počasnejši ritem.",
+          en: "Afternoon pause on a main square or in a city park.",
+          it: "Pausa pomeridiana sulla piazza principale o in un parco cittadino — osservare la gente a ritmo lento.",
+          es: "Descanso vespertino en la plaza principal o en un parque urbano — observar a la gente a ritmo pausado.",
+          fr: "Pause l'après-midi sur la place principale ou dans un parc urbain — observer la vie à rythme lent.",
+          de: "Nachmittagspause auf dem Hauptplatz oder im Stadtpark — Menschen beobachten in gemütlichem Tempo.",
+        }),
       }),
     },
     {
       slot: "evening",
       activity: (locale) => ({
-        name: locale.slo ? "Aperitivo / lokalna večerja" : "Aperitivo / local dinner",
+        name: loc(locale, {
+          sl: "Aperitivo / lokalna večerja",
+          en: "Aperitivo / local dinner",
+          it: "Aperitivo / cena locale",
+          es: "Aperitivo / cena local",
+          fr: "Apéritif / dîner local",
+          de: "Aperitivo / lokales Abendessen",
+        }),
         type: "EAT",
         priceLabel: locale.mealPrice,
-        description: locale.slo
-          ? "Večerja v bistru ali trattorii, kamor hodijo domačini — rezervacija pri priljubljenih krajih."
-          : "Dinner at a bistro or trattoria where locals eat.",
+        description: loc(locale, {
+          sl: "Večerja v bistru ali trattorii, kamor hodijo domačini — rezervacija pri priljubljenih krajih.",
+          en: "Dinner at a bistro or trattoria where locals eat.",
+          it: "Cena in un bistro o trattoria frequentati dai locali — prenotazione consigliata nei posti popolari.",
+          es: "Cena en un bistró o trattoria donde comen los locales — reserva recomendada en los sitios populares.",
+          fr: "Dîner dans un bistro ou une trattoria fréquentés par les locaux — réservation conseillée aux adresses populaires.",
+          de: "Abendessen in einem Bistro oder einer Trattoria, wo Einheimische essen — Reservierung bei beliebten Orten empfohlen.",
+        }),
       }),
     },
   ],
@@ -737,23 +1232,47 @@ const CITY_DAY_POOLS: Record<string, PoolEntry[]> = {
     {
       slot: "morning",
       activity: (locale) => ({
-        name: locale.slo ? "Jutranji sprehod / kava pred ogledom" : "Morning walk & coffee",
+        name: loc(locale, {
+          sl: "Jutranji sprehod / kava pred ogledom",
+          en: "Morning walk & coffee",
+          it: "Passeggiata mattutina e caffè",
+          es: "Paseo matutino y café",
+          fr: "Promenade matinale et café",
+          de: "Morgenspaziergang und Kaffee",
+        }),
         type: "ACTIVITY",
         priceLabel: locale.mealPrice,
-        description: locale.slo
-          ? "Kratek sprehod po okolici hotela in kava na poti — orientacija pred glavnim ogledom dopoldan."
-          : "Short neighbourhood walk and coffee on the way to your main morning sight.",
+        description: loc(locale, {
+          sl: "Kratek sprehod po okolici hotela in kava na poti — orientacija pred glavnim ogledom dopoldan.",
+          en: "Short neighbourhood walk and coffee on the way to your main morning sight.",
+          it: "Breve passeggiata nel quartiere e caffè per strada — orientamento prima della visita principale del mattino.",
+          es: "Breve paseo por el barrio y café de camino — orientación antes de la visita principal de la mañana.",
+          fr: "Courte promenade dans le quartier et café en chemin — repérage avant la visite principale du matin.",
+          de: "Kurzer Spaziergang in der Umgebung und Kaffee unterwegs — Orientierung vor der Hauptbesichtigung am Vormittag.",
+        }),
       }),
     },
     {
       slot: "evening",
       activity: (locale) => ({
-        name: locale.slo ? "Večerja v soseski" : "Neighbourhood dinner",
+        name: loc(locale, {
+          sl: "Večerja v soseski",
+          en: "Neighbourhood dinner",
+          it: "Cena di quartiere",
+          es: "Cena de barrio",
+          fr: "Dîner de quartier",
+          de: "Abendessen im Viertel",
+        }),
         type: "EAT",
         priceLabel: locale.mealPrice,
-        description: locale.slo
-          ? "Večerja izven glavnih turističnih ulic — boljše cene in vzdušje."
-          : "Dinner off the main tourist strips.",
+        description: loc(locale, {
+          sl: "Večerja izven glavnih turističnih ulic — boljše cene in vzdušje.",
+          en: "Dinner off the main tourist strips.",
+          it: "Cena lontano dalle strade turistiche principali — prezzi migliori e atmosfera più autentica.",
+          es: "Cena fuera de las calles turísticas principales — mejores precios y ambiente.",
+          fr: "Dîner loin des rues touristiques principales — meilleurs prix et ambiance.",
+          de: "Abendessen abseits der Haupttouristenstraßen — bessere Preise und Atmosphäre.",
+        }),
       }),
     },
   ],
@@ -761,23 +1280,54 @@ const CITY_DAY_POOLS: Record<string, PoolEntry[]> = {
     {
       slot: "afternoon",
       activity: (locale) => ({
-        name: locale.slo ? "Siesta v tented campu / lodge" : "Camp / lodge siesta",
+        name: loc(locale, {
+          sl: "Siesta v tented campu / lodge",
+          en: "Camp / lodge siesta",
+          it: "Siesta nel tented camp / lodge",
+          es: "Siesta en campamento / lodge",
+          fr: "Sieste au camp / lodge",
+          de: "Siesta im Zeltcamp / Lodge",
+        }),
         type: "ACTIVITY",
-        priceLabel: locale.slo ? "vključeno v nastanitev" : "included in lodge",
-        description: locale.slo
-          ? "Popoldanski odmor v kampu med game drives — senca, bazen (če je), priprava na večernji safari. V divjini ni mestnih kavarn."
-          : "Afternoon rest at camp between game drives — no city cafés in the bush.",
+        priceLabel: loc(locale, {
+          sl: "vključeno v nastanitev",
+          en: "included in lodge",
+          it: "incluso nel lodge",
+          es: "incluido en el lodge",
+          fr: "inclus au lodge",
+          de: "in der Lodge inbegriffen",
+        }),
+        description: loc(locale, {
+          sl: "Popoldanski odmor v kampu med game drives — senca, bazen (če je), priprava na večernji safari. V divjini ni mestnih kavarn.",
+          en: "Afternoon rest at camp between game drives — no city cafés in the bush.",
+          it: "Riposo pomeridiano al campo tra i game drive — ombra, piscina (se c'è), preparazione al safari serale. Niente caffè cittadini nella savana.",
+          es: "Descanso vespertino en el campamento entre safaris — sombra, piscina (si hay), preparación para el safari nocturno. No hay cafés urbanos en la sabana.",
+          fr: "Repos l'après-midi au camp entre les safaris — ombre, piscine (si disponible), préparation au safari du soir. Pas de cafés urbains dans la brousse.",
+          de: "Nachmittagsruhe im Camp zwischen Game Drives — Schatten, Pool (falls vorhanden), Vorbereitung auf die Abendsafari. Keine Stadtcafés in der Wildnis.",
+        }),
       }),
     },
     {
       slot: "evening",
       activity: (locale) => ({
-        name: locale.slo ? "Večerja in campfire v kampu" : "Camp dinner & campfire",
+        name: loc(locale, {
+          sl: "Večerja in campfire v kampu",
+          en: "Camp dinner & campfire",
+          it: "Cena e falò al campo",
+          es: "Cena y fogata en el campamento",
+          fr: "Dîner et feu de camp",
+          de: "Camp-Abendessen und Lagerfeuer",
+        }),
         type: "EAT",
         priceLabel: "25–50 €",
-        description: locale.slo
-          ? "Večerja v lodge ali tented campu — pogosto boma dinner z lokalno kuhinjo. Večerni game drive po dogovoru z vodnikom."
-          : "Lodge dinner — often boma style; optional evening game drive with your guide.",
+        description: loc(locale, {
+          sl: "Večerja v lodge ali tented campu — pogosto boma dinner z lokalno kuhinjo. Večerni game drive po dogovoru z vodnikom.",
+          en: "Lodge dinner — often boma style; optional evening game drive with your guide.",
+          it: "Cena al lodge o tented camp — spesso boma dinner con cucina locale. Game drive serale opzionale con la guida.",
+          es: "Cena en el lodge o campamento — a menudo estilo boma con cocina local. Safari nocturno opcional con el guía.",
+          fr: "Dîner au lodge ou camp — souvent style boma avec cuisine locale. Safari du soir optionnel avec le guide.",
+          de: "Abendessen in der Lodge oder im Camp — oft Boma-Dinner mit lokaler Küche. Optionaler Abend-Game-Drive mit dem Guide.",
+        }),
       }),
     },
   ],
@@ -785,48 +1335,96 @@ const CITY_DAY_POOLS: Record<string, PoolEntry[]> = {
     {
       slot: "evening",
       activity: (locale, dayIdx) => ({
-        name: locale.slo ? "Forodhani Night Market (Stone Town)" : "Forodhani Night Market",
+        name: loc(locale, {
+          sl: "Forodhani Night Market (Stone Town)",
+          en: "Forodhani Night Market",
+          it: "Mercato notturno Forodhani (Stone Town)",
+          es: "Mercado nocturno Forodhani (Stone Town)",
+          fr: "Marché de nuit Forodhani (Stone Town)",
+          de: "Forodhani-Nachtmarkt (Stone Town)",
+        }),
         type: "EAT",
         priceLabel: locale.mealPrice,
-        description: locale.slo
-          ? "Večernja ulična hrana na Forodhani — zanzibarski pizza, seafood skewers, sok. Najbolj živahno ob sončnem zahodu, ko se tržnica oživi."
-          : "Street food at Forodhani — Zanzibar pizza, seafood; liveliest at sunset.",
+        description: loc(locale, {
+          sl: "Večernja ulična hrana na Forodhani — zanzibarski pizza, seafood skewers, sok. Najbolj živahno ob sončnem zahodu, ko se tržnica oživi.",
+          en: "Street food at Forodhani — Zanzibar pizza, seafood; liveliest at sunset.",
+          it: "Street food a Forodhani — pizza zanzibarina, spiedini di pesce, succhi. Più vivace al tramonto.",
+          es: "Comida callejera en Forodhani — pizza zanzibarí, brochetas de marisco, zumos. Más animado al atardecer.",
+          fr: "Street food à Forodhani — pizza zanzibarite, brochettes de fruits de mer, jus. Plus animé au coucher du soleil.",
+          de: "Streetfood am Forodhani — Sansibar-Pizza, Meeresfrüchte-Spieße, Säfte. Am lebhaftesten bei Sonnenuntergang.",
+        }),
       }),
       dayIdx: 0,
     },
     {
       slot: "evening",
       activity: (locale) => ({
-        name: locale.slo ? "The Rock Restaurant (Pingwe)" : "The Rock Restaurant",
+        name: loc(locale, {
+          sl: "The Rock Restaurant (Pingwe)",
+          en: "The Rock Restaurant",
+          it: "The Rock Restaurant (Pingwe)",
+          es: "The Rock Restaurant (Pingwe)",
+          fr: "The Rock Restaurant (Pingwe)",
+          de: "The Rock Restaurant (Pingwe)",
+        }),
         type: "EAT",
         priceLabel: "35–60 €",
-        description: locale.slo
-          ? "Ikonična restavracija na skali ob plimi — rezervacija obvezna. Idealno po dnevu na vzhodni obali (Paje/Matemwe)."
-          : "Iconic rock restaurant — reservation required; best after an east-coast day.",
+        description: loc(locale, {
+          sl: "Ikonična restavracija na skali ob plimi — rezervacija obvezna. Idealno po dnevu na vzhodni obali (Paje/Matemwe).",
+          en: "Iconic rock restaurant — reservation required; best after an east-coast day.",
+          it: "Ristorante iconico sulla roccia — prenotazione obbligatoria. Ideale dopo una giornata sulla costa est (Paje/Matemwe).",
+          es: "Restaurante icónico sobre la roca — reserva obligatoria. Ideal tras un día en la costa este (Paje/Matemwe).",
+          fr: "Restaurant emblématique sur le rocher — réservation obligatoire. Idéal après une journée sur la côte est (Paje/Matemwe).",
+          de: "Ikonisches Felsrestaurant — Reservierung erforderlich. Ideal nach einem Tag an der Ostküste (Paje/Matemwe).",
+        }),
       }),
       dayIdx: 1,
     },
     {
       slot: "evening",
       activity: (locale) => ({
-        name: locale.slo ? "Seafood na severni obali (Nungwi)" : "Nungwi seafood dinner",
+        name: loc(locale, {
+          sl: "Seafood na severni obali (Nungwi)",
+          en: "Nungwi seafood dinner",
+          it: "Cena di pesce a Nungwi (costa nord)",
+          es: "Mariscos en la costa norte (Nungwi)",
+          fr: "Fruits de mer sur la côte nord (Nungwi)",
+          de: "Meeresfrüchte an der Nordküste (Nungwi)",
+        }),
         type: "EAT",
         priceLabel: locale.mealPrice,
-        description: locale.slo
-          ? "Sveži morski sadeži v Nungwi po dnevu na severu — lobster, prawns, ugali. Plačaj po teži."
-          : "Fresh catch dinner in Nungwi after a north-beach day.",
+        description: loc(locale, {
+          sl: "Sveži morski sadeži v Nungwi po dnevu na severu — lobster, prawns, ugali. Plačaj po teži.",
+          en: "Fresh catch dinner in Nungwi after a north-beach day.",
+          it: "Pesce fresco a Nungwi dopo una giornata al nord — aragosta, gamberi, ugali. Si paga al peso.",
+          es: "Mariscos frescos en Nungwi tras un día en el norte — langosta, gambas, ugali. Se paga por peso.",
+          fr: "Fruits de mer frais à Nungwi après une journée au nord — homard, crevettes, ugali. Paiement au poids.",
+          de: "Frischer Fisch in Nungwi nach einem Nordküsten-Tag — Hummer, Garnelen, Ugali. Bezahlung nach Gewicht.",
+        }),
       }),
       dayIdx: 2,
     },
     {
       slot: "evening",
       activity: (locale) => ({
-        name: locale.slo ? "Kizimkazi — večer ob plaži" : "Kizimkazi beach dinner",
+        name: loc(locale, {
+          sl: "Kizimkazi — večer ob plaži",
+          en: "Kizimkazi beach dinner",
+          it: "Kizimkazi — cena in spiaggia",
+          es: "Kizimkazi — cena en la playa",
+          fr: "Kizimkazi — dîner à la plage",
+          de: "Kizimkazi — Strandabendessen",
+        }),
         type: "EAT",
         priceLabel: locale.mealPrice,
-        description: locale.slo
-          ? "Lahka večerja ob južni obali po delfinarnem ali plažnem dnevu — počasen ritem, lokalni gostilni."
-          : "Relaxed southern beach dinner after a Kizimkazi day.",
+        description: loc(locale, {
+          sl: "Lahka večerja ob južni obali po delfinarnem ali plažnem dnevu — počasen ritem, lokalni gostilni.",
+          en: "Relaxed southern beach dinner after a Kizimkazi day.",
+          it: "Cena leggera sulla costa sud dopo una giornata a Kizimkazi — ritmo lento, trattorie locali.",
+          es: "Cena ligera en la costa sur tras un día en Kizimkazi — ritmo pausado, restaurantes locales.",
+          fr: "Dîner léger sur la côte sud après une journée à Kizimkazi — rythme lent, restaurants locaux.",
+          de: "Leichtes Abendessen an der Südküste nach einem Kizimkazi-Tag — gemütliches Tempo, lokale Gaststätten.",
+        }),
       }),
       dayIdx: 3,
     },
@@ -835,96 +1433,192 @@ const CITY_DAY_POOLS: Record<string, PoolEntry[]> = {
     {
       slot: "evening",
       activity: (locale, dayIdx) => ({
-        name: locale.slo ? "Grand Central Market" : "Grand Central Market",
+        name: loc(locale, {
+          sl: "Grand Central Market",
+          en: "Grand Central Market",
+          it: "Grand Central Market",
+          es: "Grand Central Market",
+          fr: "Grand Central Market",
+          de: "Grand Central Market",
+        }),
         type: "EAT",
         priceLabel: locale.mealPrice,
-        description: locale.slo
-          ? "Večer v Grand Central Market (Downtown) — Eggslut, tacos, lokalni ponudniki pod eno streho. Odlično po dnevu v centru."
-          : "Evening at Grand Central Market — Eggslut, tacos, local vendors under one roof.",
+        description: loc(locale, {
+          sl: "Večer v Grand Central Market (Downtown) — Eggslut, tacos, lokalni ponudniki pod eno streho. Odlično po dnevu v centru.",
+          en: "Evening at Grand Central Market — Eggslut, tacos, local vendors under one roof.",
+          it: "Serata al Grand Central Market (Downtown) — Eggslut, tacos, venditori locali sotto lo stesso tetto. Ottimo dopo una giornata in centro.",
+          es: "Noche en Grand Central Market (Downtown) — Eggslut, tacos, vendedores locales bajo un mismo techo. Ideal tras un día en el centro.",
+          fr: "Soirée au Grand Central Market (Downtown) — Eggslut, tacos, vendeurs locaux sous un même toit. Parfait après une journée au centre.",
+          de: "Abend im Grand Central Market (Downtown) — Eggslut, Tacos, lokale Anbieter unter einem Dach. Ideal nach einem Tag in der Innenstadt.",
+        }),
       }),
       dayIdx: 0,
     },
     {
       slot: "evening",
       activity: (locale) => ({
-        name: locale.slo ? "Republique (Mid-Wilshire)" : "Republique",
+        name: loc(locale, {
+          sl: "Republique (Mid-Wilshire)",
+          en: "Republique",
+          it: "Republique (Mid-Wilshire)",
+          es: "Republique (Mid-Wilshire)",
+          fr: "Republique (Mid-Wilshire)",
+          de: "Republique (Mid-Wilshire)",
+        }),
         type: "EAT",
         priceLabel: "25–45 €",
-        description: locale.slo
-          ? "Francosko-kalifornijska kuhinja v lepi stavbi — rezervacija priporočljiva za večer. Parkiranje prek valet ali Uber."
-          : "French-Californian in a stunning building — reserve for dinner; Uber recommended.",
+        description: loc(locale, {
+          sl: "Francosko-kalifornijska kuhinja v lepi stavbi — rezervacija priporočljiva za večer. Parkiranje prek valet ali Uber.",
+          en: "French-Californian in a stunning building — reserve for dinner; Uber recommended.",
+          it: "Cucina franco-californiana in uno splendido edificio — prenotazione consigliata per la cena. Parcheggio valet o Uber.",
+          es: "Cocina franco-californiana en un edificio impresionante — reserva recomendada para la cena. Aparcamiento valet o Uber.",
+          fr: "Cuisine franco-californienne dans un superbe bâtiment — réservation conseillée pour le dîner. Valet ou Uber.",
+          de: "Französisch-kalifornische Küche in einem beeindruckenden Gebäude — Reservierung für das Abendessen empfohlen. Valet oder Uber.",
+        }),
       }),
       dayIdx: 1,
     },
     {
       slot: "evening",
       activity: (locale) => ({
-        name: locale.slo ? "Guelaguetza (Oaxacan)" : "Guelaguetza",
+        name: loc(locale, {
+          sl: "Guelaguetza (Oaxacan)",
+          en: "Guelaguetza",
+          it: "Guelaguetza (Oaxacan)",
+          es: "Guelaguetza (Oaxacan)",
+          fr: "Guelaguetza (Oaxacan)",
+          de: "Guelaguetza (Oaxacan)",
+        }),
         type: "EAT",
         priceLabel: locale.mealPrice,
-        description: locale.slo
-          ? "Avtentična oaxaška kuhinja v Koreatown — mole, tlayudas. Živahno in lokalno."
-          : "Authentic Oaxacan in Koreatown — mole, tlayudas; lively local spot.",
+        description: loc(locale, {
+          sl: "Avtentična oaxaška kuhinja v Koreatown — mole, tlayudas. Živahno in lokalno.",
+          en: "Authentic Oaxacan in Koreatown — mole, tlayudas; lively local spot.",
+          it: "Autentica cucina oaxaqueña a Koreatown — mole, tlayudas. Vivace e locale.",
+          es: "Auténtica cocina oaxaqueña en Koreatown — mole, tlayudas. Animado y local.",
+          fr: "Authentique cuisine oaxaqueña à Koreatown — mole, tlayudas. Animé et local.",
+          de: "Authentische oaxakanische Küche in Koreatown — Mole, Tlayudas. Lebhaft und lokal.",
+        }),
       }),
       dayIdx: 2,
     },
     {
       slot: "evening",
       activity: (locale) => ({
-        name: locale.slo ? "Santa Monica Pier / Third Street Promenade" : "Santa Monica evening",
+        name: loc(locale, {
+          sl: "Santa Monica Pier / Third Street Promenade",
+          en: "Santa Monica evening",
+          it: "Santa Monica Pier / Third Street Promenade",
+          es: "Santa Monica Pier / Third Street Promenade",
+          fr: "Santa Monica Pier / Third Street Promenade",
+          de: "Santa Monica Pier / Third Street Promenade",
+        }),
         type: "EAT",
         priceLabel: locale.mealPrice,
-        description: locale.slo
-          ? "Večer ob morju — seafood ali burger na promenadi, sončni zahod na molo. Idealno po dnevu na zahodni obali."
-          : "Beach evening — seafood or burgers on the promenade after a Westside day.",
+        description: loc(locale, {
+          sl: "Večer ob morju — seafood ali burger na promenadi, sončni zahod na molo. Idealno po dnevu na zahodni obali.",
+          en: "Beach evening — seafood or burgers on the promenade after a Westside day.",
+          it: "Serata al mare — pesce o burger sulla promenade, tramonto sul molo. Ideale dopo una giornata sulla Westside.",
+          es: "Noche junto al mar — mariscos o hamburguesas en el paseo, atardecer en el muelle. Ideal tras un día en la costa oeste.",
+          fr: "Soirée au bord de mer — fruits de mer ou burgers sur la promenade, coucher de soleil sur la jetée. Idéal après une journée côté ouest.",
+          de: "Abend am Meer — Meeresfrüchte oder Burger auf der Promenade, Sonnenuntergang am Pier. Ideal nach einem Tag an der Westküste.",
+        }),
       }),
       dayIdx: 3,
     },
     {
       slot: "evening",
       activity: (locale) => ({
-        name: locale.slo ? "Bestia (Arts District)" : "Bestia",
+        name: loc(locale, {
+          sl: "Bestia (Arts District)",
+          en: "Bestia",
+          it: "Bestia (Arts District)",
+          es: "Bestia (Arts District)",
+          fr: "Bestia (Arts District)",
+          de: "Bestia (Arts District)",
+        }),
         type: "EAT",
         priceLabel: "35–55 €",
-        description: locale.slo
-          ? "Priljubljena italijanska v Arts District — rezervacija tedne vnaprej. Uber, ne vozite sami."
-          : "Popular Italian in Arts District — book weeks ahead; Uber strongly recommended.",
+        description: loc(locale, {
+          sl: "Priljubljena italijanska v Arts District — rezervacija tedne vnaprej. Uber, ne vozite sami.",
+          en: "Popular Italian in Arts District — book weeks ahead; Uber strongly recommended.",
+          it: "Rinomato italiano nell'Arts District — prenotare settimane prima. Uber, non guidare da soli.",
+          es: "Italiano popular en Arts District — reservar semanas antes. Uber, no conduzcas tú mismo.",
+          fr: "Italien prisé dans l'Arts District — réserver des semaines à l'avance. Uber, ne conduisez pas vous-même.",
+          de: "Beliebtes Italienisch im Arts District — Wochen im Voraus buchen. Uber, nicht selbst fahren.",
+        }),
       }),
       dayIdx: 4,
     },
     {
       slot: "evening",
       activity: (locale) => ({
-        name: locale.slo ? "In-N-Out Burger (Hollywood)" : "In-N-Out Hollywood",
+        name: loc(locale, {
+          sl: "In-N-Out Burger (Hollywood)",
+          en: "In-N-Out Hollywood",
+          it: "In-N-Out Burger (Hollywood)",
+          es: "In-N-Out Burger (Hollywood)",
+          fr: "In-N-Out Burger (Hollywood)",
+          de: "In-N-Out Burger (Hollywood)",
+        }),
         type: "EAT",
         priceLabel: "8–15 €",
-        description: locale.slo
-          ? "Kalifornijska ikona po dnevu v Hollywoodu — hitro, poceni, avtentično. Not secret menu."
-          : "California icon after a Hollywood day — fast, cheap, authentic.",
+        description: loc(locale, {
+          sl: "Kalifornijska ikona po dnevu v Hollywoodu — hitro, poceni, avtentično. Not secret menu.",
+          en: "California icon after a Hollywood day — fast, cheap, authentic.",
+          it: "Icona californiana dopo una giornata a Hollywood — veloce, economico, autentico. Not secret menu.",
+          es: "Icono californiano tras un día en Hollywood — rápido, barato, auténtico. Not secret menu.",
+          fr: "Icône californienne après une journée à Hollywood — rapide, bon marché, authentique. Not secret menu.",
+          de: "Kalifornische Ikone nach einem Hollywood-Tag — schnell, günstig, authentisch. Not secret menu.",
+        }),
       }),
       dayIdx: 5,
     },
     {
       slot: "evening",
       activity: (locale) => ({
-        name: locale.slo ? "Malibu Farm Pier Cafe" : "Malibu Farm Pier Cafe",
+        name: loc(locale, {
+          sl: "Malibu Farm Pier Cafe",
+          en: "Malibu Farm Pier Cafe",
+          it: "Malibu Farm Pier Cafe",
+          es: "Malibu Farm Pier Cafe",
+          fr: "Malibu Farm Pier Cafe",
+          de: "Malibu Farm Pier Cafe",
+        }),
         type: "EAT",
         priceLabel: "20–40 €",
-        description: locale.slo
-          ? "Večerja na koncu Malibu Pira — sveže, ob morju. Idealno po dnevu na PCH; rezervacija priporočljiva."
-          : "Dinner at Malibu Pier — fresh, oceanfront; ideal after a PCH day.",
+        description: loc(locale, {
+          sl: "Večerja na koncu Malibu Pira — sveže, ob morju. Idealno po dnevu na PCH; rezervacija priporočljiva.",
+          en: "Dinner at Malibu Pier — fresh, oceanfront; ideal after a PCH day.",
+          it: "Cena alla fine del Malibu Pier — fresco, fronte mare. Ideale dopo una giornata sulla PCH; prenotazione consigliata.",
+          es: "Cena al final del muelle de Malibu — fresco, frente al mar. Ideal tras un día en la PCH; reserva recomendada.",
+          fr: "Dîner au bout du Malibu Pier — frais, face à la mer. Idéal après une journée sur la PCH ; réservation conseillée.",
+          de: "Abendessen am Ende des Malibu Piers — frisch, direkt am Meer. Ideal nach einem PCH-Tag; Reservierung empfohlen.",
+        }),
       }),
       dayIdx: 6,
     },
     {
       slot: "evening",
       activity: (locale) => ({
-        name: locale.slo ? "The Original Farmers Market" : "Farmers Market",
+        name: loc(locale, {
+          sl: "The Original Farmers Market",
+          en: "Farmers Market",
+          it: "The Original Farmers Market",
+          es: "The Original Farmers Market",
+          fr: "The Original Farmers Market",
+          de: "The Original Farmers Market",
+        }),
         type: "EAT",
         priceLabel: locale.mealPrice,
-        description: locale.slo
-          ? "Večer v Farmers Market ob The Grove — raznolika hrana, lokalno vzdušje, manj turistično kot Hollywood Blvd."
-          : "Evening at Farmers Market by The Grove — varied food, local vibe.",
+        description: loc(locale, {
+          sl: "Večer v Farmers Market ob The Grove — raznolika hrana, lokalno vzdušje, manj turistično kot Hollywood Blvd.",
+          en: "Evening at Farmers Market by The Grove — varied food, local vibe.",
+          it: "Serata al Farmers Market vicino a The Grove — cibo vario, atmosfera locale, meno turistico di Hollywood Blvd.",
+          es: "Noche en Farmers Market junto a The Grove — comida variada, ambiente local, menos turístico que Hollywood Blvd.",
+          fr: "Soirée au Farmers Market près de The Grove — nourriture variée, ambiance locale, moins touristique que Hollywood Blvd.",
+          de: "Abend am Farmers Market bei The Grove — vielfältiges Essen, lokale Atmosphäre, weniger touristisch als Hollywood Blvd.",
+        }),
       }),
       dayIdx: 7,
     },
@@ -933,34 +1627,77 @@ const CITY_DAY_POOLS: Record<string, PoolEntry[]> = {
     {
       slot: "morning",
       activity: (locale) => ({
-        name: locale.slo ? "Jutranji ogled / sprehod" : "Morning sight or stroll",
+        name: loc(locale, {
+          sl: "Jutranji ogled / sprehod",
+          en: "Morning sight or stroll",
+          it: "Visita o passeggiata mattutina",
+          es: "Visita o paseo matutino",
+          fr: "Visite ou promenade matinale",
+          de: "Morgendliche Besichtigung oder Spaziergang",
+        }),
         type: "ACTIVITY",
-        priceLabel: locale.slo ? "brezplačno" : "free",
-        description: locale.slo
-          ? "Glavni dopoldanski ogled — mesto ali znamenitost, ki jo je najbolje obiskati zjutraj."
-          : "Main morning sight — visit while it's still quiet.",
+        priceLabel: loc(locale, {
+          sl: "brezplačno",
+          en: "free",
+          it: "gratuito",
+          es: "gratis",
+          fr: "gratuit",
+          de: "kostenlos",
+        }),
+        description: loc(locale, {
+          sl: "Glavni dopoldanski ogled — mesto ali znamenitost, ki jo je najbolje obiskati zjutraj.",
+          en: "Main morning sight — visit while it's still quiet.",
+          it: "Principale visita del mattino — luogo o attrazione da vedere al mattino presto.",
+          es: "Visita principal de la mañana — lugar o atracción mejor visitados temprano.",
+          fr: "Visite principale du matin — lieu ou site à voir tôt le matin.",
+          de: "Hauptbesichtigung am Vormittag — Ort oder Sehenswürdigkeit am besten früh morgens besuchen.",
+        }),
       }),
     },
     {
       slot: "afternoon",
       activity: (locale) => ({
-        name: locale.slo ? "Pavza v kavarni" : "Café break",
+        name: loc(locale, {
+          sl: "Pavza v kavarni",
+          en: "Café break",
+          it: "Pausa caffè",
+          es: "Pausa en cafetería",
+          fr: "Pause café",
+          de: "Kaffeepause",
+        }),
         type: "EAT",
         priceLabel: locale.mealPrice,
-        description: locale.slo
-          ? "Kratka popoldanska pavza — kava, načrt za večer."
-          : "Short afternoon café break.",
+        description: loc(locale, {
+          sl: "Kratka popoldanska pavza — kava, načrt za večer.",
+          en: "Short afternoon café break.",
+          it: "Breve pausa pomeridiana al caffè.",
+          es: "Breve pausa vespertina en cafetería.",
+          fr: "Courte pause café l'après-midi.",
+          de: "Kurze Nachmittags-Kaffeepause.",
+        }),
       }),
     },
     {
       slot: "evening",
       activity: (locale) => ({
-        name: locale.slo ? "Lokalna večerja" : "Local dinner",
+        name: loc(locale, {
+          sl: "Lokalna večerja",
+          en: "Local dinner",
+          it: "Cena locale",
+          es: "Cena local",
+          fr: "Dîner local",
+          de: "Lokales Abendessen",
+        }),
         type: "EAT",
         priceLabel: locale.mealPrice,
-        description: locale.slo
-          ? "Večerja v restavraciji, kamor hodijo domačini."
-          : "Dinner where locals eat.",
+        description: loc(locale, {
+          sl: "Večerja v restavraciji, kamor hodijo domačini.",
+          en: "Dinner where locals eat.",
+          it: "Cena in un ristorante frequentato dai locali.",
+          es: "Cena en un restaurante donde comen los locales.",
+          fr: "Dîner dans un restaurant fréquenté par les locaux.",
+          de: "Abendessen in einem Restaurant, wo Einheimische essen.",
+        }),
       }),
     },
   ],
@@ -1849,12 +2586,24 @@ export function enrichDayActivities(
         if (result.evening.length < 2) {
           result.evening.push({
             ...a,
-            name: locale.slo ? "Wat Arun (ob sončnem zahodu)" : "Wat Arun (sunset)",
+            name: loc(locale, {
+              sl: "Wat Arun (ob sončnem zahodu)",
+              en: "Wat Arun (sunset)",
+              it: "Wat Arun (al tramonto)",
+              es: "Wat Arun (al atardecer)",
+              fr: "Wat Arun (au coucher du soleil)",
+              de: "Wat Arun (bei Sonnenuntergang)",
+            }),
             description: isSunsetTemplePoi(a.name, a.description ?? "")
               ? a.description
-              : locale.slo
-                ? "Sončni zahod ob 18:00–19:00 — čez reko iz Wat Pho (5 THB trajekt). Ne obiskuj dopoldan."
-                : "Sunset visit ~18:00–19:00 — ferry from Wat Pho pier. Not a midday stop.",
+              : loc(locale, {
+                  sl: "Sončni zahod ob 18:00–19:00 — čez reko iz Wat Pho (5 THB trajekt). Ne obiskuj dopoldan.",
+                  en: "Sunset visit ~18:00–19:00 — ferry from Wat Pho pier. Not a midday stop.",
+                  it: "Tramonto ~18:00–19:00 — traghetto da Wat Pho (5 THB). Non di mattina.",
+                  es: "Atardecer ~18:00–19:00 — ferry desde Wat Pho (5 THB). No por la mañana.",
+                  fr: "Coucher de soleil ~18h–19h — ferry depuis Wat Pho (5 THB). Pas le matin.",
+                  de: "Sonnenuntergang ~18:00–19:00 — Fähre von Wat Pho (5 THB). Nicht vormittags.",
+                }),
           });
         }
       }

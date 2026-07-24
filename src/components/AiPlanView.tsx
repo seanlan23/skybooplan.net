@@ -9,7 +9,8 @@ import { refreshPoiDetailsImage, type PoiDetailsData } from "@/lib/poiDetails.ty
 import { DayScrollDebug } from "@/components/DayScrollDebug";
 import { AiPlanLoader } from "@/components/AiPlanLoader";
 import { isSoftQuotaError, resolveErrorMessage, useI18n } from "@/lib/i18n";
-import { stripPlanTeaser } from "@/lib/planTeaser";
+import { resolvePlanContentLanguage, stripPlanTeaser } from "@/lib/planTeaser";
+import { getSeasonalHints } from "@/lib/seasonalHints";
 import { computeTripTotalBudgetEur } from "@/lib/tripBudget";
 import { buildWeatherWidgetFallback } from "@/lib/weatherWidgetFallback";
 import { useDestinationContext } from "@/hooks/useDestinationContext";
@@ -631,7 +632,19 @@ export function AiPlanView({
   const mapHint = t("aiplan.mapHint" as never);
   const mapPlayLabel = t("aiplan.mapPlay" as never);
   const mapStopLabel = t("aiplan.mapStop" as never);
-  const displaySummary = stripPlanTeaser(plan.summary, lang);
+  const contentLanguage = resolvePlanContentLanguage(plan);
+  const langMismatch = contentLanguage !== lang;
+  const displaySummary = (() => {
+    const stripped = stripPlanTeaser(plan.summary, lang);
+    if (!langMismatch) return stripped;
+    const depart = plan.days[0]?.date?.slice(0, 10);
+    const last = plan.days[plan.days.length - 1];
+    const ret = (last?.dateEnd ?? last?.date)?.slice(0, 10);
+    const iata = plan.destinationIata?.trim();
+    if (!depart || !iata) return "";
+    const hints = getSeasonalHints(iata, depart, lang, { returnDate: ret });
+    return hints[0]?.trim() || "";
+  })();
   const showRoadTripMaps =
     (plan.groundTransportMode === "motorhome" ||
       plan.groundTransportMode === "car" ||
@@ -807,6 +820,27 @@ export function AiPlanView({
               />
             </div>
             <PlannerChoicesSummary form={plannerForm} className="mt-4" />
+            {langMismatch ? (
+              <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50/90 px-3.5 py-3 text-sm text-amber-950">
+                <p className="leading-relaxed">
+                  {t("aiplan.langMismatch" as never).replace(
+                    /\{lang\}/g,
+                    t(`aiplan.langName.${contentLanguage}` as never),
+                  )}
+                </p>
+                <button
+                  type="button"
+                  className="mt-2 inline-flex items-center rounded-full bg-amber-800 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-amber-900"
+                  onClick={() => {
+                    document
+                      .getElementById("ai-planner")
+                      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }}
+                >
+                  {t("aiplan.langMismatchCta" as never)}
+                </button>
+              </div>
+            ) : null}
             {displaySummary ? (
               <p className="mt-2 text-slate-600 max-w-2xl text-sm leading-relaxed">{displaySummary}</p>
             ) : null}

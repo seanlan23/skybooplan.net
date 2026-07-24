@@ -399,8 +399,12 @@ export function airportTransferDescription(
       : `${leaveHours}`;
   return planLangCopy(locale.langCode, {
     sl: `Let odhaja ob ${dep}. Na mednarodne lete odidi iz hotela približno ${leaveLabel} prej (promet + varnostna kontrola). Rezerviraj ${modes} z rezervo časa.`,
-    en: `Return flight at ${dep}. Leave about ${leaveHours} hours early. Pre-book ${modes} with buffer time.`,
-    de: `Rückflug um ${dep}. Etwa ${leaveHours} Stunden früher aus dem Hotel starten. ${modes} mit Zeitpuffer vorbuchen.`,
+    // Avoid the phrase "return flight" here — activityTime treats that as an air leg clock range.
+    en: `Flight departs at ${dep}. Leave the hotel about ${leaveHours} hours early (traffic + security). Pre-book ${modes} with buffer time.`,
+    de: `Abflug um ${dep}. Etwa ${leaveHours} Stunden früher aus dem Hotel starten. ${modes} mit Zeitpuffer vorbuchen.`,
+    it: `Il volo parte alle ${dep}. Lascia l'hotel circa ${leaveHours} ore prima (traffico + controlli). Prenota ${modes} con margine.`,
+    es: `El vuelo sale a las ${dep}. Sal del hotel unas ${leaveHours} horas antes (tráfico + seguridad). Reserva ${modes} con margen.`,
+    fr: `Le vol part à ${dep}. Quittez l'hôtel environ ${leaveHours} heures avant (trafic + contrôles). Réservez ${modes} avec marge.`,
   });
 }
 

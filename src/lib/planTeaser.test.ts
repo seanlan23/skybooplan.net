@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { withPlanTeaser, stripPlanTeaser } from "@/lib/planTeaser";
+import {
+  withPlanTeaser,
+  stripPlanTeaser,
+  resolvePlanContentLanguage,
+} from "@/lib/planTeaser";
 import { translate } from "@/lib/i18n";
 
 describe("planTeaser", () => {
@@ -21,5 +25,32 @@ describe("planTeaser", () => {
     const out = stripPlanTeaser(`${teaser} Julij prinaša bujno zeleno naravo.`, "sl");
     expect(out).toBe("Julij prinaša bujno zeleno naravo.");
     expect(out.includes("AI načrt je pripravljen")).toBe(false);
+  });
+
+  it("stripPlanTeaser removes Italian opener even when UI lang is English", () => {
+    const itTeaser = translate("it", "plan.teaser");
+    const out = stripPlanTeaser(
+      `${itTeaser} Ottobre a Manila e nelle isole è il periodo di transizione.`,
+      "en",
+    );
+    expect(out).toBe("Ottobre a Manila e nelle isole è il periodo di transizione.");
+    expect(out).not.toMatch(/Il tuo piano AI|piano AI è pronto/i);
+  });
+
+  it("resolvePlanContentLanguage prefers stored field then teaser", () => {
+    expect(
+      resolvePlanContentLanguage({
+        summary: "hi",
+        contentLanguage: "it",
+        days: [],
+      }),
+    ).toBe("it");
+    const itTeaser = translate("it", "plan.teaser");
+    expect(
+      resolvePlanContentLanguage({
+        summary: `${itTeaser} Ottobre a Manila.`,
+        days: [],
+      }),
+    ).toBe("it");
   });
 });

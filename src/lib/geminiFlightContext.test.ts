@@ -434,4 +434,146 @@ describe("applyFlightContextToGeminiPlan", () => {
     ].map((a) => a.name);
     expect(names.join(" | ")).toMatch(/Krabi.*Bangkok|Notranji prevoz/i);
   });
+
+  it("staggers last-day checkout/transfer/airport before return flight (no 18:10 pile-up)", () => {
+    const plan = basePlan({
+      destinationName: "Manila",
+      destinationIata: "MNL",
+      centerLat: 14.6,
+      centerLng: 121.0,
+      days: [
+        {
+          day: 1,
+          date: "2026-10-23",
+          title: "Let",
+          morning: "",
+          afternoon: "",
+          evening: "",
+          travelHack: "",
+          transportationTips: "",
+          localWarnings: "",
+          dailyBudgetEur: 40,
+          lat: 48.35,
+          lng: 11.78,
+          city: "Munich",
+          focusName: "Munich",
+          category: "transport",
+          activities: { morning: [], afternoon: [], evening: [] },
+        },
+        {
+          day: 2,
+          date: "2026-10-24",
+          title: "Manila",
+          morning: "",
+          afternoon: "",
+          evening: "",
+          travelHack: "",
+          transportationTips: "",
+          localWarnings: "",
+          dailyBudgetEur: 80,
+          lat: 14.6,
+          lng: 121.0,
+          city: "Manila",
+          focusName: "Manila",
+          category: "city",
+          activities: {
+            morning: [{ name: "City", type: "SIGHT", description: "Walk" }],
+            afternoon: [],
+            evening: [],
+          },
+        },
+        {
+          day: 3,
+          date: "2026-11-10",
+          title: "Odhod",
+          morning: "",
+          afternoon: "",
+          evening: "",
+          travelHack: "",
+          transportationTips: "",
+          localWarnings: "",
+          dailyBudgetEur: 40,
+          lat: 14.6,
+          lng: 121.0,
+          city: "Manila",
+          focusName: "Manila",
+          category: "transport",
+          activities: {
+            morning: [
+              {
+                name: "Hotel check-out",
+                type: "STAY",
+                arrivalTime: "18:10",
+                departureTime: "06:00",
+                description: "Checkout 18:10 - 06:00 (+1)",
+              },
+              {
+                name: "Airport transfer",
+                type: "TRANSPORT",
+                arrivalTime: "18:10",
+                departureTime: "06:00",
+                description: "Transfer 18:10 - 06:00 (+1)",
+              },
+              {
+                name: "Airport arrival and departure",
+                type: "TRANSPORT",
+                arrivalTime: "18:10",
+                departureTime: "06:00",
+                description: "Airport 18:10 - 06:00 (+1)",
+              },
+            ],
+            afternoon: [],
+            evening: [],
+          },
+        },
+      ],
+    });
+
+    applyFlightContextToGeminiPlan(
+      plan,
+      {
+        outboundDepart: "11:25",
+        outboundArrive: "22:00",
+        outboundArriveDayOffset: 0,
+        inboundDepart: "18:10",
+        inboundArrive: "06:00",
+      },
+      { originIata: "MUC", language: "en" },
+    );
+
+    const last = plan.days[2]!;
+    const acts = [
+      ...(last.activities?.morning ?? []),
+      ...(last.activities?.afternoon ?? []),
+      ...(last.activities?.evening ?? []),
+    ];
+    const checkout = acts.find((a) => /check-out/i.test(a.name));
+    const transfer = acts.find((a) => /airport transfer|prevoz na letališč/i.test(a.name));
+    const airport = acts.find((a) => /airport check-in|prihod na letališče in check-in/i.test(a.name));
+    const flight = acts.find(
+      (a) => a.transportType === "flight" || /international return flight|mednarodni/i.test(a.name),
+    );
+
+    expect(checkout?.arrivalTime).toBeTruthy();
+    expect(transfer?.arrivalTime).toBeTruthy();
+    expect(airport?.arrivalTime).toBeTruthy();
+    expect(flight?.arrivalTime).toBe("18:10");
+    expect(flight?.departureTime).toBe("06:00");
+
+    // Pre-flight logistics must not share the overnight flight end clock.
+    expect(checkout?.departureTime).toBeFalsy();
+    expect(transfer?.departureTime).toBeFalsy();
+    expect(airport?.departureTime).toBeFalsy();
+    expect(checkout?.arrivalTime).not.toBe("18:10");
+    expect(transfer?.arrivalTime).not.toBe("18:10");
+    expect(airport?.arrivalTime).not.toBe("18:10");
+
+    const toMin = (hm?: string) => {
+      const m = hm?.match(/(\d{1,2}):(\d{2})/);
+      return m ? Number(m[1]) * 60 + Number(m[2]) : -1;
+    };
+    expect(toMin(checkout!.arrivalTime)).toBeLessThan(toMin(transfer!.arrivalTime));
+    expect(toMin(transfer!.arrivalTime)).toBeLessThan(toMin(airport!.arrivalTime));
+    expect(toMin(airport!.arrivalTime)).toBeLessThan(toMin(flight!.arrivalTime));
+  });
 });

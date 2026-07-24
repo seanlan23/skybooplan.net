@@ -1,5 +1,8 @@
 import jsPDF from "jspdf";
 import { buildGoogleMapsDirectionsUrl, isValidNavCoord } from "@/lib/navigationService";
+import { resolvePlanContentLanguage, stripPlanTeaser } from "@/lib/planTeaser";
+import type { AiTripPlan } from "@/lib/aiPlan.functions";
+import { normalizePlanLangCode } from "@/lib/planLanguages";
 import { formatActivityClockLabel } from "@/lib/activityTime";
 import { enrichMotorhomePlanTips } from "@/lib/motorhomePlanTips";
 import { fixMotorhomeCopyErrors } from "@/lib/textSanitize";
@@ -484,7 +487,16 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
   }
   const rawDays = Array.isArray(itin.days) ? itin.days : [];
   const sample = [textOf(itin.summary), ...rawDays.map((d) => textOf(d?.title))].join(" ");
-  const labels = labelsFor(plan.language, sample);
+  const contentLang = normalizePlanLangCode(
+    (itin as { contentLanguage?: string }).contentLanguage ||
+      plan.language ||
+      resolvePlanContentLanguage({
+        summary: textOf(itin.summary),
+        contentLanguage: (itin as { contentLanguage?: AiTripPlan["contentLanguage"] }).contentLanguage,
+        days: rawDays as AiTripPlan["days"],
+      }),
+  );
+  const labels = labelsFor(contentLang, sample);
 
   const days: PdfDay[] = rawDays.map((raw, idx) => {
     const d = (raw ?? {}) as Record<string, unknown>;
@@ -604,7 +616,7 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
     destination,
     startDate: fmtDate(plan.start_date),
     endDate: fmtDate(plan.end_date),
-    summary: cleanSummary(textOf(itin.summary)),
+    summary: cleanSummary(stripPlanTeaser(textOf(itin.summary), contentLang)),
     totalBudgetEur,
     pax,
     days,

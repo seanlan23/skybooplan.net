@@ -961,6 +961,15 @@ const en: Dict = {
   "aiplan.previewLockNotice":
     "Preview — copying, text selection and PDF download are disabled. Sign up and pay to unlock.",
   "aiplan.streamingProgress": "Generating plan… {n}/{total} days",
+  "aiplan.langMismatch":
+    "This itinerary was written in {lang}. Buttons, visas and weather follow your current language; day-by-day text stays in {lang}. Generate again for a full plan in your language.",
+  "aiplan.langMismatchCta": "Generate again in current language",
+  "aiplan.langName.en": "English",
+  "aiplan.langName.sl": "Slovenian",
+  "aiplan.langName.es": "Spanish",
+  "aiplan.langName.fr": "French",
+  "aiplan.langName.it": "Italian",
+  "aiplan.langName.de": "German",
   "aiplan.generatingDay": "Generating day {n}…",
   "aiplan.perPerson": "/ person",
   "aiplan.perDay": "/ day",
@@ -1958,6 +1967,15 @@ const dicts: Record<Lang, Dict> = {
     "aiplan.previewLockNotice":
       "Predogled — kopiranje, izbira besedila in prenos PDF so onemogočeni. Za odklep se registriraj in plačaj.",
     "aiplan.streamingProgress": "Generiram načrt… {n}/{total} dni",
+    "aiplan.langMismatch":
+      "Ta itinerar je napisan v jeziku: {lang}. Gumbi, vize in vreme sledijo trenutnemu jeziku; besedilo dni ostane v {lang}. Za celoten načrt v trenutnem jeziku ga ustvari znova.",
+    "aiplan.langMismatchCta": "Ustvari znova v trenutnem jeziku",
+    "aiplan.langName.en": "angleščini",
+    "aiplan.langName.sl": "slovenščini",
+    "aiplan.langName.es": "španščini",
+    "aiplan.langName.fr": "francoščini",
+    "aiplan.langName.it": "italijanščini",
+    "aiplan.langName.de": "nemščini",
     "aiplan.generatingDay": "Generiram dan {n}…",
     "aiplan.perPerson": "/ osebo",
     "aiplan.perDay": "/ dan",

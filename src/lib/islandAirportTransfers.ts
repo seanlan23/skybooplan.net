@@ -1,4 +1,5 @@
 import type { AiTripPlan, DayPlan, DayTransportLeg, IslandAccessRoute } from "@/lib/aiPlan.functions";
+import { planLangCopy } from "@/lib/planLangCopy";
 
 export type IslandAirportAccessDef = {
   id: string;
@@ -164,18 +165,46 @@ function buildDepartureLegs(def: IslandAirportAccessDef, hubCity: string): DayTr
   ];
 }
 
-function arrivalTransportTip(def: IslandAirportAccessDef): string {
+function arrivalTransportTip(def: IslandAirportAccessDef, lang?: string): string {
   if (def.id === "koh-lipe") {
-    return `Koh Lipe nima letališča — let do ${def.airport.label}, nato kombi do ${def.port.label} in speedboat/ferry na otok. Rezerviraj čoln vnaprej (sezonski urniki).`;
+    return planLangCopy(lang, {
+      sl: `Koh Lipe nima letališča — let do ${def.airport.label}, nato kombi do ${def.port.label} in speedboat/ferry na otok. Rezerviraj čoln vnaprej (sezonski urniki).`,
+      en: `Koh Lipe has no airport — fly to ${def.airport.label}, van to ${def.port.label}, then speedboat/ferry to the island. Book the boat ahead (seasonal schedules).`,
+      it: `Koh Lipe non ha aeroporto — volo a ${def.airport.label}, van a ${def.port.label}, poi speedboat/ferry per l'isola. Prenota il traghetto in anticipo (orari stagionali).`,
+      es: `Koh Lipe no tiene aeropuerto — vuelo a ${def.airport.label}, van a ${def.port.label} y speedboat/ferry a la isla. Reserva el barco con antelación (horarios de temporada).`,
+      fr: `Koh Lipe n'a pas d'aéroport — vol vers ${def.airport.label}, van jusqu'à ${def.port.label}, puis speedboat/ferry vers l'île. Réservez le bateau à l'avance (horaires saisonniers).`,
+      de: `Koh Lipe hat keinen Flughafen — Flug nach ${def.airport.label}, Van nach ${def.port.label}, dann Speedboat/Fähre zur Insel. Boot rechtzeitig buchen (saisonale Fahrpläne).`,
+    });
   }
-  return `Boracay ni neposredno na letališču — let do ${def.airport.label}, nato kombi do ${def.port.label} in trajekt na otok (${def.island.name}). Rezerviraj trajekt vnaprej v sezoni.`;
+  return planLangCopy(lang, {
+    sl: `Boracay ni neposredno na letališču — let do ${def.airport.label}, nato kombi do ${def.port.label} in trajekt na otok (${def.island.name}). Rezerviraj trajekt vnaprej v sezoni.`,
+    en: `Boracay is not at the airport — fly to ${def.airport.label}, van to ${def.port.label}, then ferry to ${def.island.name}. Book the ferry ahead in season.`,
+    it: `Boracay non è sull'aeroporto — volo a ${def.airport.label}, van a ${def.port.label}, poi traghetto per ${def.island.name}. Prenota il traghetto in alta stagione.`,
+    es: `Boracay no está en el aeropuerto — vuelo a ${def.airport.label}, van a ${def.port.label} y ferry a ${def.island.name}. Reserva el ferry con antelación en temporada.`,
+    fr: `Boracay n'est pas à l'aéroport — vol vers ${def.airport.label}, van jusqu'à ${def.port.label}, puis ferry vers ${def.island.name}. Réservez le ferry à l'avance en saison.`,
+    de: `Boracay liegt nicht am Flughafen — Flug nach ${def.airport.label}, Van nach ${def.port.label}, dann Fähre nach ${def.island.name}. Fähre in der Saison vorab buchen.`,
+  });
 }
 
-function departureTransportTip(def: IslandAirportAccessDef): string {
+function departureTransportTip(def: IslandAirportAccessDef, lang?: string): string {
   if (def.id === "koh-lipe") {
-    return `Odhod z otoka: speedboat/ferry ${def.island.name} → ${def.port.label}, kombi do ${def.airport.label} (${def.gatewayIata ?? "HDY"}), nato notranji let (npr. proti Phuketu/HKT). Ni neposrednega leta z Lipe.`;
+    return planLangCopy(lang, {
+      sl: `Odhod z otoka: speedboat/ferry ${def.island.name} → ${def.port.label}, kombi do ${def.airport.label} (${def.gatewayIata ?? "HDY"}), nato notranji let (npr. proti Phuketu/HKT). Ni neposrednega leta z Lipe.`,
+      en: `Leaving the island: speedboat/ferry ${def.island.name} → ${def.port.label}, van to ${def.airport.label} (${def.gatewayIata ?? "HDY"}), then a domestic flight (e.g. toward Phuket/HKT). No direct flight from Lipe.`,
+      it: `Partenza dall'isola: speedboat/ferry ${def.island.name} → ${def.port.label}, van a ${def.airport.label} (${def.gatewayIata ?? "HDY"}), poi volo interno (es. verso Phuket/HKT). Nessun volo diretto da Lipe.`,
+      es: `Salida de la isla: speedboat/ferry ${def.island.name} → ${def.port.label}, van a ${def.airport.label} (${def.gatewayIata ?? "HDY"}), luego vuelo doméstico (p. ej. hacia Phuket/HKT). No hay vuelo directo desde Lipe.`,
+      fr: `Départ de l'île : speedboat/ferry ${def.island.name} → ${def.port.label}, van vers ${def.airport.label} (${def.gatewayIata ?? "HDY"}), puis vol intérieur (ex. vers Phuket/HKT). Pas de vol direct depuis Lipe.`,
+      de: `Abreise von der Insel: Speedboat/Fähre ${def.island.name} → ${def.port.label}, Van zum ${def.airport.label} (${def.gatewayIata ?? "HDY"}), dann Inlandsflug (z. B. nach Phuket/HKT). Kein Direktflug von Lipe.`,
+    });
   }
-  return `Odhod z otoka: trajekt ${def.island.name} → ${def.port.label}, kombi do ${def.airport.label} (${def.gatewayIata ?? "MPH"}), nato notranji let.`;
+  return planLangCopy(lang, {
+    sl: `Odhod z otoka: trajekt ${def.island.name} → ${def.port.label}, kombi do ${def.airport.label} (${def.gatewayIata ?? "MPH"}), nato notranji let.`,
+    en: `Leaving the island: ferry ${def.island.name} → ${def.port.label}, van to ${def.airport.label} (${def.gatewayIata ?? "MPH"}), then a domestic flight.`,
+    it: `Partenza dall'isola: traghetto ${def.island.name} → ${def.port.label}, van a ${def.airport.label} (${def.gatewayIata ?? "MPH"}), poi volo interno.`,
+    es: `Salida de la isla: ferry ${def.island.name} → ${def.port.label}, van a ${def.airport.label} (${def.gatewayIata ?? "MPH"}), luego vuelo doméstico.`,
+    fr: `Départ de l'île : ferry ${def.island.name} → ${def.port.label}, van vers ${def.airport.label} (${def.gatewayIata ?? "MPH"}), puis vol intérieur.`,
+    de: `Abreise von der Insel: Fähre ${def.island.name} → ${def.port.label}, Van zum ${def.airport.label} (${def.gatewayIata ?? "MPH"}), dann Inlandsflug.`,
+  });
 }
 
 /** Detect inter-day island gateway transition for map routing. */
@@ -194,10 +223,11 @@ export function detectIslandAccessTransition(
 
 export function enrichIslandAirportTransfers(
   plan: AiTripPlan,
-  opts: { destinationIata?: string } = {},
+  opts: { destinationIata?: string; language?: string } = {},
 ): void {
   const days = plan.days;
   if (!days.length) return;
+  const lang = opts.language ?? plan.contentLanguage ?? "en";
 
   for (let i = 0; i < days.length; i++) {
     const day = days[i]!;
@@ -229,7 +259,7 @@ export function enrichIslandAirportTransfers(
       }
       day.islandAccessRoute = { defId: def.id, direction: "arrival" };
       if (!day.transportationTips?.includes(def.airport.label)) {
-        day.transportationTips = arrivalTransportTip(def);
+        day.transportationTips = arrivalTransportTip(def, lang);
       }
     }
 
@@ -244,7 +274,7 @@ export function enrichIslandAirportTransfers(
       }
       day.islandAccessRoute = { defId: def.id, direction: "departure" };
       if (!isArrivalDay) {
-        day.transportationTips = departureTransportTip(def);
+        day.transportationTips = departureTransportTip(def, lang);
       }
     }
   }

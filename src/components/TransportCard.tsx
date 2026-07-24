@@ -98,7 +98,9 @@ function TransportLegCard({
             <span className="text-slate-300" aria-hidden="true">
               ·
             </span>
-            <span className="font-bold text-slate-900">cca. {formatMoney(Math.round(leg.estimatedPrice))}</span>
+            <span className="font-bold text-slate-900">
+              ~{formatMoney(Math.round(leg.estimatedPrice))}
+            </span>
           </div>
           {canNavigate && (
             <div className="mt-3">
