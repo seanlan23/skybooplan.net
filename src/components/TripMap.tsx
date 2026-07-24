@@ -174,7 +174,7 @@ function TripMapInner({
     void tokenFn().then((res) => {
       if (cancelled) return;
       if (!res?.token) {
-        setError("Mapbox token missing");
+        setError(t("map.tokenMissing" as never) || "Mapbox token missing");
         setBooting(false);
         return;
       }

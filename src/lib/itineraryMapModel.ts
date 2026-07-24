@@ -253,8 +253,22 @@ function collectPins(day: DayPlan, center: LngLat): MapDayPin[] {
       ...(day.activities.afternoon ?? []),
       ...(day.activities.evening ?? []),
     ];
+    // Prefer campgrounds first on motorhome nights so they land in the pin budget.
+    const ranked = [...acts].sort((a, b) => {
+      const aCamp = /\b(kamp|avtokamp|campground|campsite|camping|rv\s*park)\b/i.test(
+        `${a.name} ${a.description ?? ""}`,
+      )
+        ? 0
+        : 1;
+      const bCamp = /\b(kamp|avtokamp|campground|campsite|camping|rv\s*park)\b/i.test(
+        `${b.name} ${b.description ?? ""}`,
+      )
+        ? 0
+        : 1;
+      return aCamp - bCamp;
+    });
     let fanIndex = 0;
-    for (const act of acts) {
+    for (const act of ranked) {
       if (pins.length >= MAX_DAY_PINS) break;
       if (isLogisticsName(act.name)) continue;
       let lat = act.lat;

@@ -34,6 +34,7 @@ import {
   type HeroChatMode,
   type HeroChatStep,
 } from "@/lib/heroChatFlow";
+import { MotorhomeSearchBrowser } from "@/components/MotorhomeSearchBrowser";
 import { buildHeroMotorhomeSearchQuery } from "@/lib/heroMotorhome";
 import { extractHeroChatDates } from "@/lib/heroChatDates";
 import {
@@ -596,6 +597,24 @@ export function HeroChatFlow({
   const chipLabel = useCallback(
     (prefix: string, id: string) => t(`${prefix}.${id}` as never),
     [t],
+  );
+
+  const startMotorhomeBrowser = useCallback(
+    (data: HeroChatCollected) => {
+      if (conversationStarted || searchSentRef.current) return;
+      setConversationStarted(true);
+      setCollected(data);
+      setStep("searching");
+      appendMessages(
+        createChatMessage(
+          "user",
+          `${data.origin} → ${data.destination} · ${data.dates} · ${data.passengers}`,
+        ),
+        createChatMessage("ai", t("heroChat.motorhome.searching" as never)),
+      );
+      setTextInput("");
+    },
+    [appendMessages, conversationStarted, t],
   );
 
   const startMotorhomeFromOrigin = useCallback(
@@ -1319,14 +1338,9 @@ export function HeroChatFlow({
             </p>
           ) : null}
           {isMotorhomeOnly ? (
-            <HeroMotorhomeGuidedStart
-              onPickStart={startMotorhomeFromOrigin}
-              onTypeSubmit={handleStartPlanning}
-              textInput={textInput}
-              onTextChange={setTextInput}
-              canSubmit={Boolean(textInput.trim()) && !inputDisabled}
-              inputDisabled={inputDisabled}
-              t={t}
+            <MotorhomeSearchBrowser
+              disabled={inputDisabled}
+              onSubmit={startMotorhomeBrowser}
             />
           ) : (
             <HeroGuidedStart

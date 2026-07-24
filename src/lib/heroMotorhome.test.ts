@@ -28,7 +28,7 @@ describe("motorhomePlannerFromCollected", () => {
 });
 
 describe("buildHeroMotorhomeSearchQuery", () => {
-  it("mentions avtodom and endpoints", () => {
+  it("mentions motorhome and endpoints", () => {
     const q = buildHeroMotorhomeSearchQuery({
       destination: "Albania",
       dates: "julij",
@@ -38,7 +38,7 @@ describe("buildHeroMotorhomeSearchQuery", () => {
       pace: "",
       budget: "",
     });
-    expect(q).toMatch(/Avtodom/);
+    expect(q).toMatch(/Motorhome/i);
     expect(q).toMatch(/Vienna/);
     expect(q).toMatch(/Albania/);
   });

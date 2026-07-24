@@ -1,6 +1,7 @@
 import { planUiByLang } from "@/lib/i18n.planUi";
 import { homepageUiByLang } from "@/lib/i18n.homepage";
 import { authDashboardByLang } from "@/lib/i18n.authDashboard";
+import { motorhomeUiByLang } from "@/lib/i18n.motorhome";
 import {
   currencySymbol,
   formatPlanMoney,
@@ -78,6 +79,19 @@ const en: Dict = {
   "heroChat.motorhome.searching": "Building your motorhome road trip…",
   "heroChat.motorhome.openGoogleMaps": "Open route in Google Maps",
   "heroChat.motorhome.openAppleMaps": "Open in Apple Maps",
+  "mh.browser.title": "Motorhome road trip",
+  "mh.browser.subtitle": "From, to, dates and travelers — camps along the route.",
+  "mh.browser.from": "From",
+  "mh.browser.to": "To",
+  "mh.browser.fromPh": "e.g. Vienna, Munich…",
+  "mh.browser.toPh": "e.g. Croatia, Amsterdam…",
+  "mh.browser.depart": "Depart",
+  "mh.browser.return": "Return",
+  "mh.browser.travelers": "Travelers",
+  "mh.browser.adults": "Adults",
+  "mh.browser.children": "Children",
+  "mh.browser.search": "Search route",
+  "mh.browser.swap": "Swap from and to",
   "hero.mhStart.vienna": "Vienna",
   "hero.mhStart.ljubljana": "Ljubljana",
   "hero.mhStart.munich": "Munich",
@@ -491,7 +505,7 @@ const en: Dict = {
   "aiplan.hotelsHint": "Opens Booking.com in a new tab with your dates pre-filled.",
   "aiplan.campingNear": "Campgrounds near",
   "aiplan.campingHint":
-    "Park the motorhome at a campsite outside the city centre — not downtown. Use metro/bus or P+R into the centre.",
+    "Park the motorhome at a campsite outside {city} centre — not downtown. Use metro/bus or P+R into the centre.",
   "aiplan.hotelRestDay":
     "Hotel night instead of camping — laundry, shower, and rest after driving days.",
   "aiplan.hotelRestNight": "Hotel break night",
@@ -985,6 +999,19 @@ const dicts: Record<Lang, Dict> = {
     "heroChat.motorhome.searching": "Sestavljam potovanje z avtodomom…",
     "heroChat.motorhome.openGoogleMaps": "Odpri pot v Google Maps",
     "heroChat.motorhome.openAppleMaps": "Odpri v Apple Maps",
+    "mh.browser.title": "Potovanje z avtodomom",
+    "mh.browser.subtitle": "Od kod, kam, datumi in potniki — kampi vzdolž poti.",
+    "mh.browser.from": "Od kod",
+    "mh.browser.to": "Kam",
+    "mh.browser.fromPh": "npr. Dunaj, München…",
+    "mh.browser.toPh": "npr. Hrvaška, Amsterdam…",
+    "mh.browser.depart": "Odhod",
+    "mh.browser.return": "Povratek",
+    "mh.browser.travelers": "Potniki",
+    "mh.browser.adults": "Odrasli",
+    "mh.browser.children": "Otroci",
+    "mh.browser.search": "Išči pot",
+    "mh.browser.swap": "Zamenjaj odhod in cilj",
     "hero.mhStart.vienna": "Dunaj",
     "hero.mhStart.ljubljana": "Ljubljana",
     "hero.mhStart.munich": "München",
@@ -1400,7 +1427,7 @@ const dicts: Record<Lang, Dict> = {
     "aiplan.hotelsHint": "Odpre Booking.com v novem zavihku z že izpolnjenimi datumi.",
     "aiplan.campingNear": "Avtokampi pri",
     "aiplan.campingHint":
-      "Parkiraj avtodom na avtokampu izven mestnega jedra — ne v centru mesta. V center z metrojem, avtobusom ali P+R.",
+      "Parkiraj avtodom na avtokampu izven središča ({city}) — ne v centru mesta. V center z metrojem, avtobusom ali P+R.",
     "aiplan.hotelRestDay":
       "Danes hotel namesto avtokampa — dan za pranje perila, tuš in počitek po cesti.",
     "aiplan.hotelRestNight": "Hotelska nočitev",
@@ -1886,6 +1913,7 @@ const dicts: Record<Lang, Dict> = {
     ...homepageUiByLang.es,
     ...planUiByLang.es,
     ...authDashboardByLang.es,
+    ...motorhomeUiByLang.es,
   }),
   fr: withEnglishFallback({
     "tab.flights": "Vols","tab.stays": "Hébergements","tab.ai": "Planificateur IA",
@@ -2060,6 +2088,7 @@ const dicts: Record<Lang, Dict> = {
     ...homepageUiByLang.fr,
     ...planUiByLang.fr,
     ...authDashboardByLang.fr,
+    ...motorhomeUiByLang.fr,
   }),
   de: withEnglishFallback({
     "tab.flights": "Flüge","tab.stays": "Nur Unterkünfte","tab.ai": "KI-Planer",
@@ -2286,6 +2315,7 @@ const dicts: Record<Lang, Dict> = {
     "travelReq.vaccinations": "Impfungen & Gesundheit",
     "travelReq.costs": "Geschätzte Kosten",
     ...authDashboardByLang.de,
+    ...motorhomeUiByLang.de,
   }),
   it: withEnglishFallback({
     "tab.flights": "Voli","tab.stays": "Solo alloggi","tab.ai": "Planner IA",
@@ -2361,6 +2391,7 @@ const dicts: Record<Lang, Dict> = {
     ...homepageUiByLang.it,
     ...planUiByLang.it,
     ...authDashboardByLang.it,
+    ...motorhomeUiByLang.it,
   }),
 };
 

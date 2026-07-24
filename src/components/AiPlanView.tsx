@@ -45,6 +45,7 @@ import { ReturnHomeCard } from "@/components/ReturnHomeCard";
 import { SupportCard } from "@/components/SupportCard";
 import { TransportDashboard } from "@/components/TransportDashboard";
 import type { AiPlannerSubmit } from "@/components/AiPlannerPreview";
+import { collectMotorhomeRoadTripStops } from "@/lib/motorhomeRoute";
 import {
   buildAppleMapsRoadTripUrl,
   buildGoogleMapsRoadTripUrl,
@@ -53,6 +54,9 @@ import {
 export type { StayInfo };
 
 function roadTripMapStops(plan: AiTripPlan): string[] {
+  if (plan.groundTransportMode === "motorhome" || plan.accommodationMode === "motorhome") {
+    return collectMotorhomeRoadTripStops(plan);
+  }
   const stops: string[] = [];
   const origin = plan.originPlace?.trim() || plan.originIata?.trim();
   if (origin) stops.push(origin);
@@ -64,7 +68,6 @@ function roadTripMapStops(plan: AiTripPlan): string[] {
   }
   const dest = plan.destinationPlace?.trim();
   if (dest && stops[stops.length - 1]?.toLowerCase() !== dest.toLowerCase()) {
-    // Destination often already appears as a day city — only append if missing.
     if (!stops.some((s) => s.toLowerCase() === dest.toLowerCase())) {
       stops.push(dest);
     }

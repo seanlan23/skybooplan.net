@@ -4,10 +4,11 @@ import { toast } from "sonner";
 import { Mail, Lock, ArrowRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Logo } from "@/components/Logo";
+import { LanguagePicker } from "@/components/LanguagePicker";
 import { googleSignInHref } from "@/lib/auth.urls";
 import { GoogleIcon } from "@/components/GoogleIcon";
 import { useAuth } from "@/hooks/use-auth";
-import { readStoredLang, translate, useT } from "@/lib/i18n";
+import { readStoredLang, translate, useI18n, useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/login")({
   head: () => {
@@ -29,6 +30,7 @@ function LoginPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const t = useT();
+  const { lang, setLang } = useI18n();
 
   useEffect(() => {
     if (user) navigate({ to: "/", replace: true });
@@ -63,6 +65,9 @@ function LoginPage() {
       }}
     >
       <div className="w-full max-w-md">
+        <div className="mb-6 flex items-center justify-end">
+          <LanguagePicker value={lang} onChange={setLang} />
+        </div>
         <Link to="/" className="mb-8 flex items-center justify-center text-slate-900">
           <Logo size="md" />
         </Link>

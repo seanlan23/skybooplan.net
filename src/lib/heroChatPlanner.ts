@@ -127,6 +127,14 @@ export function parseChatDateRange(
   if (!trimmed) return { departDate: defaultDateFrom() };
   if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return { departDate: trimmed };
 
+  // Skyscanner-style browser: "2026-08-01 – 2026-08-12"
+  const isoRange = trimmed.match(
+    /^(\d{4}-\d{2}-\d{2})\s*(?:→|->|–|—|-)\s*(\d{4}-\d{2}-\d{2})$/,
+  );
+  if (isoRange) {
+    return { departDate: isoRange[1]!, returnDate: isoRange[2]! };
+  }
+
   const range = parseHeroDateRange(trimmed, language);
   if (range) return range;
 
@@ -170,10 +178,16 @@ export function parseChatPassengers(passengersLabel: string | undefined | null):
   let adults = 1;
   let children = 0;
 
-  const adultsMatch = lower.match(/(\d+)\s*odras/i) ?? lower.match(/(\d+)\s*adult/i);
+  const adultsMatch =
+    lower.match(/(\d+)\s*odras/i) ??
+    lower.match(/(\d+)\s*adult/i) ??
+    lower.match(/(\d+)\s*erwachs/i) ??
+    lower.match(/(\d+)\s*adulte/i) ??
+    lower.match(/(\d+)\s*adulto/i);
   if (adultsMatch) adults = Number.parseInt(adultsMatch[1]!, 10);
 
-  const childMatch = lower.match(/(\d+)\s*(otrok|child)/i);
+  const childMatch =
+    lower.match(/(\d+)\s*(otrok|child|kind|enfant|niñ|bambin)/i);
   if (childMatch) children = Number.parseInt(childMatch[1]!, 10);
 
   if (!adultsMatch && lower.includes("2 odras")) adults = 2;

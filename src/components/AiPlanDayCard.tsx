@@ -20,7 +20,7 @@ import { TransportCard } from "@/components/TransportCard";
 import { IslandAccessTransferCard } from "@/components/IslandAccessTransferCard";
 import { useI18n } from "@/lib/i18n";
 import { parseLocalDate } from "@/lib/dateUtils";
-import { isHotelRestDay, motorhomeCampingHint, resolveTripAccommodation } from "@/lib/tripMode";
+import { isHotelRestDay, resolveTripAccommodation } from "@/lib/tripMode";
 import { formatDayCardTitle, sortActivitiesByTime } from "@/lib/dayPlanUi";
 import { formatStayDateRange } from "@/lib/islandStays";
 import { formatActivityClockRange } from "@/lib/activityTime";
@@ -859,7 +859,7 @@ export function AiPlanDayCard({
               {t("aiplan.campingNear" as never)} {day.city}
             </div>
             <p className="mt-1.5 text-xs text-emerald-800/90 leading-relaxed">
-              {motorhomeCampingHint(day.city, slo)}
+              {t("aiplan.campingHint" as never).replace("{city}", day.city)}
             </p>
           </div>
         )}

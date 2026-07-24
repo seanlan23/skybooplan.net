@@ -49,6 +49,14 @@ export function inferMapPoiCategoryFromText(text: string): MapPoiCategory {
   }
 
   if (/hotel|hostel|resort|nastanitev|check-in|check out/.test(t)) return "hotel";
+  // Campgrounds before generic sightseeing — motorhome nights.
+  if (
+    /\b(kamp|avtokamp|campground|campsite|camping|rv\s*park|wohnmobilstellplatz|aire\b|sosta)\b/.test(
+      t,
+    )
+  ) {
+    return "hotel";
+  }
   if (/beach|plaž|snorkel|otok|island|bay cruise|morje|kayak|sup\b/.test(t)) return "beach";
   if (/restaurant|food|market|tržnica|street food|večerja|kosilo|breakfast|kavarna|🍜|dinner|lunch/.test(t)) {
     return "food";
@@ -102,7 +110,13 @@ export type MapPoiVisual = {
   ring: string;
 };
 
-export function mapPoiVisual(category: MapPoiCategory): MapPoiVisual {
+export function mapPoiVisual(category: MapPoiCategory, nameHint = ""): MapPoiVisual {
+  if (
+    category === "hotel" &&
+    /\b(kamp|avtokamp|campground|campsite|camping|rv\s*park|wohnmobilstellplatz)\b/i.test(nameHint)
+  ) {
+    return { emoji: "⛺", bg: "#166534", ring: "#86efac" };
+  }
   switch (category) {
     case "sightseeing":
       return { emoji: "🏛️", bg: "#1e3a8a", ring: "#60a5fa" };
@@ -115,6 +129,8 @@ export function mapPoiVisual(category: MapPoiCategory): MapPoiVisual {
     case "entertainment":
       return { emoji: "🎡", bg: "#5b21b6", ring: "#c084fc" };
     case "hotel":
+      // Campsites share hotel category but get a tent glyph in copy elsewhere;
+      // keep hotel emoji for Booking nights, camp detection is text-based.
       return { emoji: "🏨", bg: "#92400e", ring: "#fbbf24" };
     case "airport":
       return { emoji: "✈️", bg: "#1d4ed8", ring: "#93c5fd" };
