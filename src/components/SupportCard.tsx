@@ -72,6 +72,31 @@ export function SupportCard({ isGenerating }: { isGenerating: boolean }) {
                 ? t("support.amountCustom")
                 : tier.amountLabel;
             const isCustom = tier.id === "tier-custom";
+            const className = `${tierButtonClass}${isCustom ? " min-w-[7.5rem] px-5" : ""}`;
+            const label = (
+              <>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="text-sm font-semibold tabular-nums text-slate-900">{amount}</span>
+                  <span className="text-[10px] opacity-35" aria-hidden>
+                    {tier.emoji}
+                  </span>
+                </span>
+                <span className="sr-only">{t(tier.labelKey)}</span>
+              </>
+            );
+
+            if (tier.external === false) {
+              return (
+                <Link
+                  key={tier.id}
+                  to={tier.href}
+                  title={t(tier.labelKey)}
+                  className={className}
+                >
+                  {label}
+                </Link>
+              );
+            }
 
             return (
               <a
@@ -80,15 +105,9 @@ export function SupportCard({ isGenerating }: { isGenerating: boolean }) {
                 target="_blank"
                 rel="noopener noreferrer"
                 title={t(tier.labelKey)}
-                className={`${tierButtonClass}${isCustom ? " min-w-[7.5rem] px-5" : ""}`}
+                className={className}
               >
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="text-sm font-semibold tabular-nums text-slate-900">{amount}</span>
-                  <span className="text-[10px] opacity-35" aria-hidden>
-                    {tier.emoji}
-                  </span>
-                </span>
-                <span className="sr-only">{t(tier.labelKey)}</span>
+                {label}
               </a>
             );
           })}
