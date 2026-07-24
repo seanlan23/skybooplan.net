@@ -1108,8 +1108,16 @@ function Landing() {
       if (!safe) return "";
       const lang = aiContext?.language || lastSearch?.language || "en";
       const tags = safe.tags ?? [];
+      const wishesRaw = typeof safe.wishes === "string" ? safe.wishes.trim() : "";
+      const wishesText = wishesRaw
+        ? localizeWishesDisplay(wishesRaw, lang, (key) => translate(lang, key as never))
+        : "";
+      // Motorhome wishes already embed priorities — don't duplicate "Prioritete:" lines.
+      const alreadyHasPriorities = /prioritet|priorit/i.test(wishesText);
       const interests =
-        tags.length > 0 ? `Prioritete: ${formatPlannerInterests(tags, lang)}.` : "";
+        tags.length > 0 && !alreadyHasPriorities
+          ? `Prioritete: ${formatPlannerInterests(tags, lang)}.`
+          : "";
       const budget =
         safe.budget === "budget"
           ? "Proračun: nizki (Budget)."
@@ -1119,10 +1127,6 @@ function Landing() {
       const wishTags = safe.wishTags ?? [];
       const chips =
         wishTags.length > 0 ? `Posebne zahteve: ${wishTags.join(", ")}.` : "";
-      const wishesRaw = typeof safe.wishes === "string" ? safe.wishes.trim() : "";
-      const wishesText = wishesRaw
-        ? localizeWishesDisplay(wishesRaw, lang, (key) => translate(lang, key as never))
-        : "";
       return [wishesText, interests, budget, chips].filter(Boolean).join(" ");
     } catch (err) {
       console.warn("[buildWishes] fallback:", err);
@@ -1252,7 +1256,10 @@ function Landing() {
           pax,
           budget: safeForm.budget ?? "standard",
           wishTags: safeForm.wishTags ?? [],
-          customWishes: buildWishes(safeForm) || safeForm.wishes?.trim() || undefined,
+          customWishes: (() => {
+            const text = (buildWishes(safeForm) || safeForm.wishes?.trim() || "").trim();
+            return text ? text.slice(0, 2400) : undefined;
+          })(),
           pace: safeForm.pace,
           priorities,
           attachment: heroAttachment ?? undefined,

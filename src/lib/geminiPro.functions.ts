@@ -97,7 +97,7 @@ export const generateGeminiProTripInputSchema = z
       .transform((pax) => normalizeTripPlanPax(pax)),
     budget: z.enum(["budget", "standard", "premium"]).default("standard"),
     wishTags: z.array(z.enum(TRIP_WISH_TAGS)).max(TRIP_WISH_TAGS.length).default([]),
-    customWishes: z.string().trim().max(500).optional(),
+    customWishes: z.string().trim().max(2500).optional(),
     pace: z.enum(["intensive", "relaxed", "calm"]).optional(),
     priorities: z.array(z.string().max(200)).max(12).optional(),
     groundTransportMode: z.enum(["car", "motorhome", "train"]).optional(),
@@ -172,6 +172,13 @@ export function formatGenerateTripInputError(error: z.ZodError): string {
     ["departDate", "returnDate"].includes(String(i.path[0] ?? "")),
   );
   if (dateIssue) return "Preveri datume odhoda in vrnitve v iskalniku.";
+
+  const wishesTooLong = error.issues.find(
+    (i) => String(i.path[0] ?? "") === "customWishes" && i.code === "too_big",
+  );
+  if (wishesTooLong) {
+    return "Opis želja je predolg. Izberi manj prioritet ali krajši opis, nato poskusi znova.";
+  }
 
   return "Neveljavni parametri načrta. Preveri letališča, datume in izbrane možnosti.";
 }
