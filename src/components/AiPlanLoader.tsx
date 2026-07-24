@@ -1,26 +1,34 @@
 import { useEffect, useMemo, useState } from "react";
-import { Plane, Sparkles, Lightbulb } from "lucide-react";
+import { Caravan, Plane, Sparkles, Lightbulb } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { shuffleTipOrder, tipKeysForDestination } from "@/lib/aiPlanTips";
+import { cn } from "@/lib/utils";
 
 /** Bundled Earth texture (local) — looks like the real planet, not green blobs. */
 const EARTH_TEXTURE = "/earth-blue-marble.jpg";
 
+export type AiPlanLoaderOrbit = "flight" | "motorhome";
+
 /**
  * Loader while the AI itinerary is generating.
- * Real Earth texture + CSS-only plane orbit (smooth) + separate progress ring.
+ * Real Earth texture + CSS-only vehicle orbit (smooth) + separate progress ring.
+ * Motorhome: caravan with exhaust puffs instead of plane.
  */
 export function AiPlanLoader({
   tripDays = 7,
   startedAt,
   destination,
+  orbit = "flight",
 }: {
   tripDays?: number;
   startedAt?: number | null;
   /** Filters place-specific tips (no Rome tip on Thailand plans). */
   destination?: string | null;
+  /** flight = plane; motorhome = RV with exhaust smoke. */
+  orbit?: AiPlanLoaderOrbit;
 } = {}) {
   const { t, lang } = useI18n();
+  const isMotorhome = orbit === "motorhome";
 
   const phases = useMemo(
     () => [
@@ -113,7 +121,7 @@ export function AiPlanLoader({
       </div>
 
       <div className="relative mx-auto mt-8 h-44 w-44" aria-hidden>
-        {/* Progress ring (separate from plane — no jank) */}
+        {/* Progress ring (separate from orbit vehicle — no jank) */}
         <svg
           className="absolute inset-0 -rotate-90"
           width={size}
@@ -165,11 +173,25 @@ export function AiPlanLoader({
         {/* Dashed orbit path */}
         <div className="pointer-events-none absolute inset-[8%] rounded-full border border-dashed border-sky-400/70" />
 
-        {/* Plane — pure CSS infinite orbit (never fights JS progress) */}
+        {/* Vehicle — pure CSS infinite orbit (never fights JS progress) */}
         <div className="absolute inset-0 animate-[sky-orbit_11s_linear_infinite]">
           <div className="absolute left-1/2 top-[4%] -translate-x-1/2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full border border-sky-200 bg-white shadow-md">
-              <Plane className="h-4 w-4 text-sky-600 rotate-45" />
+            <div
+              className={cn(
+                "relative flex h-9 w-9 items-center justify-center rounded-full border bg-white shadow-md",
+                isMotorhome ? "border-amber-200" : "border-sky-200",
+              )}
+            >
+              {isMotorhome ? (
+                <>
+                  <span className="sky-exhaust sky-exhaust--1" />
+                  <span className="sky-exhaust sky-exhaust--2" />
+                  <span className="sky-exhaust sky-exhaust--3" />
+                  <Caravan className="relative z-[1] h-4 w-4 text-amber-700" strokeWidth={2.25} />
+                </>
+              ) : (
+                <Plane className="h-4 w-4 text-sky-600 rotate-45" />
+              )}
             </div>
           </div>
         </div>

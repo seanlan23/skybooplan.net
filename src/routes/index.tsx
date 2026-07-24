@@ -1681,6 +1681,11 @@ function Landing() {
                   departDate={aiContext?.departDate}
                   returnDate={aiContext?.returnDate}
                   flights={aiContext?.flights}
+                  loaderOrbit={
+                    aiContext?.groundTransportMode === "motorhome"
+                      ? "motorhome"
+                      : "flight"
+                  }
                 />
                 ) : aiLoading || aiExpandingFull ? (
                 <AiPlanLoader
@@ -1698,6 +1703,11 @@ function Landing() {
                   }
                   startedAt={aiGenStartedAt}
                   destination={aiContext?.to}
+                  orbit={
+                    aiContext?.groundTransportMode === "motorhome"
+                      ? "motorhome"
+                      : "flight"
+                  }
                 />
                 ) : (
                 <AiPlanSkeletonView

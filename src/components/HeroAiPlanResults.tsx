@@ -76,6 +76,14 @@ export function HeroAiPlanResults({
     rooms: lastSearchPax?.rooms ?? 1,
   };
 
+  const loaderOrbit =
+    aiContext?.groundTransportMode === "motorhome" ||
+    displayPlan?.groundTransportMode === "motorhome" ||
+    displayPlan?.accommodationMode === "motorhome" ||
+    aiSkeleton?.accommodationMode === "motorhome"
+      ? ("motorhome" as const)
+      : ("flight" as const);
+
   return (
     <section
       id="hero-trip-plan"
@@ -132,12 +140,14 @@ export function HeroAiPlanResults({
               departDate={aiContext?.departDate}
               returnDate={aiContext?.returnDate}
               flights={aiContext?.flights as TripFlightContext | undefined}
+              loaderOrbit={loaderOrbit}
             />
           ) : aiLoading || aiExpandingFull ? (
             <AiPlanLoader
               tripDays={tripDays}
               startedAt={aiGenStartedAt}
               destination={aiContext?.to}
+              orbit={loaderOrbit}
             />
           ) : (
             <AiPlanSkeletonView

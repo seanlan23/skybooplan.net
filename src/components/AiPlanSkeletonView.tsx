@@ -156,6 +156,7 @@ export function AiPlanSkeletonView({
         tripDays={tripDays}
         startedAt={genStartedAt}
         destination={destinationIata}
+        orbit={skeleton?.accommodationMode === "motorhome" ? "motorhome" : "flight"}
       />
     );
   }

@@ -107,6 +107,7 @@ export function AiPlanView({
   departDate,
   returnDate,
   flights,
+  loaderOrbit,
 }: {
   loading: boolean;
   plan: AiTripPlan | null;
@@ -127,6 +128,8 @@ export function AiPlanView({
   departDate?: string;
   returnDate?: string;
   flights?: TripFlightContext | null;
+  /** Orbit vehicle while waiting for first day (motorhome = RV + exhaust). */
+  loaderOrbit?: "flight" | "motorhome";
 }) {
   const { t, lang, formatMoney } = useI18n();
   const [activeDay, setActiveDay] = useState<number>(1);
@@ -521,9 +524,15 @@ export function AiPlanView({
   }, [plan, plan?.days.length]);
 
   if (loading && !plan) {
+    const orbit =
+      loaderOrbit ??
+      (plan?.groundTransportMode === "motorhome" || plan?.accommodationMode === "motorhome"
+        ? "motorhome"
+        : "flight");
     return (
       <AiPlanLoader
         destination={destinationIata ?? plan?.destinationName}
+        orbit={orbit}
       />
     );
   }

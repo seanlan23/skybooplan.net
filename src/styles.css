@@ -361,11 +361,55 @@
   from { transform: scale(1.1) translateX(0%); }
   to { transform: scale(1.1) translateX(-12%); }
 }
+/* Motorhome exhaust puffs trailing the caravan badge. */
+@keyframes sky-exhaust {
+  0% {
+    opacity: 0.55;
+    transform: translate(0, 0) scale(0.45);
+  }
+  70% {
+    opacity: 0.2;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-14px, -6px) scale(1.35);
+  }
+}
+.sky-exhaust {
+  position: absolute;
+  left: 2px;
+  top: 55%;
+  width: 7px;
+  height: 7px;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(148, 163, 184, 0.85) 0%, rgba(148, 163, 184, 0.15) 70%, transparent 100%);
+  pointer-events: none;
+  animation: sky-exhaust 1.1s ease-out infinite;
+}
+.sky-exhaust--1 {
+  animation-delay: 0s;
+}
+.sky-exhaust--2 {
+  top: 42%;
+  width: 5px;
+  height: 5px;
+  animation-delay: 0.35s;
+}
+.sky-exhaust--3 {
+  top: 62%;
+  width: 6px;
+  height: 6px;
+  animation-delay: 0.7s;
+}
 
 @media (prefers-reduced-motion: reduce) {
   .animate-\[sky-orbit_11s_linear_infinite\],
   .animate-\[sky-earth-drift_40s_linear_infinite\] {
     animation: none !important;
+  }
+  .sky-exhaust {
+    animation: none !important;
+    opacity: 0.25;
   }
 }
 
