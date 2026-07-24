@@ -1,9 +1,11 @@
-import { memo, useRef } from "react";
-import { Pause, Play } from "lucide-react";
+import { memo, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
+import { Pause, Play, X } from "lucide-react";
 import { TripMap } from "@/components/TripMap";
 import type { AiTripPlan } from "@/lib/aiPlan.functions";
 import type { PoiDetailsData } from "@/lib/poiDetails.types";
 import { useI18n } from "@/lib/i18n";
+import { cn } from "@/lib/utils";
 
 type Props = {
   plan: AiTripPlan;
@@ -20,6 +22,12 @@ type Props = {
   onTogglePlayback: () => void;
   playLabel: string;
   stopLabel: string;
+  /**
+   * `sidebar` — desktop sticky column (hidden on mobile).
+   * `sheet` — fullscreen mobile Mapbox overlay with close control.
+   */
+  variant?: "sidebar" | "sheet";
+  onCloseSheet?: () => void;
 };
 
 /**
@@ -40,19 +48,60 @@ export const AiTripMapPanel = memo(function AiTripMapPanel({
   onTogglePlayback,
   playLabel,
   stopLabel,
+  variant = "sidebar",
+  onCloseSheet,
 }: Props) {
   const { t } = useI18n();
   const everHadCoordsRef = useRef(false);
   if (hasCoords) everHadCoordsRef.current = true;
 
+  const isSheet = variant === "sheet";
+
+  useEffect(() => {
+    if (!isSheet) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onCloseSheet?.();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [isSheet, onCloseSheet]);
+
   if (!everHadCoordsRef.current) return null;
 
-  return (
+  const panel = (
     <div
-      id="ai-trip-map"
-      className="order-2 w-full shrink-0 flex flex-col overflow-hidden lg:order-2 lg:sticky lg:top-24 lg:z-20 lg:h-[calc(100vh-120px)] lg:max-h-[calc(100vh-120px)] lg:self-start"
+      id={isSheet ? "ai-trip-map-sheet" : "ai-trip-map"}
+      className={cn(
+        "flex flex-col overflow-hidden",
+        isSheet
+          ? "fixed inset-0 z-[80] bg-background"
+          : "hidden lg:flex order-2 w-full shrink-0 lg:order-2 lg:sticky lg:top-24 lg:z-20 lg:h-[calc(100vh-120px)] lg:max-h-[calc(100vh-120px)] lg:self-start",
+      )}
+      role={isSheet ? "dialog" : undefined}
+      aria-modal={isSheet ? true : undefined}
+      aria-label={isSheet ? t("aiplan.mapStreets" as never) : undefined}
     >
-      <div className="flex items-center justify-center gap-2 px-1 pb-2">
+      {isSheet && (
+        <button
+          type="button"
+          onClick={onCloseSheet}
+          className="absolute right-3 top-3 z-20 flex h-11 w-11 items-center justify-center rounded-full bg-background/95 text-foreground shadow-lg ring-1 ring-border backdrop-blur-sm transition hover:bg-muted"
+          aria-label={t("poi.close" as never)}
+        >
+          <X className="h-5 w-5" strokeWidth={2.25} />
+        </button>
+      )}
+      <div
+        className={cn(
+          "flex items-center justify-center gap-2 px-1",
+          isSheet ? "shrink-0 pb-2 pt-14" : "pb-2",
+        )}
+      >
         <button
           type="button"
           onClick={onTogglePlayback}
@@ -79,7 +128,14 @@ export const AiTripMapPanel = memo(function AiTripMapPanel({
           </span>
         )}
       </div>
-      <div className="h-[40vh] max-h-[300px] min-h-[260px] w-full lg:h-auto lg:flex-1 lg:min-h-0 lg:max-h-none">
+      <div
+        className={cn(
+          "w-full",
+          isSheet
+            ? "min-h-0 flex-1"
+            : "h-[40vh] max-h-[300px] min-h-[260px] lg:h-auto lg:flex-1 lg:min-h-0 lg:max-h-none",
+        )}
+      >
         <TripMap
           plan={plan}
           activeDay={activeDay}
@@ -91,7 +147,16 @@ export const AiTripMapPanel = memo(function AiTripMapPanel({
           isPlaying={isPlaying}
         />
       </div>
-      <div className="mt-2 text-xs text-slate-500 text-center hidden lg:block">{mapHint}</div>
+      {!isSheet && (
+        <div className="mt-2 text-xs text-slate-500 text-center hidden lg:block">{mapHint}</div>
+      )}
     </div>
   );
+
+  if (isSheet) {
+    if (typeof document === "undefined") return null;
+    return createPortal(panel, document.body);
+  }
+
+  return panel;
 });

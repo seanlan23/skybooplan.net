@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AiTripPlan, DayPlan } from "@/lib/aiPlan.functions";
 import { type ActivityMapFocus } from "@/components/TripMap";
 import { AiTripMapPanel } from "@/components/AiTripMapPanel";
+import { MobileMapOpenButton } from "@/components/MobileMapOverlay";
 import { AiPlanDayCard, StreamingDayPlaceholder, activityFocusKey } from "@/components/AiPlanDayCard";
 import { POIDetailsModal } from "@/components/POIDetailsModal";
 import { refreshPoiDetailsImage, type PoiDetailsData } from "@/lib/poiDetails.types";
@@ -152,6 +153,7 @@ export function AiPlanView({
   const [scrollSpyPaused, setScrollSpyPaused] = useState(false);
   const [focusedActivityKey, setFocusedActivityKey] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [mobileMapOpen, setMobileMapOpen] = useState(false);
   const isClickNavigatingRef = useRef(false);
   const isPlayingRef = useRef(false);
   isPlayingRef.current = isPlaying;
@@ -261,7 +263,7 @@ export function AiPlanView({
         clickNavTimerRef.current = null;
       }, 2600);
       if (typeof window !== "undefined" && !planUsesColumnScroll()) {
-        document.getElementById("ai-trip-map")?.scrollIntoView({ behavior: "smooth", block: "start" });
+        setMobileMapOpen(true);
       }
     },
     [scrollDayIntoView],
@@ -285,13 +287,18 @@ export function AiPlanView({
         setFocusedActivityKey(activityFocusKey(coords.day, coords.poiName));
       }
       if (typeof window !== "undefined" && window.innerWidth < 1024) {
-        window.setTimeout(() => {
-          document.getElementById("ai-trip-map")?.scrollIntoView({ behavior: "smooth", block: "start" });
-        }, 80);
+        setMobileMapOpen(true);
       }
     },
     [pauseScrollSpy],
   );
+
+  const closeMobileMap = useCallback(() => {
+    setMobileMapOpen(false);
+    setIsPlaying(false);
+    setScrollSpyPaused(false);
+    isClickNavigatingRef.current = false;
+  }, []);
 
   const handleActivityDetails = useCallback(
     (poi: PoiDetailsData) => {
@@ -837,9 +844,35 @@ export function AiPlanView({
             onTogglePlayback={handleTogglePlayback}
             playLabel={mapPlayLabel}
             stopLabel={mapStopLabel}
+            variant="sidebar"
           />
         )}
       </div>
+
+      {hasCoords && mobileMapOpen && (
+        <AiTripMapPanel
+          plan={plan}
+          activeDay={activeDay}
+          hasCoords={hasCoords}
+          highlightPoiName={highlightPoiName}
+          onDaySelect={handleMapCitySelect}
+          onOpenPoiDetails={handleActivityDetails}
+          streaming={streaming}
+          expectedDayCount={totalExpectedDays}
+          mapHint={mapHint}
+          isPlaying={isPlaying}
+          onTogglePlayback={handleTogglePlayback}
+          playLabel={mapPlayLabel}
+          stopLabel={mapStopLabel}
+          variant="sheet"
+          onCloseSheet={closeMobileMap}
+        />
+      )}
+
+      <MobileMapOpenButton
+        visible={hasCoords && !mobileMapOpen}
+        onClick={() => setMobileMapOpen(true)}
+      />
 
       <POIDetailsModal
         open={poiModalOpen}

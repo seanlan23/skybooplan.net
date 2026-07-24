@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Sparkles } from "lucide-react";
+import { createPortal } from "react-dom";
+import { Sparkles, X } from "lucide-react";
 import type { TripPlanResponse } from "@/lib/geminiPro.shared";
 import { tripPlanResponseToAiTripPlan } from "@/lib/geminiPlanMap";
 import { TripMap } from "@/components/TripMap";
@@ -8,6 +9,7 @@ import { GeminiLogisticsCards } from "@/components/GeminiLogisticsCards";
 import { DestinationInsightBanner } from "@/components/DestinationInsightBanner";
 import { PlanIntroInsightBlocks } from "@/components/PlanIntroInsightBlocks";
 import { ItineraryRouteOverview } from "@/components/ItineraryRouteOverview";
+import { MobileMapOpenButton } from "@/components/MobileMapOverlay";
 import { useDestinationContext } from "@/hooks/useDestinationContext";
 import { useI18n } from "@/lib/i18n";
 import { parseLocalDate } from "@/lib/dateUtils";
@@ -46,7 +48,17 @@ export default function TripComponent({
   const { t, lang } = useI18n();
   const uiLang = language || lang;
   const [activeDay, setActiveDay] = useState(1);
+  const [mobileMapOpen, setMobileMapOpen] = useState(false);
   const dayRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+
+  useEffect(() => {
+    if (!mobileMapOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [mobileMapOpen]);
 
   const meta = data?.trip_metadata;
   const logistics = data?.logistics_and_tips;
@@ -227,10 +239,7 @@ export default function TripComponent({
                   onSelect={() => {
                     setActiveDay(d.day);
                     if (typeof window !== "undefined" && window.innerWidth < 1024) {
-                      document.getElementById("ai-trip-map")?.scrollIntoView({
-                        behavior: "smooth",
-                        block: "start",
-                      });
+                      setMobileMapOpen(true);
                     }
                   }}
                   registerRef={(el) => {
@@ -250,7 +259,10 @@ export default function TripComponent({
         </div>
 
         {hasCoords ? (
-          <div id="ai-trip-map" className="lg:sticky lg:top-24 scroll-mt-24">
+          <div
+            id="ai-trip-map"
+            className="hidden lg:block lg:sticky lg:top-24 scroll-mt-24"
+          >
             <TripMap plan={mapPlan} activeDay={activeDay} />
             <p className="mt-2 text-xs text-slate-500 text-center">
               {t("aiplan.mapHint" as never)}
@@ -258,6 +270,36 @@ export default function TripComponent({
           </div>
         ) : null}
       </div>
+
+      {hasCoords &&
+        mobileMapOpen &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[80] flex flex-col bg-background lg:hidden"
+            role="dialog"
+            aria-modal="true"
+            aria-label={t("aiplan.mapStreets" as never)}
+          >
+            <button
+              type="button"
+              onClick={() => setMobileMapOpen(false)}
+              className="absolute right-3 top-3 z-20 flex h-11 w-11 items-center justify-center rounded-full bg-background/95 text-foreground shadow-lg ring-1 ring-border backdrop-blur-sm"
+              aria-label={t("poi.close" as never)}
+            >
+              <X className="h-5 w-5" strokeWidth={2.25} />
+            </button>
+            <div className="min-h-0 flex-1 pt-14">
+              <TripMap plan={mapPlan} activeDay={activeDay} />
+            </div>
+          </div>,
+          document.body,
+        )}
+
+      <MobileMapOpenButton
+        visible={hasCoords && !mobileMapOpen}
+        onClick={() => setMobileMapOpen(true)}
+      />
     </div>
   );
 }

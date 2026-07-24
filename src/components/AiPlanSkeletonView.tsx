@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronRight, Loader2, Sparkles } from "lucide-react";
+import { createPortal } from "react-dom";
+import { ChevronRight, Loader2, Sparkles, X } from "lucide-react";
 import type { TripSkeleton } from "@/lib/aiPlan.functions";
 import { buildSkeletonDayPlans, skeletonToPreviewPlan } from "@/lib/aiPlan.functions";
 import { TripMap } from "@/components/TripMap";
 import { AiPlanDayCard } from "@/components/AiPlanDayCard";
 import { AiPlanLoader } from "@/components/AiPlanLoader";
+import { MobileMapOpenButton } from "@/components/MobileMapOverlay";
 import { isSoftQuotaError, resolveErrorMessage, useI18n } from "@/lib/i18n";
 import { parseLocalDate } from "@/lib/dateUtils";
 import { PlannerChoicesSummary } from "@/components/PlannerChoicesSummary";
@@ -48,7 +50,17 @@ export function AiPlanSkeletonView({
 }) {
   const { t, lang, formatMoney } = useI18n();
   const [activeDay, setActiveDay] = useState(1);
+  const [mobileMapOpen, setMobileMapOpen] = useState(false);
   const dayRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+
+  useEffect(() => {
+    if (!mobileMapOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [mobileMapOpen]);
 
   const planOpts = useMemo(
     () => ({
@@ -270,7 +282,7 @@ export function AiPlanSkeletonView({
                 onSelect={() => {
                   setActiveDay(d.day);
                   if (typeof window !== "undefined" && window.innerWidth < 1024) {
-                    document.getElementById("ai-trip-map")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                    setMobileMapOpen(true);
                   }
                 }}
                 registerRef={(el) => {
@@ -282,12 +294,12 @@ export function AiPlanSkeletonView({
           })}
         </div>
 
-        {hasCoords && (
+        {hasCoords && previewPlan && (
           <div
             id="ai-trip-map"
-            className="order-2 w-full shrink-0 flex flex-col overflow-hidden lg:order-2 lg:sticky lg:top-0 lg:z-20 lg:h-screen lg:max-h-screen lg:self-start"
+            className="order-2 w-full shrink-0 hidden lg:flex flex-col overflow-hidden lg:order-2 lg:sticky lg:top-0 lg:z-20 lg:h-screen lg:max-h-screen lg:self-start"
           >
-            <div className="h-[40vh] max-h-[300px] min-h-[260px] w-full lg:h-auto lg:flex-1 lg:min-h-0 lg:max-h-none">
+            <div className="w-full lg:h-auto lg:flex-1 lg:min-h-0 lg:max-h-none">
               <TripMap plan={previewPlan} activeDay={activeDay} />
             </div>
             <p className="mt-2 text-xs text-slate-500 text-center hidden lg:block">
@@ -296,6 +308,37 @@ export function AiPlanSkeletonView({
           </div>
         )}
       </div>
+
+      {hasCoords &&
+        previewPlan &&
+        mobileMapOpen &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[80] flex flex-col bg-background lg:hidden"
+            role="dialog"
+            aria-modal="true"
+            aria-label={t("aiplan.mapStreets" as never)}
+          >
+            <button
+              type="button"
+              onClick={() => setMobileMapOpen(false)}
+              className="absolute right-3 top-3 z-20 flex h-11 w-11 items-center justify-center rounded-full bg-background/95 text-foreground shadow-lg ring-1 ring-border backdrop-blur-sm"
+              aria-label={t("poi.close" as never)}
+            >
+              <X className="h-5 w-5" strokeWidth={2.25} />
+            </button>
+            <div className="min-h-0 flex-1 pt-14">
+              <TripMap plan={previewPlan} activeDay={activeDay} />
+            </div>
+          </div>,
+          document.body,
+        )}
+
+      <MobileMapOpenButton
+        visible={Boolean(hasCoords && previewPlan && !mobileMapOpen)}
+        onClick={() => setMobileMapOpen(true)}
+      />
     </div>
   );
 }
