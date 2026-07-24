@@ -632,21 +632,6 @@ export function AiPlanView({
   const mapPlayLabel = t("aiplan.mapPlay" as never);
   const mapStopLabel = t("aiplan.mapStop" as never);
   const displaySummary = stripPlanTeaser(plan.summary, lang);
-  const roadTripStops = useMemo(() => roadTripMapStops(plan), [plan]);
-  const motorhomeMapStops = useMemo(
-    () =>
-      plan.groundTransportMode === "motorhome" || plan.accommodationMode === "motorhome"
-        ? collectMotorhomeMapStops(plan, lang)
-        : [],
-    [plan, lang],
-  );
-  const kmlStopCount = useMemo(
-    () =>
-      plan.groundTransportMode === "motorhome" || plan.accommodationMode === "motorhome"
-        ? countMotorhomeStopsWithCoords(plan, lang)
-        : 0,
-    [plan, lang],
-  );
   const showRoadTripMaps =
     (plan.groundTransportMode === "motorhome" ||
       plan.groundTransportMode === "car" ||
