@@ -65,8 +65,11 @@ export function buildGoogleMapsRoadTripUrl(stops: string[]): string {
     .map((s) => s.replace(/\s+/g, " ").trim())
     .filter((s) => s.length > 0);
   if (parts.length < 2) return "https://www.google.com/maps/";
-  // Cap waypoints — Google Maps URL length / UX.
-  const capped = parts.length > 10 ? [parts[0]!, ...parts.slice(1, -1).slice(0, 8), parts[parts.length - 1]!] : parts;
+  // Cap at 10 — always keep first (start) and last (return home).
+  const capped =
+    parts.length > 10
+      ? [parts[0]!, ...parts.slice(1, -1).slice(0, 8), parts[parts.length - 1]!]
+      : parts;
   return `https://www.google.com/maps/dir/${capped.map(encodeURIComponent).join("/")}`;
 }
 

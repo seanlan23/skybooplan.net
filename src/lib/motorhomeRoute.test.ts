@@ -55,7 +55,7 @@ describe("motorhome route + camps", () => {
     expect(stops.some((s) => /Camping Fusina/i.test(s))).toBe(true);
   });
 
-  it("builds Google-ready stops preferring overnight camps", () => {
+  it("builds Google-ready stops preferring overnight camps and returns home", () => {
     const plan = {
       originPlace: "Vienna",
       destinationPlace: "Split",
@@ -92,7 +92,29 @@ describe("motorhome route + camps", () => {
     expect(stops[0]).toMatch(/Vienna/i);
     expect(stops.some((s) => /Camping Ljubljana/i.test(s))).toBe(true);
     expect(stops.some((s) => /Avtokamp Zadar/i.test(s))).toBe(true);
-    expect(stops[stops.length - 1]).toMatch(/Split/i);
+    expect(stops).toContain("Split");
+    // Loop home — last pin is origin, not a country blob.
+    expect(stops[stops.length - 1]).toMatch(/Vienna/i);
+  });
+
+  it("ends at Mežica and never pins bare Italija", () => {
+    const plan = {
+      originPlace: "Mežica",
+      destinationPlace: "Italija",
+      groundTransportMode: "motorhome",
+      days: [
+        { day: 1, city: "San Daniele del Friuli", activities: {} },
+        { day: 2, city: "Venice", activities: {} },
+        { day: 3, city: "Rome", activities: {} },
+        { day: 4, city: "Trieste", activities: {} },
+        { day: 5, city: "Mežica", title: "Povratek", activities: {} },
+      ],
+    } as AiTripPlan;
+    const stops = collectMotorhomeRoadTripStops(plan);
+    expect(stops.some((s) => /^italija$/i.test(s))).toBe(false);
+    expect(stops[0]).toBe("Mežica");
+    expect(stops[stops.length - 1]).toBe("Mežica");
+    expect(stops.filter((s) => s === "Mežica")).toHaveLength(2);
   });
 
   it("maps campground text to hotel category (camp pin budget)", () => {
