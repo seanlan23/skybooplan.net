@@ -13,7 +13,7 @@ import {
   normalizeMapPoiCategory,
   resolveMapPoiCategory,
 } from "@/lib/mapPoiCategory";
-import { repairPlanDaySequence } from "@/lib/daySequence";
+import { expandPlanDaysToExpected } from "@/lib/daySequence";
 import { finalizeItineraryMapCoords } from "@/lib/itineraryMapModel";
 import { dedupeCrossDayBoilerplate } from "@/lib/textSanitize";
 import { attachActivityCoordinates } from "@/lib/mapPoiResolver";
@@ -753,11 +753,22 @@ export function enrichGeminiCatalogPlan(
     wishesText?: string;
     language?: string;
     departDate?: string;
+    returnDate?: string;
+    /** When set, pad/expand days[] to full trip length (motorhome often under-emits). */
+    expectedDays?: number;
   },
 ): void {
   const tier = opts.budget === "budget" ? "budget" : opts.budget === "premium" ? "premium" : "mid";
   plan.days = dedupePlanDaysByNumber(plan.days);
-  repairPlanDaySequence(plan, { language: opts.language });
+  const expectedDays =
+    opts.expectedDays && opts.expectedDays > 0
+      ? opts.expectedDays
+      : planCalendarDayCount(plan.days);
+  expandPlanDaysToExpected(plan, {
+    expectedDays,
+    language: opts.language,
+    departDate: opts.departDate,
+  });
   const totalDays = planCalendarDayCount(plan.days);
   const travelers = Math.max(1, opts.pax);
   const wishesText = opts.wishesText ?? "";

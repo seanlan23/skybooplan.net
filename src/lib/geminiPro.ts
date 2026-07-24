@@ -307,7 +307,8 @@ NAČIN POTOVANJA: AVTODOM / RV / CAMPERVAN (obvezno)
 - Namesto hotelov za vsak dan dodaj konkretno aktivnost za nočitev: RV park / kamp / campground (category: hotel) z imenom in lokacijo.
 - Med mesti načrtuj vožnjo z avtodomom — ne notranjih letov. ZDA: 400–800 km = cel dan vožnje.
 - Parkiraj RV izven mestnega jedra; v center z javnim prevozom ali P+R.
-- itinerar[] = največ ${maxBases} baz/kampov; days[] = NATANKO ${params.days} koledarskih dni (večnočne postaje so želene).
+- itinerar[] = največ ${maxBases} baz/kampov (to NI število dni!).
+- KRITIČNO: vsota vseh itinerar[].days[] = NATANKO ${params.days} ločenih dnevnih objektov. Primer: ${params.days} dni z ${maxBases} kampi = več day{} na istem kampu — NIKOLI samo ${maxBases} day{} objektov.
 ${roadTrip ? "- Road trip: enosmerna pot vzdolž ceste; večnočni kampi na isti postaji so OK (ne vsak dan nova baza)." : ""}`
     : "";
 
@@ -432,7 +433,7 @@ Obvezna logistična pravila za ta načrt:
     explicitStayPlan
       ? `Število in vrstni red baz = NATANKO po UPORABNIKOVEM RAZPOREDU zgoraj (ne skrči na tipičnih ${Math.min(4, params.days)} baz).`
       : motorhome || roadTrip
-        ? `Načrtuj največ ${maxBases} baz/kampov vzdolž enosmerne poti; days[] mora imeti NATANKO ${params.days} dni (več noči na isti bazi je OK — NE ena baza na dan).`
+        ? `Načrtuj največ ${maxBases} baz/kampov vzdolž enosmerne poti; vsota itinerar[].days[] mora biti NATANKO ${params.days} day{} (več noči na isti bazi = več day{} — NE samo ${maxBases} day{}).`
         : `Največ ${maxBases} glavne baze (mesta/regije) za ${params.days} dni — brez skakanja sem in tja po državi.`
   }
 - ${explicitStayPlan ? "Sledi uporabnikovemu vrstnemu redu mest (lahko se vrneš na Phuket/Patong za odhod, če je to v razporedu)." : "Enosmerna geografska pot (en jasen lok); brez vračanja v že obiskana mesta."}
@@ -747,7 +748,7 @@ ${
   explicitStayPlan
     ? `- Število baz = točno po uporabnikovih željah (ne uporabljaj limit 2/3/4 baz).`
     : motorhome || roadTrip
-      ? `- ROAD TRIP / AVTODOM: Enosmerna pot z največ ${motorhomeRoadTripMaxBases(params.days)} bazami/kampi (itinerar[]). days[] = NATANKO ${params.days} koledarskih dni — združi 2–3 noči na isti bazi, kjer ima smisel. Vsak dan: smiselne aktivnosti + kamp/RV park za nočitev. PREPOVEDANO: ena baza na vsak dan (to preseže output limit).`
+      ? `- ROAD TRIP / AVTODOM: Enosmerna pot z največ ${motorhomeRoadTripMaxBases(params.days)} bazami/kampi (itinerar[]). Število kampov ≠ število dni. days[] (vsota itinerar[].days) = NATANKO ${params.days} koledarskih day{} — združi 2–3 noči na isti bazi (vsaka noč = svoj day{}). Vsak dan: smiselne aktivnosti + kamp/RV park za nočitev. PREPOVEDANO: ena baza na vsak dan (to preseže output limit). PREPOVEDANO: vrniti samo ${motorhomeRoadTripMaxBases(params.days)} day{} za ${params.days}-dnevni izlet.`
       : `- Število glavnih baz (mest/regij, kjer potnik prespi več dni) MORAŠ omejiti glede na dolžino poti — manj regij = manj prevozev, več uživanja:
   • 7–9 dni: največ 2 glavni bazi (+ morebitna kratka postaja),
   • 10–14 dni: največ 3 glavne baze (NE 4, 5 ali več — uporabnik ne sme preživeti dopusta na letalih/vlakih),

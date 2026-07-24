@@ -8,7 +8,10 @@ import {
   tripPlanResponseToAiTripPlan,
 } from "@/lib/geminiPlanMap";
 import { applyFlightContextToGeminiPlan } from "@/lib/geminiFlightContext";
-import type { GenerateGeminiProTripInput } from "@/lib/geminiPro.functions";
+import {
+  tripDayCount,
+  type GenerateGeminiProTripInput,
+} from "@/lib/geminiPro.functions";
 import type { Lang } from "@/lib/i18n";
 
 export function buildCatalogPlanFromResponse(
@@ -51,6 +54,9 @@ export function buildCatalogPlanFromResponse(
     pax: data.pax.adults + data.pax.childrenAges.length,
     wishesText,
     language: data.language,
+    departDate: data.departDate,
+    returnDate: data.returnDate,
+    expectedDays: tripDayCount(data.departDate, data.returnDate),
   });
 
   enrichGroundTransportPlan(catalogPlan, {

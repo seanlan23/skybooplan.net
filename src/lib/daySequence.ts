@@ -112,13 +112,90 @@ function thinPlaceholderDay(
   };
 }
 
+function cloneStayDay(
+  src: DayPlan,
+  dayNum: number,
+  lang: string,
+  departDate?: string,
+): DayPlan {
+  const slo = !lang || lang.startsWith("sl");
+  const city = src.city || src.focusName || (slo ? "destinacija" : "destination");
+  const date =
+    isoPlusDays(departDate, dayNum - 1) ??
+    isoPlusDays(src.date, dayNum - src.day) ??
+    src.date;
+  return {
+    ...structuredClone(src),
+    day: dayNum,
+    date,
+    title: slo
+      ? `${city} — nadaljevanje bivanja / lokalni dan`
+      : `${city} — continue stay / local day`,
+    travelHack: slo
+      ? "Dodan dan na isti bazi (AI je vrnil premalo koledarskih dni) — lahek lokalni program, isti kamp."
+      : "Extra night at the same base (AI returned too few calendar days) — keep a light local day.",
+  };
+}
+
+/**
+ * When Gemini returns e.g. 6 day cards for a 10-day motorhome trip (confusing
+ * camps/bases with calendar days), expand by inserting stay nights after
+ * existing days, then fill any remaining gaps.
+ */
+export function expandPlanDaysToExpected(
+  plan: AiTripPlan,
+  opts: { expectedDays: number; language?: string; departDate?: string },
+): { inserted: number[] } {
+  plan.days = dedupeDays(plan.days ?? []);
+  if (!plan.days.length || opts.expectedDays <= 0) return { inserted: [] };
+
+  const lang = opts.language ?? "sl";
+  const expected = opts.expectedDays;
+  const inserted: number[] = [];
+
+  if (plan.days.length < expected) {
+    const need = expected - plan.days.length;
+    const slots = plan.days.length;
+    const extras = Array.from({ length: slots }, () => 0);
+    // Prefer extending earlier/mid stays (typical multi-night camps), not only the last stop.
+    for (let i = 0; i < need; i++) {
+      extras[i % slots]! += 1;
+    }
+
+    const expanded: DayPlan[] = [];
+    let dayNum = 1;
+    for (let i = 0; i < plan.days.length; i++) {
+      const src = plan.days[i]!;
+      const date =
+        isoPlusDays(opts.departDate, dayNum - 1) ??
+        isoPlusDays(src.date, dayNum - src.day) ??
+        src.date;
+      expanded.push({ ...src, day: dayNum, date });
+      dayNum += 1;
+      for (let e = 0; e < extras[i]!; e++) {
+        expanded.push(cloneStayDay(src, dayNum, lang, opts.departDate));
+        inserted.push(dayNum);
+        dayNum += 1;
+      }
+    }
+    plan.days = expanded;
+  }
+
+  const repaired = repairPlanDaySequence(plan, {
+    expectedDays: expected,
+    language: lang,
+    departDate: opts.departDate,
+  });
+  return { inserted: [...inserted, ...repaired.inserted] };
+}
+
 /**
  * Ensure calendar days 1…expected (or max existing) are present.
  * Inserts thin placeholders for gaps so PDF never jumps Day 4 → Day 6.
  */
 export function repairPlanDaySequence(
   plan: AiTripPlan,
-  opts?: { expectedDays?: number; language?: string },
+  opts?: { expectedDays?: number; language?: string; departDate?: string },
 ): { inserted: number[] } {
   plan.days = dedupeDays(plan.days ?? []);
   if (!plan.days.length) return { inserted: [] };
@@ -136,6 +213,9 @@ export function repairPlanDaySequence(
     // Prefer filling internal gaps; trailing missing days only when expectedDays set.
     if (n > maxExisting && (opts?.expectedDays == null || n > opts.expectedDays)) continue;
     const tmpl = neighborTemplate([...byDay.values()].sort((a, b) => a.day - b.day), n);
+    if (opts?.departDate) {
+      tmpl.date = isoPlusDays(opts.departDate, n - 1) ?? tmpl.date;
+    }
     const placeholder = thinPlaceholderDay(n, tmpl, lang);
     byDay.set(n, placeholder);
     inserted.push(n);

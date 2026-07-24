@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { AiTripPlan, DayPlan } from "@/lib/aiPlan.functions";
 import {
+  expandPlanDaysToExpected,
   hasContiguousDayNumbers,
   repairPlanDaySequence,
 } from "@/lib/daySequence";
@@ -40,6 +41,34 @@ describe("repairPlanDaySequence", () => {
     expect(inserted).toContain(5);
     expect(plan.days.map((d) => d.day)).toEqual([1, 2, 3, 4, 5, 6, 7]);
     expect(plan.days.find((d) => d.day === 5)?.title).toMatch(/prosti|lokalni/i);
+  });
+});
+
+describe("expandPlanDaysToExpected", () => {
+  it("expands 6 motorhome day cards to a full 10-day calendar", () => {
+    const plan = {
+      destinationName: "Italy",
+      groundTransportMode: "motorhome",
+      days: [
+        day({ day: 1, city: "Vienna", date: "2026-08-01" }),
+        day({ day: 2, city: "Venice", date: "2026-08-02" }),
+        day({ day: 3, city: "Venice", date: "2026-08-03" }),
+        day({ day: 4, city: "Florence", date: "2026-08-04" }),
+        day({ day: 5, city: "Rome", date: "2026-08-05" }),
+        day({ day: 6, city: "Rome", date: "2026-08-06" }),
+      ],
+    } as AiTripPlan;
+
+    const { inserted } = expandPlanDaysToExpected(plan, {
+      expectedDays: 10,
+      language: "sl",
+      departDate: "2026-08-01",
+    });
+
+    expect(inserted.length).toBe(4);
+    expect(plan.days).toHaveLength(10);
+    expect(plan.days.map((d) => d.day)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    expect(plan.days[9]?.date).toBe("2026-08-10");
   });
 });
 

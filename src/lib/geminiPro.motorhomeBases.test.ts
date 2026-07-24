@@ -46,8 +46,9 @@ describe("motorhome system prompt bases", () => {
   it("asks for capped multi-night bases, not one stop per day", () => {
     const system = tripPlanSystemPrompt(motorhomeParams());
     expect(system).toMatch(/največ 6 bazami\/kampi/);
-    expect(system).toMatch(/NATANKO 11 koledarskih dni/);
+    expect(system).toMatch(/NATANKO 11 koledarskih day/);
     expect(system).toMatch(/PREPOVEDANO: ena baza na vsak dan/);
+    expect(system).toMatch(/Število kampov ≠ število dni|kampov\/baz ≠ število dni/);
     expect(system).not.toMatch(/Ne združuj več dni v eno mesto/);
     expect(system).not.toMatch(/z 11 postajami vzdolž ceste/);
   });
