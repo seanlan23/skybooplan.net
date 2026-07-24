@@ -74,6 +74,7 @@ export function motorhomeTransportBetween(
   km: number,
   fromCity: string,
   toCity: string,
+  slo = true,
 ): { type: string; duration: string; costLabel: string; howTo: string } {
   const driveH = Math.max(2, Math.round(km / 75));
   const fuelEur = Math.round(km * 0.22);
@@ -81,12 +82,16 @@ export function motorhomeTransportBetween(
     type: "drive",
     duration: km >= 400 ? `${driveH}–${driveH + 2}h` : `${Math.max(1, driveH - 1)}–${driveH + 1}h`,
     costLabel: `${fuelEur}–${fuelEur + 40} €`,
-    howTo: `Vožnja z avtodomom ${fromCity} → ${toCity} (${Math.round(km)} km). Parkiraj na avtokampu izven mestnega jedra; v center z javnim prevozom.`,
+    howTo: slo
+      ? `Vožnja z avtodomom ${fromCity} → ${toCity} (${Math.round(km)} km). Parkiraj na avtokampu izven mestnega jedra; v center z javnim prevozom.`
+      : `Drive the motorhome ${fromCity} → ${toCity} (${Math.round(km)} km). Park at a campsite outside the centre; use transit into town.`,
   };
 }
 
-export function motorhomeTravelDayDescription(km: number, destCity: string): string {
-  return `Celodnevna vožnja z avtodomom (cca. ${Math.round(km)} km) do avtokampa pri ${destCity}. Brez mestnih hotelov — parkiraj izven jedra, center z metro/avtobusom.`;
+export function motorhomeTravelDayDescription(km: number, destCity: string, slo = true): string {
+  return slo
+    ? `Celodnevna vožnja z avtodomom (cca. ${Math.round(km)} km) do avtokampa pri ${destCity}. Brez mestnih hotelov — parkiraj izven jedra, center z metro/avtobusom.`
+    : `Full-day motorhome drive (~${Math.round(km)} km) to a campground near ${destCity}. No downtown hotels — park outside the core, metro/bus into town.`;
 }
 
 export function motorhomePromptRules(slo: boolean): string {

@@ -70,12 +70,39 @@ export function buildGoogleMapsRoadTripUrl(stops: string[]): string {
   return `https://www.google.com/maps/dir/${capped.map(encodeURIComponent).join("/")}`;
 }
 
-/** Apple Maps driving directions (origin + destination; limited waypoint support). */
-export function buildAppleMapsRoadTripUrl(origin: string, destination: string): string {
+/**
+ * Apple Maps driving directions.
+ * - Two args: origin → destination
+ * - One string[]: multi-stop via `to:` waypoints in daddr
+ */
+export function buildAppleMapsRoadTripUrl(stops: string[]): string;
+export function buildAppleMapsRoadTripUrl(origin: string, destination: string): string;
+export function buildAppleMapsRoadTripUrl(
+  originOrStops: string | string[],
+  destination?: string,
+): string {
+  const parts = (
+    Array.isArray(originOrStops)
+      ? originOrStops
+      : [originOrStops, destination ?? ""]
+  )
+    .map((s) => s.replace(/\s+/g, " ").trim())
+    .filter((s) => s.length > 0);
+  if (parts.length < 2) return "https://maps.apple.com/";
+  const capped =
+    parts.length > 8
+      ? [parts[0]!, ...parts.slice(1, -1).slice(0, 6), parts[parts.length - 1]!]
+      : parts;
+  const origin = capped[0]!;
+  const rest = capped.slice(1);
+  const daddr =
+    rest.length === 1
+      ? rest[0]!
+      : rest.map((p, i) => (i === 0 ? p : `to:${p}`)).join(" ");
   const params = new URLSearchParams({
     dirflg: "d",
-    saddr: origin.trim(),
-    daddr: destination.trim(),
+    saddr: origin,
+    daddr,
   });
   return `https://maps.apple.com/?${params.toString()}`;
 }

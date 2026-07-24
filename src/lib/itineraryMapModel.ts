@@ -4,12 +4,18 @@
  * Map renderer must not re-resolve coordinates.
  */
 import type { AiTripPlan, DayPlan } from "@/lib/aiPlan.functions";
+import {
+  defaultCampgroundNearCity,
+  resolveCampgroundCoords,
+} from "@/lib/campgroundCoords";
 import { DESTINATION_BY_IATA } from "@/lib/destinationCoords";
 import { haversineKm } from "@/lib/geoMath";
 import {
   normalizeMapPoiCategory,
+  resolveMapPoiCategory,
   type MapPoiCategory,
 } from "@/lib/mapPoiCategory";
+import { isCampActivityName } from "@/lib/motorhomeRoute";
 import { lookupRegionCoords } from "@/lib/regionCoords";
 
 export const MAX_DAY_PINS = 7;
@@ -147,6 +153,15 @@ function isLogisticsName(name: string): boolean {
   );
 }
 
+/** Motorhome / car plans draw drive legs between city hops (even without flight-day titles). */
+export function isGroundRoadTrip(plan: AiTripPlan): boolean {
+  return (
+    plan.groundTransportMode === "motorhome" ||
+    plan.groundTransportMode === "car" ||
+    plan.accommodationMode === "motorhome"
+  );
+}
+
 function fuzzyNameKey(name: string): string {
   return name
     .toLowerCase()
@@ -236,7 +251,11 @@ function pushPinCandidate(
   });
 }
 
-function collectPins(day: DayPlan, center: LngLat): MapDayPin[] {
+function collectPins(
+  day: DayPlan,
+  center: LngLat,
+  opts?: { seedCampHub?: boolean },
+): MapDayPin[] {
   const travel = isTravelDay(day);
   const city = normalizeCityLabel(day.city);
   const pins: MapDayPin[] = [];
@@ -273,28 +292,71 @@ function collectPins(day: DayPlan, center: LngLat): MapDayPin[] {
       if (isLogisticsName(act.name)) continue;
       let lat = act.lat;
       let lng = act.lng;
+      let pinName = act.name;
       if (!isValidMapCoord(lat, lng)) {
-        // Spread nameless/coord-less POIs around the city so the map isn't empty.
-        const angle = (fanIndex * 2.4) % (Math.PI * 2);
-        const radiusKm = 1.2 + (fanIndex % 3) * 0.9;
-        const dLat = (radiusKm / 111) * Math.cos(angle);
-        const dLng =
-          (radiusKm / (111 * Math.max(0.2, Math.cos((center.lat * Math.PI) / 180)))) *
-          Math.sin(angle);
-        lat = center.lat + dLat;
-        lng = center.lng + dLng;
-        fanIndex += 1;
+        const looksCamp = isCampActivityName(act.name, act.description ?? "");
+        const campHit = looksCamp
+          ? resolveCampgroundCoords(city || day.focusName, act.name) ??
+            (() => {
+              const d = defaultCampgroundNearCity(city || day.focusName);
+              return d
+                ? { lat: d.lat, lng: d.lng, matchedName: d.name }
+                : null;
+            })()
+          : null;
+        if (campHit) {
+          lat = campHit.lat;
+          lng = campHit.lng;
+          if (/^(kamp|camp|camping|avtokamp)\b/i.test(pinName.trim())) {
+            pinName = campHit.matchedName;
+          }
+        } else {
+          // Spread nameless/coord-less POIs around the city so the map isn't empty.
+          const angle = (fanIndex * 2.4) % (Math.PI * 2);
+          const radiusKm = 1.2 + (fanIndex % 3) * 0.9;
+          const dLat = (radiusKm / 111) * Math.cos(angle);
+          const dLng =
+            (radiusKm / (111 * Math.max(0.2, Math.cos((center.lat * Math.PI) / 180)))) *
+            Math.sin(angle);
+          lat = center.lat + dLat;
+          lng = center.lng + dLng;
+          fanIndex += 1;
+        }
       }
+      const category = resolveMapPoiCategory({
+        name: pinName,
+        description: act.description,
+        type: act.type,
+        pinCategory: act.type,
+      });
       pushPinCandidate(pins, day, center, city, travel, {
-        name: act.name,
+        name: pinName,
         lat: lat!,
         lng: lng!,
-        category: act.type,
+        category,
         description: act.description,
         arrivalTime: act.arrivalTime,
         departureTime: act.departureTime,
         estimatedCostEur: act.estimatedCostEur,
         imageUrl: act.imageUrl,
+      });
+    }
+  }
+
+  // Motorhome nights with no camp activity — drop curated camp hub pin.
+  if (
+    opts?.seedCampHub &&
+    pins.length < MAX_DAY_PINS &&
+    !pins.some((p) => isCampActivityName(p.name)) &&
+    !day.inFlightDay
+  ) {
+    const hub = defaultCampgroundNearCity(city || day.focusName);
+    if (hub) {
+      pushPinCandidate(pins, day, center, city, travel, {
+        name: hub.name,
+        lat: hub.lat,
+        lng: hub.lng,
+        category: "hotel",
       });
     }
   }
@@ -338,28 +400,57 @@ export function buildMapDay(plan: AiTripPlan, activeDay: number): MapDay | null 
     normalizeCityLabel(day.focusName) ||
     `Day ${day.day}`;
 
-  const pins = collectPins(day, center);
+  const pins = collectPins(day, center, {
+    seedCampHub: isGroundRoadTrip(plan) || plan.accommodationMode === "motorhome",
+  });
 
   let legIn: MapDayLeg | undefined;
-  if (isTravelDay(day)) {
-    const prev = plan.days.find((d) => d.day === activeDay - 1);
-    const prevCenter = prev ? resolveCityCenter(prev) : null;
-    if (prevCenter) {
-      const dist = haversineKm(
-        [prevCenter.lng, prevCenter.lat],
-        [center.lng, center.lat],
-      );
-      if (dist >= MIN_ROUTE_DRAW_KM) {
-        legIn = {
-          mode: inferLegMode(day, dist),
-          from: prevCenter,
-          to: center,
-        };
-      }
+  const prev = plan.days.find((d) => d.day === activeDay - 1);
+  const prevCenter = prev ? resolveCityCenter(prev) : null;
+  if (prevCenter) {
+    const dist = haversineKm(
+      [prevCenter.lng, prevCenter.lat],
+      [center.lng, center.lat],
+    );
+    const roadHop = isGroundRoadTrip(plan) && dist >= MIN_ROUTE_DRAW_KM;
+    if ((isTravelDay(day) || roadHop) && dist >= MIN_ROUTE_DRAW_KM) {
+      legIn = {
+        mode: roadHop && !isTravelDay(day) ? "drive" : inferLegMode(day, dist),
+        from: prevCenter,
+        to: center,
+      };
     }
   }
 
   return { day: activeDay, cityLabel, center, pins, legIn };
+}
+
+/**
+ * Muted full-route segments for motorhome/car (city → city).
+ * Camera stays day-owned — TripMap paints these as overview only (no fitBounds).
+ */
+export function buildMotorhomeOverviewLegs(plan: AiTripPlan): MapDayLeg[] {
+  if (!isGroundRoadTrip(plan)) return [];
+
+  const centers: LngLat[] = [];
+  for (const day of plan.days ?? []) {
+    if (day.inFlightDay) continue;
+    const c = resolveCityCenter(day);
+    if (!c) continue;
+    const last = centers[centers.length - 1];
+    if (last && haversineKm([last.lng, last.lat], [c.lng, c.lat]) < 8) continue;
+    centers.push(c);
+  }
+
+  const legs: MapDayLeg[] = [];
+  for (let i = 1; i < centers.length; i++) {
+    const from = centers[i - 1]!;
+    const to = centers[i]!;
+    const dist = haversineKm([from.lng, from.lat], [to.lng, to.lat]);
+    if (dist < MIN_ROUTE_DRAW_KM) continue;
+    legs.push({ mode: "drive", from, to });
+  }
+  return legs;
 }
 
 export function cameraForMapDay(

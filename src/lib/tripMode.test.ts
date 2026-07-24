@@ -29,6 +29,12 @@ describe("motorhomeTransportBetween", () => {
     expect(t.howTo).toMatch(/avtodomom/i);
     expect(t.howTo).not.toMatch(/let/i);
   });
+
+  it("returns English howTo when slo=false", () => {
+    const t = motorhomeTransportBetween(506, "Gibraltar", "Madrid", false);
+    expect(t.howTo).toMatch(/motorhome/i);
+    expect(t.howTo).not.toMatch(/avtodom/i);
+  });
 });
 
 describe("detectHotelRestInterval", () => {

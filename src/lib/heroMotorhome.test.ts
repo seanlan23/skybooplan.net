@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { buildGoogleMapsRoadTripUrl } from "@/lib/navigationService";
+import {
+  buildAppleMapsRoadTripUrl,
+  buildGoogleMapsRoadTripUrl,
+} from "@/lib/navigationService";
 import {
   buildHeroMotorhomeSearchQuery,
   motorhomePlannerFromCollected,
@@ -50,5 +53,20 @@ describe("buildGoogleMapsRoadTripUrl", () => {
     expect(url).toContain("google.com/maps/dir/");
     expect(url).toContain("Vienna");
     expect(url).toContain("Amsterdam");
+  });
+});
+
+describe("buildAppleMapsRoadTripUrl", () => {
+  it("supports multi-stop via to: waypoints", () => {
+    const url = buildAppleMapsRoadTripUrl(["Vienna", "Munich", "Ljubljana", "Split"]);
+    expect(url).toContain("maps.apple.com");
+    expect(url).toContain("saddr=Vienna");
+    expect(decodeURIComponent(url)).toMatch(/to:Ljubljana|to%3ALjubljana/i);
+  });
+
+  it("keeps two-arg origin/destination form", () => {
+    const url = buildAppleMapsRoadTripUrl("Vienna", "Amsterdam");
+    expect(url).toContain("saddr=Vienna");
+    expect(url).toContain("daddr=Amsterdam");
   });
 });

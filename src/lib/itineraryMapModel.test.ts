@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { AiTripPlan, DayPlan } from "@/lib/aiPlan.functions";
 import {
   buildMapDay,
+  buildMotorhomeOverviewLegs,
   cameraForMapDay,
   finalizeItineraryMapCoords,
   resolveCityCenter,
@@ -330,5 +331,86 @@ describe("itineraryMapModel", () => {
     expect(p.days[0]!.lat).toBeGreaterThan(35.65);
     expect(p.days[0]!.mapPins?.some((x) => x.category === "airport")).toBeFalsy();
     expect(p.days[0]!.mapPins?.some((x) => /senso/i.test(x.name))).toBe(true);
+  });
+
+  it("resolves camp activity coords from catalog on motorhome nights", () => {
+    const view = buildMapDay(
+      {
+        ...plan([
+          day({
+            day: 2,
+            city: "Vienna",
+            activities: {
+              morning: [],
+              afternoon: [],
+              evening: [
+                {
+                  name: "Camping Wien West overnight",
+                  type: "HOTEL",
+                  description: "RV park outside centre",
+                },
+              ],
+            },
+          }),
+        ]),
+        groundTransportMode: "motorhome",
+        accommodationMode: "motorhome",
+      } as AiTripPlan,
+      2,
+    );
+    expect(view?.pins.some((p) => /wien west|camping/i.test(p.name))).toBe(true);
+    const camp = view!.pins.find((p) => /camping|wien west/i.test(p.name))!;
+    expect(camp.lat).toBeCloseTo(48.205, 2);
+    expect(camp.category).toBe("hotel");
+  });
+
+  it("draws drive legIn between motorhome city hops without flight-day title", () => {
+    const view = buildMapDay(
+      {
+        ...plan([
+          day({ day: 1, city: "Vienna", title: "Vienna camps" }),
+          day({ day: 2, city: "Munich", title: "Munich camps" }),
+        ]),
+        groundTransportMode: "motorhome",
+        accommodationMode: "motorhome",
+      } as AiTripPlan,
+      2,
+    );
+    expect(view?.legIn?.mode).toBe("drive");
+    expect(view?.legIn?.from.lat).toBeCloseTo(48.2, 0);
+    expect(view?.legIn?.to.lat).toBeCloseTo(48.1, 0);
+  });
+
+  it("buildMotorhomeOverviewLegs links consecutive road-trip cities", () => {
+    const legs = buildMotorhomeOverviewLegs({
+      ...plan([
+        day({ day: 1, city: "Vienna" }),
+        day({ day: 2, city: "Vienna" }),
+        day({ day: 3, city: "Munich" }),
+        day({ day: 4, city: "Ljubljana" }),
+      ]),
+      groundTransportMode: "motorhome",
+      accommodationMode: "motorhome",
+    } as AiTripPlan);
+    expect(legs.length).toBeGreaterThanOrEqual(2);
+    expect(legs.every((l) => l.mode === "drive")).toBe(true);
+  });
+
+  it("does not seed camp hubs on hotel flights trips", () => {
+    const view = buildMapDay(
+      plan([
+        day({
+          day: 1,
+          city: "Vienna",
+          activities: {
+            morning: [{ name: "Stephansdom", type: "SIGHT", description: "Cathedral" }],
+            afternoon: [],
+            evening: [],
+          },
+        }),
+      ]),
+      1,
+    );
+    expect(view?.pins.some((p) => /camping/i.test(p.name))).toBe(false);
   });
 });

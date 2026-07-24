@@ -17,6 +17,7 @@ import { buildGreatCircleCoords, haversineKm } from "@/lib/geoMath";
 import { fetchDrivingDirections } from "@/lib/mapboxDirections";
 import {
   buildMapDay,
+  buildMotorhomeOverviewLegs,
   cameraForMapDay,
   cameraMoveDurationMs,
   isLongHaulCameraMove,
@@ -74,6 +75,8 @@ const STYLE_STREETS = "mapbox://styles/mapbox/streets-v12";
 const STYLE_SATELLITE = "mapbox://styles/mapbox/satellite-streets-v12";
 const ROUTE_SOURCE = "skyboo-day-route";
 const ROUTE_LAYER = "skyboo-day-route-line";
+const OVERVIEW_SOURCE = "skyboo-mh-overview";
+const OVERVIEW_LAYER = "skyboo-mh-overview-line";
 
 type MarkerEntry = { marker: mapboxgl.Marker; root: Root; id: string };
 
@@ -83,6 +86,50 @@ function clearMarkers(list: MarkerEntry[]) {
     entry.marker.remove();
   }
   list.length = 0;
+}
+
+function paintOverview(
+  map: mapboxgl.Map,
+  legs: { from: { lng: number; lat: number }; to: { lng: number; lat: number } }[],
+) {
+  const features: GeoJSON.Feature[] = legs.map((leg) => ({
+    type: "Feature",
+    properties: {},
+    geometry: {
+      type: "LineString",
+      coordinates: [
+        [leg.from.lng, leg.from.lat],
+        [leg.to.lng, leg.to.lat],
+      ],
+    },
+  }));
+  const data: GeoJSON.FeatureCollection = { type: "FeatureCollection", features };
+
+  const src = map.getSource(OVERVIEW_SOURCE) as mapboxgl.GeoJSONSource | undefined;
+  if (src) {
+    src.setData(data);
+  } else if (features.length > 0) {
+    map.addSource(OVERVIEW_SOURCE, { type: "geojson", data });
+    map.addLayer(
+      {
+        id: OVERVIEW_LAYER,
+        type: "line",
+        source: OVERVIEW_SOURCE,
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: {
+          "line-color": "#64748b",
+          "line-width": 2,
+          "line-opacity": 0.35,
+          "line-dasharray": [1.2, 1.6],
+        },
+      },
+      map.getLayer(ROUTE_LAYER) ? ROUTE_LAYER : undefined,
+    );
+  }
+
+  if (map.getLayer(OVERVIEW_LAYER)) {
+    map.setPaintProperty(OVERVIEW_LAYER, "line-opacity", features.length > 0 ? 0.35 : 0);
+  }
 }
 
 function paintRoute(
@@ -163,6 +210,7 @@ function TripMapInner({
   const [styleEpoch, setStyleEpoch] = useState(0);
 
   const dayView = useMemo(() => buildMapDay(plan, activeDay), [plan, activeDay]);
+  const overviewLegs = useMemo(() => buildMotorhomeOverviewLegs(plan), [plan]);
 
   const camera = useMemo(
     () => (dayView ? cameraForMapDay(dayView, { playing: isPlaying }) : null),
@@ -237,6 +285,13 @@ function TripMapInner({
       setStyleEpoch((n) => n + 1);
     });
   }, [isSatellite]);
+
+  // Muted motorhome/car full-route (city hops). Never owns the camera.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !readyRef.current) return;
+    paintOverview(map, overviewLegs);
+  }, [overviewLegs, styleEpoch]);
 
   // Camera: active day city center only.
   // Long hauls (MUC→BKK) MUST use flyTo — easeTo at city zoom = black void across oceans.

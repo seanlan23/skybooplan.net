@@ -1021,6 +1021,7 @@ function transportBetweenCities(
   toCity: string,
   accommodation: AccommodationMode = "hotel",
   country?: string,
+  slo = true,
 ): TripRegion["transportToNext"] {
   const curated = lookupCuratedTransportLeg(fromCity, toCity, country);
   if (curated) {
@@ -1040,7 +1041,7 @@ function transportBetweenCities(
   if (accommodation === "motorhome" && !sameHub) {
     const effectiveKm = km > 0 ? km : 500;
     if (effectiveKm >= 80) {
-      return motorhomeTransportBetween(effectiveKm, fromCity, toCity);
+      return motorhomeTransportBetween(effectiveKm, fromCity, toCity, slo);
     }
   }
 
@@ -1049,7 +1050,7 @@ function transportBetweenCities(
       type: "local",
       duration: "30m",
       costLabel: "€5",
-      howTo: "Uporabi lokalni prevoz ali taksi.",
+      howTo: slo ? "Uporabi lokalni prevoz ali taksi." : "Use local transit or a taxi.",
     };
   }
 
@@ -1058,13 +1059,14 @@ function transportBetweenCities(
       type: "flight",
       duration: "4–6h",
       costLabel: "180–350 €",
-      howTo:
-        "Notranji let + prevoz do hotela — rezerviraj vnaprej. Prvi dan v novi regiji je prevoz, ne ogledi.",
+      howTo: slo
+        ? "Notranji let + prevoz do hotela — rezerviraj vnaprej. Prvi dan v novi regiji je prevoz, ne ogledi."
+        : "Domestic flight + hotel transfer — book ahead. First day in the new region is transit, not sightseeing.",
     };
   }
   if (km >= 500) {
     if (accommodation === "motorhome") {
-      return motorhomeTransportBetween(km, fromCity, toCity);
+      return motorhomeTransportBetween(km, fromCity, toCity, slo);
     }
     return {
       type: "flight",

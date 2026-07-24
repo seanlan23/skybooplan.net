@@ -660,10 +660,7 @@ export function AiPlanView({
                   {t("heroChat.motorhome.openGoogleMaps" as never)}
                 </a>
                 <a
-                  href={buildAppleMapsRoadTripUrl(
-                    roadTripStops[0]!,
-                    roadTripStops[roadTripStops.length - 1]!,
-                  )}
+                  href={buildAppleMapsRoadTripUrl(roadTripStops)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
