@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { ArrowUp, Loader2, X } from "lucide-react";
-import { useI18n } from "@/lib/i18n";
+import { resolveErrorMessage, useI18n } from "@/lib/i18n";
 import {
   createHeroAttachmentPreviewUrl,
   fileToHeroAttachmentPayload,
@@ -62,16 +62,15 @@ const PACE_CHIP_IDS = ["intensive", "relaxed", "calm"] as const;
 const BUDGET_CHIP_IDS = ["under500", "500-1000", "1000-2000", "2000plus"] as const;
 
 /**
- * Origins mentioned in chat — never treat destination IATA in "Phuket (HKT)" as departure.
+ * Origins from the departure field only — never parse destination text as an origin
+ * (that caused LJU→LJU when destination was also Ljubljana).
  */
 function originsFromCollected(
   destination: string | undefined,
   origin: string | undefined,
 ): string[] {
   const destCode = parseMakeSearchDestination(destination ?? "")?.toUpperCase() ?? null;
-  const codes = parseMakeSearchOriginAirports(
-    [destination?.trim(), origin?.trim()].filter(Boolean).join(" "),
-  );
+  const codes = parseMakeSearchOriginAirports(origin?.trim() ?? "");
   return codes.filter((code) => !destCode || code !== destCode);
 }
 
@@ -538,6 +537,8 @@ export function HeroChatFlow({
   /** Skip pace/budget — flights / stays / avtodom go straight to results after party size. */
   const isQuickSearchMode = isFlightsOnly || isStaysOnly || isMotorhomeOnly;
   const scrollRef = useRef<HTMLDivElement>(null);
+  const activeControlsRef = useRef<HTMLDivElement>(null);
+  const datePickerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const searchSentRef = useRef(false);
@@ -575,6 +576,21 @@ export function HeroChatFlow({
     [messages],
   );
 
+  const scrollActiveStepIntoView = useCallback(() => {
+    if (showSearchLoader) return;
+    window.requestAnimationFrame(() => {
+      const target =
+        showDatePicker && datePickerRef.current
+          ? datePickerRef.current
+          : activeControlsRef.current;
+      target?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
+      scrollRef.current?.scrollTo({
+        top: scrollRef.current.scrollHeight,
+        behavior: "smooth",
+      });
+    });
+  }, [showSearchLoader, showDatePicker]);
+
   const scrollToBottom = useCallback(() => {
     // While the search loader is up, freeze auto-scroll so the spinner stays in view.
     if (showSearchLoader) return;
@@ -583,8 +599,20 @@ export function HeroChatFlow({
         top: scrollRef.current.scrollHeight,
         behavior: "smooth",
       });
+      // Also bring the active chips/calendar into the phone viewport (not only the inner scroller).
+      const target =
+        showDatePicker && datePickerRef.current
+          ? datePickerRef.current
+          : activeControlsRef.current;
+      target?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
     });
-  }, [showSearchLoader]);
+  }, [showSearchLoader, showDatePicker]);
+
+  useEffect(() => {
+    if (!conversationStarted || isSearching) return;
+    const timer = window.setTimeout(() => scrollActiveStepIntoView(), 80);
+    return () => window.clearTimeout(timer);
+  }, [step, showDatePicker, conversationStarted, isSearching, scrollActiveStepIntoView]);
 
   const appendMessages = useCallback(
     (...next: HeroChatMessage[]) => {
@@ -1109,15 +1137,16 @@ export function HeroChatFlow({
     }
     if (codes.length > 0) rememberRecentOrigins(codes);
 
+    const originLabel = formatOriginSelection(codes, lang) || label;
     const next = isQuickSearchMode ? "searching" : afterOrigin;
     setCollected((prev) => ({
       ...prev,
-      origin: label,
+      origin: originLabel,
       attachment: attachment ?? prev.attachment,
     }));
 
     if (next === "searching") {
-      appendMessages(createChatMessage("user", label));
+      appendMessages(createChatMessage("user", originLabel));
       if (isStaysOnly) {
         startStaySearch();
         return;
@@ -1127,7 +1156,7 @@ export function HeroChatFlow({
     }
 
     appendMessages(
-      createChatMessage("user", label),
+      createChatMessage("user", originLabel),
       createChatMessage("ai", t("heroChat.pace.ask" as never)),
     );
     setStep("pace");
@@ -1184,7 +1213,13 @@ export function HeroChatFlow({
       if (next) clearDatePickerOffers();
       return next;
     });
-    scrollToBottom();
+    window.setTimeout(() => {
+      datePickerRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+        inline: "nearest",
+      });
+    }, 100);
   }
 
   function handleDateSelect(_id: string, label: string) {
@@ -1399,10 +1434,10 @@ export function HeroChatFlow({
         <div
           ref={scrollRef}
           className={cn(
-            "mt-6 space-y-3 overflow-x-hidden px-1 py-1",
-            // Calendar must sit fully visible — never trap it in a short scroll box.
+            "mt-6 space-y-3 overflow-x-clip overscroll-y-contain px-1 py-1",
+            // When the calendar is open, collapse the chat transcript so the picker fits.
             showDatePicker && step === "dates"
-              ? "max-h-40 overflow-y-auto sm:max-h-48"
+              ? "max-h-28 overflow-y-auto sm:max-h-36"
               : showSearchLoader
                 ? "max-h-[min(420px,50vh)] overflow-y-hidden"
                 : staySearch
@@ -1489,10 +1524,7 @@ export function HeroChatFlow({
                     : "rounded-2xl border border-red-300/30 bg-red-500/10 px-4 py-3 text-sm text-red-100"
                 }
               >
-                {searchError.startsWith("heroSearch.") ||
-                searchError.startsWith("error.")
-                  ? t(searchError as never)
-                  : searchError}
+                {resolveErrorMessage(t, searchError)}
               </p>
             </div>
           ) : null}
@@ -1528,6 +1560,7 @@ export function HeroChatFlow({
             </div>
           ) : null}
 
+          <div ref={activeControlsRef}>
           {showConversationChips && step === "passengers" ? (
             <HeroPassengerBrowser
               disabled={loading}
@@ -1578,7 +1611,10 @@ export function HeroChatFlow({
 
           {showConversationChips && step === "origin" && !isMotorhomeOnly ? (
             <div className="hero-chips-enter pl-0 sm:pl-10">
-              <OriginAirportPicker onConfirm={handleOriginPickerConfirm} />
+              <OriginAirportPicker
+                excludeIata={parseMakeSearchDestination(collected.destination ?? "")}
+                onConfirm={handleOriginPickerConfirm}
+              />
             </div>
           ) : null}
 
@@ -1592,10 +1628,14 @@ export function HeroChatFlow({
               onSelect={handleBudgetSelect}
             />
           ) : null}
+          </div>
         </div>
 
         {showDatePicker && step === "dates" ? (
-          <div className="hero-chips-enter mt-3 space-y-2 pl-0 sm:pl-2">
+          <div
+            ref={datePickerRef}
+            className="hero-chips-enter mt-3 space-y-2 pl-0 sm:pl-2"
+          >
             <HeroDateRangeCalendar
               lang={lang}
               confirmLabel={t("heroChat.confirm" as never)}
@@ -1614,7 +1654,14 @@ export function HeroChatFlow({
       </div>
 
       {showTripChecklist ? (
-        <HeroTripChecklist collected={collected} className="lg:sticky lg:top-4" />
+        <HeroTripChecklist
+          collected={collected}
+          className={cn(
+            "lg:sticky lg:top-4",
+            // On mobile, hide the tall checklist while the calendar is open so the picker fits.
+            showDatePicker && step === "dates" && "hidden lg:block",
+          )}
+        />
       ) : null}
       </div>
 

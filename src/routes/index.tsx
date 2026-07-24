@@ -903,6 +903,10 @@ function Landing() {
       setError("error.iataInvalid");
       return;
     }
+    if (from === to) {
+      setError("heroSearch.originSameAsDestination");
+      return;
+    }
     if (!v.departDate) {
       setError("error.departRequired");
       return;
@@ -1495,7 +1499,7 @@ function Landing() {
 
   try {
     return (
-    <div className="min-h-screen flex flex-col w-full max-w-full overflow-x-hidden bg-background">
+    <div className="min-h-screen flex flex-col w-full max-w-full overflow-x-clip overscroll-y-none bg-background">
       <div className="relative">
         <SiteHeader variant="hero" className="absolute inset-x-0 top-0 border-b-0 bg-transparent backdrop-blur-none" />
         <HeroSection

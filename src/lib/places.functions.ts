@@ -108,7 +108,7 @@ export const searchPlaces = createServerFn({ method: "POST" })
       if (!res.ok) {
         const text = await res.text();
         console.error("Duffel places error:", res.status, text);
-        return { suggestions: [], error: `Duffel API napaka (${res.status})` };
+        return { suggestions: [], error: `error.duffelApi:${res.status}` };
       }
 
       const json = (await res.json()) as { data: DuffelPlace[] };

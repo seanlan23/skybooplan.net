@@ -802,7 +802,7 @@ describe("parseMakeSearchStatus", () => {
   it("returns error when Data Store status is done but offers are empty", () => {
     const result = parseMakeSearchStatus({ key: "abc-123", status: "done", offers: "" });
     expect(result.status).toBe("error");
-    expect(result.error).toContain("brez letov");
+    expect(result.error).toBe("heroSearch.empty");
   });
 
   it("parses Make Get record shape with nested data.offers", () => {

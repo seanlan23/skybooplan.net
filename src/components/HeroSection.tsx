@@ -48,7 +48,7 @@ export function HeroSection({
 
   return (
     <section
-      className="relative isolate flex min-h-screen w-full flex-col items-center justify-center overflow-hidden pb-10"
+      className="relative isolate flex min-h-screen w-full flex-col items-center justify-center overflow-x-clip overscroll-y-none pb-10"
       aria-label={t("hero.sectionLabel" as never)}
     >
       <HeroRotatingBackground />

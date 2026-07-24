@@ -146,8 +146,8 @@ export const Route = createFileRoute("/api/generate-itinerary")({
               if (abortSignal.aborted) {
                 const reason =
                   lastDayCount > 0
-                    ? `Generiranje se je ustavilo po ${lastDayCount}. dnevu (Gemini ni več odgovarjal). Poskusi znova ali krajši izlet.`
-                    : "Generiranje načrta je predolgo trajalo brez odgovora. Poskusi znova.";
+                    ? `error.planTimeoutPartial:${lastDayCount}`
+                    : "error.planTimeout";
                 pipelineLog("stream:generate-itinerary ABORT", reason);
                 push({ type: "error", error: reason });
                 return;
@@ -178,10 +178,10 @@ export const Route = createFileRoute("/api/generate-itinerary")({
               push({
                 type: "error",
                 error: aborted
-                  ? "Generiranje načrta je predolgo trajalo brez odgovora. Poskusi znova."
+                  ? "error.planTimeout"
                   : err instanceof Error
                     ? err.message
-                    : "Napaka pri generiranju načrta preko Gemini Pro",
+                    : "error.planGenerationFailed",
               });
             } finally {
               stallWatchdog.clear();

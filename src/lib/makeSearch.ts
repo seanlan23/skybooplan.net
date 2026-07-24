@@ -2071,8 +2071,7 @@ export function parseMakeSearchStatus(data: unknown): MakeSearchStatusResult {
     return {
       status: "error",
       flights: [],
-      error:
-        "Iskanje je končano brez letov. Poskusi druge datume ali letališče — ali preveri Make History (HTTP/Duffel).",
+      error: "heroSearch.empty",
       raw: data,
     };
   }
@@ -2082,7 +2081,8 @@ export function parseMakeSearchStatus(data: unknown): MakeSearchStatusResult {
     return {
       status: "error",
       flights: [],
-      error: errorMessage || "Iskanje letov ni uspelo.",
+      // Never leak provider/infra names (Make, Duffel, HTTP) into the UI.
+      error: "heroSearch.error",
       raw: data,
     };
   }

@@ -758,7 +758,7 @@ async function runHeroFlightSearch(
   const parsed = parsedResult;
 
   if (!getDuffelApiKey()) {
-    return { ok: false, error: "DUFFEL_API_KEY ni nastavljen na strežniku.", status: 503 };
+    return { ok: false, error: "heroSearch.error", status: 503 };
   }
 
   const pax = Math.min(9, parsed.adults + (parsed.children ?? 0));

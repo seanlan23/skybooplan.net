@@ -37,7 +37,7 @@ function PaymentMethodsRow() {
 }
 
 const tierButtonClass =
-  "group inline-flex min-h-[2.75rem] min-w-[4.75rem] flex-col items-center justify-center gap-0.5 rounded-xl border border-slate-200/80 bg-white px-4 py-2.5 text-center shadow-sm transition-all hover:border-slate-300 hover:bg-slate-50/80 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/40 focus-visible:ring-offset-2";
+  "group inline-flex min-h-[2.75rem] w-full flex-col items-center justify-center gap-0.5 rounded-xl border border-slate-200/80 bg-white px-3 py-2.5 text-center shadow-sm transition-all hover:border-slate-300 hover:bg-slate-50/80 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/40 focus-visible:ring-offset-2";
 
 export function SupportCard({ isGenerating }: { isGenerating: boolean }) {
   const { t } = useI18n();
@@ -45,6 +45,47 @@ export function SupportCard({ isGenerating }: { isGenerating: boolean }) {
   if (isGenerating) return null;
 
   const paragraphs = t("support.body").split("\n\n");
+  const amountTiers = SUPPORT_TIERS.filter((tier) => tier.id !== "tier-custom");
+  const customTier = SUPPORT_TIERS.find((tier) => tier.id === "tier-custom");
+
+  const renderTier = (tier: (typeof SUPPORT_TIERS)[number]) => {
+    const amount =
+      tier.amountLabel === "support.amountCustom"
+        ? t("support.amountCustom")
+        : tier.amountLabel;
+    const label = (
+      <>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="text-sm font-semibold tabular-nums text-slate-900">{amount}</span>
+          <span className="text-[10px] opacity-35" aria-hidden>
+            {tier.emoji}
+          </span>
+        </span>
+        <span className="sr-only">{t(tier.labelKey)}</span>
+      </>
+    );
+
+    if (tier.external === false) {
+      return (
+        <Link key={tier.id} to={tier.href} title={t(tier.labelKey)} className={tierButtonClass}>
+          {label}
+        </Link>
+      );
+    }
+
+    return (
+      <a
+        key={tier.id}
+        href={tier.href}
+        target="_blank"
+        rel="noopener noreferrer"
+        title={t(tier.labelKey)}
+        className={tierButtonClass}
+      >
+        {label}
+      </a>
+    );
+  };
 
   return (
     <section
@@ -65,53 +106,10 @@ export function SupportCard({ isGenerating }: { isGenerating: boolean }) {
           ))}
         </div>
 
-        <div className="flex flex-wrap items-stretch justify-center gap-3">
-          {SUPPORT_TIERS.map((tier) => {
-            const amount =
-              tier.amountLabel === "support.amountCustom"
-                ? t("support.amountCustom")
-                : tier.amountLabel;
-            const isCustom = tier.id === "tier-custom";
-            const className = `${tierButtonClass}${isCustom ? " min-w-[7.5rem] px-5" : ""}`;
-            const label = (
-              <>
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="text-sm font-semibold tabular-nums text-slate-900">{amount}</span>
-                  <span className="text-[10px] opacity-35" aria-hidden>
-                    {tier.emoji}
-                  </span>
-                </span>
-                <span className="sr-only">{t(tier.labelKey)}</span>
-              </>
-            );
-
-            if (tier.external === false) {
-              return (
-                <Link
-                  key={tier.id}
-                  to={tier.href}
-                  title={t(tier.labelKey)}
-                  className={className}
-                >
-                  {label}
-                </Link>
-              );
-            }
-
-            return (
-              <a
-                key={tier.id}
-                href={tier.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                title={t(tier.labelKey)}
-                className={className}
-              >
-                {label}
-              </a>
-            );
-          })}
+        <div className="grid grid-cols-3 gap-2.5">
+          {amountTiers.map(renderTier)}
         </div>
+        {customTier ? <div>{renderTier(customTier)}</div> : null}
 
         <PaymentMethodsRow />
       </div>

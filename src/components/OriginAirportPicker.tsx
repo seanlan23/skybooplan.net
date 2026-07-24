@@ -20,6 +20,8 @@ type Phase = "pickCity" | "other" | "nearby";
 
 type OriginAirportPickerProps = {
   onConfirm: (iatas: string[], label: string) => void;
+  /** Destination IATA — never offer / confirm this as departure. */
+  excludeIata?: string | null;
   className?: string;
 };
 
@@ -81,12 +83,17 @@ function cityButtonLabel(hub: AirportHub, lang: string): string {
   return localizedAirportCity(hub, lang);
 }
 
-export function OriginAirportPicker({ onConfirm, className }: OriginAirportPickerProps) {
+export function OriginAirportPicker({
+  onConfirm,
+  excludeIata = null,
+  className,
+}: OriginAirportPickerProps) {
   const { t, lang } = useI18n();
   const placesFn = useServerFn(searchPlaces);
   const placesFnRef = useRef(placesFn);
   placesFnRef.current = placesFn;
   const suggestOriginsFn = useServerFn(suggestOriginHubs);
+  const blocked = (excludeIata ?? "").trim().toUpperCase() || null;
 
   const [phase, setPhase] = useState<Phase>("pickCity");
   const [home, setHome] = useState<string | null>(null);
@@ -118,28 +125,34 @@ export function OriginAirportPicker({ onConfirm, className }: OriginAirportPicke
     };
   }, [suggestOriginsFn]);
 
-  const primaryHubs = useMemo(() => hubsFromIatas(primaryIatas), [primaryIatas]);
+  const primaryHubs = useMemo(
+    () => hubsFromIatas(primaryIatas).filter((h) => !blocked || h.iata !== blocked),
+    [primaryIatas, blocked],
+  );
 
   const recentHubs = useMemo(() => {
     const primarySet = new Set(primaryIatas);
     return recent
-      .filter((code) => !primarySet.has(code))
+      .filter((code) => !primarySet.has(code) && (!blocked || code !== blocked))
       .map((code) => getAirportHub(code))
       .filter((h): h is AirportHub => Boolean(h))
       .slice(0, 3);
-  }, [recent, primaryIatas]);
+  }, [recent, primaryIatas, blocked]);
 
   const nearbyHubs = useMemo(() => {
     if (!home) return [];
     return (NEARBY_BY_HOME[home] ?? [])
       .map((code) => getAirportHub(code))
-      .filter((h): h is AirportHub => Boolean(h));
-  }, [home]);
+      .filter((h): h is AirportHub => Boolean(h) && (!blocked || h.iata !== blocked));
+  }, [home, blocked]);
 
   // Popular + hub catalog — Barcelona/Manila show instantly (not only after Duffel).
   const localHits = useMemo(
-    () => (query.trim().length >= 2 ? searchDestinationAirports(query, 8) : []),
-    [query],
+    () =>
+      (query.trim().length >= 2 ? searchDestinationAirports(query, 8) : []).filter(
+        (s) => !blocked || s.iata.toUpperCase() !== blocked,
+      ),
+    [query, blocked],
   );
 
   const didYouMean = useMemo(() => {
@@ -174,8 +187,11 @@ export function OriginAirportPicker({ onConfirm, className }: OriginAirportPicke
   }, [query, phase]);
 
   const suggestions = useMemo(
-    () => mergeSuggestions(localHits, remote),
-    [localHits, remote],
+    () =>
+      mergeSuggestions(localHits, remote).filter(
+        (s) => !blocked || s.iata.toUpperCase() !== blocked,
+      ),
+    [localHits, remote, blocked],
   );
 
   function cityLabelForIata(iata: string, fallback?: string): string {
@@ -186,8 +202,8 @@ export function OriginAirportPicker({ onConfirm, className }: OriginAirportPicke
   }
 
   function finish(iatas: string[], labelOverride?: string) {
-    const unique = [...new Set(iatas.map((c) => c.toUpperCase()))].filter((c) =>
-      /^[A-Z]{3}$/.test(c),
+    const unique = [...new Set(iatas.map((c) => c.toUpperCase()))].filter(
+      (c) => /^[A-Z]{3}$/.test(c) && (!blocked || c !== blocked),
     );
     if (unique.length === 0) return;
     const label =
@@ -198,6 +214,7 @@ export function OriginAirportPicker({ onConfirm, className }: OriginAirportPicke
 
   function chooseHome(iata: string, cityName?: string) {
     const code = iata.toUpperCase();
+    if (blocked && code === blocked) return;
     setHome(code);
     setHomeCityLabel(cityName?.trim() || cityLabelForIata(code) || null);
     setExtra([]);

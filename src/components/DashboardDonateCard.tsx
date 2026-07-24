@@ -35,10 +35,9 @@ export function DashboardDonateCard() {
           </p>
         </div>
 
-        <div className="flex flex-wrap gap-2 sm:justify-end sm:pt-1">
-          {DONATION_TIERS.map((tier) => {
+        <div className="grid w-full max-w-sm grid-cols-3 gap-2 sm:max-w-none sm:pt-1">
+          {DONATION_TIERS.filter((tier) => !tier.fullWidthMobile).map((tier) => {
             const label = t(tier.labelKey as never);
-            const className = cn(btnClass, tier.fullWidthMobile && "w-full sm:w-auto");
             if (tier.external) {
               return (
                 <a
@@ -46,14 +45,26 @@ export function DashboardDonateCard() {
                   href={tier.href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className={className}
+                  className={cn(btnClass, "w-full px-2")}
                 >
                   {label}
                 </a>
               );
             }
             return (
-              <Link key={tier.id} to={tier.href} className={className}>
+              <Link key={tier.id} to={tier.href} className={cn(btnClass, "w-full px-2")}>
+                {label}
+              </Link>
+            );
+          })}
+          {DONATION_TIERS.filter((tier) => tier.fullWidthMobile).map((tier) => {
+            const label = t(tier.labelKey as never);
+            return (
+              <Link
+                key={tier.id}
+                to={tier.href}
+                className={cn(btnClass, "col-span-3 w-full")}
+              >
                 {label}
               </Link>
             );

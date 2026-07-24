@@ -301,7 +301,7 @@ export function useStreamItinerary() {
         if (controller.signal.aborted) {
           if (idleTimedOut) {
             const warn =
-              "Generiranje se je predolgo ustavilo brez napredka. Poskusi znova.";
+              "error.planTimeout";
             const partial = finishWithPartial(`${warn} — prikazan je delni načrt.`);
             if (partial) return partial;
             setError(warn);

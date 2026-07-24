@@ -51,10 +51,10 @@ export function SocialProofSection() {
           {t("social.trustedBy" as never)}
         </p>
 
-        <ul className="mt-8 flex flex-wrap items-center justify-center gap-x-14 gap-y-8 sm:gap-x-20">
+        <ul className="mt-8 grid grid-cols-3 items-center justify-items-center gap-6 sm:flex sm:flex-wrap sm:justify-center sm:gap-x-16 sm:gap-y-8">
           {PARTNER_LOGOS.map(({ id, Logo }) => (
-            <li key={id} className="flex shrink-0 items-center justify-center">
-              <Logo className="h-8 text-slate-500 grayscale opacity-75 transition-opacity hover:opacity-100 sm:h-9" />
+            <li key={id} className="flex h-10 w-full max-w-[9rem] items-center justify-center sm:w-auto sm:max-w-none">
+              <Logo className="h-7 max-w-full text-slate-500 grayscale opacity-75 transition-opacity hover:opacity-100 sm:h-8" />
             </li>
           ))}
         </ul>

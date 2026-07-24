@@ -4,23 +4,20 @@ import { useI18n } from "@/lib/i18n";
 import { DONATION_TIERS } from "@/lib/donationLinks";
 
 const tierButtonClass =
-  "inline-flex min-h-[2.5rem] items-center justify-center whitespace-nowrap rounded-lg border border-white/15 bg-white/[0.06] px-5 py-2.5 text-sm font-medium tracking-wide text-white/95 transition-colors hover:border-white/30 hover:bg-white/12 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30";
+  "inline-flex min-h-[2.75rem] w-full items-center justify-center whitespace-nowrap rounded-lg border border-white/15 bg-white/[0.06] px-3 py-2.5 text-sm font-medium tracking-wide text-white/95 transition-colors hover:border-white/30 hover:bg-white/12 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30";
 
 function DonationButton({
   label,
   href,
   external,
-  fullWidthMobile,
+  className,
 }: {
   label: string;
   href: string;
   external?: boolean;
-  fullWidthMobile?: boolean;
+  className?: string;
 }) {
-  const className = cn(
-    tierButtonClass,
-    fullWidthMobile ? "col-span-2 w-full sm:col-span-1 sm:w-auto" : "w-full sm:w-auto",
-  );
+  const classes = cn(tierButtonClass, className);
 
   if (external) {
     return (
@@ -28,7 +25,7 @@ function DonationButton({
         href={href}
         target="_blank"
         rel="noopener noreferrer"
-        className={className}
+        className={classes}
       >
         {label}
       </a>
@@ -36,7 +33,7 @@ function DonationButton({
   }
 
   return (
-    <Link to={href} className={className}>
+    <Link to={href} className={classes}>
       {label}
     </Link>
   );
@@ -44,6 +41,8 @@ function DonationButton({
 
 export function DonationSection() {
   const { t } = useI18n();
+  const amountTiers = DONATION_TIERS.filter((tier) => !tier.fullWidthMobile);
+  const otherTier = DONATION_TIERS.find((tier) => tier.fullWidthMobile);
 
   return (
     <section
@@ -62,17 +61,25 @@ export function DonationSection() {
             {t("donation.subtitle" as never)}
           </p>
 
-          <div className="mt-7 grid grid-cols-2 gap-2.5 sm:flex sm:flex-wrap sm:justify-center sm:gap-3">
-            {DONATION_TIERS.map((tier) => (
+          <div className="mt-7 grid grid-cols-3 gap-2.5">
+            {amountTiers.map((tier) => (
               <DonationButton
                 key={tier.id}
                 label={t(tier.labelKey as never)}
                 href={tier.href}
                 external={tier.external}
-                fullWidthMobile={tier.fullWidthMobile}
               />
             ))}
           </div>
+          {otherTier ? (
+            <div className="mt-2.5">
+              <DonationButton
+                label={t(otherTier.labelKey as never)}
+                href={otherTier.href}
+                external={otherTier.external}
+              />
+            </div>
+          ) : null}
 
           <p className="mt-6 text-center text-[11px] tracking-wide text-white/35">
             {t("donation.stripeNote" as never)}

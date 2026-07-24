@@ -281,18 +281,23 @@ const en: Dict = {
   "heroChat.budget.2000plus": "€2000+ / person",
   "heroSearch.title": "Flight results",
   "heroTrip.planTitle": "Your AI itinerary",
-  "heroSearch.empty": "No flights found for this search.",
+  "heroSearch.empty":
+    "No flights found for these dates and airports. Try different dates or another departure city.",
   "heroSearch.error": "Search failed. Please try again.",
   "heroSearch.makeStatusMissing":
-    "Flight search is still running in Make.com, but status polling isn’t configured. Add MAKE_STATUS_WEBHOOK_URL to .env.local (and restart npm run dev).",
+    "Flight search is taking longer than usual. Please try again in a moment.",
   "heroSearch.destinationUnclear":
     "Couldn’t detect a destination airport. Try naming a city or airport (e.g. Phuket, Bangkok).",
   "heroSearch.originSameAsDestination":
-    "Origin and destination can’t be the same airport. Pick a departure city (e.g. Munich, Ljubljana).",
+    "Origin and destination can’t be the same airport. Pick a departure city (e.g. Munich, Vienna).",
   "heroSearch.timeout":
-    "Make.com didn’t save flight results in time. In Make → Search scenario → History, check that the Data store step writes status: done and offers.",
+    "Flight search took too long. Try again with different dates or another departure airport.",
   "heroSearch.asyncPending":
-    "Make.com returned “Accepted” without flight data. Set the scenario webhook to synchronous mode: “Immediately as data arrives” and add a Webhook response module that returns JSON (e.g. { \"flights\": [...] }).",
+    "Flight search is still running. Please wait a moment and try again.",
+  "error.planTimeout":
+    "Generating the plan took too long without a response. Please try again.",
+  "error.planTimeoutPartial":
+    "Generation stopped after day {day} (no further response). Try again or a shorter trip.",
   "flightCard.departure": "Outbound",
   "flightCard.return": "Return",
   "flightCard.stops": "Stops",
@@ -307,7 +312,7 @@ const en: Dict = {
   "social.feat.ai.title": "AI itinerary in minutes",
   "social.feat.ai.desc": "Describe your dream trip — get a day-by-day plan with map and tips.",
   "social.feat.flights.title": "Real-time flights",
-  "social.feat.flights.desc": "Live prices from hundreds of carriers via Duffel and Skyscanner.",
+  "social.feat.flights.desc": "Live prices from hundreds of carriers, refreshed for your dates.",
   "social.feat.free.title": "Free for everyone",
   "social.feat.free.desc": "Full AI plans, maps and PDF — no paywall, no hidden fees.",
   "inspiration.title": "Trip inspiration",
@@ -339,7 +344,7 @@ const en: Dict = {
   "faq.pdf.q": "Can I download a PDF?",
   "faq.pdf.a": "Yes — every plan can be exported as a formatted PDF for offline reading.",
   "faq.flights.q": "Which flights are included?",
-  "faq.flights.a": "We search live fares from hundreds of carriers via Duffel — always up to date for your dates.",
+  "faq.flights.a": "We search live fares from hundreds of carriers — always up to date for your dates.",
   "trav.adults": "Adults",
   "trav.adultsAge": "Aged 18+",
   "trav.children": "Children",
@@ -1241,18 +1246,23 @@ const dicts: Record<Lang, Dict> = {
     "heroChat.budget.2000plus": "2000€+ / osebo",
     "heroSearch.title": "Rezultati iskanja",
     "heroTrip.planTitle": "Vaš AI načrt poti",
-    "heroSearch.empty": "Za to iskanje ni bilo najdenih letov.",
+    "heroSearch.empty":
+      "Za te datume in letališča ni bilo najdenih letov. Poskusi druge datume ali drugo odhodno mesto.",
     "heroSearch.error": "Iskanje ni uspelo. Poskusi znova.",
     "heroSearch.makeStatusMissing":
-      "Make.com išče lete, ampak manjka polling. V .env.local dodaj MAKE_STATUS_WEBHOOK_URL in znova zaženi npm run dev.",
+      "Iskanje letov traja dlje kot običajno. Poskusi znova čez trenutek.",
     "heroSearch.destinationUnclear":
       "Ciljnega letališča nisem prepoznal. Napiši mesto ali kodo (npr. Phuket, Bangkok, HKT).",
     "heroSearch.originSameAsDestination":
-      "Odhod in destinacija ne smeta biti isto letališče. Izberi odkod letiš (npr. München, Ljubljana).",
+      "Odhod in destinacija ne smeta biti isto letališče. Izberi odkod letiš (npr. München, Dunaj).",
     "heroSearch.timeout":
-      "Make.com ni shranil rezultatov pravočasno. V Make → Search scenarij → History preveri, da Data store zapiše status: done in offers.",
+      "Iskanje letov je trajalo predolgo. Poskusi znova z drugimi datumi ali drugim odhodnim letališčem.",
     "heroSearch.asyncPending":
-      "Make.com je vrnil samo “Accepted” brez rezultatov. Make.com scenarij mora biti nastavljen na sinhroni način: sprožilec “Immediately as data arrives” in modul Webhook response, ki vrne JSON (npr. { \"flights\": [...] }).",
+      "Iskanje letov še poteka. Počakaj trenutek in poskusi znova.",
+    "error.planTimeout":
+      "Generiranje načrta je predolgo trajalo brez odgovora. Poskusi znova.",
+    "error.planTimeoutPartial":
+      "Generiranje se je ustavilo po {day}. dnevu. Poskusi znova ali krajši izlet.",
     "flightCard.departure": "Odhod",
     "flightCard.return": "Povratek",
     "flightCard.stops": "Postanki",
@@ -1267,7 +1277,7 @@ const dicts: Record<Lang, Dict> = {
     "social.feat.ai.title": "AI itinerar v minutah",
     "social.feat.ai.desc": "Opiši sanjsko potovanje — dobiš dnevni načrt z zemljevidom in nasveti.",
     "social.feat.flights.title": "Leti v realnem času",
-    "social.feat.flights.desc": "Cene v živo od več sto prevoznikov prek Duffel in Skyscanner.",
+    "social.feat.flights.desc": "Cene v živo od več sto prevoznikov, osvežene za tvoje datume.",
     "social.feat.free.title": "Brezplačno za vse",
     "social.feat.free.desc": "Celoten AI načrt, zemljevid in PDF — brez plačilnega zidu.",
     "inspiration.title": "Navdih za naslednje potovanje",
@@ -1299,7 +1309,7 @@ const dicts: Record<Lang, Dict> = {
     "faq.pdf.q": "Ali lahko prenesem PDF načrt?",
     "faq.pdf.a": "Da, vsak načrt lahko preneseš kot lepo oblikovan PDF, ki ga bereš brez povezave.",
     "faq.flights.q": "Kateri leti so vključeni?",
-    "faq.flights.a": "Iščemo lete v realnem času od več sto prevoznikov prek Duffel — vedno aktualne cene za tvoje datume.",
+    "faq.flights.a": "Iščemo lete v realnem času od več sto prevoznikov — vedno aktualne cene za tvoje datume.",
     "trav.adults": "Odrasli",
     "trav.adultsAge": "Stari 18+",
     "trav.children": "Otroci",
@@ -2309,7 +2319,11 @@ const dicts: Record<Lang, Dict> = {
     "heroChat.searchingFlightsFrom":
       "Vergleiche Flüge ab {{origins}} — Preis und Reisezeit… 🔍",
     "heroSearch.timeout":
-      "Make.com hat die Flugergebnisse nicht rechtzeitig gespeichert. In Make → Suchszenario → History prüfen, ob der Data-store-Schritt status: done und offers schreibt.",
+      "Die Flugsuche hat zu lange gedauert. Versuche es mit anderen Daten oder einem anderen Abflughafen erneut.",
+    "error.planTimeout":
+      "Die Planerstellung hat zu lange ohne Antwort gedauert. Bitte erneut versuchen.",
+    "error.planTimeoutPartial":
+      "Die Generierung stoppte nach Tag {day}. Bitte erneut versuchen oder eine kürzere Reise wählen.",
     "heroChat.flightResultsIntro":
       "Hier sind die besten Flüge. Tippe auf „Für KI-Plan wählen“, um weiterzumachen:",
     "heroChat.flightResultsIntroFrom":
@@ -2557,17 +2571,64 @@ function isNetworkFetchError(message: string): boolean {
   );
 }
 
+/** Strip internal provider / infra jargon before showing errors to travelers. */
+function sanitizeUserFacingError(message: string): string {
+  const m = message.trim();
+  if (!m) return m;
+  const lower = m.toLowerCase();
+  if (
+    lower.includes("duffel") ||
+    lower.includes("make history") ||
+    lower.includes("make.com") ||
+    lower.includes("make →") ||
+    lower.includes("http/duffel") ||
+    lower.includes("webhook") ||
+    lower.includes("data store")
+  ) {
+    if (lower.includes("brez letov") || lower.includes("no flights") || lower.includes("empty")) {
+      return "heroSearch.empty";
+    }
+    if (lower.includes("timeout") || lower.includes("predolgo") || lower.includes("too long")) {
+      return lower.includes("načrt") || lower.includes("plan") || lower.includes("generir")
+        ? "error.planTimeout"
+        : "heroSearch.timeout";
+    }
+    return "heroSearch.error";
+  }
+  if (
+    m === "Generiranje načrta je predolgo trajalo brez odgovora. Poskusi znova." ||
+    /generiranje.*predolgo/i.test(m) ||
+    /took too long without a response/i.test(m)
+  ) {
+    return "error.planTimeout";
+  }
+  const partial = m.match(/ustavilo po (\d+)\. dnevu/i) || m.match(/after day (\d+)/i);
+  if (partial) {
+    return `error.planTimeoutPartial:${partial[1]}`;
+  }
+  return m;
+}
+
 export function resolveErrorMessage(
   t: (key: keyof typeof en) => string,
   code: string,
 ): string {
-  if (code.startsWith("error.duffelApi:")) {
-    const status = code.slice("error.duffelApi:".length);
+  const cleaned = sanitizeUserFacingError(code);
+  if (cleaned.startsWith("error.duffelApi:")) {
+    const status = cleaned.slice("error.duffelApi:".length);
     return t("error.duffelApi").replace("{status}", status);
   }
-  if (isNetworkFetchError(code)) return t("error.networkFetch");
-  if (code in dicts.en) return t(code as keyof typeof en);
-  return code;
+  if (cleaned.startsWith("error.planTimeoutPartial:")) {
+    const day = cleaned.slice("error.planTimeoutPartial:".length);
+    return t("error.planTimeoutPartial" as keyof typeof en).replace("{day}", day);
+  }
+  if (isNetworkFetchError(cleaned)) return t("error.networkFetch");
+  if (cleaned in dicts.en) return t(cleaned as keyof typeof en);
+  // Never show raw infra strings — fall back to a generic search/plan error.
+  if (/duffel|make\.com|webhook|gemini pro/i.test(cleaned)) {
+    return t("heroSearch.error");
+  }
+  return cleaned;
 }
 
 /** Soft informational quota messages — not red “system failure” banners. */

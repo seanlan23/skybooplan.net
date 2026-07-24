@@ -102,9 +102,9 @@ export function DuffelLogo({ className }: LogoProps) {
   );
 }
 
+/** Public homepage lockup — consumer brands only (no API vendor names). */
 export const PARTNER_LOGOS = [
   { id: "booking", Logo: BookingLogo },
   { id: "skyscanner", Logo: SkyscannerLogo },
   { id: "airalo", Logo: AiraloLogo },
-  { id: "duffel", Logo: DuffelLogo },
 ] as const;
