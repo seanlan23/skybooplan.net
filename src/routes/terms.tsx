@@ -21,6 +21,10 @@ export const Route = createFileRoute("/terms")({
 
 function TermsPage() {
   const t = useT();
+  const importantPoints = t("terms.important")
+    .split("\n")
+    .map((s) => s.trim())
+    .filter(Boolean);
 
   return (
     <div className="min-h-screen bg-background">
@@ -43,8 +47,30 @@ function TermsPage() {
             </h1>
           </div>
 
-          <div className="prose prose-sm max-w-none text-muted-foreground leading-relaxed space-y-4">
-            <p>{t("terms.body")}</p>
+          <div className="prose prose-sm max-w-none text-muted-foreground leading-relaxed space-y-6">
+            <p>{t("terms.intro")}</p>
+
+            <section className="space-y-3">
+              <h2 className="text-base font-semibold text-foreground !mt-0">
+                {t("terms.importantTitle")}
+              </h2>
+              <ul className="list-disc pl-5 space-y-2">
+                {importantPoints.map((point) => (
+                  <li key={point.slice(0, 48)}>{point}</li>
+                ))}
+              </ul>
+            </section>
+
+            <section className="space-y-3">
+              <h2 className="text-base font-semibold text-foreground !mt-0">
+                {t("terms.liabilityTitle")}
+              </h2>
+              <p>{t("terms.liability")}</p>
+            </section>
+
+            <p className="text-xs pt-2 border-t border-border">
+              © {new Date().getFullYear()} Skybooplan. {t("footer.rights")}
+            </p>
           </div>
         </div>
       </div>
