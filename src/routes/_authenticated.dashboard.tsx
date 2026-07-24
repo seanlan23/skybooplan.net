@@ -11,6 +11,7 @@ import {
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { LogoMark } from "@/components/Logo";
+import { DashboardDonateCard } from "@/components/DashboardDonateCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { readStoredLang, translate, useT } from "@/lib/i18n";
@@ -214,6 +215,10 @@ function DashboardPage() {
             </Link>
           </div>
         )}
+
+        <div className="mt-8">
+          <DashboardDonateCard />
+        </div>
       </main>
 
       <SiteFooter />

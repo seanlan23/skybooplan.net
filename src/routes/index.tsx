@@ -1136,10 +1136,24 @@ function Landing() {
 
   async function persistPlanToTrips(plan: AiTripPlan, ctx: AiPlannerContext) {
     if (!user) return;
-    const dest = plan.destinationName || ctx.to;
+    const { buildPdfPlanTitle } = await import("@/lib/pdfPlanTitle");
+    const dest =
+      plan.destinationPlace ||
+      plan.destinationName ||
+      ctx.destinationPlace ||
+      ctx.to;
     const startDate = (ctx.departDate || "").slice(0, 10) || null;
     const endDate = ctx.returnDate ? ctx.returnDate.slice(0, 10) : null;
-    const title = `${ctx.from} → ${ctx.to} · ${startDate ?? ctx.departDate}`;
+    const routeTitle = buildPdfPlanTitle({
+      groundTransportMode: plan.groundTransportMode ?? ctx.groundTransportMode,
+      accommodationMode: plan.accommodationMode,
+      originPlace: plan.originPlace ?? ctx.originPlace,
+      destinationPlace: plan.destinationPlace ?? ctx.destinationPlace,
+      destinationName: plan.destinationName,
+      from: ctx.from,
+      to: ctx.to,
+    });
+    const title = startDate ? `${routeTitle} · ${startDate}` : routeTitle;
     const basePayload = {
       user_id: user.id,
       title,
@@ -1279,7 +1293,8 @@ function Landing() {
 
         if (plan?.days?.length) {
           commitAiPlan(plan);
-          setSavedPlanId(null);
+          // Stream path used to skip DB save — dashboard stayed empty for logged-in users.
+          await persistPlanToTrips(plan, ctx);
         }
         if (streamError) {
           setAiError(streamError);

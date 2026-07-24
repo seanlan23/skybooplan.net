@@ -557,6 +557,10 @@ const en: Dict = {
   "dashboard.addPlan": "New AI plan",
   "dashboard.addPlanHint": "Craft another dream trip",
   "dashboard.metaTitle": "Dashboard — skybooplan",
+  "dashboard.donationBadge": "Keep us free",
+  "dashboard.donationTitle": "Skybooplan stays free thanks to you",
+  "dashboard.donationHint":
+    "If a plan saved you hours, a small tip helps cover AI, maps and hosting — so the next traveler can plan for free too.",
   "pricing.badge": "Pricing",
   "pricing.title1": "Simple pricing.",
   "pricing.title2": "Pay only for what you need.",
@@ -1509,6 +1513,10 @@ const dicts: Record<Lang, Dict> = {
     "dashboard.addPlan": "Nov AI plan",
     "dashboard.addPlanHint": "Ustvari novo sanjsko potovanje",
     "dashboard.metaTitle": "Nadzorna plošča — skybooplan",
+    "dashboard.donationBadge": "Ostani brezplačen",
+    "dashboard.donationTitle": "Skybooplan ostaja brezplačen zaradi tebe",
+    "dashboard.donationHint":
+      "Če ti je načrt prihranil ure dela, majhna donacija pomaga pokriti AI, mape in strežnike — da lahko tudi naslednji popotnik načrtuje zastonj.",
     "pricing.badge": "Cenik",
     "pricing.title1": "Preprosta cena.",
     "pricing.title2": "Plačaj samo to, kar potrebuješ.",
