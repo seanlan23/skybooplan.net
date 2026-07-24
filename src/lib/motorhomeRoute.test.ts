@@ -13,6 +13,46 @@ describe("motorhome route + camps", () => {
     expect(isCampActivityName("Camping Adriatic")).toBe(true);
     expect(isCampActivityName("Avtokamp Stobreč")).toBe(true);
     expect(isCampActivityName("Grand Palace")).toBe(false);
+    // Description mentioning camp must not promote a boat-ride title
+    expect(
+      isCampActivityName(
+        "Jutranja vožnja z ladjo v Benetke",
+        "Return to camping after the ride",
+      ),
+    ).toBe(false);
+  });
+
+  it("never sends activity sentences as Maps stops", () => {
+    const plan = {
+      originPlace: "Vienna",
+      destinationPlace: "Croatia",
+      groundTransportMode: "motorhome",
+      days: [
+        {
+          day: 1,
+          city: "Venice",
+          activities: {
+            morning: [
+              {
+                name: "Jutranja vožnja z ladjo v Benetke",
+                type: "SIGHT",
+                description: "Boat ride then back to camping Fusina",
+              },
+            ],
+            evening: [
+              {
+                name: "Camping Fusina",
+                type: "hotel",
+                description: "RV park",
+              },
+            ],
+          },
+        },
+      ],
+    } as AiTripPlan;
+    const stops = collectMotorhomeRoadTripStops(plan);
+    expect(stops.every((s) => !/vožnja|ladjo|jutranja/i.test(s))).toBe(true);
+    expect(stops.some((s) => /Camping Fusina/i.test(s))).toBe(true);
   });
 
   it("builds Google-ready stops preferring overnight camps", () => {
