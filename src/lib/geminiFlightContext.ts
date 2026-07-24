@@ -30,6 +30,7 @@ import {
   planCalendarDayCount,
 } from "@/lib/geminiPlanMap";
 import { repairPlanDaySequence } from "@/lib/daySequence";
+import { planLangCopy } from "@/lib/planLangCopy";
 import { buildReturnFlightSummary } from "@/lib/returnFlightSummary";
 import { resolveTripLocale } from "@/lib/tripLocale";
 import { stripArrivalLabelSpam } from "@/lib/textSanitize";
@@ -369,17 +370,27 @@ function normalizeDayActivityClocks(day: DayPlan): void {
   }
 }
 
-function patchArrivalDayTitle(title: string | undefined, flights: TripFlightContext, slo: boolean): string {
+function patchArrivalDayTitle(
+  title: string | undefined,
+  flights: TripFlightContext,
+  langCode: string,
+): string {
   const t = title?.trim() ?? "";
   const land = flights.outboundArrive;
   if (!t) {
-    return slo ? `Prihod (${land}) in namestitev` : `Arrival (${land}) and check-in`;
+    return planLangCopy(langCode, {
+      sl: `Prihod (${land}) in namestitev`,
+      en: `Arrival (${land}) and check-in`,
+      de: `Ankunft (${land}) und Check-in`,
+    });
   }
   // Drop misleading “sproščanje na Patong Beach” style titles that ignore landing time.
   if (/patong|plaž|beach|sprošč/i.test(t) && parseHmSafe(land) >= 17 * 60) {
-    return slo
-      ? `Prihod ob ${land} in namestitev`
-      : `Arrival at ${land} and check-in`;
+    return planLangCopy(langCode, {
+      sl: `Prihod ob ${land} in namestitev`,
+      en: `Arrival at ${land} and check-in`,
+      de: `Ankunft um ${land} und Check-in`,
+    });
   }
   return t;
 }
@@ -436,13 +447,23 @@ export function applyFlightContextToGeminiPlan(
     if (isInFlightTripDay(day.day, flights)) {
       day.inFlightDay = true;
       day.category = "transport";
+      const arriveShort = formatArrivalTimeShort(flights, lang);
       const flightAct: Activity = {
-        name: locale.slo ? "Mednarodni let" : "International flight",
+        name: planLangCopy(lang, {
+          sl: "Mednarodni let",
+          en: "International flight",
+          de: "Internationaler Flug",
+          es: "Vuelo internacional",
+          fr: "Vol international",
+          it: "Volo internazionale",
+        }),
         type: "TRANSPORT",
         transportType: "flight",
-        description: locale.slo
-          ? `Še v letu proti destinaciji — dan ${day.day} od ${totalDays}. Po pristanku (dan ${arrivalDay}, ${formatArrivalTimeShort(flights, locale.slo)}) sledi check-in.`
-          : `Still en route — day ${day.day} of ${totalDays}. Landing day ${arrivalDay} at ${formatArrivalTimeShort(flights, false)}; then check-in.`,
+        description: planLangCopy(lang, {
+          sl: `Še v letu proti destinaciji — dan ${day.day} od ${totalDays}. Po pristanku (dan ${arrivalDay}, ${arriveShort}) sledi check-in.`,
+          en: `Still en route — day ${day.day} of ${totalDays}. Landing day ${arrivalDay} at ${arriveShort}; then check-in.`,
+          de: `Noch im Flug — Tag ${day.day} von ${totalDays}. Landung an Tag ${arrivalDay} um ${arriveShort}; danach Check-in.`,
+        }),
         // Window start = depart, end = arrive (formatActivityClockLabel overnight +1).
         arrivalTime: flights.outboundDepart,
         departureTime: flights.outboundArrive,
@@ -467,9 +488,14 @@ export function applyFlightContextToGeminiPlan(
       day.evening = "";
       day.mapPins = [];
       day.transportation = undefined;
-      day.title = locale.slo
-        ? `Odhod${originIata ? ` iz ${originIata}` : ""} / mednarodni let`
-        : `Departure${originIata ? ` from ${originIata}` : ""} / international flight`;
+      day.title = planLangCopy(lang, {
+        sl: `Odhod${originIata ? ` iz ${originIata}` : ""} / mednarodni let`,
+        en: `Departure${originIata ? ` from ${originIata}` : ""} / international flight`,
+        de: `Abflug${originIata ? ` von ${originIata}` : ""} / internationaler Flug`,
+        es: `Salida${originIata ? ` desde ${originIata}` : ""} / vuelo internacional`,
+        fr: `Départ${originIata ? ` de ${originIata}` : ""} / vol international`,
+        it: `Partenza${originIata ? ` da ${originIata}` : ""} / volo internazionale`,
+      });
       if (originIata) {
         const hub = lookupDestination(originIata);
         if (hub) {
@@ -526,7 +552,7 @@ export function applyFlightContextToGeminiPlan(
 
       // Nuke Gemini-invented landing times (e.g. 12:00) — boarding-pass time wins.
       day.activities = patchArrivalActivityClockTimes(activities, flights);
-      day.title = patchArrivalDayTitle(day.title, flights, locale.slo);
+      day.title = patchArrivalDayTitle(day.title, flights, lang);
       day.morning = "";
       day.afternoon = "";
       day.evening = "";
@@ -561,13 +587,17 @@ export function applyFlightContextToGeminiPlan(
       if (hubName) {
         day.city = hubName;
         day.focusName = hubName;
-        day.title = locale.slo
-          ? needsHubHop
-            ? `Prevoz v ${hubName} in mednarodni odhod`
-            : `Odhod iz ${hubName} / mednarodni let`
-          : needsHubHop
-            ? `Transfer to ${hubName} and international departure`
-            : `Departure from ${hubName} / international flight`;
+        day.title = needsHubHop
+          ? planLangCopy(lang, {
+              sl: `Prevoz v ${hubName} in mednarodni odhod`,
+              en: `Transfer to ${hubName} and international departure`,
+              de: `Transfer nach ${hubName} und internationaler Abflug`,
+            })
+          : planLangCopy(lang, {
+              sl: `Odhod iz ${hubName} / mednarodni let`,
+              en: `Departure from ${hubName} / international flight`,
+              de: `Abflug von ${hubName} / internationaler Flug`,
+            });
         if (destHub?.lat != null && destHub?.lng != null) {
           day.lat = destHub.lat;
           day.lng = destHub.lng;
@@ -583,13 +613,17 @@ export function applyFlightContextToGeminiPlan(
       };
       if (needsHubHop && hubName && prevCity) {
         const hop: Activity = {
-          name: locale.slo
-            ? `Notranji prevoz ${prevCity} → ${hubName}`
-            : `Domestic transfer ${prevCity} → ${hubName}`,
+          name: planLangCopy(lang, {
+            sl: `Notranji prevoz ${prevCity} → ${hubName}`,
+            en: `Domestic transfer ${prevCity} → ${hubName}`,
+            de: `Inlands-Transfer ${prevCity} → ${hubName}`,
+          }),
           type: "TRANSPORT",
-          description: locale.slo
-            ? `Pred mednarodnim odhodom ob ${flights.inboundDepart} se vrneš v ${hubName} (ne ostani v ${prevCity}). Računaj na notranji let ali dolg transfer — rezerviraj vnaprej.`
-            : `Before the international departure at ${flights.inboundDepart}, return to ${hubName} (do not stay in ${prevCity}). Budget a domestic flight or long transfer — book ahead.`,
+          description: planLangCopy(lang, {
+            sl: `Pred mednarodnim odhodom ob ${flights.inboundDepart} se vrneš v ${hubName} (ne ostani v ${prevCity}). Računaj na notranji let ali dolg transfer — rezerviraj vnaprej.`,
+            en: `Before the international departure at ${flights.inboundDepart}, return to ${hubName} (do not stay in ${prevCity}). Budget a domestic flight or long transfer — book ahead.`,
+            de: `Vor dem internationalen Abflug um ${flights.inboundDepart} zurück nach ${hubName} (nicht in ${prevCity} bleiben). Plane einen Inlandsflug oder langen Transfer — im Voraus buchen.`,
+          }),
         };
         merged.morning = [hop, ...(merged.morning ?? [])].slice(0, 4);
       }

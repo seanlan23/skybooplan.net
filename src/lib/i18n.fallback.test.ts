@@ -54,6 +54,68 @@ describe("i18n strict fallback", () => {
     expect(translate("fr", "faq.title")).toBe("Questions fréquentes");
   });
 
+  it("es/fr/it/de homepage shell never falls back to English for marketing keys", () => {
+    const keys = [
+      "heroChat.guided.whereTitle",
+      "heroChat.guided.typeOwn",
+      "heroChat.feature.itinerary",
+      "heroChat.feature.flights",
+      "heroChat.feature.pdf",
+      "inspiration.paris.title",
+      "inspiration.croatia.title",
+      "inspiration.asia.title",
+      "testimonials.title",
+      "donation.title",
+      "donation.contact",
+      "support.title",
+      "support.amountCustom",
+      "feat.itin.title",
+      "feat.flights.title",
+      "feat.pdf.title",
+      "feat.free.title",
+      "footer.company",
+      "footer.legal",
+      "footer.about",
+      "footer.terms",
+      "footer.disclaimerTitle",
+      "hero.chip.thailand.name",
+      "hero.chip.paris.name",
+    ] as const;
+
+    const mustNotMatchEn = {
+      "heroChat.guided.whereTitle": "Where do you want to go?",
+      "heroChat.guided.typeOwn": "I want somewhere else",
+      "heroChat.feature.itinerary": "🗺️ AI itinerary",
+      "inspiration.paris.title": "Romantic Paris",
+      "testimonials.title": "What travelers say",
+      "donation.title": "Support Skybooplan",
+      "support.title": "Did Skybooplan make planning easier? 🌍",
+      "feat.itin.title": "AI itinerary + map",
+      "footer.company": "Company",
+      "footer.about": "About",
+    } as const;
+
+    for (const lang of ["es", "fr", "it", "de"] as const) {
+      for (const key of keys) {
+        const value = translate(lang, key);
+        expect(value).not.toBe(key);
+        expect(value.trim().length).toBeGreaterThan(2);
+      }
+      for (const [key, en] of Object.entries(mustNotMatchEn)) {
+        expect(translate(lang, key as keyof typeof mustNotMatchEn)).not.toBe(en);
+      }
+    }
+
+    expect(translate("it", "heroChat.guided.whereTitle")).toBe("Dove vuoi andare?");
+    expect(translate("it", "inspiration.paris.title")).toBe("Parigi romantica");
+    expect(translate("it", "testimonials.title")).toMatch(/viaggiatori/i);
+    expect(translate("it", "donation.title")).toMatch(/Sostieni/i);
+    expect(translate("it", "feat.itin.title")).toMatch(/Itinerario IA/i);
+    expect(translate("it", "footer.about")).toBe("Chi siamo");
+    expect(translate("es", "heroChat.guided.typeOwn")).toMatch(/otro/i);
+    expect(translate("fr", "support.amountCustom")).toBe("Autre montant");
+  });
+
   it("de never falls back to Slovenian for untranslated keys", () => {
     expect(translate("de", "error.networkFetch")).not.toBe("Težava s povezavo");
     expect(translate("de", "error.networkFetch")).toMatch(/connection|server/i);

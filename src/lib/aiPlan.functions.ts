@@ -3161,6 +3161,7 @@ export function buildSkeletonDayPlans(
         inboundTravelDay,
         priorScheduledText: priorHighlightText,
         tripDate: isoDateAtOffset(skeleton.departDate, d - 1),
+        motorhome: skeleton.accommodationMode === "motorhome",
       });
       activities = stripWrongCityActivities(activities, region.city);
       activities = reconcileWeekdayGatedActivities(activities, skeleton.departDate, d, langCode);

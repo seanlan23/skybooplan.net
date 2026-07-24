@@ -33,6 +33,13 @@ export type ActivityMapFocus = {
   poiName?: string;
 };
 
+/** Highlight target for itinerary card ↔ map pin (name + optional coords). */
+export type MapPoiHighlight = {
+  name: string;
+  lat?: number;
+  lng?: number;
+};
+
 /** Highlight-only focus — must never move the camera. */
 export type MapFocusTarget = ActivityMapFocus & {
   mode: "drone" | "day";
@@ -43,28 +50,125 @@ export function poiFocusKey(name: string, lat: number, lng: number): string {
   return `${name.trim().toLowerCase()}@${lat.toFixed(5)},${lng.toFixed(5)}`;
 }
 
+const HIGHLIGHT_STOP = new Set([
+  "uber",
+  "die",
+  "der",
+  "das",
+  "den",
+  "dem",
+  "von",
+  "und",
+  "mit",
+  "walk",
+  "stroll",
+  "spaziergang",
+  "erkundung",
+  "visite",
+  "visit",
+  "tour",
+  "the",
+  "and",
+  "over",
+  "across",
+  "neighbourhood",
+  "neighborhood",
+  "dinner",
+  "mittagessen",
+  "kosilo",
+  "vecerja",
+  "večerja",
+  "local",
+  "lokalna",
+  "lokalni",
+]);
+
+function significantHighlightTokens(value: string): string[] {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter((t) => t.length >= 4 && !HIGHLIGHT_STOP.has(t));
+}
+
 export function matchesPoiFocus(
   pin: { name: string; lat: number; lng: number },
   target: { poiName?: string; lat: number; lng: number },
 ): boolean {
+  return pinIsHighlighted(pin, {
+    name: target.poiName ?? "",
+    lat: target.lat,
+    lng: target.lng,
+  });
+}
+
+/** Card ↔ pin highlight: title tokens and/or nearby coordinates. */
+export function pinMatchesHighlight(
+  pinName: string,
+  highlightName: string | null | undefined,
+): boolean {
+  if (!highlightName?.trim() || !pinName?.trim()) return false;
+  const strip = (s: string) =>
+    s
+      .trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/\p{M}/gu, "")
+      .replace(/^(dopoldan|popoldan|večer|vecer|morgen|nachmittag|abend)\s*[·•.\-–—:]?\s*/i, "")
+      .replace(/\s+/g, " ");
+  const a = strip(pinName);
+  const b = strip(highlightName);
+  if (a === b) return true;
+  if (a.includes(b) || b.includes(a)) return true;
+
+  const ta = significantHighlightTokens(a);
+  const tb = significantHighlightTokens(b);
+  if (!ta.length || !tb.length) return false;
+  const overlap = ta.filter((t) => tb.some((x) => x === t || x.includes(t) || t.includes(x)));
+  if (overlap.length >= 2) return true;
+  // One strong landmark token (brooklyn, asakusa, fushimi…)
+  return overlap.some((t) => t.length >= 7);
+}
+
+export function pinIsHighlighted(
+  pin: { name: string; lat: number; lng: number },
+  highlight: MapPoiHighlight | string | null | undefined,
+): boolean {
+  if (!highlight) return false;
+  const target: MapPoiHighlight =
+    typeof highlight === "string" ? { name: highlight } : highlight;
+  if (target.name && pinMatchesHighlight(pin.name, target.name)) return true;
+
+  const lat = target.lat;
+  const lng = target.lng;
   if (
-    Math.abs(pin.lat - target.lat) < 0.00025 &&
-    Math.abs(pin.lng - target.lng) < 0.00025
+    typeof lat === "number" &&
+    typeof lng === "number" &&
+    Number.isFinite(lat) &&
+    Number.isFinite(lng) &&
+    lat !== 0 &&
+    lng !== 0
   ) {
-    return true;
+    const near = haversineKm([pin.lng, pin.lat], [lng, lat]) < 0.85;
+    if (!near) return false;
+    // Nearby alone can collide after pin jitter — require a weak token overlap when named.
+    if (!target.name?.trim()) return true;
+    const ta = significantHighlightTokens(pin.name);
+    const tb = significantHighlightTokens(target.name);
+    return ta.some((t) => tb.some((x) => x === t || x.includes(t) || t.includes(x)));
   }
-  if (!target.poiName) return false;
-  return (
-    poiFocusKey(pin.name, pin.lat, pin.lng) ===
-    poiFocusKey(target.poiName, target.lat, target.lng)
-  );
+  return false;
 }
 
 type Props = {
   plan: AiTripPlan;
   activeDay: number;
-  /** Pin highlight only — ignored for camera. */
+  /** Pin highlight only — ignored for camera. Prefer name+coords for day 3+ reliability. */
   highlightPoiName?: string | null;
+  highlightPoiLat?: number | null;
+  highlightPoiLng?: number | null;
   onDaySelect?: (day: number) => void;
   onOpenPoiDetails?: (poi: PoiDetailsData) => void;
   streaming?: boolean;
@@ -187,6 +291,8 @@ function TripMapInner({
   plan,
   activeDay,
   highlightPoiName,
+  highlightPoiLat,
+  highlightPoiLng,
   onDaySelect,
   onOpenPoiDetails,
   isPlaying = false,
@@ -404,26 +510,22 @@ function TripMapInner({
       markersRef.current.push({ marker, root, id: `city-${dayView.day}` });
     }
 
+    const highlight: MapPoiHighlight | null = highlightPoiName
+      ? {
+          name: highlightPoiName,
+          lat: highlightPoiLat ?? undefined,
+          lng: highlightPoiLng ?? undefined,
+        }
+      : null;
+
     for (const pin of dayView.pins) {
       const el = document.createElement("div");
       const root = createRoot(el);
-      const focused = Boolean(
-        highlightPoiName &&
-          matchesPoiFocus(pin, {
-            poiName: highlightPoiName,
-            lat: pin.lat,
-            lng: pin.lng,
-          }),
-      );
-      // Prefer name match when highlight is set
-      const nameFocused =
-        Boolean(highlightPoiName) &&
-        pin.name.trim().toLowerCase() === highlightPoiName!.trim().toLowerCase();
       root.render(
         <MapPoiMarker
           category={pin.category}
           isActive
-          isFocused={nameFocused || focused}
+          isFocused={pinIsHighlighted(pin, highlight)}
           name={pin.name}
           imageUrl={pin.imageUrl}
         />,
@@ -459,7 +561,14 @@ function TripMapInner({
       cancelled = true;
       clearMarkers(markersRef.current);
     };
-  }, [dayView, plan, highlightPoiName, styleEpoch]);
+  }, [
+    dayView,
+    plan,
+    highlightPoiName,
+    highlightPoiLat,
+    highlightPoiLng,
+    styleEpoch,
+  ]);
 
   if (error) {
     return (
@@ -507,6 +616,8 @@ function propsEqual(prev: Props, next: Props): boolean {
   if (prev.isPlaying !== next.isPlaying) return false;
   if (prev.streaming !== next.streaming) return false;
   if ((prev.highlightPoiName ?? "") !== (next.highlightPoiName ?? "")) return false;
+  if ((prev.highlightPoiLat ?? null) !== (next.highlightPoiLat ?? null)) return false;
+  if ((prev.highlightPoiLng ?? null) !== (next.highlightPoiLng ?? null)) return false;
   if (prev.plan.days.length !== next.plan.days.length) return false;
   const sig = (p: AiTripPlan) =>
     p.days

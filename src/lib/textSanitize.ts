@@ -133,7 +133,19 @@ export function fixMotorhomeCopyErrors(text: string, city = ""): string {
     .replace(/\bTitov[ae]\s+jam[aeo]\b/gi, "Tiberijeva jama (Villa di Tiberio)")
     .replace(/\bTitovo\s+jamo\b/gi, "Tiberijevo jamo (Villa di Tiberio)")
     .replace(/\bTito'?s?\s+Cave\b/gi, "Villa di Tiberio (Tiberius Grotto)")
-    .replace(/\bTito\s+Grotto\b/gi, "Villa di Tiberio");
+    .replace(/\bTito\s+Grotto\b/gi, "Villa di Tiberio")
+    // Hotel language is wrong on RV trips — rewrite to camp/stay.
+    .replace(/okolico\s+hotela/gi, "okolico kampa")
+    .replace(/blizu\s+hotela/gi, "blizu kampa")
+    .replace(/pri\s+hotelu/gi, "pri kampu")
+    .replace(/v\s+hotelu/gi, "v kampu")
+    .replace(/izpred\s+hotela/gi, "iz kampa")
+    .replace(/\btvoj(?:ega)?\s+hotel[au]?\b/gi, "tvoj kamp")
+    .replace(/\bnear\s+the\s+hotel\b/gi, "near the campsite")
+    .replace(/\bexplore\s+near\s+the\s+hotel\b/gi, "explore near the campsite")
+    .replace(/\byour\s+hotel\b/gi, "your campsite")
+    .replace(/\bthe\s+hotel\b/gi, "the campsite")
+    .replace(/\bback\s+to\s+(?:the\s+)?hotel\b/gi, "back to camp");
 
   const c = city.toLowerCase();
   const nearSanDaniele =

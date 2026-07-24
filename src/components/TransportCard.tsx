@@ -8,28 +8,28 @@ import { lookupRegionCoords } from "@/lib/regionCoords";
 
 const TYPE_META: Record<
   DayTransportLeg["type"],
-  { label: string; icon: typeof Plane; accent: string; badge: string }
+  { labelKey: string; icon: typeof Plane; accent: string; badge: string }
 > = {
   flight: {
-    label: "Notranji let",
+    labelKey: "transport.mode.domesticFlight",
     icon: Plane,
     accent: "border-indigo-200 bg-gradient-to-br from-indigo-50 to-white",
     badge: "bg-indigo-600",
   },
   ferry: {
-    label: "Trajekt",
+    labelKey: "transport.mode.ferry",
     icon: Ship,
     accent: "border-cyan-200 bg-gradient-to-br from-cyan-50 to-white",
     badge: "bg-cyan-700",
   },
   van: {
-    label: "Kombi",
+    labelKey: "transport.mode.van",
     icon: Bus,
     accent: "border-sky-200 bg-gradient-to-br from-sky-50 to-white",
     badge: "bg-sky-600",
   },
   train: {
-    label: "Vlak",
+    labelKey: "transport.mode.train",
     icon: TrainFront,
     accent: "border-slate-200 bg-gradient-to-br from-slate-50 to-white",
     badge: "bg-slate-700",
@@ -70,7 +70,7 @@ function TransportLegCard({
   fallbackLat?: number;
   fallbackLng?: number;
 }) {
-  const { formatMoney } = useI18n();
+  const { formatMoney, t } = useI18n();
   const meta = TYPE_META[leg.type];
   const Icon = meta.icon;
   const nav = resolveLegNav(leg, fallbackLat, fallbackLng);
@@ -86,7 +86,7 @@ function TransportLegCard({
         </div>
         <div className="flex flex-1 flex-col justify-center px-4 py-3 min-w-0">
           <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-            {meta.label}
+            {t(meta.labelKey as never)}
           </div>
           <div className="mt-1 flex items-center gap-2 text-sm font-bold text-slate-900 leading-snug">
             <span className="truncate">{leg.from}</span>

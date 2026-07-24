@@ -1,7 +1,21 @@
 import type { AiTripPlan, DayPlan } from "@/lib/aiPlan.functions";
+import { planLangCopy } from "@/lib/planLangCopy";
 
 const CAMP_NAME_RE =
   /\b(kamp|avtokamp|campground|campsite|camping|rv\s*park|wohnmobilstellplatz|aire\b|sosta|area di sosta)\b/i;
+
+/** One pin for Maps / KML — placeQuery is geocodable; title/note are for humans. */
+export type MotorhomeMapStop = {
+  kind: "start" | "overnight" | "via" | "return";
+  /** Clean place string for Google/Apple Maps directions. */
+  placeQuery: string;
+  /** Human label (day + overnight + camp). */
+  title: string;
+  day?: number;
+  note?: string;
+  lat?: number;
+  lng?: number;
+};
 
 /** Activity titles that must never become Google Maps waypoints. */
 const ACTIVITY_STOP_RE =
@@ -61,51 +75,151 @@ export function collectDayCampLabels(day: DayPlan): string[] {
   return out;
 }
 
+function dayCoords(day: DayPlan): { lat?: number; lng?: number } {
+  if (typeof day.lat === "number" && typeof day.lng === "number") {
+    return { lat: day.lat, lng: day.lng };
+  }
+  return {};
+}
+
+function overnightTitle(lang: string, dayNum: number, place: string): string {
+  return planLangCopy(lang, {
+    sl: `Dan ${dayNum} · Nočitev · ${place}`,
+    en: `Day ${dayNum} · Overnight · ${place}`,
+    de: `Tag ${dayNum} · Übernachtung · ${place}`,
+    es: `Día ${dayNum} · Noche · ${place}`,
+    fr: `Jour ${dayNum} · Nuit · ${place}`,
+    it: `Giorno ${dayNum} · Pernottamento · ${place}`,
+  });
+}
+
+function startTitle(lang: string, place: string): string {
+  return planLangCopy(lang, {
+    sl: `Start · ${place}`,
+    en: `Start · ${place}`,
+    de: `Start · ${place}`,
+    es: `Inicio · ${place}`,
+    fr: `Départ · ${place}`,
+    it: `Partenza · ${place}`,
+  });
+}
+
+function returnTitle(lang: string, place: string): string {
+  return planLangCopy(lang, {
+    sl: `Povratek · ${place}`,
+    en: `Return · ${place}`,
+    de: `Rückkehr · ${place}`,
+    es: `Regreso · ${place}`,
+    fr: `Retour · ${place}`,
+    it: `Ritorno · ${place}`,
+  });
+}
+
+function viaTitle(lang: string, dayNum: number, place: string): string {
+  return planLangCopy(lang, {
+    sl: `Dan ${dayNum} · ${place}`,
+    en: `Day ${dayNum} · ${place}`,
+    de: `Tag ${dayNum} · ${place}`,
+    es: `Día ${dayNum} · ${place}`,
+    fr: `Jour ${dayNum} · ${place}`,
+    it: `Giorno ${dayNum} · ${place}`,
+  });
+}
+
 /**
- * Google Maps / overview stops for a motorhome plan:
- * origin → overnight bases → origin (return home).
- * Never emits activity sentences or bare country names (e.g. "Italija").
+ * Rich overnight / waypoint list for UI + KML.
+ * Google Maps directions still use `placeQuery` (geocodable names only).
  */
-export function collectMotorhomeRoadTripStops(plan: AiTripPlan): string[] {
-  const stops: string[] = [];
-  const push = (raw: string | undefined | null) => {
-    const s = raw?.replace(/\s+/g, " ").trim();
+export function collectMotorhomeMapStops(plan: AiTripPlan, lang = "sl"): MotorhomeMapStop[] {
+  const out: MotorhomeMapStop[] = [];
+  const push = (stop: MotorhomeMapStop) => {
+    const s = stop.placeQuery.replace(/\s+/g, " ").trim();
     if (!s || !isPlausibleMapPlaceLabel(s)) return;
-    if (stops[stops.length - 1] && samePlace(stops[stops.length - 1]!, s)) return;
-    stops.push(s);
+    if (out[out.length - 1] && samePlace(out[out.length - 1]!.placeQuery, s)) return;
+    out.push({ ...stop, placeQuery: s });
   };
 
   const origin = (plan.originPlace?.trim() || plan.originIata?.trim() || "").replace(/\s+/g, " ");
-  push(origin);
+  if (origin && isPlausibleMapPlaceLabel(origin)) {
+    push({
+      kind: "start",
+      placeQuery: origin,
+      title: startTitle(lang, origin),
+    });
+  }
 
   for (const day of plan.days ?? []) {
     if (day.inFlightDay) continue;
     const city = day.city?.trim() || day.focusName?.trim() || "";
-    // Last-day return to origin is handled once at the end — skip duplicate mid-list.
     if (origin && city && samePlace(city, origin)) continue;
 
     const camps = collectDayCampLabels(day);
+    const coords = dayCoords(day);
+    const note = [day.title, day.travelHack].filter(Boolean).join(" — ").slice(0, 280) || undefined;
+
     if (camps[0]) {
       const campStop =
         city && !camps[0].toLowerCase().includes(city.toLowerCase())
           ? `${camps[0]}, ${city}`
           : camps[0];
       if (isPlausibleMapPlaceLabel(campStop)) {
-        push(campStop);
+        push({
+          kind: "overnight",
+          placeQuery: campStop,
+          title: overnightTitle(lang, day.day, campStop),
+          day: day.day,
+          note,
+          ...coords,
+        });
         continue;
       }
     }
-    push(city);
+
+    if (city && isPlausibleMapPlaceLabel(city)) {
+      push({
+        kind: "via",
+        placeQuery: city,
+        title: viaTitle(lang, day.day, city),
+        day: day.day,
+        note,
+        ...coords,
+      });
+    }
   }
 
-  // Destination is often just "Italy" / "Croatia" — never use that as a pin.
   const dest = plan.destinationPlace?.trim();
   if (dest && !isCountryOnlyPlaceLabel(dest) && !(origin && samePlace(dest, origin))) {
-    push(dest);
+    push({
+      kind: "via",
+      placeQuery: dest,
+      title: planLangCopy(lang, {
+        sl: `Cilj · ${dest}`,
+        en: `Destination · ${dest}`,
+        de: `Ziel · ${dest}`,
+        es: `Destino · ${dest}`,
+        fr: `Destination · ${dest}`,
+        it: `Destinazione · ${dest}`,
+      }),
+      note: undefined,
+    });
   }
 
-  // Always close the loop home (Mežica → … → Mežica).
-  if (origin) push(origin);
+  if (origin && isPlausibleMapPlaceLabel(origin)) {
+    push({
+      kind: "return",
+      placeQuery: origin,
+      title: returnTitle(lang, origin),
+    });
+  }
 
-  return stops;
+  return out;
+}
+
+/**
+ * Google Maps / overview stops for a motorhome plan:
+ * origin → overnight bases → origin (return home).
+ * Never emits activity sentences or bare country names (e.g. "Italija").
+ */
+export function collectMotorhomeRoadTripStops(plan: AiTripPlan): string[] {
+  return collectMotorhomeMapStops(plan).map((s) => s.placeQuery);
 }

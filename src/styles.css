@@ -479,9 +479,35 @@
   transform: translateY(0);
 }
 .layla-poi-label--focused {
-  background: #111827;
+  background: #0284c7;
   color: #fff;
   opacity: 1;
+}
+
+/* Selected itinerary card → matching map pin (blue pulse ring). */
+@keyframes layla-poi-focus-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(14, 165, 233, 0.55);
+    border-color: #0ea5e9;
+  }
+  50% {
+    box-shadow: 0 0 0 7px rgba(14, 165, 233, 0);
+    border-color: #38bdf8;
+  }
+}
+.layla-poi-focus-ring {
+  border: 2.5px solid #0ea5e9;
+  animation: layla-poi-focus-pulse 1.6s ease-in-out infinite;
+}
+/* Desktop only: enlarge focused pin icon (~50%); mobile keeps ring only. */
+.layla-poi-focus-scale {
+  transform: none;
+}
+@media (min-width: 1024px) {
+  .layla-poi-focus-scale {
+    transform: scale(1.5);
+  }
 }
 .layla-city-pin {
   position: relative;

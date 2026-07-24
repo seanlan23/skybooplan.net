@@ -305,6 +305,9 @@ ${customWishes}
 NAČIN POTOVANJA: AVTODOM / RV / CAMPERVAN (obvezno)
 - Polje hotels v JSON vrni kot prazno polje [] — brez hotelov!
 - Namesto hotelov za vsak dan dodaj konkretno aktivnost za nočitev: RV park / kamp / campground (category: hotel) z imenom in lokacijo.
+- PREPOVEDANO v description/name: "hotel", "okolica hotela", "blizu hotela" — vedno kamp / avtodom / sosta.
+- HRANA: NE dodajaj kosila/večerje/zajtrka skoraj vsak dan. Kuhanje v avtodomu je privzeto. Največ 1–2 posebni food aktivnosti na celotno pot (npr. ena dobra konoba). Ostali dnevi: ogledi, vožnja, plaža, kamp — BREZ category food.
+- PREPOVEDANO: generični filler "Lokalna večerja", "Večernji sprehod in lokalna večerja", "Kosilo na poti", "Pavza v kavarni".
 - Med mesti načrtuj vožnjo z avtodomom — ne notranjih letov. ZDA: 400–800 km = cel dan vožnje.
 - Parkiraj RV izven mestnega jedra; v center z javnim prevozom ali P+R.
 - itinerar[] = največ ${maxBases} baz/kampov (to NI število dni!).

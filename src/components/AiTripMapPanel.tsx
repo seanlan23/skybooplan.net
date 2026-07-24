@@ -13,6 +13,8 @@ type Props = {
   hasCoords: boolean;
   /** Pin name highlight only — never moves camera. */
   highlightPoiName: string | null;
+  highlightPoiLat?: number | null;
+  highlightPoiLng?: number | null;
   onDaySelect: (day: number) => void;
   onOpenPoiDetails: (poi: PoiDetailsData) => void;
   streaming: boolean;
@@ -39,6 +41,8 @@ export const AiTripMapPanel = memo(function AiTripMapPanel({
   activeDay,
   hasCoords,
   highlightPoiName,
+  highlightPoiLat = null,
+  highlightPoiLng = null,
   onDaySelect,
   onOpenPoiDetails,
   streaming,
@@ -140,6 +144,8 @@ export const AiTripMapPanel = memo(function AiTripMapPanel({
           plan={plan}
           activeDay={activeDay}
           highlightPoiName={highlightPoiName}
+          highlightPoiLat={highlightPoiLat}
+          highlightPoiLng={highlightPoiLng}
           onDaySelect={onDaySelect}
           onOpenPoiDetails={onOpenPoiDetails}
           streaming={streaming}

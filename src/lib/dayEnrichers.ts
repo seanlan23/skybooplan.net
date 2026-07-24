@@ -218,10 +218,23 @@ export function buildArrivalEveningCulture(city: string, locale: TripLocale): Ac
       type: "EAT",
       priceLabel: locale.mealPrice,
       description: slo
-        ? `Po počitku razišči okolico hotela ${transfer} — prva večerja v lokalni restavraciji. Opazuj ritem mesta brez hitenja.`
-        : `After rest, explore near the hotel ${transfer} and have your first local dinner.`,
+        ? `Po počitku razišči okolico namestitve ${transfer} — prva večerja v lokalni restavraciji. Opazuj ritem mesta brez hitenja.`
+        : `After rest, explore near your stay ${transfer} and have your first local dinner.`,
     },
   ];
+}
+
+/** Light camp evening — no restaurant meal (motorhome default). */
+function buildMotorhomeCampEvening(locale: TripLocale): Activity {
+  const slo = locale.slo;
+  return {
+    name: slo ? "Večer v kampu" : "Evening at camp",
+    type: "ACTIVITY",
+    priceLabel: slo ? "brezplačno" : "free",
+    description: slo
+      ? "Lahek večer pri kampu — sprehod, počitek ob avtodomu. Hrano si pripraviš v vozilu, razen če si že načrtoval posebno lokalno večerjo."
+      : "Easy evening at camp — stroll and rest by the RV. Cook onboard unless you already planned a special local dinner.",
+  };
 }
 
 type PoolContext = {
@@ -1495,6 +1508,8 @@ export function enrichDayActivities(
     /** Total Bangkok stay nights/days in this trip (for Kwai day-trip scheduling). */
     bangkokStayDays?: number;
     isDepartureDay?: boolean;
+    /** RV / campervan — no hotel copy, no daily meal padding. */
+    motorhome?: boolean;
   },
 ): DaySlots {
   let result = {
@@ -1502,6 +1517,15 @@ export function enrichDayActivities(
     afternoon: [...slots.afternoon],
     evening: [...slots.evening],
   };
+
+  if (opts?.motorhome) {
+    // Never inject hotel-style arrival dinners; light camp evening only if empty.
+    if (result.evening.length === 0 && !opts.isDepartureDay) {
+      result.evening.push(buildMotorhomeCampEvening(locale));
+    }
+    // Skip generic café/dinner pool padding — meals are optional, not daily slots.
+    return sanitizeDaySlots(result, locale.langCode, locale.country, city);
+  }
 
   if (opts?.isTripDay1 && !opts.skipEveningCulture) {
     const slimEvening = opts.lateArrival || opts.tightArrivalDay;

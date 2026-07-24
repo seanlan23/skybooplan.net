@@ -1,6 +1,13 @@
 import type { AiTripPlan } from "@/lib/aiPlan.functions";
 import { fixMotorhomeCopyErrors } from "@/lib/textSanitize";
 
+type DayActivity = {
+  name: string;
+  type?: string;
+  description?: string;
+  priceLabel?: string;
+};
+
 function isFerragostoWindow(isoDate: string | undefined): boolean {
   if (!isoDate) return false;
   const m = isoDate.match(/^(\d{4})-(\d{2})-(\d{2})/);
@@ -22,6 +29,87 @@ function appendTip(existing: string | undefined, tip: string): string {
   if (!tip) return base;
   if (base.toLowerCase().includes(tip.slice(0, 28).toLowerCase())) return base;
   return base ? `${base} ${tip}` : tip;
+}
+
+/** Generic lunch/dinner/café fillers — not worth a daily itinerary slot on RV trips. */
+export function isMotorhomeMealFiller(a: DayActivity): boolean {
+  const type = (a.type ?? "").toUpperCase();
+  const name = a.name ?? "";
+  const desc = a.description ?? "";
+  const blob = `${name} ${desc}`;
+
+  // Distinctive once-in-a-trip food experiences — keep when meal budget allows.
+  if (
+    /\b(konoba|truffle|tartuf|wine\s*tasting|degustac|olive\s*oil|oljčn|seafood\s+market|ribja\s+tržnica)\b/i.test(
+      blob,
+    ) &&
+    !/lokalna\s+večerja|local\s+dinner|kosilo\s+na\s+poti|pavza\s+v\s+kavarni/i.test(name)
+  ) {
+    return false;
+  }
+
+  if (type === "EAT" || type === "FOOD") return true;
+
+  return /\b(kosilo|večerja|zajtrk|lunch|dinner|breakfast|café|cafe\b|kavarn|pavza v kavarni|local dinner|lokalna večerja|seafood večerja|aperitivo)\b/i.test(
+    name,
+  );
+}
+
+/**
+ * Keep at most one food activity every ~3 days (plus rare specials).
+ * Drops café/lunch/dinner spam that makes RV plans read like hotel menus.
+ */
+export function thinMotorhomeMealActivities(plan: AiTripPlan): void {
+  let daysSinceKeptMeal = 99;
+
+  for (const day of plan.days) {
+    if (!day.activities) {
+      daysSinceKeptMeal += 1;
+      continue;
+    }
+
+    const slots = ["morning", "afternoon", "evening"] as const;
+    type SlotAct = DayActivity & { _slot: (typeof slots)[number]; _idx: number };
+    const meals: SlotAct[] = [];
+
+    for (const slot of slots) {
+      const list = day.activities[slot] ?? [];
+      list.forEach((a, idx) => {
+        if (isMotorhomeMealFiller(a)) meals.push({ ...a, _slot: slot, _idx: idx });
+      });
+    }
+
+    if (meals.length === 0) {
+      daysSinceKeptMeal += 1;
+      continue;
+    }
+
+    const canKeep = daysSinceKeptMeal >= 3;
+    // Prefer a single evening meal when we keep one; drop the rest.
+    const keep =
+      canKeep
+        ? meals.find((m) => m._slot === "evening") ?? meals[meals.length - 1]!
+        : null;
+
+    const dropKeys = new Set(
+      meals
+        .filter((m) => !keep || m._slot !== keep._slot || m._idx !== keep._idx)
+        .map((m) => `${m._slot}:${m._idx}`),
+    );
+
+    for (const slot of slots) {
+      const list = day.activities[slot] ?? [];
+      day.activities[slot] = list.filter((_, idx) => !dropKeys.has(`${slot}:${idx}`));
+    }
+
+    // If we dropped a lone evening meal and evening is empty, leave empty —
+    // camp rest does not need a fake restaurant card.
+    if (keep) {
+      daysSinceKeptMeal = 0;
+    } else {
+      daysSinceKeptMeal += 1;
+    }
+  }
 }
 
 /** Fix known AI camp/POI slips + Ferragosto / long-leg tips on motorhome plans. */
@@ -67,4 +155,6 @@ export function enrichMotorhomePlanTips(plan: AiTripPlan, lang = "sl"): void {
       );
     }
   }
+
+  thinMotorhomeMealActivities(plan);
 }

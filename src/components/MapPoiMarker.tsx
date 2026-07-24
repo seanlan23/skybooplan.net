@@ -98,7 +98,7 @@ function MarkerShell({
       >
         {isFocused ? (
           <span
-            className="pointer-events-none absolute -inset-1.5 rounded-full border-2 border-amber-400/70"
+            className="layla-poi-focus-ring pointer-events-none absolute -inset-1.5 rounded-full"
             aria-hidden
           />
         ) : null}
@@ -125,7 +125,7 @@ function IconMarker({
 }: IconMarkerProps) {
   const Icon = POI_ICONS[category] ?? MapPin;
   const ringClass = isFocused
-    ? " ring-[3px] ring-amber-400 ring-offset-2 bg-white shadow-lg"
+    ? " border-sky-500 ring-[3px] ring-sky-500/50 ring-offset-2 bg-white shadow-lg layla-poi-focus-scale"
     : isActive
       ? " ring-2 ring-sky-400/40 ring-offset-1 bg-white/90"
       : "";
@@ -172,7 +172,7 @@ export function MapPoiMarker({
   const hasPhoto = Boolean(imageUrl?.trim()) && !photoFailed;
 
   const photoRingClass = isFocused
-    ? " ring-[3px] ring-amber-400 ring-offset-2 shadow-lg scale-[1.2]"
+    ? " border-sky-500 ring-[3px] ring-sky-500/50 ring-offset-2 shadow-lg layla-poi-focus-scale"
     : isActive
       ? " ring-2 ring-sky-400/50 ring-offset-1"
       : "";

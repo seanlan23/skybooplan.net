@@ -32,6 +32,15 @@ describe("fixMotorhomeCopyErrors", () => {
     expect(out).toMatch(/Area sosta camper San Daniele/i);
     expect(out).not.toMatch(/San Francesco/i);
   });
+
+  it("rewrites hotel surroundings to camp on RV copy", () => {
+    expect(
+      fixMotorhomeCopyErrors(
+        "Po počitku razišči okolico hotela peš ali z lokalnim prevozom.",
+      ),
+    ).toMatch(/okolico kampa/i);
+    expect(fixMotorhomeCopyErrors("Dinner near the hotel")).toMatch(/campsite/i);
+  });
 });
 
 describe("scrubInappropriatePoiCopy", () => {

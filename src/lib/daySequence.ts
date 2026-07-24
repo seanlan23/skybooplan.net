@@ -101,11 +101,11 @@ function thinPlaceholderDay(
       ],
       evening: [
         {
-          name: slo ? "Večerja v bližini namestitve" : "Dinner near your stay",
-          type: "FOOD",
+          name: slo ? "Večer pri kampu" : "Evening at camp",
+          type: "ACTIVITY",
           description: slo
-            ? "Večerja blizu hotela — peš ali kratek lokalni prevoz."
-            : "Dinner near the hotel — walk or a short local ride.",
+            ? "Lahek večer pri kampu — sprehod ali kuhanje v avtodomu, brez obvezne restavracije."
+            : "Easy evening at camp — stroll or cook in the RV, no restaurant required.",
         },
       ],
     },

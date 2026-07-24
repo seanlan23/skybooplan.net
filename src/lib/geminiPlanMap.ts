@@ -54,6 +54,7 @@ import { enrichIslandAirportTransfers } from "@/lib/islandAirportTransfers";
 import { repairTransportLegs } from "@/lib/transportLegRepair";
 import { sanitizeReturnFlightSummary } from "@/lib/returnFlightSummary";
 import { enrichMotorhomePlanTips } from "@/lib/motorhomePlanTips";
+import { driveTypeLabel } from "@/lib/planLangCopy";
 import { sanitizeActivity, sanitizeForLang } from "@/lib/textSanitize";
 
 export type GeminiPlanMapOpts = {
@@ -611,7 +612,7 @@ export function tripPlanResponseToAiTripPlan(
             transport:
               day.drivingDistanceKm > 0
                 ? {
-                    type: "Vožnja",
+                    type: driveTypeLabel(opts?.language ?? "sl"),
                     duration: day.drivingDurationHours,
                     cost: "",
                     description: `${day.drivingDistanceKm} km`,
@@ -853,6 +854,7 @@ export function enrichGeminiCatalogPlan(
           usedEveningVenues,
           tripDate: day.date,
           priorScheduledText,
+          motorhome,
         },
       );
       // Chatuchak / weekend markets — same gate as skeleton path.

@@ -47,7 +47,14 @@ import { ReturnHomeCard } from "@/components/ReturnHomeCard";
 import { SupportCard } from "@/components/SupportCard";
 import { TransportDashboard } from "@/components/TransportDashboard";
 import type { AiPlannerSubmit } from "@/components/AiPlannerPreview";
-import { collectMotorhomeRoadTripStops } from "@/lib/motorhomeRoute";
+import {
+  collectMotorhomeMapStops,
+  collectMotorhomeRoadTripStops,
+} from "@/lib/motorhomeRoute";
+import {
+  countMotorhomeStopsWithCoords,
+  downloadMotorhomeStopsKml,
+} from "@/lib/motorhomeMapExport";
 import {
   buildAppleMapsRoadTripUrl,
   buildGoogleMapsRoadTripUrl,
@@ -148,10 +155,13 @@ export function AiPlanView({
   const dayRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const planScrollRef = useRef<HTMLDivElement>(null);
   const [highlightPoiName, setHighlightPoiName] = useState<string | null>(null);
+  const [highlightPoiLat, setHighlightPoiLat] = useState<number | null>(null);
+  const [highlightPoiLng, setHighlightPoiLng] = useState<number | null>(null);
   const [poiModal, setPoiModal] = useState<PoiDetailsData | null>(null);
   const [poiModalOpen, setPoiModalOpen] = useState(false);
   const [scrollSpyPaused, setScrollSpyPaused] = useState(false);
   const [focusedActivityKey, setFocusedActivityKey] = useState<string | null>(null);
+  const focusedActivityDayRef = useRef<number | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [mobileMapOpen, setMobileMapOpen] = useState(false);
   const isClickNavigatingRef = useRef(false);
@@ -248,12 +258,19 @@ export function AiPlanView({
     el.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }, []);
 
+  const clearPoiHighlight = useCallback(() => {
+    focusedActivityDayRef.current = null;
+    setFocusedActivityKey(null);
+    setHighlightPoiName(null);
+    setHighlightPoiLat(null);
+    setHighlightPoiLng(null);
+  }, []);
+
   const handleDaySelect = useCallback(
     (day: DayPlan) => {
       isClickNavigatingRef.current = true;
       setScrollSpyPaused(true);
-      setFocusedActivityKey(null);
-      setHighlightPoiName(null);
+      clearPoiHighlight();
       setActiveDay(day.day);
       scrollDayIntoView(day.day);
       if (clickNavTimerRef.current) clearTimeout(clickNavTimerRef.current);
@@ -266,7 +283,7 @@ export function AiPlanView({
         setMobileMapOpen(true);
       }
     },
-    [scrollDayIntoView],
+    [scrollDayIntoView, clearPoiHighlight],
   );
 
   const handleMapCitySelect = useCallback(
@@ -282,7 +299,14 @@ export function AiPlanView({
       pauseScrollSpy(4000);
       setActiveDay(coords.day);
       // Highlight pin only — camera stays on day city center.
+      focusedActivityDayRef.current = coords.day;
       setHighlightPoiName(coords.poiName ?? null);
+      setHighlightPoiLat(
+        Number.isFinite(coords.lat) && coords.lat !== 0 ? coords.lat : null,
+      );
+      setHighlightPoiLng(
+        Number.isFinite(coords.lng) && coords.lng !== 0 ? coords.lng : null,
+      );
       if (coords.poiName) {
         setFocusedActivityKey(activityFocusKey(coords.day, coords.poiName));
       }
@@ -349,12 +373,12 @@ export function AiPlanView({
       }
       const firstDay = sortedDayNumbers[0] ?? 1;
       setActiveDay(firstDay);
-      setHighlightPoiName(null);
+      clearPoiHighlight();
       setScrollSpyPaused(true);
       isClickNavigatingRef.current = true;
       return true;
     });
-  }, [sortedDayNumbers]);
+  }, [sortedDayNumbers, clearPoiHighlight]);
 
   // Auto-advance during route playback — wait for long-haul flyTo before next day.
   useEffect(() => {
@@ -412,8 +436,8 @@ export function AiPlanView({
   useEffect(() => {
     if (!plan?.days?.length || !tripSessionKey) return;
     setActiveDay(plan.days[0].day);
-    setHighlightPoiName(null);
-  }, [tripSessionKey]);
+    clearPoiHighlight();
+  }, [tripSessionKey, clearPoiHighlight]);
 
   // Track active day while scrolling — IntersectionObserver + scroll fallback.
   useEffect(() => {
@@ -428,6 +452,21 @@ export function AiPlanView({
     const scrollRoot = () => {
       if (planUsesColumnScroll()) return planScrollRef.current;
       return null;
+    };
+
+    const applyScrollActiveDay = (day: number) => {
+      setActiveDay((prev) => {
+        if (prev === day) return prev;
+        // Keep card↔pin highlight while the focused activity's day is still on screen.
+        if (focusedActivityDayRef.current !== day) {
+          focusedActivityDayRef.current = null;
+          setFocusedActivityKey(null);
+          setHighlightPoiName(null);
+          setHighlightPoiLat(null);
+          setHighlightPoiLng(null);
+        }
+        return day;
+      });
     };
 
     const pickActiveDay = () => {
@@ -447,11 +486,7 @@ export function AiPlanView({
       for (const [day, el] of els) {
         const r = el.getBoundingClientRect();
         if (r.top <= lineY && r.bottom >= lineY) {
-          setActiveDay((prev) => {
-            if (prev === day) return prev;
-            setHighlightPoiName(null);
-            return day;
-          });
+          applyScrollActiveDay(day);
           return;
         }
         const center = (r.top + r.bottom) / 2;
@@ -462,11 +497,7 @@ export function AiPlanView({
         }
       }
       if (bestDay != null) {
-        setActiveDay((prev) => {
-          if (prev === bestDay) return prev;
-          setHighlightPoiName(null);
-          return bestDay;
-        });
+        applyScrollActiveDay(bestDay);
       }
     };
 
@@ -501,12 +532,8 @@ export function AiPlanView({
             }
           }
           if (bestDay != null) {
-        setActiveDay((prev) => {
-          if (prev === bestDay) return prev;
-          setHighlightPoiName(null);
-          return bestDay;
-        });
-      }
+            applyScrollActiveDay(bestDay);
+          }
         },
         {
           root,
@@ -586,6 +613,20 @@ export function AiPlanView({
   const mapStopLabel = t("aiplan.mapStop" as never);
   const displaySummary = stripPlanTeaser(plan.summary, lang);
   const roadTripStops = useMemo(() => roadTripMapStops(plan), [plan]);
+  const motorhomeMapStops = useMemo(
+    () =>
+      plan.groundTransportMode === "motorhome" || plan.accommodationMode === "motorhome"
+        ? collectMotorhomeMapStops(plan, lang)
+        : [],
+    [plan, lang],
+  );
+  const kmlStopCount = useMemo(
+    () =>
+      plan.groundTransportMode === "motorhome" || plan.accommodationMode === "motorhome"
+        ? countMotorhomeStopsWithCoords(plan, lang)
+        : 0,
+    [plan, lang],
+  );
   const showRoadTripMaps =
     (plan.groundTransportMode === "motorhome" ||
       plan.groundTransportMode === "car" ||
@@ -690,23 +731,57 @@ export function AiPlanView({
             </h2>
             <ItineraryRouteOverview plan={plan} />
             {showRoadTripMaps ? (
-              <div className="mt-3 flex flex-wrap gap-2">
-                <a
-                  href={buildGoogleMapsRoadTripUrl(roadTripStops)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-emerald-700"
-                >
-                  {t("heroChat.motorhome.openGoogleMaps" as never)}
-                </a>
-                <a
-                  href={buildAppleMapsRoadTripUrl(roadTripStops)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
-                >
-                  {t("heroChat.motorhome.openAppleMaps" as never)}
-                </a>
+              <div className="mt-3 space-y-2">
+                <div className="flex flex-wrap gap-2">
+                  <a
+                    href={buildGoogleMapsRoadTripUrl(roadTripStops)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-emerald-700"
+                  >
+                    {t("heroChat.motorhome.openGoogleMaps" as never)}
+                  </a>
+                  <a
+                    href={buildAppleMapsRoadTripUrl(roadTripStops)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+                  >
+                    {t("heroChat.motorhome.openAppleMaps" as never)}
+                  </a>
+                  {kmlStopCount > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => downloadMotorhomeStopsKml(plan, lang)}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-900 shadow-sm transition hover:bg-emerald-100"
+                    >
+                      {t("heroChat.motorhome.downloadStopsKml" as never)}
+                    </button>
+                  ) : null}
+                </div>
+                {motorhomeMapStops.length > 0 ? (
+                  <div className="rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2.5">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                      {t("heroChat.motorhome.stopsTitle" as never)}
+                    </p>
+                    <ol className="mt-1.5 space-y-1 text-xs text-slate-700">
+                      {motorhomeMapStops.map((stop, i) => (
+                        <li key={`${stop.kind}-${stop.placeQuery}-${i}`} className="leading-snug">
+                          <span className="font-semibold text-slate-900">{i + 1}.</span>{" "}
+                          {stop.title}
+                          {stop.kind === "overnight" ? (
+                            <span className="ml-1 rounded bg-amber-100 px-1 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-900">
+                              {t("heroChat.motorhome.stopOvernight" as never)}
+                            </span>
+                          ) : null}
+                        </li>
+                      ))}
+                    </ol>
+                    <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
+                      {t("heroChat.motorhome.stopsHint" as never)}
+                    </p>
+                  </div>
+                ) : null}
               </div>
             ) : null}
             <DestinationInsightBanner
@@ -835,6 +910,8 @@ export function AiPlanView({
             activeDay={activeDay}
             hasCoords={hasCoords}
             highlightPoiName={highlightPoiName}
+            highlightPoiLat={highlightPoiLat}
+            highlightPoiLng={highlightPoiLng}
             onDaySelect={handleMapCitySelect}
             onOpenPoiDetails={handleActivityDetails}
             streaming={streaming}
@@ -855,6 +932,8 @@ export function AiPlanView({
           activeDay={activeDay}
           hasCoords={hasCoords}
           highlightPoiName={highlightPoiName}
+          highlightPoiLat={highlightPoiLat}
+          highlightPoiLng={highlightPoiLng}
           onDaySelect={handleMapCitySelect}
           onOpenPoiDetails={handleActivityDetails}
           streaming={streaming}

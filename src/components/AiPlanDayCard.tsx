@@ -171,61 +171,68 @@ function ActivityCostPill({ activity }: { activity: Activity }) {
 }
 
 function ActivityTypePill({ type, activity }: { type?: string; activity?: Activity }) {
+  const { t } = useI18n();
   if (!type || activity?.transportType) return null;
-  const labels: Record<string, string> = {
-    SIGHT: "Ogled",
-    SIGHTSEEING: "Ogled",
-    ACTIVITY: "Aktivnost",
-    EAT: "Hrana",
-    FOOD: "Hrana",
-    TRANSPORT: "Prevoz",
-    AIRPORT: "Let",
-    HOTEL: "Hotel",
-    NATURE: "Narava",
-    BEACH: "Plaža",
-    ENTERTAINMENT: "Zabava",
-  };
-  const key = type.trim().toUpperCase();
-  const label = labels[key] ?? labels[key.replace(/[^A-Z]/g, "")] ?? null;
-  if (!label) return null;
+  const key = type.trim().toUpperCase().replace(/[^A-Z]/g, "");
+  const labelKey =
+    key === "SIGHT" || key === "SIGHTSEEING"
+      ? "activity.type.sight"
+      : key === "ACTIVITY"
+        ? "activity.type.activity"
+        : key === "EAT" || key === "FOOD"
+          ? "activity.type.food"
+          : key === "TRANSPORT"
+            ? "activity.type.transport"
+            : key === "AIRPORT"
+              ? "activity.type.flight"
+              : key === "HOTEL"
+                ? "activity.type.hotel"
+                : key === "NATURE"
+                  ? "activity.type.nature"
+                  : key === "BEACH"
+                    ? "activity.type.beach"
+                    : key === "ENTERTAINMENT"
+                      ? "activity.type.entertainment"
+                      : null;
+  if (!labelKey) return null;
   return (
     <span className="inline-flex items-center rounded-full bg-slate-100 text-slate-600 px-3 py-1 text-xs font-semibold tracking-wide">
-      {label}
+      {t(labelKey as never)}
     </span>
   );
 }
 
 const TRANSPORT_PILL_META: Record<
   ActivityTransportType,
-  { label: string; icon: typeof Plane; className: string }
+  { labelKey: string; icon: typeof Plane; className: string }
 > = {
   flight: {
-    label: "Let",
+    labelKey: "transport.mode.flight",
     icon: Plane,
     className: "bg-indigo-50 text-indigo-700",
   },
   ferry: {
-    label: "Trajekt",
+    labelKey: "transport.mode.ferry",
     icon: Ship,
     className: "bg-cyan-50 text-cyan-800",
   },
   train: {
-    label: "Vlak",
+    labelKey: "transport.mode.train",
     icon: TrainFront,
     className: "bg-slate-100 text-slate-700",
   },
   van: {
-    label: "Kombi",
+    labelKey: "transport.mode.van",
     icon: Bus,
     className: "bg-sky-50 text-sky-800",
   },
   bus: {
-    label: "Avtobus",
+    labelKey: "transport.mode.bus",
     icon: Bus,
     className: "bg-sky-50 text-sky-800",
   },
   taxi: {
-    label: "Taxi",
+    labelKey: "transport.mode.taxi",
     icon: Car,
     className: "bg-sky-50 text-sky-800",
   },
@@ -239,6 +246,7 @@ function ActivityTransportPill({
   /** When day already has transportation[] cards, hide duplicate VAN/FERRY/FLIGHT pills. */
   hide?: boolean;
 }) {
+  const { t } = useI18n();
   if (hide || !activity.transportType || !activity.transportDuration) return null;
   const meta = TRANSPORT_PILL_META[activity.transportType];
   if (!meta) return null;
@@ -249,7 +257,7 @@ function ActivityTransportPill({
       className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-semibold ${meta.className}`}
     >
       <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-      <span>{meta.label}</span>
+      <span>{t(meta.labelKey as never)}</span>
       <span className="font-medium tabular-nums">{activity.transportDuration}</span>
     </span>
   );
@@ -790,11 +798,13 @@ export function AiPlanDayCard({
               <span className="font-bold text-slate-900">
                 {t("aiplan.transport" as never)}:
               </span>{" "}
-              {day.transport.type} · {day.transport.duration} · {day.transport.cost}
+              {/vožnja|drive|fahrt|trajet|trayecto|percorso/i.test(day.transport.type)
+                ? t("transport.mode.drive" as never)
+                : day.transport.type}
+              {day.transport.duration ? ` · ${day.transport.duration}` : ""}
+              {day.transport.cost ? ` · ${day.transport.cost}` : ""}
+              {day.transport.description ? ` · ${day.transport.description}` : ""}
             </p>
-            {day.transport.description && (
-              <p className="mt-1 text-sm text-slate-600">{day.transport.description}</p>
-            )}
           </div>
         )}
 

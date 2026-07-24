@@ -1,5 +1,6 @@
 import { lookupDestination } from "@/lib/destinationCoords";
 import { formatSlHours } from "@/lib/flightScheduling";
+import { planLangCopy } from "@/lib/planLangCopy";
 import { normalizePlanLangCode, type PlanLang } from "@/lib/planLanguages";
 import {
   formatPlanMoneyRange,
@@ -335,40 +336,48 @@ export function resolveTripLocale(
 }
 
 export function airportArrivalHint(city: string, locale: TripLocale): string {
-  const slo = locale.slo;
+  const lang = locale.langCode;
   const hub = lookupDestination(locale.destinationIata);
   const c = city.toLowerCase();
 
   if (hub && (!city || c.includes(hub.name.toLowerCase().split(" ")[0] ?? ""))) {
-    return slo
-      ? `Preveri letališče na vstopnici — prihod je na ${locale.destinationIata} (${hub.name}).`
-      : `Check your ticket — you arrive at ${locale.destinationIata} (${hub.name}).`;
+    return planLangCopy(lang, {
+      sl: `Preveri letališče na vstopnici — prihod je na ${locale.destinationIata} (${hub.name}).`,
+      en: `Check your ticket — you arrive at ${locale.destinationIata} (${hub.name}).`,
+      de: `Prüfe dein Ticket — Ankunft auf ${locale.destinationIata} (${hub.name}).`,
+    });
   }
 
   if (locale.country === "TH" && /bangkok/.test(c)) {
-    return slo
-      ? "Preveri na vstopnici: BKK (Suvarnabhumi) ali DMK (Don Mueang)."
-      : "Check ticket: BKK (Suvarnabhumi) or DMK (Don Mueang).";
+    return planLangCopy(lang, {
+      sl: "Preveri na vstopnici: BKK (Suvarnabhumi) ali DMK (Don Mueang).",
+      en: "Check ticket: BKK (Suvarnabhumi) or DMK (Don Mueang).",
+      de: "Ticket prüfen: BKK (Suvarnabhumi) oder DMK (Don Mueang).",
+    });
   }
   if (locale.country === "VN" && /ho chi minh|saigon/.test(c)) {
-    return slo
-      ? "Preveri letališče: SGN (Tan Son Nhat)."
-      : "Check your ticket: SGN (Tan Son Nhat).";
+    return planLangCopy(lang, {
+      sl: "Preveri letališče: SGN (Tan Son Nhat).",
+      en: "Check your ticket: SGN (Tan Son Nhat).",
+      de: "Ticket prüfen: SGN (Tan Son Nhat).",
+    });
   }
 
-  return slo
-    ? "Preveri kodo letališča in terminal na letalski vstopnici pred izhodom."
-    : "Check airport code and terminal on your ticket before leaving arrivals.";
+  return planLangCopy(lang, {
+    sl: "Preveri kodo letališča in terminal na letalski vstopnici pred izhodom.",
+    en: "Check airport code and terminal on your ticket before leaving arrivals.",
+    de: "Flughafencode und Terminal vor dem Verlassen der Ankunft prüfen.",
+  });
 }
 
 export function hotelTransferDescription(city: string, locale: TripLocale): string {
-  const slo = locale.slo;
   const modes = locale.transferLabel;
   const price = locale.transferPrice;
-  if (slo) {
-    return `Iz letališča do hotela v ${city} uporabi ${modes} (orientacijsko ${price}) — v večini mest je na voljo tudi prevozna aplikacija ali uradni taxi. Do centra računaj 20–90 min, odvisno od prometa in razdalje.`;
-  }
-  return `From the airport to your hotel in ${city}, use ${modes} (about ${price}). Allow 20–90 minutes depending on traffic.`;
+  return planLangCopy(locale.langCode, {
+    sl: `Iz letališča do hotela v ${city} uporabi ${modes} (orientacijsko ${price}) — v večini mest je na voljo tudi prevozna aplikacija ali uradni taxi. Do centra računaj 20–90 min, odvisno od prometa in razdalje.`,
+    en: `From the airport to your hotel in ${city}, use ${modes} (about ${price}). Allow 20–90 minutes depending on traffic.`,
+    de: `Vom Flughafen zum Hotel in ${city} mit ${modes} (ca. ${price}). Plane 20–90 Minuten je nach Verkehr ein.`,
+  });
 }
 
 export function airportTransferDescription(
@@ -377,12 +386,16 @@ export function airportTransferDescription(
   dep: string,
   leaveHours: number,
 ): string {
-  const slo = locale.slo;
   const modes = locale.transferLabel;
-  if (slo) {
-    return `Let odhaja ob ${dep}. Na mednarodne lete odidi iz hotela približno ${formatSlHours(leaveHours)} prej (promet + varnostna kontrola). Rezerviraj ${modes} z rezervo časa.`;
-  }
-  return `Return flight at ${dep}. Leave about ${leaveHours} hours early. Pre-book ${modes} with buffer time.`;
+  const leaveLabel =
+    locale.langCode === "sl" || locale.langCode.startsWith("sl")
+      ? formatSlHours(leaveHours)
+      : `${leaveHours}`;
+  return planLangCopy(locale.langCode, {
+    sl: `Let odhaja ob ${dep}. Na mednarodne lete odidi iz hotela približno ${leaveLabel} prej (promet + varnostna kontrola). Rezerviraj ${modes} z rezervo časa.`,
+    en: `Return flight at ${dep}. Leave about ${leaveHours} hours early. Pre-book ${modes} with buffer time.`,
+    de: `Rückflug um ${dep}. Etwa ${leaveHours} Stunden früher aus dem Hotel starten. ${modes} mit Zeitpuffer vorbuchen.`,
+  });
 }
 
 const WRITING_RULES: Record<PlanLang, string> = {

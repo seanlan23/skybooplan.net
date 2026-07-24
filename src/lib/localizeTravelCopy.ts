@@ -35,9 +35,10 @@ const EN_TO_SL: Pair[] = [
 ];
 
 const EN_TO_DE: Pair[] = [
-  [/^Departure from\s+(.+)$/i, "Abfahrt von $1"],
+  [/^Departure from\s+(.+)$/i, "Abflug von $1"],
   [/^Arrival in\s+(.+)$/i, "Ankunft in $1"],
   [/^Arrive in\s+(.+)$/i, "Ankunft in $1"],
+  [/^Airport arrival$/i, "Ankunft am Flughafen"],
   [/^Drive to\s+(.+)$/i, "Fahrt nach $1"],
   [/^Driving to\s+(.+)$/i, "Fahrt nach $1"],
   [/^Morning drive\b(.*)$/i, "Morgenfahrt$1"],
@@ -54,6 +55,15 @@ const EN_TO_DE: Pair[] = [
   [/^Free time\b(.*)$/i, "Freizeit$1"],
   [/^International flight$/i, "Internationaler Flug"],
   [/^Still en route\b/i, "Noch unterwegs"],
+  [/^Check-in, refresh, and short rest$/i, "Check-in, frisch machen und kurze Pause"],
+  [/^Transfer to hotel\b(.*)$/i, "Transfer zum Hotel$1"],
+  [/^Your flight lands at\b/i, "Dein Flug landet um"],
+  [/^Clear immigration, collect luggage\b/i, "Einreise, Gepäck holen"],
+  [/^Check your ticket — you arrive at\b/i, "Prüfe dein Ticket — Ankunft auf"],
+  [/^Home airport\b/i, "Heimatflughafen"],
+  [/^flight departs\b/i, "Abflug"],
+  [/^Arrive 2-3 hours early\b/i, "2–3 Stunden früher am Flughafen sein"],
+  [/^Driving\?/i, "Mit dem Auto?"],
   [/\ben route\b/gi, "unterwegs"],
   [/\bmotorhome journey\b/gi, "Wohnmobilreise"],
   [/\bcampground\b/gi, "Campingplatz"],
