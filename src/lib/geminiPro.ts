@@ -31,6 +31,7 @@ import {
   type PlanCurrency,
 } from "@/lib/planCurrency";
 import { languageWritingRule } from "@/lib/tripLocale";
+import { bangkokKwaiDayTripPromptBlock } from "@/lib/bangkokKwaiDayTrip";
 import { buildCuratedRoutePromptBlock } from "@/lib/curatedRoutes";
 import {
   buildUserStayPlanPromptBlock,
@@ -219,6 +220,7 @@ TAJSKA — POSEBNA OPOZORILA (obvezno ko je destinacija Tajska ali faza v Tajske
   • BTS/MRT v Bangkoku — Rabbit Card; izogibaj prometni konici 07–09 in 17–19,
   • trajekti na otoke: preveri sezonske odpovedi, vihar, dnevne urnike (npr. Phi Phi, Koh Lipe, Koh Samui).
 - Ne piši generičnega "uporabite Grab" brez konteksta mesta in relacije A→B.
+- Ko je baza Bangkok (BKK): vključi 1 celodnevni izlet Mae Klong → Damnoen Saduak → Kanchanaburi (War Cemetery + River Kwai) → Tham Krasae Death Railway → Suan Sai Yok → nazaj. Odhod izpred hotela ob 6:30 za vlak 8:30. NIKOLI konkretno ime hotela — vedno „tvoj hotel“ / „your hotel“.
 `.trim();
 }
 
@@ -374,6 +376,15 @@ Takoj za tem nadaljuj s kratkim narativnim uvodom o poti (največ 1–2 stavka �
     skipForUserStayPlan: explicitStayPlan,
   });
 
+  const bangkokDayTripBlock =
+    /^(BKK|DMK)$/i.test(params.destinationIata) ||
+    /^(BKK|DMK)$/i.test(params.returnFromIata ?? "") ||
+    /bangkok|tajsk|thailand/i.test(
+      `${params.destination} ${params.destinationPlace ?? ""} ${wishBlob}`,
+    )
+      ? bangkokKwaiDayTripPromptBlock(true)
+      : "";
+
   const arrivalCityName =
     lookupDestination(params.destinationIata)?.name ??
     params.destinationPlace ??
@@ -405,6 +416,7 @@ ${travelReqBlock}
 ${controlRules}
 ${userStayPlanBlock ?? ""}
 ${curatedRouteBlock ?? ""}
+${bangkokDayTripBlock}
 ${tvojeZeljeBlock}${motorhomeBlock}${groundTransportBlock}
 
 Let: ${route}.

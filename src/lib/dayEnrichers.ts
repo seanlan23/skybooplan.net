@@ -1,5 +1,6 @@
 import type { Activity } from "@/lib/aiPlan.functions";
 import { ensureBangkokMustSee } from "@/lib/bangkokMustSee";
+import { ensureBangkokKwaiDayTrip } from "@/lib/bangkokKwaiDayTrip";
 import { isCentralVietnamFloodDate } from "@/lib/seasonalHints";
 import {
   isBeachLoungingPoi,
@@ -1491,6 +1492,9 @@ export function enrichDayActivities(
     priorScheduledText?: string;
     /** YYYY-MM-DD for seasonal swaps (Hoi An monsoon). */
     tripDate?: string;
+    /** Total Bangkok stay nights/days in this trip (for Kwai day-trip scheduling). */
+    bangkokStayDays?: number;
+    isDepartureDay?: boolean;
   },
 ): DaySlots {
   let result = {
@@ -1801,6 +1805,14 @@ export function enrichDayActivities(
     result = ensureBangkokMustSee(result, locale, {
       priorScheduledText: opts?.priorScheduledText,
       dayInRegion: dayIndexInRegion,
+    });
+    // Full-day Maeklong → Kwai → Death Railway loop (generic “your hotel”, never a brand).
+    result = ensureBangkokKwaiDayTrip(result, locale, {
+      dayInRegion: dayIndexInRegion,
+      bangkokStayDays: opts?.bangkokStayDays ?? 3,
+      priorScheduledText: opts?.priorScheduledText,
+      isArrivalDay: opts?.isArrivalDay,
+      isDepartureDay: opts?.isDepartureDay,
     });
     for (const a of result.evening) {
       const key = eveningVenueKey(a.name);

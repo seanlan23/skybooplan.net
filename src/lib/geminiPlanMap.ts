@@ -820,6 +820,9 @@ export function enrichGeminiCatalogPlan(
       const city = day.city;
       const dayInRegion = (cityDayIndex.get(city) ?? 0) + 1;
       cityDayIndex.set(city, dayInRegion);
+      const bangkokStayDays = plan.days.filter(
+        (d) => /bangkok/i.test(d.city ?? "") && !d.inFlightDay,
+      ).length;
 
       let enriched = enrichDayActivities(
         {
@@ -834,6 +837,8 @@ export function enrichGeminiCatalogPlan(
           destinationIata: plan.destinationIata,
           isTripDay1: isArrival,
           isArrivalDay: isArrival,
+          isDepartureDay: isDeparture,
+          bangkokStayDays,
           usedEveningVenues,
           tripDate: day.date,
           priorScheduledText,

@@ -179,15 +179,19 @@ const TH_CLASSIC_SHORT: CuratedRoute = {
     "Grand Palace",
     "Wat Pho",
     "Wat Arun",
-    "Kanchanaburi",
+    "Mae Klong Railway Market",
+    "Damnoen Saduak Floating Market",
+    "Kanchanaburi War Cemetery",
     "Bridge on the River Kwai",
+    "Tham Krasae Death Railway",
+    "Kanchanaburi",
     "Erawan National Park",
     "Ayutthaya",
     "Chiang Mai",
     "Doi Suthep",
   ],
   steer:
-    "Tajska kratka zanka: Bangkok → Kanchanaburi (Kwai, Erawan) → let Chiang Mai → nazaj Bangkok odlet. Brez otoka.",
+    "Tajska kratka zanka: Bangkok (templji + 1 celodnevni izlet Mae Klong→Damnoen→Kwai→Death Railway→Sai Yok, start 6:30 izpred hotela) → Kanchanaburi/Chiang Mai po potrebi → Bangkok odlet. Hotel vedno generično „tvoj hotel“, ne brand.",
 };
 
 /** Agency 12d: Bangkok → Kanchanaburi → Chiang Mai → Ko Samet → Bangkok. */
@@ -211,8 +215,12 @@ const TH_CLASSIC_CIRCLE: CuratedRoute = {
     "Grand Palace",
     "Wat Pho",
     "Wat Arun",
-    "Kanchanaburi",
+    "Mae Klong Railway Market",
+    "Damnoen Saduak Floating Market",
+    "Kanchanaburi War Cemetery",
     "Bridge on the River Kwai",
+    "Tham Krasae Death Railway",
+    "Kanchanaburi",
     "Erawan National Park",
     "Ayutthaya",
     "Chiang Mai",
@@ -220,7 +228,7 @@ const TH_CLASSIC_CIRCLE: CuratedRoute = {
     "Ko Samet",
   ],
   steer:
-    "Tajska klasika: Bangkok (templji) → Kanchanaburi (Kwai, Erawan) → let Chiang Mai → Ko Samet počitnice → Bangkok buffer.",
+    "Tajska klasika: Bangkok (templji + 1 celodnevni izlet Mae Klong→Damnoen→Kwai→Death Railway→Sai Yok, start 6:30 izpred hotela — brez imena hotela) → Kanchanaburi → Chiang Mai → Ko Samet → Bangkok buffer.",
 };
 
 /** Andaman beaches — Krabi + Koh Lipe (interest anchor logic). */

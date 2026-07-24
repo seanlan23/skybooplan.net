@@ -116,6 +116,17 @@ export function scrubInappropriatePoiCopy(text: string): string {
  * - "Titova jama" (Broz) → Tiberijeva jama / Villa di Tiberio
  * - Centro Vacanze San Francesco only when day is San Daniele (camp is in Caorle)
  */
+/** Never pin a concrete Bangkok hotel brand on the shared Kwai day-trip. */
+export function stripConcreteBangkokHotelBrands(text: string): string {
+  if (!text) return text;
+  return text
+    .replace(/\bTinidee\s+Trendy\s+Bangkok(?:\s+Khaosan)?\b/gi, "tvoj hotel")
+    .replace(/\bTinidee\s+Trendy\b/gi, "tvoj hotel")
+    .replace(/\bTinidee\b/gi, "tvoj hotel")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
 export function fixMotorhomeCopyErrors(text: string, city = ""): string {
   if (!text) return text;
   let out = text
@@ -240,6 +251,7 @@ export function sanitizeForLang(text: string, langCode: string, country?: string
     sanitizeLegacyTemplateLeak(sanitizeDestinationText(text, country)),
   );
   out = fixMotorhomeCopyErrors(out);
+  out = stripConcreteBangkokHotelBrands(out);
   out = localizeTravelCopy(out, langCode);
   if (langCode === "sl" || langCode.startsWith("sl")) {
     out = sanitizeSlText(out);
