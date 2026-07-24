@@ -10,6 +10,8 @@ type HeroDateRangeCalendarProps = {
   onConfirm: (label: string, range: DateRange) => void;
   disabled?: boolean;
   className?: string;
+  /** Pre-fill selection (e.g. motorhome search current dates). */
+  initialRange?: DateRange;
 };
 
 function startOfToday(): Date {
@@ -29,15 +31,21 @@ export function HeroDateRangeCalendar({
   onConfirm,
   disabled = false,
   className,
+  initialRange,
 }: HeroDateRangeCalendarProps) {
   const today = useMemo(() => startOfToday(), []);
-  const [range, setRange] = useState<DateRange | undefined>();
+  const [range, setRange] = useState<DateRange | undefined>(initialRange);
   const [month, setMonth] = useState<Date>(() => {
-    const d = new Date(today);
-    d.setDate(1);
-    return d;
+    const seed = initialRange?.from ?? today;
+    return new Date(seed.getFullYear(), seed.getMonth(), 1, 12);
   });
   const [twoMonths, setTwoMonths] = useState(false);
+
+  useEffect(() => {
+    if (!initialRange?.from) return;
+    setRange(initialRange);
+    setMonth(new Date(initialRange.from.getFullYear(), initialRange.from.getMonth(), 1, 12));
+  }, [initialRange?.from?.getTime(), initialRange?.to?.getTime()]);
 
   useEffect(() => {
     const mq = window.matchMedia("(min-width: 640px)");

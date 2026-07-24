@@ -159,10 +159,14 @@ describe("map smoke checklist", () => {
     expect(cam.center).toEqual([sights.center.lng, sights.center.lat]);
   });
 
-  it("long-haul camera (MUC→BKK) is slow flyTo, not instant easeTo", () => {
+  it("regional + long-haul camera use flyTo (zoom-out arc), local stays easeTo", () => {
+    // ~680 km Bangkok–Chiang Mai — must fly (zoom out → in), not pan at city zoom
+    expect(isLongHaulCameraMove(680)).toBe(true);
+    expect(cameraMoveDurationMs(680)).toBeGreaterThanOrEqual(3400);
     // ~8800 km Munich–Bangkok
     expect(isLongHaulCameraMove(8800)).toBe(true);
     expect(cameraMoveDurationMs(8800)).toBeGreaterThanOrEqual(5000);
+    expect(isLongHaulCameraMove(50)).toBe(false);
     expect(cameraMoveDurationMs(50)).toBeLessThan(4000);
   });
 

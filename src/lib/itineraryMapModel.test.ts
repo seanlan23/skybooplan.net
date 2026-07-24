@@ -167,6 +167,47 @@ describe("itineraryMapModel", () => {
     expect(Math.abs(center!.lng - 100.502)).toBeLessThan(0.05);
   });
 
+  it("does not merge train + dinner when Gemini dumps same coords", () => {
+    const view = buildMapDay(
+      plan([
+        day({
+          day: 5,
+          city: "Ayutthaya",
+          title: "Journey to Ancient Ayutthaya",
+          lat: 14.369,
+          lng: 100.588,
+          activities: {
+            morning: [
+              {
+                name: "Travel to Ayutthaya by train",
+                description: "Hua Lamphong train",
+                type: "train",
+                lat: 14.369,
+                lng: 100.588,
+              },
+            ],
+            evening: [
+              {
+                name: "Sunset views and dinner",
+                description: "Local dinner",
+                type: "food",
+                lat: 14.369,
+                lng: 100.588,
+              },
+            ],
+          },
+        }),
+      ]),
+      5,
+    );
+    expect(view).not.toBeNull();
+    expect(view!.pins.length).toBeGreaterThanOrEqual(2);
+    expect(view!.pins.some((p) => /train/i.test(p.name))).toBe(true);
+    expect(view!.pins.some((p) => /sunset|dinner/i.test(p.name))).toBe(true);
+    const train = view!.pins.find((p) => /train/i.test(p.name))!;
+    expect(train.name).not.toMatch(/sunset|dinner/i);
+  });
+
   it("buildMapDay drops airport logistics on sightseeing days", () => {
     const view = buildMapDay(
       plan([

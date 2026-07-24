@@ -63,7 +63,7 @@ function MarkerShell({
   isFocused = false,
   isDimmed = false,
   name,
-  showLabel = false,
+  showLabel = true,
   children,
 }: MarkerShellProps & { showLabel?: boolean }) {
   // Avoid CSS `scale` + transform transitions here — Mapbox owns transform on the marker root.
@@ -75,22 +75,22 @@ function MarkerShell({
         ? "z-[6] opacity-100"
         : "opacity-90 hover:opacity-100";
 
-  const labelVisible = Boolean(name && (showLabel || isFocused || isActive));
+  const label = showLabel ? name : undefined;
 
   return (
     <div
       className="group/poi pointer-events-auto flex shrink-0 cursor-pointer flex-col items-center"
       title={name}
     >
-      {labelVisible ? (
+      {label ? (
         <span
           className={
             isFocused
               ? "layla-poi-label layla-poi-label--focused"
-              : "layla-poi-label"
+              : "layla-poi-label layla-poi-label--hover"
           }
         >
-          {name}
+          {label}
         </span>
       ) : null}
       <div

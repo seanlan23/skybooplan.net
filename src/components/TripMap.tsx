@@ -20,6 +20,7 @@ import {
   buildMotorhomeOverviewLegs,
   cameraForMapDay,
   cameraMoveDurationMs,
+  flyCameraCurve,
   isLongHaulCameraMove,
   type MapDay,
   type MapDayPin,
@@ -294,7 +295,8 @@ function TripMapInner({
   }, [overviewLegs, styleEpoch]);
 
   // Camera: active day city center only.
-  // Long hauls (MUC→BKK) MUST use flyTo — easeTo at city zoom = black void across oceans.
+  // Regional+ hops (BKK→CNX) and ocean long-hauls use flyTo (zoom-out → zoom-in).
+  // Local hops stay on easeTo at city zoom.
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !readyRef.current || !camera) return;
@@ -317,7 +319,7 @@ function TripMapInner({
         zoom: camera.zoom,
         duration,
         essential: true,
-        curve: 1.6,
+        curve: flyCameraCurve(distKm),
       });
     } else {
       map.easeTo({

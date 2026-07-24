@@ -424,9 +424,20 @@
   pointer-events: none;
   text-align: center;
 }
+.layla-poi-label--hover {
+  opacity: 0;
+  transform: translateY(2px);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.group\/poi:hover .layla-poi-label--hover,
+.group\/poi:focus-within .layla-poi-label--hover {
+  opacity: 1;
+  transform: translateY(0);
+}
 .layla-poi-label--focused {
   background: #111827;
   color: #fff;
+  opacity: 1;
 }
 .layla-city-pin {
   position: relative;

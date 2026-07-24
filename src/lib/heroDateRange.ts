@@ -26,6 +26,17 @@ function toIsoDate(d: Date): string {
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 }
 
+export function dateToIsoLocal(d: Date): string {
+  return toIsoDate(d);
+}
+
+export function isoToLocalDate(iso: string): Date | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null;
+  const [y, m, day] = iso.split("-").map(Number);
+  const d = new Date(y!, m! - 1, day!, 12, 0, 0, 0);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
 function parseDayMonthWithYear(dayMonth: string, year: number, lang: string): Date | null {
   const cleaned = dayMonth.trim().replace(/\./g, "").toLowerCase();
   const match = cleaned.match(/^(\d{1,2})\s+([a-zčšž]+)/i);

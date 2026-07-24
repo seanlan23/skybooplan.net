@@ -241,6 +241,17 @@ function isRoadTripRequest(params: GenerateTripPlanParams): boolean {
   return /route\s*66|road\s*trip|roadtrip|cesta\s*66|po\s+poti/i.test(wishesBlob(params));
 }
 
+/**
+ * Cap overnight bases for motorhome/road-trip so itinerar[]+pois fit in the
+ * 16k output budget. Calendar days[] must still cover the full trip length
+ * via multi-night camps (e.g. 11 days → ~6 bases).
+ */
+export function motorhomeRoadTripMaxBases(days: number): number {
+  if (days <= 0) return 0;
+  if (days <= 4) return days;
+  return Math.min(days, Math.max(3, Math.ceil(days / 2)));
+}
+
 function buildTripPlanPrompt(params: GenerateTripPlanParams): string {
   const wishes =
     params.wishTags.length > 0
@@ -264,9 +275,10 @@ function buildTripPlanPrompt(params: GenerateTripPlanParams): string {
   const wishBlob = wishesBlob(params);
   const explicitStayPlan = hasExplicitStayPlan(wishBlob || customWishes);
 
-  const maxBases =
-    explicitStayPlan || motorhome || roadTrip
-      ? params.days
+  const maxBases = explicitStayPlan
+    ? params.days
+    : motorhome || roadTrip
+      ? motorhomeRoadTripMaxBases(params.days)
       : params.days <= 9
         ? 2
         : params.days <= 14
@@ -293,7 +305,8 @@ NAČIN POTOVANJA: AVTODOM / RV / CAMPERVAN (obvezno)
 - Namesto hotelov za vsak dan dodaj konkretno aktivnost za nočitev: RV park / kamp / campground (category: hotel) z imenom in lokacijo.
 - Med mesti načrtuj vožnjo z avtodomom — ne notranjih letov. ZDA: 400–800 km = cel dan vožnje.
 - Parkiraj RV izven mestnega jedra; v center z javnim prevozom ali P+R.
-${roadTrip ? "- Road trip (npr. Route 66): enosmerna pot vzdolž ceste, vsak dan nova postaja za nočitev na kampu ob poti." : ""}`
+- itinerar[] = največ ${maxBases} baz/kampov; days[] = NATANKO ${params.days} koledarskih dni (večnočne postaje so želene).
+${roadTrip ? "- Road trip: enosmerna pot vzdolž ceste; večnočni kampi na isti postaji so OK (ne vsak dan nova baza)." : ""}`
     : "";
 
   const groundTransportBlock =
@@ -381,7 +394,10 @@ Takoj za tem nadaljuj s kratkim narativnim uvodom o poti (največ 1–2 stavka �
       ? `- Dan prihoda na destinacijo = dan ${arrivalDayNum} v ${arrivalCityName} (${params.destinationIata}). Dnevi pred tem = samo let — brez destinacijskih aktivnosti. Prepovedan notranji let stran z letališča prihoda na dan prihoda.`
       : `- Dan 1 = ${arrivalCityName} (prihod na ${params.destinationIata}). Prepovedan notranji let stran z letališča prihoda na dan 1.`;
 
-  const poisPerPhase = lightPacePoisHint(params.pace);
+  const poisPerPhase =
+    motorhome || roadTrip
+      ? "2–3 znamenitosti (ne več — krajši JSON)"
+      : lightPacePoisHint(params.pace);
 
   return `Ustvari ${params.days}-dnevni načrt potovanja za lokacijo: ${params.destination} v mesecu ${params.month}.
 ${teaserBlock}
@@ -404,7 +420,7 @@ Obvezna logistična pravila za ta načrt:
     explicitStayPlan
       ? `Število in vrstni red baz = NATANKO po UPORABNIKOVEM RAZPOREDU zgoraj (ne skrči na tipičnih ${Math.min(4, params.days)} baz).`
       : motorhome || roadTrip
-        ? `Načrtuj ${maxBases} postaj vzdolž enosmerne poti (road trip — vsak dan ali vsak drug dan nova postaja ob cesti).`
+        ? `Načrtuj največ ${maxBases} baz/kampov vzdolž enosmerne poti; days[] mora imeti NATANKO ${params.days} dni (več noči na isti bazi je OK — NE ena baza na dan).`
         : `Največ ${maxBases} glavne baze (mesta/regije) za ${params.days} dni — brez skakanja sem in tja po državi.`
   }
 - ${explicitStayPlan ? "Sledi uporabnikovemu vrstnemu redu mest (lahko se vrneš na Phuket/Patong za odhod, če je to v razporedu)." : "Enosmerna geografska pot (en jasen lok); brez vračanja v že obiskana mesta."}
@@ -426,7 +442,7 @@ ${flightReturnLine}
 - Vsaka aktivnost z ogledom mora imeti tripAdvisorStyleDetails (razen hotel/airport).
 - Na polnih dneh: smiselno število aktivnosti glede na tempo (miren ≈ 1–2, sproščen ≈ 2, intenziven ≈ 3–4). Na dan prihoda/odhoda/transferja je manj OK — ne izmišljuj fillerja.
 
-Opisi aktivnosti naj bodo konkretni (2–4 stavke), ne eseji. Vsaka aktivnost mora imeti estimatedCostEur (realna cifra v ${displayCurrency}). day_name zapisuj s polnimi imeni mesecev (npr. "Sobota, 14. avgust"). season_warning naj bo geografsko natančen za ${params.destination}.
+Opisi aktivnosti naj bodo konkretni (${motorhome || roadTrip ? "1–2 stavka" : "2–4 stavke"}), ne eseji. Vsaka aktivnost mora imeti estimatedCostEur (realna cifra v ${displayCurrency}). day_name zapisuj s polnimi imeni mesecev (npr. "Sobota, 14. avgust"). season_warning naj bo geografsko natančen za ${params.destination}.
 
 ${itineraryHacksAndTransportRules(displayCurrency)}
 
@@ -719,7 +735,7 @@ ${
   explicitStayPlan
     ? `- Število baz = točno po uporabnikovih željah (ne uporabljaj limit 2/3/4 baz).`
     : motorhome || roadTrip
-      ? `- ROAD TRIP / AVTODOM: Načrtuj enosmerno pot z ${params.days} postajami vzdolž ceste. Vsak dan mora imeti smiselne aktivnosti + kamp/RV park za nočitev. Ne združuj več dni v eno mesto, razen če uporabnik izrecno želi.`
+      ? `- ROAD TRIP / AVTODOM: Enosmerna pot z največ ${motorhomeRoadTripMaxBases(params.days)} bazami/kampi (itinerar[]). days[] = NATANKO ${params.days} koledarskih dni — združi 2–3 noči na isti bazi, kjer ima smisel. Vsak dan: smiselne aktivnosti + kamp/RV park za nočitev. PREPOVEDANO: ena baza na vsak dan (to preseže output limit).`
       : `- Število glavnih baz (mest/regij, kjer potnik prespi več dni) MORAŠ omejiti glede na dolžino poti — manj regij = manj prevozev, več uživanja:
   • 7–9 dni: največ 2 glavni bazi (+ morebitna kratka postaja),
   • 10–14 dni: največ 3 glavne baze (NE 4, 5 ali več — uporabnik ne sme preživeti dopusta na letalih/vlakih),

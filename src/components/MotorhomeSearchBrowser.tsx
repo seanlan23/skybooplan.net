@@ -1,8 +1,15 @@
 import { useMemo, useState } from "react";
-import { ArrowLeftRight, ArrowRight, Minus, Plus, Users } from "lucide-react";
+import { ArrowLeftRight, ArrowRight, CalendarDays, Minus, Plus, Users } from "lucide-react";
+import type { DateRange } from "react-day-picker";
 import { AirportAutocomplete } from "@/components/AirportAutocomplete";
+import { HeroDateRangeCalendar } from "@/components/HeroDateRangeCalendar";
 import { useI18n } from "@/lib/i18n";
 import type { HeroChatCollected } from "@/lib/heroChatFlow";
+import {
+  dateToIsoLocal,
+  formatHeroDateRangeLabel,
+  isoToLocalDate,
+} from "@/lib/heroDateRange";
 import {
   MIN_MOTORHOME_INTERESTS,
   MOTORHOME_INTEREST_KEYS,
@@ -10,6 +17,23 @@ import {
 } from "@/lib/plannerInterests";
 import { SEARCH_PRIMARY_BTN } from "@/components/searchFieldStyles";
 import { cn } from "@/lib/utils";
+
+function formatIsoField(iso: string, lang: string): string {
+  const d = isoToLocalDate(iso);
+  if (!d) return iso;
+  const locale = lang.startsWith("sl")
+    ? "sl-SI"
+    : lang.startsWith("de")
+      ? "de-DE"
+      : lang.startsWith("fr")
+        ? "fr-FR"
+        : lang.startsWith("it")
+          ? "it-IT"
+          : lang.startsWith("es")
+            ? "es-ES"
+            : "en-GB";
+  return d.toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" });
+}
 
 function defaultDepartIso(): string {
   const d = new Date();
@@ -75,6 +99,14 @@ export function MotorhomeSearchBrowser({ disabled, onSubmit }: MotorhomeSearchBr
   const [adults, setAdults] = useState(2);
   const [children, setChildren] = useState(0);
   const [priorities, setPriorities] = useState<MotorhomeInterestKey[]>([]);
+  const [showCalendar, setShowCalendar] = useState(false);
+
+  const initialRange = useMemo<DateRange | undefined>(() => {
+    const fromD = isoToLocalDate(depart);
+    const toD = isoToLocalDate(ret);
+    if (!fromD || !toD) return undefined;
+    return { from: fromD, to: toD };
+  }, [depart, ret]);
 
   const canSearch = useMemo(() => {
     return (
@@ -99,12 +131,26 @@ export function MotorhomeSearchBrowser({ disabled, onSubmit }: MotorhomeSearchBr
     );
   };
 
+  const handleDateConfirm = (_label: string, range: DateRange) => {
+    if (!range.from || !range.to) return;
+    setDepart(dateToIsoLocal(range.from));
+    setRet(dateToIsoLocal(range.to));
+    setShowCalendar(false);
+  };
+
   const handleSearch = () => {
     if (!canSearch || disabled) return;
+    const rangeLabel =
+      initialRange?.from && initialRange.to
+        ? formatHeroDateRangeLabel(
+            { from: initialRange.from, to: initialRange.to },
+            lang,
+          )
+        : `${depart} – ${ret}`;
     const collected: HeroChatCollected = {
       origin: from.trim(),
       destination: to.trim(),
-      dates: `${depart} – ${ret}`,
+      dates: rangeLabel,
       nights: "",
       passengers: passengersLabel(adults, children, lang),
       pace: "relaxed",
@@ -153,35 +199,44 @@ export function MotorhomeSearchBrowser({ disabled, onSubmit }: MotorhomeSearchBr
         </div>
 
         <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          <label className="flex min-h-[76px] flex-col justify-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 shadow-sm">
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => setShowCalendar((v) => !v)}
+            className={cn(
+              "flex min-h-[76px] flex-col justify-center rounded-xl border bg-white px-4 py-2.5 text-left shadow-sm transition",
+              showCalendar
+                ? "border-sky-500 ring-2 ring-sky-500/20"
+                : "border-slate-200 hover:border-sky-300",
+            )}
+          >
+            <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              <CalendarDays className="h-3.5 w-3.5" />
               {t("mh.browser.depart" as never)}
             </span>
-            <input
-              type="date"
-              value={depart}
-              disabled={disabled}
-              onChange={(e) => {
-                const next = e.target.value;
-                setDepart(next);
-                if (ret < next) setRet(defaultReturnIso(next));
-              }}
-              className="mt-0.5 bg-transparent text-sm font-medium text-slate-900 outline-none"
-            />
-          </label>
-          <label className="flex min-h-[76px] flex-col justify-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 shadow-sm">
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+            <span className="mt-0.5 text-sm font-medium text-slate-900">
+              {formatIsoField(depart, lang)}
+            </span>
+          </button>
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => setShowCalendar((v) => !v)}
+            className={cn(
+              "flex min-h-[76px] flex-col justify-center rounded-xl border bg-white px-4 py-2.5 text-left shadow-sm transition",
+              showCalendar
+                ? "border-sky-500 ring-2 ring-sky-500/20"
+                : "border-slate-200 hover:border-sky-300",
+            )}
+          >
+            <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              <CalendarDays className="h-3.5 w-3.5" />
               {t("mh.browser.return" as never)}
             </span>
-            <input
-              type="date"
-              value={ret}
-              min={depart}
-              disabled={disabled}
-              onChange={(e) => setRet(e.target.value)}
-              className="mt-0.5 bg-transparent text-sm font-medium text-slate-900 outline-none"
-            />
-          </label>
+            <span className="mt-0.5 text-sm font-medium text-slate-900">
+              {formatIsoField(ret, lang)}
+            </span>
+          </button>
 
           <div className="flex min-h-[76px] min-w-0 flex-col justify-center overflow-hidden rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm sm:col-span-2 lg:col-span-1 sm:px-4">
             <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
@@ -216,6 +271,18 @@ export function MotorhomeSearchBrowser({ disabled, onSubmit }: MotorhomeSearchBr
             </div>
           </div>
         </div>
+
+        {showCalendar ? (
+          <div className="mt-3">
+            <HeroDateRangeCalendar
+              lang={lang}
+              confirmLabel={t("heroChat.confirm" as never)}
+              disabled={disabled}
+              initialRange={initialRange}
+              onConfirm={handleDateConfirm}
+            />
+          </div>
+        ) : null}
 
         <div className="mt-3">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">

@@ -18,26 +18,51 @@ import {
 import { isCampActivityName } from "@/lib/motorhomeRoute";
 import { lookupRegionCoords } from "@/lib/regionCoords";
 
-export const MAX_DAY_PINS = 7;
+export const MAX_DAY_PINS = 4;
 /** Allow day-trips (e.g. Blue Mountains from Sydney, Sintra from Lisbon). */
 export const MAX_PIN_FROM_CENTER_KM = 120;
 export const COLOCATE_KM = 1.2;
 export const DAY_VIEW_ZOOM = 11.2;
 export const PLAY_VIEW_ZOOM = 11.2;
-/** Beyond this, easeTo at city zoom paints a black void mid-ocean — use flyTo. */
+/**
+ * Beyond this, use flyTo (zoom-out → zoom-in) instead of pan-at-city-zoom.
+ * Covers regional hops (BKK→CNX ~680 km), not only ocean long-hauls.
+ */
+export const FLY_CAMERA_KM = 220;
+/** Ocean / intercontinental — slower flyTo curve. */
 export const LONG_HAUL_CAMERA_KM = 800;
 export const CAMERA_MS_LOCAL = 2800;
 export const MIN_ROUTE_DRAW_KM = 40;
 const AIRPORT_SNAP_KM = 12;
 
-/** Duration for a camera move — long hauls are slow and use flyTo (zoom-out arc). */
+/** Duration for a camera move — regional+ hops use flyTo (zoom-out arc). */
 export function cameraMoveDurationMs(distKm: number): number {
-  if (!Number.isFinite(distKm) || distKm < LONG_HAUL_CAMERA_KM) return CAMERA_MS_LOCAL;
+  if (!Number.isFinite(distKm) || distKm < FLY_CAMERA_KM) return CAMERA_MS_LOCAL;
+  if (distKm < LONG_HAUL_CAMERA_KM) {
+    // Regional (BKK→CNX): ~3.5–5.2s smooth zoom-out/in
+    return Math.min(5200, Math.max(3400, Math.round(2800 + distKm * 2.5)));
+  }
   return Math.min(9000, Math.max(5000, Math.round(distKm * 0.4)));
 }
 
+/** True when the renderer should flyTo (zoom-out arc) rather than easeTo. */
 export function isLongHaulCameraMove(distKm: number): boolean {
-  return Number.isFinite(distKm) && distKm >= LONG_HAUL_CAMERA_KM;
+  return Number.isFinite(distKm) && distKm >= FLY_CAMERA_KM;
+}
+
+export function flyCameraCurve(distKm: number): number {
+  if (distKm >= LONG_HAUL_CAMERA_KM) return 1.65;
+  // Regional city hop — clear zoom-out then settle on day city
+  return 1.45;
+}
+
+function pinCategoryFamily(cat: MapPoiCategory): "transit" | "food" | "stay" | "sight" {
+  if (cat === "airport" || cat === "train" || cat === "ferry" || cat === "transport") {
+    return "transit";
+  }
+  if (cat === "food") return "food";
+  if (cat === "hotel") return "stay";
+  return "sight";
 }
 
 export type LngLat = { lat: number; lng: number };
@@ -223,25 +248,46 @@ function pushPinCandidate(
   const nameKey = fuzzyNameKey(candidate.name);
   const imageUrl =
     candidate.imageUrl?.trim() || activityImageByName(day, candidate.name) || undefined;
-  const existing = pins.find(
-    (p) =>
-      haversineKm([p.lng, p.lat], [candidate.lng, candidate.lat]) < COLOCATE_KM ||
-      (nameKey.length >= 5 && fuzzyNameKey(p.name) === nameKey),
-  );
+  const family = pinCategoryFamily(category);
+  const existing = pins.find((p) => {
+    const sameName = nameKey.length >= 5 && fuzzyNameKey(p.name) === nameKey;
+    const sameSpot =
+      haversineKm([p.lng, p.lat], [candidate.lng, candidate.lat]) < COLOCATE_KM;
+    if (sameName) return true;
+    // Same coords alone is not enough — don't glue train + dinner into one pin.
+    return sameSpot && pinCategoryFamily(p.category) === family;
+  });
   if (existing) {
     if (candidate.name.trim().length > existing.name.trim().length) {
       existing.name = candidate.name;
+      existing.category = category;
       existing.description = candidate.description ?? existing.description;
     }
     if (!existing.imageUrl && imageUrl) existing.imageUrl = imageUrl;
     return;
   }
   if (pins.length >= MAX_DAY_PINS) return;
+
+  let lat = candidate.lat;
+  let lng = candidate.lng;
+  const crowded = pins.find(
+    (p) => haversineKm([p.lng, p.lat], [lng, lat]) < COLOCATE_KM,
+  );
+  if (crowded) {
+    const angle = ((pins.length + 1) * 2.4) % (Math.PI * 2);
+    const radiusKm = 0.85 + (pins.length % 3) * 0.35;
+    lat = crowded.lat + (radiusKm / 111) * Math.cos(angle);
+    lng =
+      crowded.lng +
+      (radiusKm / (111 * Math.max(0.2, Math.cos((crowded.lat * Math.PI) / 180)))) *
+        Math.sin(angle);
+  }
+
   pins.push({
     id: `pin-${day.day}-${pins.length}-${nameKey || "x"}`,
     name: candidate.name,
-    lat: candidate.lat,
-    lng: candidate.lng,
+    lat,
+    lng,
     category,
     description: candidate.description,
     arrivalTime: candidate.arrivalTime,
