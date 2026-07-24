@@ -28,6 +28,9 @@ export default defineConfig({
       "/_serverFn/**": {
         maxDuration: 300,
       },
+      "/api/generate-itinerary": {
+        maxDuration: 300,
+      },
     },
   } as any,
   tanstackStart: {

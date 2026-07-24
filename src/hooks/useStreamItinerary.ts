@@ -1,6 +1,11 @@
 import { useCallback, useRef, useState } from "react";
 import type { AiTripPlan } from "@/lib/aiPlan.functions";
-import type { GenerateGeminiProTripInput } from "@/lib/geminiPro.functions";
+import {
+  hasAcceptablePlanDayCoverage,
+  incompletePlanDayCoverageMessage,
+  tripDayCount,
+  type GenerateGeminiProTripInput,
+} from "@/lib/geminiPro.functions";
 import { applyFlightContextIfPresent } from "@/lib/geminiProCatalog";
 import { supabaseAuthHeaders } from "@/lib/supabaseAuthHeaders";
 import {
@@ -88,11 +93,13 @@ export function useStreamItinerary() {
         }, CLIENT_STREAM_IDLE_MS);
       };
 
+      const expectedFromInput = tripDayCount(input.departDate, input.returnDate);
+
       setStatus("streaming");
       setPreviewPlan(null);
       setFinalPlan(null);
       setError(null);
-      setExpectedDays(0);
+      setExpectedDays(expectedFromInput);
       setStreamedDayCount(0);
 
       let resolvedPlan: AiTripPlan | null = null;
@@ -101,10 +108,32 @@ export function useStreamItinerary() {
       /** Accumulator — only this string is parsed, never individual chunks. */
       let ndjsonBuffer = "";
 
+      const rejectIncomplete = (plan: AiTripPlan, warn: string) => {
+        setPreviewPlan(plan);
+        setStreamedDayCount(plan.days.length);
+        setExpectedDays(expectedFromInput);
+        setFinalPlan(null);
+        setError(warn);
+        setStatus("error");
+        return { plan: null as AiTripPlan | null, error: warn };
+      };
+
       const finishWithPartial = (warn: string) => {
         if (!lastPartialPlan?.days?.length) return null;
+        if (
+          !hasAcceptablePlanDayCoverage(lastPartialPlan.days.length, expectedFromInput)
+        ) {
+          return rejectIncomplete(
+            lastPartialPlan,
+            incompletePlanDayCoverageMessage(
+              lastPartialPlan.days.length,
+              expectedFromInput,
+            ),
+          );
+        }
         setFinalPlan(lastPartialPlan);
         setPreviewPlan(lastPartialPlan);
+        setExpectedDays(expectedFromInput);
         setStatus("done");
         setError(warn);
         return { plan: lastPartialPlan, error: warn };
@@ -114,7 +143,7 @@ export function useStreamItinerary() {
         if (event.type === "ping") {
           // Server keepalive — Gemini still working, just no new day yet.
           setStreamedDayCount(event.dayCount);
-          setExpectedDays(event.expectedDays);
+          setExpectedDays(event.expectedDays || expectedFromInput);
           return "continue";
         }
         if (event.type === "partial") {
@@ -122,20 +151,44 @@ export function useStreamItinerary() {
           lastPartialPlan = plan;
           setPreviewPlan(plan);
           setStreamedDayCount(event.dayCount);
-          setExpectedDays(event.expectedDays);
+          setExpectedDays(event.expectedDays || expectedFromInput);
           return "continue";
         }
         if (event.type === "done") {
           const plan = sanitizeStreamPlan(event.plan, input);
-          resolvedPlan = plan;
           lastPartialPlan = plan;
-          setFinalPlan(plan);
           setPreviewPlan(plan);
           setStreamedDayCount(plan.days.length);
-          setExpectedDays(plan.days.length);
+          setExpectedDays(expectedFromInput);
+          if (!hasAcceptablePlanDayCoverage(plan.days.length, expectedFromInput)) {
+            streamError = incompletePlanDayCoverageMessage(
+              plan.days.length,
+              expectedFromInput,
+            );
+            setFinalPlan(null);
+            setError(streamError);
+            setStatus("error");
+            return "stop";
+          }
+          resolvedPlan = plan;
+          setFinalPlan(plan);
           return "continue";
         }
         streamError = event.error;
+        // Incomplete coverage → hard error (do not commit a 1-day plan as finished).
+        if (
+          lastPartialPlan?.days?.length &&
+          !hasAcceptablePlanDayCoverage(lastPartialPlan.days.length, expectedFromInput)
+        ) {
+          rejectIncomplete(
+            lastPartialPlan,
+            incompletePlanDayCoverageMessage(
+              lastPartialPlan.days.length,
+              expectedFromInput,
+            ),
+          );
+          return "stop";
+        }
         const partial = finishWithPartial(
           `${event.error} — prikazan je delni načrt.`,
         );

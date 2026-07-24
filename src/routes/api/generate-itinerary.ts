@@ -9,6 +9,8 @@ import {
 import { geminiApiKey } from "@/lib/llm";
 import {
   tripDayCount,
+  hasAcceptablePlanDayCoverage,
+  incompletePlanDayCoverageMessage,
   buildGeminiTripPlanParamsWithAttachment,
   formatGenerateTripInputError,
   generateGeminiProTripInputSchema,
@@ -151,6 +153,15 @@ export const Route = createFileRoute("/api/generate-itinerary")({
               const built = buildCatalogPlanFromResponse(finalObject, data);
               if (built.error || !built.plan) {
                 push({ type: "error", error: built.error ?? "Načrt ni bil generiran." });
+              } else if (
+                !hasAcceptablePlanDayCoverage(built.plan.days.length, expectedDays)
+              ) {
+                const msg = incompletePlanDayCoverageMessage(
+                  built.plan.days.length,
+                  expectedDays,
+                );
+                pipelineLog("stream:generate-itinerary INCOMPLETE", msg);
+                push({ type: "error", error: msg });
               } else {
                 await recordPlanGeneration(userId, quota.tier, request);
                 push({ type: "done", plan: built.plan });

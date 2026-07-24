@@ -194,6 +194,26 @@ export function tripDayCount(departDate: string, returnDate?: string): number {
   }
 }
 
+/**
+ * Whether a generated itinerary covers enough calendar days.
+ * Allows one missing day for edge cases; never accepts a near-empty multi-day plan.
+ */
+export function hasAcceptablePlanDayCoverage(
+  gotDays: number,
+  expectedDays: number,
+): boolean {
+  if (expectedDays <= 0) return gotDays > 0;
+  if (expectedDays === 1) return gotDays >= 1;
+  return gotDays >= Math.max(2, expectedDays - 1);
+}
+
+export function incompletePlanDayCoverageMessage(
+  gotDays: number,
+  expectedDays: number,
+): string {
+  return `Načrt je nepopoln (${gotDays}/${expectedDays} dni). Poskusi znova.`;
+}
+
 export function monthNameSl(isoDate: string): string {
   try {
     const d = new Date(`${isoDate}T12:00:00`);

@@ -445,7 +445,7 @@ export const GEMINI_TRIP_PLAN_MODEL =
   process.env.GEMINI_TRIP_PLAN_MODEL?.trim() || "gemini-2.5-flash";
 
 /** Enough headroom for multi-day catalog JSON — prevents truncated streams. */
-export const GEMINI_TRIP_PLAN_MAX_OUTPUT_TOKENS = 8192;
+export const GEMINI_TRIP_PLAN_MAX_OUTPUT_TOKENS = 16_384;
 
 const google = createGoogleGenerativeAI({
   apiKey: geminiApiKey() ?? undefined,

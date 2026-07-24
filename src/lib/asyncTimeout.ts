@@ -7,8 +7,8 @@ export const GEMINI_GENERATION_TIMEOUT_MS = 120_000;
 /** Abort itinerary stream if Gemini goes silent between partials. */
 export const GEMINI_STREAM_STALL_MS = 120_000;
 
-/** Absolute max for one itinerary stream (stall may fire earlier). */
-export const GEMINI_STREAM_HARD_MS = 240_000;
+/** Absolute max for one itinerary stream (stall may fire earlier). Keep under Vercel 300s. */
+export const GEMINI_STREAM_HARD_MS = 280_000;
 
 /** Combine abort signals — aborts when any source signal aborts. */
 export function mergeAbortSignals(...signals: AbortSignal[]): AbortSignal {
