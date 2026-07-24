@@ -60,6 +60,8 @@ export type HeroChatCollected = {
   passengers: string;
   pace: string;
   budget: string;
+  /** Planner interest keys (e.g. beaches, mountains) — used by motorhome search. */
+  priorities?: string[];
   attachment?: import("@/lib/heroChatAttachment").HeroChatAttachmentPayload;
 };
 

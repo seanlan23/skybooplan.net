@@ -19,6 +19,7 @@ describe("motorhomePlannerFromCollected", () => {
         passengers: "2 odrasli",
         pace: "",
         budget: "",
+        priorities: ["beaches", "nature"],
       },
       "sl",
     );
@@ -27,6 +28,8 @@ describe("motorhomePlannerFromCollected", () => {
     expect(ctx.destinationPlace).toBe("Amsterdam");
     expect(ctx.departDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(form.wishes).toMatch(/AVTODOMOM|avtodom/i);
+    expect(form.wishes).toMatch(/Prioritete/i);
+    expect(form.tags).toEqual(["beaches", "nature"]);
   });
 });
 
@@ -40,10 +43,12 @@ describe("buildHeroMotorhomeSearchQuery", () => {
       passengers: "2 odrasli",
       pace: "",
       budget: "",
+      priorities: ["mountains", "nature"],
     });
     expect(q).toMatch(/Motorhome/i);
     expect(q).toMatch(/Vienna/);
     expect(q).toMatch(/Albania/);
+    expect(q).toMatch(/priorities/i);
   });
 });
 

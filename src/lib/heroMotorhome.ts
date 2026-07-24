@@ -5,6 +5,10 @@ import {
   resolveDestinationIata,
   resolveOriginIata,
 } from "@/lib/heroChatPlanner";
+import {
+  formatPlannerInterests,
+  parsePlannerInterestKeys,
+} from "@/lib/plannerInterests";
 
 export type HeroMotorhomePlannerPayload = {
   ctx: AiPlannerContext & { language?: string; currency?: "EUR" | "USD" };
@@ -22,6 +26,24 @@ function motorhomeWishes(
     collected.dates || `${baseCtx.departDate} – ${baseCtx.returnDate ?? ""}`;
   const pax = collected.passengers?.trim();
   const lang = language.slice(0, 2).toLowerCase();
+  const interestKeys = parsePlannerInterestKeys(collected.priorities ?? []);
+  const interestLabels = interestKeys.length
+    ? formatPlannerInterests(interestKeys, language)
+    : "";
+
+  const priorityLine =
+    interestLabels &&
+    (lang === "sl"
+      ? `Prioritete: ${interestLabels}. Teži k obali/gore/naravi/jezerom — izogibaj se gostim mestnim jedrom (avtodom ni za centre).`
+      : lang === "de"
+        ? `Prioritäten: ${interestLabels}. Gewichte Küste/Berge/Natur/Seen — meide dichte Stadtzentren (Wohnmobil ungeeignet).`
+        : lang === "fr"
+          ? `Priorités: ${interestLabels}. Favoriser côte/montagnes/nature/lacs — éviter les centres-villes denses (camping-car inadapté).`
+          : lang === "it"
+            ? `Priorità: ${interestLabels}. Privilegia costa/montagne/natura/laghi — evita i centri cittadini densi (camper inadatto).`
+            : lang === "es"
+              ? `Prioridades: ${interestLabels}. Prioriza costa/montañas/naturaleza/lagos — evita centros urbanos densos (autocaravana no apta).`
+              : `Priorities: ${interestLabels}. Favour coast/mountains/nature/lakes — avoid dense city centres (motorhome-unfriendly).`);
 
   if (lang === "sl") {
     return [
@@ -30,6 +52,7 @@ function motorhomeWishes(
       `Cilj / smer: ${destinationPlace}.`,
       `Datumi: ${dates}.`,
       pax,
+      priorityLine,
       `Vključi: dnevne etape vožnje, kje parkirati / kje ne sme (mestna središča), predlagane kampe / RV parke z imeni, okvirne cene kampov in goriva, napotke za avtodom. Vsak dan jasno poimenuj kamp za nočitev.`,
     ]
       .filter(Boolean)
@@ -43,6 +66,7 @@ function motorhomeWishes(
       `Ziel / Richtung: ${destinationPlace}.`,
       `Daten: ${dates}.`,
       pax,
+      priorityLine,
       `Enthalten: Tagesetappen, Parkregeln (keine Innenstadt), Campingplätze / RV Parks mit Namen, ungefähre Camping- und Kraftstoffkosten, Wohnmobil-Tipps. Jeden Tag klar den Übernachtungs-Camp nennen.`,
     ]
       .filter(Boolean)
@@ -56,6 +80,7 @@ function motorhomeWishes(
       `Destination: ${destinationPlace}.`,
       `Dates: ${dates}.`,
       pax,
+      priorityLine,
       `Inclure: étapes journalières, où stationner (pas en centre-ville), campings / aires avec noms, coûts estimés camping et carburant, conseils camping-car. Nommer clairement le camping de chaque nuit.`,
     ]
       .filter(Boolean)
@@ -69,6 +94,7 @@ function motorhomeWishes(
       `Destinazione: ${destinationPlace}.`,
       `Date: ${dates}.`,
       pax,
+      priorityLine,
       `Includere: tappe giornaliere, dove parcheggiare (non in centro), campeggi / sosta con nomi, costi stimati campeggio e carburante, consigli camper. Nomina chiaramente il campeggio di ogni notte.`,
     ]
       .filter(Boolean)
@@ -82,6 +108,7 @@ function motorhomeWishes(
       `Destino: ${destinationPlace}.`,
       `Fechas: ${dates}.`,
       pax,
+      priorityLine,
       `Incluye: etapas diarias, dónde aparcar (no en el centro), campings / áreas con nombres, costes estimados de camping y combustible, consejos de autocaravana. Nombra claramente el camping de cada noche.`,
     ]
       .filter(Boolean)
@@ -94,6 +121,7 @@ function motorhomeWishes(
     `Destination / direction: ${destinationPlace}.`,
     `Dates: ${dates}.`,
     pax,
+    priorityLine,
     `Include: daily driving stages, where to park / where not (city centres), suggested campgrounds / RV parks with names, rough camp + fuel costs, motorhome tips. Clearly name the overnight camp each day.`,
   ]
     .filter(Boolean)
@@ -115,6 +143,7 @@ export function motorhomePlannerFromCollected(
   const to = resolveDestinationIata(destinationPlace) || baseCtx.to || "";
 
   const wishes = motorhomeWishes(collected, originPlace, destinationPlace, language, baseCtx);
+  const interestKeys = parsePlannerInterestKeys(collected.priorities ?? []);
 
   const ctx: AiPlannerContext & { language?: string; currency?: "EUR" | "USD" } = {
     ...baseCtx,
@@ -133,7 +162,7 @@ export function motorhomePlannerFromCollected(
     budget: baseForm.budget ?? "standard",
     wishes,
     customPrompt: wishes,
-    tags: Array.from(new Set([...(baseForm.tags ?? []), "Najem avtomobila"])),
+    tags: interestKeys,
     wishTags: baseForm.wishTags ?? [],
   };
 
@@ -146,5 +175,7 @@ export function buildHeroMotorhomeSearchQuery(data: HeroChatCollected): string {
   if (data.destination?.trim()) parts.push(`to ${data.destination.trim()}`);
   if (data.dates?.trim()) parts.push(data.dates.trim());
   if (data.passengers?.trim()) parts.push(data.passengers.trim());
+  const labels = formatPlannerInterests(data.priorities ?? [], "en");
+  if (labels) parts.push(`priorities: ${labels}`);
   return parts.join(", ");
 }

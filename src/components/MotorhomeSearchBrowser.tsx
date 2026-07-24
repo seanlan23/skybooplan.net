@@ -3,6 +3,11 @@ import { ArrowLeftRight, ArrowRight, Minus, Plus, Users } from "lucide-react";
 import { AirportAutocomplete } from "@/components/AirportAutocomplete";
 import { useI18n } from "@/lib/i18n";
 import type { HeroChatCollected } from "@/lib/heroChatFlow";
+import {
+  MIN_MOTORHOME_INTERESTS,
+  MOTORHOME_INTEREST_KEYS,
+  type MotorhomeInterestKey,
+} from "@/lib/plannerInterests";
 import { SEARCH_PRIMARY_BTN } from "@/components/searchFieldStyles";
 import { cn } from "@/lib/utils";
 
@@ -60,7 +65,7 @@ export type MotorhomeSearchBrowserProps = {
   onSubmit: (collected: HeroChatCollected) => void;
 };
 
-/** Skyscanner-style motorhome search: From → To · dates · travelers · Search. */
+/** Skyscanner-style motorhome search: From → To · dates · travelers · priorities · Search. */
 export function MotorhomeSearchBrowser({ disabled, onSubmit }: MotorhomeSearchBrowserProps) {
   const { t, lang } = useI18n();
   const [from, setFrom] = useState("Vienna");
@@ -69,6 +74,7 @@ export function MotorhomeSearchBrowser({ disabled, onSubmit }: MotorhomeSearchBr
   const [ret, setRet] = useState(() => defaultReturnIso(defaultDepartIso()));
   const [adults, setAdults] = useState(2);
   const [children, setChildren] = useState(0);
+  const [priorities, setPriorities] = useState<MotorhomeInterestKey[]>([]);
 
   const canSearch = useMemo(() => {
     return (
@@ -77,13 +83,20 @@ export function MotorhomeSearchBrowser({ disabled, onSubmit }: MotorhomeSearchBr
       Boolean(depart) &&
       Boolean(ret) &&
       ret >= depart &&
-      adults >= 1
+      adults >= 1 &&
+      priorities.length >= MIN_MOTORHOME_INTERESTS
     );
-  }, [from, to, depart, ret, adults]);
+  }, [from, to, depart, ret, adults, priorities.length]);
 
   const swap = () => {
     setFrom(to);
     setTo(from);
+  };
+
+  const togglePriority = (key: MotorhomeInterestKey) => {
+    setPriorities((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key],
+    );
   };
 
   const handleSearch = () => {
@@ -96,6 +109,7 @@ export function MotorhomeSearchBrowser({ disabled, onSubmit }: MotorhomeSearchBr
       passengers: passengersLabel(adults, children, lang),
       pace: "relaxed",
       budget: "500–1000€",
+      priorities: [...priorities],
     };
     onSubmit(collected);
   };
@@ -200,6 +214,35 @@ export function MotorhomeSearchBrowser({ disabled, onSubmit }: MotorhomeSearchBr
                 />
               </div>
             </div>
+          </div>
+        </div>
+
+        <div className="mt-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+            {t("mh.browser.priorities" as never)}
+          </p>
+          <p className="mt-0.5 text-xs text-slate-500">{t("mh.browser.prioritiesHint" as never)}</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {MOTORHOME_INTEREST_KEYS.map((key) => {
+              const active = priorities.includes(key);
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => togglePriority(key)}
+                  className={cn(
+                    "rounded-full border px-3 py-1.5 text-xs font-semibold transition",
+                    active
+                      ? "border-sky-600 bg-sky-600 text-white shadow-sm"
+                      : "border-slate-200 bg-white text-slate-700 hover:border-sky-300 hover:bg-sky-50",
+                    disabled && "opacity-50",
+                  )}
+                >
+                  {t(`mh.interest.${key}` as never)}
+                </button>
+              );
+            })}
           </div>
         </div>
 

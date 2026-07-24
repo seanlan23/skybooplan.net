@@ -14,7 +14,23 @@ export const PLANNER_INTEREST_KEYS = [
 
 export type PlannerInterestKey = (typeof PLANNER_INTEREST_KEYS)[number];
 
+/**
+ * Motorhome-friendly priorities — no dense cities / nightlife (RV parks stay outside cores).
+ */
+export const MOTORHOME_INTEREST_KEYS = [
+  "beaches",
+  "mountains",
+  "nature",
+  "rivers",
+  "hikes",
+  "food",
+  "culture",
+] as const satisfies readonly PlannerInterestKey[];
+
+export type MotorhomeInterestKey = (typeof MOTORHOME_INTEREST_KEYS)[number];
+
 export const MIN_PLANNER_INTERESTS = 3;
+export const MIN_MOTORHOME_INTERESTS = 1;
 
 const SL_LABELS: Record<PlannerInterestKey, string> = {
   beaches: "sanjske plaže",
