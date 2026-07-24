@@ -1,7 +1,9 @@
-import { FileText, Globe2, Pill, Wallet } from "lucide-react";
+import { FileText, Globe2, Pill, Smartphone, Wallet } from "lucide-react";
 import type { TravelRequirements } from "@/lib/travelRequirements";
 import { resolveTravelRequirements } from "@/lib/travelRequirements";
 import { useI18n } from "@/lib/i18n";
+
+const AIRALO_URL = "https://www.airalo.com/";
 
 type TravelRequirementsProps = {
   /** Full AI-generated requirements from plan JSON. */
@@ -96,6 +98,22 @@ export function TravelRequirements({
           )}
         </div>
       )}
+
+      <article className="rounded-lg border border-sky-200/80 bg-white/95 p-4 shadow-sm">
+        <div className="flex items-center gap-1.5 text-sm font-bold text-slate-800 mb-2">
+          <Smartphone className="h-4 w-4 text-sky-600 shrink-0" />
+          {t("travelReq.esimTitle")}
+        </div>
+        <p className="text-sm text-slate-700 leading-relaxed">{t("travelReq.esimBody")}</p>
+        <a
+          href={AIRALO_URL}
+          target="_blank"
+          rel="noopener noreferrer sponsored"
+          className="mt-3 inline-flex items-center rounded-full bg-sky-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-sky-700"
+        >
+          {t("travelReq.esimCta")}
+        </a>
+      </article>
     </section>
   );
 }

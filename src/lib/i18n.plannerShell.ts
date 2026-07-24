@@ -44,6 +44,10 @@ export const plannerShellByLang: Record<"es" | "fr" | "it", Dict> = {
     "travelReq.howToApply": "Cómo solicitar",
     "travelReq.vaccinations": "Vacunas y salud",
     "travelReq.costs": "Costes estimados",
+    "travelReq.esimTitle": "Airalo eSIM — internet en el extranjero",
+    "travelReq.esimBody":
+      "Recomendamos una eSIM Airalo para datos en destino. Instálala en casa con Wi‑Fi (Ajustes → Datos móviles → Añadir eSIM) y actívala al aterrizar — así tendrás mapas y mensajes sin buscar una SIM local en el aeropuerto.",
+    "travelReq.esimCta": "Conseguir eSIM Airalo",
     "weather.summaryCondition": "Condiciones",
     "weather.summaryTemperature": "Temperatura",
     "weather.summarySeason": "Temporada",
@@ -119,6 +123,10 @@ export const plannerShellByLang: Record<"es" | "fr" | "it", Dict> = {
     "travelReq.howToApply": "Comment faire",
     "travelReq.vaccinations": "Vaccins et santé",
     "travelReq.costs": "Coûts estimés",
+    "travelReq.esimTitle": "Airalo eSIM — internet à l'étranger",
+    "travelReq.esimBody":
+      "Nous recommandons une eSIM Airalo pour les données à destination. Installez-la chez vous en Wi‑Fi (Réglages → Données cellulaires → Ajouter une eSIM), puis activez-la à l'atterrissage — cartes et messages sans chercher une SIM locale à l'aéroport.",
+    "travelReq.esimCta": "Obtenir l'eSIM Airalo",
     "weather.summaryCondition": "Conditions",
     "weather.summaryTemperature": "Température",
     "weather.summarySeason": "Saison",
@@ -194,6 +202,10 @@ export const plannerShellByLang: Record<"es" | "fr" | "it", Dict> = {
     "travelReq.howToApply": "Come richiedere",
     "travelReq.vaccinations": "Vaccinazioni e salute",
     "travelReq.costs": "Costi stimati",
+    "travelReq.esimTitle": "Airalo eSIM — internet all'estero",
+    "travelReq.esimBody":
+      "Consigliamo una eSIM Airalo per i dati a destinazione. Installala a casa via Wi‑Fi (Impostazioni → Cellulare → Aggiungi eSIM) e attivala all'arrivo — così hai mappe e messaggi senza cercare una SIM locale in aeroporto.",
+    "travelReq.esimCta": "Ottieni eSIM Airalo",
     "weather.summaryCondition": "Condizioni",
     "weather.summaryTemperature": "Temperatura",
     "weather.summarySeason": "Stagione",

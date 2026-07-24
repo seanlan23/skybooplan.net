@@ -772,6 +772,10 @@ const en: Dict = {
   "travelReq.howToApply": "How to apply",
   "travelReq.vaccinations": "Vaccinations & health",
   "travelReq.costs": "Estimated costs",
+  "travelReq.esimTitle": "Airalo eSIM — internet abroad",
+  "travelReq.esimBody":
+    "We recommend an Airalo eSIM for data at your destination. Install it at home on Wi‑Fi before you fly (Settings → Mobile / Cellular → Add eSIM), then activate it when you land — so you have maps and messages without hunting for a local SIM at the airport.",
+  "travelReq.esimCta": "Get Airalo eSIM",
   "context.flightLand": "Landing",
   "context.flightDepart": "return",
   "auth.welcomeBack": "Welcome back",
@@ -1778,6 +1782,10 @@ const dicts: Record<Lang, Dict> = {
     "travelReq.howToApply": "Kako urediti",
     "travelReq.vaccinations": "Cepljenja in zdravje",
     "travelReq.costs": "Ocenjeni stroški",
+    "travelReq.esimTitle": "Airalo eSIM — internet v tujini",
+    "travelReq.esimBody":
+      "Priporočamo Airalo eSIM za podatke na destinaciji. Namesti jo že doma prek Wi‑Fi (Nastavitve → Mobilno omrežje → Dodaj eSIM), aktiviraj pa ob pristanku — tako imaš mape in sporočila brez iskanja lokalne SIM na letališču.",
+    "travelReq.esimCta": "Pridobi Airalo eSIM",
     "context.flightLand": "Prihod",
     "context.flightDepart": "povratek",
     "auth.welcomeBack": "Dobrodošel nazaj",
@@ -2514,6 +2522,10 @@ const dicts: Record<Lang, Dict> = {
     "travelReq.howToApply": "So beantragen",
     "travelReq.vaccinations": "Impfungen & Gesundheit",
     "travelReq.costs": "Geschätzte Kosten",
+    "travelReq.esimTitle": "Airalo eSIM — Internet im Ausland",
+    "travelReq.esimBody":
+      "Wir empfehlen eine Airalo-eSIM für Daten am Ziel. Installiere sie zu Hause über WLAN (Einstellungen → Mobilfunk → eSIM hinzufügen) und aktiviere sie erst nach der Landung — so hast du Karten und Nachrichten, ohne am Flughafen nach einer lokalen SIM zu suchen.",
+    "travelReq.esimCta": "Airalo eSIM holen",
     ...authDashboardByLang.de,
     ...motorhomeUiByLang.de,
   }),
