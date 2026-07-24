@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <linearGradient id="sky" x1="64" y1="48" x2="448" y2="464" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#38BDF8"/>
+      <stop offset="0.55" stop-color="#0EA5E9"/>
+      <stop offset="1" stop-color="#0369A1"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#sky)"/>
+  <!-- Paper plane  centered in maskable safe zone -->
+  <g transform="translate(256 268) scale(7.2) translate(-24 -24)">
+    <path fill="#FFFFFF" d="M8 36 L40 8 L40 24 Z" opacity="0.96"/>
+    <path fill="#E0F2FE" d="M8 36 L40 24 L22 36 Z"/>
+    <path fill="#BAE6FD" d="M22 36 L40 24 L40 38 Z"/>
+  </g>
+</svg>

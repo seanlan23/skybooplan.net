@@ -17,6 +17,8 @@ import { AuthProvider } from "@/hooks/use-auth";
 
 import { I18nProvider } from "@/lib/i18n";
 import { CookieConsentBanner } from "@/components/CookieConsentBanner";
+import { PwaInstallPrompt } from "@/components/PwaInstallPrompt";
+import { PwaRegister } from "@/components/PwaRegister";
 
 function NotFoundComponent() {
   return (
@@ -82,17 +84,37 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      {
+        name: "viewport",
+        content: "width=device-width, initial-scale=1, viewport-fit=cover",
+      },
       { title: "Skybooplan - Your Dream Trip, Crafted" },
-      { name: "description", content: "AI-powered travel platform designed to automate itinerary planning and booking." },
-      { name: "author", content: "Lovable" },
+      {
+        name: "description",
+        content:
+          "AI-powered travel platform designed to automate itinerary planning and booking.",
+      },
+      { name: "author", content: "Skybooplan" },
+      { name: "theme-color", content: "#0284C7" },
+      { name: "mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+      { name: "apple-mobile-web-app-title", content: "Skybooplan" },
+      { name: "application-name", content: "Skybooplan" },
       { property: "og:title", content: "Skybooplan - Your Dream Trip, Crafted" },
-      { property: "og:description", content: "AI-powered travel platform designed to automate itinerary planning and booking." },
+      {
+        property: "og:description",
+        content:
+          "AI-powered travel platform designed to automate itinerary planning and booking.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { name: "twitter:site", content: "@Lovable" },
       { name: "twitter:title", content: "Skybooplan - Your Dream Trip, Crafted" },
-      { name: "twitter:description", content: "AI-powered travel platform designed to automate itinerary planning and booking." },
+      {
+        name: "twitter:description",
+        content:
+          "AI-powered travel platform designed to automate itinerary planning and booking.",
+      },
       { property: "og:image", content: "/og-image.svg" },
       { name: "twitter:image", content: "/og-image.svg" },
     ],
@@ -102,9 +124,38 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: appCss,
       },
       {
+        rel: "manifest",
+        href: "/manifest.webmanifest",
+      },
+      {
         rel: "icon",
         type: "image/svg+xml",
         href: "/favicon.svg",
+      },
+      {
+        rel: "icon",
+        type: "image/png",
+        sizes: "192x192",
+        href: "/icons/icon-192.png",
+      },
+      {
+        rel: "apple-touch-icon",
+        href: "/apple-touch-icon.png",
+      },
+      {
+        rel: "apple-touch-icon",
+        sizes: "152x152",
+        href: "/icons/icon-152.png",
+      },
+      {
+        rel: "apple-touch-icon",
+        sizes: "167x167",
+        href: "/icons/icon-167.png",
+      },
+      {
+        rel: "apple-touch-icon",
+        sizes: "180x180",
+        href: "/icons/icon-180.png",
       },
     ],
   }),
@@ -138,6 +189,8 @@ function RootComponent() {
           
           {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
           <Outlet />
+          <PwaRegister />
+          <PwaInstallPrompt />
           <CookieConsentBanner />
           <Toaster richColors position="top-center" />
           <Analytics />
