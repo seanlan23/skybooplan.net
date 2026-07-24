@@ -658,26 +658,29 @@ export function tripPlanResponseToAiTripPlan(
       : undefined;
 
   let returnFlightEu: ReturnFlightEu | undefined;
-  const rf = meta?.return_flight_eu;
-  if (rf?.departure_time && rf.arrival_time_eu) {
-    const fromAirport = rf.from_airport;
-    const toAirport = rf.to_airport;
-    returnFlightEu = {
-      departureTime: rf.departure_time,
-      arrivalTimeEu: rf.arrival_time_eu,
-      fromAirport,
-      toAirport,
-      // Never trust Gemini "Direct flight" for long-haul — UI sanitizes again.
-      summary: sanitizeReturnFlightSummary(rf.summary, {
-        fromIata: fromAirport,
-        toIata: toAirport,
-        language: opts?.language ?? "sl",
-        depart: rf.departure_time,
-        arrive: rf.arrival_time_eu,
-      }),
-    };
-  } else {
-    returnFlightEu = extractReturnFlightFromLastDay(days, opts?.originIata);
+  // Motorhome / car / train — never invent an international flight home.
+  if (!opts?.groundTransportMode) {
+    const rf = meta?.return_flight_eu;
+    if (rf?.departure_time && rf.arrival_time_eu) {
+      const fromAirport = rf.from_airport;
+      const toAirport = rf.to_airport;
+      returnFlightEu = {
+        departureTime: rf.departure_time,
+        arrivalTimeEu: rf.arrival_time_eu,
+        fromAirport,
+        toAirport,
+        // Never trust Gemini "Direct flight" for long-haul — UI sanitizes again.
+        summary: sanitizeReturnFlightSummary(rf.summary, {
+          fromIata: fromAirport,
+          toIata: toAirport,
+          language: opts?.language ?? "sl",
+          depart: rf.departure_time,
+          arrive: rf.arrival_time_eu,
+        }),
+      };
+    } else {
+      returnFlightEu = extractReturnFlightFromLastDay(days, opts?.originIata);
+    }
   }
 
   const lang = opts?.language ?? "sl";

@@ -107,20 +107,21 @@ export function HeroAiPlanResults({
               protect={false}
               onClearPlan={onClearPlan}
               onDownloadClick={
-                aiPlan
+                displayPlan
                   ? async () => {
+                      const planForPdf = aiPlan ?? displayPlan;
                       try {
                         const { generatePlanPdf } = await import("@/lib/pdf-export");
                         await generatePlanPdf({
-                          title: `${aiContext?.from ?? aiPlan.originPlace ?? ""} → ${aiContext?.to ?? aiPlan.destinationPlace ?? aiPlan.destinationName ?? ""}`,
+                          title: `${aiContext?.from ?? planForPdf.originPlace ?? ""} → ${aiContext?.to ?? planForPdf.destinationPlace ?? planForPdf.destinationName ?? ""}`,
                           destination:
-                            aiPlan.destinationName ||
-                            aiPlan.destinationPlace ||
+                            planForPdf.destinationName ||
+                            planForPdf.destinationPlace ||
                             aiContext?.to ||
                             "",
                           start_date: aiContext?.departDate ?? null,
                           end_date: aiContext?.returnDate ?? null,
-                          itinerary: aiPlan as never,
+                          itinerary: planForPdf as never,
                           language: aiContext?.language,
                           pax: aiContext?.pax ?? 1,
                         });

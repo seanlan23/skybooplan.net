@@ -484,20 +484,33 @@ async function loadFontBinary(url: string): Promise<string> {
 }
 
 let fontCache: { regular: string; bold: string } | null = null;
+let fontsUnavailable = false;
 
-async function ensureFonts(doc: jsPDF) {
-  if (!fontCache) {
-    const [regular, bold] = await Promise.all([
-      loadFontBinary(fontRegularUrl),
-      loadFontBinary(fontBoldUrl),
-    ]);
-    fontCache = { regular, bold };
+async function ensureFonts(doc: jsPDF): Promise<boolean> {
+  if (fontsUnavailable) {
+    doc.setFont("helvetica", "normal");
+    return false;
   }
-  doc.addFileToVFS("DejaVuSans.ttf", fontCache.regular);
-  doc.addFileToVFS("DejaVuSans-Bold.ttf", fontCache.bold);
-  doc.addFont("DejaVuSans.ttf", FONT, "normal");
-  doc.addFont("DejaVuSans-Bold.ttf", FONT, "bold");
-  doc.setFont(FONT, "normal");
+  try {
+    if (!fontCache) {
+      const [regular, bold] = await Promise.all([
+        loadFontBinary(fontRegularUrl),
+        loadFontBinary(fontBoldUrl),
+      ]);
+      fontCache = { regular, bold };
+    }
+    doc.addFileToVFS("DejaVuSans.ttf", fontCache.regular);
+    doc.addFileToVFS("DejaVuSans-Bold.ttf", fontCache.bold);
+    doc.addFont("DejaVuSans.ttf", FONT, "normal");
+    doc.addFont("DejaVuSans-Bold.ttf", FONT, "bold");
+    doc.setFont(FONT, "normal");
+    return true;
+  } catch (err) {
+    console.warn("[pdf] DejaVu fonts unavailable — falling back to Helvetica", err);
+    fontsUnavailable = true;
+    doc.setFont("helvetica", "normal");
+    return false;
+  }
 }
 
 export async function generatePlanPdf(plan: PlanForPdf): Promise<{
@@ -507,7 +520,7 @@ export async function generatePlanPdf(plan: PlanForPdf): Promise<{
 }> {
   const model = normalizePlanForPdf(plan);
   const doc = new jsPDF({ unit: "pt", format: "a4" });
-  await ensureFonts(doc);
+  const hasUnicodeFont = await ensureFonts(doc);
 
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
@@ -517,7 +530,8 @@ export async function generatePlanPdf(plan: PlanForPdf): Promise<{
 
   const setFont = (style: "normal" | "bold", size: number, color = INK) => {
     try {
-      doc.setFont(FONT, style);
+      if (hasUnicodeFont) doc.setFont(FONT, style);
+      else doc.setFont("helvetica", style === "bold" ? "bold" : "normal");
     } catch {
       doc.setFont("helvetica", style === "bold" ? "bold" : "normal");
     }

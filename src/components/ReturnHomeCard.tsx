@@ -5,6 +5,9 @@ import { sanitizeReturnFlightSummary } from "@/lib/returnFlightSummary";
 
 export function ReturnHomeCard({ plan }: { plan: AiTripPlan }) {
   const { t, lang } = useI18n();
+  // Ground trips return by the same vehicle — never show "international flight home".
+  if (plan.groundTransportMode) return null;
+
   const rf = plan.returnFlightEu;
   const lastDay = plan.days[plan.days.length - 1];
 
