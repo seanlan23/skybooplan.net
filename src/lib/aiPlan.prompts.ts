@@ -48,6 +48,9 @@ Rules:
 - description = 2–3 full sentences (120–280 chars): what to see/do, why it matters, one practical tip — unique text per highlight
 - travelTips on each region = unique per region (never copy same tip to every region/day)
 - localTransportTips must name real apps and modes for that city (Grab/Bolt Bangkok, InDrive Phuket, etc.) and ferry/boat notes for islands
+- NEVER paste the same Grab/tuk-tuk/"if you still have energy" sentence on many days — vary local transport tips per city/day
+- day numbers must be contiguous 1…totalDays with no skipped numbers
+- Arrival clock labels: use short local time (e.g. 17:55); put long “(+1 day from departure…)” at most once in a day title — never on every activity
 - Inter-city travel days: morning = transport; SAME day still needs real afternoon + evening sights in the new city (e.g. Ayutthaya: Wat Phra Si Sanphet; Chiang Mai: Doi Suthep)
 - Day 1 highlights: only AFTER airport transfer + hotel check-in (UI adds logistics separately — do NOT duplicate airport transfer)
 - Last-day highlights: respect flightScheduling.lastDay — early/afternoon flight = no sights; evening flight = max 1 light morning sight, NO afternoon/evening sights
@@ -135,6 +138,9 @@ Rules:
 - Each activity: name + priceLabel + 2–3 sentence description (unique, practical) — timing in text must match the slot (no sunset label in morning)
 - MANDATORY travelHack per day: unique, location-specific insider tip — NEVER repeat the same hack on two days
 - MANDATORY transportationTips per day: how to get around that city (apps like Grab/Bolt/InDrive where relevant, metro passes, A→B between activities, ferry/speedboat schedules for islands)
+- Do NOT repeat the identical Grab/tuk-tuk/"če imaš še energijo" sentence across days — one concrete local mode per day
+- Day numbers must be contiguous with no gaps (never skip day 5 after day 4)
+- Arrival times: short local HH:MM on activities; long “(+1 dan od odhoda…)” at most once in a day title
 - MANDATORY transportation[] on inter-city travel days: array of legs with type, from, to, duration, estimatedPrice — UI transport cards require this
 - MANDATORY transport_type + duration on every movement activity (airport/flight/ferry/train/van) — UI activity badges require both fields
 - For Thailand days: rotate tuk-tuk warnings (agree price upfront, temple-closed scams), BTS/Rabbit Card in Bangkok, ferry cancellations in monsoon

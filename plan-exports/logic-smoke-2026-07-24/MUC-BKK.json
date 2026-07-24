@@ -1,0 +1,875 @@
+{
+  "days": [
+    {
+      "day": 1,
+      "date": "2026-09-19",
+      "title": "Odhod iz MUC / mednarodni let",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [
+          {
+            "name": "Odhod: Munich (MUC)",
+            "type": "TRANSPORT",
+            "description": "Odhod z domačega letališča Munich (MUC) ob 22:30. Na mednarodni let pridi 2–3 ure pred odletom (check-in, oddaja prtljage, varnostna kontrola). Če se pripelješ z avtom, primerjaj parkiranje prek Parkvia, Parkos ali MyWay (terminal vs. zunanji P+R + shuttle) — pogosto ceneje za večdnevne počitnice."
+          },
+          {
+            "name": "Check-in in varnostni pregled",
+            "type": "TRANSPORT",
+            "description": "Na letališču MUC oddaj prtljago (če jo imaš), opravi check-in in varnostni pregled. Za mednarodne lete računaj 2–3 ure pred odletom ob 22:30 — ob konicah in počitniških terminih raje še več rezerve."
+          },
+          {
+            "name": "Mednarodni let",
+            "type": "TRANSPORT",
+            "transportType": "flight",
+            "description": "Še v letu proti destinaciji — dan 1 od 8. Po pristanku (dan 2, 18:10 (+1d, lokalni čas)) sledi check-in.",
+            "arrivalTime": "22:30",
+            "departureTime": "18:10"
+          }
+        ],
+        "afternoon": [],
+        "evening": []
+      },
+      "travelHack": "Odhod z domačega letališča Munich (MUC) ob 22:30. Na mednarodni let pridi 2–3 ure pred odletom (check-in, oddaja prtljage, varnostna kontrola). Če se pripelješ z avtom, primerjaj parkiranje prek Parkvia, Parkos ali MyWay (terminal vs. zunanji P+R + shuttle) — pogosto ceneje za večdnevne počitnice.",
+      "transportationTips": "",
+      "localWarnings": "",
+      "dailyBudgetEur": 55,
+      "drivingDistanceKm": 0,
+      "drivingDurationHours": "0h",
+      "lat": 48.137,
+      "lng": 11.575,
+      "focusName": "Munich",
+      "city": "Munich",
+      "unsplashQuery": "Bangkok",
+      "category": "transport",
+      "mapPins": [],
+      "inFlightDay": true
+    },
+    {
+      "day": 2,
+      "date": "2026-09-20",
+      "title": "Prihod ob 18:10 in namestitev",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [],
+        "afternoon": [],
+        "evening": [
+          {
+            "name": "Prihod na letališče",
+            "type": "TRANSPORT",
+            "description": "Polet pristane na destinaciji ob 18:10. Po izhodu sledi kontrola, prevzem prtljage in orientacija v arrival hallu. Preveri letališče na vstopnici — prihod je na BKK (Bangkok).",
+            "arrivalTime": "18:10"
+          },
+          {
+            "name": "Prevoz do hotela (Grab / taxi)",
+            "type": "TRANSPORT",
+            "description": "Iz letališča do hotela v Bangkok uporabi Grab / taxi (orientacijsko €15–35) — v večini mest je na voljo tudi prevozna aplikacija ali uradni taxi. Do centra računaj 20–90 min, odvisno od prometa in razdalje.",
+            "priceLabel": "€15–35",
+            "arrivalTime": "18:10",
+            "departureTime": "19:40"
+          },
+          {
+            "name": "Check-in, osvežitev in kratek odmor",
+            "type": "STAY",
+            "description": "V hotelu se namestiš, osvežiš in narediš vsaj 1–2 uri počitka po letu. Zaradi poznega prihoda (18:10) danes brez večjih ogledov — le lahek večernji sprehod v bližini, če imaš še energijo.",
+            "arrivalTime": "18:10"
+          }
+        ]
+      },
+      "transportation": [
+        {
+          "type": "van",
+          "from": "Prihod na mednarodno letališče Suvarnabhumi (BKK)",
+          "to": "Bangkok",
+          "duration": "1h 20min",
+          "estimatedPrice": 0
+        }
+      ],
+      "travelHack": "Po prihodu v Bangkok si na letališču kupite lokalno SIM kartico (okoli 10-15 EUR za podatkovni paket), saj vam bo mobilni internet omogočal enostavno navigacijo z aplikacijami, kot je Google Maps, in naročanje prevozov preko Graba ali Bolta.",
+      "transportationTips": "Za prevoz z letališča v center Bangkoka je najbolj praktična kombinacija Airport Rail Link (do postaje Phaya Thai) in nato taksi ali tuk-tuk do hotela, odvisno od lokacije. Uporabite lahko tudi aplikacije kot sta Grab ali Bolt za naročanje prevozov. Dogovorite se za ceno pred vožnjo s taksijem ali tuk-tukom, še posebej zvečer. Cena taksija iz BKK v center je okoli 25-35 EUR, vlak pa stane cca 3 EUR.",
+      "localWarnings": "",
+      "dailyBudgetEur": 75,
+      "drivingDistanceKm": 0,
+      "drivingDurationHours": "0h",
+      "lat": 13.756,
+      "lng": 100.502,
+      "focusName": "Grand Palace in Wat Phra Kaew",
+      "city": "Bangkok",
+      "unsplashQuery": "Bangkok",
+      "category": "activity",
+      "mapPins": [
+        {
+          "name": "Zgodovinski park Ayutthaya",
+          "lat": 14.357,
+          "lng": 100.569,
+          "category": "sightseeing",
+          "description": "Ayutthaya je nekdanja prestolnica Sijama, ki je cvetela med 14. in 18. stoletjem. Danes je Unescova svetovna dediščina, znana po mogočnih templjih, palačah in kipih Bude, ki pričajo o bogati zgodovini tajskega kraljestva.",
+          "unsplashQuery": "Ayutthaya Historical Park",
+          "tripAdvisorStyleDetails": {
+            "highlights": [
+              "Ruševine starodavnih templjev",
+              "Glava Bude v koreninah drevesa",
+              "UNESCO svetovna dediščina",
+              "Bogat zgodovinski pomen"
+            ],
+            "proTip": "Najamite kolesa ob prihodu, da si boste lažje ogledali razprostranjene ruševine parka v lastnem tempu.",
+            "bestTimeOfDay": "Zgodaj zjutraj ali pozno popoldan za izogibanje vročini",
+            "rating": 4.6,
+            "reviewSummary": "Obiskovalci so nad starodavnimi ruševinami in mirnim vzdušjem navdušeni. Zgodba o tajskem kraljestvu oživi med obiskom."
+          }
+        }
+      ],
+      "inFlightDay": false
+    },
+    {
+      "day": 3,
+      "date": "2026-09-21",
+      "title": "Zlati templji in kraljevska palača",
+      "morning": "Chatuchak Weekend Market (če vikend): Sob–ned 9:00–18:00 — največja tržnica; če je delovni dan, zamenjaj z MBK ali Jim Thompson House.",
+      "afternoon": "",
+      "evening": "Večerja na Khao San Road: Za večerjo se odpravite na legendarno ulico Khao San Road, znano po živahnem nočnem življenju, ulični hrani in barjih. Čeprav je turistična, ponuja edinstveno vzdušje. Premik s taksijem/tuk-tukom.",
+      "activities": {
+        "morning": [
+          {
+            "name": "Chatuchak Weekend Market (če vikend)",
+            "type": "SIGHT",
+            "priceLabel": "brezplačno",
+            "description": "Sob–ned 9:00–18:00 — največja tržnica; če je delovni dan, zamenjaj z MBK ali Jim Thompson House.",
+            "lat": 13.756,
+            "lng": 100.502
+          }
+        ],
+        "afternoon": [],
+        "evening": [
+          {
+            "name": "Večerja na Khao San Road",
+            "description": "Za večerjo se odpravite na legendarno ulico Khao San Road, znano po živahnem nočnem življenju, ulični hrani in barjih. Čeprav je turistična, ponuja edinstveno vzdušje. Premik s taksijem/tuk-tukom.",
+            "arrivalTime": "19:00",
+            "departureTime": "21:00",
+            "estimatedCostEur": 20,
+            "priceLabel": "€20",
+            "timeSlot": "vecer",
+            "type": "food",
+            "lat": 13.7589,
+            "lng": 100.4974,
+            "unsplashQuery": "Khao San Road street food"
+          }
+        ]
+      },
+      "travelHack": "Pri obisku templjev in Velike palače vedno imejte s seboj šal ali sarong, s katerim si lahko pokrijete ramena in kolena. Vstop brez ustrezne obleke ni dovoljen, na voljo pa so tudi izposojevalnice oblačil, ki pa so dražje.",
+      "transportationTips": "Za premikanje med Veliko palačo, Wat Pho in reko Chao Phraya lahko večinoma hodite peš, saj so znamenitosti blizu. Za daljše razdalje priporočamo uporabo aplikacij Grab ali Bolt. Izogibajte se tuk-tukom, razen če ste pripravljeni na barantanje in se zavedate, da vas lahko poskušajo prepričati v obisk trgovin. V času prometnih konic (07:00-09:00 in 17:00-19:00) je javni prevoz (BTS Skytrain ali MRT podzemna) boljša izbira.",
+      "localWarnings": "",
+      "dailyBudgetEur": 75,
+      "drivingDistanceKm": 10,
+      "drivingDurationHours": "1h",
+      "transport": {
+        "type": "Vožnja",
+        "duration": "1h",
+        "cost": "",
+        "description": "10 km"
+      },
+      "lat": 13.756,
+      "lng": 100.502,
+      "focusName": "Velika palača in Wat Phra Kaew (Tempelj smaragdnega Bude)",
+      "city": "Bangkok",
+      "unsplashQuery": "Bangkok",
+      "category": "activity",
+      "mapPins": [
+        {
+          "name": "Zgodovinski park Ayutthaya",
+          "lat": 14.357,
+          "lng": 100.569,
+          "category": "sightseeing",
+          "description": "Ayutthaya je nekdanja prestolnica Sijama, ki je cvetela med 14. in 18. stoletjem. Danes je Unescova svetovna dediščina, znana po mogočnih templjih, palačah in kipih Bude, ki pričajo o bogati zgodovini tajskega kraljestva.",
+          "unsplashQuery": "Ayutthaya Historical Park",
+          "tripAdvisorStyleDetails": {
+            "highlights": [
+              "Ruševine starodavnih templjev",
+              "Glava Bude v koreninah drevesa",
+              "UNESCO svetovna dediščina",
+              "Bogat zgodovinski pomen"
+            ],
+            "proTip": "Najamite kolesa ob prihodu, da si boste lažje ogledali razprostranjene ruševine parka v lastnem tempu.",
+            "bestTimeOfDay": "Zgodaj zjutraj ali pozno popoldan za izogibanje vročini",
+            "rating": 4.6,
+            "reviewSummary": "Obiskovalci so nad starodavnimi ruševinami in mirnim vzdušjem navdušeni. Zgodba o tajskem kraljestvu oživi med obiskom."
+          }
+        }
+      ]
+    },
+    {
+      "day": 4,
+      "date": "2026-09-22",
+      "title": "Starodavna Ayutthaya",
+      "morning": "Izlet v Ayutthayo: Zgodaj zjutraj se odpravite na izlet v Ayutthayo, nekdanjo glavno mesto Sijama, ki je danes na Unescovem seznamu svetovne dediščine. Do tja lahko potujete z vlakom (približno 1,5-2 uri, cca 1-2 EUR na smer), z avtobusom (približno 1,5 ure, cca 2-3 EUR na smer) ali z najetim kombijem/taksijem za celoten dan (približno 60-80 EUR).\n\nRaziskovanje zgodovinskega parka Ayutthaya: V Ayutthayi si oglejte impresivne ruševine templjev in palač, kot so Wat Mahathat (z Budo, ki mu glava kuka iz drevesnih korenin), Wat Phra Si Sanphet in Wat Chaiwatthanaram. Park lahko raziskujete peš, s kolesom (najem je poceni, okoli 2-3 EUR) ali s tuk-tukom.",
+      "afternoon": "Kosilo v Ayutthayi: Uživajte v kosilu v eni izmed lokalnih restavracij ob reki v Ayutthayi, ki so znane po svežih morskih sadežih in tradicionalnih tajskih jedeh. Za nazaj v Bangkok se premaknete z vlakom ali kombijem.\n\nPovratek v Bangkok: Popoldne se vrnete v Bangkok. Po prihodu v hotel si vzemite čas za počitek in osvežitev po celodnevnem raziskovanju.",
+      "evening": "Večerja v četrti Sukhumvit: Za večerjo se odpravite v sodobno četrt Sukhumvit, znano po vrhunskih restavracijah, elegantnih barih in nakupovalnih centrih. Izbirate lahko med široko paleto kulinaričnih doživetij. Premik s taksijem ali BTS Skytrain.",
+      "activities": {
+        "morning": [
+          {
+            "name": "Izlet v Ayutthayo",
+            "description": "Zgodaj zjutraj se odpravite na izlet v Ayutthayo, nekdanjo glavno mesto Sijama, ki je danes na Unescovem seznamu svetovne dediščine. Do tja lahko potujete z vlakom (približno 1,5-2 uri, cca 1-2 EUR na smer), z avtobusom (približno 1,5 ure, cca 2-3 EUR na smer) ali z najetim kombijem/taksijem za celoten dan (približno 60-80 EUR).",
+            "arrivalTime": "08:00",
+            "departureTime": "10:00",
+            "timeSlot": "dopoldan",
+            "type": "sightseeing",
+            "transportType": "train",
+            "transportDuration": "2h",
+            "unsplashQuery": "Ayutthaya Historical Park"
+          },
+          {
+            "name": "Raziskovanje zgodovinskega parka Ayutthaya",
+            "description": "V Ayutthayi si oglejte impresivne ruševine templjev in palač, kot so Wat Mahathat (z Budo, ki mu glava kuka iz drevesnih korenin), Wat Phra Si Sanphet in Wat Chaiwatthanaram. Park lahko raziskujete peš, s kolesom (najem je poceni, okoli 2-3 EUR) ali s tuk-tukom.",
+            "arrivalTime": "10:00",
+            "departureTime": "13:00",
+            "estimatedCostEur": 10,
+            "priceLabel": "€10",
+            "timeSlot": "dopoldan",
+            "type": "sightseeing",
+            "lat": 14.357,
+            "lng": 100.569,
+            "unsplashQuery": "Ayutthaya Historical Park",
+            "tripAdvisorStyleDetails": {
+              "highlights": [
+                "Wat Mahathat (glava Bude v koreninah)",
+                "Wat Phra Si Sanphet (kraljeva palača)",
+                "Wat Chaiwatthanaram (tempelj v khmerskem slogu)",
+                "UNESCO svetovna dediščina"
+              ],
+              "proTip": "Najamite kolo in raziskujte park samostojno. To vam omogoča fleksibilnost in resnično doživetje veličine starodavnega mesta.",
+              "bestTimeOfDay": "Zgodaj dopoldan ali pozno popoldan",
+              "rating": 4.6,
+              "reviewSummary": "Obiskovalci so navdušeni nad zgodovinskim pomenom in ohranjeno arhitekturo. Glava Bude v drevesu je ikonična in obvezna za ogled."
+            }
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Kosilo v Ayutthayi",
+            "description": "Uživajte v kosilu v eni izmed lokalnih restavracij ob reki v Ayutthayi, ki so znane po svežih morskih sadežih in tradicionalnih tajskih jedeh. Za nazaj v Bangkok se premaknete z vlakom ali kombijem.",
+            "arrivalTime": "13:00",
+            "departureTime": "14:00",
+            "estimatedCostEur": 15,
+            "priceLabel": "€15",
+            "timeSlot": "popoldan",
+            "type": "food",
+            "unsplashQuery": "Ayutthaya riverside restaurant"
+          },
+          {
+            "name": "Povratek v Bangkok",
+            "description": "Popoldne se vrnete v Bangkok. Po prihodu v hotel si vzemite čas za počitek in osvežitev po celodnevnem raziskovanju.",
+            "arrivalTime": "14:30",
+            "timeSlot": "popoldan",
+            "type": "transport",
+            "transportType": "train",
+            "lat": 13.756,
+            "lng": 100.502,
+            "unsplashQuery": "Thai train travel"
+          }
+        ],
+        "evening": [
+          {
+            "name": "Večerja v četrti Sukhumvit",
+            "description": "Za večerjo se odpravite v sodobno četrt Sukhumvit, znano po vrhunskih restavracijah, elegantnih barih in nakupovalnih centrih. Izbirate lahko med široko paleto kulinaričnih doživetij. Premik s taksijem ali BTS Skytrain.",
+            "arrivalTime": "19:00",
+            "departureTime": "21:00",
+            "estimatedCostEur": 30,
+            "priceLabel": "€30",
+            "timeSlot": "vecer",
+            "type": "food",
+            "unsplashQuery": "Sukhumvit Bangkok dinner"
+          }
+        ]
+      },
+      "transportation": [
+        {
+          "type": "train",
+          "from": "Bangkok Hua Lamphong",
+          "to": "Ayutthaya",
+          "duration": "1h 45min",
+          "estimatedPrice": 2
+        },
+        {
+          "type": "train",
+          "from": "Ayutthaya",
+          "to": "Bangkok Hua Lamphong",
+          "duration": "1h 45min",
+          "estimatedPrice": 2
+        }
+      ],
+      "travelHack": "V Ayutthayi pri najemu kolesa ne pozabite preveriti zavor in pnevmatik. Prav tako si predhodno naložite offline zemljevid s Pinni glavnih templjev, saj je park razprostranjen, da ne bi zamudili katere znamenitosti.",
+      "transportationTips": "Za izlet v Ayutthayo priporočamo vlak z železniške postaje Hua Lamphong (Bangkok) ali najet kombi. Vlak je bolj avtentična izkušnja in poceni. Po Ayutthayi se lahko premikate s kolesom (najem ob postaji) ali pa najamete tuk-tuk za 3-4 ure, da vas popelje po glavnih znamenitostih. Ne pozabite se barantati za ceno!",
+      "localWarnings": "",
+      "dailyBudgetEur": 75,
+      "drivingDistanceKm": 160,
+      "drivingDurationHours": "3h",
+      "transport": {
+        "type": "Vožnja",
+        "duration": "3h",
+        "cost": "",
+        "description": "160 km"
+      },
+      "lat": 13.756,
+      "lng": 100.502,
+      "focusName": "Raziskovanje zgodovinskega parka Ayutthaya",
+      "city": "Bangkok",
+      "unsplashQuery": "Bangkok",
+      "category": "activity",
+      "mapPins": [
+        {
+          "name": "Raziskovanje zgodovinskega parka Ayutthaya",
+          "lat": 14.357,
+          "lng": 100.569,
+          "category": "entertainment",
+          "description": "V Ayutthayi si oglejte impresivne ruševine templjev in palač, kot so Wat Mahathat (z Budo, ki mu glava kuka iz drevesnih korenin), Wat Phra Si Sanphet in Wat Chaiwatthanaram. Park lahko raziskujete peš, s kolesom (najem je poceni, okoli 2-3 EUR) ali s tuk-tukom.",
+          "arrivalTime": "10:00",
+          "departureTime": "13:00",
+          "estimatedCostEur": 10,
+          "unsplashQuery": "Ayutthaya Historical Park",
+          "tripAdvisorStyleDetails": {
+            "highlights": [
+              "Wat Mahathat (glava Bude v koreninah)",
+              "Wat Phra Si Sanphet (kraljeva palača)",
+              "Wat Chaiwatthanaram (tempelj v khmerskem slogu)",
+              "UNESCO svetovna dediščina"
+            ],
+            "proTip": "Najamite kolo in raziskujte park samostojno. To vam omogoča fleksibilnost in resnično doživetje veličine starodavnega mesta.",
+            "bestTimeOfDay": "Zgodaj dopoldan ali pozno popoldan",
+            "rating": 4.6,
+            "reviewSummary": "Obiskovalci so navdušeni nad zgodovinskim pomenom in ohranjeno arhitekturo. Glava Bude v drevesu je ikonična in obvezna za ogled."
+          }
+        }
+      ]
+    },
+    {
+      "day": 5,
+      "date": "2026-09-23",
+      "title": "Let v Chiang Mai in raziskovanje mesta",
+      "morning": "Notranji let Bangkok → Chiang Mai: Dopoldne se z letališča Don Mueang (DMK) ali Suvarnabhumi (BKK) v Bangkoku odpravite na let v Chiang Mai (CNX). Let traja približno 1 uro in 10 minut. Pred letom se boste z Grabom premaknili do letališča DMK/BKK (približno 15-20 EUR).\n\nPrihod v Chiang Mai in prijava v hotel: Po pristanku na letališču Chiang Mai (CNX) se z Grabom ali taksijem (približno 5-10 EUR) premaknite do hotela v starem mestnem jedru Chiang Maia. Po prijavi si vzemite čas za počitek in osvežitev.",
+      "afternoon": "Kosilo in sproščen sprehod po starem mestnem jedru: Po kosilu si privoščite sproščen sprehod po starem mestnem jedru Chiang Maia, ki je obdano z obzidjem in jarkom. Obiščite lokalne trgovinice, galerije in uživajte v mirnejšem tempu mesta v primerjavi z Bangkokom. Premikanje je peš.\n\nWat Phra Singh Woramahawihan: Obiščite Wat Phra Singh, eden najpomembnejših templjev v Chiang Maiu, ki je znan po elegantni Lanna arhitekturi in spoštovanem kipu Phra Buddha Sihing. Tempelj se nahaja v samem središču starega mesta, zato je dostopen peš.",
+      "evening": "Večerja na nočni tržnici Chiang Maia: Večer preživite na znameniti nočni tržnici Chiang Maia, kjer lahko uživate v raznoliki ulični hrani, kupujete spominke in doživite živahno vzdušje. Premik s taksijem ali songthaewom.",
+      "activities": {
+        "morning": [
+          {
+            "name": "Notranji let Bangkok → Chiang Mai",
+            "description": "Dopoldne se z letališča Don Mueang (DMK) ali Suvarnabhumi (BKK) v Bangkoku odpravite na let v Chiang Mai (CNX). Let traja približno 1 uro in 10 minut. Pred letom se boste z Grabom premaknili do letališča DMK/BKK (približno 15-20 EUR).",
+            "arrivalTime": "09:00",
+            "departureTime": "10:10",
+            "estimatedCostEur": 60,
+            "priceLabel": "€60",
+            "timeSlot": "dopoldan",
+            "type": "airport",
+            "transportType": "flight",
+            "transportDuration": "1h 10min",
+            "lat": 13.7563,
+            "lng": 100.5018,
+            "unsplashQuery": "Bangkok Chiang Mai flight"
+          },
+          {
+            "name": "Prihod v Chiang Mai in prijava v hotel",
+            "description": "Po pristanku na letališču Chiang Mai (CNX) se z Grabom ali taksijem (približno 5-10 EUR) premaknite do hotela v starem mestnem jedru Chiang Maia. Po prijavi si vzemite čas za počitek in osvežitev.",
+            "arrivalTime": "10:40",
+            "timeSlot": "dopoldan",
+            "type": "hotel",
+            "unsplashQuery": "Chiang Mai airport transfer"
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Kosilo in sproščen sprehod po starem mestnem jedru",
+            "description": "Po kosilu si privoščite sproščen sprehod po starem mestnem jedru Chiang Maia, ki je obdano z obzidjem in jarkom. Obiščite lokalne trgovinice, galerije in uživajte v mirnejšem tempu mesta v primerjavi z Bangkokom. Premikanje je peš.",
+            "arrivalTime": "12:30",
+            "departureTime": "15:00",
+            "estimatedCostEur": 15,
+            "priceLabel": "€15",
+            "timeSlot": "popoldan",
+            "type": "food",
+            "unsplashQuery": "Chiang Mai old city street"
+          },
+          {
+            "name": "Wat Phra Singh Woramahawihan",
+            "description": "Obiščite Wat Phra Singh, eden najpomembnejših templjev v Chiang Maiu, ki je znan po elegantni Lanna arhitekturi in spoštovanem kipu Phra Buddha Sihing. Tempelj se nahaja v samem središču starega mesta, zato je dostopen peš.",
+            "arrivalTime": "15:00",
+            "departureTime": "16:30",
+            "estimatedCostEur": 2,
+            "priceLabel": "€2",
+            "timeSlot": "popoldan",
+            "type": "sightseeing",
+            "lat": 18.788,
+            "lng": 98.982,
+            "unsplashQuery": "Wat Phra Singh Chiang Mai",
+            "tripAdvisorStyleDetails": {
+              "highlights": [
+                "Lanna arhitektura",
+                "Sveti kip Bude",
+                "Zgodovinski pomen",
+                "Tiho okolje"
+              ],
+              "proTip": "Obiščite tempelj pozno popoldne, ko je svetloba mehka in množica manjša, kar omogoča bolj mirno raziskovanje in fotografiranje.",
+              "bestTimeOfDay": "Pozno popoldan",
+              "rating": 4.5,
+              "reviewSummary": "Čudovit tempelj z bogato zgodovino in lepo arhitekturo. Notranjost je impresivna in vredna ogleda."
+            }
+          }
+        ],
+        "evening": [
+          {
+            "name": "Večerja na nočni tržnici Chiang Maia",
+            "description": "Večer preživite na znameniti nočni tržnici Chiang Maia, kjer lahko uživate v raznoliki ulični hrani, kupujete spominke in doživite živahno vzdušje. Premik s taksijem ali songthaewom.",
+            "arrivalTime": "19:00",
+            "departureTime": "21:00",
+            "estimatedCostEur": 25,
+            "priceLabel": "€25",
+            "timeSlot": "vecer",
+            "type": "food",
+            "unsplashQuery": "Chiang Mai Night Bazaar food"
+          }
+        ]
+      },
+      "transportation": [
+        {
+          "type": "flight",
+          "from": "Bangkok DMK",
+          "to": "Chiang Mai CNX",
+          "duration": "1h 10min",
+          "estimatedPrice": 60
+        }
+      ],
+      "travelHack": "Na nočni tržnici Chiang Maia se vedno barantajte za ceno, še posebej pri nakupu spominkov. Začnite s približno polovico ponujene cene in se nato dogovorite za razumno kompromisno ceno.",
+      "transportationTips": "Za premikanje po Chiang Maiu uporabite aplikacijo Grab, rdeče 'songthaews' (skupni taksiji) ali tuk-tuke. V starem mestnem jedru je večina znamenitosti dostopna peš. Pri songthaews in tuk-tukih se dogovorite za ceno vnaprej. Pričakujte, da je Grab precej cenejši kot v Bangkoku.",
+      "localWarnings": "",
+      "dailyBudgetEur": 110,
+      "drivingDistanceKm": 0,
+      "drivingDurationHours": "0h",
+      "lat": 18.788,
+      "lng": 98.985,
+      "focusName": "Notranji let Bangkok → Chiang Mai",
+      "city": "Chiang Mai",
+      "unsplashQuery": "Chiang Mai",
+      "category": "activity",
+      "mapPins": [
+        {
+          "name": "Notranji let Bangkok → Chiang Mai",
+          "lat": 13.7563,
+          "lng": 100.5018,
+          "category": "airport",
+          "description": "Dopoldne se z letališča Don Mueang (DMK) ali Suvarnabhumi (BKK) v Bangkoku odpravite na let v Chiang Mai (CNX). Let traja približno 1 uro in 10 minut. Pred letom se boste z Grabom premaknili do letališča DMK/BKK (približno 15-20 EUR).",
+          "arrivalTime": "09:00",
+          "departureTime": "10:10",
+          "estimatedCostEur": 60,
+          "unsplashQuery": "Bangkok Chiang Mai flight"
+        },
+        {
+          "name": "Wat Phra Singh Woramahawihan",
+          "lat": 18.788,
+          "lng": 98.982,
+          "category": "sightseeing",
+          "description": "Obiščite Wat Phra Singh, eden najpomembnejših templjev v Chiang Maiu, ki je znan po elegantni Lanna arhitekturi in spoštovanem kipu Phra Buddha Sihing. Tempelj se nahaja v samem središču starega mesta, zato je dostopen peš.",
+          "arrivalTime": "15:00",
+          "departureTime": "16:30",
+          "estimatedCostEur": 2,
+          "unsplashQuery": "Wat Phra Singh Chiang Mai",
+          "tripAdvisorStyleDetails": {
+            "highlights": [
+              "Lanna arhitektura",
+              "Sveti kip Bude",
+              "Zgodovinski pomen",
+              "Tiho okolje"
+            ],
+            "proTip": "Obiščite tempelj pozno popoldne, ko je svetloba mehka in množica manjša, kar omogoča bolj mirno raziskovanje in fotografiranje.",
+            "bestTimeOfDay": "Pozno popoldan",
+            "rating": 4.5,
+            "reviewSummary": "Čudovit tempelj z bogato zgodovino in lepo arhitekturo. Notranjost je impresivna in vredna ogleda."
+          }
+        }
+      ]
+    },
+    {
+      "day": 6,
+      "date": "2026-09-24",
+      "title": "Doi Suthep in razgledi",
+      "morning": "Wat Phra That Doi Suthep: Zjutraj se odpravite na goro Doi Suthep in obiščite ikonični tempelj Wat Phra That Doi Suthep. Do tja se lahko pripeljete s songthaewom (skupni taksi) ali najetim taksijem/Grabom (približno 10-15 EUR na osebo povratna vožnja s songthaewom). Tempelj ponuja dih jemajoče razglede na Chiang Mai. Odhod do Wat Pha Lat je kratka vožnja.",
+      "afternoon": "Wat Pha Lat (Skrivni tempelj): Po obisku Doi Suthepa se spustite do Wat Pha Lat, 'skrivnega' templja, skritega v džungli. Ponuja mirno in meditativno vzdušje, obdano z naravo in slapovi. Idealno za sproščen sprehod. Nazaj v mesto se premaknete s songthaewom/taksijem.\n\nKosilo v mestu in prosti čas: Po vrnitvi v Chiang Mai si privoščite kosilo in preostanek popoldneva izkoristite za sproščanje, masažo ali raziskovanje mesta po lastnih željah. Odpravite se lahko v katero od številnih kavarn ali se prepustite tajski masaži. Premik je peš ali s kratkim Grabom.",
+      "evening": "Večerja in sproščen večer: Uživajte v večerji v eni izmed restavracij v bližini vašega hotela. Razmislite o tradicionalni tajski večerji 'Khantoke', ki vključuje lokalne jedi in kulturne predstave.",
+      "activities": {
+        "morning": [
+          {
+            "name": "Wat Phra That Doi Suthep",
+            "description": "Zjutraj se odpravite na goro Doi Suthep in obiščite ikonični tempelj Wat Phra That Doi Suthep. Do tja se lahko pripeljete s songthaewom (skupni taksi) ali najetim taksijem/Grabom (približno 10-15 EUR na osebo povratna vožnja s songthaewom). Tempelj ponuja dih jemajoče razglede na Chiang Mai. Odhod do Wat Pha Lat je kratka vožnja.",
+            "arrivalTime": "09:00",
+            "departureTime": "12:00",
+            "estimatedCostEur": 5,
+            "priceLabel": "€5",
+            "timeSlot": "dopoldan",
+            "type": "sightseeing",
+            "lat": 18.804,
+            "lng": 98.914,
+            "unsplashQuery": "Doi Suthep temple",
+            "tripAdvisorStyleDetails": {
+              "highlights": [
+                "Ikoničen gorski tempelj",
+                "Zlata čedi",
+                "Panoramski pogledi na Chiang Mai",
+                "200+ stopnic do vhoda"
+              ],
+              "proTip": "Za vzpon do templja si vzemite songthaew iz mesta. Razmislite o obisku zgodaj zjutraj, da se izognete množicam in uživate v miru templja.",
+              "bestTimeOfDay": "Zgodaj dopoldan",
+              "rating": 4.7,
+              "reviewSummary": "Veličastni razgledi in impresiven tempelj. Vzpon po stopnicah je doživetje, a je na voljo tudi žičnica."
+            }
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Wat Pha Lat (Skrivni tempelj)",
+            "description": "Po obisku Doi Suthepa se spustite do Wat Pha Lat, 'skrivnega' templja, skritega v džungli. Ponuja mirno in meditativno vzdušje, obdano z naravo in slapovi. Idealno za sproščen sprehod. Nazaj v mesto se premaknete s songthaewom/taksijem.",
+            "arrivalTime": "12:00",
+            "departureTime": "14:00",
+            "estimatedCostEur": 0,
+            "priceLabel": "€0",
+            "timeSlot": "popoldan",
+            "type": "sightseeing",
+            "lat": 18.79,
+            "lng": 98.941,
+            "unsplashQuery": "Wat Pha Lat Chiang Mai",
+            "tripAdvisorStyleDetails": {
+              "highlights": [
+                "Skrit tempelj v džungli",
+                "Mirno vzdušje",
+                "Buda ob slapu",
+                "Pohodniške poti"
+              ],
+              "proTip": "Ta tempelj je odlična alternativa hrupnemu Doi Suthepu. Popeljite se s songthaewom do vrha in se nato sprehodite po gozdni poti do tega mirnega zatočišča.",
+              "bestTimeOfDay": "Pozno dopoldan",
+              "rating": 4.6,
+              "reviewSummary": "Skrit dragulj! Obiskovalci cenijo mir in tišino, ki ju ponuja ta tempelj sredi džungle. Popoln kraj za pobeg od mestnega vrveža."
+            }
+          },
+          {
+            "name": "Kosilo v mestu in prosti čas",
+            "description": "Po vrnitvi v Chiang Mai si privoščite kosilo in preostanek popoldneva izkoristite za sproščanje, masažo ali raziskovanje mesta po lastnih željah. Odpravite se lahko v katero od številnih kavarn ali se prepustite tajski masaži. Premik je peš ali s kratkim Grabom.",
+            "arrivalTime": "14:30",
+            "departureTime": "18:00",
+            "estimatedCostEur": 20,
+            "priceLabel": "€20",
+            "timeSlot": "popoldan",
+            "type": "food",
+            "unsplashQuery": "Chiang Mai local cafe"
+          }
+        ],
+        "evening": [
+          {
+            "name": "Večerja in sproščen večer",
+            "description": "Uživajte v večerji v eni izmed restavracij v bližini vašega hotela. Razmislite o tradicionalni tajski večerji 'Khantoke', ki vključuje lokalne jedi in kulturne predstave.",
+            "arrivalTime": "19:00",
+            "departureTime": "21:00",
+            "estimatedCostEur": 30,
+            "priceLabel": "€30",
+            "timeSlot": "vecer",
+            "type": "food",
+            "unsplashQuery": "Chiang Mai Khantoke dinner"
+          }
+        ]
+      },
+      "travelHack": "Med obiskom templjev ne pozabite preizkusiti lokalnih prigrizkov in pijač, ki jih prodajajo ob poteh. Zelo priporočljivi so osvežilni napitki iz kokosa ali sveže narezano tropsko sadje.",
+      "transportationTips": "Za obisk Doi Suthepa se iz centra mesta odpravite s 'songthaewom' (rdečim taksijem). Cene so fiksne za določene relacije, vendar se lahko dogovorite za zasebno vožnjo. Za razliko od Bangkoka, v Chiang Maiu ni metroja ali skytraina, zato so songthaews in Grab glavno prevozno sredstvo. Poskusite vožnjo s songthaewom, saj je avtentična izkušnja.",
+      "localWarnings": "",
+      "dailyBudgetEur": 75,
+      "drivingDistanceKm": 30,
+      "drivingDurationHours": "1h",
+      "transport": {
+        "type": "Vožnja",
+        "duration": "1h",
+        "cost": "",
+        "description": "30 km"
+      },
+      "lat": 18.788,
+      "lng": 98.985,
+      "focusName": "Wat Phra That Doi Suthep",
+      "city": "Chiang Mai",
+      "unsplashQuery": "Chiang Mai",
+      "category": "activity"
+    },
+    {
+      "day": 7,
+      "date": "2026-09-25",
+      "title": "Vrnitev v Bangkok in zadnje raziskovanje",
+      "morning": "Dopoldanski Chiang Mai in nakupovanje spominkov: Zjutraj izkoristite še nekaj ur v Chiang Maiu za zadnje nakupovanje spominkov, obisk lokalne kavarne ali kratek sprehod po mestu. Premik je peš ali s kratkim Grabom.\n\nLet Chiang Mai → Bangkok: Popoldne se z letališča Chiang Mai (CNX) odpravite na notranji let nazaj v Bangkok (BKK). Priporočamo, da za zadnjo noč izberete hotel v bližini letališča BKK za lažji jutranji odhod. Pred letom se boste z Grabom premaknili do letališča CNX (približno 5-10 EUR).",
+      "afternoon": "Prijava v hotel v Bangkoku in kosilo: Po prihodu na letališče BKK se premaknite do hotela v bližini letališča, se prijavite in si privoščite kosilo. To vam bo prihranilo čas na dan odhoda. Od letališča do hotela se lahko premaknete z Airport Rail Link ali taksijem (približno 5-10 EUR).",
+      "evening": "Nakupovalni center Terminal 21 (če je blizu): Če je vaš hotel v bližini, lahko obiščete nakupovalni center Terminal 21, ki je edinstven po svojem letališkem dizajnu, kjer je vsako nadstropje posvečeno drugemu svetovnemu mestu. Od letališča do Terminal 21 se premaknete z Airport Rail Link in nato BTS Skytrain.\n\nPoslovilna večerja v Bangkoku: Uživajte v poslovilni večerji v restavraciji po vaši izbiri. Razmislite o restavraciji s pogledom na mesto, da se poslovite od Bangkoka v stilu. Premik s taksijem ali Grabom.",
+      "activities": {
+        "morning": [
+          {
+            "name": "Dopoldanski Chiang Mai in nakupovanje spominkov",
+            "description": "Zjutraj izkoristite še nekaj ur v Chiang Maiu za zadnje nakupovanje spominkov, obisk lokalne kavarne ali kratek sprehod po mestu. Premik je peš ali s kratkim Grabom.",
+            "arrivalTime": "09:00",
+            "departureTime": "11:00",
+            "estimatedCostEur": 15,
+            "priceLabel": "€15",
+            "timeSlot": "dopoldan",
+            "type": "sightseeing",
+            "lat": 13.7563,
+            "lng": 100.5018,
+            "unsplashQuery": "Chiang Mai local market",
+            "tripAdvisorStyleDetails": {
+              "highlights": [
+                "Dopoldanski Chiang Mai in nakupovanje spominkov",
+                "Local atmosphere"
+              ],
+              "proTip": "Go early to avoid crowds and heat.",
+              "bestTimeOfDay": "Morning",
+              "rating": 4.5,
+              "reviewSummary": "Visitors enjoy this stop for its character, photos, and nearby food options."
+            }
+          },
+          {
+            "name": "Let Chiang Mai → Bangkok",
+            "description": "Popoldne se z letališča Chiang Mai (CNX) odpravite na notranji let nazaj v Bangkok (BKK). Priporočamo, da za zadnjo noč izberete hotel v bližini letališča BKK za lažji jutranji odhod. Pred letom se boste z Grabom premaknili do letališča CNX (približno 5-10 EUR).",
+            "arrivalTime": "11:30",
+            "departureTime": "12:40",
+            "estimatedCostEur": 60,
+            "priceLabel": "€60",
+            "timeSlot": "popoldan",
+            "type": "airport",
+            "transportType": "flight",
+            "transportDuration": "1h 10min",
+            "lat": 13.756,
+            "lng": 100.502,
+            "unsplashQuery": "Chiang Mai airport"
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Prijava v hotel v Bangkoku in kosilo",
+            "description": "Po prihodu na letališče BKK se premaknite do hotela v bližini letališča, se prijavite in si privoščite kosilo. To vam bo prihranilo čas na dan odhoda. Od letališča do hotela se lahko premaknete z Airport Rail Link ali taksijem (približno 5-10 EUR).",
+            "arrivalTime": "13:30",
+            "departureTime": "15:00",
+            "estimatedCostEur": 15,
+            "priceLabel": "€15",
+            "timeSlot": "popoldan",
+            "type": "hotel",
+            "lat": 13.756,
+            "lng": 100.502,
+            "unsplashQuery": "Bangkok airport hotel"
+          }
+        ],
+        "evening": [
+          {
+            "name": "Nakupovalni center Terminal 21 (če je blizu)",
+            "description": "Če je vaš hotel v bližini, lahko obiščete nakupovalni center Terminal 21, ki je edinstven po svojem letališkem dizajnu, kjer je vsako nadstropje posvečeno drugemu svetovnemu mestu. Od letališča do Terminal 21 se premaknete z Airport Rail Link in nato BTS Skytrain.",
+            "arrivalTime": "17:00",
+            "departureTime": "19:00",
+            "estimatedCostEur": 0,
+            "priceLabel": "€0",
+            "timeSlot": "vecer",
+            "type": "entertainment",
+            "lat": 13.756,
+            "lng": 100.502,
+            "unsplashQuery": "Terminal 21 Bangkok",
+            "tripAdvisorStyleDetails": {
+              "highlights": [
+                "Letališka tematika",
+                "Različne svetovne destinacije",
+                "Restavracije in nakupovanje",
+                "Food court s poceni hrano"
+              ],
+              "proTip": "Obvezno obiščite 'food court' Pier 21 v zgornjem nadstropju, ki ponuja izjemno okusno in poceni tajsko hrano v izjemno čistem okolju.",
+              "bestTimeOfDay": "Pozno popoldan/zvečer",
+              "rating": 4.5,
+              "reviewSummary": "Zabaven in inovativen nakupovalni center. Obiskovalci so navdušeni nad tematskimi nadstropji in odlično ponudbo hrane po ugodnih cenah."
+            }
+          },
+          {
+            "name": "Poslovilna večerja v Bangkoku",
+            "description": "Uživajte v poslovilni večerji v restavraciji po vaši izbiri. Razmislite o restavraciji s pogledom na mesto, da se poslovite od Bangkoka v stilu. Premik s taksijem ali Grabom.",
+            "arrivalTime": "19:30",
+            "departureTime": "21:00",
+            "estimatedCostEur": 30,
+            "priceLabel": "€30",
+            "timeSlot": "vecer",
+            "type": "food",
+            "lat": 13.756,
+            "lng": 100.502,
+            "unsplashQuery": "Bangkok rooftop dinner"
+          }
+        ]
+      },
+      "transportation": [
+        {
+          "type": "flight",
+          "from": "Chiang Mai CNX",
+          "to": "Bangkok BKK",
+          "duration": "1h 10min",
+          "estimatedPrice": 60
+        }
+      ],
+      "travelHack": "Če imate let pozno zvečer, razmislite o 'day use' sobi v hotelu blizu letališča, da se lahko osvežite in sprostite pred dolgim letom domov. To je lahko cenejša alternativa celodnevni rezervaciji.",
+      "transportationTips": "Po prihodu nazaj v Bangkok z letališča BKK, če ste nastanjeni blizu letališča, je Airport Rail Link najboljša in najhitrejša izbira. Za premike po mestu so na voljo BTS Skytrain in MRT podzemna železnica, ki se jim je dobro posluževati v prometnih konicah. Bodite previdni pri uporabi tuk-tukov pozno zvečer, saj lahko cene narastejo. Uporabite Grab, da se izognete prevaram.",
+      "localWarnings": "",
+      "dailyBudgetEur": 110,
+      "drivingDistanceKm": 0,
+      "drivingDurationHours": "0h",
+      "lat": 13.756,
+      "lng": 100.502,
+      "focusName": "Let Chiang Mai → Bangkok",
+      "city": "Bangkok",
+      "unsplashQuery": "Bangkok",
+      "category": "activity",
+      "mapPins": [
+        {
+          "name": "Let Chiang Mai → Bangkok",
+          "lat": 13.756,
+          "lng": 100.502,
+          "category": "airport",
+          "description": "Popoldne se z letališča Chiang Mai (CNX) odpravite na notranji let nazaj v Bangkok (BKK). Priporočamo, da za zadnjo noč izberete hotel v bližini letališča BKK za lažji jutranji odhod. Pred letom se boste z Grabom premaknili do letališča CNX (približno 5-10 EUR).",
+          "arrivalTime": "11:30",
+          "departureTime": "12:40",
+          "estimatedCostEur": 60,
+          "unsplashQuery": "Chiang Mai airport"
+        },
+        {
+          "name": "Nakupovalni center Terminal 21 (če je blizu)",
+          "lat": 13.756,
+          "lng": 100.502,
+          "category": "train",
+          "description": "Če je vaš hotel v bližini, lahko obiščete nakupovalni center Terminal 21, ki je edinstven po svojem letališkem dizajnu, kjer je vsako nadstropje posvečeno drugemu svetovnemu mestu. Od letališča do Terminal 21 se premaknete z Airport Rail Link in nato BTS Skytrain.",
+          "arrivalTime": "17:00",
+          "departureTime": "19:00",
+          "estimatedCostEur": 0,
+          "unsplashQuery": "Terminal 21 Bangkok",
+          "tripAdvisorStyleDetails": {
+            "highlights": [
+              "Letališka tematika",
+              "Različne svetovne destinacije",
+              "Restavracije in nakupovanje",
+              "Food court s poceni hrano"
+            ],
+            "proTip": "Obvezno obiščite 'food court' Pier 21 v zgornjem nadstropju, ki ponuja izjemno okusno in poceni tajsko hrano v izjemno čistem okolju.",
+            "bestTimeOfDay": "Pozno popoldan/zvečer",
+            "rating": 4.5,
+            "reviewSummary": "Zabaven in inovativen nakupovalni center. Obiskovalci so navdušeni nad tematskimi nadstropji in odlično ponudbo hrane po ugodnih cenah."
+          }
+        },
+        {
+          "name": "Dopoldanski Chiang Mai in nakupovanje spominkov",
+          "lat": 13.7563,
+          "lng": 100.5018,
+          "category": "sightseeing",
+          "description": "Zjutraj izkoristite še nekaj ur v Chiang Maiu za zadnje nakupovanje spominkov, obisk lokalne kavarne ali kratek sprehod po mestu. Premik je peš ali s kratkim Grabom.",
+          "unsplashQuery": "Dopoldanski Chiang Mai in nakupovanje spominkov",
+          "tripAdvisorStyleDetails": {
+            "highlights": [
+              "Dopoldanski Chiang Mai in nakupovanje spominkov",
+              "Local atmosphere"
+            ],
+            "proTip": "Go early to avoid crowds and heat.",
+            "bestTimeOfDay": "Morning",
+            "rating": 4.5,
+            "reviewSummary": "Visitors enjoy this stop for its character, photos, and nearby food options."
+          }
+        }
+      ]
+    },
+    {
+      "day": 8,
+      "date": "2026-09-26",
+      "title": "Odhod iz Bangkok / mednarodni let",
+      "morning": "Zajtrk in prosti čas: Po zajtrku v hotelu si vzemite čas za sproščanje ali pakiranje. Če imate še nekaj prostega časa, lahko obiščete bližnjo tržnico za zadnje spominke.",
+      "afternoon": "Odjava iz hotela: Odjava iz hotela in shranjevanje prtljage, če je let pozno zvečer. Počitek ali kosilo v bližini.\n\nZadnje kosilo v Bangkoku: Uživajte v zadnjem tajskem kosilu pred odhodom. Poiščite lokalno restavracijo, ki vam je bila še posebej všeč, ali pa poskusite nekaj novega.",
+      "evening": "Prevoz na letališče Suvarnabhumi (BKK): Odhod z letališča BKK je ob 23:40, zato je priporočljivo, da ste na letališču okoli 20:30, da imate dovolj časa za prijavo prtljage, varnostno kontrolo in morebitno večerjo pred letom. Prevoz z Airport Rail Link ali taksijem (približno 5-10 EUR, če ste v bližini letališča).",
+      "activities": {
+        "morning": [
+          {
+            "name": "Zajtrk in prosti čas",
+            "description": "Po zajtrku v hotelu si vzemite čas za sproščanje ali pakiranje. Če imate še nekaj prostega časa, lahko obiščete bližnjo tržnico za zadnje spominke.",
+            "arrivalTime": "09:00",
+            "departureTime": "11:00",
+            "estimatedCostEur": 10,
+            "priceLabel": "€10",
+            "timeSlot": "dopoldan",
+            "type": "food",
+            "unsplashQuery": "Thai breakfast"
+          },
+          {
+            "name": "Odjava iz hotela",
+            "description": "Odjava iz hotela in shranjevanje prtljage, če je let pozno zvečer. Počitek ali kosilo v bližini.",
+            "arrivalTime": "12:00",
+            "departureTime": "13:00",
+            "timeSlot": "dopoldan",
+            "type": "hotel"
+          }
+        ],
+        "afternoon": [],
+        "evening": [
+          {
+            "name": "Odhod iz hotela (check-out)",
+            "type": "STAY",
+            "description": "Zjutraj zaključi check-out, prtljago shrani na recepciji (če imaš še kratek ogled) ali vzemi s seboj. pozni večernji let ob 23:40 — po check-outu še skoraj cel dan na voljo; na letališče šele ~3 ure pred odletom.",
+            "arrivalTime": "23:40"
+          },
+          {
+            "name": "Prevoz na letališče (Grab / taxi)",
+            "type": "TRANSPORT",
+            "description": "Let odhaja ob 23:40. Na mednarodne lete odidi iz hotela približno 2 uri prej (promet + varnostna kontrola). Rezerviraj Grab / taxi z rezervo časa.",
+            "priceLabel": "€15–35",
+            "arrivalTime": "23:40"
+          },
+          {
+            "name": "Prihod na letališče in odlet",
+            "type": "TRANSPORT",
+            "description": "Na letališču oddaj prtljago in opravi check-in. Pozni odhod ob 23:40 — na letališče pridi ~3 ure pred odletom, ne popoldne.",
+            "arrivalTime": "23:40",
+            "departureTime": "06:15",
+            "transportType": "flight"
+          }
+        ]
+      },
+      "transportation": [
+        {
+          "type": "van",
+          "from": "Prevoz na letališče Suvarnabhumi (BKK)",
+          "to": "Bangkok",
+          "duration": "3h 10min",
+          "estimatedPrice": 10
+        }
+      ],
+      "travelHack": "Preden zapustite Tajsko, preverite, ali imate kakšne tajske bahte, ki bi jih radi zamenjali, saj je zamenjava zunaj države pogosto manj ugodna. Lahko jih porabite za zadnje nakupe na letališču ali lokalnih tržnicah.",
+      "transportationTips": "Na dan odhoda iz Bangkoka je ključno, da si pustite dovolj časa za prevoz do letališča BKK, saj je promet v Bangkoku lahko zelo nepredvidljiv. Airport Rail Link je najhitrejša možnost, saj se izogne cestnim zastojem. Taksiji in Grabi so sicer udobnejši, a dražji in podvrženi prometu. Prepričajte se, da imate potni list in letalsko karto pri roki.",
+      "localWarnings": "",
+      "dailyBudgetEur": 40,
+      "drivingDistanceKm": 0,
+      "drivingDurationHours": "0h",
+      "lat": 13.756,
+      "lng": 100.502,
+      "focusName": "Bangkok",
+      "city": "Bangkok",
+      "unsplashQuery": "Bangkok",
+      "category": "transport",
+      "mapPins": [
+        {
+          "name": "Dopoldanski Chiang Mai in nakupovanje spominkov",
+          "lat": 13.7563,
+          "lng": 100.5018,
+          "category": "sightseeing",
+          "description": "Zjutraj izkoristite še nekaj ur v Chiang Maiu za zadnje nakupovanje spominkov, obisk lokalne kavarne ali kratek sprehod po mestu. Premik je peš ali s kratkim Grabom.",
+          "unsplashQuery": "Dopoldanski Chiang Mai in nakupovanje spominkov",
+          "tripAdvisorStyleDetails": {
+            "highlights": [
+              "Dopoldanski Chiang Mai in nakupovanje spominkov",
+              "Local atmosphere"
+            ],
+            "proTip": "Go early to avoid crowds and heat.",
+            "bestTimeOfDay": "Morning",
+            "rating": 4.5,
+            "reviewSummary": "Visitors enjoy this stop for its character, photos, and nearby food options."
+          }
+        }
+      ],
+      "inFlightDay": true
+    }
+  ],
+  "destinationName": "Tajska"
+}

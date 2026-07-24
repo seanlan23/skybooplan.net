@@ -307,6 +307,16 @@ export function formatArrivalTime(flights: TripFlightContext, slo: boolean): str
   return slo ? `${t} (lokalni čas na destinaciji)` : `${t} (local time at destination)`;
 }
 
+/** Short clock for activity copy / prompts — avoid repeating the long (+1 dan…) phrase. */
+export function formatArrivalTimeShort(flights: TripFlightContext, slo: boolean): string {
+  const t = flights.outboundArrive;
+  if (flights.outboundArriveDayOffset > 0) {
+    const d = flights.outboundArriveDayOffset;
+    return slo ? `${t} (+${d}d, lokalni čas)` : `${t} (+${d}d local)`;
+  }
+  return slo ? `${t} (lokalni čas)` : `${t} (local time)`;
+}
+
 export function isEarlyDeparture(flights?: TripFlightContext): boolean {
   if (!flights?.inboundDepart) return false;
   return parseHm(flights.inboundDepart) <= 13 * 60;
@@ -347,24 +357,22 @@ export function buildArrivalLogistics(
 ): LogisticsActivity[] {
   const slo = locale.slo;
   const motorhome = opts?.accommodationMode === "motorhome";
-  const arriveLabel = flights ? formatArrivalTime(flights, slo) : slo ? "14:00" : "14:00";
+  const arriveLabel = flights ? formatArrivalTimeShort(flights, slo) : slo ? "14:00" : "14:00";
   const late = isLateArrival(flights);
   const airportHint = airportArrivalHint(city, locale);
 
   const landHm = flights?.outboundArrive?.trim() || "14:00";
   // Rough transfer window after wheels-down (immigration + bag + taxi).
   const transferEnd = addHmMinutes(landHm, 90);
-  const checkInEnd = addHmMinutes(landHm, 150);
 
   return [
     {
       name: slo ? "Prihod na letališče" : "Airport arrival",
       type: "TRANSPORT",
       arrivalTime: landHm,
-      departureTime: transferEnd,
       description: slo
-        ? `Polet pristane na destinaciji ob ${arriveLabel} po lokalnem času (NE izmišljena ura). Po izhodu sledi kontrola, prevzem prtljage in orientacija v arrival hallu. ${airportHint}`
-        : `Your flight lands at ${arriveLabel} local time (do not invent another time). Clear immigration, collect luggage, and orient yourself in arrivals. ${airportHint}`,
+        ? `Polet pristane na destinaciji ob ${arriveLabel}. Po izhodu sledi kontrola, prevzem prtljage in orientacija v arrival hallu. ${airportHint}`
+        : `Your flight lands at ${arriveLabel}. Clear immigration, collect luggage, and orient yourself in arrivals. ${airportHint}`,
     },
     {
       name: motorhome
@@ -388,7 +396,6 @@ export function buildArrivalLogistics(
       name: slo ? "Check-in, osvežitev in kratek odmor" : "Check-in, refresh, and short rest",
       type: "STAY",
       arrivalTime: transferEnd,
-      departureTime: checkInEnd,
       description: slo
         ? late
           ? motorhome

@@ -211,6 +211,12 @@ describe("applyFlightContextToGeminiPlan", () => {
     expect(eveningText).toMatch(/17:55/);
     expect(eveningText).not.toMatch(/12:00/);
     expect(eveningText).toMatch(/transfer|check|Prihod|hotel|letališ/i);
+
+    const prihod = (arrival.activities?.evening ?? []).find((a) =>
+      /prihod na letališč/i.test(a.name),
+    );
+    expect(prihod?.arrivalTime).toBe("17:55");
+    expect(prihod?.departureTime).toBeUndefined();
   });
 
   it("keeps origin departure time on same-day arrival (does not overwrite with land time)", () => {

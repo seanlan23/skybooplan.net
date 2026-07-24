@@ -1,27 +1,147 @@
-/** Format activity visit/travel window for UI + PDF (start → end). */
+/**
+ * Activity clock display + normalization.
+ * Fields: arrivalTime = window start (or event time); departureTime = window end (or flight arrive).
+ */
+
+export type ActivityClockFields = {
+  name?: string;
+  description?: string;
+  type?: string;
+  transportType?: string;
+  arrivalTime?: string | null;
+  departureTime?: string | null;
+};
+
+function toMin(t: string): number | null {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(t.trim());
+  if (!m) return null;
+  const h = Number(m[1]);
+  const min = Number(m[2]);
+  if (h > 23 || min > 59) return null;
+  return h * 60 + min;
+}
+
+/** True for check-in / airport arrival / transfer events — show one clock, never overnight nonsense. */
+export function isPointInTimeActivity(activity: ActivityClockFields): boolean {
+  const name = (activity.name ?? "").trim();
+  const blob = `${name} ${activity.description ?? ""} ${activity.type ?? ""} ${activity.transportType ?? ""}`.toLowerCase();
+
+  // Explicit flight / long-haul legs keep a depart→arrive range.
+  if (activity.transportType === "flight") return false;
+  if (
+    /mednarodni\s*let|international\s*flight|notranji\s*let|domestic\s*flight|flight\s*home|povratek\s*domov|return\s*flight/i.test(
+      blob,
+    )
+  ) {
+    return false;
+  }
+  if (/\b(let|flight)\b/.test(blob) && /(→|->|—|–)/.test(name)) return false;
+
+  if (activity.type === "STAY") return true;
+  return /prihod na letališč|airport arrival|check-?in|check-?out|osvežit|odhod iz hotela|hotel check-out|varnostni pregled|security screening|prevzem prtljag|collect luggage|orientacija|arrival hall/i.test(
+    blob,
+  );
+}
+
+/** True when the activity is an intercity flight / overnight air leg. */
+export function isFlightRangeActivity(activity: ActivityClockFields): boolean {
+  if (activity.transportType === "flight") return true;
+  const blob = `${activity.name ?? ""} ${activity.description ?? ""}`.toLowerCase();
+  return /mednarodni\s*let|international\s*flight|notranji\s*let|domestic\s*flight|flight\s*home|povratek\s*domov|return\s*flight|prihod na letališče in odlet|airport arrival and departure/i.test(
+    blob,
+  );
+}
+
+/** Format start → end for UI + PDF. Overnight (+1) only when both sides exist. */
 export function formatActivityClockRange(
   arrivalTime?: string | null,
   departureTime?: string | null,
+  opts?: { allowOvernightPlus1?: boolean },
 ): string | undefined {
   const start = arrivalTime?.trim() || "";
   const end = departureTime?.trim() || "";
   if (!start && !end) return undefined;
   if (start && !end) return start;
   if (!start && end) return end;
-
-  const toMin = (t: string): number | null => {
-    const m = /^(\d{1,2}):(\d{2})$/.exec(t);
-    if (!m) return null;
-    const h = Number(m[1]);
-    const min = Number(m[2]);
-    if (h > 23 || min > 59) return null;
-    return h * 60 + min;
-  };
+  if (start === end) return start;
 
   const a = toMin(start);
   const b = toMin(end);
   if (a == null || b == null) return `${start} – ${end}`;
-  // Overnight wall-clock (e.g. 21:10 → 17:55 next day).
-  if (b < a) return `${start} – ${end} (+1)`;
+
+  const allowPlus1 = opts?.allowOvernightPlus1 !== false;
+  if (b < a) {
+    return allowPlus1 ? `${start} – ${end} (+1)` : start;
+  }
   return `${start} – ${end}`;
+}
+
+/**
+ * Display label for an activity.
+ * Point-in-time logistics → one HH:MM; flight legs → depart – arrive (+1 if overnight).
+ */
+export function formatActivityClockLabel(activity: ActivityClockFields): string | undefined {
+  const start = activity.arrivalTime?.trim() || "";
+  const end = activity.departureTime?.trim() || "";
+
+  if (isPointInTimeActivity(activity)) {
+    if (start && end && start !== end) {
+      const a = toMin(start);
+      const b = toMin(end);
+      // Swapped / overnight garbage on check-in → keep the start (event) clock only.
+      if (a != null && b != null && b < a) return start;
+    }
+    return start || end || undefined;
+  }
+
+  return formatActivityClockRange(start, end, {
+    allowOvernightPlus1: isFlightRangeActivity(activity) || Boolean(start && end),
+  });
+}
+
+/**
+ * Normalize stored clocks so UI/PDF never show 19:30–18:00 on check-in.
+ * Mutates the activity-like object.
+ */
+export function normalizeActivityClocks<T extends ActivityClockFields>(activity: T): T {
+  const start = activity.arrivalTime?.trim() || "";
+  const end = activity.departureTime?.trim() || "";
+
+  if (!start && !end) return activity;
+
+  if (isPointInTimeActivity(activity)) {
+    let clock = start || end;
+    if (start && end && start !== end) {
+      const a = toMin(start);
+      const b = toMin(end);
+      // Prefer earlier wall-clock as event time when range looks inverted.
+      if (a != null && b != null && b < a) clock = start;
+      else clock = start;
+    }
+    activity.arrivalTime = clock || undefined;
+    activity.departureTime = undefined;
+    return activity;
+  }
+
+  if (isFlightRangeActivity(activity) && start && end) {
+    const a = toMin(start);
+    const b = toMin(end);
+    // If someone stored arrive→depart, swap when start looks like afternoon land and end like evening depart same-calendar nonsense...
+    // Prefer: start should be depart (often later local or previous day). Keep as-is when overnight (b < a).
+    if (a != null && b != null && a === b) {
+      activity.departureTime = undefined;
+    }
+    return activity;
+  }
+
+  // Generic visit window with inverted clocks → collapse to start.
+  if (start && end) {
+    const a = toMin(start);
+    const b = toMin(end);
+    if (a != null && b != null && b < a && !isFlightRangeActivity(activity)) {
+      activity.arrivalTime = start;
+      activity.departureTime = undefined;
+    }
+  }
+  return activity;
 }

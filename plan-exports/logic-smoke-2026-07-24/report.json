@@ -1,0 +1,22 @@
+{
+  "report": [
+    {
+      "id": "MUC-BKK",
+      "expectedDays": 8,
+      "maxDay": 8,
+      "contiguous": true,
+      "coverage": true,
+      "spam": 0,
+      "inverted": []
+    },
+    {
+      "id": "MUC-CMB",
+      "expectedDays": 8,
+      "maxDay": 8,
+      "contiguous": true,
+      "coverage": true,
+      "spam": 0,
+      "inverted": []
+    }
+  ]
+}

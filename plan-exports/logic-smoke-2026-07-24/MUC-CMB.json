@@ -1,0 +1,1031 @@
+{
+  "days": [
+    {
+      "day": 1,
+      "date": "2026-10-05",
+      "title": "Odhod iz MUC / mednarodni let",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [
+          {
+            "name": "Odhod: Munich (MUC)",
+            "type": "TRANSPORT",
+            "description": "Odhod z domačega letališča Munich (MUC) ob 21:15. Na mednarodni let pridi 2–3 ure pred odletom (check-in, oddaja prtljage, varnostna kontrola). Če se pripelješ z avtom, primerjaj parkiranje prek Parkvia, Parkos ali MyWay (terminal vs. zunanji P+R + shuttle) — pogosto ceneje za večdnevne počitnice."
+          },
+          {
+            "name": "Check-in in varnostni pregled",
+            "type": "TRANSPORT",
+            "description": "Na letališču MUC oddaj prtljago (če jo imaš), opravi check-in in varnostni pregled. Za mednarodne lete računaj 2–3 ure pred odletom ob 21:15 — ob konicah in počitniških terminih raje še več rezerve."
+          },
+          {
+            "name": "Mednarodni let",
+            "type": "TRANSPORT",
+            "transportType": "flight",
+            "description": "Še v letu proti destinaciji — dan 1 od 8. Po pristanku (dan 2, 14:40 (+1d, lokalni čas)) sledi check-in.",
+            "arrivalTime": "21:15",
+            "departureTime": "14:40"
+          }
+        ],
+        "afternoon": [],
+        "evening": []
+      },
+      "travelHack": "Odhod z domačega letališča Munich (MUC) ob 21:15. Na mednarodni let pridi 2–3 ure pred odletom (check-in, oddaja prtljage, varnostna kontrola). Če se pripelješ z avtom, primerjaj parkiranje prek Parkvia, Parkos ali MyWay (terminal vs. zunanji P+R + shuttle) — pogosto ceneje za večdnevne počitnice.",
+      "transportationTips": "Za prevoz do letališča MUC razmislite o javnem prevozu (vlak S-Bahn) ali taksiju. Če potujete z avtom, primerjajte cene parkirišč (npr. Parkvia, Parkos) za dolgotrajno parkiranje.",
+      "localWarnings": "Preveri vizne zahteve pred odhodom.",
+      "dailyBudgetEur": 55,
+      "drivingDistanceKm": 0,
+      "drivingDurationHours": "0h",
+      "lat": 48.137,
+      "lng": 11.575,
+      "focusName": "Munich",
+      "city": "Munich",
+      "unsplashQuery": "Munich airport",
+      "category": "transport",
+      "mapPins": [],
+      "inFlightDay": true
+    },
+    {
+      "day": 2,
+      "date": "2026-10-06",
+      "title": "Prihod v Colombo in prvi vtisi",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [],
+        "afternoon": [
+          {
+            "name": "Prihod na letališče",
+            "type": "TRANSPORT",
+            "description": "Polet pristane na destinaciji ob 14:40. Po izhodu sledi kontrola, prevzem prtljage in orientacija v arrival hallu. Preveri letališče na vstopnici — prihod je na CMB (Colombo).",
+            "arrivalTime": "14:40"
+          },
+          {
+            "name": "Prevoz do hotela (PickMe / tuk-tuk)",
+            "type": "TRANSPORT",
+            "description": "Iz letališča do hotela v Colombo uporabi PickMe / tuk-tuk (orientacijsko €5–15) — v večini mest je na voljo tudi prevozna aplikacija ali uradni taxi. Do centra računaj 20–90 min, odvisno od prometa in razdalje.",
+            "priceLabel": "€5–15",
+            "arrivalTime": "14:40",
+            "departureTime": "16:10"
+          },
+          {
+            "name": "Check-in, osvežitev in kratek odmor",
+            "type": "STAY",
+            "description": "Po prihodu v hotel se namestiš, osvežiš, napolniš vodo in počakaš 1–2 uri, da se prilagodiš podnebju in časovnemu pasu. Šele nato nadaljuješ z ogledi po načrtu — brez hitenja takoj z letališča na znamenitosti.",
+            "arrivalTime": "14:40"
+          }
+        ],
+        "evening": [
+          {
+            "name": "Prihod na mednarodno letališče Bandaranaike (CMB)",
+            "description": "Po pristanku na letališču CMB boste opravili carinske formalnosti in prevzeli prtljago. Priporočamo, da že na letališču zamenjate nekaj denarja ali dvignete gotovino in uredite lokalno SIM kartico. Sledi prevoz do hotela v Colombu.",
+            "arrivalTime": "14:40",
+            "departureTime": "16:00",
+            "estimatedCostEur": 0,
+            "priceLabel": "€0",
+            "timeSlot": "popoldan",
+            "type": "airport",
+            "transportType": "flight",
+            "transportDuration": "1h 20min",
+            "lat": 7.1808,
+            "lng": 79.8841
+          }
+        ]
+      },
+      "transportation": [
+        {
+          "type": "flight",
+          "from": "Prihod na mednarodno letališče Bandaranaike (CMB)",
+          "to": "Colombo",
+          "duration": "1h 20min",
+          "estimatedPrice": 0
+        }
+      ],
+      "travelHack": "Za izkušnjo prave ulične kulinarike na Galle Face Green poskusite 'isso wade' (ocvrte kozice s čilijem) ali 'kottu roti' (sesekljan kruh s karijem in zelenjavo/mesom).",
+      "transportationTips": "Za prevoz od letališča do Colomba priporočamo najem taksija ali uporabo aplikacije PickMe ali Uber, ki sta na Šrilanki zelo priljubljeni in zanesljivi. Cena transferja je približno 20-25 EUR. Znotraj Colomba se lahko premikate s tuk-tukom (dogovorite se za ceno vnaprej) ali z omenjenima aplikacijama, kar je ceneje in bolj transparentno.",
+      "localWarnings": "",
+      "dailyBudgetEur": 75,
+      "drivingDistanceKm": 35,
+      "drivingDurationHours": "0h 45m",
+      "transport": {
+        "type": "Vožnja",
+        "duration": "0h 45m",
+        "cost": "",
+        "description": "35 km"
+      },
+      "lat": 6.927079,
+      "lng": 79.861244,
+      "focusName": "Prihod na mednarodno letališče Bandaranaike (CMB)",
+      "city": "Colombo",
+      "unsplashQuery": "Colombo",
+      "category": "activity",
+      "mapPins": [
+        {
+          "name": "Prihod na mednarodno letališče Bandaranaike (CMB)",
+          "lat": 6.927079,
+          "lng": 79.861244,
+          "category": "airport",
+          "description": "Po pristanku na letališču CMB boste opravili carinske formalnosti in prevzeli prtljago. Priporočamo, da že na letališču zamenjate nekaj denarja ali dvignete gotovino in uredite lokalno SIM kartico. Sledi prevoz do hotela v Colombu.",
+          "arrivalTime": "14:40",
+          "departureTime": "16:00",
+          "estimatedCostEur": 0
+        },
+        {
+          "name": "Prijava v hotel in kratek počitek",
+          "lat": 6.927079,
+          "lng": 79.861244,
+          "category": "airport",
+          "description": "Po dolgem letu se boste prijavili v hotel v Colombu in si privoščili kratek počitek, preden se odpravite na raziskovanje. Hotel se nahaja v središču mesta, kar omogoča enostaven dostop do večernih aktivnosti. Vožnja od letališča do hotela traja približno 45 minut.",
+          "arrivalTime": "16:00",
+          "departureTime": "17:30",
+          "estimatedCostEur": 0,
+          "unsplashQuery": "Prijava v hotel in kratek počitek",
+          "tripAdvisorStyleDetails": {
+            "highlights": [
+              "Prijava v hotel in kratek počitek",
+              "Local atmosphere"
+            ],
+            "proTip": "Go early to avoid crowds and heat.",
+            "bestTimeOfDay": "Morning",
+            "rating": 4.5,
+            "reviewSummary": "Visitors enjoy this stop for its character, photos, and nearby food options."
+          }
+        }
+      ],
+      "inFlightDay": false
+    },
+    {
+      "day": 3,
+      "date": "2026-10-07",
+      "title": "Od Colomba do Kandyja in tempelj zoba",
+      "morning": "Obisk templja Gangaramaya v Colombu: Zjutraj obiščite tempelj Gangaramaya, enega najpomembnejših budističnih templjev v Colombu, znanega po svoji edinstveni arhitekturi in zbirki artefaktov. Nahaja se ob jezeru Beira. Od hotela do templja se lahko sprehodite (približno 20 minut) ali vzamete tuk-tuk za 5 minut.\n\nKosilo v lokalni restavraciji v Colombu: Pred odhodom v Kandy si privoščite avtentično šrilanško kosilo v eni izmed cenovno ugodnih, a okusnih restavracij v Colombu. Poskusite riž in kari, ki je osnovna jed. Po kosilu sledi prevoz do železniške postaje ali mesta, kjer vas bo čakal prevoz do Kandyja.",
+      "afternoon": "Prevoz iz Colomba do Kandyja: Vožnja z avtom/kombijem iz Colomba v Kandy bo trajala približno 3,5 ure. Med potjo boste opazovali spreminjajočo se pokrajino, od obalnih ravnin do hribovite notranjosti, posejane z zelenimi čajnimi nasadi. Po prihodu v Kandy se boste prijavili v hotel.",
+      "evening": "Obisk templja relikvije svetega zoba (Sri Dalada Maligawa): Obiščite sveti tempelj relikvije zoba, ki hrani enega najsvetejših budističnih relikvij na svetu – Budov zob. To je ključna kulturna in verska znamenitost Kandyja. Bodite pozorni na čas Puje (obredi), ki se odvijajo ob določenih urah. Od hotela do templja je kratek sprehod ob jezeru.\n\nVečerja v Kandyju: Po obisku templja si privoščite tradicionalno šrilanško večerjo v Kandyju. Poskusite lokalne specialitete, kot so 'hoppery' ali 'string hoppers' z različnimi kariji. Izberete lahko eno izmed restavracij blizu jezera Kandy.",
+      "activities": {
+        "morning": [
+          {
+            "name": "Obisk templja Gangaramaya v Colombu",
+            "description": "Zjutraj obiščite tempelj Gangaramaya, enega najpomembnejših budističnih templjev v Colombu, znanega po svoji edinstveni arhitekturi in zbirki artefaktov. Nahaja se ob jezeru Beira. Od hotela do templja se lahko sprehodite (približno 20 minut) ali vzamete tuk-tuk za 5 minut.",
+            "arrivalTime": "09:00",
+            "departureTime": "11:00",
+            "estimatedCostEur": 10,
+            "priceLabel": "€10",
+            "timeSlot": "dopoldan",
+            "type": "sightseeing",
+            "lat": 6.9248,
+            "lng": 79.8569,
+            "unsplashQuery": "Gangaramaya Temple Colombo",
+            "tripAdvisorStyleDetails": {
+              "highlights": [
+                "Edinstvena mešanica šrilanške, tajske, indijske in kitajske arhitekture",
+                "Zbirka starinskih vozil, nakita in verskih predmetov",
+                "Velikansko drevo Bodhi",
+                "Lokacija ob jezeru Beira"
+              ],
+              "proTip": "Pazite na pokritost ramen in kolen, saj je to versko mesto. Obvezno sezujte čevlje in klobuke pred vstopom v glavne prostore templja.",
+              "bestTimeOfDay": "Zgodaj dopoldan",
+              "rating": 4.5,
+              "reviewSummary": "Gangaramaya je čudovit in pomemben tempelj, ki ponuja vpogled v budistično kulturo Šrilanke. Obiskovalci so navdušeni nad njegovo umetnostjo in spokojnostjo."
+            }
+          },
+          {
+            "name": "Kosilo v lokalni restavraciji v Colombu",
+            "description": "Pred odhodom v Kandy si privoščite avtentično šrilanško kosilo v eni izmed cenovno ugodnih, a okusnih restavracij v Colombu. Poskusite riž in kari, ki je osnovna jed. Po kosilu sledi prevoz do železniške postaje ali mesta, kjer vas bo čakal prevoz do Kandyja.",
+            "arrivalTime": "11:30",
+            "departureTime": "12:30",
+            "estimatedCostEur": 12,
+            "priceLabel": "€12",
+            "timeSlot": "dopoldan",
+            "type": "food",
+            "lat": 6.927079,
+            "lng": 79.861244
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Prevoz iz Colomba do Kandyja",
+            "description": "Vožnja z avtom/kombijem iz Colomba v Kandy bo trajala približno 3,5 ure. Med potjo boste opazovali spreminjajočo se pokrajino, od obalnih ravnin do hribovite notranjosti, posejane z zelenimi čajnimi nasadi. Po prihodu v Kandy se boste prijavili v hotel.",
+            "arrivalTime": "13:00",
+            "departureTime": "16:30",
+            "estimatedCostEur": 35,
+            "priceLabel": "€35",
+            "timeSlot": "popoldan",
+            "type": "transport",
+            "transportType": "van",
+            "transportDuration": "3h 30min",
+            "lat": 7.290572,
+            "lng": 80.633728
+          }
+        ],
+        "evening": [
+          {
+            "name": "Obisk templja relikvije svetega zoba (Sri Dalada Maligawa)",
+            "description": "Obiščite sveti tempelj relikvije zoba, ki hrani enega najsvetejših budističnih relikvij na svetu – Budov zob. To je ključna kulturna in verska znamenitost Kandyja. Bodite pozorni na čas Puje (obredi), ki se odvijajo ob določenih urah. Od hotela do templja je kratek sprehod ob jezeru.",
+            "arrivalTime": "17:00",
+            "departureTime": "18:30",
+            "estimatedCostEur": 15,
+            "priceLabel": "€15",
+            "timeSlot": "popoldan",
+            "type": "sightseeing",
+            "lat": 7.2938,
+            "lng": 80.6406,
+            "unsplashQuery": "Temple of the Sacred Tooth Relic Kandy",
+            "tripAdvisorStyleDetails": {
+              "highlights": [
+                "Sveta relikvija Budovega zoba",
+                "Impresivna arhitektura in poslikave",
+                "Verski obredi (Puja)",
+                "Mirna lokacija ob jezeru Kandy"
+              ],
+              "proTip": "Obisk načrtujte med obredom Puja (zjutraj, poldne ali zvečer), da doživite edinstveno versko vzdušje. Ne pozabite na primerno oblačenje (pokrita ramena in kolena) in sezujte čevlje.",
+              "bestTimeOfDay": "Zvečer med obredom Puja",
+              "rating": 4.6,
+              "reviewSummary": "Tempelj relikvije zoba je duhovno središče Šrilanke in ponuja globok vpogled v budizem. Obiskovalci so navdušeni nad njegovo zgodovino in lepoto."
+            }
+          },
+          {
+            "name": "Večerja v Kandyju",
+            "description": "Po obisku templja si privoščite tradicionalno šrilanško večerjo v Kandyju. Poskusite lokalne specialitete, kot so 'hoppery' ali 'string hoppers' z različnimi kariji. Izberete lahko eno izmed restavracij blizu jezera Kandy.",
+            "arrivalTime": "19:30",
+            "departureTime": "21:00",
+            "estimatedCostEur": 15,
+            "priceLabel": "€15",
+            "timeSlot": "vecer",
+            "type": "food",
+            "lat": 7.290572,
+            "lng": 80.633728
+          }
+        ]
+      },
+      "transportation": [
+        {
+          "type": "van",
+          "from": "Colombo",
+          "to": "Kandy",
+          "duration": "3h 30min",
+          "estimatedPrice": 35
+        }
+      ],
+      "travelHack": "Če potujete z vlakom iz Colomba v Kandy, poskusite kupiti vozovnice v 2. ali 3. razredu. Čeprav so bolj osnovni, ponujajo pristnejšo izkušnjo z lokalnimi prebivalci in dih jemajoče poglede na pokrajino.",
+      "transportationTips": "Za prevoz med Colombom in Kandyjem lahko izberete tudi vlak, ki ponuja slikovito potovanje skozi čajne plantaže (približno 3,5 - 4 ure, cena 5-10 EUR na osebo). Znotraj Kandyja se premikajte peš ali z tuk-tukom; vedno se pred začetkom vožnje dogovorite za ceno. Bodite pripravljeni na hribovit teren.",
+      "localWarnings": "",
+      "dailyBudgetEur": 110,
+      "drivingDistanceKm": 115,
+      "drivingDurationHours": "3h 30m",
+      "transport": {
+        "type": "Vožnja",
+        "duration": "3h 30m",
+        "cost": "",
+        "description": "115 km"
+      },
+      "lat": 7.290572,
+      "lng": 80.633728,
+      "focusName": "Obisk templja Gangaramaya v Colombu",
+      "city": "Kandy",
+      "unsplashQuery": "Kandy Sri Lanka",
+      "category": "activity",
+      "mapPins": [
+        {
+          "name": "Obisk templja Gangaramaya v Colombu",
+          "lat": 6.9248,
+          "lng": 79.8569,
+          "category": "hotel",
+          "description": "Zjutraj obiščite tempelj Gangaramaya, enega najpomembnejših budističnih templjev v Colombu, znanega po svoji edinstveni arhitekturi in zbirki artefaktov. Nahaja se ob jezeru Beira. Od hotela do templja se lahko sprehodite (približno 20 minut) ali vzamete tuk-tuk za 5 minut.",
+          "arrivalTime": "09:00",
+          "departureTime": "11:00",
+          "estimatedCostEur": 10,
+          "unsplashQuery": "Gangaramaya Temple Colombo",
+          "tripAdvisorStyleDetails": {
+            "highlights": [
+              "Edinstvena mešanica šrilanške, tajske, indijske in kitajske arhitekture",
+              "Zbirka starinskih vozil, nakita in verskih predmetov",
+              "Velikansko drevo Bodhi",
+              "Lokacija ob jezeru Beira"
+            ],
+            "proTip": "Pazite na pokritost ramen in kolen, saj je to versko mesto. Obvezno sezujte čevlje in klobuke pred vstopom v glavne prostore templja.",
+            "bestTimeOfDay": "Zgodaj dopoldan",
+            "rating": 4.5,
+            "reviewSummary": "Gangaramaya je čudovit in pomemben tempelj, ki ponuja vpogled v budistično kulturo Šrilanke. Obiskovalci so navdušeni nad njegovo umetnostjo in spokojnostjo."
+          }
+        },
+        {
+          "name": "Kosilo v lokalni restavraciji v Colombu",
+          "lat": 6.927079,
+          "lng": 79.861244,
+          "category": "food",
+          "description": "Pred odhodom v Kandy si privoščite avtentično šrilanško kosilo v eni izmed cenovno ugodnih, a okusnih restavracij v Colombu. Poskusite riž in kari, ki je osnovna jed. Po kosilu sledi prevoz do železniške postaje ali mesta, kjer vas bo čakal prevoz do Kandyja.",
+          "arrivalTime": "11:30",
+          "departureTime": "12:30",
+          "estimatedCostEur": 12
+        },
+        {
+          "name": "Obisk templja relikvije svetega zoba (Sri Dalada Maligawa)",
+          "lat": 7.2938,
+          "lng": 80.6406,
+          "category": "hotel",
+          "description": "Obiščite sveti tempelj relikvije zoba, ki hrani enega najsvetejših budističnih relikvij na svetu – Budov zob. To je ključna kulturna in verska znamenitost Kandyja. Bodite pozorni na čas Puje (obredi), ki se odvijajo ob določenih urah. Od hotela do templja je kratek sprehod ob jezeru.",
+          "arrivalTime": "17:00",
+          "departureTime": "18:30",
+          "estimatedCostEur": 15,
+          "unsplashQuery": "Temple of the Sacred Tooth Relic Kandy",
+          "tripAdvisorStyleDetails": {
+            "highlights": [
+              "Sveta relikvija Budovega zoba",
+              "Impresivna arhitektura in poslikave",
+              "Verski obredi (Puja)",
+              "Mirna lokacija ob jezeru Kandy"
+            ],
+            "proTip": "Obisk načrtujte med obredom Puja (zjutraj, poldne ali zvečer), da doživite edinstveno versko vzdušje. Ne pozabite na primerno oblačenje (pokrita ramena in kolena) in sezujte čevlje.",
+            "bestTimeOfDay": "Zvečer med obredom Puja",
+            "rating": 4.6,
+            "reviewSummary": "Tempelj relikvije zoba je duhovno središče Šrilanke in ponuja globok vpogled v budizem. Obiskovalci so navdušeni nad njegovo zgodovino in lepoto."
+          }
+        }
+      ]
+    },
+    {
+      "day": 4,
+      "date": "2026-10-08",
+      "title": "Botanični vrtovi in kulturna predstava",
+      "morning": "Kraljevi botanični vrtovi Peradeniya: Zjutraj obiščite Kraljeve botanične vrtove Peradeniya, ki so med najlepšimi v Aziji. Sprehodite se med tisočimi vrstami rastlin, palmami in orhidejami. Vrtovi so oddaljeni približno 20 minut vožnje z tuk-tukom od centra Kandyja. Strošek vožnje je približno 5-7 EUR.",
+      "afternoon": "Kosilo v bližini vrtov: Po obisku vrtov si privoščite kosilo v eni izmed restavracij blizu Peradeniye, preden se vrnete v Kandy. Po kosilu se vrnite v Kandy z tuk-tukom ali avtobusom (cca. 2 EUR).",
+      "evening": "Kulturna predstava v Kandyju: Zvečer si oglejte tradicionalno kandijsko plesno predstavo, ki vključuje barvite kostume, tradicionalno glasbo in vznemirljive plesne točke, vključno s hojo po žerjavici. Predstave se odvijajo v različnih dvoranah v mestu Kandy, običajno v bližini jezera. Do dvorane se lahko sprehodite (10-15 minut) ali vzamete tuk-tuk.\n\nVečerja v Kandyju: Zaključite dan z večerjo v sproščenem vzdušju Kandyja. Izbirate lahko med različnimi restavracijami, ki ponujajo tako lokalne kot mednarodne jedi. Po večerji se vrnite v hotel.",
+      "activities": {
+        "morning": [
+          {
+            "name": "Kraljevi botanični vrtovi Peradeniya",
+            "description": "Zjutraj obiščite Kraljeve botanične vrtove Peradeniya, ki so med najlepšimi v Aziji. Sprehodite se med tisočimi vrstami rastlin, palmami in orhidejami. Vrtovi so oddaljeni približno 20 minut vožnje z tuk-tukom od centra Kandyja. Strošek vožnje je približno 5-7 EUR.",
+            "arrivalTime": "09:30",
+            "departureTime": "12:30",
+            "estimatedCostEur": 20,
+            "priceLabel": "€20",
+            "timeSlot": "dopoldan",
+            "type": "nature",
+            "lat": 7.2801,
+            "lng": 80.5969,
+            "unsplashQuery": "Peradeniya Botanical Garden",
+            "tripAdvisorStyleDetails": {
+              "highlights": [
+                "Impresivna zbirka orhidej",
+                "Avenija palm in dreves",
+                "Velikansko figovo drevo",
+                "Viseči most čez reko Mahaweli"
+              ],
+              "proTip": "Vzemite si vsaj 3 ure za raziskovanje vrtov. Nosite udobne čevlje in ne pozabite na zaščito pred soncem ter vodo. Na voljo so tudi vodeni ogledi.",
+              "bestTimeOfDay": "Zgodaj dopoldan",
+              "rating": 4.7,
+              "reviewSummary": "Vrtovi Peradeniya so oaza miru in lepote, kjer se lahko izgubite med eksotičnimi rastlinami. Obiskovalci so navdušeni nad njihovo urejenostjo in raznolikostjo."
+            }
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Kosilo v bližini vrtov",
+            "description": "Po obisku vrtov si privoščite kosilo v eni izmed restavracij blizu Peradeniye, preden se vrnete v Kandy. Po kosilu se vrnite v Kandy z tuk-tukom ali avtobusom (cca. 2 EUR).",
+            "arrivalTime": "12:30",
+            "departureTime": "13:30",
+            "estimatedCostEur": 12,
+            "priceLabel": "€12",
+            "timeSlot": "popoldan",
+            "type": "food",
+            "lat": 7.290572,
+            "lng": 80.633728
+          }
+        ],
+        "evening": [
+          {
+            "name": "Kulturna predstava v Kandyju",
+            "description": "Zvečer si oglejte tradicionalno kandijsko plesno predstavo, ki vključuje barvite kostume, tradicionalno glasbo in vznemirljive plesne točke, vključno s hojo po žerjavici. Predstave se odvijajo v različnih dvoranah v mestu Kandy, običajno v bližini jezera. Do dvorane se lahko sprehodite (10-15 minut) ali vzamete tuk-tuk.",
+            "arrivalTime": "17:00",
+            "departureTime": "18:30",
+            "estimatedCostEur": 15,
+            "priceLabel": "€15",
+            "timeSlot": "vecer",
+            "type": "entertainment",
+            "lat": 7.2941,
+            "lng": 80.6401,
+            "unsplashQuery": "Kandy cultural show",
+            "tripAdvisorStyleDetails": {
+              "highlights": [
+                "Tradicionalni kandijski plesi",
+                "Barviti kostumi in maske",
+                "Bobni in tradicionalna glasba",
+                "Ognjena hoja (fire walking)"
+              ],
+              "proTip": "Pridite malo prej, da si zagotovite dober sedež, saj so predstave zelo priljubljene. Preverite urnik in lokacijo predstave v vašem hotelu.",
+              "bestTimeOfDay": "Zvečer",
+              "rating": 4.3,
+              "reviewSummary": "Kulturna predstava v Kandyju je fascinantno doživetje, ki prikazuje bogato plesno dediščino Šrilanke. Popotniki so očarani nad energijo in avtentičnostjo."
+            }
+          },
+          {
+            "name": "Večerja v Kandyju",
+            "description": "Zaključite dan z večerjo v sproščenem vzdušju Kandyja. Izbirate lahko med različnimi restavracijami, ki ponujajo tako lokalne kot mednarodne jedi. Po večerji se vrnite v hotel.",
+            "arrivalTime": "19:30",
+            "departureTime": "21:00",
+            "estimatedCostEur": 15,
+            "priceLabel": "€15",
+            "timeSlot": "vecer",
+            "type": "food",
+            "lat": 7.290572,
+            "lng": 80.633728
+          }
+        ]
+      },
+      "travelHack": "V botaničnih vrtovih Peradeniya poiščite Spominski park znanih osebnosti, kjer so drevesa posadile pomembne zgodovinske figure, kot so kralj Edward VII. in Jurij Gagarin.",
+      "transportationTips": "Za obisk botaničnih vrtov priporočamo najem tuk-tuka, saj so ti cenovno ugodni in vas pripeljejo neposredno do vhoda. Predstave so običajno v centru mesta, dostopne peš. Upoštevajte, da je promet v Kandyju lahko gost, zato načrtujte dovolj časa.",
+      "localWarnings": "",
+      "dailyBudgetEur": 75,
+      "drivingDistanceKm": 20,
+      "drivingDurationHours": "0h 30m",
+      "transport": {
+        "type": "Vožnja",
+        "duration": "0h 30m",
+        "cost": "",
+        "description": "20 km"
+      },
+      "lat": 7.290572,
+      "lng": 80.633728,
+      "focusName": "Kraljevi botanični vrtovi Peradeniya",
+      "city": "Kandy",
+      "unsplashQuery": "Kandy Sri Lanka",
+      "category": "activity",
+      "mapPins": [
+        {
+          "name": "Kraljevi botanični vrtovi Peradeniya",
+          "lat": 7.2801,
+          "lng": 80.5969,
+          "category": "sightseeing",
+          "description": "Zjutraj obiščite Kraljeve botanične vrtove Peradeniya, ki so med najlepšimi v Aziji. Sprehodite se med tisočimi vrstami rastlin, palmami in orhidejami. Vrtovi so oddaljeni približno 20 minut vožnje z tuk-tukom od centra Kandyja. Strošek vožnje je približno 5-7 EUR.",
+          "arrivalTime": "09:30",
+          "departureTime": "12:30",
+          "estimatedCostEur": 20,
+          "unsplashQuery": "Peradeniya Botanical Garden",
+          "tripAdvisorStyleDetails": {
+            "highlights": [
+              "Impresivna zbirka orhidej",
+              "Avenija palm in dreves",
+              "Velikansko figovo drevo",
+              "Viseči most čez reko Mahaweli"
+            ],
+            "proTip": "Vzemite si vsaj 3 ure za raziskovanje vrtov. Nosite udobne čevlje in ne pozabite na zaščito pred soncem ter vodo. Na voljo so tudi vodeni ogledi.",
+            "bestTimeOfDay": "Zgodaj dopoldan",
+            "rating": 4.7,
+            "reviewSummary": "Vrtovi Peradeniya so oaza miru in lepote, kjer se lahko izgubite med eksotičnimi rastlinami. Obiskovalci so navdušeni nad njihovo urejenostjo in raznolikostjo."
+          }
+        },
+        {
+          "name": "Kulturna predstava v Kandyju",
+          "lat": 7.2941,
+          "lng": 80.6401,
+          "category": "entertainment",
+          "description": "Zvečer si oglejte tradicionalno kandijsko plesno predstavo, ki vključuje barvite kostume, tradicionalno glasbo in vznemirljive plesne točke, vključno s hojo po žerjavici. Predstave se odvijajo v različnih dvoranah v mestu Kandy, običajno v bližini jezera. Do dvorane se lahko sprehodite (10-15 minut) ali vzamete tuk-tuk.",
+          "arrivalTime": "17:00",
+          "departureTime": "18:30",
+          "estimatedCostEur": 15,
+          "unsplashQuery": "Kandy cultural show",
+          "tripAdvisorStyleDetails": {
+            "highlights": [
+              "Tradicionalni kandijski plesi",
+              "Barviti kostumi in maske",
+              "Bobni in tradicionalna glasba",
+              "Ognjena hoja (fire walking)"
+            ],
+            "proTip": "Pridite malo prej, da si zagotovite dober sedež, saj so predstave zelo priljubljene. Preverite urnik in lokacijo predstave v vašem hotelu.",
+            "bestTimeOfDay": "Zvečer",
+            "rating": 4.3,
+            "reviewSummary": "Kulturna predstava v Kandyju je fascinantno doživetje, ki prikazuje bogato plesno dediščino Šrilanke. Popotniki so očarani nad energijo in avtentičnostjo."
+          }
+        },
+        {
+          "name": "Večerja v Kandyju",
+          "lat": 7.290572,
+          "lng": 80.633728,
+          "category": "hotel",
+          "description": "Zaključite dan z večerjo v sproščenem vzdušju Kandyja. Izbirate lahko med različnimi restavracijami, ki ponujajo tako lokalne kot mednarodne jedi. Po večerji se vrnite v hotel.",
+          "arrivalTime": "19:30",
+          "departureTime": "21:00",
+          "estimatedCostEur": 15
+        },
+        {
+          "name": "Obisk templja Gangaramaya v Colombu",
+          "lat": 6.9248,
+          "lng": 79.8569,
+          "category": "sightseeing",
+          "description": "Zjutraj obiščite tempelj Gangaramaya, enega najpomembnejših budističnih templjev v Colombu, znanega po svoji edinstveni arhitekturi in zbirki artefaktov. Nahaja se ob jezeru Beira. Od hotela do templja se lahko sprehodite (približno 20 minut) ali vzamete tuk-tuk za 5 minut.",
+          "unsplashQuery": "Obisk templja Gangaramaya v Colombu",
+          "tripAdvisorStyleDetails": {
+            "highlights": [
+              "Obisk templja Gangaramaya v Colombu",
+              "Local atmosphere"
+            ],
+            "proTip": "Go early to avoid crowds and heat.",
+            "bestTimeOfDay": "Morning",
+            "rating": 4.5,
+            "reviewSummary": "Visitors enjoy this stop for its character, photos, and nearby food options."
+          }
+        }
+      ]
+    },
+    {
+      "day": 5,
+      "date": "2026-10-09",
+      "title": "Slikovita pot do Negomba in sproščen večer",
+      "morning": "Sprehod ob jezeru Kandy: Zjutraj se sproščeno sprehodite ob jezeru Kandy, uživajte v mirnem vzdušju in opazujte življenje okoli jezera. To je odličen način za začetek dneva pred daljšim potovanjem. Po sprehodu se vrnete v hotel na zajtrk in odjavo.\n\nOdjava iz hotela v Kandyju: Odjava iz hotela in priprava na potovanje proti Negombu.\n\nPrevoz iz Kandyja do Negomba: Potovanje z avtom/kombijem iz Kandyja do Negomba, ki traja približno 2,5 do 3 ure. Med vožnjo se boste spustili iz hribovitega območja nazaj proti obali. Po prihodu v Negombo se boste prijavili v hotel in si privoščili zaslužen počitek.",
+      "afternoon": "Sproščanje na plaži Negombo: Popoldne preživite na plaži Negombo, ki je znana po svojem zlatem pesku in mirnem ozračju. Uživajte v soncu, sprehodu ob obali ali se ohladite v morju. Sledi sproščena večerja z morskimi sadeži. Od hotela do plaže je kratek sprehod.",
+      "evening": "Večerja z morskimi sadeži: Negombo je znan po svežih morskih sadežih. Privoščite si okusno večerjo v eni izmed restavracij ob plaži, ki ponujajo širok izbor rib, kozic in jastogov. Po večerji se vrnete v hotel.",
+      "activities": {
+        "morning": [
+          {
+            "name": "Sprehod ob jezeru Kandy",
+            "description": "Zjutraj se sproščeno sprehodite ob jezeru Kandy, uživajte v mirnem vzdušju in opazujte življenje okoli jezera. To je odličen način za začetek dneva pred daljšim potovanjem. Po sprehodu se vrnete v hotel na zajtrk in odjavo.",
+            "arrivalTime": "09:00",
+            "departureTime": "10:00",
+            "estimatedCostEur": 0,
+            "priceLabel": "€0",
+            "timeSlot": "dopoldan",
+            "type": "nature",
+            "lat": 7.2921,
+            "lng": 80.6401,
+            "unsplashQuery": "Kandy Lake",
+            "tripAdvisorStyleDetails": {
+              "highlights": [
+                "Mirna lokacija za sprehod",
+                "Opazovanje ptic in narave",
+                "Pogled na tempelj zoba",
+                "Jutranja svetloba za fotografiranje"
+              ],
+              "proTip": "Pojdite na sprehod zgodaj zjutraj, da se izognete vročini in množicam ter uživate v najlepši svetlobi.",
+              "bestTimeOfDay": "Zgodaj dopoldan",
+              "rating": 4.3,
+              "reviewSummary": "Jezero Kandy je slikovita točka v mestu, ki ponuja sproščujoče okolje za jutranji sprehod. Obiskovalci cenijo mir in lepoto narave."
+            }
+          },
+          {
+            "name": "Odjava iz hotela v Kandyju",
+            "description": "Odjava iz hotela in priprava na potovanje proti Negombu.",
+            "arrivalTime": "11:00",
+            "departureTime": "11:30",
+            "estimatedCostEur": 0,
+            "priceLabel": "€0",
+            "timeSlot": "dopoldan",
+            "type": "hotel",
+            "lat": 7.290572,
+            "lng": 80.633728
+          },
+          {
+            "name": "Prevoz iz Kandyja do Negomba",
+            "description": "Potovanje z avtom/kombijem iz Kandyja do Negomba, ki traja približno 2,5 do 3 ure. Med vožnjo se boste spustili iz hribovitega območja nazaj proti obali. Po prihodu v Negombo se boste prijavili v hotel in si privoščili zaslužen počitek.",
+            "arrivalTime": "11:30",
+            "departureTime": "14:15",
+            "estimatedCostEur": 30,
+            "priceLabel": "€30",
+            "timeSlot": "popoldan",
+            "type": "transport",
+            "transportType": "van",
+            "transportDuration": "2h 45min",
+            "lat": 7.2104,
+            "lng": 79.8398
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Sproščanje na plaži Negombo",
+            "description": "Popoldne preživite na plaži Negombo, ki je znana po svojem zlatem pesku in mirnem ozračju. Uživajte v soncu, sprehodu ob obali ali se ohladite v morju. Sledi sproščena večerja z morskimi sadeži. Od hotela do plaže je kratek sprehod.",
+            "arrivalTime": "15:30",
+            "departureTime": "18:00",
+            "estimatedCostEur": 0,
+            "priceLabel": "€0",
+            "timeSlot": "popoldan",
+            "type": "beach",
+            "lat": 7.2104,
+            "lng": 79.8398,
+            "unsplashQuery": "Negombo beach",
+            "tripAdvisorStyleDetails": {
+              "highlights": [
+                "Sproščanje na zlatem pesku",
+                "Opazovanje lokalnih ribičev",
+                "Sprehod ob obali",
+                "Opazovanje sončnega zahoda"
+              ],
+              "proTip": "Plaža je najbolj privlačna pozno popoldne, ko je sonce manj močno in se ribiči vračajo s svojim ulovom. Ne pozabite na zaščito pred soncem.",
+              "bestTimeOfDay": "Pozno popoldan",
+              "rating": 3.8,
+              "reviewSummary": "Plaža Negombo je prijetna destinacija za sprostitev pred odhodom ali po prihodu. Ponuja čudovite sončne zahode in priložnost za opazovanje lokalnega življenja."
+            }
+          }
+        ],
+        "evening": [
+          {
+            "name": "Večerja z morskimi sadeži",
+            "description": "Negombo je znan po svežih morskih sadežih. Privoščite si okusno večerjo v eni izmed restavracij ob plaži, ki ponujajo širok izbor rib, kozic in jastogov. Po večerji se vrnete v hotel.",
+            "arrivalTime": "19:00",
+            "departureTime": "20:30",
+            "estimatedCostEur": 25,
+            "priceLabel": "€25",
+            "timeSlot": "vecer",
+            "type": "food",
+            "lat": 7.2104,
+            "lng": 79.8398
+          }
+        ]
+      },
+      "transportation": [
+        {
+          "type": "van",
+          "from": "Kandy",
+          "to": "Negombo",
+          "duration": "2h 45min",
+          "estimatedPrice": 30
+        }
+      ],
+      "travelHack": "Za najboljše in najsvežje morske sadeže v Negombu obiščite ribiško tržnico zjutraj in nato izberite restavracijo, ki vam bo pripravila sveže ulovljene ribe po vašem okusu.",
+      "transportationTips": "Za prevoz iz Kandyja do Negomba lahko uporabite tudi avtobus (cenejše, vendar daljše in manj udobno) ali se dogovorite za taksi/kombi prevoz (približno 30-40 EUR). V Negombu se lahko med znamenitostmi premikate peš, saj je mesto kompaktno, ali z tuk-tukom za daljše razdalje.",
+      "localWarnings": "",
+      "dailyBudgetEur": 75,
+      "drivingDistanceKm": 90,
+      "drivingDurationHours": "2h 45m",
+      "transport": {
+        "type": "Vožnja",
+        "duration": "2h 45m",
+        "cost": "",
+        "description": "90 km"
+      },
+      "lat": 7.2104,
+      "lng": 79.8398,
+      "focusName": "Sprehod ob jezeru Kandy",
+      "city": "Negombo",
+      "unsplashQuery": "Negombo Sri Lanka",
+      "category": "activity",
+      "mapPins": [
+        {
+          "name": "Sprehod ob jezeru Kandy",
+          "lat": 7.2921,
+          "lng": 80.6401,
+          "category": "hotel",
+          "description": "Zjutraj se sproščeno sprehodite ob jezeru Kandy, uživajte v mirnem vzdušju in opazujte življenje okoli jezera. To je odličen način za začetek dneva pred daljšim potovanjem. Po sprehodu se vrnete v hotel na zajtrk in odjavo.",
+          "arrivalTime": "09:00",
+          "departureTime": "10:00",
+          "estimatedCostEur": 0,
+          "unsplashQuery": "Kandy Lake",
+          "tripAdvisorStyleDetails": {
+            "highlights": [
+              "Mirna lokacija za sprehod",
+              "Opazovanje ptic in narave",
+              "Pogled na tempelj zoba",
+              "Jutranja svetloba za fotografiranje"
+            ],
+            "proTip": "Pojdite na sprehod zgodaj zjutraj, da se izognete vročini in množicam ter uživate v najlepši svetlobi.",
+            "bestTimeOfDay": "Zgodaj dopoldan",
+            "rating": 4.3,
+            "reviewSummary": "Jezero Kandy je slikovita točka v mestu, ki ponuja sproščujoče okolje za jutranji sprehod. Obiskovalci cenijo mir in lepoto narave."
+          }
+        },
+        {
+          "name": "Odjava iz hotela v Kandyju",
+          "lat": 7.290572,
+          "lng": 80.633728,
+          "category": "hotel",
+          "description": "Odjava iz hotela in priprava na potovanje proti Negombu.",
+          "arrivalTime": "11:00",
+          "departureTime": "11:30",
+          "estimatedCostEur": 0
+        }
+      ]
+    },
+    {
+      "day": 6,
+      "date": "2026-10-10",
+      "title": "Ribiška tržnica in holandska utrdba",
+      "morning": "Obisk ribiške tržnice Negombo: Zgodaj zjutraj obiščite živahno ribiško tržnico Negombo, kjer boste priča pristnemu lokalnemu življenju, ko ribiči prinašajo svoj ulov. To je odlična priložnost za opazovanje in fotografiranje. Od hotela do tržnice je kratek tuk-tuk prevoz (približno 5-7 EUR povratno).\n\nOgled holandske utrdbe in cerkve sv. Marije: Po tržnici si oglejte ostanke holandske utrdbe, ki priča o kolonialni preteklosti mesta, in obiščite impresivno cerkev sv. Marije, eno največjih v Šrilanki. Do teh lokacij se lahko sprehodite (15-20 minut) ali vzamete tuk-tuk. Od holandske utrdbe do cerkve sv. Marije je približno 10 minut hoje.",
+      "afternoon": "Sproščeno popoldne na plaži: Po dopoldanskem raziskovanju si privoščite sproščeno popoldne na plaži Negombo, uživajte v soncu ali si privoščite masažo. Kosilo bo v eni izmed restavracij ob plaži.",
+      "evening": "Poslovilna večerja: Zvečer si privoščite poslovilno večerjo v eni izmed prijetnih restavracij v Negombu. Uživajte v zadnjih trenutkih na Šrilanki ob dobri hrani in pijači. Po večerji se vrnete v hotel.",
+      "activities": {
+        "morning": [
+          {
+            "name": "Obisk ribiške tržnice Negombo",
+            "description": "Zgodaj zjutraj obiščite živahno ribiško tržnico Negombo, kjer boste priča pristnemu lokalnemu življenju, ko ribiči prinašajo svoj ulov. To je odlična priložnost za opazovanje in fotografiranje. Od hotela do tržnice je kratek tuk-tuk prevoz (približno 5-7 EUR povratno).",
+            "arrivalTime": "08:00",
+            "departureTime": "09:30",
+            "estimatedCostEur": 5,
+            "priceLabel": "€5",
+            "timeSlot": "dopoldan",
+            "type": "food",
+            "lat": 7.2104,
+            "lng": 79.8398,
+            "unsplashQuery": "Negombo fish market",
+            "tripAdvisorStyleDetails": {
+              "highlights": [
+                "Pristno lokalno doživetje",
+                "Svež ulov ribičev",
+                "Živahno vzdušje in barvita scena",
+                "Priložnosti za fotografiranje"
+              ],
+              "proTip": "Obiščite tržnico zgodaj zjutraj (okoli 7:00-8:00), ko je dejavnost na vrhuncu. Bodite pripravljeni na močne vonjave in obujte čevlje, ki jih lahko umažete.",
+              "bestTimeOfDay": "Zgodaj dopoldan",
+              "rating": 4,
+              "reviewSummary": "Ribiška tržnica v Negombu je barvit in energičen vpogled v lokalno življenje. Popotniki cenijo avtentičnost in možnost opazovanja ribiške kulture."
+            }
+          },
+          {
+            "name": "Ogled holandske utrdbe in cerkve sv. Marije",
+            "description": "Po tržnici si oglejte ostanke holandske utrdbe, ki priča o kolonialni preteklosti mesta, in obiščite impresivno cerkev sv. Marije, eno največjih v Šrilanki. Do teh lokacij se lahko sprehodite (15-20 minut) ali vzamete tuk-tuk. Od holandske utrdbe do cerkve sv. Marije je približno 10 minut hoje.",
+            "arrivalTime": "10:00",
+            "departureTime": "12:00",
+            "estimatedCostEur": 5,
+            "priceLabel": "€5",
+            "timeSlot": "dopoldan",
+            "type": "sightseeing",
+            "lat": 7.2023,
+            "lng": 79.8361,
+            "unsplashQuery": "Negombo Dutch Fort",
+            "tripAdvisorStyleDetails": {
+              "highlights": [
+                "Ostanki holandske arhitekture",
+                "Zgodovinski pomen utrdbe",
+                "Impresivna notranjost cerkve sv. Marije",
+                "Umetnine in kipi v cerkvi"
+              ],
+              "proTip": "Bodite spoštljivi pri obisku cerkve in se primerno oblecite. V utrdbi si vzemite čas za razgled na reko in okolico.",
+              "bestTimeOfDay": "Dopoldan",
+              "rating": 4.1,
+              "reviewSummary": "Holandska utrdba in cerkev sv. Marije sta pomembni zgodovinski znamenitosti Negomba. Obiskovalci so navdušeni nad arhitekturo in mirnim vzdušjem cerkve."
+            }
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Sproščeno popoldne na plaži",
+            "description": "Po dopoldanskem raziskovanju si privoščite sproščeno popoldne na plaži Negombo, uživajte v soncu ali si privoščite masažo. Kosilo bo v eni izmed restavracij ob plaži.",
+            "arrivalTime": "12:30",
+            "departureTime": "17:00",
+            "estimatedCostEur": 15,
+            "priceLabel": "€15",
+            "timeSlot": "popoldan",
+            "type": "beach",
+            "lat": 7.2104,
+            "lng": 79.8398
+          }
+        ],
+        "evening": [
+          {
+            "name": "Poslovilna večerja",
+            "description": "Zvečer si privoščite poslovilno večerjo v eni izmed prijetnih restavracij v Negombu. Uživajte v zadnjih trenutkih na Šrilanki ob dobri hrani in pijači. Po večerji se vrnete v hotel.",
+            "arrivalTime": "19:00",
+            "departureTime": "20:30",
+            "estimatedCostEur": 20,
+            "priceLabel": "€20",
+            "timeSlot": "vecer",
+            "type": "food",
+            "lat": 7.2104,
+            "lng": 79.8398
+          }
+        ]
+      },
+      "travelHack": "Obiščite holandski kanal v Negombu, ki je bil nekoč ključna prometna žila. Lahko najamete majhen čoln in doživite mirno vožnjo skozi mangrove in opazujete lokalno življenje ob kanalu.",
+      "transportationTips": "Za obisk tržnice in zgodovinskih znamenitosti v Negombu je najboljši način prevoza tuk-tuk. Dogovorite se za celodnevno najemnino ali za posamezne vožnje, vendar vedno določite ceno vnaprej. Peš se lahko sprehajate po plaži in blizu hotela.",
+      "localWarnings": "",
+      "dailyBudgetEur": 75,
+      "drivingDistanceKm": 10,
+      "drivingDurationHours": "0h 20m",
+      "transport": {
+        "type": "Vožnja",
+        "duration": "0h 20m",
+        "cost": "",
+        "description": "10 km"
+      },
+      "lat": 7.2104,
+      "lng": 79.8398,
+      "focusName": "Obisk ribiške tržnice Negombo",
+      "city": "Negombo",
+      "unsplashQuery": "Negombo Sri Lanka",
+      "category": "activity",
+      "mapPins": [
+        {
+          "name": "Sprehod ob jezeru Kandy",
+          "lat": 7.2921,
+          "lng": 80.6401,
+          "category": "sightseeing",
+          "description": "Zjutraj se sproščeno sprehodite ob jezeru Kandy, uživajte v mirnem vzdušju in opazujte življenje okoli jezera. To je odličen način za začetek dneva pred daljšim potovanjem. Po sprehodu se vrnete v hotel na zajtrk in odjavo.",
+          "unsplashQuery": "Sprehod ob jezeru Kandy",
+          "tripAdvisorStyleDetails": {
+            "highlights": [
+              "Sprehod ob jezeru Kandy",
+              "Local atmosphere"
+            ],
+            "proTip": "Go early to avoid crowds and heat.",
+            "bestTimeOfDay": "Morning",
+            "rating": 4.5,
+            "reviewSummary": "Visitors enjoy this stop for its character, photos, and nearby food options."
+          }
+        }
+      ]
+    },
+    {
+      "day": 7,
+      "date": "2026-10-11",
+      "title": "Sproščeno dopoldne in priprave na odhod",
+      "morning": "Zadnje sproščanje na plaži ali nakupovanje spominkov: Zadnje dopoldne na Šrilanki lahko izkoristite za še malo sproščanja na plaži, branje knjige ob morju ali za nakupovanje zadnjih spominkov in daril na lokalnih tržnicah v Negombu. Sprehod do trgovinic je kratek.\n\nJutranji ogled / sprehod: Glavni dopoldanski ogled — mesto ali znamenitost, ki jo je najbolje obiskati zjutraj.",
+      "afternoon": "Kosilo in odjava iz hotela: Privoščite si kosilo v eni izmed restavracij blizu hotela. Po kosilu bo sledila odjava iz hotela in priprava na prevoz do letališča.",
+      "evening": "Lokalna večerja: Večerja v restavraciji, kamor hodijo domačini.",
+      "activities": {
+        "morning": [
+          {
+            "name": "Jutranji ogled / sprehod",
+            "type": "ACTIVITY",
+            "priceLabel": "brezplačno",
+            "description": "Glavni dopoldanski ogled — mesto ali znamenitost, ki jo je najbolje obiskati zjutraj."
+          },
+          {
+            "name": "Zadnje sproščanje na plaži ali nakupovanje spominkov",
+            "description": "Zadnje dopoldne na Šrilanki lahko izkoristite za še malo sproščanja na plaži, branje knjige ob morju ali za nakupovanje zadnjih spominkov in daril na lokalnih tržnicah v Negombu. Sprehod do trgovinic je kratek.",
+            "arrivalTime": "09:00",
+            "departureTime": "12:00",
+            "estimatedCostEur": 20,
+            "priceLabel": "€20",
+            "timeSlot": "dopoldan",
+            "type": "entertainment",
+            "lat": 7.2104,
+            "lng": 79.8398
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Kosilo in odjava iz hotela",
+            "description": "Privoščite si kosilo v eni izmed restavracij blizu hotela. Po kosilu bo sledila odjava iz hotela in priprava na prevoz do letališča.",
+            "arrivalTime": "12:00",
+            "departureTime": "13:30",
+            "estimatedCostEur": 15,
+            "priceLabel": "€15",
+            "timeSlot": "dopoldan",
+            "type": "food",
+            "lat": 7.2104,
+            "lng": 79.8398
+          }
+        ],
+        "evening": [
+          {
+            "name": "Lokalna večerja",
+            "type": "EAT",
+            "priceLabel": "€4–12",
+            "description": "Večerja v restavraciji, kamor hodijo domačini."
+          }
+        ]
+      },
+      "travelHack": "Če kupujete spominke, se poskusite pogajati za ceno, saj je to del lokalne kulture. Vendar vedno ostanite spoštljivi in prijazni.",
+      "transportationTips": "Danes se boste premikali predvsem peš ali z lahkimi prevoznimi sredstvi po Negombu. Za prevoz do letališča CMB, ki je zelo blizu Negomba, priporočamo najem taksija ali uporabo aplikacije PickMe/Uber. Cena naj bi bila med 5-10 EUR in vožnja traja približno 20-30 minut.",
+      "localWarnings": "",
+      "dailyBudgetEur": 75,
+      "drivingDistanceKm": 0,
+      "drivingDurationHours": "0h",
+      "lat": 7.2104,
+      "lng": 79.8398,
+      "focusName": "Zadnje sproščanje na plaži ali nakupovanje spominkov",
+      "city": "Negombo",
+      "unsplashQuery": "Negombo Sri Lanka",
+      "category": "activity",
+      "mapPins": [
+        {
+          "name": "Zadnje sproščanje na plaži ali nakupovanje spominkov",
+          "lat": 7.2104,
+          "lng": 79.8398,
+          "category": "beach",
+          "description": "Zadnje dopoldne na Šrilanki lahko izkoristite za še malo sproščanja na plaži, branje knjige ob morju ali za nakupovanje zadnjih spominkov in daril na lokalnih tržnicah v Negombu. Sprehod do trgovinic je kratek.",
+          "arrivalTime": "09:00",
+          "departureTime": "12:00",
+          "estimatedCostEur": 20
+        },
+        {
+          "name": "Sprehod ob jezeru Kandy",
+          "lat": 7.2921,
+          "lng": 80.6401,
+          "category": "sightseeing",
+          "description": "Zjutraj se sproščeno sprehodite ob jezeru Kandy, uživajte v mirnem vzdušju in opazujte življenje okoli jezera. To je odličen način za začetek dneva pred daljšim potovanjem. Po sprehodu se vrnete v hotel na zajtrk in odjavo.",
+          "unsplashQuery": "Sprehod ob jezeru Kandy",
+          "tripAdvisorStyleDetails": {
+            "highlights": [
+              "Sprehod ob jezeru Kandy",
+              "Local atmosphere"
+            ],
+            "proTip": "Go early to avoid crowds and heat.",
+            "bestTimeOfDay": "Morning",
+            "rating": 4.5,
+            "reviewSummary": "Visitors enjoy this stop for its character, photos, and nearby food options."
+          }
+        }
+      ]
+    },
+    {
+      "day": 8,
+      "date": "2026-10-12",
+      "title": "Prevoz v Colombo in mednarodni odhod",
+      "morning": "",
+      "afternoon": "Prevoz na letališče Bandaranaike (CMB): Prevoz iz Negomba na mednarodno letališče Bandaranaike (CMB). Pustite si dovolj časa (vsaj 3 ure pred letom) za prijavo in varnostne preglede. Vožnja traja približno 20-30 minut.",
+      "evening": "Let Colombo (CMB) → München (MUC): Odhod povratnega leta iz Colomba v München. Konec potovanja po Šrilanki.",
+      "activities": {
+        "morning": [
+          {
+            "name": "Notranji prevoz Negombo → Colombo",
+            "type": "TRANSPORT",
+            "description": "Pred mednarodnim odhodom ob 17:55 se vrneš v Colombo (ne ostani v Negombo). Računaj na notranji let ali dolg transfer — rezerviraj vnaprej.",
+            "arrivalTime": "17:55",
+            "departureTime": "08:30",
+            "transportType": "flight"
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Odhod iz hotela (check-out)",
+            "type": "STAY",
+            "description": "Zjutraj zaključi check-out, prtljago shrani na recepciji (če imaš še kratek ogled) ali vzemi s seboj. večernji let — največ 1 lahek dopoldanski ogled, na letališče ~3 ure pred odletom.",
+            "arrivalTime": "17:55"
+          },
+          {
+            "name": "Prevoz na letališče (PickMe / tuk-tuk)",
+            "type": "TRANSPORT",
+            "description": "Let odhaja ob 17:55. Na mednarodne lete odidi iz hotela približno 2 uri prej (promet + varnostna kontrola). Rezerviraj PickMe / tuk-tuk z rezervo časa.",
+            "priceLabel": "€5–15",
+            "arrivalTime": "17:55"
+          },
+          {
+            "name": "Prihod na letališče in odlet",
+            "type": "TRANSPORT",
+            "description": "Na letališču oddaj prtljago in opravi check-in. Večernji odhod ob 17:55 — največ 1 lahek dopoldanski ogled, na letališču ~3 ure prej.",
+            "arrivalTime": "17:55",
+            "departureTime": "08:30",
+            "transportType": "flight"
+          }
+        ],
+        "evening": []
+      },
+      "transportation": [
+        {
+          "type": "flight",
+          "from": "Prevoz na letališče Bandaranaike (CMB)",
+          "to": "Negombo",
+          "duration": "3h 25min",
+          "estimatedPrice": 10
+        },
+        {
+          "type": "flight",
+          "from": "Let Colombo (CMB)",
+          "to": "München (MUC)",
+          "duration": "14h 35min",
+          "estimatedPrice": 0
+        }
+      ],
+      "travelHack": "Na letališču CMB so na voljo številne trgovine za zadnje nakupovanje brezcarinskih izdelkov ali spominkov. Preverite, ali lahko kupite nekaj čaja Ceylon za domov, saj je to odličen spominek iz Šrilanke.",
+      "transportationTips": "Za prevoz do letališča CMB iz Negomba priporočamo najem taksija preko hotelske recepcije ali uporabo aplikacije PickMe/Uber. Cena je ugodna, saj je letališče zelo blizu. Potovanje traja približno 20-30 minut, odvisno od prometa.",
+      "localWarnings": "",
+      "dailyBudgetEur": 25,
+      "drivingDistanceKm": 10,
+      "drivingDurationHours": "0h 25m",
+      "transport": {
+        "type": "Vožnja",
+        "duration": "0h 25m",
+        "cost": "",
+        "description": "10 km"
+      },
+      "lat": 7.1808,
+      "lng": 79.8841,
+      "focusName": "Colombo",
+      "city": "Colombo",
+      "unsplashQuery": "Negombo Sri Lanka",
+      "category": "transport",
+      "mapPins": [
+        {
+          "name": "Prevoz na letališče Bandaranaike (CMB)",
+          "lat": 7.1808,
+          "lng": 79.8841,
+          "category": "airport",
+          "description": "Prevoz iz Negomba na mednarodno letališče Bandaranaike (CMB). Pustite si dovolj časa (vsaj 3 ure pred letom) za prijavo in varnostne preglede. Vožnja traja približno 20-30 minut.",
+          "arrivalTime": "14:30",
+          "departureTime": "17:55",
+          "estimatedCostEur": 10
+        },
+        {
+          "name": "Sprehod ob jezeru Kandy",
+          "lat": 7.2921,
+          "lng": 80.6401,
+          "category": "sightseeing",
+          "description": "Zjutraj se sproščeno sprehodite ob jezeru Kandy, uživajte v mirnem vzdušju in opazujte življenje okoli jezera. To je odličen način za začetek dneva pred daljšim potovanjem. Po sprehodu se vrnete v hotel na zajtrk in odjavo.",
+          "unsplashQuery": "Sprehod ob jezeru Kandy",
+          "tripAdvisorStyleDetails": {
+            "highlights": [
+              "Sprehod ob jezeru Kandy",
+              "Local atmosphere"
+            ],
+            "proTip": "Go early to avoid crowds and heat.",
+            "bestTimeOfDay": "Morning",
+            "rating": 4.5,
+            "reviewSummary": "Visitors enjoy this stop for its character, photos, and nearby food options."
+          }
+        }
+      ],
+      "inFlightDay": true
+    }
+  ],
+  "destinationName": "Sri Lanka"
+}

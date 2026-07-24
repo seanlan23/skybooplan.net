@@ -111,6 +111,84 @@ export function scrubInappropriatePoiCopy(text: string): string {
     .trim();
 }
 
+/** Strip repeated long arrival-offset labels from activity/day copy. */
+export function stripArrivalLabelSpam(text: string): string {
+  if (!text) return text;
+  return text
+    .replace(
+      /\s*\(\+\d+\s*(?:dan|dni|day|days)(?:\s+od odhoda|\s+from departure)?(?:,?\s*lokalni čas(?:\s+na destinaciji)?|,?\s*local time(?:\s+at destination)?)?\)/gi,
+      "",
+    )
+    .replace(/\s*\(\+\d+d(?:,?\s*lokalni čas|,?\s*local)?\)/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .replace(/\s+([,.])/g, "$1")
+    .trim();
+}
+
+const BOILERPLATE_SENTENCE_RE =
+  /(?:če imaš še energijo|if you (?:still )?have (?:the )?energy|z grabom|grab nazaj|s tuk-?tukom|tuk-?tukom nazaj|grab or tuk-?tuk|with (?:a )?tuk-?tuk)/i;
+
+function sentenceKey(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/[^a-z0-9čšžćđäöüáéíóú\s]/gi, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 80);
+}
+
+/**
+ * Drop repeated Grab/tuk-tuk / “če imaš še energijo” sentences after the first 2 occurrences
+ * across the whole plan.
+ */
+export function dedupeCrossDayBoilerplate(plan: {
+  days: Array<{
+    transportationTips?: string;
+    travelHack?: string;
+    activities?: {
+      morning?: Array<{ description?: string }>;
+      afternoon?: Array<{ description?: string }>;
+      evening?: Array<{ description?: string }>;
+    };
+  }>;
+}): void {
+  const seen = new Map<string, number>();
+
+  const scrub = (text: string | undefined): string | undefined => {
+    if (!text?.trim()) return text;
+    const parts = text.split(/(?<=[.!?…])\s+/);
+    const kept: string[] = [];
+    for (const part of parts) {
+      const trimmed = part.trim();
+      if (!trimmed) continue;
+      if (!BOILERPLATE_SENTENCE_RE.test(trimmed)) {
+        kept.push(trimmed);
+        continue;
+      }
+      const key = sentenceKey(trimmed);
+      const count = seen.get(key) ?? 0;
+      if (count < 2) {
+        seen.set(key, count + 1);
+        kept.push(trimmed);
+      }
+    }
+    return kept.join(" ").replace(/\s{2,}/g, " ").trim();
+  };
+
+  for (const day of plan.days) {
+    if (day.transportationTips) day.transportationTips = scrub(day.transportationTips) ?? "";
+    if (day.travelHack) day.travelHack = scrub(day.travelHack) ?? "";
+    if (!day.activities) continue;
+    for (const slot of ["morning", "afternoon", "evening"] as const) {
+      for (const act of day.activities[slot] ?? []) {
+        if (act.description) {
+          act.description = stripArrivalLabelSpam(scrub(act.description) ?? act.description);
+        }
+      }
+    }
+  }
+}
+
 export function sanitizeDestinationText(text: string, country?: string): string {
   let out = text;
   out = out.replace(/maid of the mist/gi, "Hornblower Niagara City Cruises");

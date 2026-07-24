@@ -1,5 +1,10 @@
 import type { Activity, AiTripPlan, DayPlan } from "@/lib/aiPlan.functions";
 import {
+  isFlightRangeActivity,
+  isPointInTimeActivity,
+  normalizeActivityClocks,
+} from "@/lib/activityTime";
+import {
   arrivalDaySlot,
   arrivalTripDay,
   buildArrivalLogistics,
@@ -7,7 +12,7 @@ import {
   buildFlightSchedulingPayload,
   buildOriginDepartureHint,
   buildOriginDepartureLogistics,
-  formatArrivalTime,
+  formatArrivalTimeShort,
   isAfternoonDeparture,
   isEarlyDeparture,
   isInFlightTripDay,
@@ -24,8 +29,10 @@ import {
   dedupePlanDaysByNumber,
   planCalendarDayCount,
 } from "@/lib/geminiPlanMap";
+import { repairPlanDaySequence } from "@/lib/daySequence";
 import { buildReturnFlightSummary } from "@/lib/returnFlightSummary";
 import { resolveTripLocale } from "@/lib/tripLocale";
+import { stripArrivalLabelSpam } from "@/lib/textSanitize";
 
 function logisticsToActivity(a: LogisticsActivity): Activity {
   return {
@@ -160,8 +167,9 @@ function patchAirportActivityTimes(
     (list ?? []).map((a) => {
       const blob = `${a.name} ${a.description ?? ""} ${a.type ?? ""}`.toLowerCase();
       if (!/airport|letališč|odlet|povratek|return|flight home|mednarodn/i.test(blob)) {
-        return a;
+        return normalizeActivityClocks(a);
       }
+
       let description = a.description;
       if (description) {
         let clockIdx = 0;
@@ -171,13 +179,36 @@ function patchAirportActivityTimes(
           if (clockIdx === 2 && arrive) return arrive;
           return match;
         });
+        description = stripArrivalLabelSpam(description);
       }
-      return {
+
+      // Full flight leg: depart → arrive range.
+      if (isFlightRangeActivity(a) || /prihod na letališče in odlet|airport arrival and departure/i.test(a.name)) {
+        return normalizeActivityClocks({
+          ...a,
+          arrivalTime: depart,
+          departureTime: arrive ?? undefined,
+          description,
+          transportType: a.transportType ?? "flight",
+        });
+      }
+
+      // Check-in / transfer / hotel → single boarding-pass clock (never inverted range).
+      if (isPointInTimeActivity(a) || /check-?in|check-?out|prevoz|transfer/i.test(blob)) {
+        return normalizeActivityClocks({
+          ...a,
+          arrivalTime: depart,
+          departureTime: undefined,
+          description,
+        });
+      }
+
+      return normalizeActivityClocks({
         ...a,
         arrivalTime: depart,
-        departureTime: arrive ?? a.departureTime,
+        departureTime: arrive ?? undefined,
         description,
-      };
+      });
     });
 
   return {
@@ -196,7 +227,7 @@ export function flightContextPromptBlock(
   const payload = buildFlightSchedulingPayload(flights, totalDays);
   const scheduling = payload.flightScheduling as Record<string, string>;
   const slo = !(opts?.language && !opts.language.startsWith("sl"));
-  const arriveLabel = formatArrivalTime(flights, slo);
+  const arriveLabel = formatArrivalTimeShort(flights, slo);
   const origin = opts?.originIata?.toUpperCase() ?? "EU";
   const dest = opts?.destinationIata?.toUpperCase() ?? "DEST";
 
@@ -209,8 +240,8 @@ export function flightContextPromptBlock(
       ? `- Odhod z ${origin}: ${flights.outboundDepart} (lokalni čas odhoda).`
       : `- Depart ${origin}: ${flights.outboundDepart} (local departure time).`,
     slo
-      ? `- Prihod na ${dest}: ${arriveLabel}.`
-      : `- Arrive ${dest}: ${arriveLabel}.`,
+      ? `- Prihod na ${dest}: ${arriveLabel}. Dolgo “(+N dan od odhoda…)” napiši NAJVEČ enkrat v day title — ne v vsaki aktivnosti.`
+      : `- Arrive ${dest}: ${arriveLabel}. Put the long “(+N day from departure…)” note at most once in the day title — not on every activity.`,
   ];
 
   if (flights.inboundDepart) {
@@ -265,11 +296,11 @@ function patchArrivalActivityClockTimes(
         (/check-in in varnostni pregled|security screening/i.test(a.name) &&
           !/prihod na letališč|airport arrival|pristane|lands?\b/i.test(blob))
       ) {
-        return a;
+        return normalizeActivityClocks(a);
       }
       const isAirport =
         /letališč|airport|prihod|pristane|landing|transfer|check-?in|hotel|prtljag/i.test(blob);
-      if (!isAirport) return a;
+      if (!isAirport) return normalizeActivityClocks(a);
       let description = a.description;
       if (description) {
         // Rewrite first landing clock only — do not blanket-replace every "ob HH:MM".
@@ -281,13 +312,41 @@ function patchArrivalActivityClockTimes(
           }
           return match;
         });
+        description = stripArrivalLabelSpam(description);
       }
-      return {
+
+      // Landing / check-in: single land clock. Transfer may keep a short forward window.
+      if (isPointInTimeActivity(a) || /prihod na letališč|airport arrival|check-?in/i.test(a.name)) {
+        return normalizeActivityClocks({
+          ...a,
+          arrivalTime: land,
+          departureTime: undefined,
+          description,
+        });
+      }
+
+      const end = a.departureTime?.trim();
+      const endMin = end ? (() => {
+        const m = /^(\d{1,2}):(\d{2})$/.exec(end);
+        return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+      })() : null;
+      const landMin = (() => {
+        const m = /^(\d{1,2}):(\d{2})$/.exec(land);
+        return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+      })();
+      const keepEnd =
+        end &&
+        endMin != null &&
+        landMin != null &&
+        endMin > landMin &&
+        endMin - landMin <= 180;
+
+      return normalizeActivityClocks({
         ...a,
         arrivalTime: land,
-        departureTime: a.departureTime ?? land,
+        departureTime: keepEnd ? end : undefined,
         description,
-      };
+      });
     });
 
   return {
@@ -295,6 +354,19 @@ function patchArrivalActivityClockTimes(
     afternoon: patchList(activities.afternoon),
     evening: patchList(activities.evening),
   };
+}
+
+function normalizeDayActivityClocks(day: DayPlan): void {
+  if (!day.activities) return;
+  for (const slot of ["morning", "afternoon", "evening"] as const) {
+    const list = day.activities[slot];
+    if (!list) continue;
+    day.activities[slot] = list.map((a) => {
+      const next = normalizeActivityClocks({ ...a });
+      if (next.description) next.description = stripArrivalLabelSpam(next.description);
+      return next;
+    });
+  }
 }
 
 function patchArrivalDayTitle(title: string | undefined, flights: TripFlightContext, slo: boolean): string {
@@ -326,11 +398,12 @@ export function applyFlightContextToGeminiPlan(
   flights: TripFlightContext,
   opts?: { originIata?: string; language?: string },
 ): void {
+  const lang = opts?.language ?? "sl";
   plan.days = dedupePlanDaysByNumber(plan.days);
+  repairPlanDaySequence(plan, { language: lang });
   const totalDays = planCalendarDayCount(plan.days);
   if (!totalDays) return;
 
-  const lang = opts?.language ?? "sl";
   const locale = resolveTripLocale(
     plan.destinationIata ?? "",
     plan.destinationName,
@@ -366,11 +439,13 @@ export function applyFlightContextToGeminiPlan(
       const flightAct: Activity = {
         name: locale.slo ? "Mednarodni let" : "International flight",
         type: "TRANSPORT",
+        transportType: "flight",
         description: locale.slo
-          ? `Še v letu proti destinaciji — dan ${day.day} od ${totalDays}. Po pristanku (dan ${arrivalDay}, ${formatArrivalTime(flights, locale.slo)}) sledi check-in.`
-          : `Still en route — day ${day.day} of ${totalDays}. Landing day ${arrivalDay} at ${formatArrivalTime(flights, false)}; then check-in.`,
-        departureTime: flights.outboundDepart,
-        arrivalTime: flights.outboundArrive,
+          ? `Še v letu proti destinaciji — dan ${day.day} od ${totalDays}. Po pristanku (dan ${arrivalDay}, ${formatArrivalTimeShort(flights, locale.slo)}) sledi check-in.`
+          : `Still en route — day ${day.day} of ${totalDays}. Landing day ${arrivalDay} at ${formatArrivalTimeShort(flights, false)}; then check-in.`,
+        // Window start = depart, end = arrive (formatActivityClockLabel overnight +1).
+        arrivalTime: flights.outboundDepart,
+        departureTime: flights.outboundArrive,
       };
       const originActs =
         day.day === 1 && originIata && flights.outboundDepart
@@ -524,5 +599,7 @@ export function applyFlightContextToGeminiPlan(
         flights.inboundArrive,
       );
     }
+
+    normalizeDayActivityClocks(day);
   }
 }

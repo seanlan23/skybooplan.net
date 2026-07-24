@@ -15,8 +15,13 @@ describe("plan day coverage", () => {
     expect(incompletePlanDayCoverageMessage(1, 8)).toContain("1/8");
   });
 
-  it("allows one missing day on longer trips", () => {
-    expect(hasAcceptablePlanDayCoverage(7, 8)).toBe(true);
+  it("allows one missing day only on short trips", () => {
+    expect(hasAcceptablePlanDayCoverage(3, 4)).toBe(true);
+    expect(hasAcceptablePlanDayCoverage(4, 4)).toBe(true);
+  });
+
+  it("requires full coverage for trips of 5+ days", () => {
+    expect(hasAcceptablePlanDayCoverage(7, 8)).toBe(false);
     expect(hasAcceptablePlanDayCoverage(8, 8)).toBe(true);
   });
 

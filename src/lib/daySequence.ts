@@ -1,0 +1,161 @@
+import type { AiTripPlan, DayPlan } from "@/lib/aiPlan.functions";
+
+function planCalendarDayCount(days: Array<{ day: number }>): number {
+  if (!days.length) return 0;
+  return Math.max(...days.map((d) => d.day));
+}
+
+function dayActivityScore(day: DayPlan): number {
+  const a = day.activities;
+  if (!a) return day.mapPins?.length ?? 0;
+  return (
+    (a.morning?.length ?? 0) +
+    (a.afternoon?.length ?? 0) +
+    (a.evening?.length ?? 0) +
+    (day.mapPins?.length ?? 0)
+  );
+}
+
+function dedupeDays(days: DayPlan[]): DayPlan[] {
+  const byDay = new Map<number, DayPlan>();
+  for (const d of days) {
+    const prev = byDay.get(d.day);
+    if (!prev || dayActivityScore(d) > dayActivityScore(prev)) {
+      byDay.set(d.day, d);
+    }
+  }
+  return [...byDay.values()].sort((a, b) => a.day - b.day);
+}
+
+function isoPlusDays(iso: string | undefined, add: number): string | undefined {
+  if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return undefined;
+  const d = new Date(`${iso}T12:00:00Z`);
+  if (Number.isNaN(d.getTime())) return undefined;
+  d.setUTCDate(d.getUTCDate() + add);
+  return d.toISOString().slice(0, 10);
+}
+
+function neighborTemplate(
+  days: DayPlan[],
+  missingDay: number,
+): Pick<DayPlan, "city" | "focusName" | "lat" | "lng" | "date"> {
+  const prev = [...days].reverse().find((d) => d.day < missingDay);
+  const next = days.find((d) => d.day > missingDay);
+  const src = prev ?? next;
+  const date =
+    isoPlusDays(prev?.date, missingDay - (prev?.day ?? missingDay)) ??
+    isoPlusDays(next?.date, missingDay - (next?.day ?? missingDay)) ??
+    src?.date;
+  return {
+    city: src?.city ?? "",
+    focusName: src?.focusName ?? src?.city ?? "",
+    lat: src?.lat ?? 0,
+    lng: src?.lng ?? 0,
+    date,
+  };
+}
+
+function thinPlaceholderDay(
+  dayNum: number,
+  template: ReturnType<typeof neighborTemplate>,
+  lang: string,
+): DayPlan {
+  const slo = !lang || lang.startsWith("sl");
+  const city = template.city || template.focusName || (slo ? "destinacija" : "destination");
+  return {
+    day: dayNum,
+    date: template.date,
+    title: slo ? `${city} — prosti / lokalni dan` : `${city} — free / local day`,
+    morning: "",
+    afternoon: "",
+    evening: "",
+    travelHack: slo
+      ? "Vstavljen dan (manjkala številka v AI načrtu) — lahek lokalni program."
+      : "Inserted day (AI skipped this number) — keep a light local schedule.",
+    transportationTips: "",
+    localWarnings: "",
+    dailyBudgetEur: 60,
+    lat: template.lat,
+    lng: template.lng,
+    focusName: template.focusName || city,
+    city,
+    category: "activity",
+    activities: {
+      morning: [
+        {
+          name: slo ? "Jutranji sprehod / lokalni ritm" : "Morning stroll / local pace",
+          type: "ACTIVITY",
+          description: slo
+            ? `Prosti dan v ${city} — kava, lahek sprehod, brez dolgih transferjev.`
+            : `Free day in ${city} — coffee, easy walk, no long transfers.`,
+        },
+      ],
+      afternoon: [
+        {
+          name: slo ? "Popoldanski lokalni ogled" : "Afternoon local sight",
+          type: "SIGHT",
+          description: slo
+            ? `En konkreten ogled v ${city} (muzej, trg ali park) — ne generičen filler.`
+            : `One concrete sight in ${city} (museum, square, or park) — not generic filler.`,
+        },
+      ],
+      evening: [
+        {
+          name: slo ? "Večerja v bližini namestitve" : "Dinner near your stay",
+          type: "FOOD",
+          description: slo
+            ? "Večerja blizu hotela — peš ali kratek lokalni prevoz."
+            : "Dinner near the hotel — walk or a short local ride.",
+        },
+      ],
+    },
+  };
+}
+
+/**
+ * Ensure calendar days 1…expected (or max existing) are present.
+ * Inserts thin placeholders for gaps so PDF never jumps Day 4 → Day 6.
+ */
+export function repairPlanDaySequence(
+  plan: AiTripPlan,
+  opts?: { expectedDays?: number; language?: string },
+): { inserted: number[] } {
+  plan.days = dedupeDays(plan.days ?? []);
+  if (!plan.days.length) return { inserted: [] };
+
+  const lang = opts?.language ?? "sl";
+  const maxExisting = planCalendarDayCount(plan.days);
+  const target = Math.max(maxExisting, opts?.expectedDays ?? 0);
+  if (target < 1) return { inserted: [] };
+
+  const byDay = new Map(plan.days.map((d) => [d.day, d]));
+  const inserted: number[] = [];
+
+  for (let n = 1; n <= target; n++) {
+    if (byDay.has(n)) continue;
+    // Prefer filling internal gaps; trailing missing days only when expectedDays set.
+    if (n > maxExisting && (opts?.expectedDays == null || n > opts.expectedDays)) continue;
+    const tmpl = neighborTemplate([...byDay.values()].sort((a, b) => a.day - b.day), n);
+    const placeholder = thinPlaceholderDay(n, tmpl, lang);
+    byDay.set(n, placeholder);
+    inserted.push(n);
+  }
+
+  plan.days = [...byDay.values()].sort((a, b) => a.day - b.day);
+  return { inserted };
+}
+
+/** True when every integer from 1…max(day) exists (island dayEnd spans still count as their start day). */
+export function hasContiguousDayNumbers(days: Array<{ day: number; dayEnd?: number }>): boolean {
+  if (!days.length) return false;
+  const covered = new Set<number>();
+  for (const d of days) {
+    const end = d.dayEnd != null && d.dayEnd > d.day ? d.dayEnd : d.day;
+    for (let n = d.day; n <= end; n++) covered.add(n);
+  }
+  const max = Math.max(...covered);
+  for (let n = 1; n <= max; n++) {
+    if (!covered.has(n)) return false;
+  }
+  return true;
+}

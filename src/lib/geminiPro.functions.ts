@@ -196,7 +196,7 @@ export function tripDayCount(departDate: string, returnDate?: string): number {
 
 /**
  * Whether a generated itinerary covers enough calendar days.
- * Allows one missing day for edge cases; never accepts a near-empty multi-day plan.
+ * For trips ≥5 days require full coverage (gaps are repaired earlier; −1 is no longer OK).
  */
 export function hasAcceptablePlanDayCoverage(
   gotDays: number,
@@ -204,6 +204,7 @@ export function hasAcceptablePlanDayCoverage(
 ): boolean {
   if (expectedDays <= 0) return gotDays > 0;
   if (expectedDays === 1) return gotDays >= 1;
+  if (expectedDays >= 5) return gotDays >= expectedDays;
   return gotDays >= Math.max(2, expectedDays - 1);
 }
 

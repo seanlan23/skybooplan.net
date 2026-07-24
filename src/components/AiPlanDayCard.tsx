@@ -23,7 +23,7 @@ import { parseLocalDate } from "@/lib/dateUtils";
 import { isHotelRestDay, resolveTripAccommodation } from "@/lib/tripMode";
 import { formatDayCardTitle, sortActivitiesByTime } from "@/lib/dayPlanUi";
 import { formatStayDateRange } from "@/lib/islandStays";
-import { formatActivityClockRange } from "@/lib/activityTime";
+import { formatActivityClockLabel } from "@/lib/activityTime";
 import { sanitizeLegacyTemplateLeak } from "@/lib/textSanitize";
 import type { ActivityMapFocus } from "@/components/TripMap";
 import {
@@ -150,7 +150,7 @@ function activityDescriptionBullets(text?: string): string[] {
 }
 
 function ActivityTimePill({ activity }: { activity: Activity }) {
-  const label = formatActivityClockRange(activity.arrivalTime, activity.departureTime);
+  const label = formatActivityClockLabel(activity);
   if (!label) return null;
   return (
     <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 text-blue-600 px-3 py-1 text-sm font-medium tabular-nums">

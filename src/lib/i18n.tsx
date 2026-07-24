@@ -617,6 +617,9 @@ const en: Dict = {
   "footer.refunds": "Refunds",
   "footer.rights": "All rights reserved.",
   "footer.made": "Made for travellers.",
+  "footer.disclaimerTitle": "Disclaimer",
+  "footer.disclaimer":
+    "Skybooplan is an independent AI travel-planning tool.\nWe are not affiliated with, sponsored by, or endorsed by Skyscanner, Booking.com, Duffel, or other airline and hotel providers whose data we use via public APIs.\nAll flight and accommodation prices are indicative and may change. Final bookings are subject to each provider’s terms.",
   "search.clearNew": "Clear / New search",
   "legal.backHome": "Back to home",
   "refunds.title": "Refunds",
@@ -1539,6 +1542,9 @@ const dicts: Record<Lang, Dict> = {
     "footer.refunds": "Vračila",
     "footer.rights": "Vse pravice pridržane.",
     "footer.made": "Ustvarjeno za popotnike.",
+    "footer.disclaimerTitle": "Disclaimer",
+    "footer.disclaimer":
+      "Skybooplan je neodvisno orodje za načrtovanje potovanj z umetno inteligenco.\nNismo povezani, sponzorirani ali odobreni s strani podjetij Skyscanner, Booking.com, Duffel ali drugih letalskih in hotelskih ponudnikov, katerih podatke uporabljamo preko javnih API-jev.\nVse cene letov in nastanitev so informativne narave in se lahko spreminjajo. Za končne rezervacije veljajo pogoji posameznih ponudnikov.",
     "search.clearNew": "Počisti / Novo iskanje",
     "legal.backHome": "Nazaj na domov",
     "refunds.title": "Vračila",
@@ -2026,6 +2032,9 @@ const dicts: Record<Lang, Dict> = {
     "footer.refunds": "Remboursements",
     "footer.rights": "Tous droits réservés.",
     "footer.made": "Conçu pour les voyageurs.",
+    "footer.disclaimerTitle": "Avertissement",
+    "footer.disclaimer":
+      "Skybooplan est un outil indépendant de planification de voyage par IA.\nNous ne sommes pas affiliés, sponsorisés ni approuvés par Skyscanner, Booking.com, Duffel ou d'autres compagnies aériennes et hôtelières dont nous utilisons les données via des API publiques.\nTous les prix de vols et d'hébergements sont indicatifs et peuvent changer. Les réservations finales sont soumises aux conditions de chaque fournisseur.",
     "search.clearNew": "Effacer / Nouvelle recherche",
     "legal.backHome": "Retour à l'accueil",
     "refunds.title": "Remboursements",

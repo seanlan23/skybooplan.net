@@ -13,7 +13,9 @@ import {
   normalizeMapPoiCategory,
   resolveMapPoiCategory,
 } from "@/lib/mapPoiCategory";
+import { repairPlanDaySequence } from "@/lib/daySequence";
 import { finalizeItineraryMapCoords } from "@/lib/itineraryMapModel";
+import { dedupeCrossDayBoilerplate } from "@/lib/textSanitize";
 import { attachActivityCoordinates } from "@/lib/mapPoiResolver";
 import { stripMisplacedCityPois } from "@/lib/cityPoiGuard";
 import { lookupRegionCoords } from "@/lib/regionCoords";
@@ -751,6 +753,7 @@ export function enrichGeminiCatalogPlan(
 ): void {
   const tier = opts.budget === "budget" ? "budget" : opts.budget === "premium" ? "premium" : "mid";
   plan.days = dedupePlanDaysByNumber(plan.days);
+  repairPlanDaySequence(plan, { language: opts.language });
   const totalDays = planCalendarDayCount(plan.days);
   const travelers = Math.max(1, opts.pax);
   const wishesText = opts.wishesText ?? "";
@@ -937,6 +940,7 @@ export function enrichGeminiCatalogPlan(
 
   plan.totalBudgetEur = computeTripTotalBudgetEur(plan.days, travelers);
   enrichIslandAirportTransfers(plan, { destinationIata: plan.destinationIata });
+  dedupeCrossDayBoilerplate(plan);
   // One map-coord pass: city centroids win; runway AI dumps stripped from sightseeing days.
   finalizeItineraryMapCoords(plan);
 }
