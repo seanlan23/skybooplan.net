@@ -32,7 +32,11 @@ import {
   type PoiDetailsData,
 } from "@/lib/poiDetails.types";
 import { normalizeImageUrl } from "@/lib/unsplashPhotos";
-import { resolveActivityCoordinates } from "@/lib/mapPoiResolver";
+import { NavigateButton } from "@/components/NavigateButton";
+import {
+  resolveActivityCoordinates,
+  shouldOfferActivityNavigation,
+} from "@/lib/mapPoiResolver";
 
 export function activityFocusKey(day: number, name: string): string {
   return `${day}:${name.trim().toLowerCase()}`;
@@ -290,6 +294,7 @@ function ActivityItem({
     lng !== 0 &&
     Number.isFinite(lat) &&
     Number.isFinite(lng);
+  const showNavigate = shouldOfferActivityNavigation(activity, day);
 
   const handleFocus = () => {
     if (hasCoords && onFocus && lat != null && lng != null) {
@@ -356,17 +361,35 @@ function ActivityItem({
               ))}
             </ul>
           )}
-          {onDetails && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDetails(activityToPoiDetails(activity, day));
-              }}
-              className="mt-2.5 inline-flex items-center rounded-full border border-slate-300 bg-white px-3.5 py-1 text-xs font-semibold text-slate-800 shadow-sm hover:bg-slate-50 transition-colors"
-            >
-              {t("poi.moreInfo")}
-            </button>
+          {(onDetails || showNavigate) && (
+            <div className="mt-2.5 flex flex-wrap items-center gap-2">
+              {showNavigate && lat != null && lng != null ? (
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => e.stopPropagation()}
+                >
+                  <NavigateButton
+                    lat={lat}
+                    lng={lng}
+                    label={activity.name}
+                    destinationQuery={activity.name}
+                    size="compact"
+                  />
+                </div>
+              ) : null}
+              {onDetails ? (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDetails(activityToPoiDetails(activity, day));
+                  }}
+                  className="inline-flex items-center rounded-full border border-slate-300 bg-white px-3.5 py-1 text-xs font-semibold text-slate-800 shadow-sm hover:bg-slate-50 transition-colors"
+                >
+                  {t("poi.moreInfo")}
+                </button>
+              ) : null}
+            </div>
           )}
         </div>
       </div>

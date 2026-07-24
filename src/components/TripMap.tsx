@@ -93,6 +93,35 @@ function significantHighlightTokens(value: string): string[] {
     .filter((t) => t.length >= 4 && !HIGHLIGHT_STOP.has(t));
 }
 
+/** Pin jitter in itineraryMapModel can push markers ~0.85–1.9 km off activity coords. */
+const HIGHLIGHT_NEAR_KM = 2.15;
+const HIGHLIGHT_JITTER_KM = 1.9;
+
+const HIGHLIGHT_TOKEN_ALIASES: Record<string, string> = {
+  museo: "museum",
+  museum: "museum",
+  musee: "museum",
+  musée: "museum",
+  ristorante: "restaurant",
+  restaurant: "restaurant",
+  restaurante: "restaurant",
+  templi: "temple",
+  tempio: "temple",
+  temple: "temple",
+  chiesa: "church",
+  church: "church",
+  eglise: "church",
+  église: "church",
+  spiaggia: "beach",
+  beach: "beach",
+  plage: "beach",
+  playa: "beach",
+};
+
+function normalizeHighlightToken(token: string): string {
+  return HIGHLIGHT_TOKEN_ALIASES[token] ?? token;
+}
+
 export function matchesPoiFocus(
   pin: { name: string; lat: number; lng: number },
   target: { poiName?: string; lat: number; lng: number },
@@ -116,20 +145,27 @@ export function pinMatchesHighlight(
       .toLowerCase()
       .normalize("NFD")
       .replace(/\p{M}/gu, "")
-      .replace(/^(dopoldan|popoldan|večer|vecer|morgen|nachmittag|abend)\s*[·•.\-–—:]?\s*/i, "")
+      .replace(
+        /^(dopoldan|popoldan|večer|vecer|mattina|pomeriggio|sera|morgen|nachmittag|abend|morning|afternoon|evening)\s*[·•.\-–—:]?\s*/i,
+        "",
+      )
+      .replace(
+        /^(pranzo|cena|colazione|lunch|dinner|breakfast|dejeuner|déjeuner|diner|dîner)\s+(e|and|et|y|und)\s+/i,
+        "",
+      )
       .replace(/\s+/g, " ");
   const a = strip(pinName);
   const b = strip(highlightName);
   if (a === b) return true;
   if (a.includes(b) || b.includes(a)) return true;
 
-  const ta = significantHighlightTokens(a);
-  const tb = significantHighlightTokens(b);
+  const ta = significantHighlightTokens(a).map(normalizeHighlightToken);
+  const tb = significantHighlightTokens(b).map(normalizeHighlightToken);
   if (!ta.length || !tb.length) return false;
   const overlap = ta.filter((t) => tb.some((x) => x === t || x.includes(t) || t.includes(x)));
   if (overlap.length >= 2) return true;
-  // One strong landmark token (brooklyn, asakusa, fushimi…)
-  return overlap.some((t) => t.length >= 7);
+  // One strong landmark token (brooklyn, asakusa, agustin, fushimi…)
+  return overlap.some((t) => t.length >= 6);
 }
 
 export function pinIsHighlighted(
@@ -151,15 +187,52 @@ export function pinIsHighlighted(
     lat !== 0 &&
     lng !== 0
   ) {
-    const near = haversineKm([pin.lng, pin.lat], [lng, lat]) < 0.85;
-    if (!near) return false;
+    const distKm = haversineKm([pin.lng, pin.lat], [lng, lat]);
+    if (distKm >= HIGHLIGHT_NEAR_KM) return false;
     // Nearby alone can collide after pin jitter — require a weak token overlap when named.
     if (!target.name?.trim()) return true;
-    const ta = significantHighlightTokens(pin.name);
-    const tb = significantHighlightTokens(target.name);
-    return ta.some((t) => tb.some((x) => x === t || x.includes(t) || t.includes(x)));
+    const ta = significantHighlightTokens(pin.name).map(normalizeHighlightToken);
+    const tb = significantHighlightTokens(target.name).map(normalizeHighlightToken);
+    if (ta.some((t) => tb.some((x) => x === t || x.includes(t) || t.includes(x)))) {
+      return true;
+    }
+    // Same POI after map jitter / Italian vs English title — trust proximity in the jitter band.
+    return distKm < HIGHLIGHT_JITTER_KM;
   }
   return false;
+}
+
+/** Prefer name match; else closest pin within jitter band (card click → enlarge). */
+export function resolveFocusedPinId(
+  pins: Array<{ id: string; name: string; lat: number; lng: number }>,
+  highlight: MapPoiHighlight | null | undefined,
+): string | null {
+  if (!highlight || !pins.length) return null;
+  for (const pin of pins) {
+    if (pinIsHighlighted(pin, highlight) && pinMatchesHighlight(pin.name, highlight.name ?? "")) {
+      return pin.id;
+    }
+  }
+  for (const pin of pins) {
+    if (pinIsHighlighted(pin, highlight)) return pin.id;
+  }
+  const lat = highlight.lat;
+  const lng = highlight.lng;
+  if (
+    typeof lat !== "number" ||
+    typeof lng !== "number" ||
+    !Number.isFinite(lat) ||
+    !Number.isFinite(lng)
+  ) {
+    return null;
+  }
+  let best: { id: string; dist: number } | null = null;
+  for (const pin of pins) {
+    const dist = haversineKm([pin.lng, pin.lat], [lng, lat]);
+    if (dist >= HIGHLIGHT_NEAR_KM) continue;
+    if (!best || dist < best.dist) best = { id: pin.id, dist };
+  }
+  return best?.id ?? null;
 }
 
 type Props = {
@@ -517,6 +590,7 @@ function TripMapInner({
           lng: highlightPoiLng ?? undefined,
         }
       : null;
+    const focusedPinId = resolveFocusedPinId(dayView.pins, highlight);
 
     for (const pin of dayView.pins) {
       const el = document.createElement("div");
@@ -525,7 +599,7 @@ function TripMapInner({
         <MapPoiMarker
           category={pin.category}
           isActive
-          isFocused={pinIsHighlighted(pin, highlight)}
+          isFocused={focusedPinId ? focusedPinId === pin.id : false}
           name={pin.name}
           imageUrl={pin.imageUrl}
         />,

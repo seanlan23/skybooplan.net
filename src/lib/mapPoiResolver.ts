@@ -186,6 +186,37 @@ function snapLandPreferringPin(
   return coords;
 }
 
+/**
+ * True when the activity is a concrete place (restaurant, landmark, hotel…)
+ * that should offer Google Maps navigation — not generic flight/security fluff.
+ */
+export function shouldOfferActivityNavigation(
+  activity: Activity,
+  day: DayPlan,
+): boolean {
+  if (isFlightLike(activity)) return false;
+  const name = `${activity.name} ${activity.description ?? ""}`;
+  if (
+    /\b(check-in|controlli di sicurezza|security check|immigraz|baggage claim|ritiro bagagli|decollo|take-?off|boarding)\b/i.test(
+      name,
+    ) &&
+    !/\b(hotel|ristorante|restaurant|museo|museum|temple|wat\b|beach|spiaggia)\b/i.test(name)
+  ) {
+    return false;
+  }
+  const coords = resolveActivityCoordinates(activity, day);
+  if (!coords) return false;
+  // Prefer AI/curated coords — avoid offering nav for pure day-center guesses.
+  const pin = findActivityPinFuzzy(day, activity);
+  const hasExplicit =
+    typeof activity.lat === "number" &&
+    typeof activity.lng === "number" &&
+    isValidCoord(activity.lat, activity.lng);
+  if (hasExplicit || pin || lookupPoiCoords(activity.name)) return true;
+  const type = String(activity.type ?? "").toUpperCase();
+  return ["EAT", "SIGHT", "HOTEL", "NATURE", "BEACH", "ENTERTAINMENT", "FOOD"].includes(type);
+}
+
 /** Resolve best map coordinates for an activity — curated POI > IATA > pin > AI coords. */
 export function resolveActivityCoordinates(
   activity: Activity,

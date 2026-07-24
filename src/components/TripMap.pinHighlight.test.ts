@@ -44,4 +44,34 @@ describe("pinIsHighlighted", () => {
       ),
     ).toBe(true);
   });
+
+  it("matches Italian lunch+museum title to San Agustin pin", () => {
+    expect(
+      pinMatchesHighlight("Museo di San Agustin", "Pranzo e Museo di San Agustin"),
+    ).toBe(true);
+  });
+
+  it("matches after map pin jitter (~1.2 km)", () => {
+    expect(
+      pinIsHighlighted(
+        { name: "San Agustin Museum", lat: 14.5895, lng: 120.975 },
+        {
+          name: "Pranzo e Museo di San Agustin",
+          lat: 14.5892,
+          lng: 120.9751,
+        },
+      ),
+    ).toBe(true);
+    // ~1.3 km offset (jitter band)
+    expect(
+      pinIsHighlighted(
+        { name: "San Agustin Museum", lat: 14.5895, lng: 120.975 },
+        {
+          name: "Pranzo e Museo di San Agustin",
+          lat: 14.601,
+          lng: 120.975,
+        },
+      ),
+    ).toBe(true);
+  });
 });

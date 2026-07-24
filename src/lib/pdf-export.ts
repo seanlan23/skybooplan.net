@@ -1,4 +1,5 @@
 import jsPDF from "jspdf";
+import { buildGoogleMapsDirectionsUrl, isValidNavCoord } from "@/lib/navigationService";
 import { formatActivityClockLabel } from "@/lib/activityTime";
 import { enrichMotorhomePlanTips } from "@/lib/motorhomePlanTips";
 import { fixMotorhomeCopyErrors } from "@/lib/textSanitize";
@@ -43,6 +44,8 @@ type PdfActivity = {
   description?: string;
   location?: string;
   price?: string;
+  /** Google Maps directions when AI provided a concrete place. */
+  mapsUrl?: string;
 };
 
 type PdfDay = {
@@ -94,6 +97,7 @@ type PdfLabels = {
   flights: string;
   stays: string;
   packing: string;
+  navigate: string;
   pageOf: (page: number, total: number) => string;
   day: (n: number, end?: number) => string;
 };
@@ -196,6 +200,7 @@ function labelsFor(lang: PlanForPdf["language"], sampleText: string): PdfLabels 
       flights: "Leti",
       stays: "Namestitve",
       packing: "Seznam za pakiranje",
+      navigate: "Navigiraj (Google Maps)",
       pageOf: (page, total) => `${page} / ${total}`,
       day: (n, end) => (end && end !== n ? `Dan ${n}–${end}` : `Dan ${n}`),
     };
@@ -219,6 +224,7 @@ function labelsFor(lang: PlanForPdf["language"], sampleText: string): PdfLabels 
       flights: "Voli",
       stays: "Alloggi",
       packing: "Lista bagaglio",
+      navigate: "Naviga (Google Maps)",
       pageOf: (page, total) => `${page} / ${total}`,
       day: (n, end) => (end && end !== n ? `Giorno ${n}–${end}` : `Giorno ${n}`),
     };
@@ -242,6 +248,7 @@ function labelsFor(lang: PlanForPdf["language"], sampleText: string): PdfLabels 
       flights: "Flüge",
       stays: "Unterkünfte",
       packing: "Packliste",
+      navigate: "Navigieren (Google Maps)",
       pageOf: (page, total) => `${page} / ${total}`,
       day: (n, end) => (end && end !== n ? `Tag ${n}–${end}` : `Tag ${n}`),
     };
@@ -265,6 +272,7 @@ function labelsFor(lang: PlanForPdf["language"], sampleText: string): PdfLabels 
       flights: "Vuelos",
       stays: "Alojamientos",
       packing: "Lista de equipaje",
+      navigate: "Navegar (Google Maps)",
       pageOf: (page, total) => `${page} / ${total}`,
       day: (n, end) => (end && end !== n ? `Día ${n}–${end}` : `Día ${n}`),
     };
@@ -288,6 +296,7 @@ function labelsFor(lang: PlanForPdf["language"], sampleText: string): PdfLabels 
       flights: "Vols",
       stays: "Hébergements",
       packing: "Liste de bagages",
+      navigate: "Naviguer (Google Maps)",
       pageOf: (page, total) => `${page} / ${total}`,
       day: (n, end) => (end && end !== n ? `Jour ${n}–${end}` : `Jour ${n}`),
     };
@@ -310,6 +319,7 @@ function labelsFor(lang: PlanForPdf["language"], sampleText: string): PdfLabels 
     flights: "Flights",
     stays: "Stays",
     packing: "Packing list",
+    navigate: "Navigate (Google Maps)",
     pageOf: (page, total) => `${page} / ${total}`,
     day: (n, end) => (end && end !== n ? `Day ${n}–${end}` : `Day ${n}`),
   };
@@ -405,12 +415,29 @@ function activityFromUnknown(raw: unknown, labels?: PdfLabels): PdfActivity | nu
     (typeof o.estimatedCostEur === "number" ? `€${o.estimatedCostEur}` : undefined);
   const desc = textOf(o.description);
   const location = textOf(o.location) || textOf(o.city);
+  const lat = typeof o.lat === "number" ? o.lat : Number(o.lat);
+  const lng = typeof o.lng === "number" ? o.lng : Number(o.lng);
+  const logisticsOnly =
+    /\b(check-in|controlli di sicurezza|security check|immigraz|baggage|bagagli|decollo|take-?off|boarding)\b/i.test(
+      `${title} ${desc}`,
+    ) &&
+    !/\b(hotel|ristorante|restaurant|museo|museum|temple|beach|spiaggia)\b/i.test(
+      `${title} ${desc}`,
+    );
+  const mapsUrl =
+    !logisticsOnly && isValidNavCoord(lat, lng)
+      ? buildGoogleMapsDirectionsUrl(lat, lng, {
+          label: title,
+          destinationQuery: title,
+        })
+      : undefined;
   return {
     title,
     time: time || undefined,
     description: desc || undefined,
     location: location || undefined,
     price: price || undefined,
+    mapsUrl,
   };
 }
 
@@ -880,6 +907,16 @@ export async function generatePlanPdf(plan: PlanForPdf): Promise<{
           if (it.price) para(it.price, 9, MUTED, 16);
           if (it.description) para(it.description, 9, MUTED, 16);
           if (it.location) para(it.location, 9, MUTED, 16);
+          if (it.mapsUrl) {
+            ensureSpace(14);
+            setFont("normal", 9, SKY);
+            try {
+              doc.textWithLink(model.labels.navigate, margin + 16, y, { url: it.mapsUrl });
+            } catch {
+              safeText(model.labels.navigate, margin + 16, y);
+            }
+            y += 12;
+          }
           y += 3;
         }
       }
