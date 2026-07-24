@@ -1,6 +1,7 @@
 import type { WeatherWidget } from "@/lib/aiPlan.functions";
 import type { DestinationContext } from "@/lib/tripContext.functions";
 import { lookupDestination } from "@/lib/destinationCoords";
+import { planLangCopy } from "@/lib/planLangCopy";
 import { buildTripClimate } from "@/lib/seasonalHints";
 
 /** Typical daytime range by country + month (rough climate guide for trip dates). */
@@ -33,23 +34,44 @@ function monthFromIso(iso?: string): number | null {
 
 function clothingFromHints(hints: string[], lang: string): string {
   const blob = hints.join(" ").toLowerCase();
-  const sl = lang.startsWith("sl");
-  if (/dež|rain|monsun|monsoon|plohe|shower/i.test(blob)) {
-    return sl
-      ? "Lahek raincoat, dihalna oblačila, zaprti čevlji za dež."
-      : "Light rain jacket, breathable clothes, closed shoes for rain.";
+  if (/dež|rain|monsun|monsoon|plohe|shower|pioggia|pluie|regen/i.test(blob)) {
+    return planLangCopy(lang, {
+      sl: "Lahek raincoat, dihalna oblačila, zaprti čevlji za dež.",
+      en: "Light rain jacket, breathable clothes, closed shoes for rain.",
+      de: "Leichte Regenjacke, atmungsaktive Kleidung, geschlossene Schuhe.",
+      it: "Giacca leggera antipioggia, vestiti traspiranti, scarpe chiuse.",
+      es: "Chubasquero ligero, ropa transpirable, zapatos cerrados.",
+      fr: "Veste de pluie légère, vêtements respirants, chaussures fermées.",
+    });
   }
-  if (/vroč|hot|40|heat/i.test(blob)) {
-    return sl
-      ? "Zelo lahka oblačila, kapa, veliko vode, klimatizirani prostori."
-      : "Very light clothes, hat, plenty of water, air-conditioned breaks.";
+  if (/vroč|hot|40|heat|caldo|chaud|heiß/i.test(blob)) {
+    return planLangCopy(lang, {
+      sl: "Zelo lahka oblačila, kapa, veliko vode, klimatizirani prostori.",
+      en: "Very light clothes, hat, plenty of water, air-conditioned breaks.",
+      de: "Sehr leichte Kleidung, Hut, viel Wasser, klimatisierte Pausen.",
+      it: "Vestiti molto leggeri, cappello, tanta acqua, pause al fresco.",
+      es: "Ropa muy ligera, gorra, mucha agua, pausas con aire acondicionado.",
+      fr: "Vêtements très légers, chapeau, beaucoup d'eau, pauses climatisées.",
+    });
   }
-  if (/hlad|cool|cold|zima|winter/i.test(blob)) {
-    return sl ? "Plašč ali jakna za večer, sloji za jutro." : "Jacket for evenings, layers for mornings.";
+  if (/hlad|cool|cold|zima|winter|freddo|froid|kalt/i.test(blob)) {
+    return planLangCopy(lang, {
+      sl: "Plašč ali jakna za večer, sloji za jutro.",
+      en: "Jacket for evenings, layers for mornings.",
+      de: "Jacke für den Abend, Schichten für den Morgen.",
+      it: "Giacca per la sera, strati per la mattina.",
+      es: "Chaqueta para la noche, capas por la mañana.",
+      fr: "Veste pour le soir, couches pour le matin.",
+    });
   }
-  return sl
-    ? "Lahka oblačila, udobni čevlji, kapa proti soncu."
-    : "Light clothes, comfortable shoes, sun hat.";
+  return planLangCopy(lang, {
+    sl: "Lahka oblačila, udobni čevlji, kapa proti soncu.",
+    en: "Light clothes, comfortable shoes, sun hat.",
+    de: "Leichte Kleidung, bequeme Schuhe, Sonnenhut.",
+    it: "Vestiti leggeri, scarpe comode, cappello da sole.",
+    es: "Ropa ligera, zapatos cómodos, gorra solar.",
+    fr: "Vêtements légers, chaussures confortables, chapeau.",
+  });
 }
 
 export function buildWeatherWidgetFallback(opts: {
@@ -88,7 +110,14 @@ export function buildWeatherWidgetFallback(opts: {
   const season =
     hints[0]?.trim() ||
     opts.context?.weatherLabel ||
-    (lang.startsWith("sl") ? "Sezonske razmere na destinaciji" : "Season at destination");
+    planLangCopy(lang, {
+      sl: "Sezonske razmere na destinaciji",
+      en: "Season at destination",
+      de: "Saison am Reiseziel",
+      it: "Stagione a destinazione",
+      es: "Temporada en destino",
+      fr: "Saison à destination",
+    });
 
   let avgTemp = "";
   if (opts.context?.tempC != null) {
@@ -105,7 +134,14 @@ export function buildWeatherWidgetFallback(opts: {
     if (!summary) return undefined;
     return {
       season: summary.slice(0, 120),
-      avgTemp: lang.startsWith("sl") ? "Preveri vremensko napoved" : "Check weather forecast",
+      avgTemp: planLangCopy(lang, {
+        sl: "Preveri vremensko napoved",
+        en: "Check weather forecast",
+        de: "Wettervorhersage prüfen",
+        it: "Controlla le previsioni",
+        es: "Consulta el pronóstico",
+        fr: "Vérifiez les prévisions",
+      }),
       clothing,
     };
   }
@@ -113,7 +149,16 @@ export function buildWeatherWidgetFallback(opts: {
   if (!season || !clothing) return undefined;
   return {
     season,
-    avgTemp: avgTemp || (lang.startsWith("sl") ? "Toplo do vroče" : "Warm to hot"),
+    avgTemp:
+      avgTemp ||
+      planLangCopy(lang, {
+        sl: "Toplo do vroče",
+        en: "Warm to hot",
+        de: "Warm bis heiß",
+        it: "Caldo",
+        es: "Cálido a caluroso",
+        fr: "Chaud",
+      }),
     clothing,
   };
 }

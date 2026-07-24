@@ -12,10 +12,9 @@ export type CuratedTravelPack = {
 
 type LangCode = string;
 
-function lang2(lang: LangCode): "sl" | "de" | "en" {
+function lang2(lang: LangCode): "sl" | "de" | "en" | "it" | "es" | "fr" {
   const c = lang.toLowerCase().slice(0, 2);
-  if (c === "sl") return "sl";
-  if (c === "de") return "de";
+  if (c === "sl" || c === "de" || c === "it" || c === "es" || c === "fr") return c;
   return "en";
 }
 
@@ -78,6 +77,39 @@ function schengenInternal(destName: string, lang: LangCode): CuratedTravelPack {
         "Visum: 0 €. Impfungen: 0 € bei aktuellen Routineimpfungen. Extra: Fahrzeugversicherung / Vignetten / Maut je nach Land.",
     };
   }
+  if (L === "it") {
+    return {
+      visaRequirement: `I cittadini UE/Schengen non hanno bisogno di visto per ${destName}. Vale la libera circolazione — basta carta d'identità o passaporto validi. La regola “90/180 giorni” per i paesi terzi non si applica. Con il camper porta documenti del veicolo e assicurazione (carta verde se richiesta).`,
+      howToApply:
+        "Nessuna domanda di visto. Alle frontiere mostra il documento se richiesto. Per soggiorni lunghi verifica eventuali obblighi di registrazione — per qualche settimana di turismo di solito non serve.",
+      vaccinations:
+        "Nessun vaccino di viaggio speciale per destinazioni UE. Mantieni aggiornati i vaccini di routine (tetano, MPR). In estate: protezione solare e idratazione; al sud eventuale repellente.",
+      estimatedCosts:
+        "Visto: 0 €. Vaccini: 0 € se i routine sono in regola. Extra: assicurazione veicolo / vignette / pedaggi a seconda del paese.",
+    };
+  }
+  if (L === "es") {
+    return {
+      visaRequirement: `Los ciudadanos UE/Schengen no necesitan visado para ${destName}. Aplica libre circulación — basta DNI o pasaporte válido. La regla “90/180 días” de terceros países no aplica. Con autocaravana lleva papeles del vehículo y seguro (carta verde si hace falta).`,
+      howToApply:
+        "Sin solicitud de visado. En fronteras muestra el documento si te lo piden. Estancias largas: revisa registro local — para unas semanas de turismo suele no hacer falta.",
+      vaccinations:
+        "No hay vacunas de viaje especiales para destinos UE. Mantén al día las de rutina (tétanos, triple vírica). En verano: protección solar e hidratación; en el sur, repelente.",
+      estimatedCosts:
+        "Visado: 0 €. Vacunas: 0 € si las de rutina están al día. Extra: seguro del vehículo / viñetas / peajes según el país.",
+    };
+  }
+  if (L === "fr") {
+    return {
+      visaRequirement: `Les citoyens UE/Schengen n'ont pas besoin de visa pour ${destName}. Libre circulation — carte d'identité ou passeport suffit. La règle « 90/180 jours » des pays tiers ne s'applique pas. En camping-car, emportez papiers du véhicule et assurance (carte verte si besoin).`,
+      howToApply:
+        "Pas de demande de visa. Aux frontières, présentez une pièce d'identité si demandé. Pour un long séjour, vérifiez les règles locales — pour quelques semaines de tourisme, en général rien à faire.",
+      vaccinations:
+        "Pas de vaccins de voyage spéciaux pour l'UE. Gardez les vaccins de routine à jour (tétanos, ROR). En été : protection solaire et hydratation ; au sud, répulsif moustiques.",
+      estimatedCosts:
+        "Visa : 0 €. Vaccins : 0 € si les routines sont à jour. Extra : assurance véhicule / vignettes / péages selon le pays.",
+    };
+  }
   return {
     visaRequirement: `EU/Schengen citizens do not need a visa for ${destName}. Free movement applies — a valid ID card or passport is enough. The third-country “90/180 days” rule does not apply. For motorhomes, carry vehicle papers and insurance (green card where needed).`,
     howToApply:
@@ -113,6 +145,42 @@ function albaniaPack(lang: LangCode): CuratedTravelPack {
         "Empfohlen: aktuelle Routineimpfungen; Hepatitis A bei längerem Aufenthalt/Camping sinnvoll. Malaria in Touristengebieten unüblich; im Sommer Repellent mitnehmen.",
       estimatedCosts:
         "Visum: 0 € (bis 90 Tage). Hepatitis A (falls nötig): ca. 40–80 €. Sonst: Kraftstoff, Camping, ggf. Maut.",
+    };
+  }
+  if (L === "it") {
+    return {
+      visaRequirement:
+        "I cittadini UE/Schengen possono entrare in Albania senza visto fino a 90 giorni in 180. Passaporto o carta d'identità (verifica il tuo paese). Il passaporto deve restare valido per il soggiorno.",
+      howToApply:
+        "Nessun visto in anticipo. Mostra il documento al confine. Camper: assicurazione/carta verde e documenti veicolo; contanti (ALL/EUR) utili.",
+      vaccinations:
+        "Consigliati: vaccini di routine aggiornati; epatite A per soggiorni lunghi/camping. Malaria rara nelle zone turistiche; repellente in estate.",
+      estimatedCosts:
+        "Visto: 0 € (fino a 90 giorni). Epatite A se serve: circa 40–80 €. Altro: carburante, campeggi, eventuali pedaggi.",
+    };
+  }
+  if (L === "es") {
+    return {
+      visaRequirement:
+        "Los ciudadanos UE/Schengen pueden entrar en Albania sin visado hasta 90 días en 180. Pasaporte o DNI (según tu país). El pasaporte debe seguir válido durante la estancia.",
+      howToApply:
+        "Sin visado previo. Muestra el documento en la frontera. Autocaravana: seguro/carta verde y papeles; efectivo (ALL/EUR) útil.",
+      vaccinations:
+        "Recomendado: vacunas de rutina al día; hepatitis A en viajes largos/camping. Malaria poco habitual en zonas turísticas; repelente en verano.",
+      estimatedCosts:
+        "Visado: 0 € (hasta 90 días). Hepatitis A si hace falta: unos 40–80 €. Resto: combustible, campings, peajes.",
+    };
+  }
+  if (L === "fr") {
+    return {
+      visaRequirement:
+        "Les citoyens UE/Schengen peuvent entrer en Albanie sans visa jusqu'à 90 jours sur 180. Passeport ou carte d'identité (selon votre pays). Le passeport doit rester valide pendant le séjour.",
+      howToApply:
+        "Pas de visa à l'avance. Présentez une pièce à la frontière. Camping-car : assurance/carte verte et papiers ; espèces (ALL/EUR) utiles.",
+      vaccinations:
+        "Recommandé : vaccins de routine à jour ; hépatite A pour long séjour/camping. Paludisme rare en zones touristiques ; répulsif en été.",
+      estimatedCosts:
+        "Visa : 0 € (jusqu'à 90 jours). Hépatite A si besoin : environ 40–80 €. Autre : carburant, campings, péages.",
     };
   }
   return {
@@ -153,6 +221,42 @@ function ukPack(lang: LangCode): CuratedTravelPack {
         "ETA: ca. 10–16 GBP pro Person. Touristenvisum: 0 £. Impfungen: 0 € bei aktuellen Routineimpfungen.",
     };
   }
+  if (L === "it") {
+    return {
+      visaRequirement:
+        "I cittadini UE non hanno bisogno di visto per soggiorni turistici brevi nel Regno Unito (fino a 6 mesi), ma dal 2025 la maggior parte richiede un'ETA (Electronic Travel Authorisation) prima dell'arrivo. Serve il passaporto (non la carta d'identità).",
+      howToApply:
+        "Richiedi l'ETA tramite l'app ufficiale UK ETA / GOV.UK prima del viaggio (tariffa bassa; di solito valida 2 anni per più ingressi). All'arrivo presenta il passaporto.",
+      vaccinations:
+        "Nessun vaccino speciale. Mantieni aggiornati i vaccini di routine.",
+      estimatedCosts:
+        "ETA: circa 10–16 GBP a persona. Visto turistico: 0 £. Vaccini: 0 € se i routine sono in regola.",
+    };
+  }
+  if (L === "es") {
+    return {
+      visaRequirement:
+        "Los ciudadanos UE no necesitan visado para estancias turísticas cortas en el Reino Unido (hasta 6 meses), pero desde 2025 la mayoría necesita ETA (Electronic Travel Authorisation) antes de llegar. Se requiere pasaporte (no DNI).",
+      howToApply:
+        "Solicita la ETA en la app oficial UK ETA / GOV.UK antes del viaje (tarifa baja; suele valer 2 años para varias entradas). Presenta el pasaporte a la llegada.",
+      vaccinations:
+        "No hacen falta vacunas especiales. Mantén al día las de rutina.",
+      estimatedCosts:
+        "ETA: unas 10–16 GBP por persona. Visado turístico: 0 £. Vacunas: 0 € si las de rutina están al día.",
+    };
+  }
+  if (L === "fr") {
+    return {
+      visaRequirement:
+        "Les citoyens UE n'ont pas besoin de visa pour un court séjour touristique au Royaume-Uni (jusqu'à 6 mois), mais depuis 2025 la plupart ont besoin d'une ETA (Electronic Travel Authorisation) avant l'arrivée. Passeport obligatoire (pas la carte d'identité).",
+      howToApply:
+        "Demandez l'ETA via l'appli officielle UK ETA / GOV.UK avant le voyage (faible frais ; souvent valable 2 ans pour plusieurs entrées). Présentez le passeport à l'arrivée.",
+      vaccinations:
+        "Pas de vaccins spéciaux. Gardez les vaccins de routine à jour.",
+      estimatedCosts:
+        "ETA : environ 10–16 GBP par personne. Visa tourisme : 0 £. Vaccins : 0 € si les routines sont à jour.",
+    };
+  }
   return {
     visaRequirement:
       "EU citizens do not need a visa for short UK tourism stays (up to 6 months) but most need an Electronic Travel Authorisation (ETA) before travel (from 2025). A passport (not an ID card) is required.",
@@ -189,6 +293,42 @@ function usaPack(lang: LangCode): CuratedTravelPack {
         "Keine speziellen Impfungen für die USA nötig. Routineimpfungen aktuell halten.",
       estimatedCosts:
         "ESTA: ca. 21 USD pro Person. Klassisches Visum bei genehmigter ESTA nicht nötig. Impfungen: 0 € bei aktuellen Routineimpfungen.",
+    };
+  }
+  if (L === "it") {
+    return {
+      visaRequirement:
+        "I cittadini della maggior parte dei paesi UE per il turismo fino a 90 giorni necessitano di ESTA (Visa Waiver), non di un visto B1/B2 classico. Passaporto biometrico obbligatorio; approvazione ESTA prima della partenza.",
+      howToApply:
+        "Richiedi ESTA sul sito ufficiale CBP (esta.cbp.dhs.gov) almeno 72 ore prima della partenza — circa 21 USD. Salva la conferma.",
+      vaccinations:
+        "Nessun vaccino speciale per gli USA. Mantieni aggiornati i vaccini di routine.",
+      estimatedCosts:
+        "ESTA: circa 21 USD a persona. Con ESTA approvata non serve il visto classico. Vaccini: 0 € se i routine sono in regola.",
+    };
+  }
+  if (L === "es") {
+    return {
+      visaRequirement:
+        "Los ciudadanos de la mayoría de países UE necesitan ESTA (Visa Waiver) para turismo hasta 90 días, no un visado B1/B2 clásico. Pasaporte biométrico obligatorio; aprobación ESTA antes de salir.",
+      howToApply:
+        "Solicita ESTA en el sitio oficial CBP (esta.cbp.dhs.gov) al menos 72 horas antes — unos 21 USD. Guarda la confirmación.",
+      vaccinations:
+        "No hacen falta vacunas especiales para EE. UU. Mantén al día las de rutina.",
+      estimatedCosts:
+        "ESTA: unos 21 USD por persona. Con ESTA aprobada no hace falta el visado clásico. Vacunas: 0 € si las de rutina están al día.",
+    };
+  }
+  if (L === "fr") {
+    return {
+      visaRequirement:
+        "Les citoyens de la plupart des pays UE ont besoin d'ESTA (Visa Waiver) pour le tourisme jusqu'à 90 jours, pas d'un visa B1/B2 classique. Passeport biométrique obligatoire ; approbation ESTA avant le départ.",
+      howToApply:
+        "Demandez l'ESTA sur le site officiel CBP (esta.cbp.dhs.gov) au moins 72 h avant le départ — environ 21 USD. Conservez la confirmation.",
+      vaccinations:
+        "Pas de vaccins spéciaux pour les USA. Gardez les vaccins de routine à jour.",
+      estimatedCosts:
+        "ESTA : environ 21 USD par personne. Avec ESTA approuvée, pas de visa classique. Vaccins : 0 € si les routines sont à jour.",
     };
   }
   return {
@@ -229,6 +369,42 @@ function japanPack(lang: LangCode): CuratedTravelPack {
         "Visum: 0 € (bis 90 Tage). Visit Japan Web: kostenlos. Hepatitis A: ca. 40–80 € falls nötig.",
     };
   }
+  if (L === "it") {
+    return {
+      visaRequirement:
+        "I cittadini UE possono entrare in Giappone senza visto per turismo fino a 90 giorni. Il passaporto deve essere valido per tutto il soggiorno. Visit Japan Web / moduli digitali sono consigliati.",
+      howToApply:
+        "Nessun visto in anticipo. Compila Visit Japan Web prima della partenza se richiesto. All'arrivo presenta passaporto (e QR se rilasciato).",
+      vaccinations:
+        "Nessun vaccino obbligatorio. Consigliati: epatite A (e B per soggiorni lunghi), vaccini di routine aggiornati.",
+      estimatedCosts:
+        "Visto: 0 € (fino a 90 giorni). Visit Japan Web: gratuito. Epatite A: circa 40–80 € se serve.",
+    };
+  }
+  if (L === "es") {
+    return {
+      visaRequirement:
+        "Los ciudadanos UE pueden entrar en Japón sin visado por turismo hasta 90 días. El pasaporte debe ser válido durante toda la estancia. Se recomienda Visit Japan Web / formularios digitales.",
+      howToApply:
+        "Sin visado previo. Completa Visit Japan Web antes de salir si aplica. A la llegada presenta pasaporte (y QR si lo hay).",
+      vaccinations:
+        "No hay vacunas obligatorias. Recomendado: hepatitis A (y B en estancias largas), rutina al día.",
+      estimatedCosts:
+        "Visado: 0 € (hasta 90 días). Visit Japan Web: gratis. Hepatitis A: unos 40–80 € si hace falta.",
+    };
+  }
+  if (L === "fr") {
+    return {
+      visaRequirement:
+        "Les citoyens UE peuvent entrer au Japon sans visa pour le tourisme jusqu'à 90 jours. Le passeport doit être valide pour tout le séjour. Visit Japan Web / formulaires numériques sont recommandés.",
+      howToApply:
+        "Pas de visa à l'avance. Remplissez Visit Japan Web avant le départ si requis. À l'arrivée, présentez passeport (et QR le cas échéant).",
+      vaccinations:
+        "Pas de vaccins obligatoires. Recommandé : hépatite A (et B pour long séjour), routines à jour.",
+      estimatedCosts:
+        "Visa : 0 € (jusqu'à 90 jours). Visit Japan Web : gratuit. Hépatite A : environ 40–80 € si besoin.",
+    };
+  }
   return {
     visaRequirement:
       "EU citizens can enter Japan visa-free for tourism up to 90 days. Passport must be valid for the whole stay. Visit Japan Web / digital arrival forms are recommended.",
@@ -267,6 +443,42 @@ function indonesiaPack(lang: LangCode): CuratedTravelPack {
         "VOA: ca. 35 USD pro Person. Impfungen: ca. 80–200 € je nach Schema.",
     };
   }
+  if (L === "it") {
+    return {
+      visaRequirement:
+        "I cittadini UE per Bali/Indonesia ottengono di solito visa on arrival / ingresso breve senza visto (spesso 30 giorni — verifica la VOA attuale). Passaporto valido 6+ mesi; biglietto di ritorno consigliato.",
+      howToApply:
+        "VOA in aeroporto o e-VOA anticipata sul portale ufficiale immigrazione. Salva la conferma. Le proroghe sono limitate.",
+      vaccinations:
+        "Consigliati: epatite A/B, tifo per viaggi lunghi; routine. Febbre gialla solo se arrivi da paese endemico. Malaria a Bali bassa; altre isole da verificare.",
+      estimatedCosts:
+        "VOA: circa 35 USD a persona. Vaccini: circa 80–200 € a seconda del ciclo.",
+    };
+  }
+  if (L === "es") {
+    return {
+      visaRequirement:
+        "Los ciudadanos UE para Bali/Indonesia suelen obtener visa on arrival / entrada corta sin visado (a menudo 30 días — comprueba la VOA actual). Pasaporte válido 6+ meses; billete de vuelta recomendado.",
+      howToApply:
+        "VOA en el aeropuerto o e-VOA previa en el portal oficial de inmigración. Guarda la confirmación. Las prórrogas son limitadas.",
+      vaccinations:
+        "Recomendado: hepatitis A/B, tifus en viajes largos; rutina. Fiebre amarilla solo si llegas de un país endémico. Malaria en Bali baja; otras islas a comprobar.",
+      estimatedCosts:
+        "VOA: unos 35 USD por persona. Vacunas: unos 80–200 € según el esquema.",
+    };
+  }
+  if (L === "fr") {
+    return {
+      visaRequirement:
+        "Les citoyens UE pour Bali/Indonésie obtiennent souvent un visa on arrival / entrée courte sans visa (souvent 30 jours — vérifiez la VOA actuelle). Passeport valide 6+ mois ; billet retour recommandé.",
+      howToApply:
+        "VOA à l'aéroport ou e-VOA à l'avance sur le portail officiel d'immigration. Conservez la confirmation. Les prolongations sont limitées.",
+      vaccinations:
+        "Recommandé : hépatite A/B, typhoïde pour long séjour ; routines. Fièvre jaune seulement si arrivée d'un pays endémique. Paludisme faible à Bali ; autres îles à vérifier.",
+      estimatedCosts:
+        "VOA : environ 35 USD par personne. Vaccins : environ 80–200 € selon le schéma.",
+    };
+  }
   return {
     visaRequirement:
       "EU citizens usually get visa on arrival / short visa-free entry for Bali/Indonesia (often 30 days — check current VOA). Passport valid 6+ months; return ticket recommended.",
@@ -303,6 +515,42 @@ function turkeyPack(lang: LangCode): CuratedTravelPack {
         "Empfohlen: Routineimpfungen; Hepatitis A bei längerer Reise. Keine speziellen Pflichtimpfungen für Istanbul/Küste.",
       estimatedCosts:
         "E-Visum: ca. 20–60 USD/EUR je nach Staatsangehörigkeit. Impfungen: 0–80 €.",
+    };
+  }
+  if (L === "it") {
+    return {
+      visaRequirement:
+        "I cittadini della maggior parte dei paesi UE necessitano di e-visa per la Turchia (turismo, di solito fino a 90 giorni). Il passaporto dovrebbe essere valido almeno 6 mesi dall'ingresso.",
+      howToApply:
+        "Richiedi l'e-visa su www.evisa.gov.tr prima della partenza. Salva il PDF; pagamento con carta.",
+      vaccinations:
+        "Consigliati: vaccini di routine; epatite A per viaggi lunghi. Nessun vaccino obbligatorio speciale per Istanbul/costa.",
+      estimatedCosts:
+        "E-visa: circa 20–60 USD/EUR a seconda della cittadinanza. Vaccini: 0–80 €.",
+    };
+  }
+  if (L === "es") {
+    return {
+      visaRequirement:
+        "Los ciudadanos de la mayoría de países UE necesitan e-visa para Turquía (turismo, suele ser hasta 90 días). El pasaporte debería valer al menos 6 meses desde la entrada.",
+      howToApply:
+        "Solicita la e-visa en www.evisa.gov.tr antes de salir. Guarda el PDF; pago con tarjeta.",
+      vaccinations:
+        "Recomendado: vacunas de rutina; hepatitis A en viajes largos. Sin vacunas obligatorias especiales para Estambul/costa.",
+      estimatedCosts:
+        "E-visa: unos 20–60 USD/EUR según nacionalidad. Vacunas: 0–80 €.",
+    };
+  }
+  if (L === "fr") {
+    return {
+      visaRequirement:
+        "Les citoyens de la plupart des pays UE ont besoin d'un e-visa pour la Turquie (tourisme, souvent jusqu'à 90 jours). Le passeport devrait être valide au moins 6 mois à l'entrée.",
+      howToApply:
+        "Demandez l'e-visa sur www.evisa.gov.tr avant le départ. Conservez le PDF ; paiement par carte.",
+      vaccinations:
+        "Recommandé : vaccins de routine ; hépatite A pour long séjour. Pas de vaccins obligatoires spéciaux pour Istanbul/côte.",
+      estimatedCosts:
+        "E-visa : environ 20–60 USD/EUR selon nationalité. Vaccins : 0–80 €.",
     };
   }
   return {

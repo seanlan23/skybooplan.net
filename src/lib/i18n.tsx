@@ -3,6 +3,9 @@ import { homepageUiByLang } from "@/lib/i18n.homepage";
 import { authDashboardByLang } from "@/lib/i18n.authDashboard";
 import { motorhomeUiByLang } from "@/lib/i18n.motorhome";
 import { plannerShellByLang } from "@/lib/i18n.plannerShell";
+import { plannerExtrasByLang } from "@/lib/i18n.plannerExtras";
+import { legalUiByLang } from "@/lib/i18n.legal";
+import { pricingUiByLang } from "@/lib/i18n.pricing";
 import {
   currencySymbol,
   formatPlanMoney,
@@ -2055,6 +2058,9 @@ const dicts: Record<Lang, Dict> = {
     "aiplan.tipsTitle": "¿Sabías que?",
     ...homepageUiByLang.es,
     ...plannerShellByLang.es,
+    ...plannerExtrasByLang.es,
+    ...legalUiByLang.es,
+    ...pricingUiByLang.es,
     ...planUiByLang.es,
     ...authDashboardByLang.es,
     ...motorhomeUiByLang.es,
@@ -2242,6 +2248,8 @@ const dicts: Record<Lang, Dict> = {
     "aiplan.tipsTitle": "Le saviez-vous ?",
     ...homepageUiByLang.fr,
     ...plannerShellByLang.fr,
+    ...plannerExtrasByLang.fr,
+    ...legalUiByLang.fr,
     ...planUiByLang.fr,
     ...authDashboardByLang.fr,
     ...motorhomeUiByLang.fr,
@@ -2408,6 +2416,9 @@ const dicts: Record<Lang, Dict> = {
     "results.stops": "Stopps",
     "results.via": "über",
     ...homepageUiByLang.de,
+    ...plannerExtrasByLang.de,
+    ...legalUiByLang.de,
+    ...pricingUiByLang.de,
     ...planUiByLang.de,
     // Shell UI must win over EN fallback (homepage pack does not cover these).
     "nav.flights": "Flüge",
@@ -2555,6 +2566,9 @@ const dicts: Record<Lang, Dict> = {
     "aiplan.tipsTitle": "Lo sapevi?",
     ...homepageUiByLang.it,
     ...plannerShellByLang.it,
+    ...plannerExtrasByLang.it,
+    ...legalUiByLang.it,
+    ...pricingUiByLang.it,
     ...planUiByLang.it,
     ...authDashboardByLang.it,
     ...motorhomeUiByLang.it,

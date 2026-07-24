@@ -1,6 +1,7 @@
 import { targetResidentsForOrigin } from "@/lib/originResidents";
 import { DESTINATION_BY_IATA } from "@/lib/destinationCoords";
 import { normalizeIata } from "@/lib/geminiPro.shared";
+import { planLangCopy } from "@/lib/planLangCopy";
 import {
   curatedTravelPackForCountry,
   looksConcreteTravelCopy,
@@ -296,32 +297,40 @@ export function buildFallbackTravelRequirements(
     visaInfo: [
       {
         country: targetResidents.join(" · "),
-        requirement:
-          langCode === "sl"
-            ? `Za ${destLabel}: preveri vizumske zahteve za potnike z EU/Schengen potnim listom (brezvizumsko / e-viza / VOA). Potni list naj bo veljaven; pravila preveri na gov.si (MZV) pred odhodom.`
-            : langCode === "de"
-              ? `Für ${destLabel}: Visabestimmungen für EU-/Schengen-Pässe prüfen (visumfrei / E-Visum / VOA). Reisepass gültig halten; vor Abreise offizielle Quellen checken.`
-              : `For ${destLabel}: confirm visa rules for EU/Schengen passports (visa-free / e-visa / VOA). Keep your passport valid; verify on your foreign ministry site before you go.`,
-        howToApply:
-          langCode === "sl"
-            ? "Uradni viri: gov.si (MZV) ali veleposlaništvo / e-viza destinacije."
-            : langCode === "de"
-              ? "Offizielle Quellen: Außenministerium oder Botschaft / E-Visum-Portal des Ziellandes."
-              : "Official sources: your foreign ministry or the destination embassy / e-visa portal.",
+        requirement: planLangCopy(langCode, {
+          sl: `Za ${destLabel}: preveri vizumske zahteve za potnike z EU/Schengen potnim listom (brezvizumsko / e-viza / VOA). Potni list naj bo veljaven; pravila preveri na gov.si (MZV) pred odhodom.`,
+          en: `For ${destLabel}: confirm visa rules for EU/Schengen passports (visa-free / e-visa / VOA). Keep your passport valid; verify on your foreign ministry site before you go.`,
+          de: `Für ${destLabel}: Visabestimmungen für EU-/Schengen-Pässe prüfen (visumfrei / E-Visum / VOA). Reisepass gültig halten; vor Abreise offizielle Quellen checken.`,
+          it: `Per ${destLabel}: verifica i requisiti di visto per passaporti UE/Schengen (senza visto / e-visa / VOA). Passaporto valido; controlla fonti ufficiali prima della partenza.`,
+          es: `Para ${destLabel}: confirma las reglas de visado para pasaportes UE/Schengen (sin visado / e-visa / VOA). Pasaporte válido; verifica fuentes oficiales antes de viajar.`,
+          fr: `Pour ${destLabel} : vérifiez les règles de visa pour passeports UE/Schengen (sans visa / e-visa / VOA). Passeport valide ; sources officielles avant le départ.`,
+        }),
+        howToApply: planLangCopy(langCode, {
+          sl: "Uradni viri: gov.si (MZV) ali veleposlaništvo / e-viza destinacije.",
+          en: "Official sources: your foreign ministry or the destination embassy / e-visa portal.",
+          de: "Offizielle Quellen: Außenministerium oder Botschaft / E-Visum-Portal des Ziellandes.",
+          it: "Fonti ufficiali: ministero degli esteri o ambasciata / portale e-visa della destinazione.",
+          es: "Fuentes oficiales: ministerio de exteriores o embajada / portal e-visa del destino.",
+          fr: "Sources officielles : ministère des affaires étrangères ou ambassade / portail e-visa.",
+        }),
       },
     ],
-    vaccinations:
-      langCode === "sl"
-        ? `Za ${destLabel}: posvetuj se s potovalno medicino 4–6 tednov pred odhodom. Rutinska cepljenja posodobi; dodatna (hepatitis A, tifus …) so odvisna od regije.`
-        : langCode === "de"
-          ? `Für ${destLabel}: Reiseimpfberatung 4–6 Wochen vor Abreise. Routineimpfungen aktualisieren; Zusatzimpfungen (Hepatitis A, Typhus …) je nach Region.`
-          : `For ${destLabel}: see a travel clinic 4–6 weeks before departure. Update routine vaccines; extras (hepatitis A, typhoid…) depend on the region.`,
-    estimatedCosts:
-      langCode === "sl"
-        ? `Za ${destLabel}: načrtuj 0–150 € na osebo za morebitno e-vizo in osnovna cepljenja — točen znesek preveri pred odhodom.`
-        : langCode === "de"
-          ? `Für ${destLabel}: plane ca. 0–150 € pro Person für ggf. E-Visum und Basisimpfungen — Betrag vor Abreise prüfen.`
-          : `For ${destLabel}: budget about €0–150 per person for a possible e-visa and basic vaccines — confirm the amount before travel.`,
+    vaccinations: planLangCopy(langCode, {
+      sl: `Za ${destLabel}: posvetuj se s potovalno medicino 4–6 tednov pred odhodom. Rutinska cepljenja posodobi; dodatna (hepatitis A, tifus …) so odvisna od regije.`,
+      en: `For ${destLabel}: see a travel clinic 4–6 weeks before departure. Update routine vaccines; extras (hepatitis A, typhoid…) depend on the region.`,
+      de: `Für ${destLabel}: Reiseimpfberatung 4–6 Wochen vor Abreise. Routineimpfungen aktualisieren; Zusatzimpfungen (Hepatitis A, Typhus …) je nach Region.`,
+      it: `Per ${destLabel}: consulta la medicina di viaggio 4–6 settimane prima. Aggiorna i vaccini di routine; extra (epatite A, tifo…) dipendono dalla regione.`,
+      es: `Para ${destLabel}: consulta medicina del viajero 4–6 semanas antes. Actualiza vacunas de rutina; extras (hepatitis A, tifus…) según la región.`,
+      fr: `Pour ${destLabel} : consultez la médecine des voyages 4–6 semaines avant. Mettez à jour les vaccins de routine ; extras (hépatite A, typhoïde…) selon la région.`,
+    }),
+    estimatedCosts: planLangCopy(langCode, {
+      sl: `Za ${destLabel}: načrtuj 0–150 € na osebo za morebitno e-vizo in osnovna cepljenja — točen znesek preveri pred odhodom.`,
+      en: `For ${destLabel}: budget about €0–150 per person for a possible e-visa and basic vaccines — confirm the amount before travel.`,
+      de: `Für ${destLabel}: plane ca. 0–150 € pro Person für ggf. E-Visum und Basisimpfungen — Betrag vor Abreise prüfen.`,
+      it: `Per ${destLabel}: budget circa 0–150 € a persona per eventuale e-visa e vaccini base — conferma prima della partenza.`,
+      es: `Para ${destLabel}: presupuesto unos 0–150 € por persona por posible e-visa y vacunas básicas — confirma antes de viajar.`,
+      fr: `Pour ${destLabel} : budget environ 0–150 € par personne pour éventuel e-visa et vaccins de base — confirmez avant le départ.`,
+    }),
   };
 }
 
