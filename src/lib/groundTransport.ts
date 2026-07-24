@@ -103,7 +103,51 @@ export function isJourneyDay(day: DayPlan, plan: AiTripPlan): boolean {
   return stopDays.has(day.day);
 }
 
+const COUNTRY_DEST_RE =
+  /^(italy|italija|italia|croatia|hrvaška|hrvatska|spain|španija|france|francija|germany|nemčija|austria|avstrija|slovenia|slovenija|greece|grčija|portugal|netherlands|switzerland|švica)(,|\s|$)/i;
+
+function isCountryOnlyDestination(label: string): boolean {
+  const s = label.replace(/\s+/g, " ").trim();
+  if (!s) return false;
+  const head = s.split(",")[0]!.trim();
+  return COUNTRY_DEST_RE.test(head) || COUNTRY_DEST_RE.test(s);
+}
+
+/**
+ * Unique overnight hubs in day order (collapse Venice×2, Florence×3, …).
+ * `day` = first itinerary day in that city — used to fly the map.
+ */
+export function collectRoadTripHubStops(plan: AiTripPlan): GroundJourneyStop[] {
+  const stops: GroundJourneyStop[] = [];
+  let lastKey = "";
+
+  for (const day of [...plan.days].sort((a, b) => a.day - b.day)) {
+    if (day.inFlightDay) continue;
+    const city = (day.city ?? day.focusName ?? "").trim();
+    if (!city) continue;
+    const key = city.toLowerCase();
+    if (key === lastKey) continue;
+    lastKey = key;
+    stops.push({
+      name: city,
+      note: day.title,
+      day: day.day,
+    });
+  }
+
+  return stops;
+}
+
 function collectJourneyStops(plan: AiTripPlan): GroundJourneyStop[] {
+  // Full motorhome / country-level road loops: one chip per city stay, not per day.
+  if (
+    plan.groundTransportMode === "motorhome" ||
+    plan.accommodationMode === "motorhome" ||
+    isCountryOnlyDestination(plan.destinationPlace ?? plan.destinationName ?? "")
+  ) {
+    return collectRoadTripHubStops(plan);
+  }
+
   const destCity = (plan.destinationPlace ?? plan.destinationName ?? "").trim().toLowerCase();
   const stops: GroundJourneyStop[] = [];
   let seenDest = false;
@@ -111,7 +155,8 @@ function collectJourneyStops(plan: AiTripPlan): GroundJourneyStop[] {
   for (const day of plan.days) {
     const city = (day.city ?? day.focusName ?? "").trim();
     if (!city) continue;
-    const isDest = destCity && city.toLowerCase().includes(destCity.split(",")[0]!.trim().toLowerCase());
+    const destHead = destCity.split(",")[0]!.trim().toLowerCase();
+    const isDest = destHead.length >= 3 && city.toLowerCase().includes(destHead);
     if (isDest) {
       seenDest = true;
       break;
@@ -120,8 +165,9 @@ function collectJourneyStops(plan: AiTripPlan): GroundJourneyStop[] {
       day.journeyPhase === "outbound" ||
       day.category === "transport" ||
       (day.drivingDistanceKm ?? 0) > 80 ||
-      /pot do|potovanje|vožnja|vlak|postanek|transfer/i.test(`${day.title} ${day.morning}`)
+      /pot do|potovanje|vlak|postanek|transfer/i.test(`${day.title} ${day.morning}`)
     ) {
+      // Skip "vožnja" alone — motorhome day copy matches almost every day.
       stops.push({
         name: city,
         note: day.title,
@@ -140,7 +186,15 @@ function collectJourneyStops(plan: AiTripPlan): GroundJourneyStop[] {
     }
   }
 
-  return stops;
+  // Collapse accidental same-city runs (e.g. 2 nights Venice).
+  const deduped: GroundJourneyStop[] = [];
+  for (const stop of stops) {
+    const key = (stop.name ?? "").trim().toLowerCase();
+    if (!key) continue;
+    if (deduped[deduped.length - 1]?.name.trim().toLowerCase() === key) continue;
+    deduped.push(stop);
+  }
+  return deduped;
 }
 
 export function enrichGroundTransportPlan(
@@ -182,21 +236,30 @@ export function enrichGroundTransportPlan(
     plan.days[0].journeyPhase = "outbound";
   }
 
-  const totalKm = plan.days
-    .filter((d) => d.journeyPhase === "outbound")
-    .reduce((sum, d) => sum + (d.drivingDistanceKm ?? 0), 0);
+  const fullRoadLoop = opts.mode === "motorhome";
+  const distanceDays = fullRoadLoop
+    ? plan.days
+    : plan.days.filter((d) => d.journeyPhase === "outbound");
 
-  const durationParts = plan.days
-    .filter((d) => d.journeyPhase === "outbound")
+  const totalKm = distanceDays.reduce((sum, d) => sum + (d.drivingDistanceKm ?? 0), 0);
+
+  const durationParts = distanceDays
     .map((d) => d.drivingDurationHours)
-    .filter(Boolean);
+    .filter((v): v is string => Boolean(v));
 
   plan.groundJourney = {
     mode: opts.mode,
     originLabel: plan.originPlace,
     destinationLabel: plan.destinationPlace ?? plan.destinationName,
     totalDistanceKm: totalKm > 0 ? Math.round(totalKm) : undefined,
-    totalDuration: durationParts.length ? durationParts.join(" + ") : undefined,
+    // Motorhome: one total figure — avoid "2h + 2h + 0h + …" noise for every leg.
+    totalDuration: fullRoadLoop
+      ? durationParts.length
+        ? `${durationParts.length} etap`
+        : undefined
+      : durationParts.length
+        ? durationParts.join(" + ")
+        : undefined,
     stops: collectJourneyStops(plan),
   };
 }

@@ -53,6 +53,7 @@ import type { GroundTransportMode } from "@/lib/aiPlan.functions";
 import { enrichIslandAirportTransfers } from "@/lib/islandAirportTransfers";
 import { repairTransportLegs } from "@/lib/transportLegRepair";
 import { sanitizeReturnFlightSummary } from "@/lib/returnFlightSummary";
+import { enrichMotorhomePlanTips } from "@/lib/motorhomePlanTips";
 import { sanitizeActivity, sanitizeForLang } from "@/lib/textSanitize";
 
 export type GeminiPlanMapOpts = {
@@ -927,15 +928,16 @@ export function enrichGeminiCatalogPlan(
     // Force activity/title language (Gemini often leaks English into SL/DE plans).
     finalDay.title = sanitizeForLang(finalDay.title ?? "", planLang, locale.country);
     if (finalDay.activities) {
+      const city = finalDay.city ?? "";
       finalDay.activities = {
         morning: finalDay.activities.morning.map((a) =>
-          sanitizeActivity(a, planLang, locale.country),
+          sanitizeActivity(a, planLang, locale.country, city),
         ),
         afternoon: finalDay.activities.afternoon.map((a) =>
-          sanitizeActivity(a, planLang, locale.country),
+          sanitizeActivity(a, planLang, locale.country, city),
         ),
         evening: finalDay.activities.evening.map((a) =>
-          sanitizeActivity(a, planLang, locale.country),
+          sanitizeActivity(a, planLang, locale.country, city),
         ),
       };
     }
@@ -944,6 +946,9 @@ export function enrichGeminiCatalogPlan(
   plan.totalBudgetEur = computeTripTotalBudgetEur(plan.days, travelers);
   enrichIslandAirportTransfers(plan, { destinationIata: plan.destinationIata });
   dedupeCrossDayBoilerplate(plan);
+  if (motorhome) {
+    enrichMotorhomePlanTips(plan, planLang);
+  }
   // One map-coord pass: city centroids win; runway AI dumps stripped from sightseeing days.
   finalizeItineraryMapCoords(plan);
 }

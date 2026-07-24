@@ -1,7 +1,9 @@
+import { useMemo } from "react";
 import { ArrowRight, Bus, Car, MapPin, Route, TrainFront } from "lucide-react";
 import type { AiTripPlan, DayPlan } from "@/lib/aiPlan.functions";
-import { groundTransportLabel } from "@/lib/groundTransport";
+import { collectRoadTripHubStops, groundTransportLabel } from "@/lib/groundTransport";
 import { useI18n } from "@/lib/i18n";
+import { cn } from "@/lib/utils";
 
 const MODE_ICON = {
   car: Car,
@@ -9,10 +11,18 @@ const MODE_ICON = {
   train: TrainFront,
 } as const;
 
-function JourneyDaySummary({ day }: { day: DayPlan }) {
+function JourneyDaySummary({
+  day,
+  isActive,
+  onSelect,
+}: {
+  day: DayPlan;
+  isActive?: boolean;
+  onSelect?: () => void;
+}) {
   const { t } = useI18n();
-  return (
-    <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+  const body = (
+    <>
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <span className="font-bold text-slate-900">
           {t("aiplan.day")} {day.day}
@@ -40,11 +50,37 @@ function JourneyDaySummary({ day }: { day: DayPlan }) {
           ))}
         </div>
       )}
-    </div>
+    </>
   );
+
+  if (onSelect) {
+    return (
+      <button
+        type="button"
+        onClick={onSelect}
+        className={cn(
+          "w-full rounded-xl border px-4 py-3 text-left transition-colors",
+          isActive
+            ? "border-indigo-400 bg-indigo-50 ring-1 ring-indigo-200"
+            : "border-slate-200 bg-white hover:border-indigo-300 hover:bg-indigo-50/50",
+        )}
+      >
+        {body}
+      </button>
+    );
+  }
+
+  return <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">{body}</div>;
 }
 
-export function TransportDashboard({ plan }: { plan: AiTripPlan }) {
+type Props = {
+  plan: AiTripPlan;
+  activeDay?: number;
+  /** Focus Mapbox + scroll itinerary to this stop's first day. */
+  onStopSelect?: (day: number) => void;
+};
+
+export function TransportDashboard({ plan, activeDay, onStopSelect }: Props) {
   const { t, lang } = useI18n();
   const mode = plan.groundTransportMode;
   const journey = plan.groundJourney;
@@ -52,7 +88,23 @@ export function TransportDashboard({ plan }: { plan: AiTripPlan }) {
   if (!mode || !journey) return null;
 
   const Icon = MODE_ICON[mode];
-  const tripDays = [...plan.days].sort((a, b) => a.day - b.day);
+  const isMotorhome = mode === "motorhome";
+  // Recompute hubs client-side so older plans (day×city duplicates) fix without regenerate.
+  const stops = useMemo(
+    () => (isMotorhome ? collectRoadTripHubStops(plan) : journey.stops),
+    [isMotorhome, plan, journey.stops],
+  );
+  const totalDistanceKm = useMemo(() => {
+    if (!isMotorhome) return journey.totalDistanceKm;
+    const sum = plan.days.reduce((acc, d) => acc + (d.drivingDistanceKm ?? 0), 0);
+    return sum > 0 ? Math.round(sum) : journey.totalDistanceKm;
+  }, [isMotorhome, plan.days, journey.totalDistanceKm]);
+  // Motorhome: hubs only in the chips — full day list lives in the itinerary below.
+  const tripDays = isMotorhome
+    ? []
+    : [...plan.days]
+        .filter((d) => d.journeyPhase === "outbound")
+        .sort((a, b) => a.day - b.day);
 
   return (
     <section className="rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-50/80 via-white to-sky-50/60 p-5 sm:p-6 shadow-sm">
@@ -70,39 +122,79 @@ export function TransportDashboard({ plan }: { plan: AiTripPlan }) {
             {journey.destinationLabel}
           </h3>
           <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-slate-600">
-            {journey.totalDistanceKm != null && journey.totalDistanceKm > 0 && (
+            {totalDistanceKm != null && totalDistanceKm > 0 && (
               <span className="inline-flex items-center gap-1">
                 <Route className="h-4 w-4" />
-                {journey.totalDistanceKm} km
+                {totalDistanceKm} km
               </span>
             )}
-            {journey.totalDuration && (
+            {!isMotorhome && journey.totalDuration && (
               <span className="inline-flex items-center gap-1">
                 <MapPin className="h-4 w-4" />
                 {journey.totalDuration}
+              </span>
+            )}
+            {isMotorhome && stops.length > 0 && (
+              <span className="inline-flex items-center gap-1">
+                <MapPin className="h-4 w-4" />
+                {stops.length} {t("transportDashboard.stops").toLowerCase()}
               </span>
             )}
           </div>
         </div>
       </div>
 
-      {journey.stops.length > 0 && (
+      {stops.length > 0 && (
         <div className="mt-5">
           <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
             {t("transportDashboard.stops")}
           </p>
           <ol className="flex flex-wrap gap-2">
-            {journey.stops.map((stop, i) => (
-              <li
-                key={`${stop.name}-${i}`}
-                className="inline-flex items-center gap-1.5 rounded-full bg-white border border-slate-200 px-3 py-1 text-sm font-medium text-slate-700"
-              >
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-100 text-[10px] font-bold text-indigo-700">
-                  {i + 1}
-                </span>
-                {stop.name}
-              </li>
-            ))}
+            {stops.map((stop, i) => {
+              const dayNum = stop.day;
+              const isActive =
+                dayNum != null &&
+                activeDay != null &&
+                (activeDay === dayNum ||
+                  // Highlight while scrolled through a multi-night stay in this hub.
+                  plan.days.find((d) => d.day === activeDay)?.city?.trim().toLowerCase() ===
+                    stop.name.trim().toLowerCase());
+              const clickable = Boolean(onStopSelect && dayNum != null);
+
+              return (
+                <li key={`${stop.name}-${dayNum ?? i}`}>
+                  {clickable ? (
+                    <button
+                      type="button"
+                      onClick={() => onStopSelect!(dayNum!)}
+                      className={cn(
+                        "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium transition-colors",
+                        isActive
+                          ? "border-indigo-400 bg-indigo-600 text-white shadow-sm"
+                          : "border-slate-200 bg-white text-slate-700 hover:border-indigo-300 hover:bg-indigo-50",
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold",
+                          isActive ? "bg-white/20 text-white" : "bg-indigo-100 text-indigo-700",
+                        )}
+                      >
+                        {i + 1}
+                      </span>
+                      {stop.name}
+                    </button>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-white border border-slate-200 px-3 py-1 text-sm font-medium text-slate-700">
+                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-100 text-[10px] font-bold text-indigo-700">
+                        {i + 1}
+                      </span>
+                      {stop.name}
+                    </span>
+                  )}
+                </li>
+              );
+            })}
           </ol>
         </div>
       )}
@@ -113,7 +205,12 @@ export function TransportDashboard({ plan }: { plan: AiTripPlan }) {
             {t("transportDashboard.travelDays")}
           </p>
           {tripDays.map((day) => (
-            <JourneyDaySummary key={day.day} day={day} />
+            <JourneyDaySummary
+              key={day.day}
+              day={day}
+              isActive={activeDay === day.day}
+              onSelect={onStopSelect ? () => onStopSelect(day.day) : undefined}
+            />
           ))}
         </div>
       )}

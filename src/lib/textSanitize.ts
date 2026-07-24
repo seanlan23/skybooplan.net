@@ -111,6 +111,37 @@ export function scrubInappropriatePoiCopy(text: string): string {
     .trim();
 }
 
+/**
+ * Motorhome / Italy copy fixes:
+ * - "Titova jama" (Broz) → Tiberijeva jama / Villa di Tiberio
+ * - Centro Vacanze San Francesco only when day is San Daniele (camp is in Caorle)
+ */
+export function fixMotorhomeCopyErrors(text: string, city = ""): string {
+  if (!text) return text;
+  let out = text
+    .replace(/\bTitov[ae]\s+jam[aeo]\b/gi, "Tiberijeva jama (Villa di Tiberio)")
+    .replace(/\bTitovo\s+jamo\b/gi, "Tiberijevo jamo (Villa di Tiberio)")
+    .replace(/\bTito'?s?\s+Cave\b/gi, "Villa di Tiberio (Tiberius Grotto)")
+    .replace(/\bTito\s+Grotto\b/gi, "Villa di Tiberio");
+
+  const c = city.toLowerCase();
+  const nearSanDaniele =
+    /san\s*daniele/.test(c) || /san\s*daniele/.test(out.toLowerCase());
+  if (nearSanDaniele) {
+    out = out
+      .replace(
+        /\b(?:Kamp\s+)?Centro\s+Vacanze\s+San\s+Francesco\b/gi,
+        "Area sosta camper San Daniele del Friuli",
+      )
+      .replace(
+        /\bCamping\s+(?:Village\s+)?San\s+Francesco\b/gi,
+        "Area sosta camper San Daniele del Friuli",
+      );
+  }
+
+  return out.replace(/\s{2,}/g, " ").trim();
+}
+
 /** Strip repeated long arrival-offset labels from activity/day copy. */
 export function stripArrivalLabelSpam(text: string): string {
   if (!text) return text;
@@ -208,6 +239,7 @@ export function sanitizeForLang(text: string, langCode: string, country?: string
   let out = scrubInappropriatePoiCopy(
     sanitizeLegacyTemplateLeak(sanitizeDestinationText(text, country)),
   );
+  out = fixMotorhomeCopyErrors(out);
   out = localizeTravelCopy(out, langCode);
   if (langCode === "sl" || langCode.startsWith("sl")) {
     out = sanitizeSlText(out);
@@ -217,12 +249,19 @@ export function sanitizeForLang(text: string, langCode: string, country?: string
 
 type ActivityLike = { name: string; description: string; priceLabel?: string; price?: string; type?: string };
 
-export function sanitizeActivity<T extends ActivityLike>(act: T, langCode: string, country?: string): T {
+export function sanitizeActivity<T extends ActivityLike>(
+  act: T,
+  langCode: string,
+  country?: string,
+  city?: string,
+): T {
+  const run = (s: string) =>
+    fixMotorhomeCopyErrors(sanitizeForLang(s, langCode, country), city);
   return {
     ...act,
-    name: sanitizeForLang(act.name, langCode, country),
-    description: sanitizeForLang(act.description, langCode, country),
-    priceLabel: act.priceLabel ? sanitizeForLang(act.priceLabel, langCode, country) : act.priceLabel,
+    name: run(act.name),
+    description: run(act.description),
+    priceLabel: act.priceLabel ? run(act.priceLabel) : act.priceLabel,
   };
 }
 

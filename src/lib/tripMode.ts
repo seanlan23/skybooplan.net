@@ -96,6 +96,24 @@ export function motorhomeTravelDayDescription(km: number, destCity: string, slo 
 
 export function motorhomePromptRules(slo: boolean): string {
   return slo
-    ? "NAČIN: AVTODOM — parkiraj na kampih IZVEN mestnih jeder. NE mestni hoteli. Med mesti samo VOŽNJA (ZDA: 400–800 km = cel dan, ne 'lokalni 1h30'). Nikoli notranji let z RV. V mesto javni prevoz/P+R. dailyBudget = NA OSEBO (gorivo/kamp deli s pax); tipično 45–90 €/osebo/dan, NE skupinski 200+."
-    : "MODE: MOTORHOME — campgrounds outside city centers. Inter-city = DRIVING full days (US hops 400–800 km are NOT 90-minute local trips). No domestic flights with RV. dailyBudget = PER PERSON (split fuel/camp by pax); typical 45–90 €/person/day, NOT household 200+.";
+    ? [
+        "NAČIN: AVTODOM — parkiraj na kampih IZVEN mestnih jeder. NE mestni hoteli.",
+        "Med mesti samo VOŽNJA (ZDA: 400–800 km = cel dan). Nikoli notranji let z RV. V mesto javni prevoz/P+R.",
+        "dailyBudget = NA OSEBO (gorivo/kamp deli s pax); tipično 45–90 €/osebo/dan, NE skupinski 200+.",
+        "KAMPI: uporabi REALNA imena v PRAVI regiji (npr. Camping Fusina pri Benetkah, Piani di Clodia pri Lazise).",
+        "PREPOVEDANO: Kamp Centro Vacanze San Francesco pri San Daniele del Friuli — ta kamp je v Caorleju ob morju, ne v Furlaniji. Za San Daniele: area sosta / PZA v mestu ali bližnji agriturizem.",
+        "PREPOVEDANO: 'Titova jama' pri Sperlongi — pravilno je Tiberijeva jama / Villa di Tiberio (cesar Tiberij, ne Tito).",
+        "Če datumi vključujejo 10.–20. avgust (Ferragosto): v transportationTips opozori na obvezno predhodno rezervacijo kampov (Benetke, Garda, obala).",
+        "Etape ≥400 km (npr. Jadranska obala → Trst): v transportationTips omeni trajanje 4,5–5+ ur in možne zastoje.",
+      ].join(" ")
+    : [
+        "MODE: MOTORHOME — campgrounds outside city centers. No downtown hotels.",
+        "Inter-city = DRIVING full days (US hops 400–800 km are NOT 90-minute local trips). No domestic flights with RV.",
+        "dailyBudget = PER PERSON (split fuel/camp by pax); typical 45–90 €/person/day, NOT household 200+.",
+        "CAMPS: real names in the correct region (e.g. Camping Fusina near Venice, Piani di Clodia near Lazise).",
+        "FORBIDDEN: Centro Vacanze San Francesco near San Daniele del Friuli — that camp is in Caorle by the sea, not Friuli. Use a local sosta/PZA instead.",
+        "FORBIDDEN: 'Tito's Cave' at Sperlonga — correct is Villa di Tiberio / Tiberius Grotto (Emperor Tiberius, not Tito).",
+        "If dates include 10–20 Aug (Ferragosto): warn in transportationTips to pre-book camps (Venice, Garda, coast).",
+        "Legs ≥400 km (e.g. Adriatic coast → Trieste): note 4.5–5+ hours and possible traffic in transportationTips.",
+      ].join(" ");
 }

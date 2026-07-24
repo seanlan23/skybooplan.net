@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  fixMotorhomeCopyErrors,
   fixPoiNameForSlot,
   fixSlotTimeMismatch,
   rewriteActivityCityLeak,
@@ -12,6 +13,24 @@ import {
 describe("sanitizeSlText", () => {
   it("replaces Cyrillic оживи with Slovenian", () => {
     expect(sanitizeSlText("ko se tržnica оживи.")).toBe("ko se tržnica oživi.");
+  });
+});
+
+describe("fixMotorhomeCopyErrors", () => {
+  it("rewrites Titova jama to Tiberijeva jama", () => {
+    expect(fixMotorhomeCopyErrors("Obisk Sperlonge in Titove jame", "Sperlonga")).toMatch(
+      /Tiberijeva jama|Villa di Tiberio/i,
+    );
+    expect(fixMotorhomeCopyErrors("Obisk Sperlonge in Titove jame")).not.toMatch(/Titov/i);
+  });
+
+  it("replaces San Francesco camp only near San Daniele", () => {
+    const out = fixMotorhomeCopyErrors(
+      "Nastanitev v Kamp Centro Vacanze San Francesco",
+      "San Daniele del Friuli",
+    );
+    expect(out).toMatch(/Area sosta camper San Daniele/i);
+    expect(out).not.toMatch(/San Francesco/i);
   });
 });
 

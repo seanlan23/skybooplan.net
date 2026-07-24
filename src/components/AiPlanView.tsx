@@ -22,6 +22,7 @@ import {
   cameraMoveDurationMs,
   resolveCityCenter,
 } from "@/lib/itineraryMapModel";
+import { enrichMotorhomePlanTips } from "@/lib/motorhomePlanTips";
 
 /** Hold at each stop during "Predvajaj pot" after the camera settles. */
 const PLAY_ROUTE_HOLD_MS = 3200;
@@ -132,6 +133,16 @@ export function AiPlanView({
   loaderOrbit?: "flight" | "motorhome";
 }) {
   const { t, lang, formatMoney } = useI18n();
+  const [, setMotorhomeTipsTick] = useState(0);
+  // Patch motorhome AI slips (Titova jama, wrong camps) + Ferragosto tips on loaded plans.
+  useEffect(() => {
+    if (!plan) return;
+    if (plan.groundTransportMode !== "motorhome" && plan.accommodationMode !== "motorhome") {
+      return;
+    }
+    enrichMotorhomePlanTips(plan, lang);
+    setMotorhomeTipsTick((n) => n + 1);
+  }, [plan, lang]);
   const [activeDay, setActiveDay] = useState<number>(1);
   const dayRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const planScrollRef = useRef<HTMLDivElement>(null);
@@ -749,7 +760,13 @@ export function AiPlanView({
           ref={planScrollRef}
           className="space-y-4 sm:space-y-5 min-w-0 w-full order-1 lg:h-[calc(100vh-120px)] lg:overflow-y-auto lg:overscroll-contain"
         >
-          {plan.groundJourney && <TransportDashboard plan={plan} />}
+          {plan.groundJourney && (
+            <TransportDashboard
+              plan={plan}
+              activeDay={activeDay}
+              onStopSelect={handleMapCitySelect}
+            />
+          )}
           {plan.days.map((d, idx) => {
             let checkOut = d.date;
             if (d.city) {

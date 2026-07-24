@@ -2,6 +2,9 @@ import jsPDF from "jspdf";
 import fontRegularUrl from "dejavu-fonts-ttf/ttf/DejaVuSans.ttf?url";
 import fontBoldUrl from "dejavu-fonts-ttf/ttf/DejaVuSans-Bold.ttf?url";
 import { formatActivityClockLabel } from "@/lib/activityTime";
+import { enrichMotorhomePlanTips } from "@/lib/motorhomePlanTips";
+import { fixMotorhomeCopyErrors } from "@/lib/textSanitize";
+import type { AiTripPlan } from "@/lib/aiPlan.functions";
 
 /** Legacy / loose shape accepted from callers. */
 export type PlanItinerary = {
@@ -326,12 +329,18 @@ function legacyItems(day: Record<string, unknown>): PdfActivity[] {
 /** Normalize AI / saved plan shapes into a clean PDF model. */
 export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
   const itin = (plan.itinerary ?? {}) as PlanItinerary & Record<string, unknown>;
+  const motorhome =
+    itin.groundTransportMode === "motorhome" || itin.accommodationMode === "motorhome";
+  if (motorhome && Array.isArray(itin.days)) {
+    enrichMotorhomePlanTips(itin as unknown as AiTripPlan, plan.language ?? "sl");
+  }
   const rawDays = Array.isArray(itin.days) ? itin.days : [];
   const sample = [textOf(itin.summary), ...rawDays.map((d) => textOf(d?.title))].join(" ");
   const labels = labelsFor(plan.language, sample);
 
   const days: PdfDay[] = rawDays.map((raw, idx) => {
     const d = (raw ?? {}) as Record<string, unknown>;
+    const city = textOf(d.city) || textOf(d.focusName) || "";
     const dayNum = typeof d.day === "number" ? d.day : idx + 1;
     const dayEnd = typeof d.dayEnd === "number" ? d.dayEnd : undefined;
     const transportation = Array.isArray(d.transportation)
@@ -368,20 +377,36 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
       if (blurb) slots.push({ label: labels.daily, items: [{ title: blurb }] });
     }
 
+    const fix = (s: string) => (motorhome ? fixMotorhomeCopyErrors(s, city) : s);
+    const fixedSlots = slots.map((slot) => ({
+      ...slot,
+      items: slot.items.map((it) => ({
+        ...it,
+        title: fix(it.title),
+        description: it.description ? fix(it.description) : it.description,
+      })),
+    }));
+
     return {
       day: dayNum,
       dayEnd,
       date: textOf(d.date) || undefined,
       dateEnd: textOf(d.dateEnd) || undefined,
-      title: textOf(d.title) || labels.day(dayNum, dayEnd),
-      city: textOf(d.city) || textOf(d.focusName) || undefined,
+      title: fix(textOf(d.title) || labels.day(dayNum, dayEnd)),
+      city: city || undefined,
       dailyBudgetEur:
         typeof d.dailyBudgetEur === "number" && Number.isFinite(d.dailyBudgetEur)
           ? d.dailyBudgetEur
           : undefined,
-      transportTips: textOf(d.transportationTips) || textOf((d.transport as { description?: string } | undefined)?.description) || undefined,
+      transportTips: (() => {
+        const tips =
+          textOf(d.transportationTips) ||
+          textOf((d.transport as { description?: string } | undefined)?.description) ||
+          "";
+        return tips ? fix(tips) : undefined;
+      })(),
       transportation,
-      slots,
+      slots: fixedSlots,
     };
   });
 

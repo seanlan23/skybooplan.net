@@ -112,8 +112,22 @@ export function HeroAiPlanResults({
                       const planForPdf = aiPlan ?? displayPlan;
                       try {
                         const { generatePlanPdf } = await import("@/lib/pdf-export");
+                        const { buildPdfPlanTitle } = await import("@/lib/pdfPlanTitle");
                         await generatePlanPdf({
-                          title: `${aiContext?.from ?? planForPdf.originPlace ?? ""} → ${aiContext?.to ?? planForPdf.destinationPlace ?? planForPdf.destinationName ?? ""}`,
+                          title: buildPdfPlanTitle({
+                            groundTransportMode:
+                              planForPdf.groundTransportMode ??
+                              aiContext?.groundTransportMode,
+                            accommodationMode: planForPdf.accommodationMode,
+                            originPlace:
+                              planForPdf.originPlace ?? aiContext?.originPlace,
+                            destinationPlace:
+                              planForPdf.destinationPlace ??
+                              aiContext?.destinationPlace,
+                            destinationName: planForPdf.destinationName,
+                            from: aiContext?.from,
+                            to: aiContext?.to,
+                          }),
                           destination:
                             planForPdf.destinationName ||
                             planForPdf.destinationPlace ||

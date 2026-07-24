@@ -51,6 +51,39 @@ export const CAMPGROUNDS_BY_CITY: Record<string, CampgroundHub[]> = {
   venice_mestre: [
     { name: "Camping Fusina", lat: 45.42, lng: 12.255, aliases: ["fusina"] },
   ],
+  /** Friuli — not Caorle's Centro Vacanze San Francesco. */
+  san_daniele_del_friuli: [
+    {
+      name: "Area sosta camper San Daniele del Friuli",
+      lat: 46.157,
+      lng: 13.012,
+      aliases: ["san daniele", "sosta san daniele", "pza san daniele"],
+    },
+  ],
+  san_daniele: [
+    {
+      name: "Area sosta camper San Daniele del Friuli",
+      lat: 46.157,
+      lng: 13.012,
+      aliases: ["san daniele", "sosta san daniele"],
+    },
+  ],
+  lazise: [
+    {
+      name: "Camping Piani di Clodia",
+      lat: 45.494,
+      lng: 10.725,
+      aliases: ["piani di clodia", "clodia"],
+    },
+  ],
+  lake_garda: [
+    {
+      name: "Camping Piani di Clodia",
+      lat: 45.494,
+      lng: 10.725,
+      aliases: ["piani di clodia", "lazise"],
+    },
+  ],
   milan: [
     { name: "Camping Città di Milano", lat: 45.516, lng: 9.09, aliases: ["citta di milano"] },
   ],
