@@ -1,10 +1,15 @@
 import jsPDF from "jspdf";
-import fontRegularUrl from "dejavu-fonts-ttf/ttf/DejaVuSans.ttf?url";
-import fontBoldUrl from "dejavu-fonts-ttf/ttf/DejaVuSans-Bold.ttf?url";
 import { formatActivityClockLabel } from "@/lib/activityTime";
 import { enrichMotorhomePlanTips } from "@/lib/motorhomePlanTips";
 import { fixMotorhomeCopyErrors } from "@/lib/textSanitize";
 import type { AiTripPlan } from "@/lib/aiPlan.functions";
+
+/**
+ * Served from /public/fonts so Nitro/Vercel always can fetch them.
+ * (Vite `?url` imports of node_modules TTFs often 404 in production client chunks.)
+ */
+const FONT_REGULAR_URL = "/fonts/DejaVuSans.ttf";
+const FONT_BOLD_URL = "/fonts/DejaVuSans-Bold.ttf";
 
 /** Legacy / loose shape accepted from callers. */
 export type PlanItinerary = {
@@ -132,13 +137,15 @@ function drawBrandWordmark(
   doc: jsPDF,
   x: number,
   y: number,
-  opts: { size?: number; onDark?: boolean } = {},
+  opts: { size?: number; onDark?: boolean; unicode?: boolean } = {},
 ) {
   const size = opts.size ?? 11;
   const onDark = opts.onDark ?? false;
+  const unicode = opts.unicode === true;
+  const family = unicode ? FONT : "helvetica";
   const ink = onDark ? { r: 255, g: 255, b: 255 } : INK;
   try {
-    doc.setFont(FONT, "bold");
+    doc.setFont(family, "bold");
   } catch {
     doc.setFont("helvetica", "bold");
   }
@@ -147,7 +154,7 @@ function drawBrandWordmark(
   doc.text("sky", x, y);
   const skyW = doc.getTextWidth("sky");
   try {
-    doc.setFont(FONT, "normal");
+    doc.setFont(family, "normal");
   } catch {
     doc.setFont("helvetica", "normal");
   }
@@ -155,7 +162,7 @@ function drawBrandWordmark(
   doc.text("boo", x + skyW, y);
   const booW = doc.getTextWidth("boo");
   try {
-    doc.setFont(FONT, "bold");
+    doc.setFont(family, "bold");
   } catch {
     doc.setFont("helvetica", "bold");
   }
@@ -332,7 +339,11 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
   const motorhome =
     itin.groundTransportMode === "motorhome" || itin.accommodationMode === "motorhome";
   if (motorhome && Array.isArray(itin.days)) {
-    enrichMotorhomePlanTips(itin as unknown as AiTripPlan, plan.language ?? "sl");
+    try {
+      enrichMotorhomePlanTips(itin as unknown as AiTripPlan, plan.language ?? "sl");
+    } catch (err) {
+      console.warn("[pdf] motorhome tip enrich skipped", err);
+    }
   }
   const rawDays = Array.isArray(itin.days) ? itin.days : [];
   const sample = [textOf(itin.summary), ...rawDays.map((d) => textOf(d?.title))].join(" ");
@@ -483,27 +494,27 @@ function uint8ToBinaryString(bytes: Uint8Array): string {
 }
 
 async function loadFontBinary(url: string): Promise<string> {
-  // Vite serves `?url` imports as absolute paths in Node/Vitest — read from disk.
+  // Node / Vitest — read from public/fonts (or node_modules fallback).
   if (typeof window === "undefined") {
     const { readFileSync } = await import("node:fs");
     const { resolve } = await import("node:path");
-    const cleaned = url.split("?")[0] || url;
-    const abs = cleaned.startsWith("/")
-      ? cleaned
-      : resolve(process.cwd(), cleaned.replace(/^\.\//, ""));
-    try {
-      return uint8ToBinaryString(new Uint8Array(readFileSync(abs)));
-    } catch {
-      const fallback = resolve(
-        process.cwd(),
-        "node_modules/dejavu-fonts-ttf/ttf",
-        abs.includes("Bold") ? "DejaVuSans-Bold.ttf" : "DejaVuSans.ttf",
-      );
-      return uint8ToBinaryString(new Uint8Array(readFileSync(fallback)));
+    const fileName = url.includes("Bold") ? "DejaVuSans-Bold.ttf" : "DejaVuSans.ttf";
+    const candidates = [
+      resolve(process.cwd(), "public/fonts", fileName),
+      resolve(process.cwd(), "node_modules/dejavu-fonts-ttf/ttf", fileName),
+    ];
+    for (const abs of candidates) {
+      try {
+        return uint8ToBinaryString(new Uint8Array(readFileSync(abs)));
+      } catch {
+        /* try next */
+      }
     }
+    throw new Error(`PDF font missing on disk: ${fileName}`);
   }
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Failed to load PDF font: ${res.status}`);
+
+  const res = await fetch(url, { cache: "force-cache" });
+  if (!res.ok) throw new Error(`Failed to load PDF font: ${res.status} ${url}`);
   const buf = await res.arrayBuffer();
   return uint8ToBinaryString(new Uint8Array(buf));
 }
@@ -519,8 +530,8 @@ async function ensureFonts(doc: jsPDF): Promise<boolean> {
   try {
     if (!fontCache) {
       const [regular, bold] = await Promise.all([
-        loadFontBinary(fontRegularUrl),
-        loadFontBinary(fontBoldUrl),
+        loadFontBinary(FONT_REGULAR_URL),
+        loadFontBinary(FONT_BOLD_URL),
       ]);
       fontCache = { regular, bold };
     }
@@ -533,9 +544,35 @@ async function ensureFonts(doc: jsPDF): Promise<boolean> {
   } catch (err) {
     console.warn("[pdf] DejaVu fonts unavailable — falling back to Helvetica", err);
     fontsUnavailable = true;
+    fontCache = null;
     doc.setFont("helvetica", "normal");
     return false;
   }
+}
+
+/** ASCII fallback when Unicode font is missing (Helvetica can't draw čšž). */
+function asciiFallback(text: string): string {
+  return text
+    .replace(/[ČĆ]/g, "C")
+    .replace(/[čć]/g, "c")
+    .replace(/[Š]/g, "S")
+    .replace(/[š]/g, "s")
+    .replace(/[Ž]/g, "Z")
+    .replace(/[ž]/g, "z")
+    .replace(/[Đ]/g, "D")
+    .replace(/[đ]/g, "d")
+    .replace(/[ÁÀÂÄ]/g, "A")
+    .replace(/[áàâä]/g, "a")
+    .replace(/[ÉÈÊË]/g, "E")
+    .replace(/[éèêë]/g, "e")
+    .replace(/[ÍÌÎÏ]/g, "I")
+    .replace(/[íìîï]/g, "i")
+    .replace(/[ÓÒÔÖ]/g, "O")
+    .replace(/[óòôö]/g, "o")
+    .replace(/[ÚÙÛÜ]/g, "U")
+    .replace(/[úùûü]/g, "u")
+    .replace(/→/g, "->")
+    .replace(/€/g, "EUR ");
 }
 
 export async function generatePlanPdf(plan: PlanForPdf): Promise<{
@@ -565,7 +602,9 @@ export async function generatePlanPdf(plan: PlanForPdf): Promise<{
   };
 
   const safeText = (value: string, x: number, yPos: number, opts?: { align?: "left" | "right" | "center" }) => {
-    const cleaned = sanitizePdfText(value);
+    let cleaned = sanitizePdfText(value);
+    if (!cleaned) return;
+    if (!hasUnicodeFont) cleaned = asciiFallback(cleaned);
     if (!cleaned) return;
     try {
       if (opts?.align) doc.text(cleaned, x, yPos, { align: opts.align });
@@ -603,7 +642,9 @@ export async function generatePlanPdf(plan: PlanForPdf): Promise<{
   };
 
   const para = (text: string, size = 10, color = INK, indent = 0) => {
-    const cleaned = sanitizePdfText(text);
+    let cleaned = sanitizePdfText(text);
+    if (!cleaned) return;
+    if (!hasUnicodeFont) cleaned = asciiFallback(cleaned);
     if (!cleaned) return;
     setFont("normal", size, color);
     const lines = doc.splitTextToSize(cleaned, contentW - indent) as string[];
@@ -622,7 +663,11 @@ export async function generatePlanPdf(plan: PlanForPdf): Promise<{
 
   const markSize = 22;
   drawLogoMark(doc, margin, 28, markSize);
-  drawBrandWordmark(doc, margin + markSize + 8, 44, { size: 14, onDark: true });
+  drawBrandWordmark(doc, margin + markSize + 8, 44, {
+    size: 14,
+    onDark: true,
+    unicode: hasUnicodeFont,
+  });
   setFont("normal", 9, { r: 186, g: 230, b: 253 });
   doc.setTextColor(186, 230, 253);
   const brandTag = model.labels.brand.includes("Potovalni")
@@ -632,10 +677,9 @@ export async function generatePlanPdf(plan: PlanForPdf): Promise<{
 
   setFont("bold", 26, { r: 255, g: 255, b: 255 });
   doc.setTextColor(255, 255, 255);
-  const titleLines = doc.splitTextToSize(
-    sanitizePdfText(model.title.replace(/\s*→\s*/g, " → ")),
-    contentW,
-  ) as string[];
+  const rawTitle = sanitizePdfText(model.title.replace(/\s*→\s*/g, " → "));
+  const titleForSplit = hasUnicodeFont ? rawTitle : asciiFallback(rawTitle);
+  const titleLines = doc.splitTextToSize(titleForSplit, contentW) as string[];
   for (let i = 0; i < Math.min(3, titleLines.length); i++) {
     safeText(titleLines[i]!, margin, 96 + i * 28);
   }
@@ -684,7 +728,9 @@ export async function generatePlanPdf(plan: PlanForPdf): Promise<{
       y += 15;
 
       setFont("bold", 11, INK);
-      const titleLinesDay = doc.splitTextToSize(sanitizePdfText(d.title), contentW) as string[];
+      const dayTitleRaw = sanitizePdfText(d.title);
+      const dayTitle = hasUnicodeFont ? dayTitleRaw : asciiFallback(dayTitleRaw);
+      const titleLinesDay = doc.splitTextToSize(dayTitle, contentW) as string[];
       for (const line of titleLinesDay) {
         ensureSpace(14);
         safeText(line, margin, y);
@@ -713,10 +759,9 @@ export async function generatePlanPdf(plan: PlanForPdf): Promise<{
         for (const it of slot.items) {
           const lead = [it.time, it.title].filter(Boolean).join("  ·  ");
           setFont("bold", 10, INK);
-          const leadLines = doc.splitTextToSize(
-            sanitizePdfText(`•  ${lead}`),
-            contentW - 8,
-          ) as string[];
+          const leadRaw = sanitizePdfText(`•  ${lead}`);
+          const leadSafe = hasUnicodeFont ? leadRaw : asciiFallback(leadRaw);
+          const leadLines = doc.splitTextToSize(leadSafe, contentW - 8) as string[];
           for (const line of leadLines) {
             ensureSpace(13);
             safeText(line, margin + 4, y);
@@ -767,7 +812,11 @@ export async function generatePlanPdf(plan: PlanForPdf): Promise<{
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
     drawLogoMark(doc, margin, pageH - 38, 12);
-    drawBrandWordmark(doc, margin + 16, pageH - 24, { size: 8.5, onDark: false });
+    drawBrandWordmark(doc, margin + 16, pageH - 24, {
+      size: 8.5,
+      onDark: false,
+      unicode: hasUnicodeFont,
+    });
     setFont("normal", 8.5, MUTED);
     safeText(model.labels.pageOf(i, pageCount), pageW - margin, pageH - 24, {
       align: "right",
@@ -775,15 +824,31 @@ export async function generatePlanPdf(plan: PlanForPdf): Promise<{
   }
 
   const safe =
-    model.title
-      .replace(/[^a-z0-9-_ ČŠŽĆĐčšžćđ→]/gi, "")
-      .replace(/→/g, "-")
+    asciiFallback(model.title)
+      .replace(/[^a-z0-9-_ ]/gi, "")
       .trim()
-      .replace(/\s+/g, "_") || "travel_plan";
+      .replace(/\s+/g, "_")
+      .slice(0, 80) || "travel_plan";
 
+  const fileName = `${safe}.pdf`;
   const buffer = doc.output("arraybuffer");
   if (typeof window !== "undefined") {
-    doc.save(`${safe}.pdf`);
+    try {
+      doc.save(fileName);
+    } catch (saveErr) {
+      // Safari / popup blockers — fall back to Blob download.
+      console.warn("[pdf] doc.save failed, using blob download", saveErr);
+      const blob = new Blob([new Uint8Array(buffer)], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      a.rel = "noopener";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 2_000);
+    }
   }
-  return { buffer, fileName: `${safe}.pdf`, doc };
+  return { buffer, fileName, doc };
 }
