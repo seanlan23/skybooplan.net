@@ -3,7 +3,7 @@ export type DonationTier = {
   labelKey:
     | "donation.tier5"
     | "donation.tier10"
-    | "donation.tier50"
+    | "donation.tier20"
     | "donation.contact";
   href: string;
   external?: boolean;
@@ -11,6 +11,11 @@ export type DonationTier = {
   fullWidthMobile?: boolean;
 };
 
+/**
+ * Stripe Payment Links — 5 € / 10 € / 20 € + “other” → /about.
+ * Third link was formerly €50; set that Payment Link to €20 in Stripe
+ * (or replace href with a new buy.stripe.com URL for €20).
+ */
 export const DONATION_TIERS: DonationTier[] = [
   {
     id: "5",
@@ -25,8 +30,8 @@ export const DONATION_TIERS: DonationTier[] = [
     external: true,
   },
   {
-    id: "50",
-    labelKey: "donation.tier50",
+    id: "20",
+    labelKey: "donation.tier20",
     href: "https://buy.stripe.com/fZucN5bHx8LrfRo7GR6J205",
     external: true,
   },

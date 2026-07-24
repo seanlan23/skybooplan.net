@@ -598,6 +598,7 @@ const en: Dict = {
   "donation.tier5": "5 €",
   "donation.tier10": "10 €",
   "donation.tier15": "15 €",
+  "donation.tier20": "20 €",
   "donation.tier50": "50 €",
   "donation.contact": "Other amount",
   "donation.stripeNote": "Secure checkout via Stripe",
