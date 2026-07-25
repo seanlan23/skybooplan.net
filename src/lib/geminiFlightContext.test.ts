@@ -435,6 +435,129 @@ describe("applyFlightContextToGeminiPlan", () => {
     expect(names.join(" | ")).toMatch(/Krabi.*Bangkok|Notranji prevoz/i);
   });
 
+  it("does not invent LA→NY ground transfer when trip ends in Los Angeles (JFK ticket hub)", () => {
+    const emptySlots = {
+      morning: "",
+      afternoon: "",
+      evening: "",
+      travelHack: "",
+      transportationTips: "",
+      localWarnings: "",
+      dailyBudgetEur: 120,
+      category: "city" as const,
+    };
+    const plan = basePlan({
+      destinationName: "United States",
+      destinationIata: "JFK",
+      centerLat: 40.71,
+      centerLng: -74.0,
+      days: [
+        {
+          day: 1,
+          date: "2026-08-01",
+          title: "Arrival NYC",
+          ...emptySlots,
+          lat: 40.71,
+          lng: -74.0,
+          city: "New York",
+          focusName: "New York",
+          activities: { morning: [], afternoon: [], evening: [] },
+        },
+        {
+          day: 2,
+          date: "2026-08-10",
+          title: "Las Vegas",
+          ...emptySlots,
+          lat: 36.17,
+          lng: -115.14,
+          city: "Las Vegas",
+          focusName: "Las Vegas",
+          activities: {
+            morning: [{ name: "Strip", type: "SIGHT", description: "Walk" }],
+            afternoon: [],
+            evening: [],
+          },
+        },
+        {
+          day: 3,
+          date: "2026-08-15",
+          title: "Los Angeles",
+          ...emptySlots,
+          lat: 34.05,
+          lng: -118.24,
+          city: "Los Angeles",
+          focusName: "Los Angeles",
+          activities: {
+            morning: [{ name: "Santa Monica", type: "SIGHT", description: "Beach" }],
+            afternoon: [],
+            evening: [],
+          },
+        },
+        {
+          day: 4,
+          date: "2026-08-18",
+          title: "Transfer to New York and international departure",
+          ...emptySlots,
+          lat: 34.05,
+          lng: -118.24,
+          city: "Los Angeles",
+          focusName: "Los Angeles",
+          category: "transport",
+          transportation: [
+            {
+              type: "flight",
+              from: "Hotel Check out & Transfer to LAX",
+              to: "New York",
+              duration: "1h",
+            },
+          ],
+          activities: {
+            morning: [
+              {
+                name: "Domestic transfer Los Angeles → New York",
+                type: "TRANSPORT",
+                description: "Budget ground transfer — book ahead.",
+              },
+            ],
+            afternoon: [],
+            evening: [],
+          },
+        },
+      ],
+    });
+
+    applyFlightContextToGeminiPlan(
+      plan,
+      {
+        outboundDepart: "06:55",
+        outboundArrive: "14:20",
+        outboundArriveDayOffset: 0,
+        inboundDepart: "16:05",
+        inboundArrive: "08:40",
+      },
+      { originIata: "MUC", language: "en" },
+    );
+
+    const last = plan.days[3]!;
+    expect(last.city).toMatch(/Los Angeles/i);
+    expect(last.title).toMatch(/Departure from Los Angeles/i);
+    expect(last.title).not.toMatch(/Transfer to New York/i);
+    expect(last.transportation).toBeFalsy();
+    const blob = JSON.stringify(last.activities);
+    expect(blob).not.toMatch(/Budget ground transfer/i);
+    expect(blob).not.toMatch(/Los Angeles → New York|Los Angeles -> New York/i);
+    expect(blob).toMatch(/16:05/);
+    const acts = [
+      ...(last.activities?.morning ?? []),
+      ...(last.activities?.afternoon ?? []),
+      ...(last.activities?.evening ?? []),
+    ];
+    const checkout = acts.find((a) => /check-out/i.test(a.name));
+    expect(checkout?.arrivalTime).toBe("12:05");
+    expect(checkout?.description ?? "").toMatch(/16:05/);
+    expect(checkout?.description ?? "").not.toMatch(/flight at 12:05/i);
+  });
+
   it("does not invent Lyon→Paris flight when day 7 already returned by TGV", () => {
     const emptySlots = {
       morning: "",
@@ -869,5 +992,166 @@ describe("applyFlightContextToGeminiPlan", () => {
     expect(toMin(checkout!.arrivalTime)).toBeLessThan(toMin(transfer!.arrivalTime));
     expect(toMin(transfer!.arrivalTime)).toBeLessThan(toMin(airport!.arrivalTime));
     expect(toMin(airport!.arrivalTime)).toBeLessThan(toMin(flight!.arrivalTime));
+  });
+
+  it("EN day-1 origin check-in keeps MUC clock (not NYC land time)", () => {
+    const plan = basePlan({
+      destinationName: "New York",
+      destinationIata: "JFK",
+      centerLat: 40.64,
+      centerLng: -73.78,
+      days: [
+        {
+          day: 1,
+          date: "2026-07-01",
+          title: "Arrival",
+          morning: "",
+          afternoon: "",
+          evening: "",
+          travelHack: "",
+          transportationTips: "",
+          localWarnings: "",
+          dailyBudgetEur: 120,
+          lat: 40.64,
+          lng: -73.78,
+          city: "New York",
+          focusName: "New York",
+          category: "city",
+          activities: {
+            morning: [
+              {
+                name: "Check-in and security",
+                type: "TRANSPORT",
+                arrivalTime: "11:50",
+                description: "Arrive at Munich (MUC) by 11:50 for security.",
+              },
+              {
+                name: "Departure: Munich (MUC)",
+                type: "TRANSPORT",
+                arrivalTime: "14:20",
+                description: "Take off at 14:20.",
+              },
+            ],
+            afternoon: [
+              {
+                name: "Airport arrival",
+                type: "TRANSPORT",
+                arrivalTime: "12:00",
+                description: "Land at JFK around 12:00.",
+              },
+            ],
+            evening: [],
+          },
+        },
+        {
+          day: 2,
+          date: "2026-07-02",
+          title: "City",
+          morning: "",
+          afternoon: "",
+          evening: "",
+          travelHack: "",
+          transportationTips: "",
+          localWarnings: "",
+          dailyBudgetEur: 150,
+          lat: 40.76,
+          lng: -73.98,
+          city: "New York",
+          focusName: "New York",
+          category: "city",
+          activities: {
+            morning: [{ name: "Central Park", type: "SIGHT", description: "Walk" }],
+            afternoon: [],
+            evening: [],
+          },
+        },
+        {
+          day: 3,
+          date: "2026-07-08",
+          title: "Home",
+          morning: "Huge checkout and breakfast wall of text without bullets",
+          afternoon: "",
+          evening: "",
+          travelHack: "",
+          transportationTips: "",
+          localWarnings: "",
+          dailyBudgetEur: 80,
+          lat: 40.76,
+          lng: -73.98,
+          city: "New York",
+          focusName: "New York",
+          category: "transport",
+          transportation: [
+            {
+              type: "transfer",
+              from: "JFK Airport",
+              to: "New York",
+              duration: "45 min",
+            },
+          ],
+          activities: {
+            morning: [
+              {
+                name: "Hotel check-out and breakfast dump",
+                type: "STAY",
+                description:
+                  "Complete check-out in the morning. Store bags at reception if you have a short final stop, or take them with you. late evening flight at 21:50 — nearly full day after check-out; head to airport ~3h before departure. Then grab breakfast somewhere nearby and wander until transfer.",
+              },
+            ],
+            afternoon: [],
+            evening: [],
+          },
+        },
+      ],
+    });
+
+    applyFlightContextToGeminiPlan(
+      plan,
+      {
+        outboundDepart: "14:20",
+        outboundArrive: "17:05",
+        outboundArriveDayOffset: 0,
+        inboundDepart: "21:50",
+        inboundArrive: "11:10",
+      },
+      { originIata: "MUC", language: "en" },
+    );
+
+    const day1 = plan.days[0]!;
+    const morning = day1.activities?.morning ?? [];
+    const afternoon = day1.activities?.afternoon ?? [];
+    const evening = day1.activities?.evening ?? [];
+    // Origin security/departure rows must keep MUC boarding-pass clocks — never land time.
+    for (const a of morning.filter((x) => /check-in and security|departure:\s*munich/i.test(x.name))) {
+      expect(a.arrivalTime).not.toBe("17:05");
+      expect(`${a.description ?? ""} ${a.arrivalTime ?? ""}`).not.toMatch(/\b17:05\b/);
+      expect(a.description ?? "").toMatch(/14:20/);
+    }
+    const landBlob = JSON.stringify([...afternoon, ...evening]);
+    expect(landBlob).toMatch(/17:05/);
+
+    const last = plan.days[2]!;
+    expect(last.transportation).toBeFalsy();
+    expect(last.morning).toBe("");
+    expect(last.title).toMatch(/Departure from New York/i);
+    expect(last.title).not.toMatch(/JFK Airport\s*→/i);
+
+    const lastActs = [
+      ...(last.activities?.morning ?? []),
+      ...(last.activities?.afternoon ?? []),
+      ...(last.activities?.evening ?? []),
+    ];
+    const checkout = lastActs.find((a) => /check-out/i.test(a.name));
+    const airport = lastActs.find((a) => /airport check-in/i.test(a.name));
+    const transfer = lastActs.find((a) => /airport transfer/i.test(a.name));
+    expect(checkout?.arrivalTime).toBe("17:50");
+    expect(airport?.arrivalTime).toBe("18:50");
+    expect(transfer?.description ?? "").toMatch(/21:50/);
+    expect(checkout?.description ?? "").toMatch(/21:50/);
+    expect(checkout?.description ?? "").not.toMatch(/flight at 17:50/i);
+    expect(airport?.description ?? "").toMatch(/21:50/);
+    expect(airport?.description ?? "").not.toMatch(/Late departure at 18:50/i);
+    // Gemini checkout wall-of-text must not remain as a morning sight.
+    expect(JSON.stringify(last.activities?.morning ?? [])).not.toMatch(/breakfast dump/i);
   });
 });

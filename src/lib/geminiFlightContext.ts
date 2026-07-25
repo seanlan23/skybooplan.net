@@ -27,6 +27,7 @@ import {
   type TripFlightContext,
 } from "@/lib/flightScheduling";
 import { lookupDestination } from "@/lib/destinationCoords";
+import { haversineKm } from "@/lib/geoMath";
 import {
   dedupePlanDaysByNumber,
   planCalendarDayCount,
@@ -34,9 +35,13 @@ import {
 import { repairPlanDaySequence } from "@/lib/daySequence";
 import { scrubImpossibleIslandDayTrips } from "@/lib/islandHopGuard";
 import { planLangCopy } from "@/lib/planLangCopy";
+import { lookupRegionCoords } from "@/lib/regionCoords";
 import { buildReturnFlightSummary } from "@/lib/returnFlightSummary";
 import { resolveTripLocale } from "@/lib/tripLocale";
 import { stripArrivalLabelSpam } from "@/lib/textSanitize";
+
+/** Same-day ground/rail return to ticket hub (Lyon→Paris). Never LA→NY “budget transfer”. */
+const MAX_SAME_DAY_GROUND_HUB_HOP_KM = 750;
 
 function logisticsToActivity(a: LogisticsActivity): Activity {
   const isIntlFlight =
@@ -165,6 +170,45 @@ function preferRailHubHop(fromCity: string, hubName: string, destinationIata?: s
   return false;
 }
 
+function resolveCityLatLng(city: string): { lat: number; lng: number } | null {
+  const label = city.trim();
+  if (!label) return null;
+  const region = lookupRegionCoords(label);
+  if (region) return region;
+  // Fall back to known IATA hub cities by name (Bangkok, New York, …).
+  const token = normalizeCityToken(label);
+  for (const iata of ["BKK", "HKT", "KBV", "JFK", "LAX", "LAS", "CDG", "MUC", "FCO", "MXP"]) {
+    const hub = lookupDestination(iata);
+    if (hub && normalizeCityToken(hub.name) === token) {
+      return { lat: hub.lat, lng: hub.lng };
+    }
+  }
+  return null;
+}
+
+/** km between stay city and ticket hub, or null if unknown. */
+function groundHubHopKm(fromCity: string, hubName: string): number | null {
+  const from = resolveCityLatLng(fromCity);
+  const to = resolveCityLatLng(hubName);
+  if (!from || !to) return null;
+  return haversineKm([from.lng, from.lat], [to.lng, to.lat]);
+}
+
+/**
+ * Same-day return to the international hub is only for short ground/rail hops.
+ * Cross-country US (LA→NY) or other teleports must NOT invent a “budget transfer”.
+ */
+function isFeasibleSameDayGroundHubHop(
+  fromCity: string,
+  hubName: string,
+  destinationIata?: string,
+): boolean {
+  const km = groundHubHopKm(fromCity, hubName);
+  if (km != null) return km <= MAX_SAME_DAY_GROUND_HUB_HOP_KM;
+  // Unknown coords: allow only classic EU rail corridors.
+  return preferRailHubHop(fromCity, hubName, destinationIata);
+}
+
 /** Sights on flight days: no LLM clocks — code owns the schedule. */
 function stripSightClocks(a: Activity): Activity {
   const cleared = clearActivityStructuredClocks({ ...a });
@@ -227,12 +271,22 @@ function mergeDepartureDay(
     return { morning: logisticsActs, afternoon: [], evening: [] };
   }
   const sights = flattenDayActivities(day)
-    .filter(
-      (a) =>
-        !/airport|letališč|odlet|odhod|povratek|flight home|return flight|check-?out|transfer|mednarodni\s*let|international\s*(return\s*)?flight/i.test(
-          `${a.name} ${a.description ?? ""}`,
-        ),
-    )
+    .filter((a) => {
+      const blob = `${a.name} ${a.description ?? ""}`;
+      // Drop Gemini logistics leftovers (often one unformatted morning wall of text).
+      if (
+        /airport|letališč|odlet|odhod|povratek|flight home|return flight|check-?out|transfer|mednarodni\s*let|international\s*(return\s*)?flight|leave the hotel|bags at reception|head to (the )?airport|zaključi check-out/i.test(
+          blob,
+        )
+      ) {
+        return false;
+      }
+      // Mega narrative dumps belong to the LLM prose era — never keep as a "sight".
+      if (blob.length > 420 && /breakfast|zajtrk|hotel|reception|recepcij/i.test(blob)) {
+        return false;
+      }
+      return true;
+    })
     .map(stripSightClocks);
   if (isLateNightDeparture(flights)) {
     return {
@@ -301,22 +355,22 @@ function patchAirportActivityTimes(
         description = description.replace(/\b\d{1,2}:\d{2}\b/g, (match) => {
           clockIdx += 1;
           const norm = normalizeHmToken(match);
+          // Boarding-pass times in prose are sacred (leaveHint embeds "flight at 21:50").
+          // Never rewrite them to checkout/transfer/airport slot clocks (MUC–JFK bug).
+          if (norm && norm === depNorm) return depart;
+          if (arrNorm && norm === arrNorm) return arrive!;
+
           if (isIntlFlight) {
             if (clockIdx === 1) return depart;
             if (clockIdx === 2 && arrive) return arrive;
             return match;
           }
-          // Transfer prose embeds the real flight time ("Flight departs at 08:30") —
-          // never rewrite boarding-pass clocks to the transfer slot (was 05:00 bug).
-          if (/prevoz|transfer|flughafentransfer|transfert|traslado/i.test(blob)) {
-            if (norm && norm === depNorm) return depart;
-            if (arrNorm && norm === arrNorm) return arrive!;
-            if (clockIdx === 1) return transferAt;
-            return match;
-          }
           if (clockIdx === 1) {
             if (/check-?out|odhod iz hotela|hotel check-out|vrnitev avtodoma/i.test(blob)) {
               return checkoutAt;
+            }
+            if (/prevoz|transfer|flughafentransfer|transfert|traslado/i.test(blob)) {
+              return transferAt;
             }
             return airportAt;
           }
@@ -469,9 +523,13 @@ function patchArrivalActivityClockTimes(
     (list ?? []).map((a) => {
       const blob = `${a.name} ${a.description ?? ""} ${a.type ?? ""}`.toLowerCase();
       // Never rewrite origin-airport departure logistics (same-day arrival day 1).
+      // EN names: "Departure: Munich (MUC)", "Check-in and security".
       if (
-        /odhod:\s|domačega letališča|home airport|parkvia|parkos|m\+r\b|p\+r\b/i.test(blob) ||
-        (/check-in in varnostni pregled|security screening/i.test(a.name) &&
+        /odhod:\s|departure:\s|abflug:\s|partenza:\s|salida:\s|départ\s*:/i.test(a.name) ||
+        /domačega letališča|home airport|parkvia|parkos|m\+r\b|p\+r\b/i.test(blob) ||
+        (/check-in (in varnostni|and security)|security screening|sicherheitskontrolle|controlli di sicurezza/i.test(
+          a.name,
+        ) &&
           !/prihod na letališč|airport arrival|pristane|lands?\b/i.test(blob))
       ) {
         return normalizeActivityClocks(a);
@@ -811,16 +869,23 @@ export function applyFlightContextToGeminiPlan(
       const { stayCity: prevCity, alreadyAtHub } = hubName
         ? resolveCityBeforeDeparture(plan, totalDays, hubName)
         : { stayCity: "", alreadyAtHub: false };
-      const needsHubHop = Boolean(
+      const hopWanted = Boolean(
         hubName &&
           prevCity &&
           !alreadyAtHub &&
           !cityNamesMatch(prevCity, hubName) &&
           !cityNamesMatch(prevCity, plan.destinationName ?? ""),
       );
-      if (hubName) {
-        day.city = hubName;
-        day.focusName = hubName;
+      const needsHubHop =
+        hopWanted && isFeasibleSameDayGroundHubHop(prevCity, hubName, plan.destinationIata);
+      // Ticket hub may be JFK while the trip ends in LA — depart from last stay city.
+      const departCity =
+        needsHubHop || alreadyAtHub || !prevCity || cityNamesMatch(prevCity, hubName)
+          ? hubName || prevCity
+          : prevCity;
+      if (departCity) {
+        day.city = departCity;
+        day.focusName = departCity;
         day.title = needsHubHop
           ? planLangCopy(lang, {
               sl: `Prevoz v ${hubName} in mednarodni odhod`,
@@ -831,16 +896,21 @@ export function applyFlightContextToGeminiPlan(
               fr: `Transfert vers ${hubName} et départ international`,
             })
           : planLangCopy(lang, {
-              sl: `Odhod iz ${hubName} / mednarodni let`,
-              en: `Departure from ${hubName} / international flight`,
-              de: `Abflug von ${hubName} / internationaler Flug`,
-              it: `Partenza da ${hubName} / volo internazionale`,
-              es: `Salida desde ${hubName} / vuelo internacional`,
-              fr: `Départ de ${hubName} / vol international`,
+              sl: `Odhod iz ${departCity} / mednarodni let`,
+              en: `Departure from ${departCity} / international flight`,
+              de: `Abflug von ${departCity} / internationaler Flug`,
+              it: `Partenza da ${departCity} / volo internazionale`,
+              es: `Salida desde ${departCity} / vuelo internacional`,
+              fr: `Départ de ${departCity} / vol international`,
             });
-        if (destHub?.lat != null && destHub?.lng != null) {
-          day.lat = destHub.lat;
-          day.lng = destHub.lng;
+        const departCoords =
+          resolveCityLatLng(departCity) ??
+          (cityNamesMatch(departCity, hubName) && destHub?.lat != null && destHub?.lng != null
+            ? { lat: destHub.lat, lng: destHub.lng }
+            : null);
+        if (departCoords) {
+          day.lat = departCoords.lat;
+          day.lng = departCoords.lng;
         }
       }
       const logistics = buildDepartureLogistics(day.city || plan.destinationName, flights, locale, {
@@ -872,6 +942,24 @@ export function applyFlightContextToGeminiPlan(
       merged.morning = stripPhantomHubFlight(merged.morning);
       merged.afternoon = stripPhantomHubFlight(merged.afternoon);
       merged.evening = stripPhantomHubFlight(merged.evening);
+
+      // Drop Gemini teleports (Los Angeles → New York) when same-day ground hop is impossible.
+      if (hopWanted && !needsHubHop && hubName && prevCity) {
+        const stripTeleport = (list: Activity[] | undefined): Activity[] =>
+          (list ?? []).filter((a) => {
+            const blob = `${a.name} ${a.description ?? ""}`;
+            const n = normalizeCityToken(blob);
+            const from = normalizeCityToken(prevCity);
+            const to = normalizeCityToken(hubName);
+            const mentionsBoth = Boolean(from && to && n.includes(from) && n.includes(to));
+            const looksLikeHop =
+              /transfer|prevoz|train|vlak|flight|let|drive|ground|domestic/i.test(blob);
+            return !(mentionsBoth && looksLikeHop);
+          });
+        merged.morning = stripTeleport(merged.morning);
+        merged.afternoon = stripTeleport(merged.afternoon);
+        merged.evening = stripTeleport(merged.evening);
+      }
 
       if (needsHubHop && hubName && prevCity) {
         const rail = preferRailHubHop(prevCity, hubName, plan.destinationIata);
@@ -928,6 +1016,12 @@ export function applyFlightContextToGeminiPlan(
           flights.inboundArrive ?? "",
         ],
       );
+      // Gemini often leaves arrival-direction legs (JFK Airport → New York) on the
+      // homebound day — drop them; code logistics already cover hotel → airport.
+      day.transportation = undefined;
+      day.morning = "";
+      day.afternoon = "";
+      day.evening = "";
     }
 
     normalizeDayActivityClocks(day);

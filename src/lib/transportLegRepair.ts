@@ -1,5 +1,10 @@
 import type { Activity, DayTransportLeg } from "@/lib/aiPlan.functions";
 import { DESTINATION_BY_IATA } from "@/lib/destinationCoords";
+import { haversineKm } from "@/lib/geoMath";
+import { lookupRegionCoords } from "@/lib/regionCoords";
+
+/** Gemini often prices Las Vegas→LA as a €50 van — drop impossible long “van” hops. */
+const MAX_PLAUSIBLE_VAN_HOP_KM = 120;
 
 /** Islands without a commercial runway — never invent direct flights to/from these. */
 const NO_AIRPORT_ISLAND =
@@ -105,6 +110,23 @@ export function repairTransportLegs(
       fromIata === toIata
     ) {
       return [];
+    }
+
+    // Fake “flight” titles that are really hotel/airport logistics.
+    if (
+      leg.type === "flight" &&
+      /check-?\s*out|transfer to\s+[A-Z]{3}|hotel check/i.test(`${leg.from} ${leg.to}`)
+    ) {
+      return [];
+    }
+
+    if (leg.type === "van" || leg.type === "train") {
+      const fromC = lookupRegionCoords(leg.from);
+      const toC = lookupRegionCoords(leg.to);
+      if (fromC && toC) {
+        const km = haversineKm([fromC.lng, fromC.lat], [toC.lng, toC.lat]);
+        if (leg.type === "van" && km > MAX_PLAUSIBLE_VAN_HOP_KM) return [];
+      }
     }
 
     if (!placesMatch(leg.from, leg.to)) return [leg];

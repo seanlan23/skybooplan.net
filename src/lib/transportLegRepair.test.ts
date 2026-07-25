@@ -101,4 +101,45 @@ describe("repairTransportLegs", () => {
 
     expect(legs).toBeUndefined();
   });
+
+  it("drops impossible long van hops (Las Vegas → Los Angeles)", () => {
+    const legs = repairTransportLegs(
+      [
+        {
+          type: "van",
+          from: "Las Vegas",
+          to: "Los Angeles",
+          duration: "4h",
+          estimatedPrice: 50,
+        },
+      ],
+      {
+        dayNumber: 15,
+        city: "Los Angeles",
+        previousCity: "Las Vegas",
+        destinationIata: "JFK",
+      },
+    );
+    expect(legs).toBeUndefined();
+  });
+
+  it("drops fake flight titles that are hotel/airport logistics", () => {
+    const legs = repairTransportLegs(
+      [
+        {
+          type: "flight",
+          from: "Hotel Check out & Transfer to LAX",
+          to: "New York",
+          duration: "1h",
+          estimatedPrice: 0,
+        },
+      ],
+      {
+        dayNumber: 18,
+        city: "Los Angeles",
+        destinationIata: "JFK",
+      },
+    );
+    expect(legs).toBeUndefined();
+  });
 });

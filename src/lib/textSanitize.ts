@@ -93,6 +93,12 @@ export function sanitizeLegacyTemplateLeak(text: string): string {
     .replace(/\s*\(barcelona\s*\/\s*madrid\)/gi, "")
     .replace(/\bBarcelona\s*\/\s*Madrid\b/gi, "")
     .replace(/ne v centru mesta\s*—/gi, "ne v centru mesta —")
+    // LLM invents "Uber lunch/coffee" as a verb (meant "grab") — keep real Uber rides.
+    .replace(
+      /\bUber\s+(a\s+)?(coffee|snack|lunch|dinner|bite|sweet\s+treat|pastry|bagel)\b/gi,
+      "grab $1$2",
+    )
+    .replace(/\bUber\s+(lunch|dinner|coffee|brunch)\s+near\b/gi, "grab $1 near")
     .replace(/\s{2,}/g, " ")
     .trim();
 }

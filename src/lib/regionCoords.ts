@@ -72,6 +72,7 @@ const REGION_COORDS: Record<string, { lat: number; lng: number }> = {
   singapore: { lat: 1.352, lng: 103.819 },
   dubai: { lat: 25.204, lng: 55.271 },
   "new york": { lat: 40.713, lng: -74.006 },
+  "las vegas": { lat: 36.169, lng: -115.142 },
   barcelona: { lat: 41.387, lng: 2.168 },
   madrid: { lat: 40.416, lng: -3.703 },
   gibraltar: { lat: 36.14, lng: -5.353 },
