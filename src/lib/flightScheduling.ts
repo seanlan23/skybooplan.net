@@ -170,13 +170,14 @@ export function buildOriginDepartureLogistics(
 
   return [
     {
+      // Structured clock = be-at-airport time (not takeoff) — name must say so.
       name: planLangCopy(langCode, {
-        sl: `Odhod: ${name} (${iata})`,
-        en: `Departure: ${name} (${iata})`,
-        de: `Abflug: ${name} (${iata})`,
-        it: `Partenza: ${name} (${iata})`,
-        es: `Salida: ${name} (${iata})`,
-        fr: `Départ : ${name} (${iata})`,
+        sl: `Prihod na letališče ${name} (${iata})`,
+        en: `Arrive at ${name} Airport (${iata})`,
+        de: `Ankunft am Flughafen ${name} (${iata})`,
+        it: `Arrivo all'aeroporto di ${name} (${iata})`,
+        es: `Llegada al aeropuerto de ${name} (${iata})`,
+        fr: `Arrivée à l'aéroport de ${name} (${iata})`,
       }),
       type: "TRANSPORT",
       description: hint,
@@ -201,6 +202,26 @@ export function buildOriginDepartureLogistics(
         fr: `À ${iata}, déposez les bagages si besoin, faites l'enregistrement et la sécurité. Pour les vols internationaux, prévoyez ${leadPhrase} avant ${dep} — davantage en haute saison.`,
       }),
       arrivalTime: securityAt,
+    },
+    {
+      name: planLangCopy(langCode, {
+        sl: `Mednarodni let (${iata})`,
+        en: `International flight (${iata})`,
+        de: `Internationaler Flug (${iata})`,
+        it: `Volo internazionale (${iata})`,
+        es: `Vuelo internacional (${iata})`,
+        fr: `Vol international (${iata})`,
+      }),
+      type: "TRANSPORT",
+      description: planLangCopy(langCode, {
+        sl: `Odhod ${dep} z ${iata}.`,
+        en: `Departs ${dep} from ${iata}.`,
+        de: `Abflug ${dep} von ${iata}.`,
+        it: `Partenza ${dep} da ${iata}.`,
+        es: `Sale a las ${dep} desde ${iata}.`,
+        fr: `Départ ${dep} de ${iata}.`,
+      }),
+      arrivalTime: dep,
     },
   ];
 }

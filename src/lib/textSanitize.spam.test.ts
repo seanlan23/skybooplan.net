@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  dedupeSameDayActivities,
   dedupeCrossDayBoilerplate,
   stripArrivalLabelSpam,
 } from "@/lib/textSanitize";
@@ -50,5 +51,33 @@ describe("dedupeCrossDayBoilerplate", () => {
       .join("\n");
     const grabHits = grabs.match(/Grab/gi) ?? [];
     expect(grabHits.length).toBeLessThan(6);
+  });
+});
+
+describe("dedupeSameDayActivities", () => {
+  it("keeps one Gastown activity when afternoon titles are near-duplicates", () => {
+    const plan = {
+      days: [
+        {
+          activities: {
+            morning: [],
+            afternoon: [
+              {
+                name: "Afternoon Lunch and Wander in Gastown",
+                description: "Lunch then stroll.",
+              },
+              {
+                name: "Afternoon Explore Gastown's Historic Streets",
+                description: "Same neighbourhood again.",
+              },
+            ],
+            evening: [],
+          },
+        },
+      ],
+    };
+    dedupeSameDayActivities(plan);
+    expect(plan.days[0]!.activities!.afternoon).toHaveLength(1);
+    expect(plan.days[0]!.activities!.afternoon![0]!.name).toMatch(/Lunch and Wander/i);
   });
 });

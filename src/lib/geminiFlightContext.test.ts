@@ -435,6 +435,91 @@ describe("applyFlightContextToGeminiPlan", () => {
     expect(names.join(" | ")).toMatch(/Krabi.*Bangkok|Notranji prevoz/i);
   });
 
+  it("injects Vancouver→Toronto domestic air before international return (YYZ hub)", () => {
+    const emptySlots = {
+      morning: "",
+      afternoon: "",
+      evening: "",
+      travelHack: "",
+      transportationTips: "",
+      localWarnings: "",
+      dailyBudgetEur: 120,
+      category: "city" as const,
+    };
+    const plan = basePlan({
+      destinationName: "Canada",
+      destinationIata: "YYZ",
+      centerLat: 43.65,
+      centerLng: -79.38,
+      days: [
+        {
+          day: 1,
+          date: "2026-09-12",
+          title: "Toronto",
+          ...emptySlots,
+          lat: 43.65,
+          lng: -79.38,
+          city: "Toronto",
+          focusName: "Toronto",
+          activities: { morning: [], afternoon: [], evening: [] },
+        },
+        {
+          day: 2,
+          date: "2026-09-20",
+          title: "Vancouver",
+          ...emptySlots,
+          lat: 49.28,
+          lng: -123.12,
+          city: "Vancouver",
+          focusName: "Vancouver",
+          activities: {
+            morning: [{ name: "Stanley Park", type: "SIGHT", description: "Walk" }],
+            afternoon: [],
+            evening: [],
+          },
+        },
+        {
+          day: 3,
+          date: "2026-09-25",
+          title: "Home",
+          ...emptySlots,
+          lat: 49.28,
+          lng: -123.12,
+          city: "Vancouver",
+          focusName: "Vancouver",
+          category: "transport",
+          transportationTips:
+            "Includes domestic air travel from Vancouver to Toronto, followed by your international departure.",
+          activities: { morning: [], afternoon: [], evening: [] },
+        },
+      ],
+    });
+
+    applyFlightContextToGeminiPlan(
+      plan,
+      {
+        outboundDepart: "15:00",
+        outboundArrive: "17:30",
+        outboundArriveDayOffset: 0,
+        inboundDepart: "17:40",
+        inboundArrive: "07:45",
+      },
+      { originIata: "MUC", language: "en" },
+    );
+
+    const last = plan.days[2]!;
+    expect(last.city).toMatch(/Toronto/i);
+    expect(last.title).toMatch(/Domestic flight to Toronto/i);
+    const names = [
+      ...(last.activities?.morning ?? []),
+      ...(last.activities?.afternoon ?? []),
+      ...(last.activities?.evening ?? []),
+    ].map((a) => a.name);
+    expect(names.join(" | ")).toMatch(/Domestic flight Vancouver\s*→\s*Toronto/i);
+    expect(names.join(" | ")).toMatch(/International return flight/i);
+    expect(JSON.stringify(last.activities)).toMatch(/17:40/);
+  });
+
   it("does not invent LA→NY ground transfer when trip ends in Los Angeles (JFK ticket hub)", () => {
     const emptySlots = {
       morning: "",
@@ -1121,12 +1206,18 @@ describe("applyFlightContextToGeminiPlan", () => {
     const morning = day1.activities?.morning ?? [];
     const afternoon = day1.activities?.afternoon ?? [];
     const evening = day1.activities?.evening ?? [];
-    // Origin security/departure rows must keep MUC boarding-pass clocks — never land time.
-    for (const a of morning.filter((x) => /check-in and security|departure:\s*munich/i.test(x.name))) {
+    // Code-owned origin rows keep MUC boarding-pass clocks — never NYC land time.
+    const originOwned = morning.filter((x) =>
+      /arrive at .+ airport|international flight\s*\(muc\)/i.test(x.name),
+    );
+    expect(originOwned.length).toBeGreaterThanOrEqual(2);
+    for (const a of originOwned) {
       expect(a.arrivalTime).not.toBe("17:05");
       expect(`${a.description ?? ""} ${a.arrivalTime ?? ""}`).not.toMatch(/\b17:05\b/);
-      expect(a.description ?? "").toMatch(/14:20/);
+      expect(`${a.description ?? ""} ${a.arrivalTime ?? ""}`).toMatch(/14:20/);
     }
+    const flightRow = originOwned.find((a) => /international flight/i.test(a.name));
+    expect(flightRow?.arrivalTime).toBe("14:20");
     const landBlob = JSON.stringify([...afternoon, ...evening]);
     expect(landBlob).toMatch(/17:05/);
 

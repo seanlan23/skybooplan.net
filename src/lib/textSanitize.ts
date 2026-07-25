@@ -99,6 +99,12 @@ export function sanitizeLegacyTemplateLeak(text: string): string {
       "grab $1$2",
     )
     .replace(/\bUber\s+(lunch|dinner|coffee|brunch)\s+near\b/gi, "grab $1 near")
+    // "no Grab" / locale leak mangled into "no Uber in Canada" (Uber works in CA cities).
+    .replace(
+      /\b(Uber\s+or\s+transit\s+back\s*[-–—:]?\s*)?no\s+Uber\s+in\s+Canada\b/gi,
+      "Uber or transit back",
+    )
+    .replace(/\bno\s+Uber\s+in\s+(Toronto|Vancouver|Montreal|Ottawa|Calgary|Banff)\b/gi, "Uber works here")
     .replace(/\s{2,}/g, " ")
     .trim();
 }
@@ -195,6 +201,52 @@ function sentenceKey(s: string): string {
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, 80);
+}
+
+/** Core place tokens for same-day activity dedupe (Gastown lunch ≈ Gastown explore). */
+export function sameDayActivityCoreKey(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .replace(/['’]s\b/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(
+      /\b(morning|afternoon|evening|lunch|dinner|brunch|breakfast|kosilo|večerja|zajtrk|explore|wander|visit|tour|walk|stroll|historic|streets?|street|neighbourhood|neighborhood|sosesk\w*|and|the|in|of|a|an|near|around|day)\b/g,
+      " ",
+    )
+    .replace(/\b\w\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+type DayAct = { name?: string; description?: string };
+
+/** Drop near-duplicate sights within a single day (same core place, different fluff title). */
+export function dedupeSameDayActivities(plan: {
+  days: Array<{
+    activities?: {
+      morning?: DayAct[];
+      afternoon?: DayAct[];
+      evening?: DayAct[];
+    };
+  }>;
+}): void {
+  for (const day of plan.days) {
+    if (!day.activities) continue;
+    const seen = new Set<string>();
+    for (const slot of ["morning", "afternoon", "evening"] as const) {
+      const list = day.activities[slot];
+      if (!list?.length) continue;
+      day.activities[slot] = list.filter((act) => {
+        const key = sameDayActivityCoreKey(act.name ?? "");
+        if (!key || key.length < 4) return true;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      }) as typeof list;
+    }
+  }
 }
 
 /**

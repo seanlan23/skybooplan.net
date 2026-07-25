@@ -15,7 +15,7 @@ import {
 } from "@/lib/mapPoiCategory";
 import { expandPlanDaysToExpected } from "@/lib/daySequence";
 import { finalizeItineraryMapCoords } from "@/lib/itineraryMapModel";
-import { dedupeCrossDayBoilerplate } from "@/lib/textSanitize";
+import { dedupeCrossDayBoilerplate, dedupeSameDayActivities } from "@/lib/textSanitize";
 import { attachActivityCoordinates } from "@/lib/mapPoiResolver";
 import { stripMisplacedCityPois } from "@/lib/cityPoiGuard";
 import { lookupRegionCoords } from "@/lib/regionCoords";
@@ -1012,6 +1012,7 @@ export function enrichGeminiCatalogPlan(
     language: planLang,
   });
   dedupeCrossDayBoilerplate(plan);
+  dedupeSameDayActivities(plan);
   if (motorhome) {
     enrichMotorhomePlanTips(plan, planLang);
   }

@@ -21,4 +21,13 @@ describe("sanitizeLegacyTemplateLeak", () => {
     // Real ride copy must stay.
     expect(sanitizeLegacyTemplateLeak("Take an Uber to JFK")).toMatch(/Uber to JFK/i);
   });
+
+  it("scrubs false no-Uber-in-Canada hallucination", () => {
+    expect(
+      sanitizeLegacyTemplateLeak("Uber or transit back - no Uber in Canada"),
+    ).toMatch(/Uber or transit back/i);
+    expect(sanitizeLegacyTemplateLeak("Uber or transit back - no Uber in Canada")).not.toMatch(
+      /no Uber in Canada/i,
+    );
+  });
 });

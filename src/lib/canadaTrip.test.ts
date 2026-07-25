@@ -57,3 +57,12 @@ describe("sanitizeDestinationText", () => {
     expect(out).toContain("Uber");
   });
 });
+
+describe("Canada transport locale", () => {
+  it("does not seed no-Grab phrasing that Gemini mangles into no-Uber", async () => {
+    const { resolveTripLocale } = await import("@/lib/tripLocale");
+    const locale = resolveTripLocale("YYZ", "Toronto", "en");
+    expect(locale.localTransportModes).toMatch(/Uber/i);
+    expect(locale.localTransportModes).not.toMatch(/no Grab|ni Graba/i);
+  });
+});

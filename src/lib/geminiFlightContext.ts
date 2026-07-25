@@ -177,7 +177,20 @@ function resolveCityLatLng(city: string): { lat: number; lng: number } | null {
   if (region) return region;
   // Fall back to known IATA hub cities by name (Bangkok, New York, …).
   const token = normalizeCityToken(label);
-  for (const iata of ["BKK", "HKT", "KBV", "JFK", "LAX", "LAS", "CDG", "MUC", "FCO", "MXP"]) {
+  for (const iata of [
+    "BKK",
+    "HKT",
+    "KBV",
+    "JFK",
+    "LAX",
+    "LAS",
+    "CDG",
+    "MUC",
+    "FCO",
+    "MXP",
+    "YYZ",
+    "YVR",
+  ]) {
     const hub = lookupDestination(iata);
     if (hub && normalizeCityToken(hub.name) === token) {
       return { lat: hub.lat, lng: hub.lng };
@@ -207,6 +220,26 @@ function isFeasibleSameDayGroundHubHop(
   if (km != null) return km <= MAX_SAME_DAY_GROUND_HUB_HOP_KM;
   // Unknown coords: allow only classic EU rail corridors.
   return preferRailHubHop(fromCity, hubName, destinationIata);
+}
+
+/**
+ * Long same-country returns by air (Vancouver→Toronto before YYZ→EU).
+ * Not used for US open-jaw west-coast ends (LA with JFK ticket).
+ */
+function shouldInjectDomesticAirHubHop(
+  fromCity: string,
+  hubName: string,
+  destinationIata?: string,
+): boolean {
+  const hub = lookupDestination(destinationIata ?? "");
+  const country = hub?.country?.toUpperCase() ?? "";
+  // Gateway-return countries (linear coast-to-coast / multi-city). Skip US open-jaw.
+  if (!["CA", "TH", "AU", "BR", "IN", "JP", "CN"].includes(country)) return false;
+  const km = groundHubHopKm(fromCity, hubName);
+  if (km == null) return false;
+  if (km <= MAX_SAME_DAY_GROUND_HUB_HOP_KM) return false;
+  if (km > 5500) return false;
+  return true;
 }
 
 /** Sights on flight days: no LLM clocks — code owns the schedule. */
@@ -523,14 +556,16 @@ function patchArrivalActivityClockTimes(
     (list ?? []).map((a) => {
       const blob = `${a.name} ${a.description ?? ""} ${a.type ?? ""}`.toLowerCase();
       // Never rewrite origin-airport departure logistics (same-day arrival day 1).
-      // EN names: "Departure: Munich (MUC)", "Check-in and security".
+      // EN: "Arrive at Munich Airport (MUC)", "Check-in and security", "International flight (MUC)".
       if (
         /odhod:\s|departure:\s|abflug:\s|partenza:\s|salida:\s|départ\s*:/i.test(a.name) ||
+        /^(prihod na letališče|arrive at .+ airport|ankunft am flughafen)/i.test(a.name) ||
+        /\b(international flight|mednarodni let|internationaler flug)\s*\([A-Z]{3}\)/i.test(a.name) ||
         /domačega letališča|home airport|parkvia|parkos|m\+r\b|p\+r\b/i.test(blob) ||
         (/check-in (in varnostni|and security)|security screening|sicherheitskontrolle|controlli di sicurezza/i.test(
           a.name,
         ) &&
-          !/prihod na letališč|airport arrival|pristane|lands?\b/i.test(blob))
+          !/\b(pristane|lands?\b|airport arrival)\b/i.test(blob))
       ) {
         return normalizeActivityClocks(a);
       }
@@ -596,7 +631,7 @@ function patchArrivalActivityClockTimes(
 function isCodeLogisticsActivity(a: Activity): boolean {
   if (a.transportType === "flight" || isFlightRangeActivity(a)) return true;
   const name = a.name ?? "";
-  return /check-?out|check-?in|airport transfer|prevoz na letališč|flughafentransfer|prihod na letališče|airport arrival|international return flight|mednarodni (povratni )?let|odhod:|departure:|abflug:|partenza:|salida:|security|varnostni|hotel check-out|vrnitev avtodoma|train |vlak |domestic transfer|notranji prevoz|transfert|traslado/i.test(
+  return /check-?out|check-?in|airport transfer|prevoz na letališč|flughafentransfer|prihod na letališče|arrive at .+ airport|airport arrival|international (return )?flight|mednarodni (povratni )?let|odhod:|departure:|abflug:|partenza:|salida:|security|varnostni|hotel check-out|vrnitev avtodoma|train |vlak |domestic (transfer|flight)|notranji (prevoz|let)|transfert|traslado/i.test(
     name,
   );
 }
@@ -762,7 +797,7 @@ export function applyFlightContextToGeminiPlan(
       }
       // Wipe Gemini junk (Phuket breakfast + Munich airport mixed into one day).
       day.activities = {
-        morning: [...originActs, flightAct].slice(0, 4),
+        morning: [...originActs, flightAct].slice(0, 5),
         afternoon: [],
         evening: [],
       };
@@ -878,31 +913,49 @@ export function applyFlightContextToGeminiPlan(
       );
       const needsHubHop =
         hopWanted && isFeasibleSameDayGroundHubHop(prevCity, hubName, plan.destinationIata);
+      const needsAirHubHop =
+        hopWanted &&
+        !needsHubHop &&
+        shouldInjectDomesticAirHubHop(prevCity, hubName, plan.destinationIata);
       // Ticket hub may be JFK while the trip ends in LA — depart from last stay city.
+      // Canada YVR→YYZ (and similar): fly back to gateway, then international.
       const departCity =
-        needsHubHop || alreadyAtHub || !prevCity || cityNamesMatch(prevCity, hubName)
+        needsHubHop ||
+        needsAirHubHop ||
+        alreadyAtHub ||
+        !prevCity ||
+        cityNamesMatch(prevCity, hubName)
           ? hubName || prevCity
           : prevCity;
       if (departCity) {
         day.city = departCity;
         day.focusName = departCity;
-        day.title = needsHubHop
+        day.title = needsAirHubHop
           ? planLangCopy(lang, {
-              sl: `Prevoz v ${hubName} in mednarodni odhod`,
-              en: `Transfer to ${hubName} and international departure`,
-              de: `Transfer nach ${hubName} und internationaler Abflug`,
-              it: `Transfer a ${hubName} e partenza internazionale`,
-              es: `Traslado a ${hubName} y salida internacional`,
-              fr: `Transfert vers ${hubName} et départ international`,
+              sl: `Notranji let v ${hubName} in mednarodni odhod`,
+              en: `Domestic flight to ${hubName} and international departure`,
+              de: `Inlandsflug nach ${hubName} und internationaler Abflug`,
+              it: `Volo domestico a ${hubName} e partenza internazionale`,
+              es: `Vuelo doméstico a ${hubName} y salida internacional`,
+              fr: `Vol intérieur vers ${hubName} et départ international`,
             })
-          : planLangCopy(lang, {
-              sl: `Odhod iz ${departCity} / mednarodni let`,
-              en: `Departure from ${departCity} / international flight`,
-              de: `Abflug von ${departCity} / internationaler Flug`,
-              it: `Partenza da ${departCity} / volo internazionale`,
-              es: `Salida desde ${departCity} / vuelo internacional`,
-              fr: `Départ de ${departCity} / vol international`,
-            });
+          : needsHubHop
+            ? planLangCopy(lang, {
+                sl: `Prevoz v ${hubName} in mednarodni odhod`,
+                en: `Transfer to ${hubName} and international departure`,
+                de: `Transfer nach ${hubName} und internationaler Abflug`,
+                it: `Transfer a ${hubName} e partenza internazionale`,
+                es: `Traslado a ${hubName} y salida internacional`,
+                fr: `Transfert vers ${hubName} et départ international`,
+              })
+            : planLangCopy(lang, {
+                sl: `Odhod iz ${departCity} / mednarodni let`,
+                en: `Departure from ${departCity} / international flight`,
+                de: `Abflug von ${departCity} / internationaler Flug`,
+                it: `Partenza da ${departCity} / volo internazionale`,
+                es: `Salida desde ${departCity} / vuelo internacional`,
+                fr: `Départ de ${departCity} / vol international`,
+              });
         const departCoords =
           resolveCityLatLng(departCity) ??
           (cityNamesMatch(departCity, hubName) && destHub?.lat != null && destHub?.lng != null
@@ -922,10 +975,11 @@ export function applyFlightContextToGeminiPlan(
         evening: [],
       };
       // Drop Gemini phantom domestic flights to the hub when traveler is already there
-      // (or when a prior day already did the TGV/train return).
+      // (or when a prior day already did the TGV/train return). Keep room for code air hop.
       const stripPhantomHubFlight = (list: Activity[] | undefined): Activity[] =>
         (list ?? []).filter((a) => {
           if (!hubName || !prevCity) return true;
+          if (needsAirHubHop) return true;
           if (!(alreadyAtHub || !needsHubHop)) return true;
           const blob = `${a.name} ${a.description ?? ""}`;
           const n = normalizeCityToken(blob);
@@ -943,8 +997,8 @@ export function applyFlightContextToGeminiPlan(
       merged.afternoon = stripPhantomHubFlight(merged.afternoon);
       merged.evening = stripPhantomHubFlight(merged.evening);
 
-      // Drop Gemini teleports (Los Angeles → New York) when same-day ground hop is impossible.
-      if (hopWanted && !needsHubHop && hubName && prevCity) {
+      // Drop Gemini teleports when neither ground nor domestic-air hop applies (e.g. LA→NY).
+      if (hopWanted && !needsHubHop && !needsAirHubHop && hubName && prevCity) {
         const stripTeleport = (list: Activity[] | undefined): Activity[] =>
           (list ?? []).filter((a) => {
             const blob = `${a.name} ${a.description ?? ""}`;
@@ -961,7 +1015,29 @@ export function applyFlightContextToGeminiPlan(
         merged.evening = stripTeleport(merged.evening);
       }
 
-      if (needsHubHop && hubName && prevCity) {
+      if (needsAirHubHop && hubName && prevCity) {
+        const airHop: Activity = {
+          name: planLangCopy(lang, {
+            sl: `Notranji let ${prevCity} → ${hubName}`,
+            en: `Domestic flight ${prevCity} → ${hubName}`,
+            de: `Inlandsflug ${prevCity} → ${hubName}`,
+            it: `Volo domestico ${prevCity} → ${hubName}`,
+            es: `Vuelo doméstico ${prevCity} → ${hubName}`,
+            fr: `Vol intérieur ${prevCity} → ${hubName}`,
+          }),
+          type: "TRANSPORT",
+          transportType: "flight",
+          description: planLangCopy(lang, {
+            sl: `Zjutraj notranji let ${prevCity} → ${hubName}, nato mednarodni odhod ob ${flights.inboundDepart}. Isti dan z avtom/vlakom ni izvedljiv — rezerviraj povezavo z rezervo za prtljago.`,
+            en: `Morning domestic air ${prevCity} → ${hubName}, then international departure at ${flights.inboundDepart}. Same-day ground travel is not feasible — book a connection with bag-buffer time.`,
+            de: `Morgens Inlandsflug ${prevCity} → ${hubName}, dann internationaler Abflug um ${flights.inboundDepart}. Am selben Tag per Boden nicht machbar — Verbindung mit Gepäck-Puffer buchen.`,
+            it: `Al mattino volo domestico ${prevCity} → ${hubName}, poi partenza internazionale alle ${flights.inboundDepart}. Lo stesso giorno via terra non è fattibile — prenota con margine bagagli.`,
+            es: `Por la mañana vuelo doméstico ${prevCity} → ${hubName}, luego salida internacional a las ${flights.inboundDepart}. El mismo día por tierra no es viable — reserva con margen para el equipaje.`,
+            fr: `Le matin, vol intérieur ${prevCity} → ${hubName}, puis départ international à ${flights.inboundDepart}. Impossible le même jour par voie terrestre — réservez avec marge bagages.`,
+          }),
+        };
+        merged.morning = [airHop, ...(merged.morning ?? [])].slice(0, 5);
+      } else if (needsHubHop && hubName && prevCity) {
         const rail = preferRailHubHop(prevCity, hubName, plan.destinationIata);
         const hop: Activity = {
           name: rail

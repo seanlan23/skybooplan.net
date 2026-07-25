@@ -160,8 +160,9 @@ const TRANSPORT_BY_COUNTRY: Record<
   CA: {
     label: { sl: "Uber / taxi / javni prevoz", en: "Uber / taxi / transit" },
     modes: {
-      sl: "Uber, taxi, TTC/TransLink, ni Graba",
-      en: "Uber, taxi, TTC/TransLink — no Grab in Canada",
+      // Never say "no Grab" next to Uber — Gemini mangles it into "no Uber in Canada".
+      sl: "Uber, taxi, TTC/TransLink",
+      en: "Uber, taxi, TTC/TransLink",
     },
   },
   GB: {

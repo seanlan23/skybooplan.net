@@ -178,6 +178,36 @@ function isLogisticsName(name: string): boolean {
   );
 }
 
+/** Home-airport rows prepended on same-day arrival (Arrive at MUC / Check-in / International flight). */
+export function dayHasOriginDepartureLogistics(day: DayPlan): boolean {
+  const acts = [
+    ...(day.activities?.morning ?? []),
+    ...(day.activities?.afternoon ?? []),
+    ...(day.activities?.evening ?? []),
+  ];
+  return acts.some((a) => {
+    const name = a.name ?? "";
+    return (
+      /^(odhod|departure|abflug|partenza|salida)\s*:/i.test(name) ||
+      /^départ\s*:/i.test(name) ||
+      /^(prihod na letališče|arrive at .+ airport|ankunft am flughafen)/i.test(name) ||
+      /\b(international flight|mednarodni let)\s*\([A-Z]{3}\)/i.test(name) ||
+      /check-in (in varnostni|and security|und sicherheits|e controlli|y seguridad)/i.test(name)
+    );
+  });
+}
+
+/** Origin city center for map camera — regionCoords only, never IATA runway. */
+function resolveOriginDepartureCenter(plan: AiTripPlan): { label: string; center: LngLat } | null {
+  const iata = plan.originIata?.trim().toUpperCase();
+  if (!iata) return null;
+  const hub = DESTINATION_BY_IATA[iata];
+  if (!hub?.name) return null;
+  const city = lookupRegionCoords(hub.name);
+  if (!city) return null;
+  return { label: hub.name, center: city };
+}
+
 /** Motorhome / car plans draw drive legs between city hops (even without flight-day titles). */
 export function isGroundRoadTrip(plan: AiTripPlan): boolean {
   return (
@@ -438,33 +468,66 @@ function inferLegMode(day: DayPlan, distKm: number): MapDayLeg["mode"] {
 export function buildMapDay(plan: AiTripPlan, activeDay: number): MapDay | null {
   const day = plan.days.find((d) => d.day === activeDay);
   if (!day) return null;
-  const center = resolveCityCenter(day);
+  const destCenter = resolveCityCenter(day);
+  const originDep = dayHasOriginDepartureLogistics(day)
+    ? resolveOriginDepartureCenter(plan)
+    : null;
+  // Same-day arrival lists MUC first while day.city is already Toronto — camera
+  // must match the home-airport cards the user is reading (city center, not runway).
+  const useOriginCamera = Boolean(
+    originDep &&
+      destCenter &&
+      haversineKm(
+        [originDep.center.lng, originDep.center.lat],
+        [destCenter.lng, destCenter.lat],
+      ) >= MIN_ROUTE_DRAW_KM,
+  );
+  const center = useOriginCamera ? originDep!.center : destCenter;
   if (!center) return null;
 
-  const cityLabel =
-    normalizeCityLabel(day.city) ||
-    normalizeCityLabel(day.focusName) ||
-    `Day ${day.day}`;
+  const cityLabel = useOriginCamera
+    ? originDep!.label
+    : normalizeCityLabel(day.city) ||
+      normalizeCityLabel(day.focusName) ||
+      `Day ${day.day}`;
 
-  const pins = collectPins(day, center, {
-    seedCampHub: isGroundRoadTrip(plan) || plan.accommodationMode === "motorhome",
-  });
+  const pins = useOriginCamera
+    ? [
+        {
+          id: `pin-${day.day}-origin-hub`,
+          name: originDep!.label,
+          lat: originDep!.center.lat,
+          lng: originDep!.center.lng,
+          category: "sightseeing" as const,
+        },
+      ]
+    : collectPins(day, center, {
+        seedCampHub: isGroundRoadTrip(plan) || plan.accommodationMode === "motorhome",
+      });
 
   let legIn: MapDayLeg | undefined;
-  const prev = plan.days.find((d) => d.day === activeDay - 1);
-  const prevCenter = prev ? resolveCityCenter(prev) : null;
-  if (prevCenter) {
-    const dist = haversineKm(
-      [prevCenter.lng, prevCenter.lat],
-      [center.lng, center.lat],
-    );
-    const roadHop = isGroundRoadTrip(plan) && dist >= MIN_ROUTE_DRAW_KM;
-    if ((isTravelDay(day) || roadHop) && dist >= MIN_ROUTE_DRAW_KM) {
-      legIn = {
-        mode: roadHop && !isTravelDay(day) ? "drive" : inferLegMode(day, dist),
-        from: prevCenter,
-        to: center,
-      };
+  if (useOriginCamera && destCenter) {
+    legIn = {
+      mode: "flight",
+      from: originDep!.center,
+      to: destCenter,
+    };
+  } else {
+    const prev = plan.days.find((d) => d.day === activeDay - 1);
+    const prevCenter = prev ? resolveCityCenter(prev) : null;
+    if (prevCenter) {
+      const dist = haversineKm(
+        [prevCenter.lng, prevCenter.lat],
+        [center.lng, center.lat],
+      );
+      const roadHop = isGroundRoadTrip(plan) && dist >= MIN_ROUTE_DRAW_KM;
+      if ((isTravelDay(day) || roadHop) && dist >= MIN_ROUTE_DRAW_KM) {
+        legIn = {
+          mode: roadHop && !isTravelDay(day) ? "drive" : inferLegMode(day, dist),
+          from: prevCenter,
+          to: center,
+        };
+      }
     }
   }
 

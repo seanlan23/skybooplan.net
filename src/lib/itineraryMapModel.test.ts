@@ -239,6 +239,54 @@ describe("itineraryMapModel", () => {
     expect(view!.pins.length).toBeLessThanOrEqual(MAX_DAY_PINS);
   });
 
+  it("buildMapDay cameras on origin city when day-1 lists home-airport logistics", () => {
+    const p = {
+      ...plan([
+        day({
+          day: 1,
+          city: "Toronto",
+          title: "Arrival in Toronto and Evening Stroll",
+          lat: 43.65,
+          lng: -79.38,
+          activities: {
+            morning: [
+              {
+                name: "Departure: Munich (MUC)",
+                type: "TRANSPORT",
+                description: "Home airport Munich (MUC), flight departs 15:00.",
+              },
+              {
+                name: "Check-in and security",
+                type: "TRANSPORT",
+                description: "Clear security at MUC before 15:00.",
+              },
+            ],
+            afternoon: [],
+            evening: [
+              {
+                name: "Evening stroll",
+                type: "SIGHT",
+                description: "Harbourfront",
+                lat: 43.64,
+                lng: -79.38,
+              },
+            ],
+          },
+        }),
+      ]),
+      originIata: "MUC",
+      destinationIata: "YYZ",
+      destinationName: "Toronto",
+    } as AiTripPlan;
+
+    const view = buildMapDay(p, 1);
+    expect(view?.cityLabel).toMatch(/Munich/i);
+    expect(view?.center.lat).toBeCloseTo(48.137, 1);
+    expect(view?.center.lng).toBeCloseTo(11.575, 1);
+    expect(view?.legIn?.mode).toBe("flight");
+    expect(view?.legIn?.to.lat).toBeCloseTo(43.65, 0);
+  });
+
   it("buildMapDay draws inbound flight leg on travel day only", () => {
     const p = plan([
       day({
