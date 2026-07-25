@@ -4,7 +4,7 @@ import {
   stripPlanTeaser,
   resolvePlanContentLanguage,
 } from "@/lib/planTeaser";
-import { translate } from "@/lib/i18n";
+import { translate, translateDictLang } from "@/lib/i18n";
 
 describe("planTeaser", () => {
   it("prepends Slovenian teaser when missing", () => {
@@ -28,7 +28,7 @@ describe("planTeaser", () => {
   });
 
   it("stripPlanTeaser removes Italian opener even when UI lang is English", () => {
-    const itTeaser = translate("it", "plan.teaser");
+    const itTeaser = translateDictLang("it", "plan.teaser");
     const out = stripPlanTeaser(
       `${itTeaser} Ottobre a Manila e nelle isole è il periodo di transizione.`,
       "en",
@@ -37,20 +37,38 @@ describe("planTeaser", () => {
     expect(out).not.toMatch(/Il tuo piano AI|piano AI è pronto/i);
   });
 
-  it("resolvePlanContentLanguage prefers stored field then teaser", () => {
+  it("resolvePlanContentLanguage maps retired it/es/fr to en", () => {
     expect(
       resolvePlanContentLanguage({
         summary: "hi",
         contentLanguage: "it",
         days: [],
       }),
-    ).toBe("it");
-    const itTeaser = translate("it", "plan.teaser");
+    ).toBe("en");
+    const itTeaser = translateDictLang("it", "plan.teaser");
+    // Italian teaser alone is not an active SUPPORTED_LANG — heuristics map to en.
     expect(
       resolvePlanContentLanguage({
         summary: `${itTeaser} Ottobre a Manila.`,
         days: [],
       }),
-    ).toBe("it");
+    ).toBe("en");
+  });
+
+  it("resolvePlanContentLanguage keeps sl/en/de", () => {
+    expect(
+      resolvePlanContentLanguage({
+        summary: "hi",
+        contentLanguage: "de",
+        days: [],
+      }),
+    ).toBe("de");
+    const enTeaser = translate("en", "plan.teaser");
+    expect(
+      resolvePlanContentLanguage({
+        summary: `${enTeaser} Monsoon season.`,
+        days: [],
+      }),
+    ).toBe("en");
   });
 });

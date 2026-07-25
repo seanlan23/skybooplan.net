@@ -140,7 +140,7 @@ Rules:
 - MANDATORY transportationTips per day: how to get around that city (apps like Grab/Bolt/InDrive where relevant, metro passes, A→B between activities, ferry/speedboat schedules for islands)
 - Do NOT repeat the identical Grab/tuk-tuk/"če imaš še energijo" sentence across days — one concrete local mode per day
 - Day numbers must be contiguous with no gaps (never skip day 5 after day 4)
-- Arrival times: short local HH:MM on activities; long “(+1 dan od odhoda…)” at most once in a day title
+- Do NOT invent HH:MM for international arrival/departure logistics (checkout, airport transfer, return flight) — the app injects boarding-pass clocks. Optional sightseeing may omit clocks; long “(+1 dan od odhoda…)” at most once in a day title
 - MANDATORY transportation[] on inter-city travel days: array of legs with type, from, to, duration, estimatedPrice — UI transport cards require this
 - MANDATORY transport_type + duration on every movement activity (airport/flight/ferry/train/van) — UI activity badges require both fields
 - For Thailand days: rotate tuk-tuk warnings (agree price upfront, temple-closed scams), BTS/Rabbit Card in Bangkok, ferry cancellations in monsoon

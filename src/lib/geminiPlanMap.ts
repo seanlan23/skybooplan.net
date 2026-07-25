@@ -772,15 +772,19 @@ export function enrichGeminiCatalogPlan(
     opts.expectedDays && opts.expectedDays > 0
       ? opts.expectedDays
       : planCalendarDayCount(plan.days);
+  // Lock plan language once: tips, enrichers, and sanitize must all match contentLanguage
+  // (never a divergent UI locale mid-finalize).
+  const planLang = normalizePlanLangCode(plan.contentLanguage ?? opts.language ?? "sl");
+  plan.contentLanguage = planLang;
+
   expandPlanDaysToExpected(plan, {
     expectedDays,
-    language: opts.language,
+    language: planLang,
     departDate: opts.departDate,
   });
   const totalDays = planCalendarDayCount(plan.days);
   const travelers = Math.max(1, opts.pax);
   const wishesText = opts.wishesText ?? "";
-  const planLang = opts.language ?? "sl";
 
   if (!plan.accommodationMode) {
     plan.accommodationMode = detectAccommodationMode(wishesText);
@@ -957,6 +961,21 @@ export function enrichGeminiCatalogPlan(
     finalDay.title = lodgingFix(
       sanitizeForLang(finalDay.title ?? "", planLang, locale.country),
     );
+    if (finalDay.travelHack?.trim()) {
+      finalDay.travelHack = lodgingFix(
+        sanitizeForLang(finalDay.travelHack, planLang, locale.country),
+      );
+    }
+    if (finalDay.transportationTips?.trim()) {
+      finalDay.transportationTips = lodgingFix(
+        sanitizeForLang(finalDay.transportationTips, planLang, locale.country),
+      );
+    }
+    if (finalDay.localWarnings?.trim()) {
+      finalDay.localWarnings = lodgingFix(
+        sanitizeForLang(finalDay.localWarnings, planLang, locale.country),
+      );
+    }
     if (finalDay.activities) {
       finalDay.activities = {
         morning: finalDay.activities.morning.map((a) => {
@@ -990,7 +1009,7 @@ export function enrichGeminiCatalogPlan(
   plan.totalBudgetEur = computeTripTotalBudgetEur(plan.days, travelers);
   enrichIslandAirportTransfers(plan, {
     destinationIata: plan.destinationIata,
-    language: plan.contentLanguage ?? planLang,
+    language: planLang,
   });
   dedupeCrossDayBoilerplate(plan);
   if (motorhome) {

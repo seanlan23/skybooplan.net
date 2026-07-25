@@ -107,6 +107,44 @@ export function formatActivityClockLabel(activity: ActivityClockFields): string 
   });
 }
 
+const PROSE_CLOCK_RE = /\b\d{1,2}:\d{2}\b/g;
+
+function normalizeHmToken(hm: string): string {
+  const m = hm.match(/(\d{1,2}):(\d{2})/);
+  if (!m) return "";
+  return `${String(Number(m[1])).padStart(2, "0")}:${m[2]}`;
+}
+
+/**
+ * Remove HH:MM from prose except boarding-pass / logistics clocks we own in code.
+ * Used on arrival/departure days so Gemini invented “meet at 09:15” cannot fight the schedule.
+ */
+export function stripProseClocksExcept(
+  text: string | undefined,
+  keep: readonly string[],
+): string | undefined {
+  if (!text) return text;
+  const allowed = new Set(
+    keep.map(normalizeHmToken).filter((t) => /^\d{2}:\d{2}$/.test(t)),
+  );
+  const out = text.replace(PROSE_CLOCK_RE, (match) => {
+    const norm = normalizeHmToken(match);
+    return allowed.has(norm) ? norm : "";
+  });
+  return out
+    .replace(/\s{2,}/g, " ")
+    .replace(/\s+([,.!?;:])/g, "$1")
+    .replace(/\(\s*\)/g, "")
+    .trim();
+}
+
+/** Drop structured clocks — sights on flight days must not keep LLM HH:MM fields. */
+export function clearActivityStructuredClocks<T extends ActivityClockFields>(activity: T): T {
+  activity.arrivalTime = undefined;
+  activity.departureTime = undefined;
+  return activity;
+}
+
 /**
  * Normalize stored clocks so UI/PDF never show 19:30–18:00 on check-in.
  * Mutates the activity-like object.

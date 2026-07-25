@@ -2,13 +2,19 @@ import { describe, it, expect } from "vitest";
 import {
   normalizeAppLang,
   translate,
+  translateDictLang,
   translationFallbackChain,
   SUPPORTED_LANGS,
+  DORMANT_LANGS,
 } from "@/lib/i18n";
 
 describe("i18n strict fallback", () => {
-  it("supports only six UI languages", () => {
-    expect(SUPPORTED_LANGS).toEqual(["sl", "en", "es", "fr", "it", "de"]);
+  it("supports only three active UI languages", () => {
+    expect(SUPPORTED_LANGS).toEqual(["sl", "en", "de"]);
+  });
+
+  it("keeps dormant packs in repo for gradual re-enable", () => {
+    expect(DORMANT_LANGS).toEqual(["es", "fr", "it"]);
   });
 
   it("de uses German plan UI then English — never Slovenian", () => {
@@ -25,14 +31,11 @@ describe("i18n strict fallback", () => {
     expect(translate("sl", "poi.moreInfo")).toBe("Več informacij");
   });
 
-  it("es uses Spanish plan labels", () => {
-    expect(translate("es", "aiplan.day")).toBe("Día");
-    expect(translate("es", "poi.moreInfo")).toBe("Más información");
-  });
-
-  it("normalizeAppLang keeps allowed locales and maps unknown to en", () => {
+  it("normalizeAppLang maps retired es/fr/it to en", () => {
     expect(normalizeAppLang("de")).toBe("de");
-    expect(normalizeAppLang("fr")).toBe("fr");
+    expect(normalizeAppLang("fr")).toBe("en");
+    expect(normalizeAppLang("es")).toBe("en");
+    expect(normalizeAppLang("it")).toBe("en");
     expect(normalizeAppLang("sl")).toBe("sl");
     expect(normalizeAppLang("en")).toBe("en");
     expect(normalizeAppLang("zh")).toBe("en");
@@ -48,83 +51,12 @@ describe("i18n strict fallback", () => {
     }
   });
 
-  it("fr homepage strings are French, not Slovenian", () => {
-    expect(translate("fr", "hero.chatHeadline")).toContain("voyage");
-    expect(translate("fr", "hero.cta")).toBe("Rechercher →");
-    expect(translate("fr", "faq.title")).toBe("Questions fréquentes");
-  });
-
-  it("es/fr/it/de homepage shell never falls back to English for marketing keys", () => {
-    const keys = [
-      "heroChat.guided.whereTitle",
-      "heroChat.guided.typeOwn",
-      "heroChat.feature.itinerary",
-      "heroChat.feature.flights",
-      "heroChat.feature.pdf",
-      "inspiration.paris.title",
-      "inspiration.croatia.title",
-      "inspiration.asia.title",
-      "testimonials.title",
-      "donation.title",
-      "donation.contact",
-      "support.title",
-      "support.amountCustom",
-      "feat.itin.title",
-      "feat.flights.title",
-      "feat.pdf.title",
-      "feat.free.title",
-      "footer.company",
-      "footer.legal",
-      "footer.about",
-      "footer.terms",
-      "footer.disclaimerTitle",
-      "hero.chip.thailand.name",
-      "hero.chip.paris.name",
-    ] as const;
-
-    const mustNotMatchEn = {
-      "heroChat.guided.whereTitle": "Where do you want to go?",
-      "heroChat.guided.typeOwn": "I want somewhere else",
-      "heroChat.feature.itinerary": "🗺️ AI itinerary",
-      "inspiration.paris.title": "Romantic Paris",
-      "testimonials.title": "What travelers say",
-      "donation.title": "Support Skybooplan",
-      "support.title": "Did Skybooplan make planning easier? 🌍",
-      "feat.itin.title": "AI itinerary + map",
-      "footer.company": "Company",
-      "footer.about": "About",
-    } as const;
-
-    for (const lang of ["es", "fr", "it", "de"] as const) {
-      for (const key of keys) {
-        const value = translate(lang, key);
-        expect(value).not.toBe(key);
-        expect(value.trim().length).toBeGreaterThan(2);
-      }
-      for (const [key, en] of Object.entries(mustNotMatchEn)) {
-        expect(translate(lang, key as keyof typeof mustNotMatchEn)).not.toBe(en);
-      }
-    }
-
-    expect(translate("it", "heroChat.guided.whereTitle")).toBe("Dove vuoi andare?");
-    expect(translate("it", "inspiration.paris.title")).toBe("Parigi romantica");
-    expect(translate("it", "testimonials.title")).toMatch(/viaggiatori/i);
-    expect(translate("it", "donation.title")).toMatch(/Sostieni/i);
-    expect(translate("it", "feat.itin.title")).toMatch(/Itinerario IA/i);
-    expect(translate("it", "footer.about")).toBe("Chi siamo");
-    expect(translate("es", "heroChat.guided.typeOwn")).toMatch(/otro/i);
-    expect(translate("fr", "support.amountCustom")).toBe("Autre montant");
-  });
-
-  it("it/es/fr planner shell tips and checklist are not English", () => {
-    expect(translate("it", "aiplan.tip2")).toMatch(/martedì|20%/i);
-    expect(translate("it", "aiplan.tip2")).not.toBe(translate("en", "aiplan.tip2"));
-    expect(translate("it", "heroChat.checklist.title")).toMatch(/viaggio/i);
-    expect(translate("it", "results.selectAiPlan")).toMatch(/piano IA|Seleziona/i);
-    expect(translate("it", "travelReq.title")).toMatch(/Requisiti/i);
-    expect(translate("it", "aiplan.yourChoices")).toMatch(/impostazioni/i);
-    expect(translate("es", "aiplan.tip2")).toMatch(/martes|20%/i);
-    expect(translate("fr", "heroChat.checklist.title")).toMatch(/voyage/i);
+  it("dormant packs still resolve via translateDictLang", () => {
+    expect(translateDictLang("fr", "hero.chatHeadline")).toContain("voyage");
+    expect(translateDictLang("fr", "hero.cta")).toBe("Rechercher →");
+    expect(translateDictLang("es", "aiplan.day")).toBe("Día");
+    expect(translateDictLang("it", "heroChat.guided.whereTitle")).toBe("Dove vuoi andare?");
+    expect(translateDictLang("it", "footer.about")).toBe("Chi siamo");
   });
 
   it("de never falls back to Slovenian for untranslated keys", () => {
@@ -146,7 +78,7 @@ describe("i18n strict fallback", () => {
     expect(translate("de", "travelReq.vaccinations")).toContain("Impfungen");
   });
 
-  it("auth + dashboard strings exist in every UI language (not English-only)", () => {
+  it("auth + dashboard strings exist in every active UI language", () => {
     const keys = [
       "nav.signIn",
       "nav.signInGoogle",
@@ -164,14 +96,6 @@ describe("i18n strict fallback", () => {
       "trips.metaTitle",
     ] as const;
 
-    const localized: Record<string, RegExp> = {
-      sl: /prijav|nadzorn|dobrodo|dokonč|povezuj|moja potovan/i,
-      es: /iniciar|panel|bienven|completan|conectan|viajes/i,
-      fr: /connexion|tableau|bon retour|finalisation|google|voyages/i,
-      it: /acced|dashboard|bentorn|completament|connessione|viaggi/i,
-      de: /anmeld|dashboard|willkommen|verbind|reisen/i,
-    };
-
     for (const lang of SUPPORTED_LANGS) {
       for (const key of keys) {
         const value = translate(lang, key);
@@ -180,14 +104,9 @@ describe("i18n strict fallback", () => {
       }
     }
 
-    expect(translate("es", "nav.signIn")).toBe("Iniciar sesión");
-    expect(translate("fr", "auth.continueGoogle")).toContain("Google");
-    expect(translate("it", "dashboard.emptyTitle")).toMatch(/viaggio/i);
     expect(translate("de", "auth.failedTitle")).toMatch(/fehlgeschlagen/i);
     expect(translate("sl", "auth.failedTitle")).toBe("Prijava ni uspela");
-
-    for (const [lang, re] of Object.entries(localized)) {
-      expect(translate(lang as "sl", "auth.loginMetaTitle")).toMatch(re);
-    }
+    expect(translateDictLang("es", "nav.signIn")).toBe("Iniciar sesión");
+    expect(translateDictLang("it", "dashboard.emptyTitle")).toMatch(/viaggio/i);
   });
 });

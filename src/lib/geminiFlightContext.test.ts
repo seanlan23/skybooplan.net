@@ -603,6 +603,132 @@ describe("applyFlightContextToGeminiPlan", () => {
     expect(transfer?.arrivalTime).toBe("05:00");
   });
 
+  it("strips LLM clocks from leftover sights on departure day", () => {
+    const plan = basePlan({
+      destinationName: "Paris",
+      destinationIata: "CDG",
+      days: [
+        {
+          day: 1,
+          date: "2026-07-01",
+          title: "Arrival",
+          morning: "",
+          afternoon: "",
+          evening: "",
+          travelHack: "",
+          transportationTips: "",
+          localWarnings: "",
+          dailyBudgetEur: 80,
+          lat: 48.86,
+          lng: 2.35,
+          city: "Paris",
+          focusName: "Paris",
+          category: "city",
+          activities: { morning: [], afternoon: [], evening: [] },
+        },
+        {
+          day: 2,
+          date: "2026-07-02",
+          title: "Paris",
+          morning: "",
+          afternoon: "",
+          evening: "",
+          travelHack: "",
+          transportationTips: "",
+          localWarnings: "",
+          dailyBudgetEur: 80,
+          lat: 48.86,
+          lng: 2.35,
+          city: "Paris",
+          focusName: "Paris",
+          category: "city",
+          activities: {
+            morning: [
+              {
+                name: "Louvre",
+                type: "SIGHT",
+                arrivalTime: "09:15",
+                departureTime: "12:00",
+                description: "Meet the guide at 09:15 sharp.",
+              },
+            ],
+            afternoon: [],
+            evening: [],
+          },
+        },
+        {
+          day: 3,
+          date: "2026-07-03",
+          title: "Odhod",
+          morning: "",
+          afternoon: "",
+          evening: "",
+          travelHack: "",
+          transportationTips: "",
+          localWarnings: "",
+          dailyBudgetEur: 40,
+          lat: 48.86,
+          lng: 2.35,
+          city: "Paris",
+          focusName: "Paris",
+          category: "transport",
+          activities: {
+            morning: [
+              {
+                name: "Louvre last look",
+                type: "SIGHT",
+                arrivalTime: "07:00",
+                departureTime: "08:00",
+                description: "Be there at 07:00 before the crowds.",
+              },
+              {
+                name: "Fake checkout invent",
+                type: "STAY",
+                arrivalTime: "12:00",
+                departureTime: "13:00",
+                description: "Checkout fantasy at 12:00",
+              },
+            ],
+            afternoon: [],
+            evening: [],
+          },
+        },
+      ],
+    });
+
+    applyFlightContextToGeminiPlan(
+      plan,
+      {
+        outboundDepart: "08:00",
+        outboundArrive: "09:30",
+        outboundArriveDayOffset: 0,
+        inboundDepart: "18:10",
+        inboundArrive: "20:00",
+      },
+      { originIata: "MUC", language: "en" },
+    );
+
+    const last = plan.days.find((d) => d.day === 3)!;
+    const acts = [
+      ...(last.activities?.morning ?? []),
+      ...(last.activities?.afternoon ?? []),
+      ...(last.activities?.evening ?? []),
+    ];
+    const flight = acts.find((a) => /international return flight/i.test(a.name));
+    expect(flight?.arrivalTime).toBe("18:10");
+
+    const sights = acts.filter((a) => /Louvre/i.test(a.name));
+    for (const s of sights) {
+      expect(s.arrivalTime).toBeFalsy();
+      expect(s.departureTime).toBeFalsy();
+      expect(s.description ?? "").not.toMatch(/\b\d{1,2}:\d{2}\b/);
+    }
+
+    const checkout = acts.find((a) => /check-out/i.test(a.name));
+    expect(checkout?.arrivalTime).toBeTruthy();
+    expect(checkout!.arrivalTime).not.toBe("12:00");
+  });
+
   it("staggers last-day checkout/transfer/airport before return flight (no 18:10 pile-up)", () => {
     const plan = basePlan({
       destinationName: "Manila",

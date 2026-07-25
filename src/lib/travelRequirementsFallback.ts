@@ -12,9 +12,10 @@ export type CuratedTravelPack = {
 
 type LangCode = string;
 
-function lang2(lang: LangCode): "sl" | "de" | "en" | "it" | "es" | "fr" {
+/** Active pack languages only — retired es/fr/it fall back to English. */
+function lang2(lang: LangCode): "sl" | "de" | "en" {
   const c = lang.toLowerCase().slice(0, 2);
-  if (c === "sl" || c === "de" || c === "it" || c === "es" || c === "fr") return c;
+  if (c === "sl" || c === "de") return c;
   return "en";
 }
 

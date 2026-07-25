@@ -1,3 +1,5 @@
+import { lookupRegionCoords } from "@/lib/regionCoords";
+
 export type OpenInGoogleMapsResult =
   | { ok: true }
   | { ok: false; reason: "invalid_coords" | "no_window" };
@@ -13,6 +15,41 @@ export type GoogleMapsNavOptions = {
   /** Default driving so intercity vans don't open as flights from "Your location". */
   travelMode?: "driving" | "walking" | "transit" | "bicycling";
 };
+
+/** Minimal day fields for trip-plan Navigate (hotel / city → POI). */
+export type DayNavOriginInput = {
+  city?: string | null;
+  focusName?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+};
+
+/**
+ * Origin for activity Navigate: day city / hotel area — never GPS "Your location".
+ * Prefer a place query (Maps geocodes "Kanchanaburi") plus day centroid coords as backup.
+ */
+export function resolveDayNavOrigin(
+  day: DayNavOriginInput,
+): Pick<GoogleMapsNavOptions, "originLat" | "originLng" | "originQuery"> {
+  const city = (day.city?.trim() || day.focusName?.trim() || "").trim();
+  const region = city ? lookupRegionCoords(city) : null;
+  const hasDayCoords =
+    typeof day.lat === "number" &&
+    typeof day.lng === "number" &&
+    isValidNavCoord(day.lat, day.lng);
+  const lat = hasDayCoords ? day.lat! : region?.lat;
+  const lng = hasDayCoords ? day.lng! : region?.lng;
+
+  // "Hotel area, City" steers Maps away from airports / random downtown pins.
+  const originQuery = city ? `Hotel area, ${city}` : undefined;
+
+  return {
+    ...(originQuery ? { originQuery } : {}),
+    ...(typeof lat === "number" && typeof lng === "number" && isValidNavCoord(lat, lng)
+      ? { originLat: lat, originLng: lng }
+      : {}),
+  };
+}
 
 /** Validates WGS84 coords suitable for Google Maps deep links. */
 export function isValidNavCoord(lat: unknown, lng: unknown): lat is number {

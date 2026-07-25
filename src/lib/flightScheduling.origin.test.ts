@@ -31,6 +31,17 @@ describe("origin airport departure hints", () => {
     expect(acts[1]!.description).not.toMatch(/uri pred|2\. 5|3–3/i);
   });
 
+  it("sets structured origin clocks from boarding-pass (not LLM)", () => {
+    // 11:00 depart → lead 2.5h → at airport 08:30, security 09:00
+    const acts = buildOriginDepartureLogistics("MXP", {
+      outboundDepart: "11:00",
+      outboundArrive: "23:30",
+      outboundArriveDayOffset: 1,
+    });
+    expect(acts[0]!.arrivalTime).toBe("08:30");
+    expect(acts[1]!.arrivalTime).toBe("09:00");
+  });
+
   it("prepends origin departure on day 1 of skeleton plan", () => {
     const skeleton: TripSkeleton = {
       destinationName: "Tajska",

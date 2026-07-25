@@ -129,7 +129,6 @@ describe("motorhome i18n browser keys", () => {
       expect(v).not.toBe("mh.browser.search");
       expect(v.trim().length).toBeGreaterThan(3);
     }
-    expect(translate("es", "mh.browser.search")).toMatch(/ruta|buscar/i);
     expect(translate("de", "mh.browser.search")).toMatch(/route|suchen/i);
     expect(translate("sl", "mh.browser.from")).toMatch(/od kod/i);
   });

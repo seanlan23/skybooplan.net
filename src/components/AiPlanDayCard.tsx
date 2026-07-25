@@ -37,6 +37,7 @@ import {
   resolveActivityCoordinates,
   shouldOfferActivityNavigation,
 } from "@/lib/mapPoiResolver";
+import { resolveDayNavOrigin } from "@/lib/navigationService";
 
 export function activityFocusKey(day: number, name: string): string {
   return `${day}:${name.trim().toLowerCase()}`;
@@ -295,6 +296,7 @@ function ActivityItem({
     Number.isFinite(lat) &&
     Number.isFinite(lng);
   const showNavigate = shouldOfferActivityNavigation(activity, day);
+  const dayOrigin = resolveDayNavOrigin(day);
 
   const handleFocus = () => {
     if (hasCoords && onFocus && lat != null && lng != null) {
@@ -373,6 +375,9 @@ function ActivityItem({
                     lng={lng}
                     label={activity.name}
                     destinationQuery={activity.name}
+                    originLat={dayOrigin.originLat}
+                    originLng={dayOrigin.originLng}
+                    originQuery={dayOrigin.originQuery}
                     size="compact"
                   />
                 </div>

@@ -163,6 +163,10 @@ export function buildOriginDepartureLogistics(
   const dep = flights.outboundDepart;
   const leadPhrase = originAirportLeadPhrase(dep, langCode);
   const hint = buildOriginDepartureHint(originIata, flights, langCode);
+  // Structured clocks from boarding-pass — not LLM. Arrive leadH before depart; security ~30m later.
+  const leadMin = Math.round(originAirportLeadHours(dep) * 60);
+  const atAirport = addHmMinutes(dep, -leadMin);
+  const securityAt = addHmMinutes(dep, -(leadMin - 30));
 
   return [
     {
@@ -176,6 +180,7 @@ export function buildOriginDepartureLogistics(
       }),
       type: "TRANSPORT",
       description: hint,
+      arrivalTime: atAirport,
     },
     {
       name: planLangCopy(langCode, {
@@ -195,6 +200,7 @@ export function buildOriginDepartureLogistics(
         es: `En ${iata} facture el equipaje si hace falta, haz check-in y seguridad. Para vuelos internacionales calcula ${leadPhrase} antes de las ${dep} — en temporada alta aún más margen.`,
         fr: `À ${iata}, déposez les bagages si besoin, faites l'enregistrement et la sécurité. Pour les vols internationaux, prévoyez ${leadPhrase} avant ${dep} — davantage en haute saison.`,
       }),
+      arrivalTime: securityAt,
     },
   ];
 }

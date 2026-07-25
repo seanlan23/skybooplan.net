@@ -1,6 +1,9 @@
 /** Languages the app may generate content in and expose in the UI. */
-export const ALLOWED_PLAN_LANGS = ["en", "sl", "es", "fr", "it", "de"] as const;
+export const ALLOWED_PLAN_LANGS = ["en", "sl", "de"] as const;
 export type PlanLang = (typeof ALLOWED_PLAN_LANGS)[number];
+
+/** Retired locales — still present in dormant i18n packs; map to English. */
+const RETIRED_PLAN_LANGS = new Set(["es", "fr", "it"]);
 
 export function isPlanLang(code: string): code is PlanLang {
   return (ALLOWED_PLAN_LANGS as readonly string[]).includes(code);
@@ -9,15 +12,17 @@ export function isPlanLang(code: string): code is PlanLang {
 /** Coerce persisted / user input to a supported plan language (default Slovenian). */
 export function normalizePlanLangCode(code: string | undefined | null): PlanLang {
   const raw = (code ?? "sl").trim().toLowerCase().slice(0, 2);
+  if (RETIRED_PLAN_LANGS.has(raw)) return "en";
   return isPlanLang(raw) ? raw : "sl";
 }
 
 /** Injected into every LLM system prompt for itinerary generation. */
 export const STRICT_LLM_LANGUAGE_RULE = `LANGUAGE (mandatory):
 - You must strictly output the entire JSON and all human-readable content in the user's selected languageCode from the user message.
-- Allowed language codes only: en, sl, es, fr, it, de.
+- Allowed language codes only: en, sl, de.
 - Never mix languages in the same response — no bilingual lines, no dual translations, no English glosses in parentheses when another language is selected.
 - If languageCode is "sl", every sentence must be 100% Slovenian (proper nouns and airport codes only exception).
+- If languageCode is "de", every sentence must be 100% German (proper nouns and airport codes only exception).
 - POI names may stay in their official local form; all descriptions, tips, labels, titles, and price text must match languageCode.
 
 See also CURRENCY rules in the same system prompt — language and currency constraints apply together.`;

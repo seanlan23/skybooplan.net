@@ -59,29 +59,29 @@ describe("i18n surface coverage", () => {
     }
   });
 
-  it("EU Schengen travel-req bodies are localized for it/es/fr/de", () => {
-    for (const lang of ["it", "es", "fr", "de"] as const) {
+  it("EU Schengen travel-req bodies are localized for de (retired langs → EN)", () => {
+    const de = buildFallbackTravelRequirements("MUC", "MUC", "de");
+    expect(de?.visaInfo?.[0]?.requirement).toBeTruthy();
+    expect(de!.visaInfo[0]!.requirement).not.toMatch(/do not need a visa for/i);
+
+    // Retired UI langs map to English copy.
+    for (const lang of ["it", "es", "fr"] as const) {
       const req = buildFallbackTravelRequirements("MUC", "MUC", lang);
-      expect(req?.visaInfo?.[0]?.requirement).toBeTruthy();
-      expect(req!.visaInfo[0]!.requirement).not.toMatch(/do not need a visa for/i);
+      expect(req!.visaInfo[0]!.requirement).toMatch(/do not need a visa|visa-free|Schengen/i);
     }
-    expect(buildFallbackTravelRequirements("MUC", "MUC", "it")!.visaInfo[0]!.requirement).toMatch(
-      /visto|UE\/Schengen/i,
-    );
   });
 
-  it("UK/USA travel-req bodies are localized for it/es/fr", () => {
+  it("UK/USA travel-req bodies stay English for retired langs", () => {
     for (const lang of ["it", "es", "fr"] as const) {
       const uk = buildFallbackTravelRequirements("LHR", "LHR", lang);
       const us = buildFallbackTravelRequirements("JFK", "JFK", lang);
-      expect(uk!.visaInfo[0]!.requirement).not.toMatch(/do not need a visa for short UK/i);
-      expect(us!.visaInfo[0]!.requirement).not.toMatch(/need ESTA \(Visa Waiver Program\)/i);
+      expect(uk!.visaInfo[0]!.requirement).toMatch(/UK|visa|ETA/i);
+      expect(us!.visaInfo[0]!.requirement).toMatch(/ESTA|Visa Waiver|USA|United States/i);
     }
   });
 
-  it("Philippines travel-req bodies are localized for it", () => {
+  it("Philippines travel-req bodies fall back to EN for retired it", () => {
     const req = buildFallbackTravelRequirements("MNL", "MNL", "it");
-    expect(req!.visaInfo[0]!.requirement).toMatch(/Filippine|visto/i);
-    expect(req!.visaInfo[0]!.requirement).not.toMatch(/visa-free for up to 30 days/i);
+    expect(req!.visaInfo[0]!.requirement).toMatch(/Philippines|visa-free/i);
   });
 });

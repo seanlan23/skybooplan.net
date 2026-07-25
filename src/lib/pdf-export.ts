@@ -1,5 +1,9 @@
 import jsPDF from "jspdf";
-import { buildGoogleMapsDirectionsUrl, isValidNavCoord } from "@/lib/navigationService";
+import {
+  buildGoogleMapsDirectionsUrl,
+  isValidNavCoord,
+  resolveDayNavOrigin,
+} from "@/lib/navigationService";
 import { resolvePlanContentLanguage, stripPlanTeaser } from "@/lib/planTeaser";
 import type { AiTripPlan } from "@/lib/aiPlan.functions";
 import { normalizePlanLangCode } from "@/lib/planLanguages";
@@ -391,7 +395,11 @@ function cleanSummary(raw: string): string {
   return (parts.length ? parts : [raw]).join(" ").replace(/\s+/g, " ").trim();
 }
 
-function activityFromUnknown(raw: unknown, labels?: PdfLabels): PdfActivity | null {
+function activityFromUnknown(
+  raw: unknown,
+  labels?: PdfLabels,
+  dayOrigin?: ReturnType<typeof resolveDayNavOrigin>,
+): PdfActivity | null {
   if (!raw || typeof raw !== "object") {
     const s = textOf(raw);
     return s ? { title: s } : null;
@@ -432,6 +440,7 @@ function activityFromUnknown(raw: unknown, labels?: PdfLabels): PdfActivity | nu
       ? buildGoogleMapsDirectionsUrl(lat, lng, {
           label: title,
           destinationQuery: title,
+          ...dayOrigin,
         })
       : undefined;
   return {
@@ -449,10 +458,16 @@ function slotItems(
   key: "morning" | "afternoon" | "evening",
   labels?: PdfLabels,
 ): PdfActivity[] {
+  const dayOrigin = resolveDayNavOrigin({
+    city: textOf(day.city) || undefined,
+    focusName: textOf(day.focusName) || undefined,
+    lat: typeof day.lat === "number" ? day.lat : Number(day.lat) || undefined,
+    lng: typeof day.lng === "number" ? day.lng : Number(day.lng) || undefined,
+  });
   const activities = (day.activities ?? {}) as Record<string, unknown>;
   const fromSlots = Array.isArray(activities[key]) ? (activities[key] as unknown[]) : [];
   const fromItems = fromSlots
-    .map((a) => activityFromUnknown(a, labels))
+    .map((a) => activityFromUnknown(a, labels, dayOrigin))
     .filter(Boolean) as PdfActivity[];
   if (fromItems.length) return fromItems;
 
@@ -468,8 +483,14 @@ function slotItems(
 
 function legacyItems(day: Record<string, unknown>, labels?: PdfLabels): PdfActivity[] {
   if (!Array.isArray(day.items)) return [];
+  const dayOrigin = resolveDayNavOrigin({
+    city: textOf(day.city) || undefined,
+    focusName: textOf(day.focusName) || undefined,
+    lat: typeof day.lat === "number" ? day.lat : Number(day.lat) || undefined,
+    lng: typeof day.lng === "number" ? day.lng : Number(day.lng) || undefined,
+  });
   return (day.items as unknown[])
-    .map((a) => activityFromUnknown(a, labels))
+    .map((a) => activityFromUnknown(a, labels, dayOrigin))
     .filter(Boolean) as PdfActivity[];
 }
 

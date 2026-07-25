@@ -40,7 +40,7 @@ import {
 import { flightContextPromptBlock } from "@/lib/geminiFlightContext";
 import { lookupDestination } from "@/lib/destinationCoords";
 import { DISTANCE_TRANSPORT_RULES } from "@/lib/transportPromptRules";
-import type { Lang } from "@/lib/i18n";
+import { normalizeAppLang } from "@/lib/i18n";
 
 export type {
   GenerateTripPlanParams,
@@ -350,7 +350,7 @@ ${roadTrip ? "- Road trip: enosmerna pot vzdolž ceste; večnočni kampi na isti
         })
       : "";
 
-  const lang = (params.language ?? "sl") as Lang;
+  const lang = normalizeAppLang(params.language ?? "sl");
   const displayCurrency = normalizePlanCurrency(params.currency);
   const teaser = planTeaserText(lang);
   const teaserBlock = `
@@ -446,8 +446,7 @@ ${flightReturnLine}
 - Vsaka aktivnost mora imeti category (sightseeing, nature, beach, food, entertainment, hotel, airport) in koordinate za oglede.
 - PREPOVEDANO: Grand Palace, Wat Pho, Wat Arun, Khao San na dnevih zunaj Bangkoka (npr. Khao Sok, Phuket, Krabi, Ao Nang). To so samo Bangkok znamenitosti.
 - PREPOVEDANO vulgarno/spolno opisovanje Phra Nang (penis temple, phallic, fertility shrine, lingam). Piši kot Phra Nang Cave Beach / Princess Cave — plaža in jama ob Railayu.
-- Vsaka aktivnost mora imeti arrivalTime in departureTime v formatu "HH:MM" (npr. "09:00", "11:30") — arrivalTime = začetek, departureTime = konec (kronološko; pri nočnem letu lahko konec < začetek na uri).
-- Vsaka aktivnost mora imeti timeSlot: "dopoldan", "popoldan" ali "vecer".
+- timeSlot je obvezen: "dopoldan", "popoldan" ali "vecer". arrivalTime/departureTime sta neobvezna za oglede — NE izmišljuj ur za mednarodni prihod/odhod (check-out, transfer, letališče, mednarodni let); aplikacija jih vstavi iz izbrane letalske karte.
 - ČASOVNA STRUKTURA: glej HIERARHIJA PRAVIL zgoraj — prazni sloti pred/za letom in ob mirnem tempu SO dovoljeni; ne polni dneva na silo.
 - Vsak dan obvezno izpolni travelHack (unikaten insider nasvet) in transportTip (dnevni pregled prevoza) — glej podrobna pravila spodaj.
 - Za dni z notranjim letom, trajektom, kombijem ali vlakom obvezno izpolni transportation[] (type: flight|ferry|train|van, from, to, duration, estimatedPrice v ${displayCurrency}). Za otok z letališčem na celini (npr. Boracay/MPH) obvezno 3 koraki: let → kombi → trajekt.
@@ -535,7 +534,7 @@ export function tripPlanSystemPrompt(params: GenerateTripPlanParams): string {
     ? "razen zadnjega logističnega dneva (vožnja/vlak nazaj na izhodišče)"
     : "razen zadnjega logističnega dneva na izhodno letališče";
 
-  const lang = (params.language ?? "sl") as Lang;
+  const lang = normalizeAppLang(params.language ?? "sl");
   const displayCurrency: PlanCurrency = normalizePlanCurrency(params.currency);
   const writingRule = languageWritingRule(lang);
   const moneyRule = currencyWritingRule(displayCurrency);
@@ -675,14 +674,14 @@ OBVEZNA KATEGORIJA ZA VSAKO AKTIVNOST (activities[].category):
   • hotel — check-in, check-out, nastanitev (brez ogleda)
   • airport — prilet, odlet, transfer na letališče
 - Za vsako aktivnost z ogledom/znamenitostjo dodaj točne coordinates (lat, lng) lokacije.
-- Za vsako aktivnost obvezno arrivalTime in departureTime (HH:MM) — realen urnik dneva.
 - Vsaka aktivnost MORA imeti timeSlot: natanko "dopoldan", "popoldan" ali "vecer".
+- arrivalTime/departureTime sta neobvezna. PREPOVEDANO izmišljevati ure za mednarodni prihod/odhod (check-out, transfer, check-in, mednarodni let) — te ure vstavi aplikacija iz izbrane letalske karte. Za oglede raje pusti ure prazne ali grob timeSlot.
 - category mora ustrezati dejanski vsebini aktivnosti — ne uporabljaj vedno iste kategorije.
 
 ČASOVNA STRUKTURA DNEVA (glej HIERARHIJA PRAVIL — ne polni na silo):
 - Na polnih dneh: aktivnosti po tempu (miren/sproščen = manj slotov; prazen slot = počitek OK).
 - Na dan prihoda/odhoda/dolg transfer: prazni timeSlot-i PRED/ZA letom so OBVEZNI — ne zapolnjuj z zajtrkom/siesto/plažo pred pristankom.
-- Ure obiska (arrivalTime, departureTime) morajo biti tekoče in realistične, brez prekrivanj.
+- Ne piši HH:MM v opise logistike prihoda/odhoda — boarding-pass ure so last kode.
 
 ${itineraryHacksAndTransportRules(displayCurrency)}
 

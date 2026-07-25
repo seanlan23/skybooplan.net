@@ -6,7 +6,7 @@ function phPlan(): AiTripPlan {
   return {
     destinationName: "Philippines",
     summary: "test",
-    contentLanguage: "it",
+    contentLanguage: "en",
     totalBudgetEur: 0,
     centerLat: 11.96,
     centerLng: 121.92,

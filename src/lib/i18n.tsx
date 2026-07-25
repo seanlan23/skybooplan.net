@@ -17,10 +17,16 @@ import {
 } from "@/lib/planCurrency";
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
-export const SUPPORTED_LANGS = [
-  "sl","en","es","fr","it","de",
-] as const;
+/** Active UI languages — es/fr/it packs stay in repo but are not selectable. */
+export const SUPPORTED_LANGS = ["sl", "en", "de"] as const;
 export type Lang = (typeof SUPPORTED_LANGS)[number];
+
+/** Dormant locale packs (not in picker) — kept for stripping old plan teasers. */
+export const DORMANT_LANGS = ["es", "fr", "it"] as const;
+export type DormantLang = (typeof DORMANT_LANGS)[number];
+export type DictLang = Lang | DormantLang;
+
+const RETIRED_UI_LANGS = new Set<string>(DORMANT_LANGS);
 
 type Dict = Record<string, string>;
 
@@ -1046,7 +1052,7 @@ function withEnglishFallback(overrides: Dict): Dict {
   return { ...en, ...overrides };
 }
 
-const dicts: Record<Lang, Dict> = {
+const dicts: Record<DictLang, Dict> = {
   en,
   sl: {
     "tab.flights": "Leti",
@@ -2705,8 +2711,10 @@ export function translationFallbackChain(lang: Lang): Lang[] {
 
 /** Normalize persisted / picked codes so incomplete packs do not stick as UI language. */
 export function normalizeAppLang(code: string): Lang {
-  if (!(SUPPORTED_LANGS as readonly string[]).includes(code)) return "en";
-  return code as Lang;
+  const raw = (code ?? "").trim().toLowerCase().slice(0, 2);
+  if (RETIRED_UI_LANGS.has(raw)) return "en";
+  if ((SUPPORTED_LANGS as readonly string[]).includes(raw)) return raw as Lang;
+  return "en";
 }
 
 export function readStoredLang(): Lang {
@@ -2746,6 +2754,16 @@ function lookupTranslation(lang: Lang, key: keyof typeof en): string {
 
 export function translate(lang: Lang, key: keyof typeof en): string {
   return lookupTranslation(lang, key);
+}
+
+/** Look up a key in active or dormant dicts (for stripping old es/fr/it teasers). */
+export function translateDictLang(lang: string, key: keyof typeof en): string {
+  const raw = (lang ?? "").trim().toLowerCase().slice(0, 2);
+  if (raw in dicts) {
+    const v = dicts[raw as DictLang]?.[key];
+    if (isUsableTranslation(v)) return v;
+  }
+  return lookupTranslation(normalizeAppLang(raw), key);
 }
 
 function isNetworkFetchError(message: string): boolean {

@@ -12,7 +12,7 @@ import {
   tripDayCount,
   type GenerateGeminiProTripInput,
 } from "@/lib/geminiPro.functions";
-import type { Lang } from "@/lib/i18n";
+import { normalizePlanLangCode } from "@/lib/planLanguages";
 
 export function buildCatalogPlanFromResponse(
   raw: TripPlanResponse,
@@ -101,7 +101,7 @@ export function buildGeminiMapOpts(data: GenerateGeminiProTripInput) {
     groundTransportMode: data.groundTransportMode,
     originPlace: data.originPlace,
     destinationPlace: data.destinationPlace,
-    language: (data.language ?? "sl") as Lang,
+    language: normalizePlanLangCode(data.language ?? "sl"),
     budget: data.budget,
     pax: data.pax.adults + data.pax.childrenAges.length,
   };

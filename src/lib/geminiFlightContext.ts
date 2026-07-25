@@ -1,8 +1,10 @@
 import type { Activity, AiTripPlan, DayPlan } from "@/lib/aiPlan.functions";
 import {
+  clearActivityStructuredClocks,
   isFlightRangeActivity,
   isPointInTimeActivity,
   normalizeActivityClocks,
+  stripProseClocksExcept,
 } from "@/lib/activityTime";
 import {
   arrivalDaySlot,
@@ -163,15 +165,31 @@ function preferRailHubHop(fromCity: string, hubName: string, destinationIata?: s
   return false;
 }
 
+/** Sights on flight days: no LLM clocks — code owns the schedule. */
+function stripSightClocks(a: Activity): Activity {
+  const cleared = clearActivityStructuredClocks({ ...a });
+  if (cleared.description) {
+    cleared.description = stripProseClocksExcept(cleared.description, []) ?? "";
+  }
+  return cleared;
+}
+
 function mergeArrivalDay(
   day: DayPlan,
   flights: TripFlightContext,
   logistics: LogisticsActivity[],
 ): DayPlan["activities"] {
   const logisticsActs = logistics.map(logisticsToActivity);
-  const sights = flattenDayActivities(day).filter(
-    (a) => !isHeavyArrivalSight(a) && !isPreLandingDestinationFiller(a),
-  );
+  const sights = flattenDayActivities(day)
+    .filter((a) => !isHeavyArrivalSight(a) && !isPreLandingDestinationFiller(a))
+    // Drop Gemini airport/transfer dupes — logistics rows already cover them.
+    .filter(
+      (a) =>
+        !/airport|letališč|check-?in|check-?out|transfer|immigraz|baggage|prtljag|mednarodni\s*let|international\s*(return\s*)?flight/i.test(
+          `${a.name} ${a.description ?? ""}`,
+        ),
+    )
+    .map(stripSightClocks);
   const slot = arrivalDaySlot(flights);
 
   if (isRedEyeArrival(flights)) {
@@ -208,11 +226,14 @@ function mergeDepartureDay(
   if (isTightDeparture(flights) || isEarlyDeparture(flights) || isAfternoonDeparture(flights)) {
     return { morning: logisticsActs, afternoon: [], evening: [] };
   }
-  const sights = flattenDayActivities(day).filter(
-    (a) => !/airport|letališč|odlet|odhod|povratek|flight home|return flight/i.test(
-      `${a.name} ${a.description ?? ""}`,
-    ),
-  );
+  const sights = flattenDayActivities(day)
+    .filter(
+      (a) =>
+        !/airport|letališč|odlet|odhod|povratek|flight home|return flight|check-?out|transfer|mednarodni\s*let|international\s*(return\s*)?flight/i.test(
+          `${a.name} ${a.description ?? ""}`,
+        ),
+    )
+    .map(stripSightClocks);
   if (isLateNightDeparture(flights)) {
     return {
       morning: sights.slice(0, 2),
@@ -428,8 +449,8 @@ export function flightContextPromptBlock(
       ? `- PRIORITETA NAD “polnim dnem”: na dan prihoda in odhoda so prazni sloti PRED/ZA letom OBVEZNI. PREPOVEDANO: zajtrk, siesta, plaža, “tropska pavza” ali dopoldanske aktivnosti na destinaciji, preden let pristane.`
       : `- PRIORITY OVER “full day”: empty slots before/after flights on arrival/departure days are REQUIRED. FORBIDDEN: breakfast, siesta, beach, or morning destination activities before the plane lands.`,
     slo
-      ? `- URE: na dan 1 je prihod na odhodno letališče = odhod − buffer (ne ura pristanka). Na zadnjem dnevu: check-out < transfer < letališče < let; samo mednarodni let sme imeti okno čez noč (npr. 18:10–06:00 +1).`
-      : `- CLOCKS: day-1 origin airport arrive = depart − buffer (never destination land time). Last day: checkout < transfer < airport < flight; only the international flight may show an overnight window (e.g. 18:10–06:00 +1).`,
+      ? `- URE (LAST KODE): NE izmišljuj HH:MM za check-out/transfer/letališče/mednarodni let — aplikacija jih vstavi. Na dan 1: prihod na odhodno letališče = odhod − buffer. Na zadnjem dnevu: check-out < transfer < letališče < let.`
+      : `- CLOCKS (CODE-OWNED): do NOT invent HH:MM for checkout/transfer/airport/international flight — the app injects them. Day-1 origin airport = depart − buffer. Last day: checkout < transfer < airport < flight.`,
     slo
       ? `- GEO: nikoli enodnevni izlet med nedosežnimi PH otoki (npr. Boracay ↔ Malapascua). Ostani na lokalnih plažah/otokih tega dne.`
       : `- GEO: never schedule same-day hops between non-adjacent PH islands (e.g. Boracay ↔ Malapascua). Keep local beaches/islands for that day.`,
@@ -510,6 +531,46 @@ function patchArrivalActivityClockTimes(
     morning: patchList(activities.morning),
     afternoon: patchList(activities.afternoon),
     evening: patchList(activities.evening),
+  };
+}
+
+/** True for code-built logistics rows (boarding-pass clocks allowed in prose). */
+function isCodeLogisticsActivity(a: Activity): boolean {
+  if (a.transportType === "flight" || isFlightRangeActivity(a)) return true;
+  const name = a.name ?? "";
+  return /check-?out|check-?in|airport transfer|prevoz na letališč|flughafentransfer|prihod na letališče|airport arrival|international return flight|mednarodni (povratni )?let|odhod:|departure:|abflug:|partenza:|salida:|security|varnostni|hotel check-out|vrnitev avtodoma|train |vlak |domestic transfer|notranji prevoz|transfert|traslado/i.test(
+    name,
+  );
+}
+
+/**
+ * Final lock: only logistics keep structured clocks + boarding-pass HH:MM in prose.
+ * Gemini sightseeing leftovers lose all HH:MM so they cannot fight the schedule.
+ */
+function lockCodeOwnedFlightDayClocks(
+  activities: NonNullable<DayPlan["activities"]>,
+  boardingPassTimes: string[],
+): NonNullable<DayPlan["activities"]> {
+  const board = boardingPassTimes.filter(Boolean);
+  const patch = (list: Activity[] | undefined): Activity[] =>
+    (list ?? []).map((a) => {
+      if (isCodeLogisticsActivity(a)) {
+        const keep = [
+          ...board,
+          a.arrivalTime?.trim() ?? "",
+          a.departureTime?.trim() ?? "",
+        ].filter(Boolean);
+        return normalizeActivityClocks({
+          ...a,
+          description: stripProseClocksExcept(a.description, keep) ?? a.description,
+        });
+      }
+      return stripSightClocks(a);
+    });
+  return {
+    morning: patch(activities.morning),
+    afternoon: patch(activities.afternoon),
+    evening: patch(activities.evening),
   };
 }
 
@@ -716,7 +777,15 @@ export function applyFlightContextToGeminiPlan(
       }
 
       // Nuke Gemini-invented landing times (e.g. 12:00) — boarding-pass time wins.
-      day.activities = patchArrivalActivityClockTimes(activities, flights);
+      day.activities = lockCodeOwnedFlightDayClocks(
+        patchArrivalActivityClockTimes(activities, flights),
+        [
+          flights.outboundDepart,
+          flights.outboundArrive,
+          flights.inboundDepart ?? "",
+          flights.inboundArrive ?? "",
+        ],
+      );
       day.title = patchArrivalDayTitle(day.title, flights, lang);
       day.morning = "";
       day.afternoon = "";
@@ -846,10 +915,18 @@ export function applyFlightContextToGeminiPlan(
         };
         merged.morning = [hop, ...(merged.morning ?? [])].slice(0, 4);
       }
-      day.activities = patchAirportActivityTimes(
-        merged,
-        flights.inboundDepart,
-        flights.inboundArrive,
+      day.activities = lockCodeOwnedFlightDayClocks(
+        patchAirportActivityTimes(
+          merged,
+          flights.inboundDepart,
+          flights.inboundArrive,
+        ),
+        [
+          flights.outboundDepart,
+          flights.outboundArrive,
+          flights.inboundDepart,
+          flights.inboundArrive ?? "",
+        ],
       );
     }
 

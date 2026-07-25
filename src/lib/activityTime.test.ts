@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  clearActivityStructuredClocks,
   formatActivityClockLabel,
   formatActivityClockRange,
   normalizeActivityClocks,
+  stripProseClocksExcept,
 } from "@/lib/activityTime";
 
 describe("formatActivityClockRange", () => {
@@ -63,6 +65,28 @@ describe("normalizeActivityClocks", () => {
       departureTime: "18:00",
     });
     expect(a.arrivalTime).toBe("20:30");
+    expect(a.departureTime).toBeUndefined();
+  });
+});
+
+describe("stripProseClocksExcept", () => {
+  it("removes invented HH:MM but keeps boarding-pass times", () => {
+    const out = stripProseClocksExcept(
+      "Meet at 09:15. Flight departs at 08:30, arrive 10:00.",
+      ["08:30", "10:00"],
+    );
+    expect(out).toMatch(/08:30/);
+    expect(out).toMatch(/10:00/);
+    expect(out).not.toMatch(/09:15/);
+  });
+
+  it("clearActivityStructuredClocks drops fields", () => {
+    const a = clearActivityStructuredClocks({
+      name: "Temple",
+      arrivalTime: "10:00",
+      departureTime: "12:00",
+    });
+    expect(a.arrivalTime).toBeUndefined();
     expect(a.departureTime).toBeUndefined();
   });
 });

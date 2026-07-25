@@ -204,7 +204,7 @@ const Input = z.object({
   departDate: z.string().min(10).max(10),
   returnDate: z.string().min(10).max(10).optional().or(z.literal("")),
   pax: z.number().min(1).max(9),
-  language: z.enum(["en", "sl", "es", "fr", "it", "de"]).optional(),
+  language: z.enum(["en", "sl", "de"]).optional(),
   currency: z.enum(["EUR", "USD"]).optional(),
   pace: z.enum(["intensive", "relaxed", "calm"]).optional(),
   wishes: z.string().max(2000).optional(),
@@ -391,7 +391,7 @@ export type AiTripPlan = {
    * Language the itinerary body was generated in (days, titles, tips).
    * UI chrome may differ when the user switches language later.
    */
-  contentLanguage?: "en" | "sl" | "es" | "fr" | "it" | "de";
+  contentLanguage?: "en" | "sl" | "de";
   /** Critical safety alert — shown as red card when set. */
   safetyWarning?: SafetyWarning | null;
   /** Weather + season + clothing widget from LLM. */

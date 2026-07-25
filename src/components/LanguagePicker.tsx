@@ -13,9 +13,6 @@ export type Language = {
 export const LANGUAGES: Language[] = [
   { code: "sl", label: "Slovenščina", native: "Slovenščina", flag: "🇸🇮" },
   { code: "en", label: "English", native: "English", flag: "🇬🇧" },
-  { code: "es", label: "Spanish", native: "Español", flag: "🇪🇸" },
-  { code: "fr", label: "French", native: "Français", flag: "🇫🇷" },
-  { code: "it", label: "Italian", native: "Italiano", flag: "🇮🇹" },
   { code: "de", label: "German", native: "Deutsch", flag: "🇩🇪" },
 ];
 

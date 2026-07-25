@@ -90,7 +90,7 @@ function tFor(lang: Lang, key: string): string {
 
 describe("i18n test harness", () => {
   it("exports the expected set of languages", () => {
-    expect(SUPPORTED_LANGS).toEqual(["sl", "en", "es", "fr", "it", "de"]);
+    expect(SUPPORTED_LANGS).toEqual(["sl", "en", "de"]);
   });
 
   it("the dictionary parser can read at least one known key", () => {
