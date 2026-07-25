@@ -15,6 +15,11 @@ describe("sanitizeSlText", () => {
   it("replaces Cyrillic оживи with Slovenian", () => {
     expect(sanitizeSlText("ko se tržnica оживи.")).toBe("ko se tržnica oživi.");
   });
+
+  it("preserves activity bullet newlines", () => {
+    const input = "- Prva točka\n- Druga točka\n- Tretja točka";
+    expect(sanitizeSlText(input)).toBe(input);
+  });
 });
 
 describe("fixMotorhomeCopyErrors", () => {

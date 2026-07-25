@@ -442,6 +442,11 @@ export function isLateNightDeparture(flights?: TripFlightContext): boolean {
   return parseHm(flights.inboundDepart) >= 21 * 60;
 }
 
+/** Minutes after wheels-down before leaving the airport (immigration + bags). */
+export const ARRIVAL_TRANSFER_OFFSET_MIN = 45;
+/** Minutes after wheels-down when hotel/RV check-in starts. */
+export const ARRIVAL_HOTEL_OFFSET_MIN = 90;
+
 /** Day 1: airport → transfer → check-in — then sights if time allows. */
 export function buildArrivalLogistics(
   city: string,
@@ -456,8 +461,9 @@ export function buildArrivalLogistics(
   const airportHint = airportArrivalHint(city, locale);
 
   const landHm = flights?.outboundArrive?.trim() || "14:00";
-  // Rough transfer window after wheels-down (immigration + bag + taxi).
-  const transferEnd = addHmMinutes(landHm, 90);
+  // Fixed stagger — never pile transfer + hotel on wheels-down (MUC–SYD 16:50 bug).
+  const transferAt = addHmMinutes(landHm, ARRIVAL_TRANSFER_OFFSET_MIN);
+  const hotelAt = addHmMinutes(landHm, ARRIVAL_HOTEL_OFFSET_MIN);
 
   return [
     {
@@ -500,13 +506,12 @@ export function buildArrivalLogistics(
           }),
       type: "TRANSPORT",
       priceLabel: locale.transferPrice,
-      arrivalTime: landHm,
-      departureTime: transferEnd,
+      arrivalTime: transferAt,
       description: motorhome
         ? planLangCopy(lang, {
-            sl: `Z letališča do najemnice avtodoma ali prvega avtokampa izven mestnega jedra. V center mesta kasneje z javnim prevozom ali P+R — ne parkiraj RV-ja v centru.`,
-            en: `From the airport to the RV rental depot or first campsite outside the city centre. Use transit or P+R for downtown later — do not park the RV downtown.`,
-            de: `Vom Flughafen zur Wohnmobil-Vermietung oder zum ersten Campingplatz außerhalb der Innenstadt. Ins Zentrum später mit ÖPNV oder P+R — Wohnmobil nicht in der City parken.`,
+            sl: `Okoli ${transferAt} z letališča do najemnice avtodoma ali prvega avtokampa izven mestnega jedra. V center mesta kasneje z javnim prevozom ali P+R — ne parkiraj RV-ja v centru.`,
+            en: `Around ${transferAt}, leave the airport for the RV rental depot or first campsite outside the city centre. Use transit or P+R for downtown later — do not park the RV downtown.`,
+            de: `Gegen ${transferAt} vom Flughafen zur Wohnmobil-Vermietung oder zum ersten Campingplatz außerhalb der Innenstadt. Ins Zentrum später mit ÖPNV oder P+R — Wohnmobil nicht in der City parken.`,
           })
         : hotelTransferDescription(city, locale),
     },
@@ -517,7 +522,7 @@ export function buildArrivalLogistics(
         de: "Check-in, frisch machen und kurze Pause",
       }),
       type: "STAY",
-      arrivalTime: transferEnd,
+      arrivalTime: hotelAt,
       description: planLangCopy(lang, {
         sl: late
           ? motorhome

@@ -7,10 +7,10 @@ import {
 import { resolvePlanContentLanguage, stripPlanTeaser } from "@/lib/planTeaser";
 import type { AiTripPlan } from "@/lib/aiPlan.functions";
 import { normalizePlanLangCode } from "@/lib/planLanguages";
+import { activityDescriptionBullets } from "@/lib/activityDescription";
 import { formatActivityClockLabel } from "@/lib/activityTime";
 import { enrichMotorhomePlanTips } from "@/lib/motorhomePlanTips";
 import { fixMotorhomeCopyErrors } from "@/lib/textSanitize";
-import type { AiTripPlan } from "@/lib/aiPlan.functions";
 
 /**
  * Served from /public/fonts so Nitro/Vercel always can fetch them.
@@ -49,6 +49,7 @@ type PdfActivity = {
   time?: string;
   title: string;
   description?: string;
+  bullets?: string[];
   location?: string;
   price?: string;
   /** Google Maps directions when AI provided a concrete place. */
@@ -87,6 +88,7 @@ type NormalizedPdfPlan = {
   hotels: string[];
   packing: string[];
   labels: PdfLabels;
+  coverImageUrl?: string;
 };
 
 type PdfLabels = {
@@ -118,7 +120,12 @@ const ACCENT = SKY;
 const INK = { r: 30, g: 41, b: 59 };
 const MUTED = { r: 100, g: 116, b: 139 };
 const RULE = { r: 226, g: 232, b: 240 };
+const BAND = { r: 241, g: 245, b: 249 }; // slate-100 day header
+const PILL_BG = { r: 224, g: 242, b: 254 }; // sky-100
+const CARD = { r: 248, g: 250, b: 252 }; // slate-50 soft panels
+const WHITE = { r: 255, g: 255, b: 255 };
 const FONT = "DejaVuSans";
+const COVER_H = 220;
 
 /** Paper-plane mark from LogoMark (SVG 48×48 → PDF triangles). */
 function drawLogoMark(
@@ -349,7 +356,9 @@ export function sanitizePdfText(input: string): string {
   return input
     .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, "")
     .replace(/\u0000/g, "")
-    .replace(/\s+/g, " ")
+    // Collapse spaces/tabs only — keep newlines so bullet lists survive when needed.
+    .replace(/[^\S\n]+/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
 
@@ -424,6 +433,9 @@ function activityFromUnknown(
     textOf(o.priceLabel) ||
     textOf(o.price) ||
     (typeof o.estimatedCostEur === "number" ? `€${o.estimatedCostEur}` : undefined);
+  const bullets = Array.isArray(o.bullets)
+    ? o.bullets.filter((b): b is string => typeof b === "string" && b.trim().length > 0)
+    : undefined;
   const desc = textOf(o.description);
   const location = textOf(o.location) || textOf(o.city);
   const lat = typeof o.lat === "number" ? o.lat : Number(o.lat);
@@ -447,6 +459,7 @@ function activityFromUnknown(
     title,
     time: time || undefined,
     description: desc || undefined,
+    bullets: bullets?.length ? bullets.map((b) => sanitizePdfText(b)).filter(Boolean) : undefined,
     location: location || undefined,
     price: price || undefined,
     mapsUrl,
@@ -565,6 +578,7 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
         ...it,
         title: fix(it.title),
         description: it.description ? fix(it.description) : it.description,
+        bullets: it.bullets?.map((b) => fix(b)),
       })),
     }));
 
@@ -632,6 +646,11 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
       ? Math.round(plan.pax)
       : 1;
 
+  const coverImageUrl =
+    typeof plan.cover_image_url === "string" && plan.cover_image_url.trim()
+      ? plan.cover_image_url.trim()
+      : undefined;
+
   return {
     title: plan.title || destination || "Skybooplan",
     destination,
@@ -645,8 +664,11 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
     hotels,
     packing,
     labels,
+    coverImageUrl,
   };
 }
+
+type CoverImage = { dataUrl: string; format: "JPEG" | "PNG" };
 
 /** Convert font bytes → binary string without blowing Safari's apply/spread stack. */
 function uint8ToBinaryString(bytes: Uint8Array): string {
@@ -661,6 +683,35 @@ function uint8ToBinaryString(bytes: Uint8Array): string {
     binary += part;
   }
   return binary;
+}
+
+/** Best-effort cover photo — never blocks PDF if fetch/CORS fails. */
+async function tryLoadCoverImage(url?: string): Promise<CoverImage | null> {
+  if (!url || typeof fetch !== "function") return null;
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 4_000);
+    const res = await fetch(url, { signal: ctrl.signal, mode: "cors" });
+    clearTimeout(timer);
+    if (!res.ok) return null;
+    const buf = await res.arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    if (bytes.length < 32 || bytes.length > 4_500_000) return null;
+    const isPng =
+      bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47;
+    const isJpg = bytes[0] === 0xff && bytes[1] === 0xd8;
+    if (!isPng && !isJpg) return null;
+    const binary = uint8ToBinaryString(bytes);
+    // btoa is browser; Buffer for Node/Vitest.
+    const b64 =
+      typeof btoa === "function"
+        ? btoa(binary)
+        : Buffer.from(bytes).toString("base64");
+    const mime = isPng ? "image/png" : "image/jpeg";
+    return { dataUrl: `data:${mime};base64,${b64}`, format: isPng ? "PNG" : "JPEG" };
+  } catch {
+    return null;
+  }
 }
 
 async function loadFontBinary(url: string): Promise<string> {
@@ -751,13 +802,15 @@ export async function generatePlanPdf(plan: PlanForPdf): Promise<{
   doc: jsPDF;
 }> {
   const model = normalizePlanForPdf(plan);
+  const coverImage = await tryLoadCoverImage(model.coverImageUrl);
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const hasUnicodeFont = await ensureFonts(doc);
 
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
-  const margin = 48;
+  const margin = 44;
   const contentW = pageW - margin * 2;
+  const footerH = 52;
   let y = margin;
 
   const setFont = (style: "normal" | "bold", size: number, color = INK) => {
@@ -784,31 +837,30 @@ export async function generatePlanPdf(plan: PlanForPdf): Promise<{
     }
   };
 
+  const measure = (value: string, style: "normal" | "bold", size: number) => {
+    setFont(style, size);
+    let cleaned = sanitizePdfText(value);
+    if (!hasUnicodeFont) cleaned = asciiFallback(cleaned);
+    return cleaned ? doc.getTextWidth(cleaned) : 0;
+  };
+
   const ensureSpace = (needed: number) => {
-    if (y + needed > pageH - 56) {
+    if (y + needed > pageH - footerH) {
       doc.addPage();
       y = margin;
     }
   };
 
-  const rule = () => {
-    ensureSpace(12);
-    doc.setDrawColor(RULE.r, RULE.g, RULE.b);
-    doc.setLineWidth(0.8);
-    doc.line(margin, y, pageW - margin, y);
-    y += 14;
-  };
-
   const heading = (text: string) => {
-    ensureSpace(36);
-    y += 6;
-    setFont("bold", 13, ACCENT);
-    safeText(text.toUpperCase(), margin, y);
+    ensureSpace(40);
     y += 8;
-    doc.setDrawColor(ACCENT.r, ACCENT.g, ACCENT.b);
-    doc.setLineWidth(1.5);
-    doc.line(margin, y, margin + 28, y);
-    y += 16;
+    setFont("bold", 11, SKY_DARK);
+    safeText(text, margin, y);
+    y += 7;
+    doc.setDrawColor(SKY.r, SKY.g, SKY.b);
+    doc.setLineWidth(2);
+    doc.line(margin, y, margin + 36, y);
+    y += 14;
   };
 
   const para = (text: string, size = 10, color = INK, indent = 0) => {
@@ -825,55 +877,132 @@ export async function generatePlanPdf(plan: PlanForPdf): Promise<{
     }
   };
 
+  const softPanel = (height: number) => {
+    ensureSpace(height + 8);
+    doc.setFillColor(CARD.r, CARD.g, CARD.b);
+    doc.roundedRect(margin, y - 4, contentW, height, 6, 6, "F");
+  };
+
+  const drawSlotPill = (label: string) => {
+    const padX = 10;
+    const h = 16;
+    const w = measure(label, "bold", 8.5) + padX * 2;
+    ensureSpace(h + 10);
+    doc.setFillColor(PILL_BG.r, PILL_BG.g, PILL_BG.b);
+    doc.roundedRect(margin, y - 11, w, h, 8, 8, "F");
+    setFont("bold", 8.5, SKY_DARK);
+    safeText(label, margin + padX, y);
+    y += 14;
+  };
+
+  const drawDayBand = (metaLine: string, title: string) => {
+    const titleRaw = sanitizePdfText(title);
+    const titleSafe = hasUnicodeFont ? titleRaw : asciiFallback(titleRaw);
+    setFont("bold", 12, INK);
+    const titleLines = doc.splitTextToSize(titleSafe, contentW - 28) as string[];
+    const bandH = 28 + titleLines.length * 14;
+    ensureSpace(bandH + 12);
+    doc.setFillColor(BAND.r, BAND.g, BAND.b);
+    doc.roundedRect(margin, y, contentW, bandH, 7, 7, "F");
+    doc.setFillColor(SKY.r, SKY.g, SKY.b);
+    doc.rect(margin, y, 4, bandH, "F");
+    setFont("bold", 9, SKY_DARK);
+    safeText(metaLine, margin + 14, y + 14);
+    setFont("bold", 12, INK);
+    let ty = y + 30;
+    for (const line of titleLines) {
+      safeText(line, margin + 14, ty);
+      ty += 14;
+    }
+    y += bandH + 12;
+  };
+
   // ===== COVER =====
-  doc.setFillColor(BRAND.r, BRAND.g, BRAND.b);
-  doc.rect(0, 0, pageW, 168, "F");
+  if (coverImage) {
+    try {
+      doc.addImage(coverImage.dataUrl, coverImage.format, 0, 0, pageW, COVER_H, undefined, "FAST");
+    } catch {
+      doc.setFillColor(BRAND.r, BRAND.g, BRAND.b);
+      doc.rect(0, 0, pageW, COVER_H, "F");
+    }
+    try {
+      const GState = (doc as unknown as { GState: new (o: { opacity: number }) => unknown }).GState;
+      doc.setGState(new GState({ opacity: 0.52 }) as never);
+      doc.setFillColor(BRAND.r, BRAND.g, BRAND.b);
+      doc.rect(0, 0, pageW, COVER_H, "F");
+      doc.setGState(new GState({ opacity: 1 }) as never);
+    } catch {
+      doc.setFillColor(BRAND.r, BRAND.g, BRAND.b);
+      doc.rect(0, COVER_H - 100, pageW, 100, "F");
+    }
+  } else {
+    doc.setFillColor(BRAND.r, BRAND.g, BRAND.b);
+    doc.rect(0, 0, pageW, COVER_H, "F");
+    doc.setFillColor(SKY_DARK.r, SKY_DARK.g, SKY_DARK.b);
+    doc.rect(0, 0, pageW, 5, "F");
+    // Quiet brand accent — right edge wash, still readable.
+    doc.setFillColor(SKY.r, SKY.g, SKY.b);
+    doc.rect(pageW - 8, 0, 8, COVER_H, "F");
+  }
   doc.setFillColor(SKY.r, SKY.g, SKY.b);
-  doc.rect(0, 168, pageW, 4, "F");
+  doc.rect(0, COVER_H, pageW, 4, "F");
 
   const markSize = 22;
   drawLogoMark(doc, margin, 28, markSize);
   drawBrandWordmark(doc, margin + markSize + 8, 44, {
-    size: 14,
+    size: 15,
     onDark: true,
     unicode: hasUnicodeFont,
   });
   setFont("normal", 9, { r: 186, g: 230, b: 253 });
-  doc.setTextColor(186, 230, 253);
   const brandTag = model.labels.brand.includes("Potovalni")
     ? "Potovalni načrt"
-    : "Travel plan";
-  safeText(brandTag, margin + markSize + 8, 58);
+    : model.labels.brand.includes("Reiseplan")
+      ? "Reiseplan"
+      : "Travel plan";
+  safeText(brandTag, margin + markSize + 8, 60);
 
-  setFont("bold", 26, { r: 255, g: 255, b: 255 });
-  doc.setTextColor(255, 255, 255);
-  const rawTitle = sanitizePdfText(model.title.replace(/\s*→\s*/g, " → "));
-  const titleForSplit = hasUnicodeFont ? rawTitle : asciiFallback(rawTitle);
-  const titleLines = doc.splitTextToSize(titleForSplit, contentW) as string[];
-  for (let i = 0; i < Math.min(3, titleLines.length); i++) {
-    safeText(titleLines[i]!, margin, 96 + i * 28);
+  // Destination is the hero signal; route title is secondary.
+  const heroDest = sanitizePdfText(model.destination || model.title);
+  const heroSafe = hasUnicodeFont ? heroDest : asciiFallback(heroDest);
+  setFont("bold", 28, WHITE);
+  const heroLines = doc.splitTextToSize(heroSafe, contentW) as string[];
+  let heroY = 108;
+  for (let i = 0; i < Math.min(2, heroLines.length); i++) {
+    safeText(heroLines[i]!, margin, heroY);
+    heroY += 32;
   }
 
-  setFont("normal", 12, { r: 255, g: 255, b: 255 });
-  doc.setTextColor(226, 232, 240);
-  const meta = [model.destination, [model.startDate, model.endDate].filter(Boolean).join("  –  ")]
-    .filter(Boolean)
-    .join("  ·  ");
-  if (meta) safeText(meta, margin, 148);
+  const routeTitle = sanitizePdfText(model.title.replace(/\s*→\s*/g, " → "));
+  if (routeTitle && routeTitle.toLowerCase() !== heroDest.toLowerCase()) {
+    setFont("normal", 11, { r: 186, g: 230, b: 253 });
+    const routeSafe = hasUnicodeFont ? routeTitle : asciiFallback(routeTitle);
+    const routeLines = doc.splitTextToSize(routeSafe, contentW) as string[];
+    safeText(routeLines[0]!, margin, heroY);
+    heroY += 18;
+  }
 
-  y = 200;
+  setFont("normal", 11, { r: 226, g: 232, b: 240 });
+  const meta = [model.startDate, model.endDate].filter(Boolean).join("  –  ");
+  if (meta) safeText(meta, margin, Math.min(heroY + 4, COVER_H - 18));
+
+  y = COVER_H + 28;
 
   if (model.summary) {
     heading(model.labels.overview);
     para(model.summary, 10.5, MUTED);
-    y += 4;
+    y += 6;
   }
 
   if (model.totalBudgetEur != null) {
     heading(model.labels.budget);
-    para(`€${Math.round(model.totalBudgetEur)}`, 14, INK);
-    para(model.labels.budgetForPax(model.pax), 9, MUTED, 4);
-    y += 2;
+    const budgetH = 44;
+    softPanel(budgetH);
+    setFont("bold", 18, INK);
+    safeText(`€${Math.round(model.totalBudgetEur)}`, margin + 14, y + 18);
+    setFont("normal", 9, MUTED);
+    safeText(model.labels.budgetForPax(model.pax), margin + 14, y + 34);
+    y += budgetH + 10;
   }
 
   // ===== DAYS =====
@@ -881,11 +1010,10 @@ export async function generatePlanPdf(plan: PlanForPdf): Promise<{
     heading(model.labels.daily);
 
     for (const d of model.days) {
-      ensureSpace(56);
       const dateLabel = [fmtDate(d.date), d.dateEnd ? fmtDate(d.dateEnd) : ""]
         .filter(Boolean)
         .join(" – ");
-      const head = [
+      const metaLine = [
         model.labels.day(d.day, d.dayEnd),
         dateLabel,
         d.city,
@@ -893,20 +1021,7 @@ export async function generatePlanPdf(plan: PlanForPdf): Promise<{
         .filter(Boolean)
         .join("  ·  ");
 
-      setFont("bold", 12, ACCENT);
-      safeText(head, margin, y);
-      y += 15;
-
-      setFont("bold", 11, INK);
-      const dayTitleRaw = sanitizePdfText(d.title);
-      const dayTitle = hasUnicodeFont ? dayTitleRaw : asciiFallback(dayTitleRaw);
-      const titleLinesDay = doc.splitTextToSize(dayTitle, contentW) as string[];
-      for (const line of titleLinesDay) {
-        ensureSpace(14);
-        safeText(line, margin, y);
-        y += 14;
-      }
-      y += 2;
+      drawDayBand(metaLine, d.title);
 
       for (const leg of d.transportation) {
         const line = [
@@ -917,57 +1032,94 @@ export async function generatePlanPdf(plan: PlanForPdf): Promise<{
         ]
           .filter(Boolean)
           .join("  ·  ");
-        para(`▸ ${line}`, 9.5, MUTED, 4);
+        ensureSpace(18);
+        doc.setFillColor(PILL_BG.r, PILL_BG.g, PILL_BG.b);
+        doc.roundedRect(margin, y - 10, contentW, 18, 5, 5, "F");
+        setFont("bold", 9, SKY_DARK);
+        safeText(`▸  ${line}`, margin + 10, y + 2);
+        y += 22;
       }
 
       for (const slot of d.slots) {
-        ensureSpace(18);
-        setFont("bold", 9.5, MUTED);
-        safeText(slot.label.toUpperCase(), margin + 4, y);
-        y += 13;
+        drawSlotPill(slot.label);
 
         for (const it of slot.items) {
-          const lead = [it.time, it.title].filter(Boolean).join("  ·  ");
-          setFont("bold", 10, INK);
-          const leadRaw = sanitizePdfText(`•  ${lead}`);
-          const leadSafe = hasUnicodeFont ? leadRaw : asciiFallback(leadRaw);
-          const leadLines = doc.splitTextToSize(leadSafe, contentW - 8) as string[];
-          for (const line of leadLines) {
+          ensureSpace(36);
+          const timeLabel = it.time?.trim() || "";
+          const timeW = timeLabel ? measure(timeLabel, "bold", 9) : 0;
+          const titleMaxW = contentW - (timeW ? timeW + 16 : 0);
+
+          setFont("bold", 10.5, INK);
+          const titleRaw = sanitizePdfText(it.title);
+          const titleSafe = hasUnicodeFont ? titleRaw : asciiFallback(titleRaw);
+          const titleLines = doc.splitTextToSize(titleSafe, titleMaxW) as string[];
+          const rowTop = y;
+          for (const line of titleLines) {
             ensureSpace(13);
-            safeText(line, margin + 4, y);
+            safeText(line, margin + 2, y);
             y += 12;
           }
-          if (it.price) para(it.price, 9, MUTED, 16);
-          if (it.description) para(it.description, 9, MUTED, 16);
-          if (it.location) para(it.location, 9, MUTED, 16);
+          if (timeLabel) {
+            setFont("bold", 9, SKY_DARK);
+            safeText(timeLabel, pageW - margin, rowTop, { align: "right" });
+          }
+
+          if (it.price) {
+            setFont("normal", 9, MUTED);
+            safeText(it.price, margin + 10, y);
+            y += 12;
+          }
+          {
+            const lines = activityDescriptionBullets(it.description, it.bullets);
+            for (const line of lines) {
+              setFont("normal", 9, MUTED);
+              const bullet = `–  ${line}`;
+              const cleaned = hasUnicodeFont
+                ? sanitizePdfText(bullet)
+                : asciiFallback(sanitizePdfText(bullet));
+              const wrap = doc.splitTextToSize(cleaned, contentW - 16) as string[];
+              for (const wline of wrap) {
+                ensureSpace(12);
+                safeText(wline, margin + 10, y);
+                y += 11;
+              }
+            }
+          }
+          if (it.location) para(it.location, 8.5, MUTED, 10);
           if (it.mapsUrl) {
             ensureSpace(14);
             setFont("normal", 9, SKY);
             try {
-              doc.textWithLink(model.labels.navigate, margin + 16, y, { url: it.mapsUrl });
+              doc.textWithLink(model.labels.navigate, margin + 10, y, { url: it.mapsUrl });
             } catch {
-              safeText(model.labels.navigate, margin + 16, y);
+              safeText(model.labels.navigate, margin + 10, y);
             }
             y += 12;
           }
-          y += 3;
+          y += 8;
         }
       }
 
+      if (d.dailyBudgetEur != null || d.transportTips) {
+        ensureSpace(28);
+        doc.setDrawColor(RULE.r, RULE.g, RULE.b);
+        doc.setLineWidth(0.6);
+        doc.line(margin, y, pageW - margin, y);
+        y += 12;
+      }
       if (d.dailyBudgetEur != null) {
         para(
           `${model.labels.dailyBudget}: €${Math.round(d.dailyBudgetEur)} ${model.labels.dailyBudgetPerPerson}`,
           9,
           MUTED,
-          4,
+          2,
         );
       }
       if (d.transportTips) {
-        para(`${model.labels.transport}: ${d.transportTips}`, 9, MUTED, 4);
+        para(`${model.labels.transport}: ${d.transportTips}`, 9, MUTED, 2);
       }
 
-      y += 6;
-      rule();
+      y += 14;
     }
   }
 
@@ -991,14 +1143,17 @@ export async function generatePlanPdf(plan: PlanForPdf): Promise<{
   const pageCount = doc.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
-    drawLogoMark(doc, margin, pageH - 38, 12);
-    drawBrandWordmark(doc, margin + 16, pageH - 24, {
+    doc.setDrawColor(SKY.r, SKY.g, SKY.b);
+    doc.setLineWidth(1.2);
+    doc.line(margin, pageH - 44, pageW - margin, pageH - 44);
+    drawLogoMark(doc, margin, pageH - 34, 11);
+    drawBrandWordmark(doc, margin + 15, pageH - 22, {
       size: 8.5,
       onDark: false,
       unicode: hasUnicodeFont,
     });
     setFont("normal", 8.5, MUTED);
-    safeText(model.labels.pageOf(i, pageCount), pageW - margin, pageH - 24, {
+    safeText(model.labels.pageOf(i, pageCount), pageW - margin, pageH - 22, {
       align: "right",
     });
   }

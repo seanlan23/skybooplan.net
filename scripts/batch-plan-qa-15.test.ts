@@ -5,7 +5,9 @@
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { formatActivityDescription } from "@/lib/activityDescription";
 import { buildCatalogPlanFromResponse } from "@/lib/geminiProCatalog";
+import { applyFlightContextToGeminiPlan } from "@/lib/geminiFlightContext";
 import { generateTripPlan } from "@/lib/geminiPro";
 import type { GenerateGeminiProTripInput } from "@/lib/geminiPro.functions";
 import { buildGeminiTripPlanParams } from "@/lib/geminiPro.functions";
@@ -13,6 +15,20 @@ import { buildMapDay, finalizeItineraryMapCoords } from "@/lib/itineraryMapModel
 import type { AiTripPlan } from "@/lib/aiPlan.functions";
 import { geminiApiKey } from "@/lib/llm";
 import { generatePlanPdf } from "@/lib/pdf-export";
+
+/** Re-sync description from bullets[] after older caches flattened newlines. */
+function repairCachedActivityCopy(plan: AiTripPlan) {
+  for (const day of plan.days) {
+    if (!day.activities) continue;
+    for (const slot of ["morning", "afternoon", "evening"] as const) {
+      for (const act of day.activities[slot] ?? []) {
+        if (act.bullets && act.bullets.length > 0) {
+          act.description = formatActivityDescription(act.bullets);
+        }
+      }
+    }
+  }
+}
 
 function loadEnvLocal() {
   for (const file of [".env.local", ".env"]) {
@@ -402,6 +418,15 @@ function tripDayCount(depart: string, ret: string): number {
   return Math.max(1, Math.round((b - a) / 86_400_000) + 1);
 }
 
+function flattenDay(day: AiTripPlan["days"][number]) {
+  return [
+    ...(day.activities?.morning ?? []),
+    ...(day.activities?.afternoon ?? []),
+    ...(day.activities?.evening ?? []),
+  ];
+}
+
+/** Structural QA beyond pins — arrival clocks, walls of text, last-day logistics. */
 function analyze(plan: AiTripPlan) {
   const issues: string[] = [];
   let totalPins = 0;
@@ -411,12 +436,9 @@ function analyze(plan: AiTripPlan) {
   if (new Set(dayNums).size !== dayNums.length) {
     issues.push(`duplicate days: ${dayNums.join(",")}`);
   }
+  const totalDays = plan.days.length;
   for (const day of plan.days) {
-    const slots = [
-      ...(day.activities?.morning ?? []),
-      ...(day.activities?.afternoon ?? []),
-      ...(day.activities?.evening ?? []),
-    ];
+    const slots = flattenDay(day);
     if (slots.length === 0 && !day.inFlightDay) issues.push(`D${day.day}: empty activities`);
     const md = buildMapDay(plan, day.day);
     const n = md?.pins.length ?? 0;
@@ -424,6 +446,76 @@ function analyze(plan: AiTripPlan) {
     totalPins += n;
     if (n > 0) daysWithPins += 1;
     if (!md) issues.push(`D${day.day}: no MapDay`);
+
+    // Wall-of-text on sights/food only — code logistics prose is allowed longer.
+    for (const a of slots) {
+      const blob = `${a.name} ${a.type ?? ""}`;
+      if (
+        a.type === "TRANSPORT" ||
+        a.type === "STAY" ||
+        /prihod na letališč|airport arrival|check-in|check-out|prevoz|transfer|mednarodni let|international flight|varnostni|security|odhod:/i.test(
+          blob,
+        )
+      ) {
+        continue;
+      }
+      const desc = (a.description ?? "").trim();
+      if (
+        desc.length > 220 &&
+        !desc.includes("\n") &&
+        !(a.bullets && a.bullets.length > 1)
+      ) {
+        issues.push(`D${day.day}: wall-of-text "${a.name.slice(0, 40)}"`);
+      }
+    }
+
+    // Arrival logistics pile-up: airport + transfer + hotel all same HH:MM.
+    // Exclude origin rows titled "… Airport (PRG)" — destination arrival is bare "Airport arrival".
+    const landish = slots.filter(
+      (a) =>
+        /^(prihod na letališče|airport arrival|ankunft am flughafen)\b/i.test(a.name) &&
+        !/\([A-Z]{3}\)/.test(a.name),
+    );
+    const transferish = slots.filter((a) =>
+      /prevoz do hotela|transfer to hotel|transfer zum hotel/i.test(a.name),
+    );
+    const hotelish = slots.filter(
+      (a) =>
+        (/check-in|osvežit|short rest|frisch machen/i.test(a.name) &&
+          !/varnostni|security|controlli/i.test(a.name)) ||
+        a.type === "STAY",
+    );
+    if (landish[0]?.arrivalTime && transferish[0]?.arrivalTime && hotelish[0]?.arrivalTime) {
+      const t0 = landish[0].arrivalTime;
+      if (transferish[0].arrivalTime === t0 || hotelish[0].arrivalTime === t0) {
+        issues.push(
+          `D${day.day}: arrival clock pile-up land=${t0} transfer=${transferish[0].arrivalTime} hotel=${hotelish[0].arrivalTime}`,
+        );
+      }
+    }
+
+    // Last day: checkout / transfer / airport should not all share one clock.
+    if (day.day === totalDays) {
+      const checkout = slots.find((a) => /check-?out|odhod iz hotela/i.test(a.name));
+      const toAirport = slots.find((a) =>
+        /prevoz na letališč|airport transfer|flughafentransfer/i.test(a.name),
+      );
+      const flight = slots.find((a) =>
+        /mednarodni|international (return )?flight|rückflug/i.test(a.name),
+      );
+      if (
+        checkout?.arrivalTime &&
+        toAirport?.arrivalTime &&
+        checkout.arrivalTime === toAirport.arrivalTime
+      ) {
+        issues.push(
+          `D${day.day}: departure clock pile-up checkout=${checkout.arrivalTime} transfer=${toAirport.arrivalTime}`,
+        );
+      }
+      if (flight?.arrivalTime && checkout?.arrivalTime && flight.arrivalTime === checkout.arrivalTime) {
+        issues.push(`D${day.day}: flight clock equals checkout (${flight.arrivalTime})`);
+      }
+    }
   }
   return {
     destinationName: plan.destinationName,
@@ -439,7 +531,7 @@ function analyze(plan: AiTripPlan) {
 
 const RUN_LIVE = process.env.RUN_LIVE_PLAN_QA === "1";
 const OUT = resolve(process.cwd(), ".tmp-plan-qa-15");
-const EXPORT = resolve(process.cwd(), "plan-exports/worldwide-15-2026-07-22");
+const EXPORT = resolve(process.cwd(), "plan-exports/worldwide-15-2026-07-26");
 
 describe.runIf(RUN_LIVE)("worldwide batch ×15", () => {
   it(
@@ -523,6 +615,21 @@ describe.runIf(RUN_LIVE)("worldwide batch ×15", () => {
             );
           }
 
+          // Cached plans: re-apply logistics + bullet repair so PDF picks up code fixes.
+          repairCachedActivityCopy(plan);
+          applyFlightContextToGeminiPlan(plan, { ...s.flightContext }, {
+            originIata: s.originIata,
+            language: "sl",
+          });
+          writeFileSync(
+            jsonPath,
+            JSON.stringify(
+              { scenario: s, destinationName: plan.destinationName, days: plan.days },
+              null,
+              2,
+            ),
+          );
+
           finalizeItineraryMapCoords(plan);
           const analysis = analyze(plan);
           const pdf = await generatePlanPdf({
@@ -546,7 +653,7 @@ describe.runIf(RUN_LIVE)("worldwide batch ×15", () => {
             ms: Date.now() - started,
             days: plan.days.length,
             ...analysis,
-            pdf: `plan-exports/worldwide-15-2026-07-22/${pdfName}`,
+            pdf: `plan-exports/worldwide-15-2026-07-26/${pdfName}`,
           };
         } catch (err) {
           entry = {
@@ -588,7 +695,7 @@ describe.runIf(RUN_LIVE)("worldwide batch ×15", () => {
       writeFileSync(resolve(EXPORT, "report.json"), JSON.stringify(report, null, 2));
 
       const md = [
-        "# Worldwide plan QA ×15 — 22 Jul 2026",
+        "# Worldwide plan QA ×15 — 26 Jul 2026",
         "",
         `Generated: ${report.generatedAt}`,
         "",
@@ -616,8 +723,9 @@ describe.runIf(RUN_LIVE)("worldwide batch ×15", () => {
         "## Notes",
         "",
         "- Language: Slovenian; mixed budgets/paces/pax including families & solo.",
-        "- Map pins use activity backfill + 120 km day-trip radius.",
+        "- Checks: map pins, arrival/departure clock stagger, wall-of-text descriptions.",
         "- In-flight days may have 0 pins (expected).",
+        "- PDF styling: day bands, slot pills, structured bullets (2026-07-26).",
         "",
       ].join("\n");
       writeFileSync(resolve(EXPORT, "REPORT.md"), md);
@@ -626,8 +734,8 @@ describe.runIf(RUN_LIVE)("worldwide batch ×15", () => {
       const summaryPdf = await generatePlanPdf({
         title: "Skybooplan — Worldwide QA ×15",
         destination: "Batch report",
-        start_date: "2026-07-22",
-        end_date: "2026-07-22",
+        start_date: "2026-07-26",
+        end_date: "2026-07-26",
         language: "sl",
         pax: 1,
         wishes: `ok=${ok} issues=${issues} fail=${fail} avgPins=${report.totals.avgPinsPerDay}`,

@@ -61,5 +61,7 @@ describe("tripPlanControlRules", () => {
     expect(system).toMatch(/Dan prihoda na destinacijo = dan 2/);
     expect(system).toMatch(/STROGI JSON/);
     expect(system).not.toMatch(/category airport z natančno uro/i);
+    expect(system).toMatch(/bullets/);
+    expect(system).toMatch(/wall of text|neformatiran odstavek/i);
   });
 });

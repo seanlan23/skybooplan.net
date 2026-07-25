@@ -190,9 +190,9 @@ TRANSPORT IN PREMIKANJE (obvezno — več plasti):
   { "title": "Notranji let Bangkok → Chiang Mai", "category": "airport", "transport_type": "flight", "duration": "1h 10min", "timeSlot": "dopoldan", "arrivalTime": "08:00", "departureTime": "09:10", ... }
 - UI prikaže ikono prevoza + trajanje iz teh polj — brez njih značke NE delujejo!
 
-1) PREMIK MED AKTIVNOSTMI (v activities[].description — obvezno):
-- Za vsako aktivnost (razen zadnje v dnevu) v description vključi jasen stavek: kako se premakneš od TE aktivnosti do NASLEDNJE (peš / metro / BTS / MRT / taxi / tuk-tuk / Grab / vlak / trajekt / speedboat / kombi).
-- Navedi približen čas prevoza in orientacijski strošek v ${displayCurrency} kjer smiselno.
+1) PREMIK MED AKTIVNOSTMI (v activities[] — kratka točka, ne esej):
+- Za vsako aktivnost (razen zadnje v dnevu) dodaj ENO kratko točko (v bullets[] ali kot vrstico "- …" v description): kako se premakneš do NASLEDNJE (peš / metro / Grab / taxi …) + približen čas/cena v ${displayCurrency}.
+- PREPOVEDANO: dolg neformatiran odstavek o večerji/prevozu — max 1 vrstica za premik, detajli v transportTip.
 
 2) DNEVNI PREVOZNI PREGLED (days[].transportTip — obvezno vsak dan):
 - Polje transportTip mora vsak dan vsebovati strukturiran pregled premikanja za tisti dan v 2–4 stavkih:
@@ -457,7 +457,7 @@ ${flightReturnLine}
 - Vsaka aktivnost z ogledom mora imeti tripAdvisorStyleDetails (razen hotel/airport).
 - Na polnih dneh: smiselno število aktivnosti glede na tempo (miren ≈ 1–2, sproščen ≈ 2, intenziven ≈ 3–4). Na dan prihoda/odhoda/transferja je manj OK — ne izmišljuj fillerja.
 
-Opisi aktivnosti naj bodo konkretni (${motorhome || roadTrip ? "1–2 stavka" : "2–4 stavke"}), ne eseji. Vsaka aktivnost mora imeti estimatedCostEur (realna cifra v ${displayCurrency}). day_name zapisuj s polnimi imeni mesecev (npr. "Sobota, 14. avgust"). season_warning naj bo geografsko natančen za ${params.destination}.
+Opisi aktivnosti: ${motorhome || roadTrip ? "1–2 kratki točki" : "2–4 kratke točke"} v bullets[] (ali "- " vrstice) — nikoli en neformatiran odstavek. Vsaka aktivnost mora imeti estimatedCostEur (realna cifra v ${displayCurrency}). day_name zapisuj s polnimi imeni mesecev (npr. "Sobota, 14. avgust"). season_warning naj bo geografsko natančen za ${params.destination}.
 
 ${itineraryHacksAndTransportRules(displayCurrency)}
 
@@ -621,8 +621,10 @@ STROGO PRAVILO — AVTODOM / RV / CAMPERVAN:
   • Route 66 / cestna pot: enosmerna pot vzdolž ceste, postaja za nočitev na kampu ob vsaki etapi.
 - Če uporabnik omeni periodične hotel nočitve ("vsak 5 dan hotel"), hotels[] ostane [], hotel omeni le kot izjemo v activities tistega dne.
 
-OPISI (jasno, ne naporno):
-- description: 2–4 konkretni stavki na aktivnost (ne esej 150–300 besed/dan — uporabnik hoče berljiv, sproščen plan).
+OPISI (STROGI JSON — jasno, ne naporno):
+- Preferiraj bullets: ["…", "…"] (2–4 kratke točke, vsaka ≤ ~120 znakov) ALI description z vrsticami "- točka".
+- PREPOVEDANO: en dolg neformatiran odstavek (wall of text) za večerjo/ogled — aplikacija razbije esej, a raje oddaj že strukturirano.
+- description/bullets: konkretno (kaj, kje, 1 tip), ne 150–300 besed na aktivnost.
 - Vsaka aktivnost mora imeti estimatedCostEur z realno cifro v ${displayCurrency} (vstopnine, hrana, gorivo — ne 0, razen res brezplačnih). Polje se imenuje estimatedCostEur, vrednost pa je v ${displayCurrency}.
 - dailyBudget na vsakem dnevu mora biti realna vsota dnevnih stroškov NA OSEBO v ${displayCurrency} — nikoli 0. Skupinske postavke (gorivo, kamp) deli s številom potnikov. Prilagodi rang državi (npr. večerja na Šrilanki ≈ 5–15 ${displayCurrency === "USD" ? "$" : "€"}, ne 40; EU avtodom tipično 45–90 €/osebo/dan).
 ${flightReturnEuRule}

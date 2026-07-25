@@ -2,13 +2,15 @@ import type { Activity, AiTripPlan, DayPlan } from "@/lib/aiPlan.functions";
 import {
   clearActivityStructuredClocks,
   isFlightRangeActivity,
-  isPointInTimeActivity,
   normalizeActivityClocks,
   stripProseClocksExcept,
 } from "@/lib/activityTime";
 import {
   arrivalDaySlot,
   arrivalTripDay,
+  ARRIVAL_HOTEL_OFFSET_MIN,
+  ARRIVAL_TRANSFER_OFFSET_MIN,
+  addHmMinutes,
   buildArrivalLogistics,
   buildDepartureLogistics,
   buildFlightSchedulingPayload,
@@ -559,8 +561,8 @@ export function flightContextPromptBlock(
       de: `- UHRZEITEN (CODE): KEINE HH:MM für Check-out/Transfer/Flughafen/internationalen Flug erfinden — die App setzt sie. Tag 1: Ankunft Abflughafen = Abflug − Puffer. Letzter Tag: Check-out < Transfer < Flughafen < Flug.`,
     }),
     planLangCopy(lang, {
-      sl: `- STROGI JSON (dan prihoda + zadnji dan): activities[] samo sightseeing/food/nature (title, description, category, timeSlot, coords). IZPUSTI arrivalTime/departureTime. IZPUSTI category airport, check-out, transfer, mednarodni let.`,
-      en: `- STRICT JSON (arrival day + last day): activities[] = sightseeing/food/nature only (title, description, category, timeSlot, coords). OMIT arrivalTime/departureTime. OMIT category airport, checkout, transfer, international flight rows.`,
+      sl: `- STROGI JSON (dan prihoda + zadnji dan): activities[] samo sightseeing/food/nature (title, bullets ali kratke "- " vrstice, category, timeSlot, coords). IZPUSTI arrivalTime/departureTime. IZPUSTI category airport, check-out, transfer, mednarodni let. PREPOVEDAN en dolg odstavek.`,
+      en: `- STRICT JSON (arrival day + last day): activities[] = sightseeing/food/nature only (title, bullets or short "- " lines, category, timeSlot, coords). OMIT arrivalTime/departureTime. OMIT category airport, checkout, transfer, international flight rows. FORBIDDEN: one long unformatted paragraph.`,
       de: `- STRICT JSON (Ankunftstag + letzter Tag): activities[] nur sightseeing/food/nature (title, description, category, timeSlot, coords). arrivalTime/departureTime WEGLASSEN. Keine category airport / Check-out / Transfer / internationaler Flug.`,
     }),
     planLangCopy(lang, {
@@ -573,76 +575,107 @@ export function flightContextPromptBlock(
   return lines.join("\n");
 }
 
-/** Replace invented HH:MM (e.g. 12:00) in arrival activities with real outboundArrive. */
+type ArrivalLogisticsKind = "land" | "transfer" | "hotel" | "origin" | "other";
+
+/** Classify destination arrival logistics so clocks stay staggered (land < transfer < hotel). */
+function classifyArrivalLogisticsActivity(a: Activity): ArrivalLogisticsKind {
+  const name = a.name ?? "";
+  const blob = `${name} ${a.description ?? ""} ${a.type ?? ""}`.toLowerCase();
+
+  // Origin-airport departure logistics (same-day arrival day 1) — leave boarding-pass clocks.
+  // Origin titles include IATA "(MUC)"; destination is bare "Airport arrival" / "Ankunft am Flughafen".
+  if (
+    /odhod:\s|departure:\s|abflug:\s|partenza:\s|salida:\s|départ\s*:/i.test(name) ||
+    (/\([A-Z]{3}\)/.test(name) &&
+      /airport|letališč|flughafen|aeroporto|aéroport/i.test(name)) ||
+    /\b(international flight|mednarodni let|internationaler flug)\s*\([A-Z]{3}\)/i.test(name) ||
+    /domačega letališča|home airport|parkvia|parkos|m\+r\b|p\+r\b/i.test(blob) ||
+    (/check-in (in varnostni|and security)|security screening|sicherheitskontrolle|controlli di sicurezza/i.test(
+      name,
+    ) &&
+      !/\b(pristane|lands?\b|airport arrival)\b/i.test(blob))
+  ) {
+    return "origin";
+  }
+
+  // Destination transfer before generic "check-in" (hotel name also contains check-in).
+  if (
+    /prevoz do hotela|transfer to hotel|transfer zum hotel|transfer all'hotel|traslado al hotel|transfert à l'hôtel|prevoz do najema|transfer to rv|wohnmobil|camping|campeggio|autocaravana|camping-car/i.test(
+      name,
+    )
+  ) {
+    return "transfer";
+  }
+
+  if (
+    /^(prihod na letališče|airport arrival|ankunft am flughafen|arrivo in aeroporto|llegada al aeropuerto|arrivée à l'aéroport)\b/i.test(
+      name,
+    )
+  ) {
+    return "land";
+  }
+
+  if (
+    a.type === "STAY" ||
+    /check-in|osvežit|short rest|frisch machen|kurze pause|kratek odmor/i.test(name)
+  ) {
+    return "hotel";
+  }
+
+  if (/transfer|prevoz|traslado|transfert/i.test(name) && /hotel|camp|rv|avtodom|wohnmobil/i.test(blob)) {
+    return "transfer";
+  }
+
+  if (/letališč|airport|pristan|landing|prtljag|baggage|immigraz/i.test(blob)) {
+    return "land";
+  }
+
+  return "other";
+}
+
+/**
+ * Boarding-pass land time wins over Gemini clocks, with fixed stagger:
+ * land → transfer (+45m) → hotel check-in (+90m). Never pile all three on wheels-down.
+ */
 function patchArrivalActivityClockTimes(
   activities: NonNullable<DayPlan["activities"]>,
   flights: TripFlightContext,
 ): NonNullable<DayPlan["activities"]> {
   const land = flights.outboundArrive;
+  const transferAt = addHmMinutes(land, ARRIVAL_TRANSFER_OFFSET_MIN);
+  const hotelAt = addHmMinutes(land, ARRIVAL_HOTEL_OFFSET_MIN);
+
+  const clockFor = (kind: ArrivalLogisticsKind): string | null => {
+    if (kind === "land") return land;
+    if (kind === "transfer") return transferAt;
+    if (kind === "hotel") return hotelAt;
+    return null;
+  };
+
   const patchList = (list: Activity[] | undefined): Activity[] =>
     (list ?? []).map((a) => {
-      const blob = `${a.name} ${a.description ?? ""} ${a.type ?? ""}`.toLowerCase();
-      // Never rewrite origin-airport departure logistics (same-day arrival day 1).
-      // EN: "Arrive at Munich Airport (MUC)", "Check-in and security", "International flight (MUC)".
-      if (
-        /odhod:\s|departure:\s|abflug:\s|partenza:\s|salida:\s|départ\s*:/i.test(a.name) ||
-        /^(prihod na letališče|arrive at .+ airport|ankunft am flughafen)/i.test(a.name) ||
-        /\b(international flight|mednarodni let|internationaler flug)\s*\([A-Z]{3}\)/i.test(a.name) ||
-        /domačega letališča|home airport|parkvia|parkos|m\+r\b|p\+r\b/i.test(blob) ||
-        (/check-in (in varnostni|and security)|security screening|sicherheitskontrolle|controlli di sicurezza/i.test(
-          a.name,
-        ) &&
-          !/\b(pristane|lands?\b|airport arrival)\b/i.test(blob))
-      ) {
+      const kind = classifyArrivalLogisticsActivity(a);
+      if (kind === "origin" || kind === "other") {
         return normalizeActivityClocks(a);
       }
-      const isAirport =
-        /letališč|airport|prihod|pristane|landing|transfer|check-?in|hotel|prtljag/i.test(blob);
-      if (!isAirport) return normalizeActivityClocks(a);
+      const clock = clockFor(kind)!;
       let description = a.description;
       if (description) {
-        // Rewrite first landing clock only — do not blanket-replace every "ob HH:MM".
+        // First HH:MM in prose follows this row's staggered clock (not always land).
         let replaced = false;
         description = description.replace(/\b\d{1,2}:\d{2}\b/g, (match) => {
           if (!replaced) {
             replaced = true;
-            return land;
+            return clock;
           }
           return match;
         });
         description = stripArrivalLabelSpam(description);
       }
-
-      // Landing / check-in: single land clock. Transfer may keep a short forward window.
-      if (isPointInTimeActivity(a) || /prihod na letališč|airport arrival|check-?in/i.test(a.name)) {
-        return normalizeActivityClocks({
-          ...a,
-          arrivalTime: land,
-          departureTime: undefined,
-          description,
-        });
-      }
-
-      const end = a.departureTime?.trim();
-      const endMin = end ? (() => {
-        const m = /^(\d{1,2}):(\d{2})$/.exec(end);
-        return m ? Number(m[1]) * 60 + Number(m[2]) : null;
-      })() : null;
-      const landMin = (() => {
-        const m = /^(\d{1,2}):(\d{2})$/.exec(land);
-        return m ? Number(m[1]) * 60 + Number(m[2]) : null;
-      })();
-      const keepEnd =
-        end &&
-        endMin != null &&
-        landMin != null &&
-        endMin > landMin &&
-        endMin - landMin <= 180;
-
       return normalizeActivityClocks({
         ...a,
-        arrivalTime: land,
-        departureTime: keepEnd ? end : undefined,
+        arrivalTime: clock,
+        departureTime: undefined,
         description,
       });
     });
@@ -658,7 +691,7 @@ function patchArrivalActivityClockTimes(
 function isCodeLogisticsActivity(a: Activity): boolean {
   if (a.transportType === "flight" || isFlightRangeActivity(a)) return true;
   const name = a.name ?? "";
-  return /check-?out|check-?in|airport transfer|prevoz na letališč|flughafentransfer|prihod na letališče|arrive at .+ airport|airport arrival|international (return )?flight|mednarodni (povratni )?let|odhod:|departure:|abflug:|partenza:|salida:|security|varnostni|hotel check-out|vrnitev avtodoma|train |vlak |domestic (transfer|flight)|notranji (prevoz|let)|transfert|traslado/i.test(
+  return /check-?out|check-?in|airport transfer|prevoz na letališč|prevoz do hotela|transfer to hotel|transfer zum hotel|transfer all'hotel|traslado al hotel|transfert à l'hôtel|prevoz do najema|transfer to rv|flughafentransfer|prihod na letališče|arrive at .+ airport|airport arrival|ankunft am flughafen|arrivo in aeroporto|llegada al aeropuerto|arrivée à l'aéroport|international (return )?flight|mednarodni (povratni )?let|odhod:|departure:|abflug:|partenza:|salida:|security|varnostni|hotel check-out|vrnitev avtodoma|train |vlak |domestic (transfer|flight)|notranji (prevoz|let)|transfert|traslado/i.test(
     name,
   );
 }
@@ -873,9 +906,10 @@ export function applyFlightContextToGeminiPlan(
         const originActs = buildOriginDepartureLogistics(originIata, flights, lang).map(
           logisticsToActivity,
         );
+        // Keep full origin (3) + destination arrival logistics (3) — never slice off hotel check-in.
         activities = {
           ...activities,
-          morning: [...originActs, ...(activities.morning ?? [])].slice(0, 5),
+          morning: [...originActs, ...(activities.morning ?? [])].slice(0, 8),
         };
         const hint = buildOriginDepartureHint(originIata, flights, lang);
         if (hint && !day.travelHack?.includes(flights.outboundDepart)) {

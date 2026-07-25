@@ -1,3 +1,7 @@
+import {
+  formatActivityDescription,
+  normalizeActivityBullets,
+} from "@/lib/activityDescription";
 import { localizeTravelCopy } from "@/lib/localizeTravelCopy";
 
 /** Strip Cyrillic / wrong-script leaks in Slovenian UI copy. */
@@ -13,7 +17,12 @@ export function sanitizeSlText(text: string): string {
     return fix ?? "";
   });
 
-  out = out.replace(/\s{2,}/g, " ").replace(/\s+([,.])/g, "$1").trim();
+  // Preserve newlines (activity bullets) — only collapse spaces/tabs on a line.
+  out = out
+    .replace(/[^\S\n]{2,}/g, " ")
+    .replace(/[^\S\n]+([,.])/g, "$1")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
   return out;
 }
 
@@ -186,8 +195,11 @@ export function stripArrivalLabelSpam(text: string): string {
       "",
     )
     .replace(/\s*\(\+\d+d(?:,?\s*lokalni čas|,?\s*local)?\)/gi, "")
-    .replace(/\s{2,}/g, " ")
-    .replace(/\s+([,.])/g, "$1")
+    // Per-line collapse — never flatten activity bullet newlines into one paragraph.
+    .split("\n")
+    .map((line) => line.replace(/[^\S\n]{2,}/g, " ").replace(/[^\S\n]+([,.])/g, "$1").trimEnd())
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
 
@@ -258,16 +270,15 @@ export function dedupeCrossDayBoilerplate(plan: {
     transportationTips?: string;
     travelHack?: string;
     activities?: {
-      morning?: Array<{ description?: string }>;
-      afternoon?: Array<{ description?: string }>;
-      evening?: Array<{ description?: string }>;
+      morning?: Array<{ description?: string; bullets?: string[] }>;
+      afternoon?: Array<{ description?: string; bullets?: string[] }>;
+      evening?: Array<{ description?: string; bullets?: string[] }>;
     };
   }>;
 }): void {
   const seen = new Map<string, number>();
 
-  const scrub = (text: string | undefined): string | undefined => {
-    if (!text?.trim()) return text;
+  const scrubLine = (text: string): string => {
     const parts = text.split(/(?<=[.!?…])\s+/);
     const kept: string[] = [];
     for (const part of parts) {
@@ -284,7 +295,20 @@ export function dedupeCrossDayBoilerplate(plan: {
         kept.push(trimmed);
       }
     }
-    return kept.join(" ").replace(/\s{2,}/g, " ").trim();
+    return kept.join(" ").replace(/[^\S\n]{2,}/g, " ").trim();
+  };
+
+  /** Scrub Grab/tuk-tuk spam without collapsing bullet newlines into one paragraph. */
+  const scrub = (text: string | undefined): string | undefined => {
+    if (!text?.trim()) return text;
+    if (!text.includes("\n")) return scrubLine(text);
+    return text
+      .split("\n")
+      .map((line) => scrubLine(line))
+      .filter((line, i, arr) => line.length > 0 || (i > 0 && i < arr.length - 1))
+      .join("\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
   };
 
   for (const day of plan.days) {
@@ -293,6 +317,13 @@ export function dedupeCrossDayBoilerplate(plan: {
     if (!day.activities) continue;
     for (const slot of ["morning", "afternoon", "evening"] as const) {
       for (const act of day.activities[slot] ?? []) {
+        if (Array.isArray(act.bullets) && act.bullets.length > 0) {
+          // bullets[] is source of truth — never let sentence-join flatten them.
+          act.description = formatActivityDescription(
+            act.bullets.map((b) => scrubLine(b)).filter(Boolean),
+          );
+          continue;
+        }
         if (act.description) {
           act.description = stripArrivalLabelSpam(scrub(act.description) ?? act.description);
         }
@@ -350,7 +381,14 @@ export function fixHotelCopyErrors(text: string): string {
     .trim();
 }
 
-type ActivityLike = { name: string; description: string; priceLabel?: string; price?: string; type?: string };
+type ActivityLike = {
+  name: string;
+  description: string;
+  bullets?: string[];
+  priceLabel?: string;
+  price?: string;
+  type?: string;
+};
 
 export function sanitizeActivity<T extends ActivityLike>(
   act: T,
@@ -359,10 +397,15 @@ export function sanitizeActivity<T extends ActivityLike>(
   _city?: string,
 ): T {
   const run = (s: string) => sanitizeForLang(s, langCode, country);
+  const bullets = normalizeActivityBullets({
+    description: act.description,
+    bullets: act.bullets,
+  }).map(run);
   return {
     ...act,
     name: run(act.name),
-    description: run(act.description),
+    description: formatActivityDescription(bullets) || run(act.description ?? ""),
+    bullets: bullets.length > 0 ? bullets : undefined,
     priceLabel: act.priceLabel ? run(act.priceLabel) : act.priceLabel,
   };
 }

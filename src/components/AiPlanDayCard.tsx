@@ -23,6 +23,7 @@ import { parseLocalDate } from "@/lib/dateUtils";
 import { isHotelRestDay, resolveTripAccommodation } from "@/lib/tripMode";
 import { formatDayCardTitle, sortActivitiesByTime } from "@/lib/dayPlanUi";
 import { formatStayDateRange } from "@/lib/islandStays";
+import { activityDescriptionBullets } from "@/lib/activityDescription";
 import { formatActivityClockLabel } from "@/lib/activityTime";
 import { sanitizeLegacyTemplateLeak } from "@/lib/textSanitize";
 import type { ActivityMapFocus } from "@/components/TripMap";
@@ -132,27 +133,6 @@ const VARIANT_CONF = {
   },
 } as const;
 
-function activityDescriptionBullets(text?: string): string[] {
-  if (!text?.trim()) return [];
-  const trimmed = text.trim();
-
-  const lines = trimmed
-    .split(/\n+/)
-    .map((l) => l.replace(/^[-•*▸]\s+/, "").trim())
-    .filter(Boolean);
-  if (lines.length > 1) return lines.slice(0, 4);
-
-  const sentences = trimmed.match(/[^.!?…]+[.!?…]+/g)?.map((s) => s.trim()).filter(Boolean);
-  if (sentences && sentences.length > 1) return sentences.slice(0, 3);
-
-  if (trimmed.length > 160) {
-    const chunk = trimmed.slice(0, 157).trim();
-    const breakAt = Math.max(chunk.lastIndexOf(". "), chunk.lastIndexOf(", "));
-    const cut = breakAt > 80 ? chunk.slice(0, breakAt + 1) : `${chunk}…`;
-    return [cut];
-  }
-  return [trimmed];
-}
 
 function ActivityTimePill({ activity }: { activity: Activity }) {
   const label = formatActivityClockLabel(activity);
@@ -282,7 +262,7 @@ function ActivityItem({
   isFocused?: boolean;
 }) {
   const { t } = useI18n();
-  const bullets = activityDescriptionBullets(activity.description);
+  const bullets = activityDescriptionBullets(activity.description, activity.bullets);
   const pin = findActivityPin(day, activity);
   const imageUrl = normalizeImageUrl(activity.imageUrl ?? pin?.imageUrl);
   const resolvedCoords = resolveActivityCoordinates(activity, day);

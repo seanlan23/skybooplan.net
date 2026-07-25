@@ -100,17 +100,35 @@ export const Route = createFileRoute("/api/generate-itinerary")({
               request.signal,
             );
 
+            let heartbeat: ReturnType<typeof setInterval> | undefined;
             try {
               pipelineLog(
                 "stream:generate-itinerary START",
                 `${data.originIata}→${data.destinationIata} (${expectedDays}d)`,
               );
 
+              // Immediate keepalive — client idle watchdog must not wait for Gemini TTFB.
+              let lastDayCount = 0;
+              push({ type: "ping", dayCount: 0, expectedDays });
+              heartbeat = setInterval(() => {
+                if (hardAbort.signal.aborted) return;
+                try {
+                  push({ type: "ping", dayCount: lastDayCount, expectedDays });
+                } catch {
+                  /* stream already closed */
+                }
+              }, PING_EVERY_MS);
+
+              // Stall clock is for Gemini silence — pause while building prompt/attachments.
+              stallWatchdog.clear();
               const planParams = await buildGeminiTripPlanParamsWithAttachment(data, expectedDays);
+              if (abortSignal.aborted) {
+                push({ type: "error", error: "error.planTimeout" });
+                return;
+              }
+              stallWatchdog.bump();
               const result = createTripPlanStream(planParams, { abortSignal });
 
-              let lastDayCount = 0;
-              let lastPingAt = 0;
               for await (const partial of result.partialObjectStream) {
                 if (abortSignal.aborted) break;
                 stallWatchdog.bump();
@@ -121,26 +139,14 @@ export const Route = createFileRoute("/api/generate-itinerary")({
                   // breakfast + Munich airport on day 1 while "Generiram… 10/16".
                   applyFlightContextIfPresent(preview, data);
                   lastDayCount = dayCount;
-                  lastPingAt = Date.now();
                   push({
                     type: "partial",
                     plan: preview,
                     dayCount,
                     expectedDays,
                   });
-                } else {
-                  // Gemini often spends >100s polishing one day without increasing dayCount.
-                  // Without bytes on the wire, the client idle timer aborts the stream.
-                  const now = Date.now();
-                  if (now - lastPingAt >= PING_EVERY_MS) {
-                    lastPingAt = now;
-                    push({
-                      type: "ping",
-                      dayCount: lastDayCount,
-                      expectedDays,
-                    });
-                  }
                 }
+                // Heartbeat interval covers silence while Gemini polishes the same day.
               }
 
               if (abortSignal.aborted) {
@@ -184,6 +190,7 @@ export const Route = createFileRoute("/api/generate-itinerary")({
                     : "error.planGenerationFailed",
               });
             } finally {
+              if (heartbeat !== undefined) clearInterval(heartbeat);
               stallWatchdog.clear();
               clearTimeout(hardTimer);
               controller.close();

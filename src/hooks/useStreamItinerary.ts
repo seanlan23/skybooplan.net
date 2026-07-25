@@ -24,8 +24,11 @@ function sanitizeStreamPlan(
   return next;
 }
 
-/** Must exceed Gemini pauses between new days on long trips (16d can idle >100s). */
-const CLIENT_STREAM_IDLE_MS = 200_000;
+/**
+ * Must exceed Gemini pauses between new days. Server pings every 20s once the
+ * stream starts; this is a backstop if the proxy drops keepalive bytes.
+ */
+const CLIENT_STREAM_IDLE_MS = 240_000;
 
 export type StreamItineraryStatus = "idle" | "streaming" | "done" | "error";
 

@@ -1,4 +1,8 @@
 import type { Activity, AiTripPlan, DayPlan, DayTransportLeg, ReturnFlightEu } from "@/lib/aiPlan.functions";
+import {
+  formatActivityDescription,
+  normalizeActivityBullets,
+} from "@/lib/activityDescription";
 import type {
   TripAdvisorStyleDetails,
   TripPlanResponse,
@@ -271,6 +275,7 @@ function toActivity(
   act: {
     title: string;
     description?: string;
+    bullets?: string[];
     arrivalTime?: string;
     departureTime?: string;
     estimatedCostEur?: number;
@@ -296,10 +301,16 @@ function toActivity(
     normalizeActivityTransportType(act.transport_type) ??
     (act.category === "airport" ? "flight" : undefined);
   const transportDuration = act.duration?.trim() || undefined;
+  const bullets = normalizeActivityBullets({
+    description: act.description,
+    bullets: act.bullets,
+  });
+  const description = formatActivityDescription(bullets) || undefined;
 
   return {
     name: act.title,
-    description: act.description?.trim() || undefined,
+    description,
+    bullets: bullets.length > 0 ? bullets : undefined,
     arrivalTime: act.arrivalTime?.trim() || undefined,
     departureTime: act.departureTime?.trim() || undefined,
     estimatedCostEur: cost,

@@ -71,6 +71,21 @@ describe("normalizePlanForPdf", () => {
     // arrivalTime – departureTime (same order as UI), not reversed.
     expect(day.slots[0]!.items[0]!.time).toBe("08:00 – 09:20");
     expect(model.totalBudgetEur).toBe(2400);
+    expect(model.coverImageUrl).toBeUndefined();
+  });
+
+  it("passes cover_image_url through for hero cover", () => {
+    const model = normalizePlanForPdf({
+      title: "MUC → SYD",
+      destination: "Sydney",
+      start_date: "2026-09-04",
+      end_date: "2026-09-18",
+      language: "en",
+      cover_image_url: "https://images.example.com/sydney.jpg",
+      itinerary: { summary: "Harbour city.", days: [] },
+    });
+    expect(model.coverImageUrl).toBe("https://images.example.com/sydney.jpg");
+    expect(model.destination).toBe("Sydney");
   });
 
   it("formats overnight activity clocks with +1 (not reversed)", () => {

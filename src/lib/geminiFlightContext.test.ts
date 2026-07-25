@@ -235,6 +235,112 @@ describe("applyFlightContextToGeminiPlan", () => {
     );
     expect(prihod?.arrivalTime).toBe("17:55");
     expect(prihod?.departureTime).toBeUndefined();
+
+    const eveningActs = arrival.activities?.evening ?? [];
+    const transfer = eveningActs.find((a) => /prevoz do hotela|transfer to hotel/i.test(a.name));
+    const hotel = eveningActs.find((a) => /check-in|osvežit/i.test(a.name));
+    expect(transfer?.arrivalTime).toBe("18:40");
+    expect(hotel?.arrivalTime).toBe("19:25");
+    expect(transfer?.arrivalTime).not.toBe(prihod?.arrivalTime);
+    expect(hotel?.arrivalTime).not.toBe(prihod?.arrivalTime);
+  });
+
+  it("staggers SYD arrival transfer/hotel off land time (no 16:50 pile-up)", () => {
+    const plan = basePlan({
+      destinationName: "Sydney",
+      destinationIata: "SYD",
+      contentLanguage: "en",
+      days: [
+        {
+          day: 1,
+          date: "2026-09-04",
+          title: "In flight",
+          morning: "",
+          afternoon: "",
+          evening: "",
+          travelHack: "",
+          transportationTips: "",
+          localWarnings: "",
+          dailyBudgetEur: 40,
+          lat: -33.87,
+          lng: 151.21,
+          focusName: "Sydney",
+          city: "Sydney",
+          category: "transport",
+          activities: { morning: [], afternoon: [], evening: [] },
+        },
+        {
+          day: 2,
+          date: "2026-09-05",
+          title: "Arrival Sydney",
+          morning: "",
+          afternoon: "",
+          evening: "",
+          travelHack: "",
+          transportationTips: "",
+          localWarnings: "",
+          dailyBudgetEur: 80,
+          lat: -33.87,
+          lng: 151.21,
+          focusName: "Sydney",
+          city: "Sydney",
+          category: "activity",
+          activities: {
+            morning: [],
+            afternoon: [],
+            evening: [
+              {
+                name: "Opera House walk",
+                type: "SIGHT",
+                description: "Light evening stroll",
+              },
+            ],
+          },
+        },
+        {
+          day: 3,
+          date: "2026-09-18",
+          title: "Departure",
+          morning: "",
+          afternoon: "",
+          evening: "",
+          travelHack: "",
+          transportationTips: "",
+          localWarnings: "",
+          dailyBudgetEur: 40,
+          lat: -33.87,
+          lng: 151.21,
+          focusName: "Sydney",
+          city: "Sydney",
+          category: "transport",
+          activities: { morning: [], afternoon: [], evening: [] },
+        },
+      ],
+    });
+
+    applyFlightContextToGeminiPlan(
+      plan,
+      {
+        outboundDepart: "22:10",
+        outboundArrive: "16:50",
+        outboundArriveDayOffset: 1,
+        inboundDepart: "18:00",
+        inboundArrive: "06:00",
+      },
+      { originIata: "MUC", language: "en" },
+    );
+
+    const arrival = plan.days[1]!;
+    const acts = [
+      ...(arrival.activities?.afternoon ?? []),
+      ...(arrival.activities?.evening ?? []),
+    ];
+    const land = acts.find((a) => /airport arrival/i.test(a.name));
+    const transfer = acts.find((a) => /transfer to hotel/i.test(a.name));
+    const hotel = acts.find((a) => /check-in/i.test(a.name));
+    expect(land?.arrivalTime).toBe("16:50");
+    expect(transfer?.arrivalTime).toBe("17:35");
+    expect(hotel?.arrivalTime).toBe("18:20");
   });
 
   it("keeps origin departure time on same-day arrival (does not overwrite with land time)", () => {
@@ -329,6 +435,101 @@ describe("applyFlightContextToGeminiPlan", () => {
       .join(" ");
     expect(originBlob).toContain("12:40");
     expect(originBlob).not.toMatch(/ob 18:15/);
+  });
+
+  it("keeps destination hotel check-in on same-day morning arrival (not sliced off)", () => {
+    const plan = basePlan({
+      destinationName: "Amsterdam",
+      destinationIata: "AMS",
+      contentLanguage: "sl",
+      days: [
+        {
+          day: 1,
+          date: "2026-04-15",
+          title: "Prihod",
+          morning: "",
+          afternoon: "",
+          evening: "",
+          travelHack: "",
+          transportationTips: "",
+          localWarnings: "",
+          dailyBudgetEur: 80,
+          lat: 52.37,
+          lng: 4.89,
+          focusName: "Amsterdam",
+          city: "Amsterdam",
+          category: "activity",
+          activities: {
+            morning: [],
+            afternoon: [{ name: "Kanali", type: "SIGHT", description: "Ladja" }],
+            evening: [],
+          },
+        },
+        {
+          day: 2,
+          date: "2026-04-16",
+          title: "Mesto",
+          morning: "",
+          afternoon: "",
+          evening: "",
+          travelHack: "",
+          transportationTips: "",
+          localWarnings: "",
+          dailyBudgetEur: 90,
+          lat: 52.37,
+          lng: 4.89,
+          focusName: "Amsterdam",
+          city: "Amsterdam",
+          category: "city",
+          activities: {
+            morning: [{ name: "Muzej", type: "SIGHT", description: "Ogled" }],
+            afternoon: [],
+            evening: [],
+          },
+        },
+        {
+          day: 3,
+          date: "2026-04-19",
+          title: "Odhod",
+          morning: "",
+          afternoon: "",
+          evening: "",
+          travelHack: "",
+          transportationTips: "",
+          localWarnings: "",
+          dailyBudgetEur: 40,
+          lat: 52.37,
+          lng: 4.89,
+          focusName: "Amsterdam",
+          city: "Amsterdam",
+          category: "transport",
+          activities: { morning: [], afternoon: [], evening: [] },
+        },
+      ],
+    });
+
+    applyFlightContextToGeminiPlan(
+      plan,
+      {
+        outboundDepart: "08:10",
+        outboundArrive: "09:40",
+        outboundArriveDayOffset: 0,
+        inboundDepart: "18:30",
+        inboundArrive: "20:00",
+      },
+      { originIata: "PRG", language: "sl" },
+    );
+
+    const morning = plan.days[0]!.activities?.morning ?? [];
+    const names = morning.map((a) => a.name);
+    expect(names.some((n) => /Prevoz do hotela/i.test(n))).toBe(true);
+    expect(names.some((n) => /Check-in, osvežitev/i.test(n))).toBe(true);
+    const land = morning.find((a) => /^Prihod na letališče$/i.test(a.name));
+    const transfer = morning.find((a) => /Prevoz do hotela/i.test(a.name));
+    const hotel = morning.find((a) => /Check-in, osvežitev/i.test(a.name));
+    expect(land?.arrivalTime).toBe("09:40");
+    expect(transfer?.arrivalTime).toBe("10:25");
+    expect(hotel?.arrivalTime).toBe("11:10");
   });
 
   it("injects domestic hop when last night city differs from international hub", () => {

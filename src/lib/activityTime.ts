@@ -132,9 +132,16 @@ export function stripProseClocksExcept(
     return allowed.has(norm) ? norm : "";
   });
   return out
-    .replace(/\s{2,}/g, " ")
-    .replace(/\s+([,.!?;:])/g, "$1")
-    .replace(/\(\s*\)/g, "")
+    .split("\n")
+    .map((line) =>
+      line
+        .replace(/[^\S\n]{2,}/g, " ")
+        .replace(/[^\S\n]+([,.!?;:])/g, "$1")
+        .replace(/\(\s*\)/g, "")
+        .trimEnd(),
+    )
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
 

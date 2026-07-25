@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { coerceActivityDescriptionFields } from "@/lib/activityDescription";
 import { MAP_POI_CATEGORIES } from "@/lib/mapPoiCategory";
 
 export { MAP_POI_CATEGORIES, type MapPoiCategory } from "@/lib/mapPoiCategory";
@@ -54,7 +55,15 @@ const transportLegSchema = z.object({
 const activitySchema = z.object({
   time: z.string(),
   title: z.string(),
+  /**
+   * Short copy for the activity. Prefer bullets[] — coerce syncs description from bullets
+   * (or splits a wall-of-text description into newline bullets).
+   */
   description: z.string(),
+  /**
+   * Preferred structured body: 2–4 short lines. Coerce fills this from description when omitted.
+   */
+  bullets: z.array(z.string().min(1).max(200)).max(4).optional(),
   category: z.enum(MAP_POI_CATEGORIES),
   /** Day part — dopoldan | popoldan | vecer (required). */
   timeSlot: z.enum(DAY_TIME_SLOTS),
@@ -366,6 +375,8 @@ export function coerceTripPlanPayload(raw: unknown): unknown {
       for (const act of activities) {
         if (!act || typeof act !== "object") continue;
         const a = act as Record<string, unknown>;
+        // All days: description becomes 2–4 short bullets (no Katoomba-style wall of text).
+        coerceActivityDescriptionFields(a);
         const title = typeof a.title === "string" ? a.title : "";
         const category = typeof a.category === "string" ? a.category : undefined;
         if (!isTransportishTitle(title, category)) continue;

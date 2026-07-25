@@ -238,6 +238,8 @@ export type Activity = {
   price?: string;
   priceLabel?: string;
   description?: string;
+  /** Structured short lines (preferred). description is synced from these. */
+  bullets?: string[];
   arrivalTime?: string;
   departureTime?: string;
   estimatedCostEur?: number;
