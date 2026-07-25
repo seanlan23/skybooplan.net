@@ -4,6 +4,7 @@ import { useI18n } from "@/lib/i18n";
 import { localizeOriginLabel } from "@/lib/airportCatalog";
 import {
   localizeDestinationDisplay,
+  normalizeHeroTripType,
   type HeroChatCollected,
 } from "@/lib/heroChatFlow";
 import {
@@ -67,7 +68,24 @@ function buildItems(
       labelKey: "heroChat.checklist.when",
       hintKey: "heroChat.checklist.whenHint",
       done: Boolean(collected.dates?.trim()),
-      value: collected.dates?.trim(),
+      value: (() => {
+        const dates = collected.dates?.trim();
+        if (!dates) return undefined;
+        const tripType = collected.tripType
+          ? normalizeHeroTripType(collected.tripType)
+          : null;
+        const tripLabel =
+          tripType === "oneway"
+            ? t("heroChat.tripType.oneway" as never)
+            : tripType === "openjaw"
+              ? `${t("heroChat.tripType.openjaw" as never)}${
+                  collected.returnFromIata ? ` · ${collected.returnFromIata}` : ""
+                }`
+              : tripType === "return"
+                ? t("heroChat.tripType.return" as never)
+                : "";
+        return tripLabel ? `${dates} · ${tripLabel}` : dates;
+      })(),
     },
     {
       id: "what",

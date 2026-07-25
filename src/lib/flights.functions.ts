@@ -320,6 +320,9 @@ export type SimpleDuffelSearchInput = {
   destination: string;
   departDate: string;
   returnDate?: string;
+  /** Open-jaw: return-leg origin (fly home from a different hub). */
+  returnFromIata?: string;
+  tripType?: "return" | "oneway" | "multicity";
   pax: number;
   cabinClass?: FlightSearchInput["cabinClass"];
   supplierTimeoutMs?: number;
@@ -335,15 +338,32 @@ export async function searchDuffelOffers(
     return { error: "error.duffelNotConfigured" };
   }
 
-  const flightInput: FlightSearchInput = {
-    from: input.origin.toUpperCase(),
-    to: input.destination.toUpperCase(),
-    departDate: input.departDate,
-    returnDate: input.returnDate ?? "",
-    tripType: input.returnDate ? "return" : "oneway",
-    pax: input.pax,
-    cabinClass: input.cabinClass ?? "economy",
-  };
+  const origin = input.origin.toUpperCase();
+  const destination = input.destination.toUpperCase();
+  const returnFrom = input.returnFromIata?.trim().toUpperCase();
+  const isOpenJaw =
+    Boolean(returnFrom && input.returnDate && returnFrom !== destination) ||
+    input.tripType === "multicity";
+
+  const flightInput: FlightSearchInput = isOpenJaw && returnFrom && input.returnDate
+    ? {
+        tripType: "multicity",
+        slices: [
+          { from: origin, to: destination, departDate: input.departDate },
+          { from: returnFrom, to: origin, departDate: input.returnDate },
+        ],
+        pax: input.pax,
+        cabinClass: input.cabinClass ?? "economy",
+      }
+    : {
+        from: origin,
+        to: destination,
+        departDate: input.departDate,
+        returnDate: input.returnDate ?? "",
+        tripType: input.tripType ?? (input.returnDate ? "return" : "oneway"),
+        pax: input.pax,
+        cabinClass: input.cabinClass ?? "economy",
+      };
 
   const slices = buildDuffelSlices(flightInput);
   const passengers = Array.from({ length: input.pax }, () => ({ type: "adult" as const }));

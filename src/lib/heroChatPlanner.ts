@@ -3,6 +3,7 @@ import { defaultDateFrom, defaultDateTo } from "@/lib/heroFlightSearch";
 import { parseHeroDateRange } from "@/lib/heroDateRange";
 import {
   localizeDestinationDisplay,
+  normalizeHeroTripType,
   type HeroChatCollected,
 } from "@/lib/heroChatFlow";
 import { localizeOriginLabel } from "@/lib/airportCatalog";
@@ -223,18 +224,28 @@ export function heroChatToPlannerPayload(
   const departDate = parsedDates.departDate;
   const nightsLabel = collected.nights?.trim() || "";
   const budgetLabel = collected.budget?.trim() || "500–1000€";
+  const tripType = normalizeHeroTripType(collected.tripType);
   // Exact calendar range wins — do NOT collapse "26. okt → 10. nov" to default 7 nights (Nov 2).
+  // One-way: still need a plan end date (nights / default week), but no return flight.
   const returnDate =
-    parsedDates.returnDate ||
-    (nightsLabel
-      ? addDays(departDate, parseChatNights(nightsLabel))
-      : defaultDateTo(departDate));
+    tripType === "oneway"
+      ? nightsLabel
+        ? addDays(departDate, parseChatNights(nightsLabel))
+        : defaultDateTo(departDate)
+      : parsedDates.returnDate ||
+        (nightsLabel
+          ? addDays(departDate, parseChatNights(nightsLabel))
+          : defaultDateTo(departDate));
   const { adults, childrenAges } = parseChatPassengers(collected.passengers);
   const originPlace = collected.origin?.trim() || "Ljubljana";
   const destinationPlace = (collected.destination ?? "").trim() || "Thailand";
   const t = (key: string) => translate(language, key as never);
   const destinationLabel = localizeDestinationDisplay(destinationPlace, t);
   const originLabel = localizeOriginLabel(originPlace, language);
+  const returnFromIata =
+    tripType === "openjaw" && collected.returnFromIata?.trim()
+      ? collected.returnFromIata.trim().toUpperCase()
+      : undefined;
 
   const ctx: AiPlannerContext & { language?: string; currency?: "EUR" | "USD" } = {
     from: resolveOriginIata(originPlace),
@@ -243,6 +254,7 @@ export function heroChatToPlannerPayload(
     destinationPlace,
     departDate,
     returnDate,
+    ...(returnFromIata ? { returnFromIata } : {}),
     pax: adults + childrenAges.length,
     adults,
     childrenAges,

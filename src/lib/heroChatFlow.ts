@@ -42,8 +42,12 @@ export const HERO_MOTORHOME_END_CHIPS: Array<{
   { id: "greece", place: "Greece", emoji: "🇬🇷", nameKey: "hero.mhEnd.greece" },
 ];
 
+export type HeroTripType = "return" | "oneway" | "openjaw";
+
 export type HeroChatStep =
   | "destination"
+  | "tripType"
+  | "returnFrom"
   | "dates"
   | "nights"
   | "origin"
@@ -60,10 +64,25 @@ export type HeroChatCollected = {
   passengers: string;
   pace: string;
   budget: string;
+  /** Round-trip / one-way / open-jaw (return from another airport). */
+  tripType?: HeroTripType;
+  /** Open-jaw: IATA for the return-leg origin (e.g. CEB when destination land was MNL). */
+  returnFromIata?: string;
   /** Planner interest keys (e.g. beaches, mountains) — used by motorhome search. */
   priorities?: string[];
   attachment?: import("@/lib/heroChatAttachment").HeroChatAttachmentPayload;
 };
+
+export function normalizeHeroTripType(
+  value: string | undefined | null,
+): HeroTripType {
+  const raw = (value ?? "").trim().toLowerCase();
+  if (raw === "oneway" || raw === "one-way" || raw === "one_way") return "oneway";
+  if (raw === "openjaw" || raw === "open-jaw" || raw === "open_jaw" || raw === "multicity") {
+    return "openjaw";
+  }
+  return "return";
+}
 
 export type HeroChatMessage = {
   id: string;
@@ -91,7 +110,7 @@ export const HERO_DESTINATION_CHIPS: HeroDestinationChip[] = [
   },
   {
     id: "paris",
-    destination: "Paris",
+    destination: "Paris (CDG)",
     emoji: "🗼",
     labelKey: "hero.chip.paris.label",
     nameKey: "hero.chip.paris.name",
@@ -245,16 +264,19 @@ export function heroChatStepNumber(step: HeroChatStep): number {
   switch (step) {
     case "passengers":
       return 1;
-    case "dates":
+    case "tripType":
+    case "returnFrom":
       return 2;
-    case "pace":
+    case "dates":
       return 3;
-    case "budget":
+    case "pace":
       return 4;
+    case "budget":
+      return 5;
     case "nights":
-      return 5;
+      return 6;
     case "origin":
-      return 5;
+      return 6;
     default:
       return 0;
   }
@@ -339,6 +361,18 @@ export function buildHeroMakeSearchQuery(
           ? translate("query.staysIn", { dest })
           : translate("query.tripTo", { dest }),
     );
+  }
+  const tripType = normalizeHeroTripType(data.tripType);
+  if (mode !== "stays" && mode !== "motorhome") {
+    if (tripType === "oneway") {
+      parts.push("one-way / enosmerno / solo andata");
+    } else if (tripType === "openjaw" && data.returnFromIata?.trim()) {
+      parts.push(
+        `open-jaw return from ${data.returnFromIata.trim().toUpperCase()} (different airport)`,
+      );
+    } else {
+      parts.push("round-trip / povratno");
+    }
   }
   if (data.dates?.trim()) parts.push(translate("query.dates", { dates: data.dates.trim() }));
   if (data.passengers?.trim()) parts.push(data.passengers.trim());

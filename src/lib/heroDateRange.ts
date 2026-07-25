@@ -71,6 +71,11 @@ export function formatHeroDateRangeLabel(range: DateRange, lang = "sl"): string 
   return `${fmt(range.from)} → ${fmt(range.to)} ${year}`;
 }
 
+/** Format a single departure day for one-way searches. */
+export function formatHeroSingleDateLabel(date: Date, lang = "sl"): string {
+  return formatHeroDateRangeLabel({ from: date, to: date }, lang);
+}
+
 /** Parse hero chat date label — supports range "16. jun → 23. jun 2026" or month chips. */
 export function parseHeroDateRangeStart(label: string, lang = "sl"): string | null {
   return parseHeroDateRange(label, lang)?.departDate ?? null;
@@ -106,4 +111,8 @@ export function parseHeroDateRange(
 
 export function isCompleteDateRange(range: DateRange | undefined): range is { from: Date; to: Date } {
   return Boolean(range?.from && range?.to);
+}
+
+export function isCompleteSingleDate(range: DateRange | undefined): range is { from: Date } {
+  return Boolean(range?.from);
 }

@@ -21,3 +21,28 @@ describe("buildDepartureLogistics motorhome", () => {
     expect(acts[0]!.description).toMatch(/najemnico/i);
   });
 });
+
+describe("buildDepartureLogistics hotel clocks", () => {
+  it("keeps real flight time in transfer prose (not transfer slot)", () => {
+    const locale = resolveTripLocale("CDG", "Paris", "en");
+    const acts = buildDepartureLogistics(
+      "Paris",
+      {
+        outboundDepart: "08:00",
+        outboundArrive: "09:30",
+        outboundArriveDayOffset: 0,
+        inboundDepart: "08:30",
+        inboundArrive: "10:00",
+      },
+      locale,
+      { accommodationMode: "hotel" },
+    );
+    const transfer = acts.find((a) => /airport transfer/i.test(a.name));
+    expect(transfer?.arrivalTime).toBe("05:00");
+    expect(transfer?.description).toMatch(/Flight departs at 08:30/);
+    expect(transfer?.description).not.toMatch(/departs at 05:00/);
+    const flight = acts.find((a) => /international return flight/i.test(a.name));
+    expect(flight?.arrivalTime).toBe("08:30");
+    expect(flight?.departureTime).toBe("10:00");
+  });
+});

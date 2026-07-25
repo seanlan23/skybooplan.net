@@ -262,7 +262,8 @@ export function sanitizeForLang(text: string, langCode: string, country?: string
   let out = scrubInappropriatePoiCopy(
     sanitizeLegacyTemplateLeak(sanitizeDestinationText(text, country)),
   );
-  out = fixMotorhomeCopyErrors(out);
+  // Do NOT run fixMotorhomeCopyErrors here — it rewrites "hotel" → "campsite" and
+  // poisoned normal hotel trips (Paris/Lyon PDFs). Motorhome paths call it explicitly.
   out = stripConcreteBangkokHotelBrands(out);
   out = localizeTravelCopy(out, langCode);
   if (langCode === "sl" || langCode.startsWith("sl")) {
@@ -271,16 +272,35 @@ export function sanitizeForLang(text: string, langCode: string, country?: string
   return out;
 }
 
+/** Hotel trips: undo LLM / legacy "campsite" lodging wording. */
+export function fixHotelCopyErrors(text: string): string {
+  if (!text) return text;
+  return text
+    .replace(/\bnear\s+the\s+campsite\b/gi, "near the hotel")
+    .replace(/\bexplore\s+near\s+the\s+campsite\b/gi, "explore near the hotel")
+    .replace(/\byour\s+campsite\b/gi, "your hotel")
+    .replace(/\bthe\s+campsite\b/gi, "the hotel")
+    .replace(/\bback\s+to\s+(?:the\s+)?(?:campsite|camp)\b/gi, "back to the hotel")
+    .replace(/\bCheck-?in at (?:the )?campsite\b/gi, "Hotel check-in")
+    .replace(/\bprihod na kamp\b/gi, "Prihod v hotel")
+    .replace(/\bv kampu\b/gi, "v hotelu")
+    .replace(/\bpri kampu\b/gi, "pri hotelu")
+    .replace(/\bblizu kampa\b/gi, "blizu hotela")
+    .replace(/\bokolico kampa\b/gi, "okolico hotela")
+    .replace(/\btvoj(?:ega)?\s+kamp[au]?\b/gi, "tvoj hotel")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
 type ActivityLike = { name: string; description: string; priceLabel?: string; price?: string; type?: string };
 
 export function sanitizeActivity<T extends ActivityLike>(
   act: T,
   langCode: string,
   country?: string,
-  city?: string,
+  _city?: string,
 ): T {
-  const run = (s: string) =>
-    fixMotorhomeCopyErrors(sanitizeForLang(s, langCode, country), city);
+  const run = (s: string) => sanitizeForLang(s, langCode, country);
   return {
     ...act,
     name: run(act.name),

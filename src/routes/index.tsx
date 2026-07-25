@@ -708,12 +708,29 @@ function Landing() {
     let resolvedFlights: MakeSearchFlight[] = [];
 
     try {
+      const tripType =
+        collected.tripType === "oneway" || collected.tripType === "openjaw"
+          ? collected.tripType
+          : "return";
+      const { ctx: hintCtx } = heroChatToPlannerPayload(collected, lang);
       const res = await fetch("/api/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           query: trimmed,
           attachment: collected.attachment ?? undefined,
+          tripHints: {
+            tripType,
+            ...(collected.returnFromIata
+              ? { returnFromIata: collected.returnFromIata }
+              : {}),
+            departDate: hintCtx.departDate,
+            ...(tripType !== "oneway" && hintCtx.returnDate
+              ? { returnDate: hintCtx.returnDate }
+              : {}),
+            originIata: hintCtx.from,
+            destinationIata: hintCtx.to,
+          },
           ...(userLocation
             ? {
                 latitude: userLocation.latitude,
@@ -774,6 +791,12 @@ function Landing() {
     const flightDest = resolvedFlights
       .map((f) => f.destination_iata || parseMakeFlightRoute(f.destinacija).to)
       .find((code): code is string => Boolean(code && /^[A-Z]{3}$/.test(code)));
+    const searchTripType =
+      collected.tripType === "oneway"
+        ? ("oneway" as const)
+        : collected.tripType === "openjaw"
+          ? ("multicity" as const)
+          : ("return" as const);
     const enrichedCtx = {
       ...ctx,
       to: ctx.to || flightDest || "",
@@ -791,8 +814,24 @@ function Landing() {
       originPlace: ctx.originPlace,
       destinationPlace: ctx.destinationPlace,
       departDate: ctx.departDate,
-      returnDate: ctx.returnDate ?? "",
-      tripType: "return",
+      returnDate: searchTripType === "oneway" ? "" : ctx.returnDate ?? "",
+      tripType: searchTripType,
+      ...(enrichedCtx.returnFromIata
+        ? {
+            slices: [
+              {
+                from: enrichedCtx.from,
+                to: enrichedCtx.to,
+                departDate: enrichedCtx.departDate,
+              },
+              {
+                from: enrichedCtx.returnFromIata,
+                to: enrichedCtx.from,
+                departDate: enrichedCtx.returnDate || enrichedCtx.departDate,
+              },
+            ],
+          }
+        : {}),
       pax: ctx.pax,
       adults: ctx.adults,
       children: ctx.childrenAges.length,
@@ -1034,8 +1073,17 @@ function Landing() {
     // Keep the user's calendar range (e.g. 10 Nov) — offer return can be a shorter Make/Duffel slice.
     const departDate =
       aiContext.departDate || lastSearch?.departDate || flight.depart_date || "";
-    const returnDate =
-      aiContext.returnDate || lastSearch?.returnDate || flight.return_date || undefined;
+    const isOneWay =
+      lastSearch?.tripType === "oneway" ||
+      (!flight.inbound_depart && !flight.povratek && !flight.return_date);
+    const returnDate = isOneWay
+      ? aiContext.returnDate
+      : aiContext.returnDate || lastSearch?.returnDate || flight.return_date || undefined;
+    const returnFromIata =
+      flight.inbound_origin_iata ||
+      aiContext.returnFromIata ||
+      (lastSearch?.tripType === "multicity" && lastSearch.slices?.[1]?.from) ||
+      undefined;
 
     const outStops = parsePostankiLeg(flight.postanki, "outbound");
     const inStops = parsePostankiLeg(flight.postanki, "inbound");
@@ -1050,12 +1098,16 @@ function Landing() {
               flight.outbound_arrive,
               flight.outbound_arrive_day_offset,
             ),
-            ...(flight.inbound_depart ? { inboundDepart: flight.inbound_depart } : {}),
-            ...(flight.inbound_arrive ? { inboundArrive: flight.inbound_arrive } : {}),
+            ...(!isOneWay && flight.inbound_depart
+              ? { inboundDepart: flight.inbound_depart }
+              : {}),
+            ...(!isOneWay && flight.inbound_arrive
+              ? { inboundArrive: flight.inbound_arrive }
+              : {}),
             ...(outStops.stops != null ? { outboundStops: outStops.stops } : {}),
-            ...(inStops.stops != null ? { inboundStops: inStops.stops } : {}),
+            ...(!isOneWay && inStops.stops != null ? { inboundStops: inStops.stops } : {}),
             ...(outStops.via ? { outboundVia: outStops.via } : {}),
-            ...(inStops.via ? { inboundVia: inStops.via } : {}),
+            ...(!isOneWay && inStops.via ? { inboundVia: inStops.via } : {}),
           }
         : aiContext.flights;
 
@@ -1065,6 +1117,7 @@ function Landing() {
       to,
       departDate: departDate || aiContext.departDate,
       returnDate: returnDate || undefined,
+      ...(returnFromIata && returnFromIata !== to ? { returnFromIata } : {}),
       flights: flightCtx,
     });
 

@@ -28,6 +28,9 @@ export type MakeSearchFlight = {
   /** Structured fields for booking deep-links + AI plan scheduling. */
   origin_iata?: string;
   destination_iata?: string;
+  /** Open-jaw: actual return-leg airports (may differ from outbound mirror). */
+  inbound_origin_iata?: string;
+  inbound_destination_iata?: string;
   /** YYYY-MM-DD */
   depart_date?: string;
   /** YYYY-MM-DD */
@@ -151,11 +154,18 @@ function parseDuffelOfferAsMakeFlight(item: unknown, index: number): MakeSearchF
   const returnSegments =
     returnSlice && Array.isArray(returnSlice.segments) ? returnSlice.segments : [];
   const returnFirstSeg = asRecord(returnSegments[0]);
+  const returnLastSeg =
+    asRecord(returnSegments[returnSegments.length - 1]) ?? returnFirstSeg;
 
   const origin =
     readNestedIata(firstSlice.origin) || readNestedIata(firstSeg?.origin);
   const destination =
     readNestedIata(firstSlice.destination) || readNestedIata(lastSeg?.destination);
+  const inboundOrigin =
+    readNestedIata(returnSlice?.origin) || readNestedIata(returnFirstSeg?.origin);
+  const inboundDestination =
+    readNestedIata(returnSlice?.destination) ||
+    readNestedIata(returnLastSeg?.destination);
   const owner = asRecord(record.owner);
   const marketing = asRecord(firstSeg?.marketing_carrier ?? firstSeg?.operating_carrier);
   const carrier =
@@ -168,8 +178,6 @@ function parseDuffelOfferAsMakeFlight(item: unknown, index: number): MakeSearchF
   const departing = readString(firstSeg ?? {}, "departing_at");
   const arriving = readString(lastSeg ?? {}, "arriving_at");
   const returning = readString(returnFirstSeg ?? {}, "departing_at");
-  const returnLastSeg =
-    asRecord(returnSegments[returnSegments.length - 1]) ?? returnFirstSeg;
   const returnArriving = readString(returnLastSeg ?? {}, "arriving_at");
   const price = readNumber(record, "total_amount", "price_total", "cena_eur");
   if (!origin && !destination && price <= 0) return null;
@@ -209,6 +217,8 @@ function parseDuffelOfferAsMakeFlight(item: unknown, index: number): MakeSearchF
     toIata: destination,
     storedLabel: outStored,
   });
+  const inFrom = inboundOrigin || destination;
+  const inTo = inboundDestination || origin;
   const inMins = travelDurationMinutes({
     departIso: returning || undefined,
     arriveIso: returnArriving || undefined,
@@ -219,8 +229,8 @@ function parseDuffelOfferAsMakeFlight(item: unknown, index: number): MakeSearchF
       returning && returnArriving
         ? calendarDayOffset(returning, returnArriving)
         : undefined,
-    fromIata: destination,
-    toIata: origin,
+    fromIata: inFrom,
+    toIata: inTo,
     storedLabel: inStored,
   });
   const outbound_duration = formatDurationMinutes(outMins) || outStored;
@@ -242,6 +252,8 @@ function parseDuffelOfferAsMakeFlight(item: unknown, index: number): MakeSearchF
     ai_povzetek: "",
     ...(origin ? { origin_iata: origin } : {}),
     ...(destination ? { destination_iata: destination } : {}),
+    ...(inboundOrigin ? { inbound_origin_iata: inboundOrigin } : {}),
+    ...(inboundDestination ? { inbound_destination_iata: inboundDestination } : {}),
     ...(departing ? { depart_date: isoDatePart(departing) } : {}),
     ...(returning ? { return_date: isoDatePart(returning) } : {}),
     ...(departing ? { outbound_depart: timeHmFromIso(departing) } : {}),
@@ -1176,11 +1188,22 @@ export function parseMakeSearchFlights(
   return selectTopMakeSearchFlights(deduped, { keepExistingBadges: true });
 }
 
+export type HeroTripSearchHints = {
+  tripType?: "return" | "oneway" | "openjaw";
+  returnFromIata?: string;
+  departDate?: string;
+  returnDate?: string;
+  originIata?: string;
+  destinationIata?: string;
+};
+
 export type SearchRequestBody = {
   query: string;
   attachment?: HeroChatAttachmentPayload;
   latitude?: number;
   longitude?: number;
+  /** Structured trip shape from hero chat — preferred over LLM parse. */
+  tripHints?: HeroTripSearchHints;
 };
 
 export type MakeSearchPassengers = {
@@ -1196,6 +1219,8 @@ export type MakeSearchParsedData = {
   departure_date: string;
   return_date: string;
   passengers: MakeSearchPassengers;
+  trip_type?: "return" | "oneway" | "openjaw";
+  return_from_airport?: string | null;
 };
 
 export type MakeSearchWebhookBody = {
@@ -1662,13 +1687,72 @@ export function parseMakeSearchUserMessage(
     orderedOrigins = destCode === "LJU" ? ["VIE"] : ["LJU"];
   }
 
+  const lower = text.toLowerCase();
+  const openJawMatch = lower.match(
+    /open-?jaw\s+return\s+from\s+([a-z]{3})\b|povratek\s+z\s+([a-z]{3})\b/i,
+  );
+  const returnFromHint = (openJawMatch?.[1] || openJawMatch?.[2] || "").toUpperCase();
+  const trip_type: MakeSearchParsedData["trip_type"] = /one-?way|enosmerno|solo andata|solo ida|aller simple|nur hinflug/i.test(
+    lower,
+  )
+    ? "oneway"
+    : returnFromHint || /open-?jaw|different airport|drugega letališč/i.test(lower)
+      ? "openjaw"
+      : "return";
+
   return {
     origin_airports: orderedOrigins,
     origin_airport: orderedOrigins[0]!,
     destination_airport,
-    departure_date,
-    return_date,
+    departure_date: trip_type === "oneway" ? departure_date : departure_date,
+    return_date: trip_type === "oneway" ? "" : return_date,
     passengers,
+    trip_type,
+    ...( /^[A-Z]{3}$/.test(returnFromHint) ? { return_from_airport: returnFromHint } : {}),
+  };
+}
+
+/** Merge structured hero chat tripHints onto Make parse (hints win). */
+export function applyHeroTripHints(
+  parsed: MakeSearchParsedData,
+  hints?: HeroTripSearchHints | null,
+): MakeSearchParsedData {
+  if (!hints) return parsed;
+  const tripType = hints.tripType ?? parsed.trip_type ?? "return";
+  const departDate = hints.departDate || parsed.departure_date;
+  const returnDate =
+    tripType === "oneway" ? "" : hints.returnDate || parsed.return_date || "";
+  const returnFrom =
+    tripType === "openjaw"
+      ? (hints.returnFromIata || parsed.return_from_airport || "").toUpperCase()
+      : undefined;
+  const originIata = hints.originIata?.toUpperCase();
+  const destinationIata = hints.destinationIata?.toUpperCase();
+
+  let origin_airports = parsed.origin_airports;
+  let origin_airport = parsed.origin_airport;
+  if (originIata && /^[A-Z]{3}$/.test(originIata)) {
+    origin_airport = originIata;
+    origin_airports = [
+      originIata,
+      ...parsed.origin_airports.filter((code) => code !== originIata),
+    ];
+  }
+
+  return {
+    ...parsed,
+    origin_airports,
+    origin_airport,
+    destination_airport:
+      destinationIata && /^[A-Z]{3}$/.test(destinationIata)
+        ? destinationIata
+        : parsed.destination_airport,
+    departure_date: departDate,
+    return_date: returnDate,
+    trip_type: tripType,
+    ...(returnFrom && /^[A-Z]{3}$/.test(returnFrom)
+      ? { return_from_airport: returnFrom }
+      : { return_from_airport: null }),
   };
 }
 
@@ -1858,11 +1942,39 @@ export function parseSearchRequestBody(body: unknown): SearchRequestBody | null 
     }
   }
 
+  let tripHints: HeroTripSearchHints | undefined;
+  const hintsRaw = asRecord(record.tripHints);
+  if (hintsRaw) {
+    const tripTypeRaw = readString(hintsRaw, "tripType", "trip_type").toLowerCase();
+    const tripType =
+      tripTypeRaw === "oneway" || tripTypeRaw === "openjaw" || tripTypeRaw === "return"
+        ? (tripTypeRaw as HeroTripSearchHints["tripType"])
+        : undefined;
+    const returnFromIata = readString(hintsRaw, "returnFromIata", "return_from_iata").toUpperCase();
+    const departDate = readString(hintsRaw, "departDate", "depart_date");
+    const returnDate = readString(hintsRaw, "returnDate", "return_date");
+    const originIata = readString(hintsRaw, "originIata", "origin_iata").toUpperCase();
+    const destinationIata = readString(
+      hintsRaw,
+      "destinationIata",
+      "destination_iata",
+    ).toUpperCase();
+    tripHints = {
+      ...(tripType ? { tripType } : {}),
+      ...( /^[A-Z]{3}$/.test(returnFromIata) ? { returnFromIata } : {}),
+      ...( /^\d{4}-\d{2}-\d{2}$/.test(departDate) ? { departDate } : {}),
+      ...( /^\d{4}-\d{2}-\d{2}$/.test(returnDate) ? { returnDate } : {}),
+      ...( /^[A-Z]{3}$/.test(originIata) ? { originIata } : {}),
+      ...( /^[A-Z]{3}$/.test(destinationIata) ? { destinationIata } : {}),
+    };
+  }
+
   return {
     query: query.trim(),
     attachment,
     latitude,
     longitude,
+    tripHints,
   };
 }
 

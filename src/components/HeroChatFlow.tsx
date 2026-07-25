@@ -29,11 +29,14 @@ import {
   HERO_MOTORHOME_END_CHIPS,
   HERO_MOTORHOME_START_CHIPS,
   localizeHeroCollectedForUi,
+  normalizeHeroTripType,
   type HeroChatCollected,
   type HeroChatMessage,
   type HeroChatMode,
   type HeroChatStep,
+  type HeroTripType,
 } from "@/lib/heroChatFlow";
+import { resolveDestinationIata } from "@/lib/heroChatPlanner";
 import { MotorhomeSearchBrowser } from "@/components/MotorhomeSearchBrowser";
 import { buildHeroMotorhomeSearchQuery } from "@/lib/heroMotorhome";
 import { extractHeroChatDates } from "@/lib/heroChatDates";
@@ -45,6 +48,7 @@ import type { HeroStaySearchParams } from "@/lib/heroStaySearch";
 import { FlightCard } from "@/components/FlightCard";
 import { HotelsSection } from "@/components/HotelsSection";
 import { HeroPassengerBrowser } from "@/components/HeroPassengerBrowser";
+import { HeroReturnFromPicker } from "@/components/HeroReturnFromPicker";
 import { HeroTripChecklist } from "@/components/HeroTripChecklist";
 import { OriginAirportPicker } from "@/components/OriginAirportPicker";
 import { formatOriginSelection } from "@/lib/airportCatalog";
@@ -57,6 +61,7 @@ import {
 import { cn } from "@/lib/utils";
 
 const DATE_CHIP_IDS = ["endOctober", "startNovember", "octNov", "flexible"] as const;
+const TRIP_TYPE_IDS = ["return", "oneway", "openjaw"] as const;
 const NIGHT_CHIP_IDS = ["3-5", "7", "10-14", "2weeks"] as const;
 const PACE_CHIP_IDS = ["intensive", "relaxed", "calm"] as const;
 const BUDGET_CHIP_IDS = ["under500", "500-1000", "1000-2000", "2000plus"] as const;
@@ -72,6 +77,18 @@ function originsFromCollected(
   const destCode = parseMakeSearchDestination(destination ?? "")?.toUpperCase() ?? null;
   const codes = parseMakeSearchOriginAirports(origin?.trim() ?? "");
   return codes.filter((code) => !destCode || code !== destCode);
+}
+
+/** Prefer "Paris (CDG)" over bare city so search/UI always have an airport. */
+function withDestinationAirport(destination: string): string {
+  const trimmed = destination.trim();
+  if (!trimmed) return trimmed;
+  if (/\([A-Za-z]{3}\)/.test(trimmed)) return trimmed;
+  const iata = resolveDestinationIata(trimmed);
+  if (!iata || !/^[A-Z]{3}$/.test(iata)) return trimmed;
+  // Avoid "CDG (CDG)" if user already typed the code.
+  if (trimmed.toUpperCase() === iata) return iata;
+  return `${trimmed} (${iata})`;
 }
 
 const HERO_FEATURE_BADGE_IDS = ["itinerary", "flights", "pdf"] as const;
@@ -692,9 +709,11 @@ export function HeroChatFlow({
             ? `${userLabel}\n📎 ${attachment.filename}`
             : userLabel;
 
-      const boot = resolveHeroChatBootstrap(resolved, lang);
+      const destWithAirport =
+        !isStaysOnly && !isMotorhomeOnly ? withDestinationAirport(resolved) : resolved;
+      const boot = resolveHeroChatBootstrap(destWithAirport, lang);
       const baseCollected = {
-        destination: resolved,
+        destination: destWithAirport,
         attachment: attachment ?? undefined,
         ...(boot.passengers ? { passengers: boot.passengers.label } : {}),
         ...(boot.dates.departDate || boot.dates.precision !== "none"
@@ -705,6 +724,22 @@ export function HeroChatFlow({
       setConversationStarted(true);
       setCollected(baseCollected);
       appendMessages(createChatMessage("user", userMessage));
+
+      // Flights: destination → origin (MUC…) → trip type → dates → …
+      if (!isStaysOnly && !isMotorhomeOnly) {
+        const knownOrigin = originsFromCollected(destWithAirport, "");
+        setAfterOrigin(isFlightsOnly ? "searching" : "pace");
+        if (knownOrigin.length === 0) {
+          appendMessages(createChatMessage("ai", t("heroChat.origin.ask" as never)));
+          setStep("origin");
+          return;
+        }
+        const originLabel = formatOriginSelection(knownOrigin, lang);
+        setCollected((prev) => ({ ...prev, origin: originLabel }));
+        appendMessages(createChatMessage("ai", t("heroChat.tripType.ask" as never)));
+        setStep("tripType");
+        return;
+      }
 
       // Rich prompt with dates but no party size → modern passenger cards only.
       if (boot.nextStep === "passengers" && boot.dates.label) {
@@ -742,43 +777,12 @@ export function HeroChatFlow({
             }),
           ),
         );
-        const bootOrigins = originsFromCollected(resolved, "");
-        if (bootOrigins.length > 0) {
-          const originLabel = formatOriginSelection(bootOrigins, lang);
-          setCollected((prev) => ({ ...prev, origin: originLabel }));
-          if (isStaysOnly) {
-            appendMessages(createChatMessage("ai", t("cta.searchingStays" as never)));
-            setStep("searching");
-          } else if (isFlightsOnly) {
-            appendMessages(
-              createChatMessage(
-                "ai",
-                bootOrigins.length > 1
-                  ? skyMessageWithVars(t("heroChat.searchingFlightsFrom" as never), {
-                      origins: bootOrigins.join(", "),
-                    })
-                  : t("heroChat.searchingFlights" as never),
-              ),
-            );
-            setStep("searching");
-          } else {
-            appendMessages(createChatMessage("ai", t("heroChat.pace.ask" as never)));
-            setStep("pace");
-          }
-          return;
-        }
         if (isStaysOnly) {
           appendMessages(createChatMessage("ai", t("cta.searchingStays" as never)));
           setStep("searching");
           return;
         }
-        setAfterOrigin(isFlightsOnly ? "searching" : "pace");
-        appendMessages(createChatMessage("ai", t("heroChat.origin.ask" as never)));
-        setStep("origin");
-        return;
       }
-
-      // Still need dates.
       if (boot.dates.precision === "vague" && !boot.dates.departDate) {
         appendMessages(
           createChatMessage(
@@ -1097,6 +1101,96 @@ export function HeroChatFlow({
     scrollToBottom();
   }
 
+  function needsFlightTripType(): boolean {
+    return !isStaysOnly && !isMotorhomeOnly;
+  }
+
+  function goAskDates(messageKey: "heroChat.stepDates.ask" | "heroChat.stepDates.vague" = "heroChat.stepDates.ask", period?: string) {
+    appendMessages(
+      createChatMessage(
+        "ai",
+        period
+          ? skyMessageWithVars(t(messageKey as never), { period })
+          : t("heroChat.stepDates.ask" as never),
+        { offerDatePicker: true },
+      ),
+    );
+    setStep("dates");
+    scrollToBottom();
+  }
+
+  /** Trip type → (open-jaw return-from) → dates, unless dates already known. */
+  function goAskTripTypeOrContinue() {
+    if (!needsFlightTripType()) {
+      goAskDates();
+      return;
+    }
+    if (collected.tripType) {
+      const tripType = normalizeHeroTripType(collected.tripType);
+      if (tripType === "openjaw" && !collected.returnFromIata?.trim()) {
+        appendMessages(createChatMessage("ai", t("heroChat.returnFrom.ask" as never)));
+        setStep("returnFrom");
+        scrollToBottom();
+        return;
+      }
+      if (collected.dates?.trim()) {
+        continueWithOptionalOrigin(isQuickSearchMode ? "searching" : "pace", {
+          destination: collected.destination,
+          origin: collected.origin,
+          dates: collected.dates,
+        });
+        return;
+      }
+      goAskDates();
+      return;
+    }
+    appendMessages(createChatMessage("ai", t("heroChat.tripType.ask" as never)));
+    setStep("tripType");
+    scrollToBottom();
+  }
+
+  function handleTripTypeSelect(id: string, label: string) {
+    const tripType = normalizeHeroTripType(id) as HeroTripType;
+    appendMessages(createChatMessage("user", label));
+    setCollected((prev) => ({
+      ...prev,
+      tripType,
+      ...(tripType !== "openjaw" ? { returnFromIata: undefined } : {}),
+    }));
+
+    if (tripType === "openjaw") {
+      appendMessages(createChatMessage("ai", t("heroChat.returnFrom.ask" as never)));
+      setStep("returnFrom");
+      scrollToBottom();
+      return;
+    }
+
+    if (collected.dates?.trim()) {
+      continueWithOptionalOrigin(isQuickSearchMode ? "searching" : "pace", {
+        destination: collected.destination,
+        origin: collected.origin,
+        dates: collected.dates,
+      });
+      return;
+    }
+    goAskDates();
+  }
+
+  function handleReturnFromConfirm(iata: string, label: string) {
+    const code = iata.trim().toUpperCase();
+    appendMessages(createChatMessage("user", label || code));
+    setCollected((prev) => ({ ...prev, returnFromIata: code, tripType: "openjaw" }));
+    if (collected.dates?.trim()) {
+      continueWithOptionalOrigin(isQuickSearchMode ? "searching" : "pace", {
+        destination: collected.destination,
+        origin: collected.origin,
+        dates: collected.dates,
+      });
+      return;
+    }
+    goAskDates();
+  }
+
   function continueAfterDates(dateLabel: string) {
     const dates = dateLabel.trim();
     setCollected((prev) => ({ ...prev, dates: dates || prev.dates || "" }));
@@ -1147,27 +1241,56 @@ export function HeroChatFlow({
     if (codes.length > 0) rememberRecentOrigins(codes);
 
     const originLabel = formatOriginSelection(codes, lang) || label;
-    const next = isQuickSearchMode ? "searching" : afterOrigin;
     setCollected((prev) => ({
       ...prev,
       origin: originLabel,
       attachment: attachment ?? prev.attachment,
     }));
+    appendMessages(createChatMessage("user", originLabel));
 
-    if (next === "searching") {
-      appendMessages(createChatMessage("user", originLabel));
-      if (isStaysOnly) {
-        startStaySearch();
+    // Stays never need trip type / flight origin pipeline beyond this.
+    if (isStaysOnly) {
+      if (!collected.dates?.trim()) {
+        goAskDates();
         return;
       }
-      startFlightSearch({ origins: codes });
+      if (!collected.passengers?.trim()) {
+        askPassengers(collected.dates);
+        return;
+      }
+      startStaySearch();
       return;
     }
 
-    appendMessages(
-      createChatMessage("user", originLabel),
-      createChatMessage("ai", t("heroChat.pace.ask" as never)),
-    );
+    // Flights: origin → trip type → dates → passengers → search/pace.
+    if (needsFlightTripType() && !collected.tripType) {
+      appendMessages(createChatMessage("ai", t("heroChat.tripType.ask" as never)));
+      setStep("tripType");
+      scrollToBottom();
+      return;
+    }
+    const tripType = normalizeHeroTripType(collected.tripType);
+    if (tripType === "openjaw" && !collected.returnFromIata?.trim()) {
+      appendMessages(createChatMessage("ai", t("heroChat.returnFrom.ask" as never)));
+      setStep("returnFrom");
+      scrollToBottom();
+      return;
+    }
+    if (!collected.dates?.trim()) {
+      goAskDates();
+      return;
+    }
+    if (!collected.passengers?.trim()) {
+      askPassengers(collected.dates);
+      return;
+    }
+
+    const next = isQuickSearchMode ? "searching" : afterOrigin;
+    if (next === "searching") {
+      startFlightSearch({ origins: codes });
+      return;
+    }
+    appendMessages(createChatMessage("ai", t("heroChat.pace.ask" as never)));
     setStep("pace");
   }
 
@@ -1185,10 +1308,16 @@ export function HeroChatFlow({
     appendMessages(createChatMessage("user", label));
     setCollected((prev) => ({ ...prev, passengers: label }));
 
-    // Guided path: dates already chosen → ask origin, then pace / search.
+    // Guided path: dates already chosen → trip type (if needed) → origin / search.
     if (knownDates) {
       const dateLabel = knownDates;
       setCollected((prev) => ({ ...prev, dates: dateLabel, passengers: label }));
+      if (needsFlightTripType() && !collected.tripType) {
+        appendMessages(createChatMessage("ai", t("heroChat.tripType.ask" as never)));
+        setStep("tripType");
+        scrollToBottom();
+        return;
+      }
       continueWithOptionalOrigin(isQuickSearchMode ? "searching" : "pace", {
         destination,
         origin: collected.origin,
@@ -1198,22 +1327,18 @@ export function HeroChatFlow({
     }
 
     if (parsed.precision === "vague") {
-      appendMessages(
-        createChatMessage(
-          "ai",
-          skyMessageWithVars(t("heroChat.stepDates.vague" as never), { period: parsed.label }),
-          { offerDatePicker: true },
-        ),
-      );
       setCollected((prev) => ({ ...prev, dates: parsed.label }));
-      setStep("dates");
+      if (needsFlightTripType() && !collected.tripType) {
+        appendMessages(createChatMessage("ai", t("heroChat.tripType.ask" as never)));
+        setStep("tripType");
+        scrollToBottom();
+        return;
+      }
+      goAskDates("heroChat.stepDates.vague", parsed.label);
       return;
     }
 
-    appendMessages(
-      createChatMessage("ai", t("heroChat.stepDates.ask" as never), { offerDatePicker: true }),
-    );
-    setStep("dates");
+    goAskTripTypeOrContinue();
   }
 
   function handleToggleDatePicker() {
@@ -1588,6 +1713,28 @@ export function HeroChatFlow({
             />
           ) : null}
 
+          {showConversationChips && step === "tripType" ? (
+            <QuickReplyChips
+              layout="grid"
+              disabled={loading}
+              options={TRIP_TYPE_IDS.map((id) => ({
+                id,
+                label: t(`heroChat.tripType.${id}` as never),
+              }))}
+              onSelect={handleTripTypeSelect}
+            />
+          ) : null}
+
+          {showConversationChips && step === "returnFrom" ? (
+            <div className="hero-chips-enter pl-0 sm:pl-10">
+              <HeroReturnFromPicker
+                excludeIata={parseMakeSearchDestination(collected.destination ?? "")}
+                disabled={loading}
+                onConfirm={handleReturnFromConfirm}
+              />
+            </div>
+          ) : null}
+
           {showConversationChips && step === "dates" && !showDatePicker ? (
             <div className="space-y-2">
               <QuickReplyChips
@@ -1647,6 +1794,9 @@ export function HeroChatFlow({
           >
             <HeroDateRangeCalendar
               lang={lang}
+              mode={
+                normalizeHeroTripType(collected.tripType) === "oneway" ? "single" : "range"
+              }
               confirmLabel={t("heroChat.confirm" as never)}
               disabled={loading}
               onConfirm={handleDateRangeConfirm}

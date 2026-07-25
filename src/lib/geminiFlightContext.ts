@@ -94,6 +94,75 @@ function cityNamesMatch(a: string, b: string): boolean {
   return left.includes(right) || right.includes(left);
 }
 
+function dayBlob(day: DayPlan): string {
+  return [
+    day.title,
+    day.city,
+    day.focusName,
+    day.morning,
+    day.afternoon,
+    day.evening,
+    ...flattenDayActivities(day).map((a) => `${a.name} ${a.description ?? ""}`),
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+/** True when a prior day already returned to the international hub (e.g. TGV Lyon→Paris). */
+function alreadyReturnedToHub(day: DayPlan, hubName: string): boolean {
+  if (cityNamesMatch(day.city ?? "", hubName) || cityNamesMatch(day.focusName ?? "", hubName)) {
+    return true;
+  }
+  const blob = dayBlob(day);
+  const hub = normalizeCityToken(hubName);
+  if (!hub || !normalizeCityToken(blob).includes(hub)) return false;
+  return /\b(tgv|train|vlak|rail|ferrovia|zug|high-?speed|intercit[eé]|thalys|ouigo)\b/i.test(
+    blob,
+  );
+}
+
+/**
+ * City overnighting before the international departure day.
+ * Only the last stay day counts — an early hub visit (Bangkok day 2) must not
+ * cancel a later island/city hop back (Krabi → BKK).
+ */
+function resolveCityBeforeDeparture(
+  plan: AiTripPlan,
+  totalDays: number,
+  hubName: string,
+): { stayCity: string; alreadyAtHub: boolean } {
+  const prev = [...plan.days]
+    .filter((d) => d.day < totalDays && !d.inFlightDay)
+    .sort((a, b) => b.day - a.day)[0];
+  if (!prev) return { stayCity: "", alreadyAtHub: false };
+
+  // Last day already back at hub, or stale city (still "Lyon") but TGV/train to hub in content.
+  if (hubName && alreadyReturnedToHub(prev, hubName)) {
+    return { stayCity: hubName, alreadyAtHub: true };
+  }
+  const stayCity = (prev.city || prev.focusName || "").trim();
+  return {
+    stayCity,
+    alreadyAtHub: Boolean(hubName && stayCity && cityNamesMatch(stayCity, hubName)),
+  };
+}
+
+/** Same-country EU hops (Lyon→Paris) are trains — never invent a domestic flight. */
+function preferRailHubHop(fromCity: string, hubName: string, destinationIata?: string): boolean {
+  const hub = lookupDestination(destinationIata ?? "");
+  const country = hub?.country?.toUpperCase() ?? "";
+  if (!country || !["FR", "DE", "IT", "ES", "NL", "BE", "CH", "AT"].includes(country)) {
+    return false;
+  }
+  const blob = `${fromCity} ${hubName}`.toLowerCase();
+  // Classic rail corridors / short domestic returns.
+  if (country === "FR") return true;
+  if (/lyon|paris|marseille|nice|bordeaux|lille|munich|berlin|frankfurt|rome|milan|madrid|barcelona|amsterdam|vienna|zurich/.test(blob)) {
+    return true;
+  }
+  return false;
+}
+
 function mergeArrivalDay(
   day: DayPlan,
   flights: TripFlightContext,
@@ -176,6 +245,12 @@ function hmFromMinutes(totalMin: number): string {
  * Departure-day clocks: checkout → transfer → airport (single clocks before depart),
  * then international flight alone may use depart→arrive (overnight +1 OK).
  */
+function normalizeHmToken(hm: string): string {
+  const m = hm.match(/(\d{1,2}):(\d{2})/);
+  if (!m) return "";
+  return `${String(Number(m[1])).padStart(2, "0")}:${m[2]}`;
+}
+
 function patchAirportActivityTimes(
   activities: NonNullable<DayPlan["activities"]>,
   depart: string,
@@ -185,6 +260,8 @@ function patchAirportActivityTimes(
   const checkoutAt = hmFromMinutes(depMin - 4 * 60);
   const transferAt = hmFromMinutes(depMin - 3.5 * 60);
   const airportAt = hmFromMinutes(depMin - 3 * 60);
+  const depNorm = normalizeHmToken(depart);
+  const arrNorm = arrive ? normalizeHmToken(arrive) : "";
 
   const patch = (list: Activity[] | undefined): Activity[] =>
     (list ?? []).map((a) => {
@@ -202,16 +279,24 @@ function patchAirportActivityTimes(
         let clockIdx = 0;
         description = description.replace(/\b\d{1,2}:\d{2}\b/g, (match) => {
           clockIdx += 1;
+          const norm = normalizeHmToken(match);
           if (isIntlFlight) {
             if (clockIdx === 1) return depart;
             if (clockIdx === 2 && arrive) return arrive;
+            return match;
+          }
+          // Transfer prose embeds the real flight time ("Flight departs at 08:30") —
+          // never rewrite boarding-pass clocks to the transfer slot (was 05:00 bug).
+          if (/prevoz|transfer|flughafentransfer|transfert|traslado/i.test(blob)) {
+            if (norm && norm === depNorm) return depart;
+            if (arrNorm && norm === arrNorm) return arrive!;
+            if (clockIdx === 1) return transferAt;
             return match;
           }
           if (clockIdx === 1) {
             if (/check-?out|odhod iz hotela|hotel check-out|vrnitev avtodoma/i.test(blob)) {
               return checkoutAt;
             }
-            if (/prevoz|transfer|flughafentransfer/i.test(blob)) return transferAt;
             return airportAt;
           }
           return match;
@@ -649,18 +734,18 @@ export function applyFlightContextToGeminiPlan(
         day.inFlightDay = true;
         day.category = "transport";
       }
-      const prevDay = [...plan.days]
-        .reverse()
-        .find((d) => d.day < totalDays && !d.inFlightDay);
-      const prevCity = (prevDay?.city || prevDay?.focusName || "").trim();
       // Prefer destination hub over a stale island city (e.g. Krabi on BKK departure day).
       const destHub = plan.destinationIata
         ? lookupDestination(plan.destinationIata)
         : undefined;
-      const hubName = destHub?.name?.trim();
+      const hubName = destHub?.name?.trim() || (plan.destinationName ?? "").trim();
+      const { stayCity: prevCity, alreadyAtHub } = hubName
+        ? resolveCityBeforeDeparture(plan, totalDays, hubName)
+        : { stayCity: "", alreadyAtHub: false };
       const needsHubHop = Boolean(
         hubName &&
           prevCity &&
+          !alreadyAtHub &&
           !cityNamesMatch(prevCity, hubName) &&
           !cityNamesMatch(prevCity, plan.destinationName ?? ""),
       );
@@ -697,25 +782,67 @@ export function applyFlightContextToGeminiPlan(
         afternoon: [],
         evening: [],
       };
+      // Drop Gemini phantom domestic flights to the hub when traveler is already there
+      // (or when a prior day already did the TGV/train return).
+      const stripPhantomHubFlight = (list: Activity[] | undefined): Activity[] =>
+        (list ?? []).filter((a) => {
+          if (!hubName || !prevCity) return true;
+          if (!(alreadyAtHub || !needsHubHop)) return true;
+          const blob = `${a.name} ${a.description ?? ""}`;
+          const n = normalizeCityToken(blob);
+          const from = normalizeCityToken(prevCity);
+          const to = normalizeCityToken(hubName);
+          const toHub =
+            (from && to && n.includes(from) && n.includes(to)) ||
+            cityNamesMatch(hubName, a.name);
+          const isAir =
+            a.transportType === "flight" ||
+            /\b(flight|let|flug|volo|vuelo|vol)\b/i.test(blob);
+          return !(toHub && isAir);
+        });
+      merged.morning = stripPhantomHubFlight(merged.morning);
+      merged.afternoon = stripPhantomHubFlight(merged.afternoon);
+      merged.evening = stripPhantomHubFlight(merged.evening);
+
       if (needsHubHop && hubName && prevCity) {
+        const rail = preferRailHubHop(prevCity, hubName, plan.destinationIata);
         const hop: Activity = {
-          name: planLangCopy(lang, {
-            sl: `Notranji prevoz ${prevCity} → ${hubName}`,
-            en: `Domestic transfer ${prevCity} → ${hubName}`,
-            de: `Inlands-Transfer ${prevCity} → ${hubName}`,
-            it: `Transfer interno ${prevCity} → ${hubName}`,
-            es: `Traslado doméstico ${prevCity} → ${hubName}`,
-            fr: `Transfert intérieur ${prevCity} → ${hubName}`,
-          }),
+          name: rail
+            ? planLangCopy(lang, {
+                sl: `Vlak ${prevCity} → ${hubName}`,
+                en: `Train ${prevCity} → ${hubName}`,
+                de: `Zug ${prevCity} → ${hubName}`,
+                it: `Treno ${prevCity} → ${hubName}`,
+                es: `Tren ${prevCity} → ${hubName}`,
+                fr: `Train ${prevCity} → ${hubName}`,
+              })
+            : planLangCopy(lang, {
+                sl: `Notranji prevoz ${prevCity} → ${hubName}`,
+                en: `Domestic transfer ${prevCity} → ${hubName}`,
+                de: `Inlands-Transfer ${prevCity} → ${hubName}`,
+                it: `Transfer interno ${prevCity} → ${hubName}`,
+                es: `Traslado doméstico ${prevCity} → ${hubName}`,
+                fr: `Transfert intérieur ${prevCity} → ${hubName}`,
+              }),
           type: "TRANSPORT",
-          description: planLangCopy(lang, {
-            sl: `Pred mednarodnim odhodom ob ${flights.inboundDepart} se vrneš v ${hubName} (ne ostani v ${prevCity}). Računaj na notranji let ali dolg transfer — rezerviraj vnaprej.`,
-            en: `Before the international departure at ${flights.inboundDepart}, return to ${hubName} (do not stay in ${prevCity}). Budget a domestic flight or long transfer — book ahead.`,
-            de: `Vor dem internationalen Abflug um ${flights.inboundDepart} zurück nach ${hubName} (nicht in ${prevCity} bleiben). Plane einen Inlandsflug oder langen Transfer — im Voraus buchen.`,
-            it: `Prima della partenza internazionale alle ${flights.inboundDepart} torna a ${hubName} (non restare a ${prevCity}). Previsto un volo interno o un lungo transfer — prenota in anticipo.`,
-            es: `Antes de la salida internacional a las ${flights.inboundDepart} vuelve a ${hubName} (no te quedes en ${prevCity}). Cuenta con un vuelo doméstico o un traslado largo — reserva con antelación.`,
-            fr: `Avant le départ international à ${flights.inboundDepart}, retournez à ${hubName} (ne restez pas à ${prevCity}). Prévoyez un vol intérieur ou un long transfert — réservez à l'avance.`,
-          }),
+          // Never mark as flight — PDF/UI would show a phantom air leg (Lyon→Paris).
+          description: rail
+            ? planLangCopy(lang, {
+                sl: `Pred mednarodnim odhodom ob ${flights.inboundDepart} se z vlakom (TGV/IC) vrneš v ${hubName}. Ne ostani v ${prevCity} — rezerviraj vlak vnaprej.`,
+                en: `Before the international departure at ${flights.inboundDepart}, return to ${hubName} by train (TGV/IC). Do not stay in ${prevCity} — book the train ahead.`,
+                de: `Vor dem internationalen Abflug um ${flights.inboundDepart} mit dem Zug (TGV/IC) zurück nach ${hubName}. Nicht in ${prevCity} bleiben — Zug im Voraus buchen.`,
+                it: `Prima della partenza internazionale alle ${flights.inboundDepart} torna a ${hubName} in treno (TGV/IC). Non restare a ${prevCity} — prenota il treno.`,
+                es: `Antes de la salida internacional a las ${flights.inboundDepart} vuelve a ${hubName} en tren (TGV/IC). No te quedes en ${prevCity} — reserva el tren.`,
+                fr: `Avant le départ international à ${flights.inboundDepart}, retournez à ${hubName} en train (TGV/IC). Ne restez pas à ${prevCity} — réservez le train.`,
+              })
+            : planLangCopy(lang, {
+                sl: `Pred mednarodnim odhodom ob ${flights.inboundDepart} se vrneš v ${hubName} (ne ostani v ${prevCity}). Računaj na notranji prevoz — rezerviraj vnaprej.`,
+                en: `Before the international departure at ${flights.inboundDepart}, return to ${hubName} (do not stay in ${prevCity}). Budget ground transfer — book ahead.`,
+                de: `Vor dem internationalen Abflug um ${flights.inboundDepart} zurück nach ${hubName} (nicht in ${prevCity} bleiben). Plane einen Transfer — im Voraus buchen.`,
+                it: `Prima della partenza internazionale alle ${flights.inboundDepart} torna a ${hubName} (non restare a ${prevCity}). Previsto un transfer — prenota in anticipo.`,
+                es: `Antes de la salida internacional a las ${flights.inboundDepart} vuelve a ${hubName} (no te quedes en ${prevCity}). Cuenta con un traslado — reserva con antelación.`,
+                fr: `Avant le départ international à ${flights.inboundDepart}, retournez à ${hubName} (ne restez pas à ${prevCity}). Prévoyez un transfert — réservez à l'avance.`,
+              }),
         };
         merged.morning = [hop, ...(merged.morning ?? [])].slice(0, 4);
       }

@@ -9,6 +9,7 @@ import {
 } from "@/lib/flights.functions";
 import { generateJson } from "@/lib/llm";
 import {
+  applyHeroTripHints,
   callMakeSearchStatusWebhook,
   callMakeSearchWebhook,
   createMakeSearchId,
@@ -22,6 +23,7 @@ import {
   parseMakeSearchUserMessage,
   tagMakeSearchFlightsWithOrigin,
   unwrapMakeSearchOffersPayload,
+  type HeroTripSearchHints,
   type MakeSearchFlight,
   type MakeSearchParsedData,
 } from "@/lib/makeSearch";
@@ -40,7 +42,10 @@ const ParsedQuerySchema = z.object({
   children: z.number().int().min(0).max(8).optional(),
   budget_eur: z.number().nullable().optional(),
   destination_name: z.string().optional(),
-  trip_type: z.enum(["oneway", "return"]).optional(),
+  trip_type: z.enum(["oneway", "return", "openjaw"]).optional(),
+  return_from_iata: z
+    .union([z.string().regex(/^[A-Z]{3}$/), z.null()])
+    .optional(),
 });
 
 export type ParsedHeroQuery = z.infer<typeof ParsedQuerySchema>;
@@ -382,14 +387,19 @@ export type HeroFlightSearchResult =
   | { ok: false; error: string; status: number };
 
 function stubParsedFromMake(parsed: MakeSearchParsedData): ParsedHeroQuery {
+  const tripType = parsed.trip_type ?? "return";
   return {
     origin_iata: parsed.origin_airport || "LJU",
     destination_iata: parsed.destination_airport || "LJU",
     depart_date: parsed.departure_date || defaultDateFrom(),
-    return_date: parsed.return_date || defaultDateTo(defaultDateFrom()),
+    return_date:
+      tripType === "oneway"
+        ? null
+        : parsed.return_date || defaultDateTo(defaultDateFrom()),
     adults: parsed.passengers.adults,
     children: parsed.passengers.children,
-    trip_type: "return",
+    trip_type: tripType === "openjaw" ? "openjaw" : tripType === "oneway" ? "oneway" : "return",
+    return_from_iata: parsed.return_from_airport || null,
   };
 }
 
@@ -459,12 +469,16 @@ async function searchViaMakeWebhook(
   query: string,
   attachment?: HeroChatAttachmentPayload,
   location?: HeroFlightSearchLocation,
+  tripHints?: HeroTripSearchHints,
 ): Promise<HeroFlightSearchResult> {
   const geoOrigins =
     location != null
       ? await fetchNearestAirports(location.latitude, location.longitude)
       : [];
-  const baseParsed = parseMakeSearchUserMessage(query, geoOrigins);
+  const baseParsed = applyHeroTripHints(
+    parseMakeSearchUserMessage(query, geoOrigins),
+    tripHints,
+  );
   const dest = baseParsed.destination_airport?.trim().toUpperCase() ?? "";
   if (!/^[A-Z]{3}$/.test(dest)) {
     return { ok: false, error: "heroSearch.destinationUnclear", status: 422 };
@@ -746,30 +760,59 @@ async function runHeroFlightSearch(
   query: string,
   attachment?: HeroChatAttachmentPayload,
   location?: HeroFlightSearchLocation,
+  tripHints?: HeroTripSearchHints,
 ): Promise<HeroFlightSearchResult> {
   if (process.env.MAKE_WEBHOOK_URL?.trim()) {
-    return searchViaMakeWebhook(query, attachment, location);
+    return searchViaMakeWebhook(query, attachment, location, tripHints);
   }
 
   const parsedResult = await parseQueryWithOpenAI(query, attachment);
   if ("error" in parsedResult) {
     return { ok: false, error: parsedResult.error, status: 502 };
   }
-  const parsed = parsedResult;
+  let parsed = parsedResult;
+  if (tripHints) {
+    const hinted = applyHeroTripHints(
+      {
+        origin_airports: [parsed.origin_iata],
+        origin_airport: parsed.origin_iata,
+        destination_airport: parsed.destination_iata,
+        departure_date: parsed.depart_date,
+        return_date: parsed.return_date ?? "",
+        passengers: { adults: parsed.adults, children: parsed.children ?? 0 },
+        trip_type: parsed.trip_type,
+        return_from_airport: parsed.return_from_iata,
+      },
+      tripHints,
+    );
+    parsed = {
+      ...parsed,
+      origin_iata: hinted.origin_airport,
+      destination_iata: hinted.destination_airport || parsed.destination_iata,
+      depart_date: hinted.departure_date,
+      return_date: hinted.return_date || null,
+      trip_type: hinted.trip_type,
+      return_from_iata: hinted.return_from_airport || null,
+    };
+  }
 
   if (!getDuffelApiKey()) {
     return { ok: false, error: "heroSearch.error", status: 503 };
   }
 
   const pax = Math.min(9, parsed.adults + (parsed.children ?? 0));
+  const tripType = parsed.trip_type ?? "return";
   const returnDate =
-    parsed.trip_type === "return" && parsed.return_date ? parsed.return_date : undefined;
+    tripType !== "oneway" && parsed.return_date ? parsed.return_date : undefined;
 
   const duffelResult = await searchDuffelOffers({
     origin: parsed.origin_iata,
     destination: parsed.destination_iata,
     departDate: parsed.depart_date,
     returnDate,
+    returnFromIata: parsed.return_from_iata || undefined,
+    tripType:
+      tripType === "openjaw" ? "multicity" : tripType === "oneway" ? "oneway" : "return",
     pax,
     supplierTimeoutMs: 12_000,
     maxOffers: 20,
@@ -792,10 +835,11 @@ export async function searchHeroFlights(
   query: string,
   attachment?: HeroChatAttachmentPayload,
   location?: HeroFlightSearchLocation,
+  tripHints?: HeroTripSearchHints,
 ): Promise<HeroFlightSearchResult> {
   try {
     return await withTimeout(
-      runHeroFlightSearch(query, attachment, location),
+      runHeroFlightSearch(query, attachment, location, tripHints),
       HERO_SEARCH_TIMEOUT_MS,
       "hero-flight-search",
     );

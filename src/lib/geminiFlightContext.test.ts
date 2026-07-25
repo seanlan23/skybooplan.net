@@ -435,6 +435,174 @@ describe("applyFlightContextToGeminiPlan", () => {
     expect(names.join(" | ")).toMatch(/Krabi.*Bangkok|Notranji prevoz/i);
   });
 
+  it("does not invent Lyon→Paris flight when day 7 already returned by TGV", () => {
+    const emptySlots = {
+      morning: "",
+      afternoon: "",
+      evening: "",
+      travelHack: "",
+      transportationTips: "",
+      localWarnings: "",
+      dailyBudgetEur: 80,
+      category: "city" as const,
+    };
+    const plan = basePlan({
+      destinationName: "Paris",
+      destinationIata: "CDG",
+      centerLat: 48.86,
+      centerLng: 2.35,
+      accommodationMode: "hotel",
+      days: [
+        {
+          day: 1,
+          date: "2026-07-01",
+          title: "Arrival",
+          ...emptySlots,
+          lat: 48.86,
+          lng: 2.35,
+          city: "Paris",
+          focusName: "Paris",
+          activities: { morning: [], afternoon: [], evening: [] },
+        },
+        {
+          day: 2,
+          date: "2026-07-02",
+          title: "Paris",
+          ...emptySlots,
+          lat: 48.86,
+          lng: 2.35,
+          city: "Paris",
+          focusName: "Paris",
+          activities: { morning: [], afternoon: [], evening: [] },
+        },
+        {
+          day: 3,
+          date: "2026-07-03",
+          title: "TGV to Lyon",
+          ...emptySlots,
+          lat: 45.75,
+          lng: 4.85,
+          city: "Lyon",
+          focusName: "Lyon",
+          activities: { morning: [], afternoon: [], evening: [] },
+        },
+        {
+          day: 4,
+          date: "2026-07-04",
+          title: "Lyon",
+          ...emptySlots,
+          lat: 45.75,
+          lng: 4.85,
+          city: "Lyon",
+          focusName: "Lyon",
+          activities: { morning: [], afternoon: [], evening: [] },
+        },
+        {
+          day: 5,
+          date: "2026-07-05",
+          title: "Lyon",
+          ...emptySlots,
+          lat: 45.75,
+          lng: 4.85,
+          city: "Lyon",
+          focusName: "Lyon",
+          activities: { morning: [], afternoon: [], evening: [] },
+        },
+        {
+          day: 6,
+          date: "2026-07-06",
+          title: "Lyon",
+          ...emptySlots,
+          lat: 45.75,
+          lng: 4.85,
+          city: "Lyon",
+          focusName: "Lyon",
+          activities: { morning: [], afternoon: [], evening: [] },
+        },
+        {
+          day: 7,
+          date: "2026-07-07",
+          title: "TGV Lyon → Paris",
+          ...emptySlots,
+          lat: 48.86,
+          lng: 2.35,
+          city: "Lyon",
+          focusName: "Lyon",
+          activities: {
+            morning: [
+              {
+                name: "TGV Lyon → Paris",
+                type: "TRANSPORT",
+                description: "High-speed train back to Paris for the flight home.",
+              },
+            ],
+            afternoon: [
+              {
+                name: "Hotel check-in Paris",
+                type: "STAY",
+                description: "Check in near the hotel in Paris.",
+              },
+            ],
+            evening: [],
+          },
+        },
+        {
+          day: 8,
+          date: "2026-07-08",
+          title: "Flight Lyon to Paris",
+          ...emptySlots,
+          lat: 45.75,
+          lng: 4.85,
+          city: "Lyon",
+          focusName: "Lyon",
+          activities: {
+            morning: [
+              {
+                name: "Flight Lyon → Paris",
+                type: "TRANSPORT",
+                transportType: "flight",
+                description: "Phantom domestic flight",
+              },
+            ],
+            afternoon: [],
+            evening: [],
+          },
+        },
+      ],
+    });
+
+    applyFlightContextToGeminiPlan(
+      plan,
+      {
+        outboundDepart: "08:00",
+        outboundArrive: "09:30",
+        outboundArriveDayOffset: 0,
+        inboundDepart: "08:30",
+        inboundArrive: "10:00",
+      },
+      { originIata: "MUC", destinationIata: "CDG", language: "en" },
+    );
+
+    const last = plan.days.find((d) => d.day === 8)!;
+    expect(last.city).toMatch(/Paris/i);
+    expect(last.title).toMatch(/Departure from Paris/i);
+    expect(last.title).not.toMatch(/Transfer to Paris/i);
+    const names = [
+      ...(last.activities?.morning ?? []),
+      ...(last.activities?.afternoon ?? []),
+      ...(last.activities?.evening ?? []),
+    ].map((a) => a.name);
+    expect(names.join(" | ")).not.toMatch(/Flight Lyon|Lyon → Paris/i);
+    const transfer = [
+      ...(last.activities?.morning ?? []),
+      ...(last.activities?.afternoon ?? []),
+      ...(last.activities?.evening ?? []),
+    ].find((a) => /airport transfer/i.test(a.name));
+    expect(transfer?.description).toMatch(/08:30/);
+    expect(transfer?.description).not.toMatch(/departs at 05:00/i);
+    expect(transfer?.arrivalTime).toBe("05:00");
+  });
+
   it("staggers last-day checkout/transfer/airport before return flight (no 18:10 pile-up)", () => {
     const plan = basePlan({
       destinationName: "Manila",

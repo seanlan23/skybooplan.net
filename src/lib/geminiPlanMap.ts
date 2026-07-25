@@ -56,7 +56,12 @@ import { sanitizeReturnFlightSummary } from "@/lib/returnFlightSummary";
 import { enrichMotorhomePlanTips } from "@/lib/motorhomePlanTips";
 import { driveTypeLabel } from "@/lib/planLangCopy";
 import { normalizePlanLangCode } from "@/lib/planLanguages";
-import { sanitizeActivity, sanitizeForLang } from "@/lib/textSanitize";
+import {
+  fixHotelCopyErrors,
+  fixMotorhomeCopyErrors,
+  sanitizeActivity,
+  sanitizeForLang,
+} from "@/lib/textSanitize";
 
 export type GeminiPlanMapOpts = {
   originIata?: string;
@@ -946,19 +951,38 @@ export function enrichGeminiCatalogPlan(
     finalDay.dailyBudgetEur = daily;
 
     // Force activity/title language (Gemini often leaks English into SL/DE plans).
-    finalDay.title = sanitizeForLang(finalDay.title ?? "", planLang, locale.country);
+    const city = finalDay.city ?? "";
+    const lodgingFix = (s: string) =>
+      motorhome ? fixMotorhomeCopyErrors(s, city) : fixHotelCopyErrors(s);
+    finalDay.title = lodgingFix(
+      sanitizeForLang(finalDay.title ?? "", planLang, locale.country),
+    );
     if (finalDay.activities) {
-      const city = finalDay.city ?? "";
       finalDay.activities = {
-        morning: finalDay.activities.morning.map((a) =>
-          sanitizeActivity(a, planLang, locale.country, city),
-        ),
-        afternoon: finalDay.activities.afternoon.map((a) =>
-          sanitizeActivity(a, planLang, locale.country, city),
-        ),
-        evening: finalDay.activities.evening.map((a) =>
-          sanitizeActivity(a, planLang, locale.country, city),
-        ),
+        morning: finalDay.activities.morning.map((a) => {
+          const clean = sanitizeActivity(a, planLang, locale.country, city);
+          return {
+            ...clean,
+            name: lodgingFix(clean.name),
+            description: lodgingFix(clean.description ?? ""),
+          };
+        }),
+        afternoon: finalDay.activities.afternoon.map((a) => {
+          const clean = sanitizeActivity(a, planLang, locale.country, city);
+          return {
+            ...clean,
+            name: lodgingFix(clean.name),
+            description: lodgingFix(clean.description ?? ""),
+          };
+        }),
+        evening: finalDay.activities.evening.map((a) => {
+          const clean = sanitizeActivity(a, planLang, locale.country, city);
+          return {
+            ...clean,
+            name: lodgingFix(clean.name),
+            description: lodgingFix(clean.description ?? ""),
+          };
+        }),
       };
     }
   }

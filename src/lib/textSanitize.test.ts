@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  fixHotelCopyErrors,
   fixMotorhomeCopyErrors,
   fixPoiNameForSlot,
   fixSlotTimeMismatch,
@@ -40,6 +41,22 @@ describe("fixMotorhomeCopyErrors", () => {
       ),
     ).toMatch(/okolico kampa/i);
     expect(fixMotorhomeCopyErrors("Dinner near the hotel")).toMatch(/campsite/i);
+  });
+});
+
+describe("hotel lodging sanitize", () => {
+  it("does not rewrite hotel → campsite in sanitizeForLang", () => {
+    expect(sanitizeForLang("Leave the hotel about 3 hours early.", "en")).toMatch(
+      /hotel/i,
+    );
+    expect(sanitizeForLang("Leave the hotel about 3 hours early.", "en")).not.toMatch(
+      /campsite/i,
+    );
+  });
+
+  it("fixHotelCopyErrors undoes campsite wording on hotel trips", () => {
+    expect(fixHotelCopyErrors("Pick up luggage at the campsite")).toMatch(/hotel/i);
+    expect(fixHotelCopyErrors("Pick up luggage at the campsite")).not.toMatch(/campsite/i);
   });
 });
 

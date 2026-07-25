@@ -29,7 +29,12 @@ export const Route = createFileRoute("/api/search")({
             ? { latitude: parsed.latitude, longitude: parsed.longitude }
             : undefined;
 
-        const result = await searchHeroFlights(parsed.query, parsed.attachment, location);
+        const result = await searchHeroFlights(
+          parsed.query,
+          parsed.attachment,
+          location,
+          parsed.tripHints,
+        );
 
         if (!result.ok) {
           console.warn("[api/search] Search failed:", result.error);

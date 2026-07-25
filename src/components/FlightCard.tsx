@@ -6,12 +6,12 @@ import {
   formatTravelDuration,
   inferArriveDayOffset,
   parseDurationMinutes,
-  parseMakeFlightRoute,
   pickTravelDurationRaw,
   skyscannerUrlForMakeFlight,
   travelDurationMinutes,
   type MakeSearchFlight,
 } from "@/lib/makeSearch";
+import { resolveMakeFlightLegAirports } from "@/lib/flightCardRoute";
 import { cn } from "@/lib/utils";
 
 function formatPrice(eur: number, lang: string): string {
@@ -353,9 +353,12 @@ export function FlightCard({
   const stopsLabel = t("results.stops" as never);
   const viaLabel = t("results.via" as never);
 
-  const route = parseMakeFlightRoute(flight.destinacija);
-  const from = flight.origin_iata || route.from || searchMeta?.from || "—";
-  const to = flight.destination_iata || route.to || searchMeta?.to || "—";
+  const legs = resolveMakeFlightLegAirports(flight);
+  const from = legs.from !== "—" ? legs.from : searchMeta?.from || "—";
+  const to = legs.to !== "—" ? legs.to : searchMeta?.to || "—";
+  const hasReturn = legs.hasReturn;
+  const returnFrom = legs.returnFrom;
+  const returnTo = legs.returnTo;
 
   const outStopsRaw = flight.postanki.includes("/")
     ? flight.postanki.split("/")[0]!
@@ -418,8 +421,8 @@ export function FlightCard({
     arriveHm: inArriveHm,
     departDate: inDepartDate,
     arriveDayOffset: inDayOffset,
-    fromIata: to,
-    toIata: from,
+    fromIata: returnFrom,
+    toIata: returnTo,
     hasStops: inHasStops,
   });
   const outArriveResolved = resolveArriveDisplay({
@@ -436,11 +439,14 @@ export function FlightCard({
     departTime: inDepart,
     departDate: inDepartDate,
     durationLabel: inDuration,
-    fromIata: to,
-    toIata: from,
+    fromIata: returnFrom,
+    toIata: returnTo,
     storedDayOffset: inDayOffset,
   });
   const badgeLabel = flight.badge ? localizeBadge(flight.badge, t) : "";
+  const outboundLabel = t("flightCard.departure" as never);
+  const returnLabel = t("flightCard.return" as never);
+  const onewayBadge = t("flightCard.onewayBadge" as never);
 
   return (
     <article
@@ -454,8 +460,8 @@ export function FlightCard({
     >
       <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_132px]">
         <div className="divide-y divide-border px-3 py-1.5 sm:px-3.5">
-          {badgeLabel ? (
-            <div className="pb-1.5 pt-1">
+          <div className="flex flex-wrap items-center gap-1.5 pb-1.5 pt-1">
+            {badgeLabel ? (
               <span
                 className={cn(
                   "inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold",
@@ -464,39 +470,54 @@ export function FlightCard({
               >
                 {badgeLabel}
               </span>
-            </div>
-          ) : null}
-
-          <div className="flex items-center gap-2.5 py-2 sm:gap-3">
-            <AirlineMark name={flight.prevoznik} code={flight.airline_iata} />
-            <CompactLeg
-              from={from}
-              to={to}
-              departTime={outDepart}
-              arriveTime={outArriveResolved.time}
-              dateLabel={outDate}
-              durationLabel={outDuration}
-              stopsLabel={outboundStops}
-              dayOffset={outArriveResolved.dayOffset}
-            />
+            ) : null}
+            {!hasReturn ? (
+              <span className="inline-flex rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                {onewayBadge}
+              </span>
+            ) : null}
           </div>
 
-          {flight.povratek || flight.inbound_depart ? (
-            <div className="flex items-center gap-2.5 py-2 sm:gap-3">
+          <div className="py-2">
+            <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              {outboundLabel}
+            </p>
+            <div className="flex items-center gap-2.5 sm:gap-3">
               <AirlineMark name={flight.prevoznik} code={flight.airline_iata} />
               <CompactLeg
-                from={to}
-                to={from}
-                departTime={inDepart}
-                arriveTime={inArriveResolved.time}
-                dateLabel={inDate}
-                durationLabel={inDuration}
-                stopsLabel={
-                  inboundStops ||
-                  formatStops(flight.postanki, directLabel, stopLabel, stopsLabel, viaLabel)
-                }
-                dayOffset={inArriveResolved.dayOffset}
+                from={from}
+                to={to}
+                departTime={outDepart}
+                arriveTime={outArriveResolved.time}
+                dateLabel={outDate}
+                durationLabel={outDuration}
+                stopsLabel={outboundStops}
+                dayOffset={outArriveResolved.dayOffset}
               />
+            </div>
+          </div>
+
+          {hasReturn ? (
+            <div className="py-2">
+              <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                {returnLabel}
+              </p>
+              <div className="flex items-center gap-2.5 sm:gap-3">
+                <AirlineMark name={flight.prevoznik} code={flight.airline_iata} />
+                <CompactLeg
+                  from={returnFrom}
+                  to={returnTo}
+                  departTime={inDepart}
+                  arriveTime={inArriveResolved.time}
+                  dateLabel={inDate}
+                  durationLabel={inDuration}
+                  stopsLabel={
+                    inboundStops ||
+                    formatStops(flight.postanki, directLabel, stopLabel, stopsLabel, viaLabel)
+                  }
+                  dayOffset={inArriveResolved.dayOffset}
+                />
+              </div>
             </div>
           ) : null}
         </div>
