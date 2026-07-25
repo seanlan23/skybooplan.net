@@ -48,6 +48,8 @@ describe("tripPlanControlRules", () => {
     expect(block).toMatch(/Zajtrk ob morju/);
     expect(block).toMatch(/TEMPO MIREN/);
     expect(block).toMatch(/fleksibilno/);
+    expect(block).toMatch(/STROGI JSON/);
+    expect(block).toMatch(/BREZ arrivalTime\/departureTime|BREZ category airport/i);
   });
 
   it("system prompt no longer forces every slot filled", () => {
@@ -57,5 +59,7 @@ describe("tripPlanControlRules", () => {
     expect(system).not.toMatch(/Noben del dneva ne sme ostati prazen/);
     expect(system).not.toMatch(/OBVEZNA ČASOVNA STRUKTURA DNEVA \(brez izjeme\)/);
     expect(system).toMatch(/Dan prihoda na destinacijo = dan 2/);
+    expect(system).toMatch(/STROGI JSON/);
+    expect(system).not.toMatch(/category airport z natančno uro/i);
   });
 });

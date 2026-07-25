@@ -119,6 +119,8 @@ describe("flightContextPromptBlock", () => {
     expect(block).toContain("17:55");
     expect(block).toContain('departure_time = "15:30"');
     expect(block).toContain("PRIORITETA NAD");
+    expect(block).toMatch(/STROGI JSON/);
+    expect(block).toMatch(/IZPUSTI arrivalTime\/departureTime|OMIT arrivalTime/i);
   });
 
   it("uses German scaffolding when language is de", () => {

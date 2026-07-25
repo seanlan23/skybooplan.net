@@ -559,6 +559,11 @@ export function flightContextPromptBlock(
       de: `- UHRZEITEN (CODE): KEINE HH:MM für Check-out/Transfer/Flughafen/internationalen Flug erfinden — die App setzt sie. Tag 1: Ankunft Abflughafen = Abflug − Puffer. Letzter Tag: Check-out < Transfer < Flughafen < Flug.`,
     }),
     planLangCopy(lang, {
+      sl: `- STROGI JSON (dan prihoda + zadnji dan): activities[] samo sightseeing/food/nature (title, description, category, timeSlot, coords). IZPUSTI arrivalTime/departureTime. IZPUSTI category airport, check-out, transfer, mednarodni let.`,
+      en: `- STRICT JSON (arrival day + last day): activities[] = sightseeing/food/nature only (title, description, category, timeSlot, coords). OMIT arrivalTime/departureTime. OMIT category airport, checkout, transfer, international flight rows.`,
+      de: `- STRICT JSON (Ankunftstag + letzter Tag): activities[] nur sightseeing/food/nature (title, description, category, timeSlot, coords). arrivalTime/departureTime WEGLASSEN. Keine category airport / Check-out / Transfer / internationaler Flug.`,
+    }),
+    planLangCopy(lang, {
       sl: `- GEO: nikoli enodnevni izlet med nedosežnimi PH otoki (npr. Boracay ↔ Malapascua). Ostani na lokalnih plažah/otokih tega dne.`,
       en: `- GEO: never schedule same-day hops between non-adjacent PH islands (e.g. Boracay ↔ Malapascua). Keep local beaches/islands for that day.`,
       de: `- GEO: keine Same-Day-Hops zwischen nicht benachbarten PH-Inseln (z. B. Boracay ↔ Malapascua). Bleib bei lokalen Stränden/Inseln des Tages.`,

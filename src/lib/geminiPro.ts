@@ -123,12 +123,12 @@ export function tripPlanControlRules(params: {
   const flightDayBlock = params.groundTransport
     ? `- Potovanje po kopnem: dnevi so polni glede na tempo zgoraj.`
     : params.hasFlightContext
-      ? `- LET IMA PREDNOST PRED “POLNIM DNEVOM”:
+      ? `- LET IMA PREDNOST PRED “POLNIM DNEVOM” (STROGI JSON — dan ${arrivalDay} + zadnji dan):
   • Dan prihoda = dan ${arrivalDay} (ne izmišljuj zgodnejšega prihoda).
   ${preArrival}
-  • Na dan ${arrivalDay}: aktivnosti SAMO v časovnih slotih PO uri pristanka (glej IZBRANI LET). Pred pristankom = prazni sloti.
+  • Na dan ${arrivalDay}: activities[] = samo sightseeing/food/nature PO pristanku (title, description, category, timeSlot, coords). BREZ arrivalTime/departureTime. BREZ category airport / hotel check-in / transfer — aplikacija jih vstavi.
   • PREPOVEDANO: “Zajtrk ob morju”, “Tropska pavza”, bazen ali promenada, če let še ni pristal.
-  • Dan odhoda: po uri odhoda na letališče ni novih ogledov.`
+  • Zadnji dan: enako — samo lahki ogledi PRED odhodom; brez HH:MM in brez airport/check-out/transfer vrstic.`
       : `- Če ni izbranega leta: dan 1 = prihod v ${params.arrivalCity} (${params.destinationIata}), lahek program.`;
 
   const stayBlock = params.explicitStayPlan
@@ -333,13 +333,13 @@ ${roadTrip ? "- Road trip: enosmerna pot vzdolž ceste; večnočni kampi na isti
 
   const flightReturnLine = params.groundTransportMode
     ? "- Povratek domov mora ustrezati izbranemu prevozu (avto/vlak/avtodom) — glej pravila spodaj, NE let z letališča."
-    : `- Zadnji dan izključno prevoz na izhodno letališče (${params.returnFromIata ?? params.destinationIata}) — brez novih ogledov.`;
+    : `- Zadnji dan: samo lahki ogledi PRED odhodom (brez ur); check-out/transfer/let vstavi aplikacija za ${params.returnFromIata ?? params.destinationIata}.`;
 
   const flightReturnClosing = params.groundTransportMode
     ? ""
     : params.flightContext?.inboundDepart
-      ? "\n\nZadnji dan logistike: aktivnost category airport z NATANKO urami iz IZBRANI LET (ne izmišljaj); trip_metadata.return_flight_eu mora ujemati te ure."
-      : "\n\nZadnji dan logistike: obvezno dodaj aktivnost z category airport z natančno uro odhoda mednarodnega leta nazaj v Evropo (EU) in izpolni trip_metadata.return_flight_eu (departure_time, arrival_time_eu, from_airport, to_airport, summary).";
+      ? "\n\nZadnji dan: NE generiraj category airport / check-out / transfer vrstic z urami — aplikacija jih vstavi iz IZBRANI LET. trip_metadata.return_flight_eu = natanko te ure."
+      : "\n\nZadnji dan: NE generiraj airport/check-out/transfer z izmišljenimi urami — aplikacija vstavi logistiko. trip_metadata.return_flight_eu izpolni samo če imaš zanesljive ure.";
 
   const selectedFlightBlock =
     !params.groundTransportMode && params.flightContext
@@ -526,9 +526,10 @@ export function tripPlanSystemPrompt(params: GenerateTripPlanParams): string {
     ? `POVRATEK DOMOV (obvezno — ${params.groundTransportMode === "train" ? "VLAK" : "AVTO/AVTODOM"}):
 - Zadnji dan: vožnja/vlak nazaj na izhodiščno lokacijo — NE mednarodni let z letališča.
 - trip_metadata.return_flight_eu NE izpolnjuj.`
-    : `POVRATEK V EU (obvezno):
-- Zadnji dan logistike: aktivnost category airport z natančno uro odhoda in prihoda v EU.
-- Izpolni trip_metadata.return_flight_eu (departure_time, arrival_time_eu, from_airport, to_airport, summary).`;
+    : `POVRATEK V EU (obvezno — STROGI JSON):
+- Zadnji dan activities[] = samo lahki ogledi/hrana (brez HH:MM, brez category airport / check-out / transfer).
+- Aplikacija vstavi celotno letalsko logistiko iz IZBRANI LET.
+- trip_metadata.return_flight_eu: kopiraj ure iz IZBRANI LET (ne izmišljuj).`;
 
   const lastDayTransitException = params.groundTransportMode
     ? "razen zadnjega logističnega dneva (vožnja/vlak nazaj na izhodišče)"
@@ -675,7 +676,7 @@ OBVEZNA KATEGORIJA ZA VSAKO AKTIVNOST (activities[].category):
   • airport — prilet, odlet, transfer na letališče
 - Za vsako aktivnost z ogledom/znamenitostjo dodaj točne coordinates (lat, lng) lokacije.
 - Vsaka aktivnost MORA imeti timeSlot: natanko "dopoldan", "popoldan" ali "vecer".
-- arrivalTime/departureTime sta neobvezna. PREPOVEDANO izmišljevati ure za mednarodni prihod/odhod (check-out, transfer, check-in, mednarodni let) — te ure vstavi aplikacija iz izbrane letalske karte. Za oglede raje pusti ure prazne ali grob timeSlot.
+- arrivalTime/departureTime sta neobvezna (lahko izpustiš). PREPOVEDANO izmišljevati ure za mednarodni prihod/odhod (check-out, transfer, check-in, mednarodni let) — te ure vstavi aplikacija iz izbrane letalske karte. Na dan prihoda in zadnji dan: IZPUSTI ure in airport/logistics vrstice; samo ogledi + timeSlot.
 - category mora ustrezati dejanski vsebini aktivnosti — ne uporabljaj vedno iste kategorije.
 
 ČASOVNA STRUKTURA DNEVA (glej HIERARHIJA PRAVIL — ne polni na silo):

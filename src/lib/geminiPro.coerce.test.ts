@@ -70,4 +70,60 @@ describe("coerceTripPlanPayload", () => {
     expect(airport.duration).toBeTruthy();
     expect(phase.days[0]!.transportation?.length).toBeGreaterThan(0);
   });
+
+  it("accepts sightseeing without arrivalTime/departureTime (flight-day strict JSON)", () => {
+    const raw = {
+      trip_metadata: {
+        destination: "Canada",
+        season_warning: "Cool evenings.",
+        currency: "EUR",
+        visa_required: false,
+      },
+      itinerar: [
+        {
+          phase: "Toronto",
+          city: "Toronto",
+          unsplashQuery: "Toronto skyline",
+          lat: 43.65,
+          lng: -79.38,
+          pois: [],
+          days: [
+            {
+              day_number: 1,
+              date: "2026-09-12",
+              day_name: "Saturday",
+              title: "Arrival evening",
+              dailyBudget: 90,
+              drivingDistanceKm: 0,
+              drivingDurationHours: "0h",
+              activities: [
+                {
+                  time: "evening",
+                  title: "Harbourfront evening stroll",
+                  description: "Light walk after landing — no clocks.",
+                  category: "sightseeing",
+                  timeSlot: "vecer",
+                  coordinates: { lat: 43.64, lng: -79.38 },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      logistics_and_tips: {
+        transport: { flights: "YYZ", ferries: "n/a", city_transport: "Uber" },
+        finance: "EUR/CAD",
+        internet: "eSIM",
+      },
+      hotels: [],
+    };
+
+    const parsed = parseCoercedTripPlan(coerceTripPlanPayload(raw));
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) return;
+    const act = parsed.data.itinerar[0]!.days[0]!.activities[0]!;
+    expect(act.title).toMatch(/Harbourfront/i);
+    expect(act.arrivalTime).toBeUndefined();
+    expect(act.departureTime).toBeUndefined();
+  });
 });

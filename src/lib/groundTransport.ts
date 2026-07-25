@@ -89,11 +89,12 @@ export function lastDayReturnPromptBlock(params: {
   }
 
   const airport = params.returnFromIata ?? params.destinationIata ?? "izhodno letališče";
-  return `ZADNJI DAN — LOGISTIČNI ZAKLJUČEK (LET):
-- Zadnji dan potovanja je IZKLJUČNO za logistiko: check-out, prevoz na izhodno letališče (${airport}), buffer za varnost, morebiten hiter obrok v bližini letališča.
-- Na zadnji dan NE dodajaj novih mest, ogledov, atrakcij ali oddaljenih regij — potnik mora priti do letala brez stresa.
-- Če je odhod zgodaj zjutraj, zadnji dan naj bo kratek; noč pred odhodom prespi v mestu blizu izhodnega letališča.
-- Obvezno: aktivnost category airport z natančno uro mednarodnega odleta in trip_metadata.return_flight_eu (departure_time, arrival_time_eu, from_airport, to_airport, summary).`;
+  return `ZADNJI DAN — STROGI JSON (LET — aplikacija vstavi logistiko):
+- activities[] na zadnjem dnevu: samo lahki ogledi/hrana PRED odhodom (title, description, category, timeSlot, coords). BREZ HH:MM.
+- PREPOVEDANO v activities[]: check-out, prevoz na letališče, airport check-in, mednarodni let, category "airport", izmišljene ure.
+- Aplikacija sama vstavi check-out → transfer → letališče → mednarodni let iz IZBRANI LET (boarding-pass).
+- Ne dodajaj novih mest/oddaljenih regij; noč pred odhodom blizu izhodnega letališča (${airport}).
+- trip_metadata.return_flight_eu: samo če so ure v IZBRANI LET — kopiraj jih, ne izmišljuj. Če IZBRANI LET manjka, pusti prazno (aplikacija dopolni).`;
 }
 
 export function isJourneyDay(day: DayPlan, plan: AiTripPlan): boolean {

@@ -58,10 +58,13 @@ const activitySchema = z.object({
   category: z.enum(MAP_POI_CATEGORIES),
   /** Day part — dopoldan | popoldan | vecer (required). */
   timeSlot: z.enum(DAY_TIME_SLOTS),
-  /** Realistic visit window — e.g. "09:00". */
-  arrivalTime: z.string().min(1),
-  /** Realistic visit end — e.g. "11:30". */
-  departureTime: z.string().min(1),
+  /**
+   * Optional visit window. Omit on arrival/departure flight days — app injects
+   * boarding-pass logistics clocks. Prefer empty for sightseeing too.
+   */
+  arrivalTime: z.string().optional(),
+  /** Optional visit end — same rules as arrivalTime. */
+  departureTime: z.string().optional(),
   /** Estimated cost for this activity in EUR. */
   estimatedCostEur: z.number().min(0).optional(),
   /**

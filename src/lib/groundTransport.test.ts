@@ -1,6 +1,22 @@
 import { describe, expect, it } from "vitest";
 import type { AiTripPlan } from "@/lib/aiPlan.functions";
-import { collectRoadTripHubStops, enrichGroundTransportPlan } from "@/lib/groundTransport";
+import {
+  collectRoadTripHubStops,
+  enrichGroundTransportPlan,
+  lastDayReturnPromptBlock,
+} from "@/lib/groundTransport";
+
+describe("lastDayReturnPromptBlock", () => {
+  it("asks for sight-only JSON on flight last day (no airport clocks)", () => {
+    const block = lastDayReturnPromptBlock({
+      destinationIata: "YYZ",
+      returnFromIata: "YYZ",
+    });
+    expect(block).toMatch(/STROGI JSON/);
+    expect(block).toMatch(/BREZ HH:MM|PREPOVEDANO.*airport/i);
+    expect(block).not.toMatch(/Obvezno: aktivnost category airport z natančno uro/);
+  });
+});
 
 describe("collectRoadTripHubStops", () => {
   it("collapses multi-night stays into one chip per city", () => {
