@@ -81,7 +81,7 @@ export function applyFlightContextIfPresent(
   if (!data.flightContext || data.groundTransportMode) return;
   applyFlightContextToGeminiPlan(plan, data.flightContext, {
     originIata: data.originIata,
-    language: data.language ?? "sl",
+    language: plan.contentLanguage ?? data.language ?? "sl",
   });
 }
 

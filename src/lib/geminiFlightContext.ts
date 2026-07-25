@@ -34,6 +34,7 @@ import {
 } from "@/lib/geminiPlanMap";
 import { repairPlanDaySequence } from "@/lib/daySequence";
 import { scrubImpossibleIslandDayTrips } from "@/lib/islandHopGuard";
+import { normalizePlanLangCode } from "@/lib/planLanguages";
 import { planLangCopy } from "@/lib/planLangCopy";
 import { lookupRegionCoords } from "@/lib/regionCoords";
 import { buildReturnFlightSummary } from "@/lib/returnFlightSummary";
@@ -485,44 +486,59 @@ export function flightContextPromptBlock(
 ): string {
   const payload = buildFlightSchedulingPayload(flights, totalDays);
   const scheduling = payload.flightScheduling as Record<string, string>;
-  const slo = !(opts?.language && !opts.language.startsWith("sl"));
-  const arriveLabel = formatArrivalTimeShort(flights, slo);
+  const lang = normalizePlanLangCode(opts?.language);
+  const arriveLabel = formatArrivalTimeShort(flights, lang);
   const origin = opts?.originIata?.toUpperCase() ?? "EU";
   const dest = opts?.destinationIata?.toUpperCase() ?? "DEST";
+  const via = flights.inboundVia ? ` ${flights.inboundVia}` : "";
 
   const lines = [
     "",
-    slo
-      ? "IZBRANI LET (OBVEZNO — ure z letalske kartice, NE IZMIŠLJUJ drugih ur):"
-      : "SELECTED FLIGHT (MANDATORY — use boarding-pass local times, do NOT invent others):",
-    slo
-      ? `- Odhod z ${origin}: ${flights.outboundDepart} (lokalni čas odhoda).`
-      : `- Depart ${origin}: ${flights.outboundDepart} (local departure time).`,
-    slo
-      ? `- Prihod na ${dest}: ${arriveLabel}. Dolgo “(+N dan od odhoda…)” napiši NAJVEČ enkrat v day title — ne v vsaki aktivnosti.`
-      : `- Arrive ${dest}: ${arriveLabel}. Put the long “(+N day from departure…)” note at most once in the day title — not on every activity.`,
+    planLangCopy(lang, {
+      sl: "IZBRANI LET (OBVEZNO — ure z letalske kartice, NE IZMIŠLJUJ drugih ur):",
+      en: "SELECTED FLIGHT (MANDATORY — use boarding-pass local times, do NOT invent others):",
+      de: "AUSGEWÄHLTER FLUG (PFLICHT — Boarding-Pass-Ortszeiten, KEINE anderen Zeiten erfinden):",
+    }),
+    planLangCopy(lang, {
+      sl: `- Odhod z ${origin}: ${flights.outboundDepart} (lokalni čas odhoda).`,
+      en: `- Depart ${origin}: ${flights.outboundDepart} (local departure time).`,
+      de: `- Abflug ${origin}: ${flights.outboundDepart} (lokale Abflugzeit).`,
+    }),
+    planLangCopy(lang, {
+      sl: `- Prihod na ${dest}: ${arriveLabel}. Dolgo “(+N dan od odhoda…)” napiši NAJVEČ enkrat v day title — ne v vsaki aktivnosti.`,
+      en: `- Arrive ${dest}: ${arriveLabel}. Put the long “(+N day from departure…)” note at most once in the day title — not on every activity.`,
+      de: `- Ankunft ${dest}: ${arriveLabel}. Die lange „(+N Tag ab Abflug…)“-Notiz höchstens einmal im Day-Title — nicht bei jeder Aktivität.`,
+    }),
   ];
 
   if (flights.inboundDepart) {
     lines.push(
-      slo
-        ? `- Povratek: odhod ${flights.inboundDepart} z ${dest}, prihod ${flights.inboundArrive ?? "—"} na ${origin} (lokalni časi).`
-        : `- Return: depart ${flights.inboundDepart} from ${dest}, arrive ${flights.inboundArrive ?? "—"} at ${origin} (local times).`,
-      slo
-        ? `- trip_metadata.return_flight_eu.departure_time = "${flights.inboundDepart}", arrival_time_eu = "${flights.inboundArrive ?? ""}", from_airport = "${dest}", to_airport = "${origin}".`
-        : `- Fill trip_metadata.return_flight_eu with departure_time="${flights.inboundDepart}", arrival_time_eu="${flights.inboundArrive ?? ""}".`,
+      planLangCopy(lang, {
+        sl: `- Povratek: odhod ${flights.inboundDepart} z ${dest}, prihod ${flights.inboundArrive ?? "—"} na ${origin} (lokalni časi).`,
+        en: `- Return: depart ${flights.inboundDepart} from ${dest}, arrive ${flights.inboundArrive ?? "—"} at ${origin} (local times).`,
+        de: `- Rückflug: Abflug ${flights.inboundDepart} von ${dest}, Ankunft ${flights.inboundArrive ?? "—"} in ${origin} (Ortszeiten).`,
+      }),
+      planLangCopy(lang, {
+        sl: `- trip_metadata.return_flight_eu.departure_time = "${flights.inboundDepart}", arrival_time_eu = "${flights.inboundArrive ?? ""}", from_airport = "${dest}", to_airport = "${origin}".`,
+        en: `- Fill trip_metadata.return_flight_eu with departure_time="${flights.inboundDepart}", arrival_time_eu="${flights.inboundArrive ?? ""}".`,
+        de: `- trip_metadata.return_flight_eu mit departure_time="${flights.inboundDepart}", arrival_time_eu="${flights.inboundArrive ?? ""}", from_airport="${dest}", to_airport="${origin}" füllen.`,
+      }),
     );
     if (flights.inboundStops != null && flights.inboundStops > 0) {
       lines.push(
-        slo
-          ? `- Povratek NI direktni: ${flights.inboundStops} postanek(ov)${flights.inboundVia ? ` prek ${flights.inboundVia}` : ""}. V summary PREPOVEDANO napisati "direct"/"direktni".`
-          : `- Return is NOT direct: ${flights.inboundStops} stop(s)${flights.inboundVia ? ` via ${flights.inboundVia}` : ""}. Summary must NOT say "direct"/"nonstop".`,
+        planLangCopy(lang, {
+          sl: `- Povratek NI direktni: ${flights.inboundStops} postanek(ov)${flights.inboundVia ? ` prek${via}` : ""}. V summary PREPOVEDANO napisati "direct"/"direktni".`,
+          en: `- Return is NOT direct: ${flights.inboundStops} stop(s)${flights.inboundVia ? ` via${via}` : ""}. Summary must NOT say "direct"/"nonstop".`,
+          de: `- Rückflug ist NICHT direkt: ${flights.inboundStops} Stopp(s)${flights.inboundVia ? ` über${via}` : ""}. Summary darf NICHT "direct"/"nonstop" sagen.`,
+        }),
       );
     } else if (flights.inboundStops == null) {
       lines.push(
-        slo
-          ? `- Če nisi prepričan o postankih, v summary NE trdi "direktni let" (HKT/BKK↔EU skoraj nikoli ni nonstop).`
-          : `- If unsure about stops, do NOT claim "direct" in summary (HKT/BKK↔EU is almost never nonstop).`,
+        planLangCopy(lang, {
+          sl: `- Če nisi prepričan o postankih, v summary NE trdi "direktni let" (HKT/BKK↔EU skoraj nikoli ni nonstop).`,
+          en: `- If unsure about stops, do NOT claim "direct" in summary (HKT/BKK↔EU is almost never nonstop).`,
+          de: `- Bei unsicheren Stops im Summary NICHT "Direktflug" behaupten (HKT/BKK↔EU fast nie nonstop).`,
+        }),
       );
     }
   }
@@ -532,15 +548,21 @@ export function flightContextPromptBlock(
   }
 
   lines.push(
-    slo
-      ? `- PRIORITETA NAD “polnim dnem”: na dan prihoda in odhoda so prazni sloti PRED/ZA letom OBVEZNI. PREPOVEDANO: zajtrk, siesta, plaža, “tropska pavza” ali dopoldanske aktivnosti na destinaciji, preden let pristane.`
-      : `- PRIORITY OVER “full day”: empty slots before/after flights on arrival/departure days are REQUIRED. FORBIDDEN: breakfast, siesta, beach, or morning destination activities before the plane lands.`,
-    slo
-      ? `- URE (LAST KODE): NE izmišljuj HH:MM za check-out/transfer/letališče/mednarodni let — aplikacija jih vstavi. Na dan 1: prihod na odhodno letališče = odhod − buffer. Na zadnjem dnevu: check-out < transfer < letališče < let.`
-      : `- CLOCKS (CODE-OWNED): do NOT invent HH:MM for checkout/transfer/airport/international flight — the app injects them. Day-1 origin airport = depart − buffer. Last day: checkout < transfer < airport < flight.`,
-    slo
-      ? `- GEO: nikoli enodnevni izlet med nedosežnimi PH otoki (npr. Boracay ↔ Malapascua). Ostani na lokalnih plažah/otokih tega dne.`
-      : `- GEO: never schedule same-day hops between non-adjacent PH islands (e.g. Boracay ↔ Malapascua). Keep local beaches/islands for that day.`,
+    planLangCopy(lang, {
+      sl: `- PRIORITETA NAD “polnim dnem”: na dan prihoda in odhoda so prazni sloti PRED/ZA letom OBVEZNI. PREPOVEDANO: zajtrk, siesta, plaža, “tropska pavza” ali dopoldanske aktivnosti na destinaciji, preden let pristane.`,
+      en: `- PRIORITY OVER “full day”: empty slots before/after flights on arrival/departure days are REQUIRED. FORBIDDEN: breakfast, siesta, beach, or morning destination activities before the plane lands.`,
+      de: `- PRIORITÄT VOR „vollem Tag“: leere Slots VOR/NACH Flügen an Ankunfts-/Abflugtag sind PFLICHT. VERBOTEN: Frühstück, Siesta, Strand oder Vormittags-Aktivitäten am Ziel vor der Landung.`,
+    }),
+    planLangCopy(lang, {
+      sl: `- URE (LAST KODE): NE izmišljuj HH:MM za check-out/transfer/letališče/mednarodni let — aplikacija jih vstavi. Na dan 1: prihod na odhodno letališče = odhod − buffer. Na zadnjem dnevu: check-out < transfer < letališče < let.`,
+      en: `- CLOCKS (CODE-OWNED): do NOT invent HH:MM for checkout/transfer/airport/international flight — the app injects them. Day-1 origin airport = depart − buffer. Last day: checkout < transfer < airport < flight.`,
+      de: `- UHRZEITEN (CODE): KEINE HH:MM für Check-out/Transfer/Flughafen/internationalen Flug erfinden — die App setzt sie. Tag 1: Ankunft Abflughafen = Abflug − Puffer. Letzter Tag: Check-out < Transfer < Flughafen < Flug.`,
+    }),
+    planLangCopy(lang, {
+      sl: `- GEO: nikoli enodnevni izlet med nedosežnimi PH otoki (npr. Boracay ↔ Malapascua). Ostani na lokalnih plažah/otokih tega dne.`,
+      en: `- GEO: never schedule same-day hops between non-adjacent PH islands (e.g. Boracay ↔ Malapascua). Keep local beaches/islands for that day.`,
+      de: `- GEO: keine Same-Day-Hops zwischen nicht benachbarten PH-Inseln (z. B. Boracay ↔ Malapascua). Bleib bei lokalen Stränden/Inseln des Tages.`,
+    }),
   );
 
   return lines.join("\n");
@@ -725,7 +747,9 @@ export function applyFlightContextToGeminiPlan(
   flights: TripFlightContext,
   opts?: { originIata?: string; language?: string },
 ): void {
-  const lang = opts?.language ?? "sl";
+  // Locked plan language wins over live UI lang (prevents rewriting logistics on lang switch).
+  const lang = normalizePlanLangCode(plan.contentLanguage ?? opts?.language ?? "sl");
+  plan.contentLanguage = lang;
   plan.days = dedupePlanDaysByNumber(plan.days);
   repairPlanDaySequence(plan, { language: lang });
   const totalDays = planCalendarDayCount(plan.days);

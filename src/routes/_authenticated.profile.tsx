@@ -6,6 +6,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { normalizePlanLangCode } from "@/lib/planLanguages";
 
 export const Route = createFileRoute("/_authenticated/profile")({
   head: () => ({ meta: [{ title: "Profile — Skybooplan" }] }),
@@ -32,7 +33,7 @@ function ProfilePage() {
         setFullName(data.full_name ?? "");
         setHomeCity(data.home_city ?? "");
         setBio(data.bio ?? "");
-        setLanguage(data.preferred_language ?? "en");
+        setLanguage(normalizePlanLangCode(data.preferred_language ?? "en"));
         setCurrency((data.preferred_currency as "EUR" | "USD") ?? "EUR");
         setStyles(data.travel_style ?? []);
       }
@@ -88,9 +89,6 @@ function ProfilePage() {
                 <select value={language} onChange={(e) => setLanguage(e.target.value)} className={inputClass}>
                   <option value="sl">Slovenščina</option>
                   <option value="en">English</option>
-                  <option value="es">Español</option>
-                  <option value="fr">Français</option>
-                  <option value="it">Italiano</option>
                   <option value="de">Deutsch</option>
                 </select>
               </Row>

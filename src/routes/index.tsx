@@ -367,7 +367,8 @@ function Landing() {
       const next: AiTripPlan = structuredClone(withPhotos);
       applyFlightContextToGeminiPlan(next, flights, {
         originIata: aiOriginRef.current,
-        language: aiLangRef.current,
+        // Prefer locked plan language over live UI picker.
+        language: next.contentLanguage ?? aiLangRef.current,
       });
       setAiPlan(next);
       return;

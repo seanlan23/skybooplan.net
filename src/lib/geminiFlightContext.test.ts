@@ -120,6 +120,22 @@ describe("flightContextPromptBlock", () => {
     expect(block).toContain('departure_time = "15:30"');
     expect(block).toContain("PRIORITETA NAD");
   });
+
+  it("uses German scaffolding when language is de", () => {
+    const block = flightContextPromptBlock(
+      {
+        outboundDepart: "21:10",
+        outboundArrive: "17:55",
+        outboundArriveDayOffset: 1,
+        inboundDepart: "15:30",
+        inboundArrive: "06:00",
+      },
+      10,
+      { originIata: "MUC", destinationIata: "JFK", language: "de" },
+    );
+    expect(block).toMatch(/AUSGEWÄHLTER FLUG|PRIORITÄT VOR/i);
+    expect(block).not.toMatch(/PRIORITETA NAD|SELECTED FLIGHT/);
+  });
 });
 
 describe("applyFlightContextToGeminiPlan", () => {
@@ -1244,5 +1260,99 @@ describe("applyFlightContextToGeminiPlan", () => {
     expect(airport?.description ?? "").not.toMatch(/Late departure at 18:50/i);
     // Gemini checkout wall-of-text must not remain as a morning sight.
     expect(JSON.stringify(last.activities?.morning ?? [])).not.toMatch(/breakfast dump/i);
+  });
+
+  it("keeps logistics in contentLanguage even when opts.language is UI English", () => {
+    const plan = basePlan({
+      contentLanguage: "sl",
+      destinationName: "Paris",
+      destinationIata: "CDG",
+      centerLat: 48.86,
+      centerLng: 2.35,
+      days: [
+        {
+          day: 1,
+          date: "2026-07-01",
+          title: "Prihod",
+          morning: "",
+          afternoon: "",
+          evening: "",
+          travelHack: "",
+          transportationTips: "",
+          localWarnings: "",
+          dailyBudgetEur: 80,
+          lat: 48.86,
+          lng: 2.35,
+          city: "Paris",
+          focusName: "Paris",
+          category: "city",
+          activities: { morning: [], afternoon: [], evening: [] },
+        },
+        {
+          day: 2,
+          date: "2026-07-05",
+          title: "Paris",
+          morning: "",
+          afternoon: "",
+          evening: "",
+          travelHack: "",
+          transportationTips: "",
+          localWarnings: "",
+          dailyBudgetEur: 100,
+          lat: 48.86,
+          lng: 2.35,
+          city: "Paris",
+          focusName: "Paris",
+          category: "city",
+          activities: {
+            morning: [{ name: "Louvre", type: "SIGHT", description: "Muzej" }],
+            afternoon: [],
+            evening: [],
+          },
+        },
+        {
+          day: 3,
+          date: "2026-07-10",
+          title: "Odhod",
+          morning: "",
+          afternoon: "",
+          evening: "",
+          travelHack: "",
+          transportationTips: "",
+          localWarnings: "",
+          dailyBudgetEur: 40,
+          lat: 48.86,
+          lng: 2.35,
+          city: "Paris",
+          focusName: "Paris",
+          category: "transport",
+          activities: { morning: [], afternoon: [], evening: [] },
+        },
+      ],
+    });
+
+    applyFlightContextToGeminiPlan(
+      plan,
+      {
+        outboundDepart: "08:00",
+        outboundArrive: "09:30",
+        outboundArriveDayOffset: 0,
+        inboundDepart: "18:10",
+        inboundArrive: "20:00",
+      },
+      { originIata: "MUC", language: "en" },
+    );
+
+    expect(plan.contentLanguage).toBe("sl");
+    const last = plan.days[2]!;
+    const names = [
+      ...(last.activities?.morning ?? []),
+      ...(last.activities?.afternoon ?? []),
+      ...(last.activities?.evening ?? []),
+    ].map((a) => a.name);
+    const blob = names.join(" | ");
+    expect(blob).toMatch(/Odhod iz hotela|Prevoz na letališče|Prihod na letališče|Mednarodni povratni let/i);
+    expect(blob).not.toMatch(/Hotel check-out|Airport transfer|Airport check-in|International return flight/i);
+    expect(last.title).toMatch(/Odhod iz/i);
   });
 });
