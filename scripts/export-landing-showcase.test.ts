@@ -17,13 +17,13 @@ const SHOWCASES = [
     title: "Ljubljana → New York — showcase",
     start: "2026-09-12",
     end: "2026-09-18",
-    wishes: "Sproščen New York: ikone, Brooklyn, en prosti dan.",
+    wishes: "Relaxed New York: icons, Brooklyn, one free day.",
     pace: "relaxed",
   },
   {
     id: "sydney",
     file: "sydney-curated.json",
-    title: "Zürich → Sydney — showcase",
+    title: "Zurich → Sydney — showcase",
     start: "2026-10-03",
     end: "2026-10-16",
     wishes: "Long-haul Sydney: jet-lag buffer, harbour, Bondi, Blue Mountains, Manly, Watsons Bay.",
@@ -32,19 +32,19 @@ const SHOWCASES = [
   {
     id: "france",
     file: "france-curated.json",
-    title: "München → Francija — showcase",
+    title: "Munich → France — showcase",
     start: "2026-10-26",
     end: "2026-11-02",
-    wishes: "Pariz + Lyon: TGV, gastronomija, zgodnji povratni let samo s taxijem.",
+    wishes: "Paris + Lyon: TGV, food, early return flight with taxi only.",
     pace: "balanced",
   },
   {
     id: "motorhome-nl",
     file: "motorhome-nl-curated.json",
-    title: "Avtodom · Slovenj Gradec → North Holland",
+    title: "Motorhome · Slovenj Gradec → North Holland",
     start: "2026-08-16",
     end: "2026-08-26",
-    wishes: "Avtodomski roadtrip: Alpe, Ren, Amsterdam, Texel, povratek.",
+    wishes: "Motorhome road trip: Alps, Rhine, Amsterdam, Texel, return.",
     pace: "relaxed",
   },
 ] as const;
@@ -64,12 +64,12 @@ describe("landing showcase PDFs", () => {
         ) as AiTripPlan;
         expect(plan.days?.length).toBeGreaterThanOrEqual(6);
 
-        applyItineraryGuards(plan, { arrivalDay: 1, language: "sl" });
+        applyItineraryGuards(plan, { arrivalDay: 1, language: "en" });
         finalizeItineraryMapCoords(plan);
 
         if (plan.groundTransportMode === "motorhome") {
           const { enrichMotorhomePlanTips } = await import("@/lib/motorhomePlanTips");
-          enrichMotorhomePlanTips(plan, "sl");
+          enrichMotorhomePlanTips(plan, "en");
         }
 
         // Smoke: no enricher placeholder leakage, max one evening meal/day.
@@ -109,7 +109,7 @@ describe("landing showcase PDFs", () => {
           start_date: s.start,
           end_date: s.end,
           itinerary: plan as never,
-          language: "sl",
+          language: "en",
           pax: 2,
           wishes: s.wishes,
           travel_pace: s.pace,
@@ -118,27 +118,6 @@ describe("landing showcase PDFs", () => {
         const name = `${s.id}-showcase.pdf`;
         writeFileSync(resolve(srcDir, name), Buffer.from(pdf.buffer));
         writeFileSync(resolve(publicDir, name), Buffer.from(pdf.buffer));
-
-        // Also overwrite the user's Downloads copy for soft-launch PDFs.
-        if (s.id === "motorhome-nl") {
-          const downloads = resolve(
-            process.env.HOME ?? "",
-            "Downloads/Slovenj_Gradec_SI_-_North_Holland_NL.pdf",
-          );
-          try {
-            writeFileSync(downloads, Buffer.from(pdf.buffer));
-          } catch {
-            // CI / sandbox without Downloads — ignore.
-          }
-        }
-        if (s.id === "france") {
-          const downloads = resolve(process.env.HOME ?? "", "Downloads/MUC_-_CDG-3.pdf");
-          try {
-            writeFileSync(downloads, Buffer.from(pdf.buffer));
-          } catch {
-            // CI / sandbox without Downloads — ignore.
-          }
-        }
       }
 
       writeFileSync(
@@ -146,14 +125,14 @@ describe("landing showcase PDFs", () => {
         [
           "# Landing showcase PDFs",
           "",
-          "Ročno očiščeni demo načrti za beta landing (ne živi Gemini output).",
+          "Curated English demo plans for the beta landing (not live Gemini output).",
           "",
-          "- `nyc-showcase.pdf` — New York, 7 dni",
-          "- `sydney-showcase.pdf` — Sydney, 14 dni (long-haul)",
-          "- `france-showcase.pdf` — Pariz + Lyon (MUC→CDG), 8 dni",
-          "- `motorhome-nl-showcase.pdf` — Avtodom SG → North Holland, 11 dni",
+          "- `nyc-showcase.pdf` — New York, 7 days",
+          "- `sydney-showcase.pdf` — Sydney, 14 days (long-haul)",
+          "- `france-showcase.pdf` — Paris + Lyon (MUC→CDG), 8 days",
+          "- `motorhome-nl-showcase.pdf` — Motorhome SG → North Holland, 11 days",
           "",
-          "Javne kopije: `/showcase/*.pdf`",
+          "Public copies: `/showcase/*.pdf`",
           "",
           "Regenerate: `npx vitest run scripts/export-landing-showcase.test.ts`",
           "",

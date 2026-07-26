@@ -479,11 +479,20 @@ function Landing() {
       }
       if (s.lastSearch) setLastSearch(s.lastSearch);
 
+      const scrollToRestoredHeroPlan = () => {
+        // Hero results sit above FAQ/marketing. Never use #ai-plan-anchor here —
+        // that node lives under <main> below the FAQ, so external return visits
+        // were jumping to the page bottom.
+        const el =
+          document.getElementById("hero-trip-plan") ||
+          document.getElementById("hero-ai-plan-anchor");
+        el?.scrollIntoView({ behavior: "smooth", block: "start" });
+      };
       if (s.aiPlan) {
         setAiPlan(s.aiPlan);
-        setTimeout(() => {
-          document.getElementById("ai-plan-anchor")?.scrollIntoView({ behavior: "smooth", block: "start" });
-        }, 300);
+        // Wait for HeroAiPlanResults to mount after heroPlannerActive flips on.
+        setTimeout(scrollToRestoredHeroPlan, 350);
+        setTimeout(scrollToRestoredHeroPlan, 700);
       }
       if (
         s.aiSkeleton &&
@@ -492,9 +501,8 @@ function Landing() {
       ) {
         setAiSkeleton(s.aiSkeleton);
         if (!s.aiPlan) {
-          setTimeout(() => {
-            document.getElementById("ai-plan-anchor")?.scrollIntoView({ behavior: "smooth", block: "start" });
-          }, 300);
+          setTimeout(scrollToRestoredHeroPlan, 350);
+          setTimeout(scrollToRestoredHeroPlan, 700);
         }
       }
       if (s.aiError && (s.aiPlan || s.aiSkeleton)) setAiError(s.aiError);

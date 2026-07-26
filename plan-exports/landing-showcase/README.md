@@ -1,12 +1,12 @@
 # Landing showcase PDFs
 
-Ročno očiščeni demo načrti za beta landing (ne živi Gemini output).
+Curated English demo plans for the beta landing (not live Gemini output).
 
-- `nyc-showcase.pdf` — New York, 7 dni
-- `sydney-showcase.pdf` — Sydney, 14 dni (long-haul)
-- `france-showcase.pdf` — Pariz + Lyon (MUC→CDG), 8 dni
-- `motorhome-nl-showcase.pdf` — Avtodom SG → North Holland, 11 dni
+- `nyc-showcase.pdf` — New York, 7 days
+- `sydney-showcase.pdf` — Sydney, 14 days (long-haul)
+- `france-showcase.pdf` — Paris + Lyon (MUC→CDG), 8 days
+- `motorhome-nl-showcase.pdf` — Motorhome SG → North Holland, 11 days
 
-Javne kopije: `/showcase/*.pdf`
+Public copies: `/showcase/*.pdf`
 
 Regenerate: `npx vitest run scripts/export-landing-showcase.test.ts`

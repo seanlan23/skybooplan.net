@@ -89,6 +89,7 @@ type NormalizedPdfPlan = {
   hotels: string[];
   packing: string[];
   labels: PdfLabels;
+  contentLang: string;
   coverImageUrl?: string;
 };
 
@@ -367,15 +368,27 @@ export function sanitizePdfText(input: string): string {
     .trim();
 }
 
-function fmtDate(d: string | null | undefined) {
+function dateLocaleForPlanLang(lang: string | undefined): string {
+  switch ((lang ?? "en").slice(0, 2).toLowerCase()) {
+    case "sl":
+      return "sl-SI";
+    case "de":
+      return "de-DE";
+    default:
+      return "en-GB";
+  }
+}
+
+function fmtDate(d: string | null | undefined, lang?: string) {
   if (!d) return "";
   const raw = String(d).trim();
   if (!raw) return "";
+  const locale = dateLocaleForPlanLang(lang);
   // Keep ISO YYYY-MM-DD stable (avoid timezone day-shift).
   const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (iso) {
     const dt = new Date(Date.UTC(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3])));
-    return dt.toLocaleDateString("sl-SI", {
+    return dt.toLocaleDateString(locale, {
       year: "numeric",
       month: "short",
       day: "numeric",
@@ -383,7 +396,7 @@ function fmtDate(d: string | null | undefined) {
     });
   }
   try {
-    return new Date(raw).toLocaleDateString("sl-SI", {
+    return new Date(raw).toLocaleDateString(locale, {
       year: "numeric",
       month: "short",
       day: "numeric",
@@ -632,7 +645,12 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
 
   const flights = Array.isArray(itin.flights)
     ? itin.flights.map((f) =>
-        [f.from && f.to ? `${f.from} → ${f.to}` : "", fmtDate(f.date), f.airline, f.price]
+        [
+          f.from && f.to ? `${f.from} → ${f.to}` : "",
+          fmtDate(f.date, contentLang),
+          f.airline,
+          f.price,
+        ]
           .filter(Boolean)
           .join("  ·  "),
       )
@@ -679,8 +697,8 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
   return {
     title: plan.title || destination || "Skybooplan",
     destination,
-    startDate: fmtDate(plan.start_date),
-    endDate: fmtDate(plan.end_date),
+    startDate: fmtDate(plan.start_date, contentLang),
+    endDate: fmtDate(plan.end_date, contentLang),
     summary: cleanSummary(stripPlanTeaser(textOf(itin.summary), contentLang)),
     totalBudgetEur,
     pax,
@@ -689,6 +707,7 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
     hotels,
     packing,
     labels,
+    contentLang,
     coverImageUrl,
   };
 }
@@ -1035,7 +1054,10 @@ export async function generatePlanPdf(plan: PlanForPdf): Promise<{
     heading(model.labels.daily);
 
     for (const d of model.days) {
-      const dateLabel = [fmtDate(d.date), d.dateEnd ? fmtDate(d.dateEnd) : ""]
+      const dateLabel = [
+        fmtDate(d.date, model.contentLang),
+        d.dateEnd ? fmtDate(d.dateEnd, model.contentLang) : "",
+      ]
         .filter(Boolean)
         .join(" – ");
       const metaLine = [
