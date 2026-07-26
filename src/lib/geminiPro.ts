@@ -625,10 +625,11 @@ OPISI (STROGI JSON — jasno, ne naporno):
 - Preferiraj bullets: ["…", "…"] (2–4 kratke točke, vsaka ≤ ~120 znakov) ALI description z vrsticami "- točka".
 - PREPOVEDANO: en dolg neformatiran odstavek (wall of text) za večerjo/ogled — aplikacija razbije esej, a raje oddaj že strukturirano.
 - description/bullets: konkretno (kaj, kje, 1 tip), ne 150–300 besed na aktivnost.
-- HRANA (city / flight trip): NE piši generičnega "pojdi na večerjo / lokalna večerja / bistro v soseski".
+- HRANA (vse destinacije / vsi jeziki): NE piši generičnega "pojdi na večerjo / lokalna večerja / Abendessen in Kyoto".
   • Zajtrk skoraj nikoli ne načrtuj kot ločeno aktivnost (razen če je destinacijska ikona, npr. znan café).
-  • Vsaka food aktivnost = konkretno ime lokala v title (npr. "Večerja: Chez Janou") + 1 priporočilo v description + po želji 1 alternativa v bullets.
-  • PREPOVEDANO: "Lahka večerja", "Lokalna večerja", "Kosilo v centru", "Dinner near the hotel" brez imena.
+  • Vsaka food aktivnost = konkretno ime lokala v title (npr. "Večerja: Ichiran", "Dinner: Afuri", "Abendessen: Kyubey") + 1 priporočilo + po želji 1 alternativa.
+  • PREPOVEDANO (vse destinacije): "Lokalna večerja", "Mittagessen in Asakusa", "Abendessen in Kyoto", "Lunch in Harajuku", "Dinner near the hotel", "Kosilo v centru", "Café break" / "Pavza v kavarni" kot filler.
+  • PREPOVEDANO: odrezani stavki z "…" / "höchstens…" in scaffolder "Hauptbesichtigung am Vormittag" / "Glavni dopoldanski ogled".
 - Vsaka aktivnost mora imeti estimatedCostEur z realno cifro v ${displayCurrency} (vstopnine, hrana, gorivo — ne 0, razen res brezplačnih). Polje se imenuje estimatedCostEur, vrednost pa je v ${displayCurrency}.
 - dailyBudget na vsakem dnevu mora biti realna vsota dnevnih stroškov NA OSEBO v ${displayCurrency} — nikoli 0. Skupinske postavke (gorivo, kamp) deli s številom potnikov. Prilagodi rang državi (npr. večerja na Šrilanki ≈ 5–15 ${displayCurrency === "USD" ? "$" : "€"}, ne 40; EU avtodom tipično 45–90 €/osebo/dan).
 ${flightReturnEuRule}

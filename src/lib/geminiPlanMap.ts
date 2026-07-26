@@ -158,11 +158,14 @@ export function dedupePlanDaysByNumber(days: DayPlan[]): DayPlan[] {
 }
 
 function isDepartureLogisticsDay(day: DayPlan, totalDays: number): boolean {
-  if (day.day !== totalDays) return false;
+  // Last calendar day is always treated as departure logistics — never pad with
+  // generic "main morning sight" enricher fillers (DE Abflug, FR départ, etc.).
+  if (day.day === totalDays) return true;
   const blob = `${day.title} ${day.city} ${day.morning} ${day.afternoon}`.toLowerCase();
   return (
-    /logistika|odhod|departure|letališč|letališče|airport|suvarnabhumi|domov/i.test(blob) ||
-    /samut prakan|don muang/i.test(day.city.toLowerCase())
+    /logistika|odhod|departure|abflug|rückflug|retour|départ|partida|partenza|letališč|letališče|airport|suvarnabhumi|domov|international(er)?\s*(rück)?flug|volo internazionale|vuelo internacional/i.test(
+      blob,
+    ) || /samut prakan|don muang/i.test(day.city.toLowerCase())
   );
 }
 

@@ -6,7 +6,9 @@ import {
   dedupeNearIdenticalConsecutiveDays,
   dedupeSameDayMeals,
   isEnricherPlaceholderActivity,
+  isGenericMealActivity,
   scrubUnsafeEarlyAirportTips,
+  stripGenericMealActivities,
   stripPhantomArrivals,
   stripPlaceholderActivities,
 } from "@/lib/itineraryGuards";
@@ -39,6 +41,16 @@ describe("isEnricherPlaceholderActivity", () => {
     ).toBe(true);
   });
 
+  it("flags German enricher scaffold from Japan PDF", () => {
+    expect(
+      isEnricherPlaceholderActivity({
+        name: "Morgendliche Besichtigung oder Spaziergang",
+        description:
+          "Hauptbesichtigung am Vormittag — Ort oder Sehenswürdigkeit am besten früh morgens besuchen.",
+      }),
+    ).toBe(true);
+  });
+
   it("keeps real Casco Viejo sightseeing", () => {
     expect(
       isEnricherPlaceholderActivity({
@@ -46,6 +58,45 @@ describe("isEnricherPlaceholderActivity", () => {
         description: "Sprehod po starem mestnem jedru in Plaza de la Independencia.",
       }),
     ).toBe(false);
+  });
+});
+
+describe("isGenericMealActivity", () => {
+  it("strips venue-less city meals worldwide", () => {
+    expect(isGenericMealActivity({ name: "Abendessen in Kyoto", type: "EAT" })).toBe(true);
+    expect(isGenericMealActivity({ name: "Mittagessen in Asakusa", type: "EAT" })).toBe(true);
+    expect(isGenericMealActivity({ name: "Lunch in Harajuku", type: "EAT" })).toBe(true);
+    expect(isGenericMealActivity({ name: "Lokalna večerja", type: "EAT" })).toBe(true);
+  });
+
+  it("keeps named venues", () => {
+    expect(isGenericMealActivity({ name: "Večerja: Ichiran Ramen", type: "EAT" })).toBe(false);
+    expect(isGenericMealActivity({ name: "Dinner at Sukiyabashi Jiro", type: "EAT" })).toBe(false);
+    expect(isGenericMealActivity({ name: "Abendessen: Kyubey", type: "EAT" })).toBe(false);
+  });
+
+  it("removes generic meals from a Japan-style day", () => {
+    const plan = {
+      destinationName: "Japan",
+      days: [
+        day({
+          day: 2,
+          city: "Tokyo",
+          activities: {
+            morning: [{ name: "Senso-ji", type: "SIGHT", description: "Tempel." }],
+            afternoon: [{ name: "Mittagessen in Asakusa", type: "EAT", description: "Essen." }],
+            evening: [
+              { name: "Abendessen in Ueno", type: "EAT", description: "Essen." },
+              { name: "Večerja: Ichiran", type: "EAT", description: "Ramen." },
+            ],
+          },
+        }),
+      ],
+    } as AiTripPlan;
+    expect(stripGenericMealActivities(plan)).toBe(2);
+    expect(plan.days[0]!.activities!.afternoon).toHaveLength(0);
+    expect(plan.days[0]!.activities!.evening).toHaveLength(1);
+    expect(plan.days[0]!.activities!.evening[0]!.name).toMatch(/Ichiran/i);
   });
 });
 
@@ -290,8 +341,9 @@ describe("applyItineraryGuards", () => {
               },
             ],
             evening: [
-              { name: "Sproščena večerja po vrnitvi", type: "EAT", description: "A" },
-              { name: "Lokalna večerja", type: "EAT", description: "B" },
+              { name: "Večerja: Casa Viejo", type: "EAT", description: "A" },
+              { name: "Večerja: Mercado de Mariscos", type: "EAT", description: "B" },
+              { name: "Lokalna večerja", type: "EAT", description: "C" },
             ],
           },
         }),
@@ -300,6 +352,7 @@ describe("applyItineraryGuards", () => {
 
     const stats = applyItineraryGuards(plan, { arrivalDay: 1, language: "sl" });
     expect(stats.placeholders).toBeGreaterThanOrEqual(1);
+    expect(stats.genericMeals).toBeGreaterThanOrEqual(1);
     expect(stats.meals).toBeGreaterThanOrEqual(1);
     expect(stats.arrivals).toBeGreaterThanOrEqual(1);
     expect(stats.clones).toBeGreaterThanOrEqual(1);

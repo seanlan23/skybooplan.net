@@ -151,7 +151,9 @@ Rules:
 - Final 1-2 days may return to departure hub for outbound flight only
 - If writingRule in user JSON: follow strictly
 - All text in languageCode from user message — never mix languages or provide dual translations
-- Never truncate with "..."
+- Never truncate with "..." / "…" / "höchstens…"
+- Food activities MUST name a real venue (e.g. "Dinner: Ichiran", "Abendessen: Kyubey") — FORBIDDEN: "Mittagessen in Asakusa", "Abendessen in Kyoto", "Lokalna večerja", "Lunch near hotel"
+- FORBIDDEN scaffold copy in any language: "Glavni dopoldanski ogled", "Main morning sight", "Hauptbesichtigung am Vormittag"
 - If flightScheduling present: day 1 and last day must match landing/departure times
 - If tripClimate present: mention relevant season/rain/heat in localWarnings or travelHack where useful
 - If regionClimate present: attach per-city monsoon/rainforest warnings to matching days; do not give Chiang Mai rain advice on Koh Lipe days

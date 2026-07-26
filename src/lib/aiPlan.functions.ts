@@ -23,6 +23,7 @@ import {
   type TripFlightContext,
 } from "@/lib/flightScheduling";
 import { enrichDayActivities } from "@/lib/dayEnrichers";
+import { applyItineraryGuards } from "@/lib/itineraryGuards";
 import {
   applyCanadaBudgetFloor,
   applyGlobalDayBudgetCeil,
@@ -1984,6 +1985,10 @@ export const generateAiPlan = createServerFn({ method: "POST" })
 
         if (blocking.length === 0) {
           if (violations.length) console.warn("AI plan soft warnings:", violations);
+          applyItineraryGuards(plan, {
+            arrivalDay: 1,
+            language: langCode,
+          });
           trace(`complete: ${plan.days.length} days via LLM (attempt ${attempt + 1})`);
           return withDebug({ plan, error: null, violations: violations.length ? violations : undefined });
         }
@@ -3134,14 +3139,8 @@ export function buildSkeletonDayPlans(
       inboundTravelDay,
     });
 
-    const skipEnrichOnPureDeparture =
-      d === nDays &&
-      flights?.inboundDepart &&
-      (isTightDeparture(flights) ||
-        isEarlyDeparture(flights) ||
-        isAfternoonDeparture(flights) ||
-        isEveningDeparture(flights) ||
-        inboundTravelDay);
+    // Last calendar day: never pad with generic enricher fillers (any language).
+    const skipEnrichOnPureDeparture = d === nDays;
 
     if (activities && !skipEnrichOnPureDeparture) {
       const dayInRegion = d - region.startDay + 1;

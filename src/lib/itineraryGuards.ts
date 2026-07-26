@@ -7,7 +7,7 @@ type Slot = keyof DaySlots;
 
 const SLOTS: Slot[] = ["morning", "afternoon", "evening"];
 
-/** Enricher-pool generics that must never ship in final plans / PDFs. */
+/** Enricher-pool generics that must never ship in final plans / PDFs (all plan languages). */
 export function isEnricherPlaceholderActivity(a: {
   name?: string;
   description?: string;
@@ -22,10 +22,61 @@ export function isEnricherPlaceholderActivity(a: {
     /glavni dopoldanski ogled/i.test(blob) ||
     /mesto ali znamenitost,?\s*ki jo je najbolje obiskati zjutraj/i.test(blob) ||
     /main morning sight\s*[—-]\s*visit while/i.test(blob) ||
+    /hauptbesichtigung am vormittag/i.test(blob) ||
+    /ort oder sehenswürdigkeit am besten früh/i.test(blob) ||
+    /visite principale du matin/i.test(blob) ||
+    /visita principal de la mañana/i.test(blob) ||
+    /principale visita del mattino/i.test(blob) ||
     /^jutranji ogled\s*\/\s*sprehod$/i.test(name) ||
     /^morning sight or stroll$/i.test(name) ||
+    /^morgendliche besichtigung oder spaziergang$/i.test(name) ||
+    /^visite ou promenade matinale$/i.test(name) ||
+    /^visita o paseo matutino$/i.test(name) ||
+    /^visita o passeggiata mattutina$/i.test(name) ||
+    /^pavza v kavarni$/i.test(name) ||
+    /^café break$/i.test(name) ||
+    /^kaffeepause$/i.test(name) ||
+    /^pause café$/i.test(name) ||
     /2[–-]3\s*stavki|what to see|why it matters|practical tip/i.test(blob) ||
     /kaj vidiš.*zakaj je vredno/i.test(blob)
+  );
+}
+
+/**
+ * Generic meal cards without a venue name — drop worldwide.
+ * Keep "Večerja: Ichiran Ramen" / "Dinner at Sukiyabashi Jiro"; strip "Abendessen in Kyoto".
+ */
+export function isGenericMealActivity(a: {
+  name?: string;
+  description?: string;
+  type?: string;
+}): boolean {
+  const name = (a.name ?? "").trim();
+  if (!name) return false;
+  const mealWord =
+    /^(zajtrk|kosilo|večerja|breakfast|lunch|dinner|mittagessen|abendessen|frühstück|déjeuner|dîner|cena|colazione|pranzo)\b/i;
+  const isMeal = a.type === "EAT" || mealWord.test(name);
+  if (!isMeal) return false;
+  if (isEnricherPlaceholderActivity(a)) return true;
+
+  // Named venue: "Večerja: Ichiran", "Dinner: X", "Abendessen: X"
+  if (
+    /^(zajtrk|kosilo|večerja|breakfast|lunch|dinner|mittagessen|abendessen|frühstück|déjeuner|dîner|cena|colazione|pranzo)\s*:\s*\S+/i.test(
+      name,
+    )
+  ) {
+    return false;
+  }
+  // Named venue: "Dinner at Ichiran", "Abendessen bei Kyubey", "Dîner chez X"
+  if (/\b(at|bei|chez|da)\s+[A-ZÀ-Ü"«]/u.test(name)) return false;
+
+  return (
+    /^(lokalna večerja|local dinner|sproščena večerja|relaxed dinner|lahka večerja)\b/i.test(name) ||
+    /^(abendessen|mittagessen|večerja|kosilo|dinner|lunch|dîner|déjeuner|cena|pranzo)\s+(in|im|v|at|près de|nahe|in der nähe)/i.test(
+      name,
+    ) ||
+    /^(abendessen und nachtleben|dinner and nightlife|večerja in nočno)/i.test(name) ||
+    /^(check-in und mittagessen|shopping und mittagessen)\b/i.test(name)
   );
 }
 
@@ -164,6 +215,59 @@ export function stripPlaceholderActivities(plan: AiTripPlan): number {
     }
   }
   return removed;
+}
+
+/** Drop venue-less meal fillers worldwide (all languages). */
+export function stripGenericMealActivities(plan: AiTripPlan): number {
+  let removed = 0;
+  for (const day of plan.days ?? []) {
+    if (!day.activities) continue;
+    for (const slot of SLOTS) {
+      const list = day.activities[slot] ?? [];
+      const next = list.filter((a) => {
+        const drop = isGenericMealActivity(a);
+        if (drop) removed += 1;
+        return !drop;
+      });
+      day.activities[slot] = next;
+    }
+  }
+  return removed;
+}
+
+/** Fix common truncated logistics fragments left by the model. */
+export function repairIncompleteLogisticsCopy(plan: AiTripPlan): number {
+  let fixed = 0;
+  const scrub = (raw: string | undefined): string | undefined => {
+    if (typeof raw !== "string" || !raw) return raw;
+    let t = raw;
+    const before = t;
+    t = t
+      .replace(/\(\s*ca\.?\s*[–—-]\s*€/gi, "(ca. €")
+      .replace(/Terminal-?\s*vs\.?\s*$/gi, "Terminal- vs. Off-site-Parkplatz.")
+      .replace(/\btrain\s*\/\s*taxi\b/gi, "Zug / Taxi")
+      .replace(/\bmit train\b/gi, "mit Zug");
+    // Drop dangling ellipsis leftovers that repairTruncatedCopy missed mid-phrase.
+    t = t.replace(/\s*[–—-]\s*höchstens…\s*$/iu, ".")
+      .replace(/\s*[–—-]\s*optional light evening…\s*$/i, ".");
+    if (t !== before) fixed += 1;
+    return t;
+  };
+  for (const day of plan.days ?? []) {
+    day.transportationTips = scrub(day.transportationTips) ?? day.transportationTips;
+    day.travelHack = scrub(day.travelHack) ?? day.travelHack;
+    day.localWarnings = scrub(day.localWarnings) ?? day.localWarnings;
+    if (!day.activities) continue;
+    for (const slot of SLOTS) {
+      for (const a of day.activities[slot] ?? []) {
+        a.description = scrub(a.description) ?? a.description;
+        if (a.bullets?.length) {
+          a.bullets = a.bullets.map((b) => scrub(b) ?? b);
+        }
+      }
+    }
+  }
+  return fixed;
 }
 
 /**
@@ -401,28 +505,34 @@ export function applyItineraryGuards(
   opts?: { arrivalDay?: number; language?: string },
 ): {
   placeholders: number;
+  genericMeals: number;
   meals: number;
   arrivals: number;
   clones: number;
   truncated: number;
+  logisticsCopy: number;
   earlyAirport: number;
   durationAlign: number;
 } {
   const placeholders = stripPlaceholderActivities(plan);
+  const genericMeals = stripGenericMealActivities(plan);
   const meals = dedupeSameDayMeals(plan);
   const arrivals = stripPhantomArrivals(plan, opts?.arrivalDay ?? 1);
   const clones = dedupeNearIdenticalConsecutiveDays(plan, {
     language: opts?.language ?? plan.contentLanguage,
   });
   const truncated = stripTruncatedCopyFromPlan(plan);
+  const logisticsCopy = repairIncompleteLogisticsCopy(plan);
   const earlyAirport = scrubUnsafeEarlyAirportTips(plan);
   const durationAlign = alignTransportationDurationWithTips(plan);
   return {
     placeholders,
+    genericMeals,
     meals,
     arrivals,
     clones,
     truncated,
+    logisticsCopy,
     earlyAirport,
     durationAlign,
   };
