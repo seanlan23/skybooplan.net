@@ -347,7 +347,12 @@ function ActivityItem({
             </ul>
           )}
           {(onDetails || showNavigate) && (
-            <div className="mt-2.5 flex flex-wrap items-center gap-2">
+            <div
+              className="mt-2.5 flex flex-wrap items-center gap-2"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => e.stopPropagation()}
+            >
               {showNavigate && lat != null && lng != null ? (
                 <div
                   onClick={(e) => e.stopPropagation()}
@@ -368,11 +373,14 @@ function ActivityItem({
               {onDetails ? (
                 <button
                   type="button"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onTouchStart={(e) => e.stopPropagation()}
                   onClick={(e) => {
+                    e.preventDefault();
                     e.stopPropagation();
                     onDetails(activityToPoiDetails(activity, day));
                   }}
-                  className="inline-flex items-center rounded-full border border-slate-300 bg-white px-3.5 py-1 text-xs font-semibold text-slate-800 shadow-sm hover:bg-slate-50 transition-colors"
+                  className="inline-flex min-h-11 items-center rounded-full border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50 active:bg-slate-100 transition-colors touch-manipulation"
                 >
                   {t("poi.moreInfo")}
                 </button>

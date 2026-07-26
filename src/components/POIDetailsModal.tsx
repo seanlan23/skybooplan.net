@@ -97,7 +97,7 @@ export function POIDetailsModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="fixed inset-x-0 bottom-0 top-auto left-0 right-0 z-50 w-full max-w-none translate-x-0 translate-y-0 rounded-t-2xl rounded-b-none border-slate-200 shadow-2xl h-[90vh] max-h-[90vh] overflow-y-auto p-0 gap-0 data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom md:inset-x-auto md:bottom-auto md:left-[50%] md:top-[50%] md:h-auto md:max-h-[94vh] md:w-[calc(100%-2rem)] md:max-w-4xl md:translate-x-[-50%] md:translate-y-[-50%] md:rounded-2xl md:data-[state=open]:slide-in-from-bottom-0 md:data-[state=open]:zoom-in-95 md:data-[state=closed]:slide-out-to-bottom-0 md:data-[state=closed]:zoom-out-95 [&>button.absolute]:hidden">
+      <DialogContent className="fixed inset-x-0 bottom-0 top-auto left-0 right-0 z-[90] w-full max-w-none translate-x-0 translate-y-0 rounded-t-2xl rounded-b-none border-slate-200 shadow-2xl h-[90vh] max-h-[90vh] overflow-y-auto p-0 gap-0 data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom md:inset-x-auto md:bottom-auto md:left-[50%] md:top-[50%] md:h-auto md:max-h-[94vh] md:w-[calc(100%-2rem)] md:max-w-4xl md:translate-x-[-50%] md:translate-y-[-50%] md:rounded-2xl md:data-[state=open]:slide-in-from-bottom-0 md:data-[state=open]:zoom-in-95 md:data-[state=closed]:slide-out-to-bottom-0 md:data-[state=closed]:zoom-out-95 [&>button.absolute]:hidden">
         <DialogTitle className="sr-only">{displayPoi.name}</DialogTitle>
 
         <div

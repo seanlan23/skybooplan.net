@@ -298,7 +298,7 @@ export function AiPlanView({
   );
 
   const handleActivityFocus = useCallback(
-    (coords: ActivityMapFocus) => {
+    (coords: ActivityMapFocus, opts?: { openMobileMap?: boolean }) => {
       pauseScrollSpy(4000);
       setActiveDay(coords.day);
       // Highlight pin only — camera stays on day city center.
@@ -313,7 +313,14 @@ export function AiPlanView({
       if (coords.poiName) {
         setFocusedActivityKey(activityFocusKey(coords.day, coords.poiName));
       }
-      if (typeof window !== "undefined" && window.innerWidth < 1024) {
+      // Card tap may open the mobile map sheet; "More info" must NOT — it steals
+      // the POI modal (sheet z-index sits above the dialog on phones).
+      const openSheet = opts?.openMobileMap !== false;
+      if (
+        openSheet &&
+        typeof window !== "undefined" &&
+        window.innerWidth < 1024
+      ) {
         setMobileMapOpen(true);
       }
     },
@@ -331,6 +338,9 @@ export function AiPlanView({
     (poi: PoiDetailsData) => {
       const day = plan?.days.find((d) => d.day === poi.day);
       const resolved = day ? refreshPoiDetailsImage(poi, day) : poi;
+      // Close map sheet first so the details modal is tappable/visible on mobile.
+      setMobileMapOpen(false);
+      setIsPlaying(false);
       setPoiModal({ ...resolved, destinationName: plan?.destinationName });
       setPoiModalOpen(true);
       if (
@@ -341,12 +351,15 @@ export function AiPlanView({
         poi.lat !== 0 &&
         poi.lng !== 0
       ) {
-        handleActivityFocus({
-          lat: poi.lat,
-          lng: poi.lng,
-          day: poi.day ?? day?.day ?? 1,
-          poiName: poi.name,
-        });
+        handleActivityFocus(
+          {
+            lat: poi.lat,
+            lng: poi.lng,
+            day: poi.day ?? day?.day ?? 1,
+            poiName: poi.name,
+          },
+          { openMobileMap: false },
+        );
       }
     },
     [plan, handleActivityFocus],
