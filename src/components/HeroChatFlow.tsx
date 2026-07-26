@@ -91,7 +91,7 @@ function withDestinationAirport(destination: string): string {
   return `${trimmed} (${iata})`;
 }
 
-const HERO_FEATURE_BADGE_IDS = ["itinerary", "flights", "pdf"] as const;
+const HERO_FEATURE_BADGE_IDS = ["itinerary", "flights", "pdf", "onePlan"] as const;
 
 type ChipOption = {
   id: string;

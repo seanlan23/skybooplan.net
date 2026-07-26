@@ -199,6 +199,7 @@ const en: Dict = {
   "heroChat.feature.itinerary": "🗺️ AI itinerary",
   "heroChat.feature.flights": "✈️ Live flights",
   "heroChat.feature.pdf": "📄 Free PDF",
+  "heroChat.feature.onePlan": "1 free plan per connection · sign in for more",
   "heroChat.inputPlaceholder": "Message Sky…",
   "heroChat.typeDestination": "Type your destination…",
   "heroChat.destinationPlaceholder": "e.g. New York, Bali, Paris…",
@@ -394,7 +395,8 @@ const en: Dict = {
   "faq.what.q": "What is Skybooplan?",
   "faq.what.a": "Skybooplan is an AI travel planner that builds a full itinerary and finds flights and stays in minutes.",
   "faq.free.q": "Is planning free?",
-  "faq.free.a": "Yes — full AI itineraries, interactive maps and PDF export are free for everyone.",
+  "faq.free.a":
+    "Yes — you get 1 free complete AI plan per connection without signing in (map + PDF included). Sign in to create more plans and save them to My trips.",
   "faq.how.q": "How does AI planning work?",
   "faq.how.a": "Describe your trip; AI parses your preferences and builds a day-by-day plan with activities, food and transport.",
   "faq.pdf.q": "Can I download a PDF?",
@@ -749,7 +751,7 @@ const en: Dict = {
   "error.geminiRateLimit":
     "Gemini API daily quota reached. Wait a few minutes or set SKELETON_MODEL=gemini-2.0-flash in .env.local, then try again.",
   "error.quotaAnonLimit":
-    "You've already created 2 free complete plans from this connection. Sign in to keep planning — that way your trips are saved too.",
+    "You've already used your 1 free complete plan from this connection. Sign in to keep planning — that way your trips are saved too.",
   "error.quotaSignIn":
     "To create more AI plans, please sign in. Signed-in travelers can keep generating and save plans to their dashboard.",
   "error.quotaDailyLimit":
@@ -1250,6 +1252,7 @@ const dicts: Record<DictLang, Dict> = {
     "heroChat.feature.itinerary": "🗺️ AI itinerar",
     "heroChat.feature.flights": "✈️ Leti v realnem času",
     "heroChat.feature.pdf": "📄 PDF brezplačno",
+    "heroChat.feature.onePlan": "1 brezplačen plan na povezavo · prijavi se za več",
     "heroChat.inputPlaceholder": "Napiši Sky…",
     "heroChat.typeDestination": "Vpiši destinacijo…",
     "heroChat.destinationPlaceholder": "npr. New York, Bali, Pariz…",
@@ -1446,7 +1449,8 @@ const dicts: Record<DictLang, Dict> = {
     "faq.what.q": "Kaj je Skybooplan?",
     "faq.what.a": "Skybooplan je AI potovalni planer, ki v minutah naredi celoten itinerar, poišče lete in nastanitve.",
     "faq.free.q": "Je načrtovanje brezplačno?",
-    "faq.free.a": "Da — celoten AI itinerar, interaktivni zemljevid in PDF so brezplačni za vse.",
+    "faq.free.a":
+      "Da — brez prijave dobiš 1 celoten AI plan na povezavo (zemljevid + PDF). Za več planov in shranjevanje v Moja potovanja se prijavi.",
     "faq.how.q": "Kako AI načrtuje itinerar?",
     "faq.how.a": "Opišeš potovanje, AI razčleni tvoje preference in sestavi plan dan za dnem z aktivnostmi, restavracijami in prevozom.",
     "faq.pdf.q": "Ali lahko prenesem PDF načrt?",
@@ -1803,7 +1807,7 @@ const dicts: Record<DictLang, Dict> = {
     "error.geminiRateLimit":
       "Dosežena je dnevna kvota Gemini API. Počakaj nekaj minut ali v .env.local nastavi SKELETON_MODEL=gemini-2.0-flash, nato poskusi znova.",
     "error.quotaAnonLimit":
-      "Z te povezave si že ustvaril 2 brezplačna popolna načrta. Za nove se prijavi — tako se ti plani tudi shranijo.",
+      "Z te povezave si že porabil 1 brezplačen popoln načrt. Za nove se prijavi — tako se ti plani tudi shranijo.",
     "error.quotaSignIn":
       "Za več AI načrtov se prijavi. Prijavljeni uporabniki lahko še naprej generirajo in shranjujejo plane v nadzorno ploščo.",
     "error.quotaDailyLimit":
@@ -2518,6 +2522,7 @@ const dicts: Record<DictLang, Dict> = {
     "heroChat.feature.itinerary": "🗺️ KI-Reiseplan",
     "heroChat.feature.flights": "✈️ Live-Flüge",
     "heroChat.feature.pdf": "📄 Kostenloses PDF",
+    "heroChat.feature.onePlan": "1 gratis Plan pro Verbindung · anmelden für mehr",
     "heroChat.passengers.tripReady":
       "Super — {{dates}}. Reisende festlegen, dann suche ich Flüge.",
     "heroChat.passengers.browserTitle": "Wer reist mit?",

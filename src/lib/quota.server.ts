@@ -1,18 +1,24 @@
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'node:crypto';
 import { hasUnlimitedAccess } from '@/lib/unlimitedAccess';
+import {
+  getServerSupabaseServiceRoleKey,
+  getServerSupabaseUrl,
+} from '@/lib/supabaseServerEnv';
 
 let _supabase: ReturnType<typeof createClient> | null = null;
 let _quotaSkipLogged = false;
 
 function supabaseConfigured(): boolean {
-  return Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
+  return Boolean(getServerSupabaseUrl() && getServerSupabaseServiceRoleKey());
 }
 
 function svc() {
-  if (!supabaseConfigured()) return null;
+  const url = getServerSupabaseUrl();
+  const key = getServerSupabaseServiceRoleKey();
+  if (!url || !key) return null;
   if (!_supabase) {
-    _supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+    _supabase = createClient(url, key);
   }
   return _supabase;
 }
@@ -59,7 +65,7 @@ export function checkPlacesSearchRateLimit(ip: string): { allowed: boolean } {
 }
 
 /** Free complete AI plans per IP before asking the guest to take a break / sign in. */
-export const ANON_FREE_COMPLETE_PLANS = 2;
+export const ANON_FREE_COMPLETE_PLANS = 1;
 
 function quotaErrorResponse(errorKey: string): Response {
   return Response.json({ error: errorKey }, { status: 429 });
