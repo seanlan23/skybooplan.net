@@ -61,22 +61,35 @@ export async function requireSupabaseAuthRequest(
     },
   });
 
-  const { data, error } = await supabase.auth.getClaims(token);
-  if (error || !data?.claims) {
-    return unauthorized("Unauthorized: Invalid token.");
+  // Prefer getClaims (fast JWKS); fall back to getUser for older symmetric JWT projects.
+  const claimsResult = await supabase.auth.getClaims(token);
+  let userId: string | null = null;
+  let claims: Record<string, unknown> = {};
+
+  if (!claimsResult.error && claimsResult.data?.claims) {
+    const sub = claimsResult.data.claims.sub;
+    if (typeof sub === "string" && sub) {
+      userId = sub;
+      claims = claimsResult.data.claims as Record<string, unknown>;
+    }
   }
 
-  const sub = data.claims.sub;
-  if (typeof sub !== "string" || !sub) {
-    return unauthorized("Unauthorized: No user ID found in token.");
+  if (!userId) {
+    const { data: userData, error: userErr } = await supabase.auth.getUser(token);
+    if (userErr || !userData.user?.id) {
+      console.error("[Supabase] JWT verify failed:", claimsResult.error ?? userErr);
+      return unauthorized("Unauthorized: Invalid token.");
+    }
+    userId = userData.user.id;
+    claims = { sub: userId, email: userData.user.email };
   }
 
   return {
     ok: true,
     auth: {
       supabase,
-      userId: sub,
-      claims: data.claims as Record<string, unknown>,
+      userId,
+      claims,
     },
   };
 }

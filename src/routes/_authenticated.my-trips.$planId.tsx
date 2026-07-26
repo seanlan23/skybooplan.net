@@ -245,8 +245,8 @@ function TripDetailPage() {
               </Link>
               <Link
                 to="/"
-                className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity"
-                style={{ background: "var(--gradient-warm)" }}
+                className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium text-white shadow-md hover:opacity-90 transition-opacity"
+                style={{ background: "linear-gradient(135deg, #0EA5E9, #0284C7)" }}
               >
                 {t("tripDetail.createNewTrip")}
               </Link>
@@ -281,8 +281,8 @@ function TripDetailPage() {
               <button
                 onClick={handleDownload}
                 disabled={downloading}
-                className="inline-flex items-center gap-2 rounded-2xl px-5 py-2.5 font-semibold text-primary-foreground shadow-sm hover:opacity-90 disabled:opacity-60 shrink-0"
-                style={{ background: "var(--gradient-warm)" }}
+                className="inline-flex items-center gap-2 rounded-2xl px-5 py-2.5 font-semibold text-white shadow-md hover:opacity-90 disabled:opacity-60 shrink-0"
+                style={{ background: "linear-gradient(135deg, #0EA5E9, #0284C7)" }}
               >
                 {downloading ? (
                   <><Loader2 className="h-4 w-4 animate-spin" /> {t("tripDetail.preparingPdf")}</>

@@ -1196,65 +1196,75 @@ function Landing() {
   }
 
   const persistPlanToTrips = useCallback(
-    async (plan: AiTripPlan, ctx: AiPlannerContext) => {
+    async (plan: AiTripPlan, ctx?: Partial<AiPlannerContext> | null) => {
       if (!plan.days?.length) return false;
 
+      const firstDate = plan.days[0]?.date?.slice(0, 10) ?? null;
+      const last = plan.days[plan.days.length - 1];
+      const lastDate = (last?.dateEnd ?? last?.date)?.slice(0, 10) ?? null;
+
       const persistCtx = {
-        departDate: ctx.departDate,
-        returnDate: ctx.returnDate,
-        destinationPlace: ctx.destinationPlace,
-        originPlace: ctx.originPlace,
+        departDate: ctx?.departDate || firstDate,
+        returnDate: ctx?.returnDate || lastDate,
+        destinationPlace: ctx?.destinationPlace || plan.destinationPlace || null,
+        originPlace: ctx?.originPlace || plan.originPlace || null,
         destinationName: plan.destinationName,
-        from: ctx.from,
-        to: ctx.to,
-        groundTransportMode: plan.groundTransportMode ?? ctx.groundTransportMode,
+        from: ctx?.from || plan.originIata || null,
+        to: ctx?.to || plan.destinationIata || null,
+        groundTransportMode: plan.groundTransportMode ?? ctx?.groundTransportMode,
         accommodationMode: plan.accommodationMode,
       };
 
       try {
-        // Refresh so Bearer token is valid (stale JWT was a common silent save failure).
+        // Refresh so Bearer token / RLS session is valid.
+        await supabase.auth.refreshSession().catch(() => undefined);
         const { data: userData } = await supabase.auth.getUser();
         const userId = userData.user?.id;
         if (!userId) {
-          setPlanSaveError(null);
+          setPlanSaveError("login_required");
           return false;
         }
 
         setPlanSaveError(null);
+        const { persistTravelPlanViaClient } = await import("@/lib/persistTravelPlan");
+
+        // Client RLS first — works without SERVICE_ROLE on Vercel.
+        const clientResult = await persistTravelPlanViaClient(
+          supabase,
+          plan,
+          persistCtx,
+          userId,
+        );
+        if ("id" in clientResult) {
+          setSavedPlanId(clientResult.id);
+          setPlanSaveError(null);
+          return true;
+        }
+        console.warn("Client save failed, trying API:", clientResult.error);
+
         const { supabaseAuthHeaders } = await import("@/lib/supabaseAuthHeaders");
         const headers = await supabaseAuthHeaders({ "Content-Type": "application/json" });
-
         if (headers.Authorization) {
           const res = await fetch("/api/save-travel-plan", {
             method: "POST",
             headers,
             body: JSON.stringify({ plan, context: persistCtx }),
           });
-
           const data = (await res.json().catch(() => ({}))) as {
             id?: string;
             error?: string;
           };
-
           if (res.ok && data.id) {
             setSavedPlanId(data.id);
             setPlanSaveError(null);
             return true;
           }
-          console.warn("Save plan API failed, trying client RLS:", data.error || res.status);
+          console.error("Save plan API failed:", data.error || res.status);
+          setPlanSaveError(data.error || clientResult.error || "save_failed");
+          return false;
         }
 
-        // Fallback: direct insert under RLS (works without SERVICE_ROLE on Vercel).
-        const { persistTravelPlanViaClient } = await import("@/lib/persistTravelPlan");
-        const result = await persistTravelPlanViaClient(supabase, plan, persistCtx, userId);
-        if ("id" in result) {
-          setSavedPlanId(result.id);
-          setPlanSaveError(null);
-          return true;
-        }
-
-        console.error("Save plan failed:", result.error);
-        setPlanSaveError(result.error || "save_failed");
+        setPlanSaveError(clientResult.error || "save_failed");
         return false;
       } catch (err) {
         console.error("Save plan failed:", err);
@@ -1270,6 +1280,12 @@ function Landing() {
       try {
         const { generatePlanPdf } = await import("@/lib/pdf-export");
         const { buildPdfPlanTitle } = await import("@/lib/pdfPlanTitle");
+        const startDate = aiContext?.departDate ?? planForPdf.days[0]?.date?.slice(0, 10) ?? null;
+        const lastDay = planForPdf.days[planForPdf.days.length - 1];
+        const endDate =
+          aiContext?.returnDate ??
+          (lastDay?.dateEnd ?? lastDay?.date)?.slice(0, 10) ??
+          null;
         await generatePlanPdf({
           title: buildPdfPlanTitle({
             groundTransportMode:
@@ -1286,14 +1302,18 @@ function Landing() {
             planForPdf.destinationPlace ||
             aiContext?.to ||
             "",
-          start_date: aiContext?.departDate ?? null,
-          end_date: aiContext?.returnDate ?? null,
+          start_date: startDate,
+          end_date: endDate,
           itinerary: planForPdf as never,
           language: aiContext?.language,
           pax: aiContext?.pax ?? 1,
         });
-        if (user && isActiveAiContext(aiContext)) {
-          await persistPlanToTrips(planForPdf, aiContext);
+        // Always persist when logged in — do not gate on isActiveAiContext (was skipping saves).
+        if (user) {
+          const ok = await persistPlanToTrips(planForPdf, aiContext);
+          if (!ok) {
+            alert(t("plan.saveFailed" as never));
+          }
         }
       } catch (e) {
         console.error("PDF export failed", e);

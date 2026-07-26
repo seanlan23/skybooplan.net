@@ -118,9 +118,12 @@ function ProfilePage() {
                 placeholder="Tell us a bit about how you like to travel…" className={inputClass} />
             </Row>
 
-            <button onClick={save} disabled={saving}
-              className="inline-flex items-center gap-2 rounded-2xl px-6 py-3 font-semibold text-primary-foreground disabled:opacity-50"
-              style={{ background: "var(--gradient-warm)" }}>
+            <button
+              onClick={save}
+              disabled={saving}
+              className="inline-flex items-center gap-2 rounded-2xl px-6 py-3 font-semibold text-white shadow-md transition-shadow hover:shadow-lg disabled:opacity-50"
+              style={{ background: "linear-gradient(135deg, #0EA5E9, #0284C7)" }}
+            >
               <Save className="h-4 w-4" /> {saving ? "Saving…" : "Save profile"}
             </button>
           </div>
