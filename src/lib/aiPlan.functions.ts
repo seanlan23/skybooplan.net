@@ -416,6 +416,8 @@ export type AiTripPlan = {
   originPlace?: string;
   destinationPlace?: string;
   groundJourney?: GroundJourney;
+  /** User travel pace — used by final pace guard after enrichers. */
+  travelPace?: "intensive" | "relaxed" | "calm";
 };
 
 /** Phase A — city/region blocks shown in ~30s before day-by-day expansion. */

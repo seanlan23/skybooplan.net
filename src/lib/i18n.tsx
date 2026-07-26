@@ -363,9 +363,9 @@ const en: Dict = {
     "Midtown arrival, Central Park, Statue of Liberty, Brooklyn, MoMA — one free day, one dinner per evening.",
   "showcase.sydney.route": "Zürich → Sydney",
   "showcase.sydney.title": "Sydney",
-  "showcase.sydney.meta": "8 days · balanced · 2 travelers",
+  "showcase.sydney.meta": "14 days · long-haul pace · 2 travelers",
   "showcase.sydney.blurb":
-    "Harbour icons, Bondi coastal walk, Blue Mountains, Manly ferry — no copy-paste days, no phantom airport returns.",
+    "Jet-lag buffer, harbour icons, Bondi, Blue Mountains, Manly, Watsons Bay, Newtown — tempo built for Europe→Australia, not a city break.",
   "showcase.motorhome.route": "Slovenj Gradec → North Holland",
   "showcase.motorhome.title": "Motorhome road trip",
   "showcase.motorhome.meta": "11 days · camps · 2 travelers",
@@ -1415,9 +1415,9 @@ const dicts: Record<DictLang, Dict> = {
       "Prihod v Midtown, Central Park, Kip svobode, Brooklyn, MoMA — en prosti dan, ena večerja na večer.",
     "showcase.sydney.route": "Zürich → Sydney",
     "showcase.sydney.title": "Sydney",
-    "showcase.sydney.meta": "8 dni · uravnoteženo · 2 potnika",
+    "showcase.sydney.meta": "14 dni · long-haul tempo · 2 potnika",
     "showcase.sydney.blurb":
-      "Pristanišče, Bondi coastal walk, Blue Mountains, Manly ferry — brez copy-paste dni in brez fantomskega prihoda.",
+      "Dan za jet lag, pristanišče, Bondi, Blue Mountains, Manly, Watsons Bay, Newtown — tempo za Evropo→Avstralijo, ne city-break.",
     "showcase.motorhome.route": "Slovenj Gradec → North Holland",
     "showcase.motorhome.title": "Avtodomski roadtrip",
     "showcase.motorhome.meta": "11 dni · kampi · 2 potnika",

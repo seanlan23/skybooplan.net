@@ -36,7 +36,9 @@ export function CurrencyPicker({ variant = "default" }: { variant?: "default" | 
         aria-haspopup="listbox"
         className={cn(
           "inline-flex items-center gap-0.5 border-0 bg-transparent p-0 text-sm font-medium transition-colors",
-          isHero ? "text-white/70 hover:text-white" : "text-muted-foreground hover:text-foreground",
+          isHero
+            ? "rounded-full bg-black/55 px-2 py-1 text-white shadow-sm ring-1 ring-white/30 hover:bg-black/70"
+            : "text-muted-foreground hover:text-foreground",
         )}
       >
         <span aria-hidden>{active.symbol}</span>
@@ -50,7 +52,7 @@ export function CurrencyPicker({ variant = "default" }: { variant?: "default" | 
         <div
           role="listbox"
           aria-label="Currency"
-          className="absolute right-0 top-full z-50 mt-2 min-w-[7rem] rounded-lg border border-border bg-card py-1 shadow-lg"
+          className="absolute right-0 top-full z-50 mt-2 min-w-[7rem] rounded-lg border border-border bg-card py-1 text-foreground shadow-lg"
         >
           {OPTIONS.map((opt) => (
             <button

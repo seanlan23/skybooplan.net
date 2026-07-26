@@ -162,6 +162,7 @@ export function partialTripPlanToPreviewPlan(
         pax: opts.pax,
         wishesText: opts.wishesText,
         language: opts.language,
+        pace: opts.pace,
       });
     }
     return plan;

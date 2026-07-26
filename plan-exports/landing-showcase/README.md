@@ -3,7 +3,7 @@
 Ročno očiščeni demo načrti za beta landing (ne živi Gemini output).
 
 - `nyc-showcase.pdf` — New York, 7 dni
-- `sydney-showcase.pdf` — Sydney, 8 dni
+- `sydney-showcase.pdf` — Sydney, 14 dni (long-haul)
 - `motorhome-nl-showcase.pdf` — Avtodom SG → North Holland, 11 dni
 
 Javne kopije: `/showcase/*.pdf`

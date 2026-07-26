@@ -3,6 +3,7 @@ import { ArrowRight, Bus, Car, MapPin, Route, TrainFront } from "lucide-react";
 import type { AiTripPlan, DayPlan } from "@/lib/aiPlan.functions";
 import { collectRoadTripHubStops, groundTransportLabel } from "@/lib/groundTransport";
 import { useI18n } from "@/lib/i18n";
+import { motorhomeStrenuousDriveWarning } from "@/lib/motorhomePlanTips";
 import { cn } from "@/lib/utils";
 
 const MODE_ICON = {
@@ -99,6 +100,10 @@ export function TransportDashboard({ plan, activeDay, onStopSelect }: Props) {
     const sum = plan.days.reduce((acc, d) => acc + (d.drivingDistanceKm ?? 0), 0);
     return sum > 0 ? Math.round(sum) : journey.totalDistanceKm;
   }, [isMotorhome, plan.days, journey.totalDistanceKm]);
+  const strenuousDriveWarning = useMemo(
+    () => (isMotorhome ? motorhomeStrenuousDriveWarning(plan, lang) : null),
+    [isMotorhome, plan, lang],
+  );
   // Motorhome: hubs only in the chips — full day list lives in the itinerary below.
   const tripDays = isMotorhome
     ? []
@@ -143,6 +148,15 @@ export function TransportDashboard({ plan, activeDay, onStopSelect }: Props) {
           </div>
         </div>
       </div>
+
+      {strenuousDriveWarning ? (
+        <p
+          className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-sm leading-relaxed text-amber-950"
+          role="status"
+        >
+          {strenuousDriveWarning}
+        </p>
+      ) : null}
 
       {stops.length > 0 && (
         <div className="mt-5">

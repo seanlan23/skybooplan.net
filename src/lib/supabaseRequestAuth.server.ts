@@ -1,5 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
+import {
+  getServerSupabaseAnonKey,
+  getServerSupabaseUrl,
+} from "@/lib/supabaseServerEnv";
 
 export type SupabaseRequestAuth = {
   supabase: ReturnType<typeof createClient<Database>>;
@@ -29,11 +33,13 @@ function unauthorized(message: string): SupabaseAuthRequestResult {
 export async function requireSupabaseAuthRequest(
   request: Request,
 ): Promise<SupabaseAuthRequestResult> {
-  const SUPABASE_URL = process.env.SUPABASE_URL;
-  const SUPABASE_PUBLISHABLE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY;
+  const SUPABASE_URL = getServerSupabaseUrl();
+  const SUPABASE_PUBLISHABLE_KEY = getServerSupabaseAnonKey();
 
   if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
-    console.error("[Supabase] Missing SUPABASE_URL or SUPABASE_PUBLISHABLE_KEY");
+    console.error(
+      "[Supabase] Missing SUPABASE_URL / VITE_SUPABASE_URL or publishable key on server",
+    );
     return unauthorized("Authentication is not configured.");
   }
 

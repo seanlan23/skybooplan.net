@@ -4,7 +4,7 @@ import { CurrencyPicker } from "@/components/CurrencyPicker";
 import { LanguagePicker } from "@/components/LanguagePicker";
 import { Logo } from "@/components/Logo";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useState, useRef, useEffect, type MouseEvent } from "react";
+import { useState, useRef, useEffect, type MouseEvent as ReactMouseEvent } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useT } from "@/lib/i18n";
 import { googleSignInHref } from "@/lib/auth.urls";
@@ -41,7 +41,7 @@ export function SiteHeader({
   const isHero = variant === "hero";
 
   useEffect(() => {
-    const onClick = (e: MouseEvent) => {
+    const onClick = (e: globalThis.MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
     };
     document.addEventListener("mousedown", onClick);
@@ -51,7 +51,7 @@ export function SiteHeader({
   const avatarUrl = user ? userAvatarUrl(user) : undefined;
   const displayName = user ? userDisplayName(user) : "";
 
-  function handleLogoClick(e: MouseEvent) {
+  function handleLogoClick(e: ReactMouseEvent<HTMLAnchorElement>) {
     requestHomeReset();
     if (pathname === "/") {
       e.preventDefault();
@@ -60,20 +60,25 @@ export function SiteHeader({
   }
 
   const navLinkClass = cn(
-    "transition-colors whitespace-nowrap",
-    isHero ? "text-white/85 hover:text-white" : "text-foreground/80 hover:text-foreground",
+    "transition-colors whitespace-nowrap drop-shadow-[0_1px_2px_rgba(0,0,0,0.65)]",
+    isHero ? "text-white hover:text-white" : "text-foreground/80 hover:text-foreground",
   );
 
+  /** Hero sits on bright sky photos — never use bare translucent white text alone. */
   const subtleTextClass = cn(
     "text-sm font-medium transition-colors whitespace-nowrap",
-    isHero ? "text-white/70 hover:text-white" : "text-foreground/80 hover:text-foreground",
+    isHero
+      ? "rounded-full bg-black/55 px-2.5 py-1 text-white shadow-sm ring-1 ring-white/30 hover:bg-black/70"
+      : "text-foreground/80 hover:text-foreground",
   );
 
   return (
     <header
       className={cn(
         "sticky top-0 z-40 w-full max-w-full overflow-visible border-b backdrop-blur-md",
-        isHero ? "border-white/10 bg-black/25 text-white" : "border-border/60 bg-background/80 text-foreground",
+        isHero
+          ? "border-white/15 bg-gradient-to-b from-black/55 via-black/40 to-black/25 text-white"
+          : "border-border/60 bg-background/80 text-foreground",
         className,
       )}
     >
@@ -112,9 +117,13 @@ export function SiteHeader({
             <div className="h-5 w-16 animate-pulse rounded bg-muted/40" aria-hidden />
           ) : user ? (
             <>
-              <Link to="/dashboard" className={cn("hidden sm:inline-flex items-center gap-2", subtleTextClass)}>
-                <LayoutGrid className="h-4 w-4" />
-                {t("dashboard.badge")}
+              <Link
+                to="/dashboard"
+                aria-label={t("dashboard.badge")}
+                className={cn("inline-flex items-center gap-2", subtleTextClass)}
+              >
+                <LayoutGrid className="h-4 w-4 shrink-0" />
+                <span className="hidden sm:inline">{t("dashboard.badge")}</span>
               </Link>
               <div ref={menuRef} className="relative flex items-center gap-1.5 sm:gap-2">
                 <button
@@ -139,8 +148,8 @@ export function SiteHeader({
                   </Avatar>
                   <span
                     className={cn(
-                      "hidden md:inline max-w-[120px] truncate text-sm font-medium",
-                      isHero ? "text-white/90" : "text-foreground",
+                      "hidden md:inline max-w-[120px] truncate text-sm font-medium drop-shadow-[0_1px_2px_rgba(0,0,0,0.65)]",
+                      isHero ? "text-white" : "text-foreground",
                     )}
                   >
                     {displayName}
@@ -158,7 +167,7 @@ export function SiteHeader({
                   {t("nav.logout")}
                 </button>
                 {menuOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-56 rounded-2xl border border-border bg-card shadow-lg overflow-hidden z-50">
+                  <div className="absolute right-0 top-full mt-2 w-56 rounded-2xl border border-border bg-card text-foreground shadow-lg overflow-hidden z-50">
                     <div className="px-4 py-3 border-b border-border">
                       <p className="text-sm font-medium text-foreground truncate">{displayName}</p>
                       <p className="text-xs text-muted-foreground truncate">{user.email}</p>
@@ -166,23 +175,23 @@ export function SiteHeader({
                     <Link
                       to="/dashboard"
                       onClick={() => setMenuOpen(false)}
-                      className="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-muted"
+                      className="flex items-center gap-2 px-4 py-2.5 text-sm text-foreground hover:bg-muted"
                     >
-                      <LayoutGrid className="h-4 w-4" /> {t("dashboard.badge")}
+                      <LayoutGrid className="h-4 w-4 shrink-0" /> {t("dashboard.badge")}
                     </Link>
                     <Link
                       to="/profile"
                       onClick={() => setMenuOpen(false)}
-                      className="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-muted"
+                      className="flex items-center gap-2 px-4 py-2.5 text-sm text-foreground hover:bg-muted"
                     >
-                      <UserIcon className="h-4 w-4" /> {t("nav.profile")}
+                      <UserIcon className="h-4 w-4 shrink-0" /> {t("nav.profile")}
                     </Link>
                     <Link
                       to="/my-trips"
                       onClick={() => setMenuOpen(false)}
-                      className="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-muted"
+                      className="flex items-center gap-2 px-4 py-2.5 text-sm text-foreground hover:bg-muted"
                     >
-                      <LayoutGrid className="h-4 w-4" /> {t("nav.myTrips")}
+                      <LayoutGrid className="h-4 w-4 shrink-0" /> {t("nav.myTrips")}
                     </Link>
                     <button
                       type="button"
@@ -192,7 +201,7 @@ export function SiteHeader({
                       }}
                       className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-destructive hover:bg-muted sm:hidden"
                     >
-                      <LogOut className="h-4 w-4" /> {t("nav.logout")}
+                      <LogOut className="h-4 w-4 shrink-0" /> {t("nav.logout")}
                     </button>
                   </div>
                 )}

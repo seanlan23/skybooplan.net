@@ -28,6 +28,7 @@ type HeroAiPlanResultsProps = {
   onExpandFull: () => void;
   onClearPlan?: () => void;
   onRetrySave?: () => void;
+  onDownloadPlan?: (plan: AiTripPlan) => void | Promise<void>;
   lastSearchPax?: { adults?: number; childrenAges?: number[]; rooms?: number };
 };
 
@@ -52,6 +53,7 @@ export function HeroAiPlanResults({
   onExpandFull,
   onClearPlan,
   onRetrySave,
+  onDownloadPlan,
   lastSearchPax,
 }: HeroAiPlanResultsProps) {
   const { t } = useI18n();
@@ -111,43 +113,8 @@ export function HeroAiPlanResults({
               protect={false}
               onClearPlan={onClearPlan}
               onDownloadClick={
-                displayPlan
-                  ? async () => {
-                      const planForPdf = aiPlan ?? displayPlan;
-                      try {
-                        const { generatePlanPdf } = await import("@/lib/pdf-export");
-                        const { buildPdfPlanTitle } = await import("@/lib/pdfPlanTitle");
-                        await generatePlanPdf({
-                          title: buildPdfPlanTitle({
-                            groundTransportMode:
-                              planForPdf.groundTransportMode ??
-                              aiContext?.groundTransportMode,
-                            accommodationMode: planForPdf.accommodationMode,
-                            originPlace:
-                              planForPdf.originPlace ?? aiContext?.originPlace,
-                            destinationPlace:
-                              planForPdf.destinationPlace ??
-                              aiContext?.destinationPlace,
-                            destinationName: planForPdf.destinationName,
-                            from: aiContext?.from,
-                            to: aiContext?.to,
-                          }),
-                          destination:
-                            planForPdf.destinationName ||
-                            planForPdf.destinationPlace ||
-                            aiContext?.to ||
-                            "",
-                          start_date: aiContext?.departDate ?? null,
-                          end_date: aiContext?.returnDate ?? null,
-                          itinerary: planForPdf as never,
-                          language: aiContext?.language,
-                          pax: aiContext?.pax ?? 1,
-                        });
-                      } catch (e) {
-                        console.error("PDF export failed", e);
-                        alert(t("trips.pdfError"));
-                      }
-                    }
+                displayPlan && onDownloadPlan
+                  ? () => void onDownloadPlan(aiPlan ?? displayPlan)
                   : undefined
               }
               stayInfo={stayInfo}
@@ -191,11 +158,10 @@ export function HeroAiPlanResults({
           )}
 
           {savedPlanId ? (
-            <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-brand/40 bg-brand/10 px-5 py-3 text-sm">
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-brand/40 bg-brand/10 px-5 py-3 text-sm">
               <span className="font-medium text-foreground">{t("plan.saved")}</span>
               <Link
-                to="/my-trips/$planId"
-                params={{ planId: savedPlanId }}
+                to="/dashboard"
                 className="font-semibold text-brand hover:underline"
               >
                 {t("plan.openDashboard")}

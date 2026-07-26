@@ -3,21 +3,21 @@
   "destinationIata": "SYD",
   "originIata": "ZRH",
   "contentLanguage": "sl",
-  "summary": "Osmdnevni Sydney: pristanišče, plaže, Blue Mountains in eden lahek dan — brez copy-paste dni in brez ponovnega prihoda na letališče.",
+  "summary": "Štirinajstdnevni Sydney po dolgem letu iz Züricha: dan za jet lag, pristanišče, plaže, Blue Mountains, Manly, lokalne soseske in rezervni dan — tempo za long-haul, ne city-break.",
   "days": [
     {
       "day": 1,
       "date": "2026-10-03",
-      "title": "Prihod v Sydney in Circular Quay",
+      "title": "Prihod v Sydney in lahek uvod",
       "city": "Sydney",
       "focusName": "Circular Quay",
       "lat": -33.861,
       "lng": 151.213,
-      "dailyBudgetEur": 130,
+      "dailyBudgetEur": 120,
       "category": "transport",
-      "travelHack": "Po dolgem letu: Opal kartica na letališču + vlak do Circular Quay — taxi je bistveno dražji.",
+      "travelHack": "Po ~22 urah poti: Opal kartica na letališču + vlak do Circular Quay — taxi je bistveno dražji.",
       "transportationTips": "Airport Link do mesta ~15–20 min. Hotel blizu Quay/The Rocks olajša prvi večer.",
-      "localWarnings": "",
+      "localWarnings": "Ne načrtuj večjih izletov — jet lag je pravi.",
       "morning": "",
       "afternoon": "",
       "evening": "",
@@ -30,35 +30,35 @@
             "description": "Pristanek, prtljaga in transfer v hotel.",
             "bullets": [
               "Računaj 45–70 min do hotela.",
-              "Danes brez velikih izletov — jet lag je pravi."
+              "Danes samo check-in in počitek."
             ],
             "arrivalTime": "16:10"
           },
           {
             "name": "Check-in in odmor",
             "type": "STAY",
-            "description": "Namestitev in osvežitev.",
+            "description": "Namestitev in osvežitev po dolgem letu.",
             "bullets": [
-              "Kratek tuš in 1 ura počitka.",
+              "Kratek tuš in 1–2 uri počitka.",
               "Večer samo lahek sprehod."
             ]
           }
         ],
         "evening": [
           {
-            "name": "Sprehod po The Rocks in Opera House foreshore",
+            "name": "Kratek sprehod po The Rocks",
             "type": "SIGHT",
-            "description": "Kratek uvod v pristanišče ob sončnem zahodu.",
+            "description": "Lahek uvod v pristanišče — brez dolgega programa.",
             "bullets": [
-              "Fotka Opera House od Mrs Macquaries strani, če zmoreš.",
-              "Ne načrtuj še enega transferja na letališče — si že v mestu."
+              "Fotka Opera House od daleč, če zmoreš.",
+              "Ne načrtuj transferja nazaj na letališče — si že v mestu."
             ]
           },
           {
-            "name": "Večerja v The Rocks",
+            "name": "Lahka večerja v The Rocks",
             "type": "EAT",
             "description": "Ena sproščena večerja po prihodu.",
-            "bullets": ["Morski sadeži ali pub meal — ena miza."],
+            "bullets": ["Pub meal ali morski sadeži — ena miza."],
             "priceLabel": "€30–50"
           }
         ]
@@ -67,6 +67,56 @@
     {
       "day": 2,
       "date": "2026-10-04",
+      "title": "Jet-lag recovery — harbour v ritmu telesa",
+      "city": "Sydney",
+      "focusName": "Barangaroo",
+      "lat": -33.8615,
+      "lng": 151.2015,
+      "dailyBudgetEur": 95,
+      "category": "activity",
+      "travelHack": "Po Evropi→Avstraliji je dan 2 rezerviran za počasnost — ne zapolni ga z Blue Mountains.",
+      "transportationTips": "Vse peš ali kratek ferry; Opal kartica.",
+      "localWarnings": "Če spiš do 10.00, je to v redu — ne siliti.",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [
+          {
+            "name": "Počasno jutro in kava ob vodi",
+            "type": "ACTIVITY",
+            "description": "Prilagajanje časovnemu pasu brez urnika.",
+            "bullets": [
+              "Kava v The Rocks ali Barangaroo.",
+              "Kratek sprehod do Walsh Bay."
+            ]
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Barangaroo Reserve in Waterfront",
+            "type": "NATURE",
+            "description": "Miren popoldanski sprehod ob pristanišču.",
+            "bullets": [
+              "Senca, voda, brez checkliste.",
+              "Po želji ferry do Milsons Point in nazaj."
+            ]
+          }
+        ],
+        "evening": [
+          {
+            "name": "Zgodnja večerja v Barangaroo",
+            "type": "EAT",
+            "description": "Ena lahka večerja — zgodnji spanec.",
+            "bullets": ["Ena miza; brez bar-hoppinga."],
+            "priceLabel": "€25–45"
+          }
+        ]
+      }
+    },
+    {
+      "day": 3,
+      "date": "2026-10-05",
       "title": "Opera House, Harbour Bridge in Royal Botanic Garden",
       "city": "Sydney",
       "focusName": "Sydney Harbour",
@@ -106,7 +156,7 @@
         ],
         "evening": [
           {
-            "name": "Večerja v Circular Quay / Circular Quay Wharf",
+            "name": "Večerja v Circular Quay",
             "type": "EAT",
             "description": "Ena večerja z razgledom na pristanišče.",
             "bullets": ["Rezervacija za sunset slot."],
@@ -116,8 +166,8 @@
       }
     },
     {
-      "day": 3,
-      "date": "2026-10-05",
+      "day": 4,
+      "date": "2026-10-06",
       "title": "Bondi to Coogee coastal walk",
       "city": "Bondi",
       "focusName": "Bondi Beach",
@@ -166,8 +216,58 @@
       }
     },
     {
-      "day": 4,
-      "date": "2026-10-06",
+      "day": 5,
+      "date": "2026-10-07",
+      "title": "Plažni počitek — Bondi ali Bronte",
+      "city": "Bondi",
+      "focusName": "Bronte Beach",
+      "lat": -33.9035,
+      "lng": 151.2685,
+      "dailyBudgetEur": 90,
+      "category": "beach",
+      "travelHack": "Po coastal walku si privošči dan brez urnika — long-haul potrebuje dihanje.",
+      "transportationTips": "Bus do Bondi/Bronte; peš med plažami.",
+      "localWarnings": "UV indeks je visok — klobuk in krema.",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [
+          {
+            "name": "Jutranje kopanje ali kava na Bronte",
+            "type": "BEACH",
+            "description": "Počasno jutro na plaži.",
+            "bullets": [
+              "Plavanje med zastavami.",
+              "Bronte baths, če je mirno morje."
+            ]
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Počitek na plaži ali kratek sprehod do Tamarama",
+            "type": "BEACH",
+            "description": "Brez novega celodnevnega izleta.",
+            "bullets": [
+              "Knjiga / picnic.",
+              "Po želji ice cream na Campbell Parade."
+            ]
+          }
+        ],
+        "evening": [
+          {
+            "name": "Večerja ob plaži",
+            "type": "EAT",
+            "description": "Ena sproščena večerja v Bondiju.",
+            "bullets": ["Casual — ena miza."],
+            "priceLabel": "€25–45"
+          }
+        ]
+      }
+    },
+    {
+      "day": 6,
+      "date": "2026-10-08",
       "title": "Blue Mountains day trip",
       "city": "Katoomba",
       "focusName": "Three Sisters",
@@ -223,8 +323,8 @@
       }
     },
     {
-      "day": 5,
-      "date": "2026-10-07",
+      "day": 7,
+      "date": "2026-10-09",
       "title": "Manly ferry in North Shore",
       "city": "Manly",
       "focusName": "Manly Beach",
@@ -279,8 +379,8 @@
       }
     },
     {
-      "day": 6,
-      "date": "2026-10-08",
+      "day": 8,
+      "date": "2026-10-10",
       "title": "Prosti / lokalni dan — Surry Hills in Paddington",
       "city": "Sydney",
       "focusName": "Surry Hills",
@@ -329,8 +429,8 @@
       }
     },
     {
-      "day": 7,
-      "date": "2026-10-09",
+      "day": 9,
+      "date": "2026-10-11",
       "title": "Taronga Zoo ali Art Gallery + Hyde Park",
       "city": "Sydney",
       "focusName": "Mosman",
@@ -370,7 +470,216 @@
         ],
         "evening": [
           {
-            "name": "Zadnja večerja v Sydneyju",
+            "name": "Večerja v CBD / Darlinghurst",
+            "type": "EAT",
+            "description": "Ena večerja — ena miza.",
+            "bullets": ["Izberi sosesko blizu hotela."],
+            "priceLabel": "€35–55"
+          }
+        ]
+      }
+    },
+    {
+      "day": 10,
+      "date": "2026-10-12",
+      "title": "Watsons Bay, South Head in ferry",
+      "city": "Watsons Bay",
+      "focusName": "South Head",
+      "lat": -33.8438,
+      "lng": 151.2815,
+      "dailyBudgetEur": 100,
+      "category": "nature",
+      "travelHack": "Ferry do Watsons Bay + sprehod do The Gap / South Head — klasika z manj gneče kot Bondi.",
+      "transportationTips": "Ferry iz Circular Quay; Opal velja.",
+      "localWarnings": "Pečine pri The Gap — ostani za ograjami.",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [
+          {
+            "name": "Ferry do Watsons Bay",
+            "type": "TRANSPORT",
+            "description": "Jutranja vožnja čez vzhodni del pristanišča.",
+            "bullets": [
+              "Sedi na desni za poglede na Opera House.",
+              "Na Watsons Bay najprej kava ob plaži."
+            ]
+          },
+          {
+            "name": "South Head in The Gap walk",
+            "type": "NATURE",
+            "description": "Obalni sprehod z razgledi na ocean.",
+            "bullets": [
+              "Hornby Lighthouse, če je odprt dostop.",
+              "Picnic ali fish & chips na plaži."
+            ]
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Camp Cove in povratek s ferryjem",
+            "type": "BEACH",
+            "description": "Mirnejša plaža pred vrnitvijo v mesto.",
+            "bullets": [
+              "Kratko kopanje, če je varno.",
+              "Ferry nazaj popoldne."
+            ]
+          }
+        ],
+        "evening": [
+          {
+            "name": "Večerja v Potts Point ali Kings Cross",
+            "type": "EAT",
+            "description": "Ena večerja po ferry dnevu.",
+            "bullets": ["Ena miza — brez drugega bloka."],
+            "priceLabel": "€30–50"
+          }
+        ]
+      }
+    },
+    {
+      "day": 11,
+      "date": "2026-10-13",
+      "title": "Newtown, Glebe in lokalna kultura",
+      "city": "Sydney",
+      "focusName": "Newtown",
+      "lat": -33.898,
+      "lng": 151.179,
+      "dailyBudgetEur": 95,
+      "category": "activity",
+      "travelHack": "King Street = street art, knjigarne, veganska/azijska hrana — drugačen Sydney od harbour postcarda.",
+      "transportationTips": "Vlak ali bus do Newtown; peš proti Glebe.",
+      "localWarnings": "",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [
+          {
+            "name": "Newtown — King Street sprehod",
+            "type": "ACTIVITY",
+            "description": "Lokalna ulica z murali in kavarnami.",
+            "bullets": [
+              "Kava + bookshop.",
+              "Street art med King in Enmore Rd."
+            ]
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Glebe Markets (vikend) ali Glebe Point Rd",
+            "type": "ACTIVITY",
+            "description": "Popoldne v soseski — en fokus.",
+            "bullets": [
+              "Sobota: Glebe Markets.",
+              "Sicer: sprehod do Blackwattle Bay."
+            ]
+          }
+        ],
+        "evening": [
+          {
+            "name": "Večerja v Newtownu",
+            "type": "EAT",
+            "description": "Ena soseska večerja — ena miza.",
+            "bullets": ["Thai, vietnamska ali moderna avstralska."],
+            "priceLabel": "€25–45"
+          }
+        ]
+      }
+    },
+    {
+      "day": 12,
+      "date": "2026-10-14",
+      "title": "Royal National Park ali Palm Beach (opcijski izlet)",
+      "city": "Sydney",
+      "focusName": "Royal National Park",
+      "lat": -34.123,
+      "lng": 151.063,
+      "dailyBudgetEur": 110,
+      "category": "nature",
+      "travelHack": "Izberi EN celodnevni izlet: Royal National Park (vlak + walk) ALI Palm Beach / Northern Beaches (bus).",
+      "transportationTips": "RNP: vlak do Waterfall/Cronulla + lokalni transfer. Palm Beach: bus L90.",
+      "localWarnings": "V parku voda, klobuk, naložena baterija — omejen signal.",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [
+          {
+            "name": "Odhod na naravni izlet",
+            "type": "TRANSPORT",
+            "description": "Zgodnji odhod — en konkreten cilj za ves dan.",
+            "bullets": [
+              "Royal National Park: coastal walk odsek.",
+              "Ali Palm Beach + ferry do Ettalong (če vreme dopušča)."
+            ]
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Pohod / plaža in povratek",
+            "type": "NATURE",
+            "description": "Popoldanski fokus v naravi, potem nazaj v mesto.",
+            "bullets": [
+              "Ne kombiniraj obeh izletov v enem dnevu.",
+              "Vrni se pred temo."
+            ]
+          }
+        ],
+        "evening": [
+          {
+            "name": "Lahka večerja po izletu",
+            "type": "EAT",
+            "description": "Ena večerja blizu hotela.",
+            "bullets": ["Utrujen dan — zgodnji spanec."],
+            "priceLabel": "€25–40"
+          }
+        ]
+      }
+    },
+    {
+      "day": 13,
+      "date": "2026-10-15",
+      "title": "Rezervni / nakupi / zadnja prava večerja",
+      "city": "Sydney",
+      "focusName": "Circular Quay",
+      "lat": -33.861,
+      "lng": 151.213,
+      "dailyBudgetEur": 110,
+      "category": "activity",
+      "travelHack": "Zadnji polni dan pred odhodom — pusti prostor za dež, zamudo ali priljubljen lokal, ki ga nisi ujel.",
+      "transportationTips": "Peš / ferry po želji; brez novega dolgega day-tripa.",
+      "localWarnings": "",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [
+          {
+            "name": "Zadnji harbour sprehod ali muzej po želji",
+            "type": "ACTIVITY",
+            "description": "Prožen dopoldanski blok.",
+            "bullets": [
+              "Ponovi najljubši razgled.",
+              "Ali Australian Museum / MCA — en izbor."
+            ]
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Nakupi spominkov / The Rocks Markets",
+            "type": "ACTIVITY",
+            "description": "Lahko popoldne pred večerjo.",
+            "bullets": [
+              "Spominki v The Rocks.",
+              "Oddaj prtljago / preveri odhodni transfer."
+            ]
+          }
+        ],
+        "evening": [
+          {
+            "name": "Zadnja praznična večerja v Sydneyju",
             "type": "EAT",
             "description": "Ena praznična večerja — ena miza.",
             "bullets": ["Rezerviraj vnaprej za harbour view."],
@@ -380,8 +689,8 @@
       }
     },
     {
-      "day": 8,
-      "date": "2026-10-10",
+      "day": 14,
+      "date": "2026-10-16",
       "title": "Zadnji dopoldne in odhod",
       "city": "Sydney",
       "focusName": "Circular Quay",

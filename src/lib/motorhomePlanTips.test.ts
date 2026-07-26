@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import type { AiTripPlan } from "@/lib/aiPlan.functions";
 import {
   enrichMotorhomePlanTips,
+  MOTORHOME_STRENUOUS_DRIVE_WARNING_SL,
+  motorhomeAverageDailyDriveKm,
+  motorhomeStrenuousDriveWarning,
   thinMotorhomeMealActivities,
 } from "@/lib/motorhomePlanTips";
 import { enrichDayActivities } from "@/lib/dayEnrichers";
@@ -255,6 +258,70 @@ describe("thinMotorhomeMealActivities", () => {
     thinMotorhomeMealActivities(plan);
     const kept = plan.days.filter((d) => (d.activities?.evening?.length ?? 0) > 0).length;
     expect(kept).toBeLessThanOrEqual(2);
+  });
+});
+
+describe("motorhomeStrenuousDriveWarning", () => {
+  it("fires when average daily km exceeds 200 and appends to overview summary", () => {
+    const plan = {
+      groundTransportMode: "motorhome",
+      accommodationMode: "motorhome",
+      summary: "Kratka tura po Alpah.",
+      days: [
+        { day: 1, city: "A", title: "A", morning: "", afternoon: "", evening: "", drivingDistanceKm: 280, drivingDurationHours: "3h 30m" },
+        { day: 2, city: "B", title: "B", morning: "", afternoon: "", evening: "", drivingDistanceKm: 260, drivingDurationHours: "3h" },
+        { day: 3, city: "C", title: "C", morning: "", afternoon: "", evening: "", drivingDistanceKm: 240, drivingDurationHours: "3h" },
+        { day: 4, city: "A", title: "Nazaj", morning: "", afternoon: "", evening: "", drivingDistanceKm: 220, drivingDurationHours: "2h 45m" },
+      ],
+    } as AiTripPlan;
+
+    expect(motorhomeAverageDailyDriveKm(plan)).toBeGreaterThan(200);
+    expect(motorhomeStrenuousDriveWarning(plan, "sl")).toBe(MOTORHOME_STRENUOUS_DRIVE_WARNING_SL);
+
+    enrichMotorhomePlanTips(plan, "sl");
+    expect(plan.summary).toContain(MOTORHOME_STRENUOUS_DRIVE_WARNING_SL);
+    // Idempotent — do not stack the same warning twice.
+    enrichMotorhomePlanTips(plan, "sl");
+    expect(plan.summary?.split(MOTORHOME_STRENUOUS_DRIVE_WARNING_SL).length).toBe(2);
+  });
+
+  it("fires when a single day has ≥5h driving even if average is low", () => {
+    const plan = {
+      groundTransportMode: "motorhome",
+      summary: "Mirna tura.",
+      days: [
+        { day: 1, city: "A", title: "A", morning: "", afternoon: "", evening: "", drivingDistanceKm: 40, drivingDurationHours: "0h 45m" },
+        { day: 2, city: "B", title: "B", morning: "", afternoon: "", evening: "", drivingDistanceKm: 380, drivingDurationHours: "5h 15m" },
+        { day: 3, city: "B", title: "Počitek", morning: "", afternoon: "", evening: "", drivingDistanceKm: 0, drivingDurationHours: "0h" },
+        { day: 4, city: "A", title: "Nazaj", morning: "", afternoon: "", evening: "", drivingDistanceKm: 40, drivingDurationHours: "0h 45m" },
+      ],
+    } as AiTripPlan;
+
+    expect(motorhomeAverageDailyDriveKm(plan)).toBeLessThanOrEqual(200);
+    expect(motorhomeStrenuousDriveWarning(plan, "sl")).toBe(MOTORHOME_STRENUOUS_DRIVE_WARNING_SL);
+  });
+
+  it("does not fire for car trips or relaxed motorhome averages", () => {
+    const car = {
+      groundTransportMode: "car",
+      days: [
+        { day: 1, city: "A", title: "A", morning: "", afternoon: "", evening: "", drivingDistanceKm: 300, drivingDurationHours: "4h" },
+        { day: 2, city: "B", title: "B", morning: "", afternoon: "", evening: "", drivingDistanceKm: 300, drivingDurationHours: "4h" },
+      ],
+    } as AiTripPlan;
+    expect(motorhomeStrenuousDriveWarning(car, "sl")).toBeNull();
+
+    const relaxed = {
+      groundTransportMode: "motorhome",
+      days: [
+        { day: 1, city: "A", title: "A", morning: "", afternoon: "", evening: "", drivingDistanceKm: 120, drivingDurationHours: "2h" },
+        { day: 2, city: "B", title: "B", morning: "", afternoon: "", evening: "", drivingDistanceKm: 90, drivingDurationHours: "1h 30m" },
+        { day: 3, city: "B", title: "Počitek", morning: "", afternoon: "", evening: "", drivingDistanceKm: 0, drivingDurationHours: "0h" },
+        { day: 4, city: "A", title: "Nazaj", morning: "", afternoon: "", evening: "", drivingDistanceKm: 110, drivingDurationHours: "2h" },
+      ],
+    } as AiTripPlan;
+    expect(motorhomeAverageDailyDriveKm(relaxed)).toBeLessThanOrEqual(200);
+    expect(motorhomeStrenuousDriveWarning(relaxed, "sl")).toBeNull();
   });
 });
 

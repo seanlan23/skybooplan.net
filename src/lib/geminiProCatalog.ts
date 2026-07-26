@@ -57,6 +57,7 @@ export function buildCatalogPlanFromResponse(
     departDate: data.departDate,
     returnDate: data.returnDate,
     expectedDays: tripDayCount(data.departDate, data.returnDate),
+    pace: data.pace,
   });
 
   enrichGroundTransportPlan(catalogPlan, {
@@ -104,5 +105,6 @@ export function buildGeminiMapOpts(data: GenerateGeminiProTripInput) {
     language: normalizePlanLangCode(data.language ?? "sl"),
     budget: data.budget,
     pax: data.pax.adults + data.pax.childrenAges.length,
+    pace: data.pace,
   };
 }

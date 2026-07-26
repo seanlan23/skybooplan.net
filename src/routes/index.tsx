@@ -1199,50 +1199,63 @@ function Landing() {
     async (plan: AiTripPlan, ctx: AiPlannerContext) => {
       if (!plan.days?.length) return false;
 
+      const persistCtx = {
+        departDate: ctx.departDate,
+        returnDate: ctx.returnDate,
+        destinationPlace: ctx.destinationPlace,
+        originPlace: ctx.originPlace,
+        destinationName: plan.destinationName,
+        from: ctx.from,
+        to: ctx.to,
+        groundTransportMode: plan.groundTransportMode ?? ctx.groundTransportMode,
+        accommodationMode: plan.accommodationMode,
+      };
+
       try {
         // Refresh so Bearer token is valid (stale JWT was a common silent save failure).
-        await supabase.auth.getUser();
-        const { supabaseAuthHeaders } = await import("@/lib/supabaseAuthHeaders");
-        const headers = await supabaseAuthHeaders({ "Content-Type": "application/json" });
-        if (!headers.Authorization) {
+        const { data: userData } = await supabase.auth.getUser();
+        const userId = userData.user?.id;
+        if (!userId) {
           setPlanSaveError(null);
           return false;
         }
 
         setPlanSaveError(null);
-        const res = await fetch("/api/save-travel-plan", {
-          method: "POST",
-          headers,
-          body: JSON.stringify({
-            plan,
-            context: {
-              departDate: ctx.departDate,
-              returnDate: ctx.returnDate,
-              destinationPlace: ctx.destinationPlace,
-              originPlace: ctx.originPlace,
-              destinationName: plan.destinationName,
-              from: ctx.from,
-              to: ctx.to,
-              groundTransportMode: plan.groundTransportMode ?? ctx.groundTransportMode,
-              accommodationMode: plan.accommodationMode,
-            },
-          }),
-        });
+        const { supabaseAuthHeaders } = await import("@/lib/supabaseAuthHeaders");
+        const headers = await supabaseAuthHeaders({ "Content-Type": "application/json" });
 
-        const data = (await res.json().catch(() => ({}))) as {
-          id?: string;
-          error?: string;
-        };
+        if (headers.Authorization) {
+          const res = await fetch("/api/save-travel-plan", {
+            method: "POST",
+            headers,
+            body: JSON.stringify({ plan, context: persistCtx }),
+          });
 
-        if (!res.ok || !data.id) {
-          console.error("Save plan failed:", data.error || res.status);
-          setPlanSaveError(data.error || "save_failed");
-          return false;
+          const data = (await res.json().catch(() => ({}))) as {
+            id?: string;
+            error?: string;
+          };
+
+          if (res.ok && data.id) {
+            setSavedPlanId(data.id);
+            setPlanSaveError(null);
+            return true;
+          }
+          console.warn("Save plan API failed, trying client RLS:", data.error || res.status);
         }
 
-        setSavedPlanId(data.id);
-        setPlanSaveError(null);
-        return true;
+        // Fallback: direct insert under RLS (works without SERVICE_ROLE on Vercel).
+        const { persistTravelPlanViaClient } = await import("@/lib/persistTravelPlan");
+        const result = await persistTravelPlanViaClient(supabase, plan, persistCtx, userId);
+        if ("id" in result) {
+          setSavedPlanId(result.id);
+          setPlanSaveError(null);
+          return true;
+        }
+
+        console.error("Save plan failed:", result.error);
+        setPlanSaveError(result.error || "save_failed");
+        return false;
       } catch (err) {
         console.error("Save plan failed:", err);
         setPlanSaveError(err instanceof Error ? err.message : "save_failed");
@@ -1250,6 +1263,44 @@ function Landing() {
       }
     },
     [],
+  );
+
+  const downloadPlanPdfAndSave = useCallback(
+    async (planForPdf: AiTripPlan) => {
+      try {
+        const { generatePlanPdf } = await import("@/lib/pdf-export");
+        const { buildPdfPlanTitle } = await import("@/lib/pdfPlanTitle");
+        await generatePlanPdf({
+          title: buildPdfPlanTitle({
+            groundTransportMode:
+              planForPdf.groundTransportMode ?? aiContext?.groundTransportMode,
+            accommodationMode: planForPdf.accommodationMode,
+            originPlace: planForPdf.originPlace ?? aiContext?.originPlace,
+            destinationPlace: planForPdf.destinationPlace ?? aiContext?.destinationPlace,
+            destinationName: planForPdf.destinationName,
+            from: aiContext?.from,
+            to: aiContext?.to,
+          }),
+          destination:
+            planForPdf.destinationName ||
+            planForPdf.destinationPlace ||
+            aiContext?.to ||
+            "",
+          start_date: aiContext?.departDate ?? null,
+          end_date: aiContext?.returnDate ?? null,
+          itinerary: planForPdf as never,
+          language: aiContext?.language,
+          pax: aiContext?.pax ?? 1,
+        });
+        if (user && isActiveAiContext(aiContext)) {
+          await persistPlanToTrips(planForPdf, aiContext);
+        }
+      } catch (e) {
+        console.error("PDF export failed", e);
+        alert(t("trips.pdfError"));
+      }
+    },
+    [aiContext, persistPlanToTrips, t, user],
   );
 
   // Generate while logged out → sign in later: persist the in-memory plan once.
@@ -1660,6 +1711,7 @@ function Landing() {
             ? () => void persistPlanToTrips(aiPlan, aiContext)
             : undefined
         }
+        onDownloadPlan={downloadPlanPdfAndSave}
         lastSearchPax={{
           adults: lastSearch?.adults ?? aiContext?.adults,
           childrenAges: lastSearch?.childrenAges ?? aiContext?.childrenAges,
@@ -1750,42 +1802,7 @@ function Landing() {
                   onClearPlan={clearAiPlanOnly}
                   onDownloadClick={
                     displayPlan
-                      ? async () => {
-                          try {
-                            const { generatePlanPdf } = await import("@/lib/pdf-export");
-                            const { buildPdfPlanTitle } = await import("@/lib/pdfPlanTitle");
-                            const planForPdf = displayPlan;
-                            await generatePlanPdf({
-                              title: buildPdfPlanTitle({
-                                groundTransportMode:
-                                  planForPdf.groundTransportMode ??
-                                  aiContext?.groundTransportMode,
-                                accommodationMode: planForPdf.accommodationMode,
-                                originPlace:
-                                  planForPdf.originPlace ?? aiContext?.originPlace,
-                                destinationPlace:
-                                  planForPdf.destinationPlace ??
-                                  aiContext?.destinationPlace,
-                                destinationName: planForPdf.destinationName,
-                                from: aiContext?.from,
-                                to: aiContext?.to,
-                              }),
-                              destination:
-                                planForPdf.destinationName ||
-                                planForPdf.destinationPlace ||
-                                aiContext?.to ||
-                                "",
-                              start_date: aiContext?.departDate ?? null,
-                              end_date: aiContext?.returnDate ?? null,
-                              itinerary: planForPdf as never,
-                              language: aiContext?.language,
-                              pax: aiContext?.pax ?? 1,
-                            });
-                          } catch (e) {
-                            console.error("PDF export failed", e);
-                            alert(t("trips.pdfError"));
-                          }
-                        }
+                      ? () => void downloadPlanPdfAndSave(aiPlan ?? displayPlan)
                       : undefined
                   }
                   stayInfo={{
@@ -1866,13 +1883,12 @@ function Landing() {
                 />
                 )}
                 {savedPlanId && (
-                  <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-brand/40 bg-brand/10 px-5 py-3 text-sm">
+                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-brand/40 bg-brand/10 px-5 py-3 text-sm">
                     <span className="text-foreground font-medium">
                       {t("plan.saved")}
                     </span>
                     <Link
-                      to="/my-trips/$planId"
-                      params={{ planId: savedPlanId }}
+                      to="/dashboard"
                       className="font-semibold text-brand hover:underline"
                     >
                       {t("plan.openDashboard")}

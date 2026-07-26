@@ -32,6 +32,68 @@ function appendTip(existing: string | undefined, tip: string): string {
   return base ? `${base} ${tip}` : tip;
 }
 
+/** Avg daily km above this → strenuous motorhome tour warning. */
+export const MOTORHOME_AVG_DAILY_KM_STRENUOUS = 200;
+/** Single-day drive hours at/above this → strenuous motorhome tour warning. */
+export const MOTORHOME_DAY_DRIVE_HOURS_STRENUOUS = 5;
+
+export const MOTORHOME_STRENUOUS_DRIVE_WARNING_SL =
+  "Tura je izvedljiva, vendar vozniško zelo naporna. Za bolj sproščen dopust priporočamo dodajanje dodatnih dni.";
+
+export const MOTORHOME_STRENUOUS_DRIVE_WARNING_EN =
+  "The tour is doable, but the driving is very demanding. For a more relaxed holiday we recommend adding extra days.";
+
+function isMotorhomePlan(plan: AiTripPlan): boolean {
+  return (
+    plan.groundTransportMode === "motorhome" || plan.accommodationMode === "motorhome"
+  );
+}
+
+/** Parse "3h 45m" / "4.5h" / "5h" into decimal hours. */
+export function parseDrivingDurationHours(raw: string | undefined): number {
+  const s = (raw ?? "").trim();
+  if (!s) return 0;
+  const hm = s.match(/(\d+(?:[.,]\d+)?)\s*h(?:\s*(\d+)\s*m)?/i);
+  if (hm) {
+    const h = Number(hm[1]!.replace(",", "."));
+    const m = hm[2] ? Number(hm[2]) : 0;
+    if (Number.isFinite(h)) return h + (Number.isFinite(m) ? m / 60 : 0);
+  }
+  const asNum = Number(s.replace(",", "."));
+  return Number.isFinite(asNum) ? asNum : 0;
+}
+
+/** Total km / trip day count (includes rest days with 0 km). */
+export function motorhomeAverageDailyDriveKm(plan: AiTripPlan): number {
+  const days = plan.days?.length ?? 0;
+  if (days <= 0) return 0;
+  const total = plan.days.reduce((sum, d) => sum + (d.drivingDistanceKm ?? 0), 0);
+  return total / days;
+}
+
+/** True when any day has an excessively long driving block. */
+export function motorhomeHasExcessiveDriveDay(plan: AiTripPlan): boolean {
+  return (plan.days ?? []).some(
+    (d) => parseDrivingDurationHours(d.drivingDurationHours) >= MOTORHOME_DAY_DRIVE_HOURS_STRENUOUS,
+  );
+}
+
+/**
+ * Motorhome + (avg daily km > 200 OR any day ≥ 5h drive) → localized warning text.
+ * Used in Overview (summary), Transport UI, and PDF.
+ */
+export function motorhomeStrenuousDriveWarning(
+  plan: AiTripPlan,
+  lang = "sl",
+): string | null {
+  if (!isMotorhomePlan(plan)) return null;
+  const avgKm = motorhomeAverageDailyDriveKm(plan);
+  const hardDay = motorhomeHasExcessiveDriveDay(plan);
+  if (avgKm <= MOTORHOME_AVG_DAILY_KM_STRENUOUS && !hardDay) return null;
+  const slo = lang === "sl" || lang.startsWith("sl");
+  return slo ? MOTORHOME_STRENUOUS_DRIVE_WARNING_SL : MOTORHOME_STRENUOUS_DRIVE_WARNING_EN;
+}
+
 /** Generic lunch/dinner/café fillers — not worth a daily itinerary slot on RV trips. */
 export function isMotorhomeMealFiller(a: DayActivity): boolean {
   const type = (a.type ?? "").toUpperCase();
@@ -178,6 +240,12 @@ export function enrichMotorhomePlanTips(plan: AiTripPlan, lang = "sl"): void {
     }
 
     if (city) previousCity = city;
+  }
+
+  // Overview + transport: warn when the RV itinerary packs too many km/hours.
+  const strenuousWarning = motorhomeStrenuousDriveWarning(plan, lang);
+  if (strenuousWarning) {
+    plan.summary = appendTip(plan.summary, strenuousWarning);
   }
 
   thinMotorhomeMealActivities(plan);

@@ -65,7 +65,9 @@ export function LanguagePicker({
         aria-haspopup="listbox"
         className={cn(
           "inline-flex items-center gap-0.5 border-0 bg-transparent p-0 text-sm font-medium transition-colors",
-          isHero ? "text-white/70 hover:text-white" : "text-muted-foreground hover:text-foreground",
+          isHero
+            ? "rounded-full bg-black/55 px-2 py-1 text-white shadow-sm ring-1 ring-white/30 hover:bg-black/70"
+            : "text-muted-foreground hover:text-foreground",
         )}
       >
         <span className="text-base leading-none" aria-hidden>
@@ -78,7 +80,7 @@ export function LanguagePicker({
       </button>
 
       {open ? (
-        <div className="absolute right-0 top-full z-50 mt-2 w-56 rounded-lg border border-border bg-card py-1 shadow-lg max-h-72 overflow-y-auto">
+        <div className="absolute right-0 top-full z-50 mt-2 w-56 rounded-lg border border-border bg-card py-1 text-foreground shadow-lg max-h-72 overflow-y-auto">
           {LANGUAGES.map((lang) => (
             <button
               key={lang.code}

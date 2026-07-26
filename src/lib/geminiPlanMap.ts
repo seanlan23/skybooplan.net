@@ -20,6 +20,7 @@ import {
 import { expandPlanDaysToExpected } from "@/lib/daySequence";
 import { finalizeItineraryMapCoords } from "@/lib/itineraryMapModel";
 import { applyItineraryGuards } from "@/lib/itineraryGuards";
+import { enforceTravelPace } from "@/lib/paceGuard";
 import { dedupeCrossDayBoilerplate, dedupeSameDayActivities } from "@/lib/textSanitize";
 import { attachActivityCoordinates } from "@/lib/mapPoiResolver";
 import { stripMisplacedCityPois } from "@/lib/cityPoiGuard";
@@ -81,6 +82,7 @@ export type GeminiPlanMapOpts = {
   groundTransportMode?: GroundTransportMode;
   budget?: TripBudgetTier;
   pax?: number;
+  pace?: "intensive" | "relaxed" | "calm";
 };
 
 function resolveIsoDayDate(raw: string, departDate: string | undefined, dayNumber: number): string {
@@ -731,6 +733,7 @@ export function tripPlanResponseToAiTripPlan(
     hotelRestEveryNDays,
     returnFlightEu,
     travelRequirements: mapTravelRequirementsFromJson(data.travel_requirements),
+    travelPace: opts?.pace,
   };
 }
 
@@ -776,10 +779,12 @@ export function enrichGeminiCatalogPlan(
     returnDate?: string;
     /** When set, pad/expand days[] to full trip length (motorhome often under-emits). */
     expectedDays?: number;
+    pace?: "intensive" | "relaxed" | "calm";
   },
 ): void {
   const tier = opts.budget === "budget" ? "budget" : opts.budget === "premium" ? "premium" : "mid";
   plan.days = dedupePlanDaysByNumber(plan.days);
+  if (opts.pace) plan.travelPace = opts.pace;
   const expectedDays =
     opts.expectedDays && opts.expectedDays > 0
       ? opts.expectedDays
@@ -878,6 +883,7 @@ export function enrichGeminiCatalogPlan(
           tripDate: day.date,
           priorScheduledText,
           motorhome,
+          paceLabel: plan.travelPace,
         },
       );
       // Chatuchak / weekend markets — same gate as skeleton path.
@@ -1027,6 +1033,11 @@ export function enrichGeminiCatalogPlan(
   dedupeSameDayActivities(plan);
   // Structural guards: no enricher placeholders, max one dinner/day, no cloned consecutive days.
   applyItineraryGuards(plan, { arrivalDay: 1, language: planLang });
+  // Final pace trim after enrichers (calm/relaxed caps). Intensive / missing pace = no-op.
+  enforceTravelPace(plan, {
+    pace: plan.travelPace ?? opts.pace,
+    arrivalDay: 1,
+  });
   if (motorhome) {
     enrichMotorhomePlanTips(plan, planLang);
   }
