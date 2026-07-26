@@ -50,19 +50,24 @@ export function HeroSection({
 
   return (
     <section
-      className="relative isolate flex min-h-screen w-full flex-col items-center justify-center overflow-x-clip overscroll-y-none pb-10"
+      className="relative isolate -mb-px flex min-h-screen w-full flex-col items-center justify-center overflow-x-clip overscroll-y-none pb-10"
       aria-label={t("hero.sectionLabel" as never)}
     >
       <HeroRotatingBackground />
 
-      {/* Soft vignette so white UI stays readable on bright daytime photos */}
+      {/* Soft vignette — fade out at bottom so no black hairline above the AI plan */}
       <div
-        className="absolute inset-0 bg-gradient-to-b from-black/45 via-black/30 to-black/40"
+        className="absolute inset-0 bg-gradient-to-b from-black/45 via-black/30 to-transparent"
         aria-hidden
       />
 
       <div
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-background to-transparent"
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-56 bg-gradient-to-t from-background from-35% via-background/85 to-transparent"
+        aria-hidden
+      />
+      {/* Solid bridge into the next section (kills Safari 1px seam) */}
+      <div
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-4 bg-background"
         aria-hidden
       />
 

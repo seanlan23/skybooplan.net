@@ -324,6 +324,7 @@ function Landing() {
   const [searchDraft, setSearchDraft] = useState<SearchValues | null>(null);
   const [sessionReady, setSessionReady] = useState(false);
   const [savedPlanId, setSavedPlanId] = useState<string | null>(null);
+  const [planSaveError, setPlanSaveError] = useState<string | null>(null);
   const [aiContext, setAiContextState] = useState<AiPlannerContext & { language?: string }>(
     () => ({ ...EMPTY_AI_CONTEXT }),
   );
@@ -402,6 +403,7 @@ function Landing() {
     setPrefill(null);
     setSearchDraft(null);
     setSavedPlanId(null);
+    setPlanSaveError(null);
     setError(null);
     setShowSpotlight(false);
     setHeroDreamPrompt("");
@@ -1193,63 +1195,106 @@ function Landing() {
     }
   }
 
-  async function persistPlanToTrips(plan: AiTripPlan, ctx: AiPlannerContext) {
-    if (!user) return;
-    const { buildPdfPlanTitle } = await import("@/lib/pdfPlanTitle");
-    const dest =
-      plan.destinationPlace ||
-      plan.destinationName ||
-      ctx.destinationPlace ||
-      ctx.to;
-    const startDate = (ctx.departDate || "").slice(0, 10) || null;
-    const endDate = ctx.returnDate ? ctx.returnDate.slice(0, 10) : null;
-    const routeTitle = buildPdfPlanTitle({
-      groundTransportMode: plan.groundTransportMode ?? ctx.groundTransportMode,
-      accommodationMode: plan.accommodationMode,
-      originPlace: plan.originPlace ?? ctx.originPlace,
-      destinationPlace: plan.destinationPlace ?? ctx.destinationPlace,
-      destinationName: plan.destinationName,
-      from: ctx.from,
-      to: ctx.to,
-    });
-    const title = startDate ? `${routeTitle} · ${startDate}` : routeTitle;
-    const basePayload = {
-      user_id: user.id,
-      title,
-      destination: dest,
-      start_date: startDate,
-      end_date: endDate,
-      itinerary: plan as never,
-      ai_model: "google:gemini-2.5-flash",
-      is_paid: false,
-    };
+  const persistPlanToTrips = useCallback(
+    async (plan: AiTripPlan, ctx: AiPlannerContext) => {
+      // Always resolve session at save-time (not a stale React closure from stream start).
+      const {
+        data: { user: authUser },
+      } = await supabase.auth.getUser();
+      if (!authUser) {
+        setPlanSaveError(null);
+        return false;
+      }
+      if (!plan.days?.length) return false;
 
-    let query = supabase
-      .from("travel_plans")
-      .select("id")
-      .eq("user_id", user.id)
-      .eq("destination", dest);
-    query = startDate ? query.eq("start_date", startDate) : query.is("start_date", null);
-    query = endDate ? query.eq("end_date", endDate) : query.is("end_date", null);
-    const { data: existing } = await query
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      setPlanSaveError(null);
+      const { buildPdfPlanTitle } = await import("@/lib/pdfPlanTitle");
+      const dest = (
+        plan.destinationPlace ||
+        plan.destinationName ||
+        ctx.destinationPlace ||
+        ctx.to ||
+        "Trip"
+      ).trim() || "Trip";
+      const startDate = (ctx.departDate || "").slice(0, 10) || null;
+      const endDate = ctx.returnDate ? ctx.returnDate.slice(0, 10) : null;
+      const routeTitle = buildPdfPlanTitle({
+        groundTransportMode: plan.groundTransportMode ?? ctx.groundTransportMode,
+        accommodationMode: plan.accommodationMode,
+        originPlace: plan.originPlace ?? ctx.originPlace,
+        destinationPlace: plan.destinationPlace ?? ctx.destinationPlace,
+        destinationName: plan.destinationName,
+        from: ctx.from,
+        to: ctx.to,
+      });
+      const title = startDate ? `${routeTitle} · ${startDate}` : routeTitle;
+      const basePayload = {
+        user_id: authUser.id,
+        title,
+        destination: dest,
+        start_date: startDate,
+        end_date: endDate,
+        itinerary: plan as never,
+        ai_model: "google:gemini-2.5-flash",
+        is_paid: false,
+      };
 
-    if (existing?.id) {
-      const { error: updErr } = await supabase.from("travel_plans").update(basePayload).eq("id", existing.id);
-      if (updErr) console.error("Update plan failed:", updErr);
-      else setSavedPlanId(existing.id);
-    } else {
+      let query = supabase
+        .from("travel_plans")
+        .select("id")
+        .eq("user_id", authUser.id)
+        .eq("destination", dest);
+      query = startDate ? query.eq("start_date", startDate) : query.is("start_date", null);
+      query = endDate ? query.eq("end_date", endDate) : query.is("end_date", null);
+      const { data: existing } = await query
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (existing?.id) {
+        const { error: updErr } = await supabase
+          .from("travel_plans")
+          .update(basePayload)
+          .eq("id", existing.id);
+        if (updErr) {
+          console.error("Update plan failed:", updErr);
+          setPlanSaveError(updErr.message || "update_failed");
+          return false;
+        }
+        setSavedPlanId(existing.id);
+        return true;
+      }
+
       const { data: saved, error: saveErr } = await supabase
         .from("travel_plans")
         .insert(basePayload)
         .select("id")
         .single();
-      if (saveErr) console.error("Save plan failed:", saveErr);
-      else if (saved) setSavedPlanId(saved.id);
-    }
-  }
+      if (saveErr) {
+        console.error("Save plan failed:", saveErr);
+        setPlanSaveError(saveErr.message || "save_failed");
+        return false;
+      }
+      if (saved) {
+        setSavedPlanId(saved.id);
+        return true;
+      }
+      return false;
+    },
+    [],
+  );
+
+  // Generate while logged out → sign in later: persist the in-memory plan once.
+  const prevUserIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    const prevId = prevUserIdRef.current;
+    const nextId = user?.id ?? null;
+    prevUserIdRef.current = nextId;
+    if (!nextId || prevId === nextId) return;
+    if (!aiPlan?.days?.length || savedPlanId) return;
+    if (!isActiveAiContext(aiContext)) return;
+    void persistPlanToTrips(aiPlan, aiContext);
+  }, [user?.id, aiPlan, aiContext, savedPlanId, persistPlanToTrips]);
 
   async function handleGeneratePlan(
     form: AiPlannerSubmit,
@@ -1275,6 +1320,7 @@ function Landing() {
     setPreviewPhotoPlan(null);
     setAiError(null);
     setSavedPlanId(null);
+    setPlanSaveError(null);
     clearPlanFromSession();
     streamItinerary.reset();
     setGenInterrupted(false);
@@ -1609,7 +1655,7 @@ function Landing() {
       </div>
 
       {showHeroPlannerForm ? (
-        <div id="hero-ai-planner" className="relative z-10 border-b border-border/60 bg-background">
+        <div id="hero-ai-planner" className="relative z-10 -mt-px border-b border-border/60 bg-background">
           <AiPlannerPreview
             context={aiContext}
             initialWishes={heroDreamPrompt}
@@ -1635,11 +1681,17 @@ function Landing() {
         aiGenStartedAt={aiGenStartedAt}
         streamExpectedDays={streamItinerary.expectedDays}
         savedPlanId={savedPlanId}
+        planSaveError={planSaveError}
         user={user}
         buildWishes={buildWishes}
         normalizeLastPlannerForm={normalizeLastPlannerForm}
         onExpandFull={handleExpandFullPlan}
         onClearPlan={clearAiPlanOnly}
+        onRetrySave={
+          aiPlan && isActiveAiContext(aiContext)
+            ? () => void persistPlanToTrips(aiPlan, aiContext)
+            : undefined
+        }
         lastSearchPax={{
           adults: lastSearch?.adults ?? aiContext?.adults,
           childrenAges: lastSearch?.childrenAges ?? aiContext?.childrenAges,

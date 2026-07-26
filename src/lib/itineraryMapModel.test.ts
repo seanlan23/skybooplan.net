@@ -470,6 +470,49 @@ describe("itineraryMapModel", () => {
     expect(view?.legIn?.to.lat).toBeCloseTo(48.1, 0);
   });
 
+  it("motorhome day-1 cameras on originPlace, not first overnight city", () => {
+    const view = buildMapDay(
+      {
+        ...plan([
+          day({
+            day: 1,
+            city: "Salzburg",
+            title: "Odhod iz Slovenj Gradca in vožnja do Salzburga",
+            lat: 47.809,
+            lng: 13.055,
+            activities: {
+              morning: [
+                {
+                  name: "Odhod iz Slovenj Gradca",
+                  type: "TRANSPORT",
+                  description: "Začetek poti iz Slovenj Gradca.",
+                },
+              ],
+              afternoon: [
+                {
+                  name: "Postanek in kosilo na poti",
+                  type: "EAT",
+                  description: "Kosilo v Salzburgu.",
+                },
+              ],
+              evening: [],
+            },
+          }),
+        ]),
+        groundTransportMode: "motorhome",
+        accommodationMode: "motorhome",
+        originPlace: "Slovenj Gradec, SI",
+      } as AiTripPlan,
+      1,
+    );
+    expect(view?.cityLabel).toMatch(/Slovenj Gradec/i);
+    expect(view?.center.lat).toBeCloseTo(46.509, 1);
+    expect(view?.center.lng).toBeCloseTo(15.08, 1);
+    expect(view?.legIn?.mode).toBe("drive");
+    expect(view?.legIn?.to.lat).toBeCloseTo(47.809, 1);
+    expect(view?.legIn?.from.lat).toBeCloseTo(46.509, 1);
+  });
+
   it("buildMotorhomeOverviewLegs links consecutive road-trip cities", () => {
     const legs = buildMotorhomeOverviewLegs({
       ...plan([

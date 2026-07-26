@@ -21,15 +21,38 @@ export type MotorhomeMapStop = {
 const ACTIVITY_STOP_RE =
   /\b(vožnja|jutranja|popoldne|večer|ladj|čoln|boat|ferry|trajekt|stroll|sprehod|ogled|tour|dinner|kosilo|zajtrk|breakfast|lunch|snorkel|plavanje|swim|hike|pohod|cooking|razred|class|sunset|sončni)\b/i;
 
+/**
+ * Narrative prefixes AI puts on camp titles ("Prihod v Kamp X").
+ * Google Maps cannot geocode these — strip before placeQuery.
+ */
+const MAP_PLACE_PREFIX_RE =
+  /^(prihod\s+(v|na|k|do)\s+|odhod\s+(iz|od|s|z)\s+|arrival\s+(at|in|to)\s+|departure\s+from\s+|check[- ]?in\s+(at|to|into)\s+|ankunft\s+(in|nach|am)\s+|abfahrt\s+(von|ab)\s+|arrivée\s+(à|a|au|aux)\s+|arrivo\s+(a|in)\s+|llegada\s+a\s+|nočitev\s+(v|na)\s+|overnight\s+(at|in)\s+|drive\s+to\s+|vožnja\s+(do|v|na)\s+)/i;
+
+/** Still narrative after prefix strip — never send to Maps. */
+const NARRATIVE_HEAD_RE =
+  /^(prihod|odhod|arrival|departure|check[- ]?in|ankunft|abfahrt|arrivée|arrivo|llegada)\b/i;
+
 /** Country-only labels — not a Maps pin (would swallow the return-home stop). */
 const COUNTRY_ONLY_RE =
   /^(italy|italija|italia|croatia|hrvaška|hrvatska|spain|španija|spanija|france|francija|germany|nemčija|austria|avstrija|slovenia|slovenija|greece|grčija|portugal|portugalska|netherlands|nizozemska|switzerland|švica)$/i;
 
+/** Strip "Prihod v …" / "Arrival at …" so Maps gets a real place name. */
+export function sanitizeMapPlaceLabel(label: string): string {
+  let s = label.replace(/\s+/g, " ").trim();
+  for (let i = 0; i < 3; i++) {
+    const next = s.replace(MAP_PLACE_PREFIX_RE, "").trim();
+    if (next === s) break;
+    s = next;
+  }
+  return s;
+}
+
 export function isCampActivityName(name: string, description = ""): boolean {
   // Name must look like a camp — description alone is not enough
   // ("return to camp after boat ride" must not promote the boat ride).
-  if (!CAMP_NAME_RE.test(name)) return false;
-  if (ACTIVITY_STOP_RE.test(name)) return false;
+  const cleaned = sanitizeMapPlaceLabel(name);
+  if (!CAMP_NAME_RE.test(cleaned)) return false;
+  if (ACTIVITY_STOP_RE.test(cleaned)) return false;
   void description;
   return true;
 }
@@ -40,9 +63,10 @@ export function isCountryOnlyPlaceLabel(label: string): boolean {
 
 /** True when a string is safe to pass as a Google/Apple Maps place query. */
 export function isPlausibleMapPlaceLabel(label: string): boolean {
-  const s = label.replace(/\s+/g, " ").trim();
+  const s = sanitizeMapPlaceLabel(label);
   if (s.length < 2 || s.length > 90) return false;
   if (isCountryOnlyPlaceLabel(s)) return false;
+  if (NARRATIVE_HEAD_RE.test(s)) return false;
   if (ACTIVITY_STOP_RE.test(s)) return false;
   // Reject long sentence-like activity blurbs.
   if ((s.match(/,/g) ?? []).length >= 2) return false;
@@ -67,7 +91,7 @@ export function collectDayCampLabels(day: DayPlan): string[] {
   const out: string[] = [];
   for (const a of slots) {
     if (!isCampActivityName(a.name, a.description ?? "")) continue;
-    const label = a.name.replace(/\s+/g, " ").trim();
+    const label = sanitizeMapPlaceLabel(a.name);
     if (!label || !isPlausibleMapPlaceLabel(label)) continue;
     if (out.some((x) => x.toLowerCase() === label.toLowerCase())) continue;
     out.push(label);
@@ -133,13 +157,15 @@ function viaTitle(lang: string, dayNum: number, place: string): string {
 export function collectMotorhomeMapStops(plan: AiTripPlan, lang = "sl"): MotorhomeMapStop[] {
   const out: MotorhomeMapStop[] = [];
   const push = (stop: MotorhomeMapStop) => {
-    const s = stop.placeQuery.replace(/\s+/g, " ").trim();
+    const s = sanitizeMapPlaceLabel(stop.placeQuery);
     if (!s || !isPlausibleMapPlaceLabel(s)) return;
     if (out[out.length - 1] && samePlace(out[out.length - 1]!.placeQuery, s)) return;
     out.push({ ...stop, placeQuery: s });
   };
 
-  const origin = (plan.originPlace?.trim() || plan.originIata?.trim() || "").replace(/\s+/g, " ");
+  const origin = sanitizeMapPlaceLabel(
+    plan.originPlace?.trim() || plan.originIata?.trim() || "",
+  );
   if (origin && isPlausibleMapPlaceLabel(origin)) {
     push({
       kind: "start",

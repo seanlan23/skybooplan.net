@@ -11,6 +11,7 @@ export const motorhomeUiByLang = {
     "heroMode.plan": "🗺️ Plan",
     "heroMode.all": "🎯 Todo",
     "heroMode.comingSoon": "Próximamente",
+    "heroMode.newBadge": "Nuevo",
     "heroChat.motorhome.startTitle": "¿Dónde empiezas con la autocaravana?",
     "heroChat.motorhome.startHint": "Elige origen y destino — como en un buscador de viajes.",
     "heroChat.motorhome.typeStart": "Escribe otra ciudad de salida",
@@ -22,6 +23,9 @@ export const motorhomeUiByLang = {
     "heroChat.motorhome.openGoogleMaps": "Abrir ruta en Google Maps",
     "heroChat.motorhome.openAppleMaps": "Abrir en Apple Maps",
     "heroChat.motorhome.downloadStopsKml": "Descargar paradas (KML)",
+    "heroChat.motorhome.kmlHelpAria": "¿Qué es un archivo KML?",
+    "heroChat.motorhome.kmlHelp":
+      "KML es un archivo con tus paradas de noche (coordenadas, nombres, notas) para Google My Maps o Google Earth — no es un PDF. Descárgalo, abre google.com/mymaps → Crear un mapa → Importar → elige este archivo. Obtendrás pines con títulos y notas. macOS puede no abrirlo solo; impórtalo en el navegador.",
     "heroChat.motorhome.stopsTitle": "Dónde pasas la noche",
     "heroChat.motorhome.stopOvernight": "Camping",
     "heroChat.motorhome.stopsHint":
@@ -77,6 +81,7 @@ export const motorhomeUiByLang = {
     "heroMode.plan": "🗺️ Plan",
     "heroMode.all": "🎯 Tout",
     "heroMode.comingSoon": "Bientôt",
+    "heroMode.newBadge": "Nouveau",
     "heroChat.motorhome.startTitle": "Où commencez-vous en camping-car ?",
     "heroChat.motorhome.startHint": "Choisissez départ et arrivée — comme un moteur de recherche.",
     "heroChat.motorhome.typeStart": "Saisir une autre ville de départ",
@@ -88,6 +93,9 @@ export const motorhomeUiByLang = {
     "heroChat.motorhome.openGoogleMaps": "Ouvrir l'itinéraire dans Google Maps",
     "heroChat.motorhome.openAppleMaps": "Ouvrir dans Apple Maps",
     "heroChat.motorhome.downloadStopsKml": "Télécharger les étapes (KML)",
+    "heroChat.motorhome.kmlHelpAria": "Qu’est-ce qu’un fichier KML ?",
+    "heroChat.motorhome.kmlHelp":
+      "Le KML est un fichier avec vos étapes de nuit (coordonnées, noms, notes) pour Google My Maps ou Google Earth — pas un PDF. Téléchargez-le, puis ouvrez google.com/mymaps → Créer une carte → Importer → choisissez ce fichier. Vous obtiendrez des pins avec titres et notes. macOS peut ne pas l’ouvrir seul ; importez-le dans le navigateur.",
     "heroChat.motorhome.stopsTitle": "Où vous dormez",
     "heroChat.motorhome.stopOvernight": "Camping",
     "heroChat.motorhome.stopsHint":
@@ -143,6 +151,7 @@ export const motorhomeUiByLang = {
     "heroMode.plan": "🗺️ Piano",
     "heroMode.all": "🎯 Tutto",
     "heroMode.comingSoon": "Presto",
+    "heroMode.newBadge": "Nuovo",
     "heroChat.motorhome.startTitle": "Da dove parti con il camper?",
     "heroChat.motorhome.startHint": "Scegli partenza e destinazione — come un motore di ricerca.",
     "heroChat.motorhome.typeStart": "Scrivi un'altra città di partenza",
@@ -154,6 +163,9 @@ export const motorhomeUiByLang = {
     "heroChat.motorhome.openGoogleMaps": "Apri percorso in Google Maps",
     "heroChat.motorhome.openAppleMaps": "Apri in Apple Maps",
     "heroChat.motorhome.downloadStopsKml": "Scarica tappe (KML)",
+    "heroChat.motorhome.kmlHelpAria": "Cos’è un file KML?",
+    "heroChat.motorhome.kmlHelp":
+      "Il KML è un file con le tappe di pernottamento (coordinate, nomi, note) per Google My Maps o Google Earth — non un PDF. Scaricalo, poi apri google.com/mymaps → Crea una mappa → Importa → scegli questo file. Avrai pin con titoli e note. macOS potrebbe non aprirlo da solo; importalo nel browser.",
     "heroChat.motorhome.stopsTitle": "Dove pernotti",
     "heroChat.motorhome.stopOvernight": "Campeggio",
     "heroChat.motorhome.stopsHint":
@@ -209,6 +221,7 @@ export const motorhomeUiByLang = {
     "heroMode.plan": "🗺️ Plan",
     "heroMode.all": "🎯 Alles",
     "heroMode.comingSoon": "Demnächst",
+    "heroMode.newBadge": "Neu",
     "heroChat.motorhome.startTitle": "Wo startest du mit dem Wohnmobil?",
     "heroChat.motorhome.startHint": "Start, Ziel, Daten und Reisende — wie eine Reisesuche.",
     "heroChat.motorhome.typeStart": "Andere Startstadt eingeben",
@@ -220,6 +233,9 @@ export const motorhomeUiByLang = {
     "heroChat.motorhome.openGoogleMaps": "Route in Google Maps öffnen",
     "heroChat.motorhome.openAppleMaps": "In Apple Maps öffnen",
     "heroChat.motorhome.downloadStopsKml": "Stopps herunterladen (KML)",
+    "heroChat.motorhome.kmlHelpAria": "Was ist eine KML-Datei?",
+    "heroChat.motorhome.kmlHelp":
+      "KML ist eine Datei mit deinen Übernachtungsstopps (Koordinaten, Namen, Notizen) für Google My Maps oder Google Earth — kein PDF. Herunterladen, dann google.com/mymaps → Karte erstellen → Importieren → diese Datei wählen. Du bekommst Pins mit Titeln und Notizen. macOS öffnet .kml oft nicht selbst — im Browser importieren.",
     "heroChat.motorhome.stopsTitle": "Wo du übernachtest",
     "heroChat.motorhome.stopOvernight": "Camp",
     "heroChat.motorhome.stopsHint":

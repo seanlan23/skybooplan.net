@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   collectMotorhomeRoadTripStops,
   isCampActivityName,
+  sanitizeMapPlaceLabel,
 } from "@/lib/motorhomeRoute";
 import type { AiTripPlan } from "@/lib/aiPlan.functions";
 import { parseChatDateRange, parseChatPassengers } from "@/lib/heroChatPlanner";
@@ -12,6 +13,7 @@ describe("motorhome route + camps", () => {
   it("detects campground names", () => {
     expect(isCampActivityName("Camping Adriatic")).toBe(true);
     expect(isCampActivityName("Avtokamp Stobreč")).toBe(true);
+    expect(isCampActivityName("Prihod v Kamp Heidelberg")).toBe(true);
     expect(isCampActivityName("Grand Palace")).toBe(false);
     // Description mentioning camp must not promote a boat-ride title
     expect(
@@ -20,6 +22,46 @@ describe("motorhome route + camps", () => {
         "Return to camping after the ride",
       ),
     ).toBe(false);
+  });
+
+  it("strips arrival narrative before Google Maps place queries", () => {
+    expect(sanitizeMapPlaceLabel("Prihod v Kamp Heidelberg")).toBe("Kamp Heidelberg");
+    expect(sanitizeMapPlaceLabel("Arrival at Camping Nord-Sam")).toBe("Camping Nord-Sam");
+
+    const plan = {
+      originPlace: "Slovenj Gradec",
+      destinationPlace: "North Holland, NL",
+      groundTransportMode: "motorhome",
+      days: [
+        {
+          day: 1,
+          city: "Salzburg",
+          activities: {
+            evening: [
+              { name: "Camping Nord-Sam", type: "hotel", description: "kamp" },
+            ],
+          },
+        },
+        {
+          day: 4,
+          city: "Heidelberg",
+          activities: {
+            afternoon: [
+              {
+                name: "Prihod v Kamp Heidelberg",
+                type: "hotel",
+                description: "overnight",
+              },
+            ],
+          },
+        },
+      ],
+    } as AiTripPlan;
+
+    const stops = collectMotorhomeRoadTripStops(plan);
+    expect(stops.every((s) => !/prihod|arrival/i.test(s))).toBe(true);
+    expect(stops.some((s) => /^Kamp Heidelberg/i.test(s))).toBe(true);
+    expect(stops[0]).toMatch(/Slovenj Gradec/i);
   });
 
   it("never sends activity sentences as Maps stops", () => {

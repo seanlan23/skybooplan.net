@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Info } from "lucide-react";
 import type { AiTripPlan, DayPlan } from "@/lib/aiPlan.functions";
 import { type ActivityMapFocus } from "@/components/TripMap";
 import { AiTripMapPanel } from "@/components/AiTripMapPanel";
@@ -8,6 +9,7 @@ import { POIDetailsModal } from "@/components/POIDetailsModal";
 import { refreshPoiDetailsImage, type PoiDetailsData } from "@/lib/poiDetails.types";
 import { DayScrollDebug } from "@/components/DayScrollDebug";
 import { AiPlanLoader } from "@/components/AiPlanLoader";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { isSoftQuotaError, resolveErrorMessage, useI18n } from "@/lib/i18n";
 import { resolvePlanContentLanguage, stripPlanTeaser } from "@/lib/planTeaser";
 import { getSeasonalHints } from "@/lib/seasonalHints";
@@ -768,13 +770,35 @@ export function AiPlanView({
                     {t("heroChat.motorhome.openAppleMaps" as never)}
                   </a>
                   {kmlStopCount > 0 ? (
-                    <button
-                      type="button"
-                      onClick={() => downloadMotorhomeStopsKml(plan, lang)}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-900 shadow-sm transition hover:bg-emerald-100"
-                    >
-                      {t("heroChat.motorhome.downloadStopsKml" as never)}
-                    </button>
+                    <span className="inline-flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => downloadMotorhomeStopsKml(plan, lang)}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-900 shadow-sm transition hover:bg-emerald-100"
+                      >
+                        {t("heroChat.motorhome.downloadStopsKml" as never)}
+                      </button>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:bg-slate-50 hover:text-slate-800"
+                            aria-label={t("heroChat.motorhome.kmlHelpAria" as never)}
+                          >
+                            <Info className="h-3.5 w-3.5" aria-hidden />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent
+                          align="start"
+                          className="w-72 max-w-[min(18rem,calc(100vw-2rem))] p-3 text-xs leading-relaxed text-slate-700"
+                        >
+                          <p className="font-semibold text-slate-900">
+                            {t("heroChat.motorhome.kmlHelpAria" as never)}
+                          </p>
+                          <p className="mt-1.5">{t("heroChat.motorhome.kmlHelp" as never)}</p>
+                        </PopoverContent>
+                      </Popover>
+                    </span>
                   ) : null}
                 </div>
                 {motorhomeMapStops.length > 0 ? (

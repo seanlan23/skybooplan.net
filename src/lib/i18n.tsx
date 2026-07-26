@@ -95,6 +95,7 @@ const en: Dict = {
   "heroMode.plan": "🗺️ Plan",
   "heroMode.all": "🎯 Everything",
   "heroMode.comingSoon": "Coming soon",
+  "heroMode.newBadge": "New",
   "heroChat.motorhome.startTitle": "Where do you start with the motorhome?",
   "heroChat.motorhome.startHint": "Tap your start city. Then we’ll ask where you’re heading.",
   "heroChat.motorhome.typeStart": "Type another start city",
@@ -106,6 +107,9 @@ const en: Dict = {
   "heroChat.motorhome.openGoogleMaps": "Open route in Google Maps",
   "heroChat.motorhome.openAppleMaps": "Open in Apple Maps",
   "heroChat.motorhome.downloadStopsKml": "Download stops (KML)",
+  "heroChat.motorhome.kmlHelpAria": "What is a KML file?",
+  "heroChat.motorhome.kmlHelp":
+    "KML is a file with your overnight stops (coordinates, names, notes) for Google My Maps or Google Earth — not a PDF. Download it, then open google.com/mymaps → Create a map → Import → choose this file. You’ll get pins with titles and notes. Your Mac may not open .kml by itself; import it in the browser.",
   "heroChat.motorhome.stopsTitle": "Where you overnight",
   "heroChat.motorhome.stopOvernight": "Camp",
   "heroChat.motorhome.stopsHint":
@@ -752,6 +756,8 @@ const en: Dict = {
   "plan.saved": "✓ Plan saved to your trips.",
   "plan.openDashboard": "Open in dashboard →",
   "plan.loginToSave": "🔒 Sign in to save the plan to your dashboard.",
+  "plan.saveFailed": "Couldn’t save the plan to your dashboard. Try again.",
+  "plan.retrySave": "Retry save",
   "spotlight.selectFlight": "Select a flight for your AI plan",
   "paywall.loginTitle": "Sign in to unlock the full plan",
   "paywall.loginDesc": "You've seen the first 3 days for free. Sign in to unlock the rest — or choose a package below.",
@@ -1145,6 +1151,9 @@ const dicts: Record<DictLang, Dict> = {
     "heroChat.motorhome.openGoogleMaps": "Odpri pot v Google Maps",
     "heroChat.motorhome.openAppleMaps": "Odpri v Apple Maps",
     "heroChat.motorhome.downloadStopsKml": "Prenesi postanke (KML)",
+    "heroChat.motorhome.kmlHelpAria": "Kaj je datoteka KML?",
+    "heroChat.motorhome.kmlHelp":
+      "KML je datoteka s postanki poti (koordinate, imena, opombe) za Google My Maps ali Google Earth — ni PDF. Prenesi jo, nato odpri google.com/mymaps → Ustvari zemljevid → Uvozi → izberi to datoteko. Dobil boš pine z naslovi in komentarji. macOS je morda ne odpre sam — to je OK; uvozi jo v brskalniku.",
     "heroChat.motorhome.stopsTitle": "Kje prenočiš",
     "heroChat.motorhome.stopOvernight": "Kamp",
     "heroChat.motorhome.stopsHint":
@@ -1184,6 +1193,7 @@ const dicts: Record<DictLang, Dict> = {
     "hero.mhEnd.spain": "Španija",
     "hero.mhEnd.greece": "Grčija",
     "heroMode.comingSoon": "Kmalu na voljo",
+    "heroMode.newBadge": "Novo",
     "hero.inputLabel": "Opiši svoje sanjsko potovanje",
     "hero.inputPlaceholder":
       "npr. Najcenejši let za Japonsko, 20.10–15.11.2026, 2 odrasla + 1 otrok (10 let), 14 nočitev, videti Mount Fuji in Tokyo, proračun 3000€",
@@ -1795,6 +1805,8 @@ const dicts: Record<DictLang, Dict> = {
     "plan.saved": "✓ Plan je shranjen v tvoja potovanja.",
     "plan.openDashboard": "Odpri v nadzorni plošči →",
     "plan.loginToSave": "🔒 Prijavi se, da se plan shrani v tvojo nadzorno ploščo.",
+    "plan.saveFailed": "Načrta ni bilo mogoče shraniti v nadzorno ploščo. Poskusi znova.",
+    "plan.retrySave": "Poskusi shraniti",
     "spotlight.selectFlight": "Izberi let za svoj AI plan",
     "paywall.loginTitle": "Prijavi se za celoten načrt",
     "paywall.loginDesc": "Prve 3 dni si že videl brezplačno. Prijavi se za odklepanje preostanka — ali izberi paket spodaj.",
@@ -2340,6 +2352,8 @@ const dicts: Record<DictLang, Dict> = {
     "plan.saved": "✓ Plan enregistré dans vos voyages.",
     "plan.openDashboard": "Ouvrir dans le tableau de bord →",
     "plan.loginToSave": "🔒 Connectez-vous pour enregistrer le plan dans votre tableau de bord.",
+    "plan.saveFailed": "Impossible d’enregistrer le plan. Réessayez.",
+    "plan.retrySave": "Réessayer",
     "spotlight.selectFlight": "Sélectionnez un vol pour votre plan IA",
     "paywall.registerTitle": "Le téléchargement PDF nécessite une connexion",
     "paywall.registerDesc": "Vous pouvez consulter et enregistrer le plan gratuitement. Connectez-vous et choisissez un forfait pour télécharger le PDF.",
@@ -2583,6 +2597,9 @@ const dicts: Record<DictLang, Dict> = {
     "heroChat.motorhome.openGoogleMaps": "Route in Google Maps öffnen",
     "heroChat.motorhome.openAppleMaps": "In Apple Maps öffnen",
     "heroChat.motorhome.downloadStopsKml": "Stopps herunterladen (KML)",
+    "heroChat.motorhome.kmlHelpAria": "Was ist eine KML-Datei?",
+    "heroChat.motorhome.kmlHelp":
+      "KML ist eine Datei mit deinen Übernachtungsstopps (Koordinaten, Namen, Notizen) für Google My Maps oder Google Earth — kein PDF. Herunterladen, dann google.com/mymaps → Karte erstellen → Importieren → diese Datei wählen. Du bekommst Pins mit Titeln und Notizen. macOS öffnet .kml oft nicht selbst — im Browser importieren.",
     "heroChat.motorhome.stopsTitle": "Wo du übernachtest",
     "heroChat.motorhome.stopOvernight": "Camp",
     "heroChat.motorhome.stopsHint":
@@ -2600,6 +2617,7 @@ const dicts: Record<DictLang, Dict> = {
     "hero.mhEnd.spain": "Spanien",
     "hero.mhEnd.greece": "Griechenland",
     "heroMode.comingSoon": "Demnächst",
+    "heroMode.newBadge": "Neu",
     "ai.interests": "Was ist dir wichtig?",
     "ai.interestsSubtitle": "Wähle mindestens 3 — wir passen den Plan daran an.",
     "ai.interestsHint": "Mindestens {min} auswählen",

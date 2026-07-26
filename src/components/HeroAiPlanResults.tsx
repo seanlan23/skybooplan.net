@@ -21,11 +21,13 @@ type HeroAiPlanResultsProps = {
   aiGenStartedAt: number | null;
   streamExpectedDays: number;
   savedPlanId: string | null;
+  planSaveError?: string | null;
   user: { id: string } | null;
   buildWishes: (form: AiPlannerSubmit | null | undefined) => string;
   normalizeLastPlannerForm: (input: unknown) => AiPlannerSubmit | null;
   onExpandFull: () => void;
   onClearPlan?: () => void;
+  onRetrySave?: () => void;
   lastSearchPax?: { adults?: number; childrenAges?: number[]; rooms?: number };
 };
 
@@ -43,11 +45,13 @@ export function HeroAiPlanResults({
   aiGenStartedAt,
   streamExpectedDays,
   savedPlanId,
+  planSaveError = null,
   user,
   buildWishes,
   normalizeLastPlannerForm,
   onExpandFull,
   onClearPlan,
+  onRetrySave,
   lastSearchPax,
 }: HeroAiPlanResultsProps) {
   const { t } = useI18n();
@@ -87,10 +91,10 @@ export function HeroAiPlanResults({
   return (
     <section
       id="hero-trip-plan"
-      className="relative z-10 scroll-mt-20 border-b border-border/60 bg-background"
+      className="relative z-10 -mt-px scroll-mt-20 border-b border-border/60 bg-background"
       aria-live="polite"
     >
-      <div className="mx-auto max-w-6xl px-6 pb-10 pt-2 sm:pb-12">
+      <div className="mx-auto max-w-6xl px-6 pb-10 pt-6 sm:pb-12 sm:pt-8">
         <h2 className="text-xl font-bold text-foreground sm:text-2xl">
           {t("heroTrip.planTitle" as never)}
         </h2>
@@ -202,6 +206,21 @@ export function HeroAiPlanResults({
           {aiPlan && !savedPlanId && !user ? (
             <div className="mt-4 rounded-2xl border border-amber-300 bg-amber-50 px-5 py-3 text-sm text-amber-900">
               {t("plan.loginToSave")}
+            </div>
+          ) : null}
+
+          {aiPlan && !savedPlanId && user && planSaveError ? (
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-rose-300 bg-rose-50 px-5 py-3 text-sm text-rose-900">
+              <span>{t("plan.saveFailed" as never)}</span>
+              {onRetrySave ? (
+                <button
+                  type="button"
+                  onClick={onRetrySave}
+                  className="font-semibold text-rose-800 underline-offset-2 hover:underline"
+                >
+                  {t("plan.retrySave" as never)}
+                </button>
+              ) : null}
             </div>
           ) : null}
         </div>

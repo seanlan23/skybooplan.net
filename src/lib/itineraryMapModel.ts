@@ -208,6 +208,29 @@ function resolveOriginDepartureCenter(plan: AiTripPlan): { label: string; center
   return { label: hub.name, center: city };
 }
 
+/**
+ * Road-trip / motorhome start: prefer originPlace city center (e.g. Slovenj Gradec),
+ * then fall back to origin IATA hub city. Never runway coords.
+ */
+export function resolveTripOriginCenter(
+  plan: AiTripPlan,
+): { label: string; center: LngLat } | null {
+  const place = plan.originPlace?.trim();
+  if (place) {
+    const center = lookupRegionCoords(place);
+    if (center) {
+      const label =
+        place
+          .split(",")[0]
+          ?.trim()
+          .replace(/\s+(SI|AT|DE|IT|HR|NL|IT)\b/i, "")
+          .trim() || place;
+      return { label, center };
+    }
+  }
+  return resolveOriginDepartureCenter(plan);
+}
+
 /** Motorhome / car plans draw drive legs between city hops (even without flight-day titles). */
 export function isGroundRoadTrip(plan: AiTripPlan): boolean {
   return (
@@ -469,11 +492,17 @@ export function buildMapDay(plan: AiTripPlan, activeDay: number): MapDay | null 
   const day = plan.days.find((d) => d.day === activeDay);
   if (!day) return null;
   const destCenter = resolveCityCenter(day);
-  const originDep = dayHasOriginDepartureLogistics(day)
+  const roadTrip = isGroundRoadTrip(plan);
+  // Motorhome day 1: camera on originPlace (SG), not first overnight (Salzburg).
+  const roadOrigin =
+    roadTrip && activeDay === 1 ? resolveTripOriginCenter(plan) : null;
+  const flightOrigin = dayHasOriginDepartureLogistics(day)
     ? resolveOriginDepartureCenter(plan)
     : null;
+  const originDep = roadOrigin ?? flightOrigin;
   // Same-day arrival lists MUC first while day.city is already Toronto — camera
   // must match the home-airport cards the user is reading (city center, not runway).
+  // Road-trip day 1: same rule from originPlace → first overnight city.
   const useOriginCamera = Boolean(
     originDep &&
       destCenter &&
@@ -502,13 +531,13 @@ export function buildMapDay(plan: AiTripPlan, activeDay: number): MapDay | null 
         },
       ]
     : collectPins(day, center, {
-        seedCampHub: isGroundRoadTrip(plan) || plan.accommodationMode === "motorhome",
+        seedCampHub: roadTrip || plan.accommodationMode === "motorhome",
       });
 
   let legIn: MapDayLeg | undefined;
   if (useOriginCamera && destCenter) {
     legIn = {
-      mode: "flight",
+      mode: roadTrip ? "drive" : "flight",
       from: originDep!.center,
       to: destCenter,
     };
@@ -520,7 +549,7 @@ export function buildMapDay(plan: AiTripPlan, activeDay: number): MapDay | null 
         [prevCenter.lng, prevCenter.lat],
         [center.lng, center.lat],
       );
-      const roadHop = isGroundRoadTrip(plan) && dist >= MIN_ROUTE_DRAW_KM;
+      const roadHop = roadTrip && dist >= MIN_ROUTE_DRAW_KM;
       if ((isTravelDay(day) || roadHop) && dist >= MIN_ROUTE_DRAW_KM) {
         legIn = {
           mode: roadHop && !isTravelDay(day) ? "drive" : inferLegMode(day, dist),
@@ -542,6 +571,9 @@ export function buildMotorhomeOverviewLegs(plan: AiTripPlan): MapDayLeg[] {
   if (!isGroundRoadTrip(plan)) return [];
 
   const centers: LngLat[] = [];
+  // Include true start (originPlace) before first overnight city.
+  const origin = resolveTripOriginCenter(plan);
+  if (origin) centers.push(origin.center);
   for (const day of plan.days ?? []) {
     if (day.inFlightDay) continue;
     const c = resolveCityCenter(day);

@@ -78,9 +78,21 @@ export function HeroModeTabs({ value, onChange }: HeroModeTabsProps) {
                 role="tab"
                 aria-selected={isActive}
                 onClick={() => onChange(mode)}
-                className={tabClass}
+                className={cn(tabClass, mode === "motorhome" && "relative gap-1.5 pr-2.5 sm:pr-3")}
               >
                 {label}
+                {mode === "motorhome" ? (
+                  <span
+                    className={cn(
+                      "rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase leading-none tracking-wide",
+                      isActive
+                        ? "bg-sky-300 text-slate-900"
+                        : "bg-sky-400/95 text-slate-900 shadow-sm",
+                    )}
+                  >
+                    {t("heroMode.newBadge" as never)}
+                  </span>
+                ) : null}
               </button>
             );
           })}
