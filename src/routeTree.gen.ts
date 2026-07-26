@@ -23,6 +23,7 @@ import { Route as CheckoutReturnRouteImport } from './routes/checkout.return'
 import { Route as AuthGoogleRouteImport } from './routes/auth/google'
 import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
 import { Route as ApiSearchRouteImport } from './routes/api/search'
+import { Route as ApiSaveTravelPlanRouteImport } from './routes/api/save-travel-plan'
 import { Route as ApiHeroPhotoRouteImport } from './routes/api/hero-photo'
 import { Route as ApiGenerateItineraryRouteImport } from './routes/api/generate-itinerary'
 import { Route as ApiEnrichPlanPhotosRouteImport } from './routes/api/enrich-plan-photos'
@@ -105,6 +106,11 @@ const AuthCallbackRoute = AuthCallbackRouteImport.update({
 const ApiSearchRoute = ApiSearchRouteImport.update({
   id: '/api/search',
   path: '/api/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSaveTravelPlanRoute = ApiSaveTravelPlanRouteImport.update({
+  id: '/api/save-travel-plan',
+  path: '/api/save-travel-plan',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiHeroPhotoRoute = ApiHeroPhotoRouteImport.update({
@@ -198,6 +204,7 @@ export interface FileRoutesByFullPath {
   '/api/enrich-plan-photos': typeof ApiEnrichPlanPhotosRoute
   '/api/generate-itinerary': typeof ApiGenerateItineraryRoute
   '/api/hero-photo': typeof ApiHeroPhotoRoute
+  '/api/save-travel-plan': typeof ApiSaveTravelPlanRoute
   '/api/search': typeof ApiSearchRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/google': typeof AuthGoogleRoute
@@ -227,6 +234,7 @@ export interface FileRoutesByTo {
   '/api/enrich-plan-photos': typeof ApiEnrichPlanPhotosRoute
   '/api/generate-itinerary': typeof ApiGenerateItineraryRoute
   '/api/hero-photo': typeof ApiHeroPhotoRoute
+  '/api/save-travel-plan': typeof ApiSaveTravelPlanRoute
   '/api/search': typeof ApiSearchRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/google': typeof AuthGoogleRoute
@@ -258,6 +266,7 @@ export interface FileRoutesById {
   '/api/enrich-plan-photos': typeof ApiEnrichPlanPhotosRoute
   '/api/generate-itinerary': typeof ApiGenerateItineraryRoute
   '/api/hero-photo': typeof ApiHeroPhotoRoute
+  '/api/save-travel-plan': typeof ApiSaveTravelPlanRoute
   '/api/search': typeof ApiSearchRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/google': typeof AuthGoogleRoute
@@ -289,6 +298,7 @@ export interface FileRouteTypes {
     | '/api/enrich-plan-photos'
     | '/api/generate-itinerary'
     | '/api/hero-photo'
+    | '/api/save-travel-plan'
     | '/api/search'
     | '/auth/callback'
     | '/auth/google'
@@ -318,6 +328,7 @@ export interface FileRouteTypes {
     | '/api/enrich-plan-photos'
     | '/api/generate-itinerary'
     | '/api/hero-photo'
+    | '/api/save-travel-plan'
     | '/api/search'
     | '/auth/callback'
     | '/auth/google'
@@ -348,6 +359,7 @@ export interface FileRouteTypes {
     | '/api/enrich-plan-photos'
     | '/api/generate-itinerary'
     | '/api/hero-photo'
+    | '/api/save-travel-plan'
     | '/api/search'
     | '/auth/callback'
     | '/auth/google'
@@ -376,6 +388,7 @@ export interface RootRouteChildren {
   ApiEnrichPlanPhotosRoute: typeof ApiEnrichPlanPhotosRoute
   ApiGenerateItineraryRoute: typeof ApiGenerateItineraryRoute
   ApiHeroPhotoRoute: typeof ApiHeroPhotoRoute
+  ApiSaveTravelPlanRoute: typeof ApiSaveTravelPlanRoute
   ApiSearchRoute: typeof ApiSearchRouteWithChildren
   AuthCallbackRoute: typeof AuthCallbackRoute
   AuthGoogleRoute: typeof AuthGoogleRoute
@@ -484,6 +497,13 @@ declare module '@tanstack/react-router' {
       path: '/api/search'
       fullPath: '/api/search'
       preLoaderRoute: typeof ApiSearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/save-travel-plan': {
+      id: '/api/save-travel-plan'
+      path: '/api/save-travel-plan'
+      fullPath: '/api/save-travel-plan'
+      preLoaderRoute: typeof ApiSaveTravelPlanRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/hero-photo': {
@@ -644,6 +664,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiEnrichPlanPhotosRoute: ApiEnrichPlanPhotosRoute,
   ApiGenerateItineraryRoute: ApiGenerateItineraryRoute,
   ApiHeroPhotoRoute: ApiHeroPhotoRoute,
+  ApiSaveTravelPlanRoute: ApiSaveTravelPlanRoute,
   ApiSearchRoute: ApiSearchRouteWithChildren,
   AuthCallbackRoute: AuthCallbackRoute,
   AuthGoogleRoute: AuthGoogleRoute,

@@ -5,11 +5,7 @@ import { AirportAutocomplete } from "@/components/AirportAutocomplete";
 import { HeroDateRangeCalendar } from "@/components/HeroDateRangeCalendar";
 import { useI18n } from "@/lib/i18n";
 import type { HeroChatCollected } from "@/lib/heroChatFlow";
-import {
-  dateToIsoLocal,
-  formatHeroDateRangeLabel,
-  isoToLocalDate,
-} from "@/lib/heroDateRange";
+import { dateToIsoLocal, isoToLocalDate } from "@/lib/heroDateRange";
 import {
   MIN_MOTORHOME_INTERESTS,
   MOTORHOME_INTEREST_KEYS,
@@ -140,17 +136,11 @@ export function MotorhomeSearchBrowser({ disabled, onSubmit }: MotorhomeSearchBr
 
   const handleSearch = () => {
     if (!canSearch || disabled) return;
-    const rangeLabel =
-      initialRange?.from && initialRange.to
-        ? formatHeroDateRangeLabel(
-            { from: initialRange.from, to: initialRange.to },
-            lang,
-          )
-        : `${depart} – ${ret}`;
+    // ISO range so planner + DB dates stay YYYY-MM-DD (human labels break Postgres date).
     const collected: HeroChatCollected = {
       origin: from.trim(),
       destination: to.trim(),
-      dates: rangeLabel,
+      dates: `${depart} – ${ret}`,
       nights: "",
       passengers: passengersLabel(adults, children, lang),
       pace: "relaxed",

@@ -1197,89 +1197,57 @@ function Landing() {
 
   const persistPlanToTrips = useCallback(
     async (plan: AiTripPlan, ctx: AiPlannerContext) => {
-      // Always resolve session at save-time (not a stale React closure from stream start).
-      const {
-        data: { user: authUser },
-      } = await supabase.auth.getUser();
-      if (!authUser) {
-        setPlanSaveError(null);
-        return false;
-      }
       if (!plan.days?.length) return false;
 
-      setPlanSaveError(null);
-      const { buildPdfPlanTitle } = await import("@/lib/pdfPlanTitle");
-      const dest = (
-        plan.destinationPlace ||
-        plan.destinationName ||
-        ctx.destinationPlace ||
-        ctx.to ||
-        "Trip"
-      ).trim() || "Trip";
-      const startDate = (ctx.departDate || "").slice(0, 10) || null;
-      const endDate = ctx.returnDate ? ctx.returnDate.slice(0, 10) : null;
-      const routeTitle = buildPdfPlanTitle({
-        groundTransportMode: plan.groundTransportMode ?? ctx.groundTransportMode,
-        accommodationMode: plan.accommodationMode,
-        originPlace: plan.originPlace ?? ctx.originPlace,
-        destinationPlace: plan.destinationPlace ?? ctx.destinationPlace,
-        destinationName: plan.destinationName,
-        from: ctx.from,
-        to: ctx.to,
-      });
-      const title = startDate ? `${routeTitle} · ${startDate}` : routeTitle;
-      const basePayload = {
-        user_id: authUser.id,
-        title,
-        destination: dest,
-        start_date: startDate,
-        end_date: endDate,
-        itinerary: plan as never,
-        ai_model: "google:gemini-2.5-flash",
-        is_paid: false,
-      };
-
-      let query = supabase
-        .from("travel_plans")
-        .select("id")
-        .eq("user_id", authUser.id)
-        .eq("destination", dest);
-      query = startDate ? query.eq("start_date", startDate) : query.is("start_date", null);
-      query = endDate ? query.eq("end_date", endDate) : query.is("end_date", null);
-      const { data: existing } = await query
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (existing?.id) {
-        const { error: updErr } = await supabase
-          .from("travel_plans")
-          .update(basePayload)
-          .eq("id", existing.id);
-        if (updErr) {
-          console.error("Update plan failed:", updErr);
-          setPlanSaveError(updErr.message || "update_failed");
+      try {
+        // Refresh so Bearer token is valid (stale JWT was a common silent save failure).
+        await supabase.auth.getUser();
+        const { supabaseAuthHeaders } = await import("@/lib/supabaseAuthHeaders");
+        const headers = await supabaseAuthHeaders({ "Content-Type": "application/json" });
+        if (!headers.Authorization) {
+          setPlanSaveError(null);
           return false;
         }
-        setSavedPlanId(existing.id);
-        return true;
-      }
 
-      const { data: saved, error: saveErr } = await supabase
-        .from("travel_plans")
-        .insert(basePayload)
-        .select("id")
-        .single();
-      if (saveErr) {
-        console.error("Save plan failed:", saveErr);
-        setPlanSaveError(saveErr.message || "save_failed");
+        setPlanSaveError(null);
+        const res = await fetch("/api/save-travel-plan", {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            plan,
+            context: {
+              departDate: ctx.departDate,
+              returnDate: ctx.returnDate,
+              destinationPlace: ctx.destinationPlace,
+              originPlace: ctx.originPlace,
+              destinationName: plan.destinationName,
+              from: ctx.from,
+              to: ctx.to,
+              groundTransportMode: plan.groundTransportMode ?? ctx.groundTransportMode,
+              accommodationMode: plan.accommodationMode,
+            },
+          }),
+        });
+
+        const data = (await res.json().catch(() => ({}))) as {
+          id?: string;
+          error?: string;
+        };
+
+        if (!res.ok || !data.id) {
+          console.error("Save plan failed:", data.error || res.status);
+          setPlanSaveError(data.error || "save_failed");
+          return false;
+        }
+
+        setSavedPlanId(data.id);
+        setPlanSaveError(null);
+        return true;
+      } catch (err) {
+        console.error("Save plan failed:", err);
+        setPlanSaveError(err instanceof Error ? err.message : "save_failed");
         return false;
       }
-      if (saved) {
-        setSavedPlanId(saved.id);
-        return true;
-      }
-      return false;
     },
     [],
   );
