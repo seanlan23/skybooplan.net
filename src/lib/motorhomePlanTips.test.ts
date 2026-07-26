@@ -17,6 +17,14 @@ describe("repairTruncatedCopy", () => {
     expect(out).toMatch(/avtodomu\.?$/i);
     expect(out).not.toMatch(/\bin\s*$/i);
   });
+
+  it("repairs truncated lines inside multi-line slot blurbs", () => {
+    const raw =
+      "- Z jutranjim hitrim vlakom Shinkansen se boste odpravili proti Kyotu, ki slovi po templjih,…\n- Vožnja traja približno 2,5 ure.";
+    const out = repairTruncatedCopy(raw);
+    expect(out).not.toMatch(/…/);
+    expect(out).toMatch(/2,5 ure/);
+  });
 });
 
 describe("enrichMotorhomePlanTips", () => {

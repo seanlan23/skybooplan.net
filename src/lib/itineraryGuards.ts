@@ -1,6 +1,6 @@
 import type { Activity, AiTripPlan, DayPlan } from "@/lib/aiPlan.functions";
 import { isAiPlaceholderText } from "@/lib/tripContent";
-import { sameDayActivityCoreKey } from "@/lib/textSanitize";
+import { sameDayActivityCoreKey, stripTruncatedCopyFromPlan } from "@/lib/textSanitize";
 
 type DaySlots = NonNullable<DayPlan["activities"]>;
 type Slot = keyof DaySlots;
@@ -262,6 +262,7 @@ export function applyItineraryGuards(
   meals: number;
   arrivals: number;
   clones: number;
+  truncated: number;
 } {
   const placeholders = stripPlaceholderActivities(plan);
   const meals = dedupeSameDayMeals(plan);
@@ -269,5 +270,6 @@ export function applyItineraryGuards(
   const clones = dedupeNearIdenticalConsecutiveDays(plan, {
     language: opts?.language ?? plan.contentLanguage,
   });
-  return { placeholders, meals, arrivals, clones };
+  const truncated = stripTruncatedCopyFromPlan(plan);
+  return { placeholders, meals, arrivals, clones, truncated };
 }

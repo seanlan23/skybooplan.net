@@ -1,0 +1,419 @@
+{
+  "generatedAt": "2026-07-26T10:45:48.391Z",
+  "downloadsFolder": "/Users/rokkricej/Downloads/skybooplan-qa-mixed-10",
+  "totals": {
+    "ok": 9,
+    "issues": 1,
+    "fail": 0,
+    "senseOk": 9,
+    "motorhomeGenerated": 5,
+    "flightGenerated": 5
+  },
+  "results": [
+    {
+      "id": "MH-01-Mezica-Italija",
+      "kind": "motorhome",
+      "region": "Europe",
+      "route": "Mežica → Italija",
+      "expectedDays": 11,
+      "cached": true,
+      "status": "ok",
+      "ms": 308,
+      "days": 11,
+      "title": "Mežica → Italija",
+      "destinationName": "Italija",
+      "cities": [
+        "Venice",
+        "Lake Garda",
+        "Florence",
+        "Rome",
+        "Bologna"
+      ],
+      "maxDay": 11,
+      "daysWithPins": "11/11",
+      "avgPinsPerDay": 2.73,
+      "hintHits": [
+        "venice",
+        "benet",
+        "rome",
+        "rim",
+        "florence",
+        "firen",
+        "garda",
+        "lazise"
+      ],
+      "issues": [],
+      "warnings": [
+        "last day city \"Bologna\" may not be home (Mežica)"
+      ],
+      "ok": true,
+      "sense": "OK_WITH_WARNINGS",
+      "mapSummary": "centers 10/11, driveLegs~5, pinCapBreaches 0",
+      "mapsStops": [
+        "Mežica",
+        "Venice",
+        "Namestitev v Camping Piani di Clodia (Lazise), Lake Garda",
+        "Lake Garda",
+        "Florence",
+        "Rome",
+        "Bologna",
+        "Mežica"
+      ],
+      "pdf": "plan-exports/mixed-10-2026-07-26/MH-01-Mezica-Italija.pdf"
+    },
+    {
+      "id": "MH-02-Ljubljana-Hrvaška",
+      "kind": "motorhome",
+      "region": "Europe",
+      "route": "Ljubljana → Hrvaška",
+      "expectedDays": 9,
+      "cached": true,
+      "status": "ok",
+      "ms": 209,
+      "days": 9,
+      "title": "Ljubljana → Hrvaška",
+      "destinationName": "Hrvaška",
+      "cities": [
+        "Pula",
+        "Zadar",
+        "Omis",
+        "Karlovac"
+      ],
+      "maxDay": 9,
+      "daysWithPins": "9/9",
+      "avgPinsPerDay": 3.56,
+      "hintHits": [
+        "pula",
+        "zadar",
+        "istra",
+        "rovinj"
+      ],
+      "issues": [],
+      "warnings": [
+        "last day city \"Karlovac\" may not be home (Ljubljana)"
+      ],
+      "ok": true,
+      "sense": "OK_WITH_WARNINGS",
+      "mapSummary": "centers 8/9, driveLegs~4, pinCapBreaches 0",
+      "mapsStops": [
+        "Ljubljana",
+        "Pula",
+        "Popoldan na plaži v Rovinju in povratek v kamp, Pula",
+        "Zadar",
+        "Omis",
+        "Karlovac",
+        "Ljubljana"
+      ],
+      "pdf": "plan-exports/mixed-10-2026-07-26/MH-02-Ljubljana-Hrvaška.pdf"
+    },
+    {
+      "id": "MH-03-SG-NorthHolland",
+      "kind": "motorhome",
+      "region": "Europe",
+      "route": "Slovenj Gradec → North Holland, NL",
+      "expectedDays": 11,
+      "cached": true,
+      "status": "ok",
+      "ms": 220,
+      "days": 11,
+      "title": "Slovenj Gradec → North Holland, NL",
+      "destinationName": "North Holland, Netherlands",
+      "cities": [
+        "Salzburg",
+        "St. Goar",
+        "Amsterdam",
+        "Texel",
+        "Heidelberg",
+        "Slovenj Gradec"
+      ],
+      "maxDay": 11,
+      "daysWithPins": "10/11",
+      "avgPinsPerDay": 2.55,
+      "hintHits": [
+        "salzburg",
+        "amsterdam",
+        "texel",
+        "heidelberg"
+      ],
+      "issues": [],
+      "warnings": [],
+      "ok": true,
+      "sense": "OK",
+      "mapSummary": "centers 10/11, driveLegs~4, pinCapBreaches 0",
+      "mapsStops": [
+        "Slovenj Gradec",
+        "Namestitev v kampu Camping Nord-Sam, Salzburg",
+        "Salzburg",
+        "St. Goar",
+        "Namestitev v kampu Camping Amsterdamse Bos",
+        "Amsterdam",
+        "Namestitev v kampu Camping Kogerstrand, Texel",
+        "Texel",
+        "Namestitev v kampu Camping Heidelberg",
+        "Heidelberg",
+        "North Holland, NL",
+        "Slovenj Gradec"
+      ],
+      "pdf": "plan-exports/mixed-10-2026-07-26/MH-03-SG-NorthHolland.pdf"
+    },
+    {
+      "id": "MH-04-Ljubljana-Spanija",
+      "kind": "motorhome",
+      "region": "Europe",
+      "route": "Ljubljana → Španija",
+      "expectedDays": 14,
+      "cached": true,
+      "status": "ok",
+      "ms": 220,
+      "days": 14,
+      "title": "Ljubljana → Španija",
+      "destinationName": "Španija (Costa Brava in Barcelona)",
+      "cities": [
+        "Lazise",
+        "Avignon",
+        "Sant Pere Pescador",
+        "Millau",
+        "Annecy",
+        "Bled",
+        "Ljubljana"
+      ],
+      "maxDay": 14,
+      "daysWithPins": "14/14",
+      "avgPinsPerDay": 3.64,
+      "hintHits": [
+        "barcelona",
+        "girona",
+        "costa"
+      ],
+      "issues": [],
+      "warnings": [],
+      "ok": true,
+      "sense": "OK",
+      "mapSummary": "centers 14/14, driveLegs~7, pinCapBreaches 0",
+      "mapsStops": [
+        "Ljubljana",
+        "Lazise",
+        "Avignon",
+        "Sant Pere Pescador",
+        "Millau",
+        "Annecy",
+        "Bled",
+        "Ljubljana"
+      ],
+      "pdf": "plan-exports/mixed-10-2026-07-26/MH-04-Ljubljana-Spanija.pdf"
+    },
+    {
+      "id": "MH-05-Maribor-Albanija",
+      "kind": "motorhome",
+      "region": "Europe",
+      "route": "Maribor → Albanija",
+      "expectedDays": 12,
+      "cached": true,
+      "status": "issues",
+      "ms": 208,
+      "days": 12,
+      "title": "Maribor → Albanija",
+      "destinationName": "Albanija in Črna Gora",
+      "cities": [
+        "Plitvice Lakes National Park",
+        "Split",
+        "Kotor",
+        "Tirana",
+        "Saranda",
+        "Podgorica"
+      ],
+      "maxDay": 12,
+      "daysWithPins": "10/12",
+      "avgPinsPerDay": 2.17,
+      "hintHits": [
+        "tirana",
+        "kotor"
+      ],
+      "issues": [
+        "map centers only 9/12"
+      ],
+      "warnings": [
+        "D2 map missing city center",
+        "D3 map missing city center",
+        "last day city \"Podgorica\" may not be home (Maribor)"
+      ],
+      "ok": false,
+      "sense": "FAIL",
+      "mapSummary": "centers 9/12, driveLegs~4, pinCapBreaches 0",
+      "mapsStops": [
+        "Maribor",
+        "Plitvice Lakes National Park",
+        "Split",
+        "Kotor",
+        "Tirana",
+        "Saranda",
+        "Podgorica",
+        "Maribor"
+      ],
+      "pdf": "plan-exports/mixed-10-2026-07-26/MH-05-Maribor-Albanija.pdf"
+    },
+    {
+      "id": "FL-01-MUC-BKK",
+      "kind": "flight",
+      "region": "Asia",
+      "route": "MUC→BKK",
+      "expectedDays": 10,
+      "cached": true,
+      "status": "ok",
+      "ms": 264,
+      "days": 10,
+      "title": "MUC → BKK",
+      "destinationName": "Thailand",
+      "cities": [
+        "Munich",
+        "Bangkok",
+        "Chiang Mai"
+      ],
+      "maxDay": 10,
+      "daysWithPins": "9/10",
+      "avgPinsPerDay": 2.3,
+      "hintHits": [
+        "bangkok",
+        "mae klong",
+        "kwai",
+        "kanchanaburi",
+        "damnoen"
+      ],
+      "issues": [],
+      "warnings": [],
+      "ok": true,
+      "sense": "OK",
+      "mapSummary": "centers 8/10, driveLegs~0, pinCapBreaches 0",
+      "pdf": "plan-exports/mixed-10-2026-07-26/FL-01-MUC-BKK.pdf"
+    },
+    {
+      "id": "FL-02-LJU-BCN",
+      "kind": "flight",
+      "region": "Europe",
+      "route": "LJU→BCN",
+      "expectedDays": 7,
+      "cached": true,
+      "status": "ok",
+      "ms": 241,
+      "days": 7,
+      "title": "LJU → BCN",
+      "destinationName": "Barcelona",
+      "cities": [
+        "Barcelona"
+      ],
+      "maxDay": 7,
+      "daysWithPins": "7/7",
+      "avgPinsPerDay": 3.57,
+      "hintHits": [
+        "barcelona",
+        "sagrada",
+        "barceloneta"
+      ],
+      "issues": [],
+      "warnings": [
+        "D1 arrival clock 04:20 far from flight arrive 09:25"
+      ],
+      "ok": true,
+      "sense": "OK_WITH_WARNINGS",
+      "mapSummary": "centers 6/7, driveLegs~0, pinCapBreaches 0",
+      "pdf": "plan-exports/mixed-10-2026-07-26/FL-02-LJU-BCN.pdf"
+    },
+    {
+      "id": "FL-03-VIE-KEF",
+      "kind": "flight",
+      "region": "Europe",
+      "route": "VIE→KEF",
+      "expectedDays": 7,
+      "cached": true,
+      "status": "ok",
+      "ms": 230,
+      "days": 7,
+      "title": "VIE → KEF",
+      "destinationName": "Iceland",
+      "cities": [
+        "Reykjavik"
+      ],
+      "maxDay": 7,
+      "daysWithPins": "7/7",
+      "avgPinsPerDay": 3.29,
+      "hintHits": [
+        "reykjavik",
+        "gullfoss"
+      ],
+      "issues": [],
+      "warnings": [
+        "D1 arrival clock 08:35 far from flight arrive 13:40"
+      ],
+      "ok": true,
+      "sense": "OK_WITH_WARNINGS",
+      "mapSummary": "centers 6/7, driveLegs~0, pinCapBreaches 0",
+      "pdf": "plan-exports/mixed-10-2026-07-26/FL-03-VIE-KEF.pdf"
+    },
+    {
+      "id": "FL-04-FRA-NRT",
+      "kind": "flight",
+      "region": "Asia",
+      "route": "FRA→NRT",
+      "expectedDays": 9,
+      "cached": true,
+      "status": "ok",
+      "ms": 200,
+      "days": 9,
+      "title": "FRA → NRT",
+      "destinationName": "Japan",
+      "cities": [
+        "Frankfurt",
+        "Tokyo",
+        "Kyoto"
+      ],
+      "maxDay": 9,
+      "daysWithPins": "8/9",
+      "avgPinsPerDay": 3.22,
+      "hintHits": [
+        "tokyo",
+        "kyoto",
+        "shibuya",
+        "asakusa"
+      ],
+      "issues": [],
+      "warnings": [],
+      "ok": true,
+      "sense": "OK",
+      "mapSummary": "centers 7/9, driveLegs~0, pinCapBreaches 0",
+      "pdf": "plan-exports/mixed-10-2026-07-26/FL-04-FRA-NRT.pdf"
+    },
+    {
+      "id": "FL-05-ZRH-DXB",
+      "kind": "flight",
+      "region": "Middle East",
+      "route": "ZRH→DXB",
+      "expectedDays": 7,
+      "cached": true,
+      "status": "ok",
+      "ms": 217,
+      "days": 7,
+      "title": "ZRH → DXB",
+      "destinationName": "Dubai",
+      "cities": [
+        "Dubai"
+      ],
+      "maxDay": 7,
+      "daysWithPins": "7/7",
+      "avgPinsPerDay": 2.57,
+      "hintHits": [
+        "dubai",
+        "marina",
+        "souk",
+        "burj"
+      ],
+      "issues": [],
+      "warnings": [
+        "D1 arrival clock 06:45 far from flight arrive 18:40"
+      ],
+      "ok": true,
+      "sense": "OK_WITH_WARNINGS",
+      "mapSummary": "centers 6/7, driveLegs~0, pinCapBreaches 0",
+      "pdf": "plan-exports/mixed-10-2026-07-26/FL-05-ZRH-DXB.pdf"
+    }
+  ]
+}

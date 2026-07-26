@@ -151,15 +151,34 @@ export function stripConcreteBangkokHotelBrands(text: string): string {
 /**
  * Gemini often cuts activity copy mid-sentence with "…" / "...".
  * Prefer the last complete sentence; otherwise drop dangling connectors.
+ * Repairs each line (slot blurbs often mix truncated + complete lines).
  */
 export function repairTruncatedCopy(text: string): string {
   if (!text) return text;
-  let t = text.replace(/\s+/g, " ").trim();
-  const truncated = /…\s*$/.test(t) || /\.\.\.\s*$/.test(t);
-  if (!truncated) return text.trim();
+  return text
+    .split("\n")
+    .map((line) => repairTruncatedLine(line))
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function repairTruncatedLine(line: string): string {
+  let t = line.replace(/[^\S\n]+/g, " ").trim();
+  if (!t) return "";
+  // Truncation mark at end of this line (common Gemini cut).
+  const truncated = /…\s*$/u.test(t) || /\.\.\.\s*$/.test(t);
+  if (!truncated) return t;
 
   t = t.replace(/\s*…\s*$/u, "").replace(/\s*\.\.\.\s*$/, "").trim();
-  t = t.replace(/\s+(in|and|ter|or|ali|za|to|with|z|s|the|a|an)\s*$/i, "").trim();
+  t = t
+    .replace(
+      /\s+(in|and|ter|or|ali|za|to|with|z|s|the|a|an|s|po|na|ob|morda|maybe|perhaps)\s*$/i,
+      "",
+    )
+    .trim();
+  // Also trim dangling open words like "nočnem", "templjih," left mid-phrase.
+  t = t.replace(/,\s*$/, "").trim();
 
   const last = Math.max(t.lastIndexOf("."), t.lastIndexOf("!"), t.lastIndexOf("?"));
   if (last >= 40) {
@@ -167,6 +186,76 @@ export function repairTruncatedCopy(text: string): string {
   }
   if (t && !/[.!?]$/.test(t)) return `${t}.`;
   return t;
+}
+
+/** Apply truncation repair across day/activity copy (all trip modes). */
+export function stripTruncatedCopyFromPlan(plan: {
+  days?: Array<{
+    morning?: string;
+    afternoon?: string;
+    evening?: string;
+    travelHack?: string;
+    transportationTips?: string;
+    localWarnings?: string;
+    title?: string;
+    activities?: {
+      morning?: Array<{ name?: string; description?: string; bullets?: string[] }>;
+      afternoon?: Array<{ name?: string; description?: string; bullets?: string[] }>;
+      evening?: Array<{ name?: string; description?: string; bullets?: string[] }>;
+    };
+    mapPins?: Array<{ name?: string; description?: string }>;
+  }>;
+}): number {
+  let fixed = 0;
+  const fixStr = (raw: string | undefined, assign: (v: string) => void) => {
+    if (typeof raw !== "string" || !raw) return;
+    const next = repairTruncatedCopy(raw);
+    if (next !== raw) {
+      assign(next);
+      fixed += 1;
+    }
+  };
+
+  for (const day of plan.days ?? []) {
+    for (const key of [
+      "title",
+      "morning",
+      "afternoon",
+      "evening",
+      "travelHack",
+      "transportationTips",
+      "localWarnings",
+    ] as const) {
+      fixStr(day[key], (v) => {
+        day[key] = v;
+      });
+    }
+    if (day.activities) {
+      for (const slot of ["morning", "afternoon", "evening"] as const) {
+        for (const a of day.activities[slot] ?? []) {
+          fixStr(a.description, (v) => {
+            a.description = v;
+          });
+          if (a.bullets?.length) {
+            a.bullets = a.bullets.map((b) => {
+              const next = repairTruncatedCopy(b);
+              if (next !== b) fixed += 1;
+              return next;
+            });
+          }
+        }
+      }
+    }
+    for (const pin of day.mapPins ?? []) {
+      fixStr(pin.description, (v) => {
+        pin.description = v;
+      });
+      fixStr(pin.name, (v) => {
+        pin.name = v;
+      });
+    }
+  }
+  return fixed;
 }
 
 export function fixMotorhomeCopyErrors(text: string, city = ""): string {

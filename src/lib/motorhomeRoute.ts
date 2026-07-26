@@ -34,7 +34,7 @@ const NARRATIVE_HEAD_RE =
 
 /** Country-only labels — not a Maps pin (would swallow the return-home stop). */
 const COUNTRY_ONLY_RE =
-  /^(italy|italija|italia|croatia|hrvaška|hrvatska|spain|španija|spanija|france|francija|germany|nemčija|austria|avstrija|slovenia|slovenija|greece|grčija|portugal|portugalska|netherlands|nizozemska|switzerland|švica)$/i;
+  /^(italy|italija|italia|croatia|hrvaška|hrvatska|spain|španija|spanija|france|francija|germany|nemčija|austria|avstrija|slovenia|slovenija|greece|grčija|portugal|portugalska|netherlands|nizozemska|switzerland|švica|albania|albanija|montenegro|črna\s*gora|crna\s*gora)$/i;
 
 /** Strip "Prihod v …" / "Arrival at …" so Maps gets a real place name. */
 export function sanitizeMapPlaceLabel(label: string): string {
