@@ -82,20 +82,21 @@ export function SiteHeader({
         className,
       )}
     >
-      <div className="relative h-16 w-full">
-        {/* Left — logo */}
-        <div className="absolute left-0 top-1/2 z-10 -translate-y-1/2 pl-6">
+      <div className="relative flex h-16 w-full items-center justify-between gap-2 px-3 sm:gap-3 sm:px-6">
+        {/* Left — logo (smaller on mobile; capped width so € / lang / sign-in never overlap) */}
+        <div className="relative z-10 min-w-0 max-w-[calc(100%-10.5rem)] shrink sm:max-w-none">
           <Link
             to="/"
             onClick={handleLogoClick}
-            className="flex h-11 items-center"
+            className="flex h-11 max-w-full items-center overflow-hidden"
             aria-label="Skybooplan"
           >
-            <Logo size="md" />
+            <Logo size="sm" className="md:hidden" />
+            <Logo size="md" className="hidden md:inline-flex" />
           </Link>
         </div>
 
-        {/* Center — navigation */}
+        {/* Center — navigation (desktop only) */}
         <nav className="absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 md:flex items-center gap-6 lg:gap-10 text-[15px] font-medium">
           <a href="#hero-chat-window" className={navLinkClass}>
             {t("nav.flights")}
@@ -109,7 +110,7 @@ export function SiteHeader({
         </nav>
 
         {/* Right — currency, language, auth */}
-        <div className="absolute right-0 top-1/2 z-10 flex -translate-y-1/2 items-center gap-3 pr-6 sm:gap-4">
+        <div className="relative z-10 flex shrink-0 items-center gap-1.5 sm:gap-3 md:gap-4">
           <CurrencyPicker variant={variant} />
           <LanguagePicker variant={variant} />
 

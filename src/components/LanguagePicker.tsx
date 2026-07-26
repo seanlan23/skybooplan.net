@@ -66,7 +66,7 @@ export function LanguagePicker({
         className={cn(
           "inline-flex items-center gap-0.5 border-0 bg-transparent p-0 text-sm font-medium transition-colors",
           isHero
-            ? "rounded-full bg-black/55 px-2 py-1 text-white shadow-sm ring-1 ring-white/30 hover:bg-black/70"
+            ? "rounded-full bg-black/55 px-1.5 py-1 text-white shadow-sm ring-1 ring-white/30 hover:bg-black/70 sm:px-2"
             : "text-muted-foreground hover:text-foreground",
         )}
       >
@@ -74,7 +74,10 @@ export function LanguagePicker({
           🌐
         </span>
         <ChevronDown
-          className={cn("h-3 w-3 opacity-60 transition-transform", open && "rotate-180")}
+          className={cn(
+            "hidden h-3 w-3 opacity-60 transition-transform sm:block",
+            open && "rotate-180",
+          )}
           aria-hidden
         />
       </button>
