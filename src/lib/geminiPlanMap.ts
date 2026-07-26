@@ -19,6 +19,7 @@ import {
 } from "@/lib/mapPoiCategory";
 import { expandPlanDaysToExpected } from "@/lib/daySequence";
 import { finalizeItineraryMapCoords } from "@/lib/itineraryMapModel";
+import { applyItineraryGuards } from "@/lib/itineraryGuards";
 import { dedupeCrossDayBoilerplate, dedupeSameDayActivities } from "@/lib/textSanitize";
 import { attachActivityCoordinates } from "@/lib/mapPoiResolver";
 import { stripMisplacedCityPois } from "@/lib/cityPoiGuard";
@@ -1024,6 +1025,8 @@ export function enrichGeminiCatalogPlan(
   });
   dedupeCrossDayBoilerplate(plan);
   dedupeSameDayActivities(plan);
+  // Structural guards: no enricher placeholders, max one dinner/day, no cloned consecutive days.
+  applyItineraryGuards(plan, { arrivalDay: 1, language: planLang });
   if (motorhome) {
     enrichMotorhomePlanTips(plan, planLang);
   }

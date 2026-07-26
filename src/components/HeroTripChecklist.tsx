@@ -1,4 +1,4 @@
-import { Check } from "lucide-react";
+import { Check, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 import { localizeOriginLabel } from "@/lib/airportCatalog";
@@ -106,9 +106,11 @@ function buildItems(
 export function HeroTripChecklist({
   collected,
   className,
+  onClear,
 }: {
   collected: Partial<HeroChatCollected>;
   className?: string;
+  onClear?: () => void;
 }) {
   const { t, lang } = useI18n();
   const items = buildItems(collected, t, lang);
@@ -167,6 +169,17 @@ export function HeroTripChecklist({
           </li>
         ))}
       </ol>
+
+      {onClear ? (
+        <button
+          type="button"
+          onClick={onClear}
+          className="mt-4 inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-white/20 bg-white/5 px-3 py-2 text-sm font-medium text-white/85 transition hover:bg-white/15 hover:text-white"
+        >
+          <Trash2 className="h-3.5 w-3.5" aria-hidden />
+          {t("heroChat.checklist.clear" as never)}
+        </button>
+      ) : null}
     </aside>
   );
 }

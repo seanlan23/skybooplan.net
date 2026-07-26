@@ -26,6 +26,7 @@ import { motorhomePlannerFromCollected } from "@/lib/heroMotorhome";
 import { HeroAiPlanResults } from "@/components/HeroAiPlanResults";
 import { SocialProofSection } from "@/components/SocialProofSection";
 import { TripInspiration } from "@/components/TripInspiration";
+import { ShowcasePlansSection } from "@/components/ShowcasePlansSection";
 import { TestimonialsSection } from "@/components/TestimonialsSection";
 import { FAQSection } from "@/components/FAQSection";
 import type { SearchValues } from "@/components/SearchPanel";
@@ -1593,6 +1594,17 @@ function Landing() {
             setHeroSkyChatComplete(false);
             setHeroPlannerActive(false);
           }}
+          onClearSearch={() => {
+            setHeroFlights([]);
+            setHeroStaySearch(null);
+            setSelectedHeroFlightId(null);
+            setHeroSearchError(null);
+            setHeroSearchAttempted(false);
+            setHeroSkyChatComplete(false);
+            setHeroPlannerActive(false);
+            setHeroDreamPrompt("");
+            setHeroChatSeed(null);
+          }}
         />
       </div>
 
@@ -1637,6 +1649,7 @@ function Landing() {
 
       <SocialProofSection />
       <TripInspiration onSelectDestination={handleInspirationSelect} />
+      <ShowcasePlansSection />
       <TestimonialsSection />
       <DonationSection />
       <FAQSection />

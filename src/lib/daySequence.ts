@@ -118,19 +118,25 @@ function cloneStayDay(
   lang: string,
   departDate?: string,
 ): DayPlan {
-  const slo = !lang || lang.startsWith("sl");
-  const city = src.city || src.focusName || (slo ? "destinacija" : "destination");
+  // Never structuredClone full activity trees — that produced identical Day 3/4 clones.
   const date =
     isoPlusDays(departDate, dayNum - 1) ??
     isoPlusDays(src.date, dayNum - src.day) ??
     src.date;
+  const thin = thinPlaceholderDay(
+    dayNum,
+    {
+      city: src.city,
+      focusName: src.focusName,
+      lat: src.lat,
+      lng: src.lng,
+      date,
+    },
+    lang,
+  );
+  const slo = !lang || lang.startsWith("sl");
   return {
-    ...structuredClone(src),
-    day: dayNum,
-    date,
-    title: slo
-      ? `${city} — nadaljevanje bivanja / lokalni dan`
-      : `${city} — continue stay / local day`,
+    ...thin,
     travelHack: slo
       ? "Dodan dan na isti bazi (AI je vrnil premalo koledarskih dni) — lahek lokalni program, isti kamp."
       : "Extra night at the same base (AI returned too few calendar days) — keep a light local day.",

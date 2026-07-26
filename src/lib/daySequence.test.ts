@@ -70,6 +70,43 @@ describe("expandPlanDaysToExpected", () => {
     expect(plan.days.map((d) => d.day)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
     expect(plan.days[9]?.date).toBe("2026-08-10");
   });
+
+  it("does not clone identical activity trees when padding stay nights", () => {
+    const plan = {
+      destinationName: "Panama",
+      days: [
+        day({
+          day: 1,
+          city: "Panama City",
+          date: "2026-08-01",
+          activities: {
+            morning: [
+              { name: "Casco Viejo", type: "SIGHT", description: "Staro jedro." },
+            ],
+            afternoon: [
+              { name: "Miraflores Locks", type: "SIGHT", description: "Prekop." },
+            ],
+            evening: [
+              { name: "Večerja v Casco", type: "EAT", description: "Večerja." },
+            ],
+          },
+        }),
+      ],
+    } as AiTripPlan;
+
+    expandPlanDaysToExpected(plan, {
+      expectedDays: 3,
+      language: "sl",
+      departDate: "2026-08-01",
+    });
+
+    expect(plan.days).toHaveLength(3);
+    const d1 = plan.days[0]!.activities!.morning[0]!.name;
+    const d2 = plan.days[1]!.activities!.morning[0]!.name;
+    expect(d1).toMatch(/Casco/i);
+    expect(d2).not.toEqual(d1);
+    expect(plan.days[1]!.title).toMatch(/prosti|lokalni|nadaljevanje/i);
+  });
 });
 
 describe("hasContiguousDayNumbers", () => {

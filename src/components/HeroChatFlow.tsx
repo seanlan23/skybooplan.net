@@ -117,6 +117,8 @@ type HeroChatFlowProps = {
   flightAdults?: number;
   /** When set, show Booking hotel results (Stays mode). */
   staySearch?: HeroStaySearchParams | null;
+  /** Clear parent hero search results (flights, stays, selection). */
+  onClearSearch?: () => void;
 };
 
 function SkyAvatar() {
@@ -546,6 +548,7 @@ export function HeroChatFlow({
   flightSearchMeta = null,
   flightAdults = 1,
   staySearch = null,
+  onClearSearch,
 }: HeroChatFlowProps) {
   const { t, lang } = useI18n();
   const isFlightsOnly = mode === "flights";
@@ -840,6 +843,28 @@ export function HeroChatFlow({
     setAttachment(null);
     setFileError(null);
   }
+
+  const clearSearch = useCallback(() => {
+    if (selectedFilePreview?.previewUrl) {
+      URL.revokeObjectURL(selectedFilePreview.previewUrl);
+    }
+    setSelectedFilePreview(null);
+    setAttachment(null);
+    setFileError(null);
+    setFileProcessing(false);
+    setStep("destination");
+    setConversationStarted(false);
+    setMessages([]);
+    setCollected({});
+    setTextInput("");
+    setShowDatePicker(false);
+    setAfterOrigin("searching");
+    searchSentRef.current = false;
+    flightsAnnouncedRef.current = false;
+    staysAnnouncedRef.current = false;
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    onClearSearch?.();
+  }, [onClearSearch, selectedFilePreview?.previewUrl]);
 
   async function handleFileUpload(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -1815,6 +1840,7 @@ export function HeroChatFlow({
       {showTripChecklist ? (
         <HeroTripChecklist
           collected={collected}
+          onClear={clearSearch}
           className={cn(
             "lg:sticky lg:top-4",
             // On mobile, hide the tall checklist while the calendar is open so the picker fits.

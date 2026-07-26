@@ -12,7 +12,10 @@ export function isAiPlaceholderText(text: string): boolean {
     /what to see|why it matters|practical tip/i.test(t) ||
     /kaj vidiš.*zakaj je vredno/i.test(t) ||
     /^berljivo\.?$/i.test(t) ||
-    /^konkretno, berljivo\.?$/i.test(t)
+    /^konkretno, berljivo\.?$/i.test(t) ||
+    /glavni dopoldanski ogled/i.test(t) ||
+    /mesto ali znamenitost,?\s*ki jo je najbolje obiskati zjutraj/i.test(t) ||
+    /main morning sight\s*[—-]\s*visit while/i.test(t)
   );
 }
 

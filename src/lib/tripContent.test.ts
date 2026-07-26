@@ -44,6 +44,14 @@ describe("isAiPlaceholderText", () => {
   it("detects prompt scaffolding", () => {
     expect(isAiPlaceholderText("2–3 stavki: kaj vidiš, zakaj je vredno")).toBe(true);
   });
+
+  it("detects enricher generic morning copy", () => {
+    expect(
+      isAiPlaceholderText(
+        "Glavni dopoldanski ogled — mesto ali znamenitost, ki jo je najbolje obiskati zjutraj.",
+      ),
+    ).toBe(true);
+  });
 });
 
 describe("isForeignPoiForRegion", () => {

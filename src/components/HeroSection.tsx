@@ -14,6 +14,7 @@ export function HeroSection({
   seedDestination = null,
   onSeedConsumed,
   onModeChange,
+  onClearSearch,
   selectedFlightId = null,
   onSelectFlightForAiPlan,
   flightSearchMeta = null,
@@ -27,6 +28,7 @@ export function HeroSection({
   seedDestination?: string | null;
   onSeedConsumed?: () => void;
   onModeChange?: (mode: HeroChatMode) => void;
+  onClearSearch?: () => void;
   selectedFlightId?: string | null;
   onSelectFlightForAiPlan?: (flight: import("@/lib/makeSearch").MakeSearchFlight) => void;
   flightSearchMeta?: {
@@ -93,6 +95,7 @@ export function HeroSection({
           flightSearchMeta={flightSearchMeta}
           flightAdults={flightAdults}
           staySearch={staySearch}
+          onClearSearch={onClearSearch}
         />
       </div>
     </section>

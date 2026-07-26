@@ -92,7 +92,10 @@ function parseActivities(text?: string): Activity[] {
 
 function isPlaceholderSlotText(text?: string): boolean {
   const t = text?.trim();
-  return !t || t === "—" || t === "–" || t === "-";
+  if (!t || t === "—" || t === "–" || t === "-") return true;
+  return /glavni dopoldanski ogled|morning sight or stroll|jutranji ogled\s*\/\s*sprehod/i.test(
+    t,
+  );
 }
 
 export function getSlotActivities(d: DayPlan, slot: "morning" | "afternoon" | "evening"): Activity[] {

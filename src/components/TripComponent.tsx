@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Sparkles, X } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import type { TripPlanResponse } from "@/lib/geminiPro.shared";
 import { tripPlanResponseToAiTripPlan } from "@/lib/geminiPlanMap";
 import { TripMap } from "@/components/TripMap";
@@ -9,7 +9,7 @@ import { GeminiLogisticsCards } from "@/components/GeminiLogisticsCards";
 import { DestinationInsightBanner } from "@/components/DestinationInsightBanner";
 import { PlanIntroInsightBlocks } from "@/components/PlanIntroInsightBlocks";
 import { ItineraryRouteOverview } from "@/components/ItineraryRouteOverview";
-import { MobileMapOpenButton } from "@/components/MobileMapOverlay";
+import { MobileMapCloseBar, MobileMapOpenButton } from "@/components/MobileMapOverlay";
 import { useDestinationContext } from "@/hooks/useDestinationContext";
 import { useI18n } from "@/lib/i18n";
 import { parseLocalDate } from "@/lib/dateUtils";
@@ -281,15 +281,8 @@ export default function TripComponent({
             aria-modal="true"
             aria-label={t("aiplan.mapStreets" as never)}
           >
-            <button
-              type="button"
-              onClick={() => setMobileMapOpen(false)}
-              className="absolute right-3 top-3 z-20 flex h-11 w-11 items-center justify-center rounded-full bg-background/95 text-foreground shadow-lg ring-1 ring-border backdrop-blur-sm"
-              aria-label={t("poi.close" as never)}
-            >
-              <X className="h-5 w-5" strokeWidth={2.25} />
-            </button>
-            <div className="min-h-0 flex-1 pt-14">
+            <MobileMapCloseBar onClose={() => setMobileMapOpen(false)} />
+            <div className="min-h-0 flex-1">
               <TripMap plan={mapPlan} activeDay={activeDay} />
             </div>
           </div>,

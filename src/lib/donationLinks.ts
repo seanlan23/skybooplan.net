@@ -13,8 +13,7 @@ export type DonationTier = {
 
 /**
  * Stripe Payment Links — 5 € / 10 € / 20 € + “other” → /about.
- * Third link was formerly €50; set that Payment Link to €20 in Stripe
- * (or replace href with a new buy.stripe.com URL for €20).
+ * 20 € link: new product/price (replaced old link that still charged €50).
  */
 export const DONATION_TIERS: DonationTier[] = [
   {
@@ -32,7 +31,7 @@ export const DONATION_TIERS: DonationTier[] = [
   {
     id: "20",
     labelKey: "donation.tier20",
-    href: "https://buy.stripe.com/fZucN5bHx8LrfRo7GR6J205",
+    href: "https://buy.stripe.com/8x25kDaDt8Lr9t01it6J206",
     external: true,
   },
   {

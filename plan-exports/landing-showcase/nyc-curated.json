@@ -1,0 +1,372 @@
+{
+  "destinationName": "New York",
+  "destinationIata": "JFK",
+  "originIata": "LJU",
+  "contentLanguage": "sl",
+  "summary": "Sedemdnevni sproščen New York: ikone, soseske in eden prosti dan — brez podvojenih blokov in brez letališkega ponavljanja.",
+  "days": [
+    {
+      "day": 1,
+      "date": "2026-09-12",
+      "title": "Prihod v New York in Midtown",
+      "city": "New York",
+      "focusName": "Midtown",
+      "lat": 40.758,
+      "lng": -73.9855,
+      "dailyBudgetEur": 140,
+      "category": "transport",
+      "travelHack": "Po pristanku na JFK vzemi AirTrain + subway (A) ali uradni taxi — Uber izven yellow-cab postaje je pogosto dražji.",
+      "transportationTips": "MetroCard / OMNY: tapni s kartico. Izogibaj se neoznačenim limuzinam pred terminalom.",
+      "localWarnings": "",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [],
+        "afternoon": [
+          {
+            "name": "Prihod na JFK in prevoz v Midtown",
+            "type": "TRANSPORT",
+            "description": "Pristanek, prevzem prtljage in transfer v hotel.",
+            "bullets": [
+              "Računaj 60–90 min do Midtowna, odvisno od prometa.",
+              "SIM/eSIM kupi še na letališču, če nimaš roaminga."
+            ],
+            "arrivalTime": "15:40"
+          },
+          {
+            "name": "Check-in in kratek odmor",
+            "type": "STAY",
+            "description": "Namestitev in osvežitev po letu.",
+            "bullets": [
+              "Odloži prtljago in se osveži 45–60 min.",
+              "Danes brez velikih muzejev — lahek uvod v mesto."
+            ]
+          }
+        ],
+        "evening": [
+          {
+            "name": "Sprehod po Times Square in Bryant Park",
+            "type": "SIGHT",
+            "description": "Kratek večerni uvod v Midtown.",
+            "bullets": [
+              "Times Square samo na hitro — gneča je del izkušnje.",
+              "Večerja v okolici Koreatowna (32nd St)."
+            ]
+          },
+          {
+            "name": "Večerja v Koreatownu",
+            "type": "EAT",
+            "description": "Ena sproščena večerja po prihodu.",
+            "bullets": [
+              "BBQ ali bibimbap — hitro in lokalno.",
+              "Ne rezerviraj drugega večernega bloka."
+            ],
+            "priceLabel": "€25–40"
+          }
+        ]
+      }
+    },
+    {
+      "day": 2,
+      "date": "2026-09-13",
+      "title": "Central Park in Upper West Side",
+      "city": "New York",
+      "focusName": "Central Park",
+      "lat": 40.7829,
+      "lng": -73.9654,
+      "dailyBudgetEur": 120,
+      "category": "sight",
+      "travelHack": "Vstop v Natural History Museum kupi online — čakalne vrste so dolge tudi poleti.",
+      "transportationTips": "B/C do 81st St za muzej; v parku je hojba najboljša.",
+      "localWarnings": "",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [
+          {
+            "name": "American Museum of Natural History",
+            "type": "SIGHT",
+            "description": "Klasični jutranji muzej, ko je še mirneje.",
+            "bullets": [
+              "Fosilne dvorane in Rose Center sta vredna 2–3 ur.",
+              "Potem izhod neposredno v Central Park."
+            ],
+            "priceLabel": "€20–30"
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Central Park — The Mall in Bethesda Fountain",
+            "type": "SIGHT",
+            "description": "Klasična os parka, brez hitrega hop-on hop-offa.",
+            "bullets": [
+              "Sprehod od 72nd do Bethesde.",
+              "Kava pri Loeb Boathouse ali v bližnji kavarni."
+            ]
+          }
+        ],
+        "evening": [
+          {
+            "name": "Večerja na Upper West Side",
+            "type": "EAT",
+            "description": "Soseska večerja — manj turistična kot Midtown.",
+            "bullets": [
+              "Columbus Ave ali Amsterdam Ave.",
+              "Ena miza, brez drugega večernega bloka."
+            ],
+            "priceLabel": "€30–50"
+          }
+        ]
+      }
+    },
+    {
+      "day": 3,
+      "date": "2026-09-14",
+      "title": "Statua svobode in Downtown",
+      "city": "New York",
+      "focusName": "Lower Manhattan",
+      "lat": 40.6892,
+      "lng": -74.0445,
+      "dailyBudgetEur": 130,
+      "category": "sight",
+      "travelHack": "Ferry za Statue of Liberty rezerviraj vnaprej (Crown/pedestal).",
+      "transportationTips": "4/5 do Bowling Green; nazaj R/W ali 1.",
+      "localWarnings": "",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [
+          {
+            "name": "Statue of Liberty & Ellis Island",
+            "type": "SIGHT",
+            "description": "Jutranji ferry — manj čakalnih vrst.",
+            "bullets": [
+              "Računaj 3–4 ure za oba otoka.",
+              "Voda in lahka jakna — na vodi je vetrovno."
+            ],
+            "priceLabel": "€25–40"
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Wall Street, Charging Bull in One World Observatory",
+            "type": "SIGHT",
+            "description": "Downtown ikone v enem popoldnevu.",
+            "bullets": [
+              "Bull fotografija hitro — gneča je stalnica.",
+              "Observatory ob sončnem zahodu, če ujameš slot."
+            ],
+            "priceLabel": "€35–45"
+          }
+        ],
+        "evening": [
+          {
+            "name": "Večerja v TriBeci / FiDi",
+            "type": "EAT",
+            "description": "Mirnejša večerja po downtown ogledih.",
+            "bullets": ["Ena restavracija, lokalna kuhinja ali steakhouse."],
+            "priceLabel": "€35–60"
+          }
+        ]
+      }
+    },
+    {
+      "day": 4,
+      "date": "2026-09-15",
+      "title": "Brooklyn: DUMBO in Williamsburg",
+      "city": "Brooklyn",
+      "focusName": "DUMBO",
+      "lat": 40.7033,
+      "lng": -73.9881,
+      "dailyBudgetEur": 115,
+      "category": "activity",
+      "travelHack": "Brooklyn Bridge preči peš z Manhattna zgodaj — pozneje je gneča za fotke.",
+      "transportationTips": "F do York St (DUMBO); L do Bedford za Williamsburg.",
+      "localWarnings": "",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [
+          {
+            "name": "Brooklyn Bridge walk + DUMBO views",
+            "type": "SIGHT",
+            "description": "Peš čez most in fotke pri Jane's Carousel.",
+            "bullets": [
+              "Začni na Manhattan strani zjutraj.",
+              "Kava v DUMBO pred nadaljevanjem."
+            ]
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Williamsburg — Bedford Ave in East River Ferry",
+            "type": "ACTIVITY",
+            "description": "Soseska, thrift in pogled nazaj na Manhattan.",
+            "bullets": [
+              "Sprehod do Domino Park.",
+              "Ferry nazaj na Manhattan ob soncu."
+            ]
+          }
+        ],
+        "evening": [
+          {
+            "name": "Večerja v Williamsburgu",
+            "type": "EAT",
+            "description": "Ena brooklynska večerja — pizza ali moderne american.",
+            "bullets": ["Rezervacija ob petkih/sobotah priporočena."],
+            "priceLabel": "€30–55"
+          }
+        ]
+      }
+    },
+    {
+      "day": 5,
+      "date": "2026-09-16",
+      "title": "MoMA in Chelsea",
+      "city": "New York",
+      "focusName": "Chelsea",
+      "lat": 40.7614,
+      "lng": -73.9776,
+      "dailyBudgetEur": 125,
+      "category": "sight",
+      "travelHack": "MoMA: Free Fridays zvečer so polni — raje kupi dnevno vstopnico.",
+      "transportationTips": "E/M do 5th Ave–53rd; High Line peš.",
+      "localWarnings": "",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [
+          {
+            "name": "Museum of Modern Art (MoMA)",
+            "type": "SIGHT",
+            "description": "Jutranji fokusni ogled, 2–3 ure.",
+            "bullets": [
+              "Fokus: 5. nadstropje (Van Gogh, Warhol).",
+              "Ne hiti skozi cel muzej."
+            ],
+            "priceLabel": "€25–30"
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "High Line in Chelsea Market",
+            "type": "ACTIVITY",
+            "description": "Peš pot in prigrizek.",
+            "bullets": [
+              "High Line od 30th proti jugu.",
+              "Chelsea Market za kosilo — izberi eno stojnico."
+            ]
+          }
+        ],
+        "evening": [
+          {
+            "name": "Večerja v Chelseaju",
+            "type": "EAT",
+            "description": "Sproščena večerja v soseski.",
+            "bullets": ["Ena miza — brez drugega večernega bloka."],
+            "priceLabel": "€35–55"
+          }
+        ]
+      }
+    },
+    {
+      "day": 6,
+      "date": "2026-09-17",
+      "title": "Prosti / lokalni dan na Lower East Side",
+      "city": "New York",
+      "focusName": "Lower East Side",
+      "lat": 40.715,
+      "lng": -73.984,
+      "dailyBudgetEur": 100,
+      "category": "activity",
+      "travelHack": "To je namerno lahek dan — brez kopičenja ikon.",
+      "transportationTips": "F/J/M do Delancey; sprehod do East Village.",
+      "localWarnings": "",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [
+          {
+            "name": "Tenement Museum ali sprehod po Orchard St",
+            "type": "SIGHT",
+            "description": "Lokalna zgodovina namesto še ene panorame.",
+            "bullets": [
+              "Tenement Museum: rezerviraj tour.",
+              "Ali: thrift + knjigarne na LES."
+            ],
+            "priceLabel": "€20–30"
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "East Village — Tompkins Square in kavarna",
+            "type": "ACTIVITY",
+            "description": "Mirnejši popoldanski ritem.",
+            "bullets": [
+              "Kava in ljudje-watching.",
+              "Po želji kratki ogled St. Marks Place."
+            ]
+          }
+        ],
+        "evening": [
+          {
+            "name": "Večerja na Lower East Side",
+            "type": "EAT",
+            "description": "Ena večerja — dumplingi, pizza ali natural wine bar.",
+            "bullets": ["Rezervacija za popularne lokale."],
+            "priceLabel": "€25–45"
+          }
+        ]
+      }
+    },
+    {
+      "day": 7,
+      "date": "2026-09-18",
+      "title": "Zadnji dopoldne in odhod",
+      "city": "New York",
+      "focusName": "Midtown",
+      "lat": 40.758,
+      "lng": -73.9855,
+      "dailyBudgetEur": 90,
+      "category": "transport",
+      "travelHack": "Za popoldanski let zapusti hotel 4–5 ur pred odhodom (JFK security + AirTrain).",
+      "transportationTips": "Taxi/Uber ali AirTrain nazaj na JFK.",
+      "localWarnings": "",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [
+          {
+            "name": "Grand Central Terminal in Bryant Park",
+            "type": "SIGHT",
+            "description": "Lahek zadnji dopoldne pred odhodom.",
+            "bullets": [
+              "Fotka v main concourse.",
+              "Kava za na pot."
+            ]
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Transfer na JFK in mednarodni odhod",
+            "type": "TRANSPORT",
+            "description": "Prevoz na letališče in check-in.",
+            "bullets": [
+              "Oddaj sobo do 11:00 ali shrani prtljago.",
+              "Na mednarodni let pridi 3 ure pred odhodom."
+            ],
+            "departureTime": "17:20"
+          }
+        ],
+        "evening": []
+      }
+    }
+  ]
+}

@@ -41,6 +41,7 @@ import { planLangCopy } from "@/lib/planLangCopy";
 import { lookupRegionCoords } from "@/lib/regionCoords";
 import { buildReturnFlightSummary } from "@/lib/returnFlightSummary";
 import { resolveTripLocale } from "@/lib/tripLocale";
+import { applyItineraryGuards } from "@/lib/itineraryGuards";
 import { stripArrivalLabelSpam } from "@/lib/textSanitize";
 
 /** Same-day ground/rail return to ticket hub (Lyon→Paris). Never LA→NY “budget transfer”. */
@@ -1166,5 +1167,7 @@ export function applyFlightContextToGeminiPlan(
     normalizeDayActivityClocks(day);
   }
 
+  // After flight rewrite: strip phantom Tocumen/airport re-arrivals on non-arrival days.
+  applyItineraryGuards(plan, { arrivalDay, language: lang });
   scrubImpossibleIslandDayTrips(plan, lang);
 }

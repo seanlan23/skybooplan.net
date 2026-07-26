@@ -1,7 +1,8 @@
 import { memo, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { Pause, Play, X } from "lucide-react";
+import { Pause, Play } from "lucide-react";
 import { TripMap } from "@/components/TripMap";
+import { MobileMapCloseBar } from "@/components/MobileMapOverlay";
 import type { AiTripPlan } from "@/lib/aiPlan.functions";
 import type { PoiDetailsData } from "@/lib/poiDetails.types";
 import { useI18n } from "@/lib/i18n";
@@ -90,20 +91,13 @@ export const AiTripMapPanel = memo(function AiTripMapPanel({
       aria-modal={isSheet ? true : undefined}
       aria-label={isSheet ? t("aiplan.mapStreets" as never) : undefined}
     >
-      {isSheet && (
-        <button
-          type="button"
-          onClick={onCloseSheet}
-          className="absolute right-3 top-3 z-20 flex h-11 w-11 items-center justify-center rounded-full bg-background/95 text-foreground shadow-lg ring-1 ring-border backdrop-blur-sm transition hover:bg-muted"
-          aria-label={t("poi.close" as never)}
-        >
-          <X className="h-5 w-5" strokeWidth={2.25} />
-        </button>
-      )}
+      {isSheet && onCloseSheet ? (
+        <MobileMapCloseBar onClose={onCloseSheet} />
+      ) : null}
       <div
         className={cn(
           "flex items-center justify-center gap-2 px-1",
-          isSheet ? "shrink-0 pb-2 pt-14" : "pb-2",
+          isSheet ? "shrink-0 py-2" : "pb-2",
         )}
       >
         <button

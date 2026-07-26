@@ -2311,6 +2311,10 @@ export function enrichDayActivities(
       ? buildArrivalEveningCulture(city, locale).slice(0, 1)
       : buildArrivalEveningCulture(city, locale);
     for (const act of culture) {
+      // Never stack a second dinner on top of an existing evening meal.
+      if (act.type === "EAT" && result.evening.some((a) => a.type === "EAT" || /večerja|dinner/i.test(a.name))) {
+        continue;
+      }
       if (!hasSimilar(result, act.name)) {
         result.evening.push(act);
       }
@@ -2453,7 +2457,11 @@ export function enrichDayActivities(
 
   const skipGenericVietnamPad =
     poolKeyName === "vietnam" && (plannedSights >= 1 || weakFillerUsedInPriorDays(opts?.priorScheduledText ?? ""));
-  const minTotal = skipGenericVietnamPad
+  // Generic pool ("Glavni dopoldanski ogled…") is last-resort only — never pad over real sights.
+  const skipGenericPoolPad =
+    skipGenericVietnamPad ||
+    (poolKeyName === "generic" && (plannedSights >= 1 || hasMainSight || countActivities(result) >= 3));
+  const minTotal = skipGenericPoolPad
     ? countActivities(result)
     : intensive
       ? plannedSights >= 2 || hasMainSight
@@ -2483,14 +2491,26 @@ export function enrichDayActivities(
     }
   }
 
-  for (let pass = 0; pass < 3 && !skipGenericVietnamPad && countActivities(result) < minTotal; pass++) {
+  for (let pass = 0; pass < 3 && !skipGenericPoolPad && countActivities(result) < minTotal; pass++) {
     for (const entry of pool) {
       if (result[entry.slot].length === 0) {
         if (entry.slot === "morning" && hasMorningSight) continue;
         if (entry.slot === "afternoon" && skipAfternoonFiller) continue;
         if (intensive && entry.slot === "afternoon" && hasMorningSight) continue;
+        if (
+          entry.slot === "evening" &&
+          result.evening.some((a) => a.type === "EAT" || /večerja|dinner/i.test(a.name))
+        ) {
+          continue;
+        }
         const act = entry.activity(locale, dayIndexInRegion, poolCtx);
         if (intensive && isWeakFillerActivity(act) && hasMorningSight) continue;
+        if (
+          act.type === "EAT" &&
+          result.evening.some((a) => a.type === "EAT" || /večerja|dinner/i.test(a.name))
+        ) {
+          continue;
+        }
         if (!hasSimilar(result, act.name)) {
           result[entry.slot].push(act);
         }
@@ -2500,9 +2520,21 @@ export function enrichDayActivities(
     const entry = pool[idx];
     if (entry.slot !== "afternoon" || !skipAfternoonFiller) {
       if (intensive && entry.slot === "afternoon" && hasMorningSight) continue;
+      if (
+        entry.slot === "evening" &&
+        result.evening.some((a) => a.type === "EAT" || /večerja|dinner/i.test(a.name))
+      ) {
+        continue;
+      }
       if (result[entry.slot].length < 2 && countActivities(result) < minTotal) {
         const act = entry.activity(locale, dayIndexInRegion, poolCtx);
         if (intensive && isWeakFillerActivity(act) && hasMorningSight) continue;
+        if (
+          act.type === "EAT" &&
+          result.evening.some((a) => a.type === "EAT" || /večerja|dinner/i.test(a.name))
+        ) {
+          continue;
+        }
         if (!hasSimilar(result, act.name)) {
           result[entry.slot].push(act);
         }
