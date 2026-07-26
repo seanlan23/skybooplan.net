@@ -155,17 +155,6 @@ export function SiteHeader({
                     {displayName}
                   </span>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => void signOut()}
-                  className={cn(
-                    "hidden sm:inline-flex items-center gap-1.5 text-sm font-medium transition-colors",
-                    subtleTextClass,
-                  )}
-                >
-                  <LogOut className="h-4 w-4" />
-                  {t("nav.logout")}
-                </button>
                 {menuOpen && (
                   <div className="absolute right-0 top-full mt-2 w-56 rounded-2xl border border-border bg-card text-foreground shadow-lg overflow-hidden z-50">
                     <div className="px-4 py-3 border-b border-border">
@@ -199,7 +188,7 @@ export function SiteHeader({
                         void signOut();
                         setMenuOpen(false);
                       }}
-                      className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-destructive hover:bg-muted sm:hidden"
+                      className="w-full flex items-center gap-2 border-t border-border px-4 py-2.5 text-sm text-destructive hover:bg-muted"
                     >
                       <LogOut className="h-4 w-4 shrink-0" /> {t("nav.logout")}
                     </button>
