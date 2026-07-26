@@ -10,6 +10,7 @@ import { normalizePlanLangCode } from "@/lib/planLanguages";
 import { activityDescriptionBullets } from "@/lib/activityDescription";
 import { formatActivityClockLabel } from "@/lib/activityTime";
 import { enrichMotorhomePlanTips } from "@/lib/motorhomePlanTips";
+import { applyItineraryGuards } from "@/lib/itineraryGuards";
 import { fixMotorhomeCopyErrors } from "@/lib/textSanitize";
 
 /**
@@ -515,9 +516,27 @@ function legacyItems(day: Record<string, unknown>, labels?: PdfLabels): PdfActiv
 
 /** Normalize AI / saved plan shapes into a clean PDF model. */
 export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
-  const itin = (plan.itinerary ?? {}) as PlanItinerary & Record<string, unknown>;
+  const sourceItin = (plan.itinerary ?? {}) as PlanItinerary & Record<string, unknown>;
+  // Clone so PDF scrubbing never mutates live planner state.
+  const itin = (
+    typeof structuredClone === "function"
+      ? structuredClone(sourceItin)
+      : JSON.parse(JSON.stringify(sourceItin))
+  ) as PlanItinerary & Record<string, unknown>;
   const motorhome =
     itin.groundTransportMode === "motorhome" || itin.accommodationMode === "motorhome";
+  if (Array.isArray(itin.days)) {
+    try {
+      // Clean FRA→EZE-class LLM leftovers even on older saved plans.
+      applyItineraryGuards(itin as unknown as AiTripPlan, {
+        arrivalDay: 1,
+        language:
+          (itin as { contentLanguage?: string }).contentLanguage || plan.language || "sl",
+      });
+    } catch (err) {
+      console.warn("[pdf] itinerary guards skipped", err);
+    }
+  }
   if (motorhome && Array.isArray(itin.days)) {
     try {
       enrichMotorhomePlanTips(itin as unknown as AiTripPlan, plan.language ?? "sl");

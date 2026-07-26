@@ -168,9 +168,33 @@ function repairTruncatedLine(line: string): string {
   if (!t) return "";
   // Truncation mark at end of this line (common Gemini cut).
   const truncated = /…\s*$/u.test(t) || /\.\.\.\s*$/.test(t);
-  if (!truncated) return t;
+  // Finished-looking but incomplete ends (FRA→EZE DE): "die maritime.", "ausklingen zu.", "Museums, das."
+  const danglingEnd =
+    /\b(zu|to|the|a|an|die|der|das|den|dem|und|and|mit|with|für|for|besonders|optional|höchstens|maritime|ein|eine|einen|einer|eines)\.\s*$/i.test(
+      t,
+    ) || /,\s*(das|die|der|den|dem|the|a|an|zu|to|ein|eine)\.\s*$/i.test(t);
+  if (!truncated && !danglingEnd) return t;
 
   t = t.replace(/\s*…\s*$/u, "").replace(/\s*\.\.\.\s*$/, "").trim();
+  if (danglingEnd) {
+    // Keep a prior complete sentence when present.
+    const lastGood = Math.max(t.lastIndexOf(". "), t.lastIndexOf("! "), t.lastIndexOf("? "));
+    if (lastGood >= 20) {
+      return t.slice(0, lastGood + 1).trim();
+    }
+    // Strip the dangling tail token(s); drop irreparable stubs.
+    let next = t
+      .replace(/\s+\b(?:die|der|das|den|dem|the|a|an)\s+(?:maritime|besonders)\.\s*$/iu, ".")
+      .replace(/\s+\b(?:maritime|besonders|optional|höchstens)\.\s*$/iu, ".")
+      .replace(/\s+\bau?sklingen\s+zu\.\s*$/iu, ".")
+      .replace(/,\s*(?:das|die|der|den|dem|the|a|an|ein|eine)(?:\s+\w+)?\.\s*$/iu, ".")
+      .replace(/\s+\b(?:zu|to|und|and|mit|with|für|for|die|der|das|the)\.\s*$/iu, ".")
+      .trim();
+    if (next.length < 20 || /\b(?:die|der|das|the|zu|to|ein|eine)\.\s*$/i.test(next)) {
+      return "";
+    }
+    return /[.!?]$/.test(next) ? next : `${next}.`;
+  }
   t = t
     .replace(
       /\s+(in|and|ter|or|ali|za|to|with|z|s|the|a|an|s|po|na|ob|morda|maybe|perhaps)\s*$/i,

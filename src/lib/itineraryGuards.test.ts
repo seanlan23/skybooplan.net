@@ -3,15 +3,19 @@ import type { AiTripPlan, DayPlan } from "@/lib/aiPlan.functions";
 import {
   alignTransportationDurationWithTips,
   applyItineraryGuards,
+  dedupeLastDayReturnFlights,
   dedupeNearIdenticalConsecutiveDays,
   dedupeSameDayMeals,
   isEnricherPlaceholderActivity,
   isGenericMealActivity,
+  repairIncompleteLogisticsCopy,
+  sanitizeTransportationLegs,
   scrubUnsafeEarlyAirportTips,
   stripGenericMealActivities,
   stripPhantomArrivals,
   stripPlaceholderActivities,
 } from "@/lib/itineraryGuards";
+import { repairTruncatedCopy } from "@/lib/textSanitize";
 
 function day(partial: Partial<DayPlan> & { day: number }): DayPlan {
   return {
@@ -212,6 +216,8 @@ describe("stripPhantomArrivals", () => {
             ],
           },
         }),
+        // Extra day so day 2 is mid-trip (last day keeps real departure logistics).
+        day({ day: 3, city: "Panama City" }),
       ],
     } as AiTripPlan;
 
@@ -420,5 +426,174 @@ describe("alignTransportationDurationWithTips", () => {
 
     expect(alignTransportationDurationWithTips(plan)).toBe(1);
     expect(plan.days[0]!.transportation![0]!.duration).toBe("2h");
+  });
+});
+
+describe("FRA→EZE failure classes", () => {
+  it("strips Buenos Aires generic DE meals and Viertel spam", () => {
+    expect(isGenericMealActivity({ name: "Mittagessen in San Telmo:", type: "EAT" })).toBe(true);
+    expect(isGenericMealActivity({ name: "Abendessen in Puerto Madero", type: "EAT" })).toBe(true);
+    expect(
+      isGenericMealActivity({
+        name: "Abendessen in einem modernen Restaurant in Palermo",
+        type: "EAT",
+      }),
+    ).toBe(true);
+    expect(isGenericMealActivity({ name: "Abendessen im Viertel", type: "EAT" })).toBe(true);
+    expect(isGenericMealActivity({ name: "Tango Show mit Abendessen", type: "ACTIVITY" })).toBe(
+      false,
+    );
+  });
+
+  it("repairs ca. – logistics and strips Viertel filler", () => {
+    const plan = {
+      destinationName: "Buenos Aires",
+      days: [
+        day({
+          day: 2,
+          activities: {
+            morning: [
+              {
+                name: "Transfer",
+                type: "TRANSPORT",
+                description: "Vom Flughafen zum Hotel mit Uber / taxi (ca. – €15–35).",
+              },
+            ],
+            afternoon: [
+              {
+                name: "Puerto Madero",
+                type: "SIGHT",
+                description:
+                  "Spaziergang. Abendessen im Viertel: Abendessen abseits der Haupttouristenstraßen — bessere Preise.",
+              },
+            ],
+            evening: [],
+          },
+        }),
+      ],
+    } as AiTripPlan;
+    expect(repairIncompleteLogisticsCopy(plan)).toBeGreaterThanOrEqual(1);
+    expect(plan.days[0]!.activities!.morning[0]!.description).toMatch(/ca\. €15/);
+    expect(plan.days[0]!.activities!.morning[0]!.description).not.toMatch(/ca\.\s*[–—-]\s*€/);
+    expect(plan.days[0]!.activities!.afternoon[0]!.description).not.toMatch(/Abendessen im Viertel/i);
+  });
+
+  it("drops FLIGHT legs that are walks or cemeteries", () => {
+    const plan = {
+      destinationName: "Buenos Aires",
+      days: [
+        day({
+          day: 2,
+          transportation: [
+            {
+              type: "flight",
+              from: "Ankunft am Flughafen Ezeiza (EZE)",
+              to: "Buenos Aires",
+              duration: "1h",
+              estimatedPrice: 0,
+            },
+            {
+              type: "flight",
+              from: "Spaziergang durch Recoleta",
+              to: "Buenos Aires",
+              duration: "1h",
+              estimatedPrice: 0,
+            },
+            {
+              type: "flight",
+              from: "Friedhof Recoleta",
+              to: "Buenos Aires",
+              duration: "1h",
+              estimatedPrice: 10,
+            },
+          ],
+        }),
+      ],
+    } as AiTripPlan;
+    expect(sanitizeTransportationLegs(plan)).toBeGreaterThanOrEqual(2);
+    expect(plan.days[0]!.transportation).toHaveLength(1);
+    expect(plan.days[0]!.transportation![0]!.from).toMatch(/Ezeiza/i);
+    expect(plan.days[0]!.transportation![0]!.type).toBe("taxi");
+  });
+
+  it("keeps one Internationaler Rückflug on the last day", () => {
+    const plan = {
+      destinationName: "Buenos Aires",
+      days: [
+        day({ day: 14, city: "Buenos Aires" }),
+        day({
+          day: 15,
+          city: "Buenos Aires",
+          activities: {
+            morning: [
+              {
+                name: "Letzter Spaziergang oder Museumsbesuch",
+                type: "ACTIVITY",
+                description: "Vormittagsspaziergang.",
+                arrivalTime: "22:30",
+                departureTime: "07:20",
+              },
+              {
+                name: "Internationaler Rückflug",
+                type: "TRANSPORT",
+                transportType: "flight",
+                description: "Abflug, Ankunft.",
+                arrivalTime: "22:30",
+                departureTime: "07:20",
+              },
+            ],
+            afternoon: [
+              {
+                name: "Internationaler Rückflug",
+                type: "TRANSPORT",
+                transportType: "flight",
+                description: "Abflug, Ankunft.",
+              },
+            ],
+            evening: [
+              {
+                name: "Hotel Check-out",
+                type: "TRANSPORT",
+                description: "Morgens auschecken.",
+              },
+              {
+                name: "Internationaler Rückflug",
+                type: "TRANSPORT",
+                transportType: "flight",
+                description: "Abflug 22:30, Ankunft 07:20.",
+                arrivalTime: "22:30",
+                departureTime: "07:20",
+              },
+            ],
+          },
+        }),
+      ],
+    } as AiTripPlan;
+    expect(dedupeLastDayReturnFlights(plan)).toBe(2);
+    const acts = plan.days[1]!.activities!;
+    const returns = ["morning", "afternoon", "evening"].flatMap((s) =>
+      (acts[s as "morning"] ?? []).filter((a) => /Rückflug/i.test(a.name ?? "")),
+    );
+    expect(returns).toHaveLength(1);
+    expect(returns[0]!.description).toMatch(/22:30/);
+  });
+
+  it("repairs DE dangling sentence ends without ellipsis", () => {
+    expect(
+      repairTruncatedCopy(
+        "Spazieren Sie entlang der Hafenpromenade und genießen Sie die maritime.",
+      ),
+    ).toMatch(/Hafenpromenade/i);
+    expect(
+      repairTruncatedCopy(
+        "Spazieren Sie entlang der Hafenpromenade und genießen Sie die maritime.",
+      ),
+    ).not.toMatch(/maritime/i);
+    expect(repairTruncatedCopy("um die Reise ausklingen zu.")).toBe("");
+    expect(
+      repairTruncatedCopy(
+        "Nutzen Sie den Vormittag für einen Museumsbesuch, das Ihnen besonders.",
+      ),
+    ).not.toMatch(/besonders/i);
   });
 });

@@ -311,8 +311,9 @@ function mergeDepartureDay(
     .filter((a) => {
       const blob = `${a.name} ${a.description ?? ""}`;
       // Drop Gemini logistics leftovers (often one unformatted morning wall of text).
+      // Include DE/FR/ES/IT return-flight labels (FRA→EZE: "Internationaler Rückflug" leaked into morning/afternoon).
       if (
-        /airport|letališč|odlet|odhod|povratek|flight home|return flight|check-?out|transfer|mednarodni\s*let|international\s*(return\s*)?flight|leave the hotel|bags at reception|head to (the )?airport|zaključi check-out/i.test(
+        /airport|letališč|flughafen|aeroporto|aéroport|odlet|odhod|abflug|povratek|rückflug|flight home|return flight|check-?out|transfer|flughafentransfer|mednarodni\s*(povratni\s*)?let|international\s*(return\s*)?flight|internationaler\s*(rück)?flug|volo\s*(di\s*ritorno|internazionale)|vuelo\s*(de\s*regreso|internacional)|vol\s*(retour|international)|leave the hotel|bags at reception|head to (the )?airport|zaključi check-out/i.test(
           blob,
         )
       ) {
@@ -701,6 +702,15 @@ function isCodeLogisticsActivity(a: Activity): boolean {
  * Final lock: only logistics keep structured clocks + boarding-pass HH:MM in prose.
  * Gemini sightseeing leftovers lose all HH:MM so they cannot fight the schedule.
  */
+/** Walk/museum leftovers must never keep boarding-pass ranges (FRA→EZE: Spaziergang @ 22:30). */
+function isSightseeingNotFlight(a: Activity): boolean {
+  const name = a.name ?? "";
+  if (/\b(flug|flight|let|volo|vuelo|vol|rückflug|abflug)\b/i.test(name)) return false;
+  return /spaziergang|stroll|walk|paseo|passeggiata|promenade|museum|friedhof|cemetery|park|plaza|caminito|letzter\s+spaziergang|last\s+(walk|stroll)|zadnji\s+sprehod/i.test(
+    name,
+  );
+}
+
 function lockCodeOwnedFlightDayClocks(
   activities: NonNullable<DayPlan["activities"]>,
   boardingPassTimes: string[],
@@ -708,6 +718,7 @@ function lockCodeOwnedFlightDayClocks(
   const board = boardingPassTimes.filter(Boolean);
   const patch = (list: Activity[] | undefined): Activity[] =>
     (list ?? []).map((a) => {
+      if (isSightseeingNotFlight(a)) return stripSightClocks(a);
       if (isCodeLogisticsActivity(a)) {
         const keep = [
           ...board,

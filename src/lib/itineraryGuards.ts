@@ -71,12 +71,17 @@ export function isGenericMealActivity(a: {
   if (/\b(at|bei|chez|da)\s+[A-ZÀ-Ü"«]/u.test(name)) return false;
 
   return (
-    /^(lokalna večerja|local dinner|sproščena večerja|relaxed dinner|lahka večerja)\b/i.test(name) ||
-    /^(abendessen|mittagessen|večerja|kosilo|dinner|lunch|dîner|déjeuner|cena|pranzo)\s+(in|im|v|at|près de|nahe|in der nähe)/i.test(
+    /^(lokalna večerja|local dinner|sproščena večerja|relaxed dinner|lahka večerja|abendessen im viertel|dinner in the (neighbourhood|neighborhood)|večerja v četrti)\b/i.test(
       name,
     ) ||
+    /^(abendessen|mittagessen|frühstück|večerja|kosilo|dinner|lunch|dîner|déjeuner|cena|pranzo)\s+(in|im|v|at|près de|nahe|in der nähe|einem|einer|eines)/i.test(
+      name,
+    ) ||
+    /^(abendessen|mittagessen|dinner|lunch|večerja|kosilo)\s+in\s+einem\b/i.test(name) ||
     /^(abendessen und nachtleben|dinner and nightlife|večerja in nočno)/i.test(name) ||
-    /^(check-in und mittagessen|shopping und mittagessen)\b/i.test(name)
+    /^(check-in und mittagessen|shopping und mittagessen)\b/i.test(name) ||
+    // Name is only a meal label + neighborhood, optionally trailing colon (PDF: "Mittagessen in San Telmo:")
+    /^(abendessen|mittagessen|dinner|lunch|večerja|kosilo)\b[^:]{0,60}:\s*$/i.test(name)
   );
 }
 
@@ -94,8 +99,16 @@ export function isAirportArrivalLogistics(a: {
   ) {
     return false;
   }
+  // Departure / return logistics are never "phantom arrivals".
+  if (
+    /check-?out|rückflug|return flight|flight home|povratek|odhod iz hotela|hotel check-out|airport transfer|flughafentransfer|prevoz na letališč|transfer to (the )?airport|abflug|mednarodni\s*(povratni\s*)?let|international\s*(return\s*)?flight|internationaler\s*(rück)?flug|airport check-in|check-in am flughafen/i.test(
+      t,
+    )
+  ) {
+    return false;
+  }
   return (
-    /prihod na (mednarodno )?letališč|airport arrival|tocumen|\(pty\)|\(jfk\)|\(syd\)|arrival hall|prevzem prtljage|baggage claim/i.test(
+    /prihod na (mednarodno )?letališč|airport arrival|ankunft am flughafen|tocumen|\(pty\)|\(jfk\)|\(syd\)|arrival hall|prevzem prtljage|baggage claim/i.test(
       t,
     ) ||
     (/prevoz do (hotela|centra)|transfer to (the )?hotel|check-in,?\s*(osvežitev|refresh)|namestitev po prihodu/i.test(
@@ -103,7 +116,8 @@ export function isAirportArrivalLogistics(a: {
     ) &&
       /letališč|airport|taxi|grab|uber|transfer/i.test(t)) ||
     ((a.type === "TRANSPORT" || a.type === "STAY") &&
-      /prihod|arrival|check-in|letališč|airport/i.test(t))
+      /prihod|arrival|letališč|airport/i.test(t) &&
+      !/check-?in/i.test(t))
   );
 }
 
@@ -243,13 +257,26 @@ export function repairIncompleteLogisticsCopy(plan: AiTripPlan): number {
     let t = raw;
     const before = t;
     t = t
+      // "(ca. – €15–35)" and bare "ca. – 15-20 Min" (FRA→EZE)
       .replace(/\(\s*ca\.?\s*[–—-]\s*€/gi, "(ca. €")
+      .replace(/\bca\.?\s*[–—-]\s*(?=€|\d)/gi, "ca. ")
       .replace(/Terminal-?\s*vs\.?\s*$/gi, "Terminal- vs. Off-site-Parkplatz.")
       .replace(/\btrain\s*\/\s*taxi\b/gi, "Zug / Taxi")
-      .replace(/\bmit train\b/gi, "mit Zug");
+      .replace(/\bmit train\b/gi, "mit Zug")
+      // Spam filler appended after real dinner copy
+      .replace(
+        /\s*Abendessen im Viertel:\s*Abendessen abseits der Haupttouristenstraßen[^.]*\.?/gi,
+        "",
+      )
+      .replace(
+        /\s*Dinner in the (?:neighbourhood|neighborhood):\s*Dinner away from the main tourist streets[^.]*\.?/gi,
+        "",
+      );
     // Drop dangling ellipsis leftovers that repairTruncatedCopy missed mid-phrase.
     t = t.replace(/\s*[–—-]\s*höchstens…\s*$/iu, ".")
-      .replace(/\s*[–—-]\s*optional light evening…\s*$/i, ".");
+      .replace(/\s*[–—-]\s*optional light evening…\s*$/i, ".")
+      .replace(/\s{2,}/g, " ")
+      .trim();
     if (t !== before) fixed += 1;
     return t;
   };
@@ -260,6 +287,7 @@ export function repairIncompleteLogisticsCopy(plan: AiTripPlan): number {
     if (!day.activities) continue;
     for (const slot of SLOTS) {
       for (const a of day.activities[slot] ?? []) {
+        a.name = scrub(a.name) ?? a.name;
         a.description = scrub(a.description) ?? a.description;
         if (a.bullets?.length) {
           a.bullets = a.bullets.map((b) => scrub(b) ?? b);
@@ -268,6 +296,88 @@ export function repairIncompleteLogisticsCopy(plan: AiTripPlan): number {
     }
   }
   return fixed;
+}
+
+/**
+ * Drop nonsense "FLIGHT" legs that are walks/sights (FRA→EZE: FLIGHT · Spaziergang durch Recoleta).
+ */
+export function sanitizeTransportationLegs(plan: AiTripPlan): number {
+  let removed = 0;
+  const nonAirPlace =
+    /spaziergang|stroll|walk|paseo|passeggiata|promenade|friedhof|cemetery|museum|park\b|plaza|caminito|recoleta|malba|viertel|neighbourhood|neighborhood|straße|street|mercado|market|garten|garden|temple|tempel|kirche|church|cathedral/i;
+  const groundAirportTransfer =
+    /ankunft|arrival|prihod|transfer|prevoz|taxi|uber|shuttle|von\s+flughafen|from\s+(the\s+)?airport|zum\s+hotel|to\s+(the\s+)?hotel/i;
+  for (const day of plan.days ?? []) {
+    if (!day.transportation?.length) continue;
+    const next: NonNullable<DayPlan["transportation"]> = [];
+    for (const leg of day.transportation) {
+      if (leg.type !== "flight") {
+        next.push(leg);
+        continue;
+      }
+      const place = `${leg.from ?? ""} ${leg.to ?? ""}`;
+      if (nonAirPlace.test(place)) {
+        removed += 1;
+        continue;
+      }
+      // "FLIGHT · Ankunft am Flughafen EZE → City" is ground transfer, not a flight leg.
+      if (groundAirportTransfer.test(place) && !/\b(rückflug|return flight|povratni|abflug nach|flight to)\b/i.test(place)) {
+        next.push({ ...leg, type: "taxi" });
+        removed += 1; // count as sanitized
+        continue;
+      }
+      if (
+        leg.from &&
+        leg.to &&
+        leg.from.trim().toLowerCase() === leg.to.trim().toLowerCase() &&
+        leg.estimatedPrice === 0
+      ) {
+        removed += 1;
+        continue;
+      }
+      next.push(leg);
+    }
+    day.transportation = next.length ? next : undefined;
+  }
+  return removed;
+}
+
+/** Keep at most one international return-flight row on the last calendar day. */
+export function dedupeLastDayReturnFlights(plan: AiTripPlan): number {
+  const days = plan.days ?? [];
+  if (days.length < 1) return 0;
+  const last = days[days.length - 1]!;
+  if (!last.activities) return 0;
+  const isReturnFlight = (a: Activity): boolean =>
+    /internationaler\s*(rück)?flug|international\s*(return\s*)?flight|mednarodni\s*(povratni\s*)?let|volo\s*(di\s*ritorno|internazionale)|vuelo\s*(de\s*regreso|internacional)|vol\s*(retour|international)|rückflug|flight home|povratek\s*domov/i.test(
+      a.name ?? "",
+    );
+
+  const slots: Slot[] = ["evening", "afternoon", "morning"];
+  let keepSlot: Slot | null = null;
+  let keepIdx = -1;
+  for (const slot of slots) {
+    const list = last.activities[slot] ?? [];
+    const idx = list.findIndex(isReturnFlight);
+    if (idx >= 0) {
+      keepSlot = slot;
+      keepIdx = idx;
+      break;
+    }
+  }
+  if (!keepSlot) return 0;
+
+  let removed = 0;
+  for (const slot of SLOTS) {
+    const list = last.activities[slot] ?? [];
+    last.activities[slot] = list.filter((a, i) => {
+      if (!isReturnFlight(a)) return true;
+      if (slot === keepSlot && i === keepIdx) return true;
+      removed += 1;
+      return false;
+    });
+  }
+  return removed;
 }
 
 /**
@@ -311,9 +421,13 @@ export function dedupeSameDayMeals(plan: AiTripPlan): number {
 /** Strip airport-arrival logistics from every day except the real arrival day. */
 export function stripPhantomArrivals(plan: AiTripPlan, arrivalDay = 1): number {
   let removed = 0;
-  for (const day of plan.days ?? []) {
+  const days = plan.days ?? [];
+  const lastDayNum = days.length ? Math.max(...days.map((d) => d.day)) : 0;
+  for (const day of days) {
     if (!day.activities) continue;
     if (day.day === arrivalDay) continue;
+    // Last calendar day owns departure logistics (check-in / transfer / return flight).
+    if (day.day === lastDayNum) continue;
     for (const slot of SLOTS) {
       const list = day.activities[slot] ?? [];
       const next = list.filter((a) => {
@@ -511,6 +625,8 @@ export function applyItineraryGuards(
   clones: number;
   truncated: number;
   logisticsCopy: number;
+  transportLegs: number;
+  returnFlights: number;
   earlyAirport: number;
   durationAlign: number;
 } {
@@ -523,6 +639,8 @@ export function applyItineraryGuards(
   });
   const truncated = stripTruncatedCopyFromPlan(plan);
   const logisticsCopy = repairIncompleteLogisticsCopy(plan);
+  const transportLegs = sanitizeTransportationLegs(plan);
+  const returnFlights = dedupeLastDayReturnFlights(plan);
   const earlyAirport = scrubUnsafeEarlyAirportTips(plan);
   const durationAlign = alignTransportationDurationWithTips(plan);
   return {
@@ -533,6 +651,8 @@ export function applyItineraryGuards(
     clones,
     truncated,
     logisticsCopy,
+    transportLegs,
+    returnFlights,
     earlyAirport,
     durationAlign,
   };
