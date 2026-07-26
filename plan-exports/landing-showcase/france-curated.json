@@ -1,0 +1,560 @@
+{
+  "destinationName": "France",
+  "destinationIata": "CDG",
+  "originIata": "MUC",
+  "contentLanguage": "sl",
+  "summary": "Osmidnevna Francija: Pariz, TGV v Lyon, gastronomija in traboule, nato povratek v Pariz in zgodnji jutranji let — tempo za city-break z enim regionalnim skokom.",
+  "days": [
+    {
+      "day": 1,
+      "date": "2026-10-26",
+      "title": "Prihod v Pariz in lahki večerni sprehod",
+      "city": "Paris",
+      "focusName": "Le Marais",
+      "lat": 48.8566,
+      "lng": 2.3522,
+      "dailyBudgetEur": 85,
+      "category": "transport",
+      "travelHack": "Ob prihodu na CDG vzemi RER B v center (~30–40 min). Hotel v Maraisu olajša prvi večer peš.",
+      "transportationTips": "RER B do centra ~30–40 min (€11.40). Marais raziskuj peš; za daljše razdalje metro.",
+      "localWarnings": "Po poznem prihodu ne sili v velike znamenitosti.",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [],
+        "afternoon": [
+          {
+            "name": "Prihod na CDG in transfer v hotel",
+            "type": "TRANSPORT",
+            "description": "Pristanek, prevzem prtljage in prevoz v Pariz.",
+            "bullets": [
+              "Računaj 45–90 min do hotela, odvisno od prometa.",
+              "RER B ali taxi — izberi po prtljagi in uri."
+            ],
+            "arrivalTime": "17:35"
+          },
+          {
+            "name": "Check-in in kratek odmor",
+            "type": "STAY",
+            "description": "Namestitev in osvežitev po letu.",
+            "bullets": [
+              "Osveži se 45–90 min.",
+              "Z velikimi znamenitostmi počakaj na jutri — večer naj bo lahek."
+            ],
+            "arrivalTime": "19:05"
+          }
+        ],
+        "evening": [
+          {
+            "name": "Kratek sprehod po Le Maraisu",
+            "type": "SIGHT",
+            "description": "Lahek uvod v Pariz — trgi in ulice, brez dolgega programa.",
+            "bullets": [
+              "Place des Vosges, če zmoreš.",
+              "Večerja: glej priporočilo spodaj."
+            ]
+          },
+          {
+            "name": "Večerja: Chez Janou (Marais)",
+            "type": "EAT",
+            "description": "Priporočamo Chez Janou — provençalski bistro z legendarnim čokoladnim moussom.",
+            "bullets": [
+              "Rezervacija zvečer je smiselna.",
+              "Hitrejša alternativa: L'As du Fallafel (Rue des Rosiers)."
+            ],
+            "priceLabel": "€25–40",
+            "lat": 48.8578,
+            "lng": 2.3655
+          }
+        ]
+      }
+    },
+    {
+      "day": 2,
+      "date": "2026-10-27",
+      "title": "Ikone Pariza",
+      "city": "Paris",
+      "focusName": "Eiffel Tower",
+      "lat": 48.8584,
+      "lng": 2.2945,
+      "dailyBudgetEur": 160,
+      "category": "sight",
+      "travelHack": "Vstopnico za Eifflov stolp kupi online — jutranji slot pomeni krajše vrste.",
+      "transportationTips": "Metro: carnet ali dnevna/večdnevna vozovnica. Uber/Bolt po potrebi.",
+      "localWarnings": "",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [
+          {
+            "name": "Eifflov stolp",
+            "type": "SIGHT",
+            "description": "Klasični jutranji obisk — manj gneče, boljši razgled.",
+            "bullets": [
+              "Vstopnico rezerviraj vnaprej.",
+              "Fotka iz Trocadéra pred ali po vzponu."
+            ],
+            "priceLabel": "€29",
+            "lat": 48.8584,
+            "lng": 2.2945
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Kosilo: Café Marly (Louvre)",
+            "type": "EAT",
+            "description": "Priporočamo Café Marly — razgled na piramido, formule za miren kosilni pavzo.",
+            "bullets": [
+              "Rezerviraj teraso, če je lepo vreme.",
+              "Hitrejša alternativa: Angelina (Rue de Rivoli) za hot chocolate + quiche."
+            ],
+            "priceLabel": "€25–40",
+            "lat": 48.861,
+            "lng": 2.335
+          },
+          {
+            "name": "Sprehod okoli Louvra in Tuileries",
+            "type": "SIGHT",
+            "description": "Zunanji trg in vrtovi — poln muzej pusti za drugič, če nimaš rezervacije.",
+            "bullets": [
+              "Pyramid in vrtovi sta vredna tudi brez notranjega vstopa.",
+              "Metro do Seine za večerno plovbo."
+            ],
+            "lat": 48.8606,
+            "lng": 2.3376
+          }
+        ],
+        "evening": [
+          {
+            "name": "Plovba po Seni",
+            "type": "ACTIVITY",
+            "description": "Cruise ob sončnem zahodu — dnevni in nočni razgled na mesto.",
+            "bullets": [
+              "Odhodi so pogosti z več točk ob reki.",
+              "Audio vodič v več jezikih."
+            ],
+            "priceLabel": "€15–20"
+          },
+          {
+            "name": "Večerja: Bouillon Chartier",
+            "type": "EAT",
+            "description": "Priporočamo Bouillon Chartier — klasična pariška brasserie, dobra cena za belo jedilnico.",
+            "bullets": [
+              "Vrsta je del izkušnje — prideš zgodaj ali počakaš.",
+              "Alternativa bližje Seni: Les Deux Magots (dražje, bolj turistično)."
+            ],
+            "priceLabel": "€25–40",
+            "lat": 48.8739,
+            "lng": 2.343
+          }
+        ]
+      }
+    },
+    {
+      "day": 3,
+      "date": "2026-10-28",
+      "title": "TGV v Lyon in Vieux Lyon",
+      "city": "Lyon",
+      "focusName": "Vieux Lyon",
+      "lat": 45.762,
+      "lng": 4.827,
+      "dailyBudgetEur": 165,
+      "category": "transport",
+      "travelHack": "TGV iz Gare de Lyon do Part-Dieu traja približno 2 uri — rezerviraj sedeže vnaprej.",
+      "transportationTips": "TGV Pariz→Lyon približno 2 uri. V Lyonu TCL (metro, tramvaj, avtobus); enkratna vozovnica ~€2.",
+      "localWarnings": "",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "transportation": [
+        {
+          "type": "train",
+          "from": "Paris Gare de Lyon",
+          "to": "Lyon Part-Dieu",
+          "duration": "2h",
+          "estimatedPrice": 70
+        }
+      ],
+      "activities": {
+        "morning": [
+          {
+            "name": "Hitri vlak TGV v Lyon",
+            "type": "TRANSPORT",
+            "description": "TGV iz Pariza Gare de Lyon do Lyon Part-Dieu skozi francosko podeželje.",
+            "bullets": [
+              "Pridi na postajo 20–30 min prej.",
+              "Vožnja traja približno 2 uri."
+            ],
+            "priceLabel": "€70",
+            "transportType": "train"
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Check-in v Lyonu",
+            "type": "STAY",
+            "description": "Lokalni prevoz do hotela, check-in in odložitev prtljage.",
+            "bullets": ["Part-Dieu → hotel z metrom ali tramvajem."]
+          },
+          {
+            "name": "Kosilo: Le Bouchon des Cordeliers",
+            "type": "EAT",
+            "description": "Priporočamo Le Bouchon des Cordeliers — klasična lyonska kuhinja na Presqu'île.",
+            "bullets": [
+              "Naroči quenelle de brochet ali salade Lyonnaise.",
+              "Alternativa: Chez Paul (Rue de la République)."
+            ],
+            "priceLabel": "€30",
+            "lat": 45.7635,
+            "lng": 4.8355
+          },
+          {
+            "name": "Vieux Lyon (staro mestno jedro)",
+            "type": "SIGHT",
+            "description": "Katedrala Saint-Jean, skrite traboule in obrtniške ulice.",
+            "bullets": [
+              "Poišči vsaj eno traboule med stavbami.",
+              "Mirnejši tempo — jutri greš na Fourvière."
+            ],
+            "lat": 45.762,
+            "lng": 4.827
+          }
+        ],
+        "evening": [
+          {
+            "name": "Večerja: Café Comptoir Abel",
+            "type": "EAT",
+            "description": "Priporočamo Café Comptoir Abel — eden najbolj znanih bouchonov v Vieux Lyonu.",
+            "bullets": [
+              "Rezervacija ob koncu tedna skoraj obvezna.",
+              "Alternativa: Daniel et Denise (tudi klasika)."
+            ],
+            "priceLabel": "€30–45",
+            "lat": 45.7622,
+            "lng": 4.8285
+          }
+        ]
+      }
+    },
+    {
+      "day": 4,
+      "date": "2026-10-29",
+      "title": "Fourvière in gastronomija",
+      "city": "Lyon",
+      "focusName": "Fourvière",
+      "lat": 45.7623,
+      "lng": 4.8226,
+      "dailyBudgetEur": 165,
+      "category": "sight",
+      "travelHack": "Na Fourvière se pelji s funicularjem — nazaj peš ali spet z vzpenjačo.",
+      "transportationTips": "Z Fourvière funicular nazaj v Vieux Lyon. Les Halles Paul Bocuse: metro B (Part-Dieu / Brotteaux).",
+      "localWarnings": "",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [
+          {
+            "name": "Bazilika Notre-Dame de Fourvière",
+            "type": "SIGHT",
+            "description": "Razgled na mesto in bližnji rimski amfiteater.",
+            "bullets": [
+              "Vstop v baziliko je brezplačen.",
+              "Fotografiraj panoramo pred kosilom."
+            ],
+            "priceLabel": "€4",
+            "lat": 45.7623,
+            "lng": 4.8226
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Kosilo: Les Halles Paul Bocuse",
+            "type": "EAT",
+            "description": "Priporočamo Les Halles Paul Bocuse — ostrige pri standih, siri in charcuterie pod eno streho.",
+            "bullets": [
+              "Začeli pri Giraudet ali Chez Léa — nato sir + kozarec vina.",
+              "Ne hiti: to je gastronomsko središče mesta."
+            ],
+            "priceLabel": "€35",
+            "lat": 45.764,
+            "lng": 4.853
+          }
+        ],
+        "evening": [
+          {
+            "name": "Večerja: Le Café des Fédérations",
+            "type": "EAT",
+            "description": "Priporočamo Le Café des Fédérations — živahen bouchon, kjer jedo domačini.",
+            "bullets": [
+              "Rezerviraj mizo — lokal je majhen.",
+              "Alternativa: Le Bouchon des Filles (malce modernejši)."
+            ],
+            "priceLabel": "€25–40",
+            "lat": 45.7658,
+            "lng": 4.8342
+          }
+        ]
+      }
+    },
+    {
+      "day": 5,
+      "date": "2026-10-30",
+      "title": "Umetnost, svila in traboule",
+      "city": "Lyon",
+      "focusName": "Croix-Rousse",
+      "lat": 45.775,
+      "lng": 4.832,
+      "dailyBudgetEur": 128,
+      "category": "sight",
+      "travelHack": "Croix-Rousse je na hribu — metro C ti prihrani noge, nato peš po prehodih.",
+      "transportationTips": "Muzej → Croix-Rousse: prijeten sprehod ali kratek metro. Na hribu je hoja najboljša.",
+      "localWarnings": "",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [
+          {
+            "name": "Musée des Beaux-Arts de Lyon",
+            "type": "SIGHT",
+            "description": "Renoir, Monet, Picasso, Rubens — umirjen jutranji muzej.",
+            "bullets": [
+              "Notranje dvorišče in vrtovi so vredni pavze.",
+              "Računaj 2–3 ure."
+            ],
+            "priceLabel": "€12",
+            "lat": 45.7669,
+            "lng": 4.8336
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Kosilo: Le Canut et Les Gones",
+            "type": "EAT",
+            "description": "Priporočamo Le Canut et Les Gones — lokalni bouchon sredi Croix-Rousse.",
+            "bullets": [
+              "Terasa, če je prosto — sicer notranjost je prav tako vredna.",
+              "Alternativa: La Cuisinerie (bolj sodobno)."
+            ],
+            "priceLabel": "€25–35",
+            "lat": 45.7765,
+            "lng": 4.8315
+          },
+          {
+            "name": "Croix-Rousse in svilarne",
+            "type": "SIGHT",
+            "description": "Svilarska dediščina, traboule in Mur des Canuts.",
+            "bullets": [
+              "Obišči delavnico ali mural Canuts.",
+              "Skozi skrite prehode peš."
+            ],
+            "priceLabel": "€8",
+            "lat": 45.775,
+            "lng": 4.832
+          }
+        ],
+        "evening": [
+          {
+            "name": "Večerja: Les Apothicaires",
+            "type": "EAT",
+            "description": "Priporočamo Les Apothicaires — sodobna lyonska kuhinja, ena večerja dovolj.",
+            "bullets": [
+              "Rezervacija vnaprej — majhen lokal.",
+              "Alternativa: Le Petit Bouchon (bolj klasično)."
+            ],
+            "priceLabel": "€35–55",
+            "lat": 45.7685,
+            "lng": 4.8328
+          }
+        ]
+      }
+    },
+    {
+      "day": 6,
+      "date": "2026-10-31",
+      "title": "Park, muzej in poslovilna večerja",
+      "city": "Lyon",
+      "focusName": "Parc de la Tête d'Or",
+      "lat": 45.7797,
+      "lng": 4.8539,
+      "dailyBudgetEur": 133,
+      "category": "activity",
+      "travelHack": "Tête d'Or zjutraj, Confluence popoldne — logična smer proti jugu Presqu'île.",
+      "transportationTips": "Tête d'Or: tramvaj T1/T4. Confluence: T1/T2 ali rečni shuttle.",
+      "localWarnings": "",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [
+          {
+            "name": "Parc de la Tête d'Or",
+            "type": "SIGHT",
+            "description": "Brezplačni zoo, botanični vrt in vrtnice — lahek jutranji tempo.",
+            "bullets": [
+              "Čoln na jezeru je sezonski.",
+              "Piknik, če je vreme."
+            ],
+            "lat": 45.7797,
+            "lng": 4.8539
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Kosilo: Chez Hugon",
+            "type": "EAT",
+            "description": "Priporočamo Chez Hugon — tradicionalni bouchon (saucisson, tablier de sapeur).",
+            "bullets": [
+              "Beaujolais ali Côtes du Rhône zraven.",
+              "Alternativa: Le Garet (prav tako klasika)."
+            ],
+            "priceLabel": "€35–45",
+            "lat": 45.7662,
+            "lng": 4.8358
+          },
+          {
+            "name": "Musée des Confluences",
+            "type": "SIGHT",
+            "description": "Evolucija, znanost in kulture v futuristični stavbi.",
+            "bullets": [
+              "Panorama z lokacije na južnem koncu Presqu'île.",
+              "Računaj 1,5–2 uri."
+            ],
+            "priceLabel": "€10",
+            "lat": 45.7326,
+            "lng": 4.818
+          }
+        ],
+        "evening": [
+          {
+            "name": "Večerja: Brasserie Georges",
+            "type": "EAT",
+            "description": "Priporočamo Brasserie Georges — velika art-deco brasserie za poslovilni večer.",
+            "bullets": [
+              "Rezerviraj mizo — sobota je lahko polna.",
+              "Alternativa (fine dining): Le Neuvième Art."
+            ],
+            "priceLabel": "€35–55",
+            "lat": 45.7485,
+            "lng": 4.8265
+          }
+        ]
+      }
+    },
+    {
+      "day": 7,
+      "date": "2026-11-01",
+      "title": "Povratek v Pariz in miren večer",
+      "city": "Paris",
+      "focusName": "Saint-Germain-des-Prés",
+      "lat": 48.8539,
+      "lng": 2.3335,
+      "dailyBudgetEur": 170,
+      "category": "transport",
+      "travelHack": "Za jutrišnji let ob 06:00 izberi hotel bližje CDG ali vnaprej rezerviraj jutranji taxi — ne računaj na prvi RER.",
+      "transportationTips": "TGV Lyon→Pariz približno 2 uri. Ob prihodu na Gare de Lyon: metro ali RER do hotela.",
+      "localWarnings": "Zgodnji jutranji let — večer zaključi pravočasno.",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "transportation": [
+        {
+          "type": "train",
+          "from": "Lyon Part-Dieu",
+          "to": "Paris Gare de Lyon",
+          "duration": "2h",
+          "estimatedPrice": 70
+        }
+      ],
+      "activities": {
+        "morning": [
+          {
+            "name": "Hitri vlak TGV nazaj v Pariz",
+            "type": "TRANSPORT",
+            "description": "Jutranji TGV iz Lyon Part-Dieu do Paris Gare de Lyon.",
+            "bullets": [
+              "Vožnja traja približno 2 uri.",
+              "Prtljago imej pripravljeno za hiter transfer."
+            ],
+            "priceLabel": "€70",
+            "transportType": "train"
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Check-in v pariškem hotelu",
+            "type": "STAY",
+            "description": "Namestitev — idealno bližje CDG ali z zanesljivim jutranjim taxijem.",
+            "bullets": [
+              "Za let ob 06:00 ne računaj na prvi jutranji vlak.",
+              "Taxi/Uber rezerviraj že zvečer."
+            ]
+          },
+          {
+            "name": "Saint-Germain-des-Prés",
+            "type": "SIGHT",
+            "description": "Kava v literarni kavarni, knjigarne in miren sprehod.",
+            "bullets": [
+              "Kava: Café de Flore ali Les Deux Magots — klasična Saint-Germain izkušnja.",
+              "Metro povezave so dobre, če ostaneš v centru."
+            ],
+            "priceLabel": "€15",
+            "lat": 48.8539,
+            "lng": 2.3335
+          }
+        ],
+        "evening": [
+          {
+            "name": "Večerja: Le Procope",
+            "type": "EAT",
+            "description": "Priporočamo Le Procope — zgodnja poslovilna večerja pred letom ob 06:00.",
+            "bullets": [
+              "Zgodnji slot (18:30–19:30) — jutri zgodaj vstaneš.",
+              "Hitrejša alternativa: Bouillon République."
+            ],
+            "priceLabel": "€35–50",
+            "lat": 48.8532,
+            "lng": 2.3388
+          }
+        ]
+      }
+    },
+    {
+      "day": 8,
+      "date": "2026-11-02",
+      "title": "Odhod iz Pariza",
+      "city": "Paris",
+      "focusName": "CDG",
+      "lat": 49.0097,
+      "lng": 2.5479,
+      "dailyBudgetEur": 26,
+      "category": "transport",
+      "travelHack": "Za mednarodni let ob 06:00 bodi na CDG okoli 03:00 — samo vnaprej rezerviran taxi/Uber.",
+      "transportationTips": "Za zgodnji jutranji let z CDG vnaprej rezerviraj taxi ali Uber/Bolt zvečer prej. Na mednarodni let pridi ~3 ure pred odhodom.",
+      "localWarnings": "Javni prevoz ob tej uri ni zanesljiv za check-in — ne računaj na prvi RER.",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [
+          {
+            "name": "Transfer na CDG in mednarodni odhod",
+            "type": "TRANSPORT",
+            "description": "Vnaprej rezerviran taxi na letališče in odhod.",
+            "bullets": [
+              "Odhod iz hotela okoli 02:45–03:15.",
+              "Na mednarodni let pridi ~3 ure pred odhodom."
+            ],
+            "arrivalTime": "06:00",
+            "departureTime": "07:25"
+          }
+        ],
+        "afternoon": [],
+        "evening": []
+      }
+    }
+  ]
+}

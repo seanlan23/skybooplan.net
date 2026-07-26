@@ -195,8 +195,11 @@ function normalizeActivityTransportType(
     : undefined;
 }
 
-function parseRouteFromTitle(title: string): { from?: string; to?: string } {
-  const match = title.match(/(.+?)\s*(?:→|->|—|–|-)\s*(.+)/);
+/** Split "A → B" / "A - B" routes; never treat compound hyphens (High-Speed) as separators. */
+export function parseRouteFromTitle(title: string): { from?: string; to?: string } {
+  // Prefer arrows; only treat spaced hyphen as a route separator (never "High-Speed").
+  const match =
+    title.match(/(.+?)\s*(?:→|->|—|–)\s*(.+)/) || title.match(/(.+?)\s+-\s+(.+)/);
   if (!match) return {};
   return { from: match[1]!.trim(), to: match[2]!.trim() };
 }

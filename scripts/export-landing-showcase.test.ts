@@ -1,5 +1,5 @@
 /**
- * Export curated landing showcase PDFs (NYC + Sydney).
+ * Export curated landing showcase PDFs (NYC + Sydney + France + motorhome).
  * npx vitest run scripts/export-landing-showcase.test.ts
  */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -30,6 +30,15 @@ const SHOWCASES = [
     pace: "balanced",
   },
   {
+    id: "france",
+    file: "france-curated.json",
+    title: "München → Francija — showcase",
+    start: "2026-10-26",
+    end: "2026-11-02",
+    wishes: "Pariz + Lyon: TGV, gastronomija, zgodnji povratni let samo s taxijem.",
+    pace: "balanced",
+  },
+  {
     id: "motorhome-nl",
     file: "motorhome-nl-curated.json",
     title: "Avtodom · Slovenj Gradec → North Holland",
@@ -42,7 +51,7 @@ const SHOWCASES = [
 
 describe("landing showcase PDFs", () => {
   it(
-    "writes curated NYC + Sydney PDFs to public/showcase and plan-exports",
+    "writes curated showcase PDFs to public/showcase and plan-exports",
     async () => {
       const srcDir = resolve(process.cwd(), "plan-exports/landing-showcase");
       const publicDir = resolve(process.cwd(), "public/showcase");
@@ -78,11 +87,19 @@ describe("landing showcase PDFs", () => {
           expect(meals.length).toBeLessThanOrEqual(1);
           if (day.transportationTips) {
             expect(day.transportationTips).not.toMatch(/A14\/A4/i);
+            // Early-flight days must not suggest first RER/metro as viable.
+            expect(day.transportationTips).not.toMatch(
+              /RER B.*04[:.]50|starts running around 0?4/i,
+            );
           }
           for (const leg of day.transportation ?? []) {
             expect(`${leg.from} → ${leg.to}`).not.toMatch(
               /trajekt.*→\s*Amsterdam|Den Helder\s*→\s*Amsterdam/i,
             );
+            expect(`${leg.from} → ${leg.to}`).not.toMatch(/^High\s*→\s*Speed/i);
+            if (/lyon|paris|gare de lyon|part-dieu/i.test(`${leg.from} ${leg.to}`)) {
+              expect(leg.duration).toMatch(/^2h/);
+            }
           }
         }
 
@@ -102,12 +119,20 @@ describe("landing showcase PDFs", () => {
         writeFileSync(resolve(srcDir, name), Buffer.from(pdf.buffer));
         writeFileSync(resolve(publicDir, name), Buffer.from(pdf.buffer));
 
-        // Also overwrite the user's Downloads copy for the motorhome soft-launch PDF.
+        // Also overwrite the user's Downloads copy for soft-launch PDFs.
         if (s.id === "motorhome-nl") {
           const downloads = resolve(
             process.env.HOME ?? "",
             "Downloads/Slovenj_Gradec_SI_-_North_Holland_NL.pdf",
           );
+          try {
+            writeFileSync(downloads, Buffer.from(pdf.buffer));
+          } catch {
+            // CI / sandbox without Downloads — ignore.
+          }
+        }
+        if (s.id === "france") {
+          const downloads = resolve(process.env.HOME ?? "", "Downloads/MUC_-_CDG-3.pdf");
           try {
             writeFileSync(downloads, Buffer.from(pdf.buffer));
           } catch {
@@ -125,6 +150,7 @@ describe("landing showcase PDFs", () => {
           "",
           "- `nyc-showcase.pdf` — New York, 7 dni",
           "- `sydney-showcase.pdf` — Sydney, 14 dni (long-haul)",
+          "- `france-showcase.pdf` — Pariz + Lyon (MUC→CDG), 8 dni",
           "- `motorhome-nl-showcase.pdf` — Avtodom SG → North Holland, 11 dni",
           "",
           "Javne kopije: `/showcase/*.pdf`",

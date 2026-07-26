@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { AiTripPlan, DayPlan } from "@/lib/aiPlan.functions";
 import {
+  alignTransportationDurationWithTips,
   applyItineraryGuards,
   dedupeNearIdenticalConsecutiveDays,
   dedupeSameDayMeals,
   isEnricherPlaceholderActivity,
+  scrubUnsafeEarlyAirportTips,
   stripPhantomArrivals,
   stripPlaceholderActivities,
 } from "@/lib/itineraryGuards";
@@ -303,5 +305,67 @@ describe("applyItineraryGuards", () => {
     expect(stats.clones).toBeGreaterThanOrEqual(1);
     expect(plan.days[1]!.activities!.afternoon).toHaveLength(0);
     expect(plan.days[4]!.activities!.evening).toHaveLength(1);
+  });
+});
+
+describe("scrubUnsafeEarlyAirportTips", () => {
+  it("removes first-RER advice for a 06:00 international departure", () => {
+    const plan = {
+      destinationName: "France",
+      contentLanguage: "en",
+      days: [
+        day({
+          day: 8,
+          city: "Paris",
+          transportationTips:
+            "For an early morning flight from CDG, consider pre-booking a taxi or an Uber/Bolt the night before. Alternatively, if staying in central Paris, the RER B train starts running around 04:50 AM, but ensure it aligns with your check-in time.",
+          activities: {
+            morning: [
+              {
+                name: "International return flight",
+                type: "TRANSPORT",
+                description: "Depart 06:00.",
+                arrivalTime: "06:00",
+                departureTime: "07:25",
+              },
+            ],
+            afternoon: [],
+            evening: [],
+          },
+        }),
+      ],
+    } as AiTripPlan;
+
+    expect(scrubUnsafeEarlyAirportTips(plan)).toBe(1);
+    expect(plan.days[0]!.transportationTips).toMatch(/taxi|Uber/i);
+    expect(plan.days[0]!.transportationTips).not.toMatch(/RER|04:50/i);
+  });
+});
+
+describe("alignTransportationDurationWithTips", () => {
+  it("lifts understated TGV banner duration to match tip hours", () => {
+    const plan = {
+      destinationName: "France",
+      days: [
+        day({
+          day: 3,
+          city: "Lyon",
+          transportationTips:
+            "The TGV train is the fastest way to travel from Paris to Lyon (approx. 2 hours).",
+          transportation: [
+            {
+              type: "train",
+              from: "Paris Gare de Lyon",
+              to: "Lyon Part-Dieu",
+              duration: "1h",
+              estimatedPrice: 70,
+            },
+          ],
+        }),
+      ],
+    } as AiTripPlan;
+
+    expect(alignTransportationDurationWithTips(plan)).toBe(1);
+    expect(plan.days[0]!.transportation![0]!.duration).toBe("2h");
   });
 });

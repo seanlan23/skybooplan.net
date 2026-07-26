@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizePlanForPdf, sanitizePdfText } from "@/lib/pdf-export";
+import { isPdfDaypartToken, normalizePlanForPdf, sanitizePdfText } from "@/lib/pdf-export";
 
 describe("sanitizePdfText", () => {
   it("strips emoji that break jsPDF custom fonts", () => {
@@ -155,5 +155,51 @@ describe("normalizePlanForPdf", () => {
     });
     expect(model.days[0]!.title).toBe("Čokoladni hribi in tarsierji");
     expect(model.summary).toContain("čokoladnih");
+  });
+
+  it("does not show Morning/Afternoon timeSlot as activity clock badges", () => {
+    expect(isPdfDaypartToken("Morning")).toBe(true);
+    expect(isPdfDaypartToken("14:30")).toBe(false);
+
+    const model = normalizePlanForPdf({
+      title: "MUC → CDG",
+      destination: "France",
+      start_date: "2026-10-26",
+      end_date: "2026-10-27",
+      language: "en",
+      itinerary: {
+        days: [
+          {
+            day: 2,
+            title: "Iconic Paris",
+            city: "Paris",
+            activities: {
+              morning: [
+                {
+                  name: "Eiffel Tower Experience",
+                  timeSlot: "Morning",
+                  time: "Morning",
+                  description: "Pre-book tickets.",
+                  estimatedCostEur: 29,
+                },
+              ],
+              afternoon: [],
+              evening: [
+                {
+                  name: "Seine River Cruise",
+                  timeSlot: "Evening",
+                  description: "Sunset cruise.",
+                },
+              ],
+            },
+          },
+        ],
+      },
+    });
+
+    const morning = model.days[0]!.slots.find((s) => s.label === "Morning");
+    const evening = model.days[0]!.slots.find((s) => s.label === "Evening");
+    expect(morning?.items[0]?.time).toBeUndefined();
+    expect(evening?.items[0]?.time).toBeUndefined();
   });
 });

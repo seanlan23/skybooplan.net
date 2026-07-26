@@ -253,6 +253,148 @@ export function dedupeNearIdenticalConsecutiveDays(
   return fixed;
 }
 
+function parseHhMmToMinutes(raw: string | undefined | null): number | null {
+  if (!raw?.trim()) return null;
+  const m = /^(\d{1,2}):(\d{2})$/.exec(raw.trim());
+  if (!m) return null;
+  const h = Number(m[1]);
+  const min = Number(m[2]);
+  if (h > 23 || min > 59) return null;
+  return h * 60 + min;
+}
+
+/** Earliest departure / flight clock on a day (boarding-pass or activity fields). */
+function earliestDepartureMinutes(day: DayPlan): number | null {
+  let best: number | null = null;
+  const consider = (t?: string | null) => {
+    const m = parseHhMmToMinutes(t);
+    if (m == null) return;
+    if (best == null || m < best) best = m;
+  };
+  for (const slot of SLOTS) {
+    for (const a of day.activities?.[slot] ?? []) {
+      const blob = `${a.name ?? ""} ${a.description ?? ""}`.toLowerCase();
+      if (
+        /odlet|odhod|departure|return flight|mednarodni|international|flight home|prevoz na letališč|airport transfer/i.test(
+          blob,
+        )
+      ) {
+        consider(a.arrivalTime);
+        consider(a.departureTime);
+      }
+    }
+  }
+  return best;
+}
+
+function parseApproxHoursFromTips(tips: string): number | null {
+  const m =
+    /(?:approx\.?|approximately|približno|circa|etwa|about|~)\s*(\d+(?:[.,]\d+)?)\s*(?:h\b|ur[ae]?|hours?|stunden?)/i.exec(
+      tips,
+    ) || /\b(\d+(?:[.,]\d+)?)\s*(?:hours?|ur[ae]?|stunden?)\b/i.exec(tips);
+  if (!m) return null;
+  const n = Number(String(m[1]).replace(",", "."));
+  return Number.isFinite(n) && n > 0 && n < 48 ? n : null;
+}
+
+function parseDurationToHours(duration: string): number | null {
+  const s = duration.trim().toLowerCase();
+  const hm = /^(\d+)\s*h(?:\s*(\d+)\s*m(?:in)?)?$/.exec(s);
+  if (hm) return Number(hm[1]) + (hm[2] ? Number(hm[2]) / 60 : 0);
+  const hOnly = /^(\d+(?:[.,]\d+)?)\s*h$/.exec(s);
+  if (hOnly) return Number(String(hOnly[1]).replace(",", "."));
+  const minOnly = /^(\d+)\s*m(?:in)?$/.exec(s);
+  if (minOnly) return Number(minOnly[1]) / 60;
+  return null;
+}
+
+function formatHoursDuration(hours: number): string {
+  const whole = Math.floor(hours);
+  const mins = Math.round((hours - whole) * 60);
+  if (mins <= 0) return `${whole}h`;
+  if (whole <= 0) return `${mins}min`;
+  return `${whole}h ${mins}min`;
+}
+
+/**
+ * Drop "first metro/RER at 04:50" advice when the flight is early morning —
+ * public transit first trains are almost never safe for a 06:00 international departure.
+ */
+export function scrubUnsafeEarlyAirportTips(plan: AiTripPlan): number {
+  let fixed = 0;
+  for (const day of plan.days ?? []) {
+    const tips = day.transportationTips?.trim();
+    if (!tips) continue;
+    const departMin = earliestDepartureMinutes(day);
+    const earlyByClock = departMin != null && departMin < 8 * 60;
+    const earlyByCopy =
+      /early\s+(morning\s+)?flight|zgodnj[iae]\s+(jutranj[iae]\s+)?let|frühen?\s+(morgen)?flug|vol\s+(très\s+)?tôt|vuelo\s+temprano/i.test(
+        tips,
+      ) ||
+      /0?[4-6]:\d{2}/.test(tips);
+    if (!earlyByClock && !earlyByCopy) continue;
+
+    const next = tips
+      .split(/(?<=[.!?])\s+/)
+      .filter((sentence) => {
+        const s = sentence.toLowerCase();
+        const mentionsFirstTransit =
+          /\b(rer|metro|métro|underground|u-bahn|s-bahn|train|vlak|zug|tren)\b/i.test(s) &&
+          /starts?\s+running|začne\s+voziti|erste[rn]?\s+|first\s+|od\s+okoli|around\s+0?[4-5]|ab\s+0?[4-5]|vers\s+0?[4-5]/i.test(
+            s,
+          );
+        const lateForFlight =
+          /0?[4-5][:.][0-5]\d/.test(s) &&
+          /\b(rer|metro|métro|train|vlak|check-?in|align)/i.test(s);
+        const altPublic =
+          /alternativ|or\s+take|lahko\s+tudi|če\s+ostajaš|if\s+staying|ensure\s+it\s+aligns/i.test(
+            s,
+          ) && /\b(rer|metro|métro|train|vlak|underground)\b/i.test(s);
+        return !(mentionsFirstTransit || lateForFlight || altPublic);
+      })
+      .join(" ")
+      .replace(/\s{2,}/g, " ")
+      .replace(/\s+([,.;])/g, "$1")
+      .trim();
+
+    if (next && next !== tips) {
+      day.transportationTips = next;
+      fixed += 1;
+    } else if (!next && tips) {
+      // Fall back to a safe taxi-only tip when we stripped everything.
+      const slo = !(plan.contentLanguage && !plan.contentLanguage.startsWith("sl"));
+      day.transportationTips = slo
+        ? "Za zgodnji jutranji let vnaprej rezerviraj taxi ali Uber/Bolt zvečer prej. Na mednarodni let pridi ~3 ure pred odhodom."
+        : "For an early morning flight, pre-book a taxi or Uber/Bolt the night before. Arrive ~3 hours before an international departure.";
+      fixed += 1;
+    }
+  }
+  return fixed;
+}
+
+/**
+ * When transport tips say "~2 hours" but the banner duration says "1h", prefer the tip
+ * (LLM often understates the card while writing a correct prose note).
+ */
+export function alignTransportationDurationWithTips(plan: AiTripPlan): number {
+  let fixed = 0;
+  for (const day of plan.days ?? []) {
+    const tips = day.transportationTips ?? "";
+    const tipHours = parseApproxHoursFromTips(tips);
+    if (tipHours == null) continue;
+    for (const leg of day.transportation ?? []) {
+      if (!leg.duration?.trim()) continue;
+      const legHours = parseDurationToHours(leg.duration);
+      if (legHours == null) continue;
+      if (tipHours >= legHours + 0.5) {
+        leg.duration = formatHoursDuration(tipHours);
+        fixed += 1;
+      }
+    }
+  }
+  return fixed;
+}
+
 /** Run all structural guards once (catalog finalize + after flight rewrite). */
 export function applyItineraryGuards(
   plan: AiTripPlan,
@@ -263,6 +405,8 @@ export function applyItineraryGuards(
   arrivals: number;
   clones: number;
   truncated: number;
+  earlyAirport: number;
+  durationAlign: number;
 } {
   const placeholders = stripPlaceholderActivities(plan);
   const meals = dedupeSameDayMeals(plan);
@@ -271,5 +415,15 @@ export function applyItineraryGuards(
     language: opts?.language ?? plan.contentLanguage,
   });
   const truncated = stripTruncatedCopyFromPlan(plan);
-  return { placeholders, meals, arrivals, clones, truncated };
+  const earlyAirport = scrubUnsafeEarlyAirportTips(plan);
+  const durationAlign = alignTransportationDurationWithTips(plan);
+  return {
+    placeholders,
+    meals,
+    arrivals,
+    clones,
+    truncated,
+    earlyAirport,
+    durationAlign,
+  };
 }

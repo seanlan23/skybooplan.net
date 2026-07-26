@@ -60,7 +60,7 @@ export const homepageUiByLang: Record<Exclude<Lang, "en" | "sl">, HomepageDict> 
     "social.feat.free.desc": "Planes IA completos, mapas y PDF — sin paywall.",
     "showcase.eyebrow": "Planes de ejemplo",
     "showcase.title": "Así se ve un plan terminado",
-    "showcase.subtitle": "Dos PDF demo para la beta — ábrelos o descárgalos, luego crea el tuyo arriba.",
+    "showcase.subtitle": "Cuatro PDF demo para la beta — city break, largo recorrido, Francia y autocaravana — luego crea el tuyo arriba.",
     "showcase.preview": "Ver PDF",
     "showcase.download": "Descargar",
     "showcase.nyc.route": "Liubliana → Nueva York",
@@ -73,6 +73,16 @@ export const homepageUiByLang: Record<Exclude<Lang, "en" | "sl">, HomepageDict> 
     "showcase.sydney.meta": "8 días · equilibrado · 2 viajeros",
     "showcase.sydney.blurb":
       "Puerto, paseo costero Bondi, Blue Mountains, ferry a Manly — sin días duplicados ni llegadas fantasma.",
+    "showcase.france.route": "Múnich → Francia",
+    "showcase.france.title": "París y Lyon",
+    "showcase.france.meta": "8 días · TGV · 2 viajeros",
+    "showcase.france.blurb":
+      "Iconos de París, TGV a Lyon, locales con nombre (Chez Janou, Abel, Halles Bocuse) — vuelo 06:00 solo con taxi, sin RER 04:50.",
+    "showcase.motorhome.route": "Slovenj Gradec → Holanda del Norte",
+    "showcase.motorhome.title": "Viaje en autocaravana",
+    "showcase.motorhome.meta": "11 días · campings · 2 viajeros",
+    "showcase.motorhome.blurb":
+      "Salzburgo, Rin, Ámsterdam, ferry a Texel, regreso por Heidelberg — campings limpios, sin tips A14 ni texto cortado.",
     "inspiration.title": "Inspiración para viajar",
     "inspiration.subtitle": "Elige una idea — el texto se copia al planificador IA donde añades fechas y preferencias.",
     "inspiration.cta": "Empezar plan",
@@ -199,7 +209,7 @@ export const homepageUiByLang: Record<Exclude<Lang, "en" | "sl">, HomepageDict> 
     "social.feat.free.desc": "Plans IA complets, cartes et PDF — sans paywall.",
     "showcase.eyebrow": "Exemples de plans",
     "showcase.title": "Voici à quoi ressemble un plan fini",
-    "showcase.subtitle": "Deux PDF démo pour la bêta — ouvrez ou téléchargez, puis créez le vôtre ci-dessus.",
+    "showcase.subtitle": "Quatre PDF démo pour la bêta — city break, long-courrier, France et camping-car — puis créez le vôtre ci-dessus.",
     "showcase.preview": "Aperçu PDF",
     "showcase.download": "Télécharger",
     "showcase.nyc.route": "Ljubljana → New York",
@@ -212,6 +222,16 @@ export const homepageUiByLang: Record<Exclude<Lang, "en" | "sl">, HomepageDict> 
     "showcase.sydney.meta": "8 jours · équilibré · 2 voyageurs",
     "showcase.sydney.blurb":
       "Port, coastal walk Bondi, Blue Mountains, ferry Manly — sans jours copiés-collés ni arrivées fantômes.",
+    "showcase.france.route": "Munich → France",
+    "showcase.france.title": "Paris & Lyon",
+    "showcase.france.meta": "8 jours · TGV · 2 voyageurs",
+    "showcase.france.blurb":
+      "Icônes parisiennes, TGV vers Lyon, adresses nommées (Chez Janou, Abel, Halles Bocuse) — vol 06h00 en taxi seulement, sans RER 04h50.",
+    "showcase.motorhome.route": "Slovenj Gradec → Hollande-du-Nord",
+    "showcase.motorhome.title": "Road trip en camping-car",
+    "showcase.motorhome.meta": "11 jours · campings · 2 voyageurs",
+    "showcase.motorhome.blurb":
+      "Salzbourg, Rhin, Amsterdam, ferry vers Texel, retour via Heidelberg — campings propres, sans tips A14 ni texte coupé.",
     "inspiration.title": "Inspiration voyage",
     "inspiration.subtitle": "Choisissez une idée — le texte est copié dans le planificateur IA où vous ajoutez dates et préférences.",
     "inspiration.cta": "Commencer le plan",
@@ -338,7 +358,7 @@ export const homepageUiByLang: Record<Exclude<Lang, "en" | "sl">, HomepageDict> 
     "social.feat.free.desc": "Volle KI-Pläne, Karten und PDF — ohne Paywall.",
     "showcase.eyebrow": "Beispielpläne",
     "showcase.title": "So sieht ein fertiger Plan aus",
-    "showcase.subtitle": "Zwei kuratierte Demo-PDFs für die Beta — öffnen oder laden, dann oben deinen eigenen bauen.",
+    "showcase.subtitle": "Vier kuratierte Demo-PDFs für die Beta — City Break, Langstrecke, Frankreich und Wohnmobil — dann oben deinen eigenen bauen.",
     "showcase.preview": "PDF ansehen",
     "showcase.download": "Herunterladen",
     "showcase.nyc.route": "Ljubljana → New York",
@@ -351,6 +371,16 @@ export const homepageUiByLang: Record<Exclude<Lang, "en" | "sl">, HomepageDict> 
     "showcase.sydney.meta": "8 Tage · ausgewogen · 2 Reisende",
     "showcase.sydney.blurb":
       "Hafen, Bondi Coastal Walk, Blue Mountains, Manly-Fähre — keine Copy-Paste-Tage, keine Phantom-Ankunft.",
+    "showcase.france.route": "München → Frankreich",
+    "showcase.france.title": "Paris & Lyon",
+    "showcase.france.meta": "8 Tage · TGV · 2 Reisende",
+    "showcase.france.blurb":
+      "Pariser Ikonen, TGV nach Lyon, konkrete Lokale (Chez Janou, Abel, Halles Bocuse) — Frühflug 06:00 nur mit Taxi, kein RER 04:50.",
+    "showcase.motorhome.route": "Slovenj Gradec → Nordholland",
+    "showcase.motorhome.title": "Wohnmobil-Roadtrip",
+    "showcase.motorhome.meta": "11 Tage · Campings · 2 Reisende",
+    "showcase.motorhome.blurb":
+      "Salzburg, Rhein, Amsterdam, Fähre nach Texel, Rückweg über Heidelberg — saubere Campings, ohne A14-Spam und abgeschnittene Sätze.",
     "inspiration.title": "Reiseinspiration",
     "inspiration.subtitle": "Wähle eine Idee — der Text wird in den KI-Planer übernommen, wo du Daten und Wünsche ergänzt.",
     "inspiration.cta": "Plan starten",
@@ -480,7 +510,7 @@ export const homepageUiByLang: Record<Exclude<Lang, "en" | "sl">, HomepageDict> 
     "social.feat.free.desc": "Piani IA completi, mappe e PDF — senza paywall.",
     "showcase.eyebrow": "Piani di esempio",
     "showcase.title": "Ecco com’è un piano finito",
-    "showcase.subtitle": "Due PDF demo per la beta — aprili o scaricali, poi crea il tuo sopra.",
+    "showcase.subtitle": "Quattro PDF demo per la beta — city break, long-haul, Francia e camper — poi crea il tuo sopra.",
     "showcase.preview": "Anteprima PDF",
     "showcase.download": "Scarica",
     "showcase.nyc.route": "Lubiana → New York",
@@ -493,6 +523,16 @@ export const homepageUiByLang: Record<Exclude<Lang, "en" | "sl">, HomepageDict> 
     "showcase.sydney.meta": "8 giorni · bilanciato · 2 viaggiatori",
     "showcase.sydney.blurb":
       "Porto, coastal walk Bondi, Blue Mountains, ferry Manly — senza giorni duplicati né arrivi fantasma.",
+    "showcase.france.route": "Monaco di Baviera → Francia",
+    "showcase.france.title": "Parigi & Lione",
+    "showcase.france.meta": "8 giorni · TGV · 2 viaggiatori",
+    "showcase.france.blurb":
+      "Icone di Parigi, TGV a Lione, locali con nome (Chez Janou, Abel, Halles Bocuse) — volo 06:00 solo con taxi, senza RER 04:50.",
+    "showcase.motorhome.route": "Slovenj Gradec → Olanda Settentrionale",
+    "showcase.motorhome.title": "Road trip in camper",
+    "showcase.motorhome.meta": "11 giorni · campeggi · 2 viaggiatori",
+    "showcase.motorhome.blurb":
+      "Salisburgo, Reno, Amsterdam, traghetto per Texel, ritorno via Heidelberg — campeggi puliti, senza tip A14 né testo tagliato.",
     "inspiration.title": "Ispirazione di viaggio",
     "inspiration.subtitle": "Scegli un'idea — il testo viene copiato nel pianificatore IA dove aggiungi date e preferenze.",
     "inspiration.cta": "Inizia il piano",

@@ -354,7 +354,7 @@ const en: Dict = {
   "social.feat.free.desc": "Full AI plans, maps and PDF — no paywall, no hidden fees.",
   "showcase.eyebrow": "Sample plans",
   "showcase.title": "See what a finished plan looks like",
-  "showcase.subtitle": "Three curated demo PDFs for beta — city break, long-haul, and motorhome — then build your own above.",
+  "showcase.subtitle": "Four curated demo PDFs for beta — city break, long-haul, France, and motorhome — then build your own above.",
   "showcase.preview": "Preview PDF",
   "showcase.download": "Download",
   "showcase.nyc.route": "Ljubljana → New York",
@@ -367,6 +367,11 @@ const en: Dict = {
   "showcase.sydney.meta": "14 days · long-haul pace · 2 travelers",
   "showcase.sydney.blurb":
     "Jet-lag buffer, harbour icons, Bondi, Blue Mountains, Manly, Watsons Bay, Newtown — tempo built for Europe→Australia, not a city break.",
+  "showcase.france.route": "Munich → France",
+  "showcase.france.title": "Paris & Lyon",
+  "showcase.france.meta": "8 days · TGV · 2 travelers",
+  "showcase.france.blurb":
+    "Paris icons, TGV to Lyon, named bouchons (Abel, Halles Bocuse) — early 06:00 return with pre-booked taxi only, no unsafe RER tip.",
   "showcase.motorhome.route": "Slovenj Gradec → North Holland",
   "showcase.motorhome.title": "Motorhome road trip",
   "showcase.motorhome.meta": "11 days · camps · 2 travelers",
@@ -1408,7 +1413,7 @@ const dicts: Record<DictLang, Dict> = {
     "social.feat.free.desc": "Celoten AI načrt, zemljevid in PDF — brez plačilnega zidu.",
     "showcase.eyebrow": "Primer načrta",
     "showcase.title": "Tako izgleda končni načrt",
-    "showcase.subtitle": "Tri curated demo PDF-ji za beto — city break, dolgi let in avtodom — nato sestavi svojega zgoraj.",
+    "showcase.subtitle": "Štirje curated demo PDF-ji za beto — city break, dolgi let, Francija in avtodom — nato sestavi svojega zgoraj.",
     "showcase.preview": "Predogled PDF",
     "showcase.download": "Prenesi",
     "showcase.nyc.route": "Ljubljana → New York",
@@ -1421,6 +1426,11 @@ const dicts: Record<DictLang, Dict> = {
     "showcase.sydney.meta": "14 dni · long-haul tempo · 2 potnika",
     "showcase.sydney.blurb":
       "Dan za jet lag, pristanišče, Bondi, Blue Mountains, Manly, Watsons Bay, Newtown — tempo za Evropo→Avstralijo, ne city-break.",
+    "showcase.france.route": "München → Francija",
+    "showcase.france.title": "Pariz & Lyon",
+    "showcase.france.meta": "8 dni · TGV · 2 potnika",
+    "showcase.france.blurb":
+      "Pariške ikone, TGV v Lyon, konkretni lokali (Chez Janou, Abel, Halles Bocuse) — zgodnji let ob 06:00 samo z taxijem, brez RER 04:50.",
     "showcase.motorhome.route": "Slovenj Gradec → North Holland",
     "showcase.motorhome.title": "Avtodomski roadtrip",
     "showcase.motorhome.meta": "11 dni · kampi · 2 potnika",

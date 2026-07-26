@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   dedupePlanDaysByNumber,
+  parseRouteFromTitle,
   planCalendarDayCount,
   tripPlanResponseToAiTripPlan,
 } from "@/lib/geminiPlanMap";
@@ -211,5 +212,16 @@ describe("dedupePlanDaysByNumber", () => {
     const out = dedupePlanDaysByNumber([thin, rich]);
     expect(out).toHaveLength(1);
     expect(out[0]?.title).toBe("Rich");
+  });
+});
+
+describe("parseRouteFromTitle", () => {
+  it("does not split High-Speed compounds on hyphen", () => {
+    expect(parseRouteFromTitle("High-Speed Train to Lyon")).toEqual({});
+  });
+
+  it("still parses spaced hyphen and arrow routes", () => {
+    expect(parseRouteFromTitle("Paris - Lyon")).toEqual({ from: "Paris", to: "Lyon" });
+    expect(parseRouteFromTitle("Paris → Lyon")).toEqual({ from: "Paris", to: "Lyon" });
   });
 });

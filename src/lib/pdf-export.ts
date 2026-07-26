@@ -340,14 +340,18 @@ function labelsFor(lang: PlanForPdf["language"], sampleText: string): PdfLabels 
 }
 
 /** Map Gemini/internal slot tokens (often Slovenian) to PDF morning/afternoon/evening labels. */
+/** True when a "time" value is really a day-part label (already shown as a slot pill). */
+export function isPdfDaypartToken(raw: string | undefined): boolean {
+  if (!raw?.trim()) return false;
+  return /^(dopoldan|popoldan|večer|vecer|morning|afternoon|evening|mattina|pomeriggio|sera|morgen|nachmittag|abend|matin|après-midi|apres-midi|soir|mañana|tarde|noche|nuit)$/i.test(
+    raw.trim(),
+  );
+}
+
 function localizePdfTimeToken(raw: string | undefined, labels: PdfLabels): string | undefined {
   if (!raw?.trim()) return undefined;
-  const s = raw.trim().toLowerCase();
-  if (/^(dopoldan|morning|mattina|morgen|matin|mañana)$/i.test(s)) return labels.morning;
-  if (/^(popoldan|afternoon|pomeriggio|nachmittag|après-midi|apres-midi|tarde)$/i.test(s)) {
-    return labels.afternoon;
-  }
-  if (/^(večer|vecer|evening|sera|abend|soir|noche|nuit)$/i.test(s)) return labels.evening;
+  // Day-part tokens are owned by slot pills — omit from the activity clock column.
+  if (isPdfDaypartToken(raw)) return undefined;
   return raw.trim();
 }
 
@@ -416,17 +420,19 @@ function activityFromUnknown(
   const o = raw as Record<string, unknown>;
   const title = textOf(o.name) || textOf(o.title);
   if (!title) return null;
+  // Slot names (Morning/Afternoon/…) are section headers — never show them as clock badges.
+  const explicitTime = textOf(o.time);
+  const clockFromFields = formatActivityClockLabel({
+    name: title,
+    description: textOf(o.description) || undefined,
+    type: textOf(o.type) || undefined,
+    transportType: textOf(o.transportType) || undefined,
+    arrivalTime: textOf(o.arrivalTime) || undefined,
+    departureTime: textOf(o.departureTime) || undefined,
+  });
   const rawTime =
-    textOf(o.time) ||
-    textOf(o.timeSlot) ||
-    formatActivityClockLabel({
-      name: title,
-      description: textOf(o.description) || undefined,
-      type: textOf(o.type) || undefined,
-      transportType: textOf(o.transportType) || undefined,
-      arrivalTime: textOf(o.arrivalTime) || undefined,
-      departureTime: textOf(o.departureTime) || undefined,
-    }) ||
+    (explicitTime && !isPdfDaypartToken(explicitTime) ? explicitTime : undefined) ||
+    clockFromFields ||
     undefined;
   const time = labels ? localizePdfTimeToken(rawTime, labels) : rawTime;
   const price =
