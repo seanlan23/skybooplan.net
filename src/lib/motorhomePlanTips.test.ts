@@ -6,8 +6,85 @@ import {
 } from "@/lib/motorhomePlanTips";
 import { enrichDayActivities } from "@/lib/dayEnrichers";
 import { resolveTripLocale } from "@/lib/tripLocale";
+import { repairTruncatedCopy } from "@/lib/textSanitize";
+
+describe("repairTruncatedCopy", () => {
+  it("closes mid-sentence ellipsis without leaving dangling 'in…'", () => {
+    const raw =
+      "Ustavite se v kakšnem manjšem mestu ob poti ali na urejenem počivališču za kosilo v avtodomu in…";
+    const out = repairTruncatedCopy(raw);
+    expect(out).not.toMatch(/…|\.\.\./);
+    expect(out).toMatch(/avtodomu\.?$/i);
+    expect(out).not.toMatch(/\bin\s*$/i);
+  });
+});
 
 describe("enrichMotorhomePlanTips", () => {
+  it("repairs Texel ferry → Amsterdam and strips A14 spam + ellipsis", () => {
+    const plan = {
+      groundTransportMode: "motorhome",
+      days: [
+        {
+          day: 5,
+          city: "Amsterdam",
+          title: "Amsterdam",
+          morning: "",
+          afternoon: "",
+          evening: "",
+          drivingDistanceKm: 0,
+          transportationTips: "",
+          activities: {},
+        },
+        {
+          day: 6,
+          city: "Amsterdam",
+          title: "Texel",
+          morning: "",
+          afternoon:
+            "Ustavite se v kakšnem manjšem mestu ob poti ali na urejenem počivališču za kosilo v avtodomu in…",
+          evening: "",
+          drivingDistanceKm: 400,
+          transportationTips: "Stari tip (npr. A14/A4).",
+          transportation: [
+            {
+              type: "van",
+              from: "Vožnja do trajektnega pristanišča Den Helder",
+              to: "Amsterdam",
+              duration: "1h",
+              estimatedPrice: 0,
+            },
+            {
+              type: "ferry",
+              from: "Trajekt do otoka Texel",
+              to: "Amsterdam",
+              duration: "1h",
+              estimatedPrice: 0,
+            },
+          ],
+          activities: {
+            afternoon: [
+              {
+                name: "Postanek",
+                type: "ACTIVITY",
+                description:
+                  "Ustavite se v kakšnem manjšem mestu ob poti ali na urejenem počivališču za kosilo v avtodomu in…",
+              },
+            ],
+          },
+        },
+      ],
+    } as AiTripPlan;
+
+    enrichMotorhomePlanTips(plan, "sl");
+    const d6 = plan.days[1]!;
+    expect(d6.transportation?.[0]).toMatchObject({ from: "Amsterdam", to: "Den Helder" });
+    expect(d6.transportation?.[1]).toMatchObject({ from: "Den Helder", to: "Texel" });
+    expect(d6.transportationTips).not.toMatch(/A14\/A4/i);
+    expect(d6.transportationTips).toMatch(/avtocest/i);
+    expect(d6.activities?.afternoon?.[0]?.description).not.toMatch(/…/);
+    expect(d6.afternoon).not.toMatch(/…/);
+  });
+
   it("fixes Titova jama and adds Ferragosto tip", () => {
     const plan = {
       groundTransportMode: "motorhome",
@@ -49,7 +126,8 @@ describe("enrichMotorhomePlanTips", () => {
     enrichMotorhomePlanTips(plan, "sl");
     expect(plan.days[0]!.activities!.morning![0]!.name).toMatch(/Tiberijeva|Villa di Tiberio/i);
     expect(plan.days[0]!.transportationTips).toMatch(/Ferragosto|rezerviraj/i);
-    expect(plan.days[1]!.transportationTips).toMatch(/450|zastoj|A14/i);
+    expect(plan.days[1]!.transportationTips).toMatch(/450|zastoj|avtocest/i);
+    expect(plan.days[1]!.transportationTips).not.toMatch(/A14\/A4/i);
   });
 
   it("strips hotel wording and thins daily meal fillers", () => {

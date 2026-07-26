@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 
 type ShowcasePlan = {
-  id: "nyc" | "sydney";
+  id: "nyc" | "sydney" | "motorhome";
   href: string;
   imageUrl: string;
   routeKey: string;
@@ -32,6 +32,16 @@ const PLANS: ShowcasePlan[] = [
     metaKey: "showcase.sydney.meta",
     titleKey: "showcase.sydney.title",
     blurbKey: "showcase.sydney.blurb",
+  },
+  {
+    id: "motorhome",
+    href: "/showcase/motorhome-nl-showcase.pdf",
+    imageUrl:
+      "https://images.unsplash.com/photo-1523987355523-c7b5b0dd90a7?auto=format&fit=crop&w=1400&q=80",
+    routeKey: "showcase.motorhome.route",
+    metaKey: "showcase.motorhome.meta",
+    titleKey: "showcase.motorhome.title",
+    blurbKey: "showcase.motorhome.blurb",
   },
 ];
 
@@ -120,7 +130,7 @@ export function ShowcasePlansSection() {
           </p>
         </div>
 
-        <div className="mt-8 grid gap-4 sm:grid-cols-2 sm:gap-5">
+        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 sm:gap-5">
           {PLANS.map((plan) => (
             <ShowcasePlanCard key={plan.id} plan={plan} />
           ))}

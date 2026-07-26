@@ -142,4 +142,46 @@ describe("repairTransportLegs", () => {
     );
     expect(legs).toBeUndefined();
   });
+
+  it("rewrites Texel ferry legs that wrongly point at Amsterdam", () => {
+    const legs = repairTransportLegs(
+      [
+        {
+          type: "van",
+          from: "Vožnja do trajektnega pristanišča Den Helder",
+          to: "Amsterdam",
+          duration: "1h",
+          estimatedPrice: 0,
+        },
+        {
+          type: "ferry",
+          from: "Trajekt do otoka Texel",
+          to: "Amsterdam",
+          duration: "1h",
+          estimatedPrice: 0,
+        },
+      ],
+      {
+        dayNumber: 6,
+        city: "Amsterdam",
+        previousCity: "Amsterdam",
+      },
+    );
+    expect(legs).toEqual([
+      {
+        type: "van",
+        from: "Amsterdam",
+        to: "Den Helder",
+        duration: "1h",
+        estimatedPrice: 0,
+      },
+      {
+        type: "ferry",
+        from: "Den Helder",
+        to: "Texel",
+        duration: "1h",
+        estimatedPrice: 0,
+      },
+    ]);
+  });
 });

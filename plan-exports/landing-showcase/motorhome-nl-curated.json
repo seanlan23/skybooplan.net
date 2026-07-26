@@ -1,0 +1,479 @@
+{
+  "destinationName": "North Holland, NL",
+  "destinationPlace": "North Holland, NL",
+  "originPlace": "Slovenj Gradec, SI",
+  "contentLanguage": "sl",
+  "groundTransportMode": "motorhome",
+  "accommodationMode": "motorhome",
+  "summary": "Enajstdnevni avtodomski roadtrip iz Slovenj Gradca do Severne Holandije: Alpe, Ren, Amsterdam, Texel in miren povratek skozi Heidelberg in Linz.",
+  "totalBudgetEur": 1710,
+  "days": [
+    {
+      "day": 1,
+      "date": "2026-08-16",
+      "title": "Odhod iz Slovenj Gradca in vožnja do Salzburga",
+      "city": "Salzburg",
+      "lat": 47.8095,
+      "lng": 13.055,
+      "dailyBudgetEur": 70,
+      "drivingDistanceKm": 280,
+      "travelHack": "Na avstrijskih avtocestah potrebuješ vinjeto; kupi jo pred mejo ali na prvi bencinski.",
+      "transportationTips": "Krajša etapa: ustavi se za kosilo v okolici Villacha ali Salzburga, ne v mestnem jedru.",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [
+          {
+            "name": "Odhod iz Slovenj Gradca",
+            "type": "TRANSPORT",
+            "description": "Pripravite avtodom, preverite tlak v pnevmatikah in krenite proti severu skozi Koroško v smeri Salzburga.",
+            "priceLabel": "€0"
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Postanek in kosilo na poti",
+            "type": "ACTIVITY",
+            "description": "Ustavite se na urejenem počivališču ali v manjšem mestu ob poti — kosilo v avtodomu, kratek sprehod, nato naprej.",
+            "priceLabel": "€0"
+          }
+        ],
+        "evening": [
+          {
+            "name": "Prihod v Camping Nord-Sam, Salzburg",
+            "type": "STAY",
+            "description": "Namestitev v kampu Nord-Sam na obrobju Salzburga. Parkirajte zgodaj — avgust je poln.",
+            "priceLabel": "€25"
+          }
+        ]
+      }
+    },
+    {
+      "day": 2,
+      "date": "2026-08-17",
+      "title": "Vožnja do Koblenza ob Renu",
+      "city": "Koblenz",
+      "lat": 50.3569,
+      "lng": 7.589,
+      "dailyBudgetEur": 73,
+      "drivingDistanceKm": 600,
+      "travelHack": "Najdaljša etapa: zjutraj zgodaj ven, vsaki 2 uri 15 min pavze.",
+      "transportationTips": "Nemške avtoceste so brez cestnin, a okoli večjih mest so zastoji. Uporabi navigacijo v živo.",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [
+          {
+            "name": "Odhod iz Salzburga proti Koblenzu",
+            "type": "TRANSPORT",
+            "description": "Zgodnji odhod iz Salzburga in dolga vožnja proti Koblenzu — večji del dneva preživite na nemških avtocestah.",
+            "priceLabel": "€0"
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Postanek za kosilo in sprostitev",
+            "type": "ACTIVITY",
+            "description": "Dolga vožnja zahteva redne postanke. Ustavite se v manjšem mestu ob poti ali na urejenem počivališču za kosilo v avtodomu.",
+            "priceLabel": "€0"
+          }
+        ],
+        "evening": [
+          {
+            "name": "Prihod v Campingpark Winningen pri Koblenzu",
+            "type": "STAY",
+            "description": "Namestitev v kampu Winningen ob Mozeli, blizu Koblenza — mirno okolje po dolgi etapi.",
+            "priceLabel": "€20"
+          }
+        ]
+      }
+    },
+    {
+      "day": 3,
+      "date": "2026-08-18",
+      "title": "Vožnja do Amsterdama in spoznavanje okolice",
+      "city": "Amsterdam",
+      "lat": 52.3676,
+      "lng": 4.9041,
+      "dailyBudgetEur": 74,
+      "drivingDistanceKm": 400,
+      "travelHack": "V Amsterdam z avtodomom samo prek P+R / kampa na obrobju — ne v center.",
+      "transportationTips": "Iz kampa Zeeburg v center s tramvajem ali avtobusom. Bodite pozorni na kolesarje.",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [
+          {
+            "name": "Odhod iz Koblenza proti Amsterdamu",
+            "type": "TRANSPORT",
+            "description": "Dopoldanska vožnja iz Nemčije na Nizozemsko — krajša etapa kot včeraj, z več časa za prihod v kamp.",
+            "priceLabel": "€0"
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Prihod v Camping Zeeburg Amsterdam",
+            "type": "STAY",
+            "description": "Namestitev v kampu Zeeburg — dobra izhodiščna točka za Amsterdam, povezana z javnim prevozom.",
+            "priceLabel": "€20"
+          }
+        ],
+        "evening": [
+          {
+            "name": "Sprehod ob jezeru IJmeer",
+            "type": "ACTIVITY",
+            "description": "Po vožnji se sprehodite do bližnjega IJmeerja — mirna narava in opazovanje ptic.",
+            "priceLabel": "€0"
+          }
+        ]
+      }
+    },
+    {
+      "day": 4,
+      "date": "2026-08-19",
+      "title": "Ogled Amsterdama in vožnja po kanalih",
+      "city": "Amsterdam",
+      "lat": 52.3731,
+      "lng": 4.8922,
+      "dailyBudgetEur": 100,
+      "travelHack": "Vstopnice za Anne Frank House kupi online — dnevne kvote se hitro zapolnijo.",
+      "transportationTips": "Tramvaj 26 iz Zeeburga do Centraal. Avtodom pusti v kampu.",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [
+          {
+            "name": "Muzej Anne Frank",
+            "type": "SIGHT",
+            "description": "Obisk hiše Anne Frank — ganljiv in poučen ogled, rezervacija vnaprej je obvezna.",
+            "priceLabel": "€16"
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Vožnja s čolnom po kanalih Amsterdama",
+            "type": "ACTIVITY",
+            "description": "Doživite Amsterdam z vode: hiše ob kanalih, mostovi in živahno mestno življenje.",
+            "priceLabel": "€18"
+          }
+        ],
+        "evening": [
+          {
+            "name": "Večer v kampu Zeeburg",
+            "type": "STAY",
+            "description": "Po vrnitvi v kamp Zeeburg si privoščite sproščen večer — večerja v avtodomu ali sprehod po okolici.",
+            "priceLabel": "€20"
+          }
+        ]
+      }
+    },
+    {
+      "day": 5,
+      "date": "2026-08-20",
+      "title": "Izlet v Zaanse Schans in Volendam",
+      "city": "Amsterdam",
+      "lat": 52.4737,
+      "lng": 4.8163,
+      "dailyBudgetEur": 85,
+      "travelHack": "Zaanse Schans je turističen — pridi zgodaj zjutraj, pred avtobusnimi skupinami.",
+      "transportationTips": "Kratek dan z avtodomom: parkirišča za RV so označena; v Volendamu parkiraj zunaj peš cone.",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [
+          {
+            "name": "Obisk Zaanse Schans",
+            "type": "SIGHT",
+            "description": "Idilična vasica z mlini na veter, sirarnami in tradicionalnimi lesenimi hišami.",
+            "priceLabel": "€10"
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Volendam ob IJsselmeerju",
+            "type": "SIGHT",
+            "description": "Ribiško mestece z rivi in razgledom na jezero — kratek sprehod in kava ob vodi.",
+            "priceLabel": "€5"
+          }
+        ],
+        "evening": [
+          {
+            "name": "Povratek v Kamp Zeeburg",
+            "type": "STAY",
+            "description": "Vrni se v kamp pred večernim prometom; pripravi večerjo v avtodomu.",
+            "priceLabel": "€20"
+          }
+        ]
+      }
+    },
+    {
+      "day": 6,
+      "date": "2026-08-21",
+      "title": "Otok Texel — raj za naravo in plaže",
+      "city": "Amsterdam",
+      "focusName": "Texel",
+      "lat": 53.0547,
+      "lng": 4.795,
+      "dailyBudgetEur": 87,
+      "travelHack": "Avtodom pusti v Den Helderju; na otok kot pešec + kolo — ceneje in lažje.",
+      "transportationTips": "Trajekt Den Helder–Texel traja približno 20 minut. Parkirišče ob terminalu je plačljivo.",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "transportation": [
+        {
+          "type": "van",
+          "from": "Amsterdam",
+          "to": "Den Helder",
+          "duration": "1h 15min",
+          "estimatedPrice": 0
+        },
+        {
+          "type": "ferry",
+          "from": "Den Helder",
+          "to": "Texel",
+          "duration": "20min",
+          "estimatedPrice": 0
+        }
+      ],
+      "activities": {
+        "morning": [
+          {
+            "name": "Vožnja do trajektnega pristanišča Den Helder",
+            "type": "TRANSPORT",
+            "description": "Zgodnji odhod iz kampa in vožnja do trajektnega pristanišča v Den Helderju, od koder odplujete na Texel.",
+            "priceLabel": "€0"
+          },
+          {
+            "name": "Trajekt do otoka Texel",
+            "type": "TRANSPORT",
+            "description": "Kratka vožnja s trajektom čez Waddenzee (Unesco). Uživajte v razgledu na morje.",
+            "priceLabel": "€0"
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Raziskovanje otoka Texel s kolesom",
+            "type": "ACTIVITY",
+            "description": "Izposodite kolesa in raziščite plaže, sipine in vasice. Obvezno: Duinen van Texel in svetilnik Eierland.",
+            "priceLabel": "€15",
+            "bullets": [
+              "Obišči rezervat Duinen van Texel.",
+              "Svetilnik Eierland na severu otoka."
+            ]
+          }
+        ],
+        "evening": [
+          {
+            "name": "Večer v kampu Zeeburg Amsterdam",
+            "type": "STAY",
+            "description": "Po povratku s trajektom in vožnji nazaj v kamp Zeeburg — sproščen večer in večerja v avtodomu.",
+            "priceLabel": "€20"
+          }
+        ]
+      }
+    },
+    {
+      "day": 7,
+      "date": "2026-08-22",
+      "title": "Sprehod po sipinah in obisk Haarlema",
+      "city": "Amsterdam",
+      "lat": 52.3808,
+      "lng": 4.6368,
+      "dailyBudgetEur": 80,
+      "travelHack": "Zadnja polna noč na Nizozemskem — preveri zalogo vode in greznic pred jutrišnjim odhodom.",
+      "transportationTips": "Narodni park Zuid-Kennemerland ima parkirišča za obiskovalce; Haarlem center je bolje peš.",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [
+          {
+            "name": "Narodni park Zuid-Kennemerland",
+            "type": "SIGHT",
+            "description": "Sprehod po sipinah zahodno od Amsterdama — prostrana narava blizu obale.",
+            "priceLabel": "€0"
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Raziskovanje mesta Haarlem",
+            "type": "SIGHT",
+            "description": "Zgodovinski center, Grote Markt in katedrala St. Bavo — sproščen popoldanski ogled.",
+            "priceLabel": "€5"
+          }
+        ],
+        "evening": [
+          {
+            "name": "Kamp Zeeburg Amsterdam",
+            "type": "STAY",
+            "description": "Zadnja noč na Nizozemskem — miren večer v kampu pred povratkom proti jugu.",
+            "priceLabel": "€20"
+          }
+        ]
+      }
+    },
+    {
+      "day": 8,
+      "date": "2026-08-23",
+      "title": "Začetek povratne poti do Heidelberga",
+      "city": "Heidelberg",
+      "lat": 49.3988,
+      "lng": 8.6724,
+      "dailyBudgetEur": 75,
+      "drivingDistanceKm": 520,
+      "travelHack": "Rezerviraj kamp v Heidelbergu vnaprej — avgust je zaseden.",
+      "transportationTips": "Dolga etapa proti jugu: načrtuj dve daljši pavzi in točenje goriva pred večernim prometom.",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [
+          {
+            "name": "Odhod iz Amsterdama",
+            "type": "TRANSPORT",
+            "description": "Zjutraj se poslovite od Nizozemske in začnite povratno pot — prvi cilj je Heidelberg.",
+            "priceLabel": "€0"
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Postanek na poti v Nemčiji",
+            "type": "ACTIVITY",
+            "description": "Kosilo na počivališču ali v manjšem mestu ob poti; razteg in kratek sprehod pred nadaljevanjem.",
+            "priceLabel": "€0"
+          }
+        ],
+        "evening": [
+          {
+            "name": "Prihod v kamp Heidelberg",
+            "type": "STAY",
+            "description": "Namestitev v kampu v okolici Heidelberga — večer namenite počitku po vožnji.",
+            "priceLabel": "€22"
+          }
+        ]
+      }
+    },
+    {
+      "day": 9,
+      "date": "2026-08-24",
+      "title": "Vožnja do Linza v Avstriji",
+      "city": "Linz",
+      "lat": 48.3069,
+      "lng": 14.2858,
+      "dailyBudgetEur": 72,
+      "drivingDistanceKm": 480,
+      "travelHack": "Ob vstopu v Avstrijo preveri veljavnost vinjete.",
+      "transportationTips": "Etapa Heidelberg–Linz: računaj na več ur na avtocesti in morebitne zastoje okoli Münchna.",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [
+          {
+            "name": "Odhod iz Heidelberga",
+            "type": "TRANSPORT",
+            "description": "Nadaljevanje povratne poti proti Linzu — daljša vožnja skozi južno Nemčijo v Avstrijo.",
+            "priceLabel": "€0"
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Postanek za kosilo",
+            "type": "ACTIVITY",
+            "description": "Ustavite se na počivališču ali v manjšem mestu — kosilo v avtodomu in kratek odmor.",
+            "priceLabel": "€0"
+          }
+        ],
+        "evening": [
+          {
+            "name": "Kamp v okolici Linza",
+            "type": "STAY",
+            "description": "Namestitev v kampu pri Linzu — pripravite se na jutrišnji prehod v Slovenijo.",
+            "priceLabel": "€20"
+          }
+        ]
+      }
+    },
+    {
+      "day": 10,
+      "date": "2026-08-25",
+      "title": "Zadnja daljša etapa: do Ptuja",
+      "city": "Ptuj",
+      "lat": 46.4201,
+      "lng": 15.8702,
+      "dailyBudgetEur": 65,
+      "drivingDistanceKm": 320,
+      "travelHack": "Ptuj je miren zadnji postanek pred domom — zaloge dopolni še v Avstriji, če ti kaj manjka.",
+      "transportationTips": "Prehod v Slovenijo je hiter; izberi kamp z možnostjo praznjenja greznice pred zadnjim dnem.",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [
+          {
+            "name": "Odhod iz Linza proti Ptuju",
+            "type": "TRANSPORT",
+            "description": "Zadnja daljša etapa: iz Avstrije v Slovenijo do Ptuja.",
+            "priceLabel": "€0"
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Sprehod po starem Ptuju",
+            "type": "SIGHT",
+            "description": "Kratek sprehod po ptuiski ulicah in gradu — lahek zaključek voznega dne.",
+            "priceLabel": "€0"
+          }
+        ],
+        "evening": [
+          {
+            "name": "Kamp pri Ptuju",
+            "type": "STAY",
+            "description": "Zadnja noč na poti — miren večer pred kratko vožnjo domov.",
+            "priceLabel": "€18"
+          }
+        ]
+      }
+    },
+    {
+      "day": 11,
+      "date": "2026-08-26",
+      "title": "Prihod domov v Slovenj Gradec",
+      "city": "Slovenj Gradec",
+      "lat": 46.5094,
+      "lng": 15.0791,
+      "dailyBudgetEur": 40,
+      "drivingDistanceKm": 90,
+      "travelHack": "Pred vrnitvijo domov izprazni greznico in napolni vodo, če greš takoj v skladišče/garazo.",
+      "transportationTips": "Kratka lokalna etapa — brez avtocestnega stresa.",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [
+          {
+            "name": "Odhod iz Ptuja v Slovenj Gradec",
+            "type": "TRANSPORT",
+            "description": "Po zajtrku kratka vožnja domov v Slovenj Gradec — zaključek avtodomskega potovanja.",
+            "priceLabel": "€0"
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Prihod domov in razpakiranje",
+            "type": "ACTIVITY",
+            "description": "Parkiraj, razpakiraj in preveri seznam po potovanju (plin, voda, greznica).",
+            "priceLabel": "€0"
+          }
+        ],
+        "evening": []
+      }
+    }
+  ]
+}

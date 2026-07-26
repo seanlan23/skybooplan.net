@@ -78,6 +78,54 @@ function cityCenterLabel(city: string): string {
   return c ? `${c} — center` : "Center mesta";
 }
 
+/** Activity titles wrongly used as `from` ("Vožnja do Den Helder", "Trajekt do Texel"). */
+function isNarrativeRouteLabel(label: string): boolean {
+  return /^(vožnja|trajekt|drive|ferry|transfer|prevoz|odhod|prihod)\b/i.test(label.trim());
+}
+
+/** Pull real destination out of narrative transport titles. */
+export function extractDestinationFromNarrativeRoute(label: string): string | null {
+  const s = label.replace(/\s+/g, " ").trim();
+  if (!s) return null;
+  const port = s.match(
+    /(?:trajektn(?:ega|o)\s+pristanišč[a-z]*|ferry\s+port|ferry\s+terminal)\s+(.+)$/i,
+  );
+  if (port?.[1]) return port[1].trim();
+  const island = s.match(/\b(?:do|to|na)\s+(?:otoka\s+|island\s+)?(.+)$/i);
+  if (island?.[1]) {
+    return island[1]
+      .replace(/^trajektnega\s+pristanišč[a-z]*\s+/i, "")
+      .trim();
+  }
+  return null;
+}
+
+function repairNarrativeMotorhomeLeg(
+  leg: DayTransportLeg,
+  ctx: { city: string; previousCity?: string },
+): DayTransportLeg {
+  const from = (leg.from ?? "").trim();
+  const to = (leg.to ?? "").trim();
+  if (!from || !to) return leg;
+  if (!isNarrativeRouteLabel(from)) return leg;
+  // Wrong pattern: "Trajekt do otoka Texel → Amsterdam" (day city stuck as `to`).
+  if (!placesMatch(to, ctx.city)) return leg;
+
+  const dest = extractDestinationFromNarrativeRoute(from);
+  if (!dest) return leg;
+
+  if (/texel/i.test(dest)) {
+    return { ...leg, type: "ferry", from: "Den Helder", to: "Texel" };
+  }
+  if (/den\s*helder/i.test(dest)) {
+    const origin = ctx.previousCity?.trim() || ctx.city;
+    return { ...leg, type: leg.type === "ferry" ? "van" : leg.type, from: origin, to: "Den Helder" };
+  }
+
+  const origin = ctx.previousCity?.trim() || ctx.city;
+  return { ...leg, from: origin, to: dest };
+}
+
 export function repairTransportLegs(
   legs: DayTransportLeg[] | undefined,
   ctx: {
@@ -101,6 +149,8 @@ export function repairTransportLegs(
   const prevCity = ctx.previousCity?.trim();
 
   const repaired = legs.flatMap((leg) => {
+    leg = repairNarrativeMotorhomeLeg(leg, { city: ctx.city, previousCity: prevCity });
+
     const fromIata = extractIata(leg.from);
     const toIata = extractIata(leg.to);
     if (

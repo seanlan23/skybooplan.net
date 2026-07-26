@@ -148,6 +148,27 @@ export function stripConcreteBangkokHotelBrands(text: string): string {
     .trim();
 }
 
+/**
+ * Gemini often cuts activity copy mid-sentence with "…" / "...".
+ * Prefer the last complete sentence; otherwise drop dangling connectors.
+ */
+export function repairTruncatedCopy(text: string): string {
+  if (!text) return text;
+  let t = text.replace(/\s+/g, " ").trim();
+  const truncated = /…\s*$/.test(t) || /\.\.\.\s*$/.test(t);
+  if (!truncated) return text.trim();
+
+  t = t.replace(/\s*…\s*$/u, "").replace(/\s*\.\.\.\s*$/, "").trim();
+  t = t.replace(/\s+(in|and|ter|or|ali|za|to|with|z|s|the|a|an)\s*$/i, "").trim();
+
+  const last = Math.max(t.lastIndexOf("."), t.lastIndexOf("!"), t.lastIndexOf("?"));
+  if (last >= 40) {
+    return t.slice(0, last + 1).trim();
+  }
+  if (t && !/[.!?]$/.test(t)) return `${t}.`;
+  return t;
+}
+
 export function fixMotorhomeCopyErrors(text: string, city = ""): string {
   if (!text) return text;
   let out = text
@@ -183,7 +204,7 @@ export function fixMotorhomeCopyErrors(text: string, city = ""): string {
       );
   }
 
-  return out.replace(/\s{2,}/g, " ").trim();
+  return repairTruncatedCopy(out.replace(/\s{2,}/g, " ").trim());
 }
 
 /** Strip repeated long arrival-offset labels from activity/day copy. */

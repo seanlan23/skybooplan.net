@@ -1,5 +1,6 @@
 import type { AiTripPlan } from "@/lib/aiPlan.functions";
-import { fixMotorhomeCopyErrors } from "@/lib/textSanitize";
+import { fixMotorhomeCopyErrors, repairTruncatedCopy } from "@/lib/textSanitize";
+import { repairTransportLegs } from "@/lib/transportLegRepair";
 
 type DayActivity = {
   name: string;
@@ -115,6 +116,7 @@ export function thinMotorhomeMealActivities(plan: AiTripPlan): void {
 /** Fix known AI camp/POI slips + Ferragosto / long-leg tips on motorhome plans. */
 export function enrichMotorhomePlanTips(plan: AiTripPlan, lang = "sl"): void {
   const slo = lang === "sl" || lang.startsWith("sl");
+  let previousCity = "";
 
   for (const day of plan.days) {
     const city = day.city ?? day.focusName ?? "";
@@ -132,8 +134,18 @@ export function enrichMotorhomePlanTips(plan: AiTripPlan, lang = "sl"): void {
           ...a,
           name: fixMotorhomeCopyErrors(a.name, city),
           description: fixMotorhomeCopyErrors(a.description ?? "", city),
+          bullets: a.bullets?.map((b) => repairTruncatedCopy(fixMotorhomeCopyErrors(b, city))),
         }));
       }
+    }
+
+    if (day.transportation?.length) {
+      day.transportation = repairTransportLegs(day.transportation, {
+        dayNumber: day.day,
+        city,
+        previousCity: previousCity || undefined,
+        activities: day.activities,
+      });
     }
 
     if (isFerragostoWindow(day.date) && isBusyItalyCampCity(city)) {
@@ -147,13 +159,25 @@ export function enrichMotorhomePlanTips(plan: AiTripPlan, lang = "sl"): void {
 
     const km = day.drivingDistanceKm ?? 0;
     if (km >= 380) {
+      // Never hardcode a specific corridor (A14/A4) — that parroted across unrelated legs.
       day.transportationTips = appendTip(
         day.transportationTips,
         slo
-          ? `Dolga etapa (~${Math.round(km)} km): računaj na 4,5–5+ ur in morebitne zastoje (npr. A14/A4).`
-          : `Long driving day (~${Math.round(km)} km): allow 4.5–5+ hours plus possible A14/A4 traffic.`,
+          ? `Dolga etapa (~${Math.round(km)} km): računaj na 4,5–5+ ur vožnje in morebitne zastoje na avtocestah.`
+          : `Long driving day (~${Math.round(km)} km): allow 4.5–5+ hours plus possible motorway traffic.`,
       );
     }
+
+    // Strip leftover corridor spam from earlier tip versions / AI copy.
+    if (day.transportationTips) {
+      day.transportationTips = day.transportationTips
+        .replace(/\s*\(npr\.\s*A14\/A4\)\.?/gi, ".")
+        .replace(/\s*plus possible A14\/A4 traffic\.?/gi, ".")
+        .replace(/\.\s*\./g, ".")
+        .trim();
+    }
+
+    if (city) previousCity = city;
   }
 
   thinMotorhomeMealActivities(plan);

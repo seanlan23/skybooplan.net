@@ -353,7 +353,7 @@ const en: Dict = {
   "social.feat.free.desc": "Full AI plans, maps and PDF — no paywall, no hidden fees.",
   "showcase.eyebrow": "Sample plans",
   "showcase.title": "See what a finished plan looks like",
-  "showcase.subtitle": "Two curated demo PDFs for beta — open or download, then build your own above.",
+  "showcase.subtitle": "Three curated demo PDFs for beta — city break, long-haul, and motorhome — then build your own above.",
   "showcase.preview": "Preview PDF",
   "showcase.download": "Download",
   "showcase.nyc.route": "Ljubljana → New York",
@@ -366,6 +366,11 @@ const en: Dict = {
   "showcase.sydney.meta": "8 days · balanced · 2 travelers",
   "showcase.sydney.blurb":
     "Harbour icons, Bondi coastal walk, Blue Mountains, Manly ferry — no copy-paste days, no phantom airport returns.",
+  "showcase.motorhome.route": "Slovenj Gradec → North Holland",
+  "showcase.motorhome.title": "Motorhome road trip",
+  "showcase.motorhome.meta": "11 days · camps · 2 travelers",
+  "showcase.motorhome.blurb":
+    "Salzburg, Rhine, Amsterdam, Texel ferry, return via Heidelberg — clean camps, no stuck A14 tips, no truncated copy.",
   "inspiration.title": "Trip inspiration",
   "inspiration.subtitle": "Pick an idea — text flows into the AI planner where you add dates and preferences.",
   "inspiration.cta": "Start planning",
@@ -1400,7 +1405,7 @@ const dicts: Record<DictLang, Dict> = {
     "social.feat.free.desc": "Celoten AI načrt, zemljevid in PDF — brez plačilnega zidu.",
     "showcase.eyebrow": "Primer načrta",
     "showcase.title": "Tako izgleda končni načrt",
-    "showcase.subtitle": "Dva curated demo PDF-ja za beto — odpri ali prenesi, nato sestavi svojega zgoraj.",
+    "showcase.subtitle": "Tri curated demo PDF-ji za beto — city break, dolgi let in avtodom — nato sestavi svojega zgoraj.",
     "showcase.preview": "Predogled PDF",
     "showcase.download": "Prenesi",
     "showcase.nyc.route": "Ljubljana → New York",
@@ -1413,6 +1418,11 @@ const dicts: Record<DictLang, Dict> = {
     "showcase.sydney.meta": "8 dni · uravnoteženo · 2 potnika",
     "showcase.sydney.blurb":
       "Pristanišče, Bondi coastal walk, Blue Mountains, Manly ferry — brez copy-paste dni in brez fantomskega prihoda.",
+    "showcase.motorhome.route": "Slovenj Gradec → North Holland",
+    "showcase.motorhome.title": "Avtodomski roadtrip",
+    "showcase.motorhome.meta": "11 dni · kampi · 2 potnika",
+    "showcase.motorhome.blurb":
+      "Salzburg, Ren, Amsterdam, trajekt na Texel, povratek čez Heidelberg — čisti kampi, brez A14 spam in odrezanih stavkov.",
     "inspiration.title": "Navdih za naslednje potovanje",
     "inspiration.subtitle": "Izberi idejo — besedilo se prenese v AI načrtovalec, kjer dodaš datume in preference.",
     "inspiration.cta": "Začni načrt",
