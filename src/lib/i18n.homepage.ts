@@ -154,7 +154,7 @@ export const homepageUiByLang: Record<Exclude<Lang, "en" | "sl">, HomepageDict> 
     "footer.made": "Hecho para viajeros.",
     "footer.disclaimerTitle": "Aviso legal",
     "footer.disclaimer":
-      "Skybooplan no está afiliado a Skyscanner, Booking.com u otras marcas. Usamos datos y APIs públicas con fines informativos.",
+      "Skybooplan es independiente y no pertenece a Skyscanner, Booking.com ni Duffel. Los enlaces de hoteles pueden usar el programa de afiliados de Booking.com (podemos ganar una comisión sin coste extra para ti). Los datos de vuelos y alojamiento son informativos.",
   },
   fr: {
     "hero.sectionLabel": "Hero planification de voyage",
@@ -303,7 +303,7 @@ export const homepageUiByLang: Record<Exclude<Lang, "en" | "sl">, HomepageDict> 
     "footer.made": "Conçu pour les voyageurs.",
     "footer.disclaimerTitle": "Avertissement",
     "footer.disclaimer":
-      "Skybooplan n'est pas affilié à Skyscanner, Booking.com ou d'autres marques. Nous utilisons des données et API publiques à titre informatif.",
+      "Skybooplan est indépendant et n'appartient pas à Skyscanner, Booking.com ou Duffel. Les liens hôtels peuvent utiliser l'affiliation Booking.com (commission possible, sans surcoût pour vous). Les données vols et hébergements sont indicatives.",
   },
   de: {
     "hero.sectionLabel": "Reiseplanungs-Hero",
@@ -455,7 +455,7 @@ export const homepageUiByLang: Record<Exclude<Lang, "en" | "sl">, HomepageDict> 
     "footer.made": "Gemacht für Reisende.",
     "footer.disclaimerTitle": "Haftungsausschluss",
     "footer.disclaimer":
-      "Skybooplan ist nicht mit Skyscanner, Booking.com oder anderen Marken verbunden. Wir nutzen öffentliche Daten und APIs zu Informationszwecken.",
+      "Skybooplan ist unabhängig und gehört nicht Skyscanner, Booking.com oder Duffel. Hotel-Links können das Booking.com-Affiliate-Programm nutzen (Provision möglich, ohne Mehrkosten für dich). Flug- und Unterkunftsdaten sind informativ.",
   },
   it: {
     "hero.sectionLabel": "Hero pianificazione viaggio",
@@ -607,6 +607,6 @@ export const homepageUiByLang: Record<Exclude<Lang, "en" | "sl">, HomepageDict> 
     "footer.made": "Fatto per i viaggiatori.",
     "footer.disclaimerTitle": "Avvertenza",
     "footer.disclaimer":
-      "Skybooplan non è affiliato a Skyscanner, Booking.com o altri brand. Usiamo dati e API pubbliche a scopo informativo.",
+      "Skybooplan è indipendente e non appartiene a Skyscanner, Booking.com o Duffel. I link hotel possono usare il programma affiliate di Booking.com (possiamo ricevere una commissione senza costi extra per te). I dati su voli e alloggi sono informativi.",
   },
 };

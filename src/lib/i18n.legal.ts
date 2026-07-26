@@ -17,12 +17,12 @@ export const legalUiByLang: Record<"es" | "fr" | "it" | "de", Dict> = {
       "Skybooplan es una plataforma independiente de planificación de viajes con IA.",
     "terms.importantTitle": "Importante",
     "terms.important":
-      "No estamos afiliados a Skyscanner, Booking.com, Duffel ni a otras aerolíneas u hoteles.\nLos precios y datos de vuelos y alojamiento son orientativos y pueden cambiar. Las reservas finales se rigen por las condiciones de cada proveedor.\nLos planes los genera inteligencia artificial (modelos LLM) y pueden ser incorrectos o incompletos. Tú eres responsable de verificar la información y de las decisiones finales.\nLos precios incluyen IVA cuando corresponda.",
+      "Skybooplan es independiente y no pertenece a Skyscanner, Booking.com, Duffel ni a otras marcas aéreas/hoteleras. Los enlaces de reserva de hoteles pueden incluir tracking de afiliados de Booking.com; podemos ganar una comisión si reservas, sin coste extra para ti.\nLos precios y datos de vuelos y alojamiento son orientativos y pueden cambiar. Las reservas finales se rigen por las condiciones de cada proveedor.\nLos planes los genera inteligencia artificial (modelos LLM) y pueden ser incorrectos o incompletos. Tú eres responsable de verificar la información y de las decisiones finales.\nLos precios incluyen IVA cuando corresponda.",
     "terms.liabilityTitle": "Limitación de responsabilidad",
     "terms.liability":
       "Skybooplan no acepta responsabilidad por daños, pérdidas o inexactitudes derivadas del uso de la plataforma o de sus datos. El uso es bajo tu propio riesgo.",
     "terms.body":
-      "Skybooplan es una plataforma independiente de planificación de viajes con IA. No estamos afiliados a Skyscanner, Booking.com, Duffel ni a otros proveedores. Los precios son orientativos. Los planes los genera la IA y pueden ser incompletos. El uso es bajo tu propio riesgo.",
+      "Skybooplan es una plataforma independiente de planificación de viajes con IA. No pertenece a Skyscanner, Booking.com ni Duffel. Los enlaces de hoteles pueden usar el afiliado de Booking.com (comisión posible sin coste extra). Los precios son orientativos. Los planes IA pueden ser incompletos. El uso es bajo tu propio riesgo.",
     "privacy.title": "Privacidad y cookies",
     "privacy.body":
       "MyAxon protege tus datos personales conforme al RGPD. Solo recogemos lo necesario para la búsqueda y los pagos (e-mail, destinos). Las cookies se usan solo para la sesión y analítica de visitas.",
@@ -52,12 +52,12 @@ export const legalUiByLang: Record<"es" | "fr" | "it" | "de", Dict> = {
       "Skybooplan è una piattaforma indipendente di pianificazione di viaggio con IA.",
     "terms.importantTitle": "Importante",
     "terms.important":
-      "Non siamo affiliati a Skyscanner, Booking.com, Duffel o altri fornitori di voli e hotel.\nPrezzi e dati di voli e alloggi sono indicativi e possono cambiare. Le prenotazioni finali seguono i termini di ciascun fornitore.\nI piani sono generati da intelligenza artificiale (modelli LLM) e possono essere incompleti o errati. Sei responsabile di verificare le informazioni e delle decisioni finali.\nI prezzi includono l'IVA ove applicabile.",
+      "Skybooplan è indipendente e non appartiene a Skyscanner, Booking.com, Duffel o ad altri brand aerei/alberghieri. I link di prenotazione hotel possono includere tracking affiliate Booking.com; possiamo ricevere una commissione se prenoti, senza costi extra per te.\nPrezzi e dati di voli e alloggi sono indicativi e possono cambiare. Le prenotazioni finali seguono i termini di ciascun fornitore.\nI piani sono generati da intelligenza artificiale (modelli LLM) e possono essere incompleti o errati. Sei responsabile di verificare le informazioni e delle decisioni finali.\nI prezzi includono l'IVA ove applicabile.",
     "terms.liabilityTitle": "Limitazione di responsabilità",
     "terms.liability":
       "Skybooplan non risponde di danni, perdite o inesattezze derivanti dall'uso della piattaforma o dei suoi dati. L'uso è a tuo rischio.",
     "terms.body":
-      "Skybooplan è una piattaforma indipendente di pianificazione di viaggio con IA. Non siamo affiliati a Skyscanner, Booking.com, Duffel o altri fornitori. I prezzi sono indicativi. I piani sono generati dall'IA e possono essere incompleti. L'uso è a tuo rischio.",
+      "Skybooplan è una piattaforma indipendente di pianificazione di viaggio con IA. Non appartiene a Skyscanner, Booking.com o Duffel. I link hotel possono usare l'affiliate Booking.com (commissione possibile senza costi extra). I prezzi sono indicativi. I piani IA possono essere incompleti. L'uso è a tuo rischio.",
     "privacy.title": "Privacy e cookie",
     "privacy.body":
       "MyAxon protegge i tuoi dati personali ai sensi del GDPR. Raccogliamo solo i dati necessari per ricerca e pagamenti (email, destinazioni). I cookie servono solo alla sessione e all'analisi delle visite.",
@@ -80,12 +80,12 @@ export const legalUiByLang: Record<"es" | "fr" | "it" | "de", Dict> = {
       "Skybooplan ist eine unabhängige KI-gestützte Reiseplanungsplattform.",
     "terms.importantTitle": "Wichtig",
     "terms.important":
-      "Wir sind nicht mit Skyscanner, Booking.com, Duffel oder anderen Flug-/Hotelanbietern verbunden.\nFlug- und Unterkunftspreise sowie Daten sind indikativ und können sich ändern. Endgültige Buchungen unterliegen den Bedingungen der jeweiligen Anbieter.\nPläne werden von künstlicher Intelligenz (LLM-Modelle) erzeugt und können fehlerhaft oder unvollständig sein. Du bist allein verantwortlich für die Prüfung der Informationen und finale Entscheidungen.\nAlle Preise enthalten ggf. MwSt.",
+      "Skybooplan ist unabhängig und gehört nicht Skyscanner, Booking.com, Duffel oder anderen Flug-/Hotelmarken. Hotel-Buchungslinks können Booking.com-Affiliate-Tracking enthalten; bei einer Buchung können wir eine Provision erhalten — ohne Mehrkosten für dich.\nFlug- und Unterkunftspreise sowie Daten sind indikativ und können sich ändern. Endgültige Buchungen unterliegen den Bedingungen der jeweiligen Anbieter.\nPläne werden von künstlicher Intelligenz (LLM-Modelle) erzeugt und können fehlerhaft oder unvollständig sein. Du bist allein verantwortlich für die Prüfung der Informationen und finale Entscheidungen.\nAlle Preise enthalten ggf. MwSt.",
     "terms.liabilityTitle": "Haftungsbeschränkung",
     "terms.liability":
       "Skybooplan haftet nicht für Schäden, Verluste oder Ungenauigkeiten aus der Nutzung der Plattform oder ihrer Daten. Die Nutzung erfolgt auf eigene Gefahr.",
     "terms.body":
-      "Skybooplan ist eine unabhängige KI-Reiseplanungsplattform. Wir sind nicht mit Skyscanner, Booking.com, Duffel oder anderen Anbietern verbunden. Preise sind indikativ. Pläne werden von KI erzeugt und können unvollständig sein. Nutzung auf eigene Gefahr.",
+      "Skybooplan ist eine unabhängige KI-Reiseplanungsplattform. Sie gehört nicht Skyscanner, Booking.com oder Duffel. Hotel-Links können das Booking.com-Affiliate-Programm nutzen (Provision möglich, ohne Mehrkosten). Preise sind indikativ. KI-Pläne können unvollständig sein. Nutzung auf eigene Gefahr.",
     "privacy.title": "Datenschutz & Cookies",
     "privacy.body":
       "MyAxon schützt deine personenbezogenen Daten gemäß DSGVO. Wir erheben nur Daten, die für Suche und Zahlungen nötig sind (E-Mail, gewählte Ziele). Cookies dienen nur der Sitzung und der Besuchsanalyse.",
