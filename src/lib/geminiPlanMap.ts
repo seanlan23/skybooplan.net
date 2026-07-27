@@ -679,7 +679,10 @@ export function tripPlanResponseToAiTripPlan(
     .join(" ");
 
   const wishesText = opts?.wishesText ?? "";
-  const accommodationMode = detectAccommodationMode(wishesText);
+  const accommodationMode =
+    opts?.groundTransportMode === "car"
+      ? ("hotel" as const)
+      : detectAccommodationMode(wishesText);
   const hotelRestEveryNDays =
     accommodationMode === "motorhome"
       ? detectHotelRestInterval(wishesText) ?? undefined
@@ -809,7 +812,10 @@ export function enrichGeminiCatalogPlan(
   const travelers = Math.max(1, opts.pax);
   const wishesText = opts.wishesText ?? "";
 
-  if (!plan.accommodationMode) {
+  if (plan.groundTransportMode === "car") {
+    plan.accommodationMode = "hotel";
+    delete plan.hotelRestEveryNDays;
+  } else if (!plan.accommodationMode) {
     plan.accommodationMode = detectAccommodationMode(wishesText);
   }
   if (plan.accommodationMode === "motorhome" && !plan.hotelRestEveryNDays) {
@@ -817,8 +823,9 @@ export function enrichGeminiCatalogPlan(
   }
 
   const motorhome =
-    plan.accommodationMode === "motorhome" ||
-    plan.groundTransportMode === "motorhome";
+    plan.groundTransportMode !== "car" &&
+    (plan.accommodationMode === "motorhome" ||
+      plan.groundTransportMode === "motorhome");
   if (motorhome && plan.accommodationMode !== "motorhome") {
     plan.accommodationMode = "motorhome";
   }
@@ -947,7 +954,7 @@ export function enrichGeminiCatalogPlan(
 
     daily = applyUsBudgetFloor(
       applyCanadaBudgetFloor(
-        applySafariBudgetFloor(daily, kind, finalDay.activities),
+        applySafariBudgetFloor(daily, kind, finalDay.activities, { tier }),
         kind,
         finalDay.activities,
         finalDay.city ?? "",

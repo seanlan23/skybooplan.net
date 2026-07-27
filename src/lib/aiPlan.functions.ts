@@ -2719,7 +2719,10 @@ function alignSkeletonRegionsToArrival(
       continue;
     }
     const last = shifted[shifted.length - 1]!;
-    if (last.endDay - last.startDay + 1 > 3 && /manila|bangkok/i.test(last.city)) {
+    if (
+      last.endDay - last.startDay + 1 > 3 &&
+      /manila|bangkok|gaborone|windhoek|johannesburg|nairobi/i.test(last.city)
+    ) {
       last.startDay += 1;
       last.startDate = isoDateAtOffset(departDate, last.startDay - 1);
       last.highlights = last.highlights.filter((h) => h.day >= last.startDay);
@@ -2739,7 +2742,12 @@ function alignSkeletonRegionsToArrival(
   }));
 }
 
-/** Final hub (Manila/Bangkok) — max ~4 days: buffer + leisure + flight day. */
+const RETURN_HUB_CAP_RE =
+  /manila|bangkok|gaborone|windhoek|otjiwarongo|johannesburg|nairobi/i;
+const THIN_SAFARI_HUB_RE =
+  /gaborone|windhoek|otjiwarongo|johannesburg|nairobi/i;
+
+/** Final hub — Manila/Bangkok ≤4d; safari gateways ≤2d. Stolen days → previous region. */
 function capReturnHubLeisureDays(
   regions: TripRegion[],
   nDays: number,
@@ -2748,22 +2756,32 @@ function capReturnHubLeisureDays(
 ): TripRegion[] {
   if (regions.length < 2) return regions;
   const last = regions[regions.length - 1]!;
-  if (!/manila|bangkok/i.test(last.city)) return regions;
+  if (!RETURN_HUB_CAP_RE.test(last.city)) return regions;
   const span = last.endDay - last.startDay + 1;
-  const maxSpan = 4;
+  const maxSpan = THIN_SAFARI_HUB_RE.test(last.city) ? 2 : 4;
   if (span <= maxSpan) return regions;
-  const newStart = last.startDay + (span - maxSpan);
+  const steal = span - maxSpan;
+  const newStart = last.startDay + steal;
   trace?.(`cap return hub ${last.city}: ${span}d → ${maxSpan}d`);
-  return regions.map((r, i) =>
-    i === regions.length - 1
-      ? {
-          ...r,
-          startDay: newStart,
-          startDate: isoDateAtOffset(departDate, newStart - 1),
-          highlights: (r.highlights ?? []).filter((h) => h.day >= newStart),
-        }
-      : r,
-  );
+  return regions.map((r, i) => {
+    if (i === regions.length - 1) {
+      return {
+        ...r,
+        startDay: newStart,
+        startDate: isoDateAtOffset(departDate, newStart - 1),
+        highlights: (r.highlights ?? []).filter((h) => h.day >= newStart),
+      };
+    }
+    if (i === regions.length - 2) {
+      const endDay = Math.min(nDays, r.endDay + steal);
+      return {
+        ...r,
+        endDay,
+        endDate: isoDateAtOffset(departDate, endDay - 1),
+      };
+    }
+    return r;
+  });
 }
 
 /** Steal 1 day from long island stay so Bangkok has travel buffer + flight day. */
@@ -3304,7 +3322,7 @@ export function buildSkeletonDayPlans(
         });
         const floored = applyUsBudgetFloor(
           applyCanadaBudgetFloor(
-            applySafariBudgetFloor(raw, kind, activities),
+            applySafariBudgetFloor(raw, kind, activities, { tier: priceTier }),
             kind,
             activities,
             region.city,

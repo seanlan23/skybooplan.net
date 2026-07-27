@@ -2,11 +2,12 @@ import { localizeOriginLabel } from "@/lib/airportCatalog";
 
 export const HERO_CHAT_TOTAL_STEPS = 5;
 
-export type HeroChatMode = "all" | "flights" | "stays" | "plan" | "motorhome";
+export type HeroChatMode = "all" | "flights" | "stays" | "plan" | "motorhome" | "car";
 
 export const HERO_CHAT_MODES: HeroChatMode[] = [
   "flights",
   "stays",
+  "car",
   "motorhome",
   "plan",
   "all",
@@ -363,7 +364,7 @@ export function buildHeroMakeSearchQuery(
     );
   }
   const tripType = normalizeHeroTripType(data.tripType);
-  if (mode !== "stays" && mode !== "motorhome") {
+  if (mode !== "stays" && mode !== "motorhome" && mode !== "car") {
     if (tripType === "oneway") {
       parts.push("one-way / enosmerno / solo andata");
     } else if (tripType === "openjaw" && data.returnFromIata?.trim()) {

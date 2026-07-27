@@ -62,10 +62,34 @@ export {
 export type { WeatherSummary, WeatherWidget, SafetyWarningPayload } from "@/lib/geminiPro.shared";
 
 const BUDGET_LABELS: Record<TripBudgetTier, string> = {
-  budget: "Budget (nizki proračun)",
-  standard: "Standard",
-  premium: "Premium",
+  budget: "Budget (nizki proračun) — stroga meja ≈ ≤1000 € na osebo na destinaciji (brez mednarodnih letov)",
+  standard:
+    "Standard — stroga meja ≈ ≤2000 € na osebo na destinaciji (brez mednarodnih letov). Ne načrtuj luksuznih lodge/fly-in safarijev.",
+  premium: "Premium — višji standard dovoljen (vključno z lodgi, če sodi k destinaciji)",
 };
+
+/** Affordable southern/east-Africa steer when user is not on premium. */
+function southernAfricaBudgetSteer(
+  budget: TripBudgetTier,
+  destinationIata?: string,
+  destination?: string,
+): string {
+  if (budget === "premium") return "";
+  const blob = `${destinationIata ?? ""} ${destination ?? ""}`.toLowerCase();
+  const safariAfrica =
+    /\b(bw|na|za|ke|gbe|mub|wdh|ers|jnb|cpt|nbo|botswana|bocvana|namibia|namibija|south africa|juzna afrika|kenya|kenija|nairobi)\b/i.test(
+      blob,
+    );
+  if (!safariAfrica) return "";
+  return `
+
+STROGO — PRORAČUN ${budget === "budget" ? "BUDGET" : "STANDARD"} + SAFARI AFRIKA (Bocvana / Namibija / JAR / Kenija):
+- PREPOVEDANO: Okavango fly-in lodge, private concession camps, balloon safari, luxury Mara/Moremi overnight, river lodge za €400+/noč.
+- Namesto tega: mid-range lodges / guesthouses BLIZU DIVJINE (Maun, Kasane, Sesriem, Etosha, Kruger gate, Maasai Mara, Amboseli), self-drive / day trips (€40–180/osebo) — NE polniti dni z glavnimi mesti in nakupovalnimi centri.
+- Hub pravilo: Gaborone / Windhoek / Johannesburg / Nairobi = max 1 noč ob prihodu + max 1–2 noči pred odletom (buffer). PREPOVEDANO 3+ zaporednih dni v teh hubih / Otjiwarongu za malls / city walks. Cape Town sme biti destinacija (ne samo buffer).
+- Odvečne dni daj na wilderness: Bocvana → Maun/Makgadikgadi/Chobe; Namibija → Sesriem/Damaraland/Etosha; JAR → Kruger / Garden Route; Kenija → Maasai Mara / Amboseli — ne na capital shopping.
+- Skupni stroški na destinaciji (brez mednarodnih letov) MORJO ostati znotraj proračuna na osebo.`;
+}
 
 function formatPaxForPrompt(pax: TripPlanPax): string {
   const ages = pax.childrenAges ?? [];
@@ -235,8 +259,14 @@ function wishesBlob(params: GenerateTripPlanParams): string {
 }
 
 function isMotorhomeTrip(params: GenerateTripPlanParams): boolean {
+  // Explicit car mode wins over wishes that mention "avtodom".
+  if (params.groundTransportMode === "car") return false;
   if (params.groundTransportMode === "motorhome") return true;
   return detectAccommodationMode(wishesBlob(params)) === "motorhome";
+}
+
+function isCarRoadTrip(params: GenerateTripPlanParams): boolean {
+  return params.groundTransportMode === "car";
 }
 
 function isRoadTripRequest(params: GenerateTripPlanParams): boolean {
@@ -261,7 +291,8 @@ function buildTripPlanPrompt(params: GenerateTripPlanParams): string {
       : "brez posebnih zahtev";
   const customWishes = params.customWishes?.trim() ?? "";
   const motorhome = isMotorhomeTrip(params);
-  const roadTrip = isRoadTripRequest(params) || params.groundTransportMode === "car";
+  const carTrip = isCarRoadTrip(params);
+  const roadTrip = isRoadTripRequest(params) || carTrip;
   const route = params.originPlace && params.destinationPlace
     ? `${params.originPlace} → ${params.destinationPlace}`
     : params.returnFromIata
@@ -313,6 +344,17 @@ NAČIN POTOVANJA: AVTODOM / RV / CAMPERVAN (obvezno)
 - itinerar[] = največ ${maxBases} baz/kampov (to NI število dni!).
 - KRITIČNO: vsota vseh itinerar[].days[] = NATANKO ${params.days} ločenih dnevnih objektov. Primer: ${params.days} dni z ${maxBases} kampi = več day{} na istem kampu — NIKOLI samo ${maxBases} day{} objektov.
 ${roadTrip ? "- Road trip: enosmerna pot vzdolž ceste; večnočni kampi na isti postaji so OK (ne vsak dan nova baza)." : ""}`
+    : "";
+
+  const carHotelBlock = carTrip
+    ? `
+
+NAČIN POTOVANJA: AVTO / ROAD TRIP Z HOTELI (obvezno)
+- Nočitve = hoteli v mestih vsak večer (Booking-friendly city stays).
+- PREPOVEDANO kot namestitev: kamp, RV park, campground, sosta, "spanje v avtu", avtodom.
+- itinerar[] = največ ${maxBases} hotelskih baz (mesta) — to NI število dni!
+- KRITIČNO: vsota vseh itinerar[].days[] = NATANKO ${params.days} ločenih dnevnih objektov. Več noči v istem mestu = več day{} na isti hotelski bazi.
+- Road trip: enosmerna pot; več noči v istem mestu so OK (ne vsak dan novo mesto).`
     : "";
 
   const groundTransportBlock =
@@ -421,7 +463,7 @@ ${controlRules}
 ${userStayPlanBlock ?? ""}
 ${curatedRouteBlock ?? ""}
 ${bangkokDayTripBlock}
-${tvojeZeljeBlock}${motorhomeBlock}${groundTransportBlock}
+${tvojeZeljeBlock}${motorhomeBlock}${carHotelBlock}${groundTransportBlock}
 
 Let: ${route}.
 Datumi: ${dates} (${params.days} dni).
@@ -429,20 +471,23 @@ Potniki: ${formatPaxForPrompt(params.pax)}.
 Tempo potovanja: ${pace} — spoštuj TEMPO IN OBREMENITEV zgoraj (ne naporen itinerar).
 Kaj jih zanima: ${priorities}.
 Proračun: ${BUDGET_LABELS[params.budget]}.
+${southernAfricaBudgetSteer(params.budget, params.destinationIata, params.destination)}
 Posebne zahteve (oznake): ${wishes}.
 
 Obvezna logistična pravila za ta načrt:
 - ${
     explicitStayPlan
       ? `Število in vrstni red baz = NATANKO po UPORABNIKOVEM RAZPOREDU zgoraj (ne skrči na tipičnih ${Math.min(4, params.days)} baz).`
-      : motorhome || roadTrip
+      : motorhome
         ? `Načrtuj največ ${maxBases} baz/kampov vzdolž enosmerne poti; vsota itinerar[].days[] mora biti NATANKO ${params.days} day{} (več noči na isti bazi = več day{} — NE samo ${maxBases} day{}).`
+        : carTrip || roadTrip
+          ? `Načrtuj največ ${maxBases} hotelskih baz (mesta) vzdolž enosmerne poti; vsota itinerar[].days[] mora biti NATANKO ${params.days} day{} (več noči v istem mestu = več day{} — NE samo ${maxBases} day{}). PREPOVEDANO: kamp/RV/sosta kot nočitev.`
         : `Največ ${maxBases} glavne baze (mesta/regije) za ${params.days} dni — brez skakanja sem in tja po državi.`
   }
 - ${explicitStayPlan ? "Sledi uporabnikovemu vrstnemu redu mest (lahko se vrneš na Phuket/Patong za odhod, če je to v razporedu)." : "Enosmerna geografska pot (en jasen lok); brez vračanja v že obiskana mesta."}
 ${arrivalDayRule}
 ${flightReturnLine}
-- Za vsako fazo obvezno izpolni city (angleško ime), lat in lng (centrum mesta ali kamp ob poti).
+- Za vsako fazo obvezno izpolni city (angleško ime), lat in lng (centrum mesta${motorhome ? " ali kamp ob poti" : ""}).
 - Vsaka aktivnost mora imeti category (sightseeing, nature, beach, food, entertainment, hotel, airport) in koordinate za oglede.
 - PREPOVEDANO: Grand Palace, Wat Pho, Wat Arun, Khao San na dnevih zunaj Bangkoka (npr. Khao Sok, Phuket, Krabi, Ao Nang). To so samo Bangkok znamenitosti.
 - PREPOVEDANO vulgarno/spolno opisovanje Phra Nang (penis temple, phallic, fertility shrine, lingam). Piši kot Phra Nang Cave Beach / Princess Cave — plaža in jama ob Railayu.
@@ -493,7 +538,8 @@ const tripPlanGenerationConfig = {
 
 export function tripPlanSystemPrompt(params: GenerateTripPlanParams): string {
   const motorhome = isMotorhomeTrip(params);
-  const roadTrip = isRoadTripRequest(params);
+  const carTrip = isCarRoadTrip(params);
+  const roadTrip = isRoadTripRequest(params) || carTrip;
   const explicitStayPlan = hasExplicitStayPlan(wishesBlob(params));
   const motorhomeRules = motorhome ? motorhomePromptRules(true) : "";
   const lastDayBlock = lastDayReturnPromptBlock({
@@ -613,14 +659,22 @@ ${arrivalAirportBlock}
 ${selectedFlightSystemBlock}
 ${motorhomeRules}
 
-STROGO PRAVILO — AVTODOM / RV / CAMPERVAN:
+${
+  carTrip
+    ? `STROGO PRAVILO — AVTO / ROAD TRIP Z HOTELI:
+- Nočitve = hoteli v mestih vsak večer. hotels[] lahko vsebuje predloge; UI prikaže Booking kartice.
+- PREPOVEDANO kot namestitev: kamp, RV park, campground, sosta, avtodom, "spanje v avtu".
+- Med mesti načrtuj vožnjo z avtom — enosmerna pot z realističnimi etapami.
+`
+    : `STROGO PRAVILO — AVTODOM / RV / CAMPERVAN:
 - Če uporabnik v željah (Tvoje želje / customWishes) izrecno navede potovanje z AVTODOMOM, RV-jem, campervanom ali road tripom z najetim avtodomom:
   • Polje hotels MORA biti prazno polje [] — nikoli ne predlagaj hotelov!
   • Za vsak dan dodaj med activities vsaj eno nočitev: RV park / kamp / KOA / campground (category: hotel) z realnim imenom in coordinates.
   • Med mesti načrtuj vožnjo z avtodomom — brez notranjih letov z RV-jem.
   • Route 66 / cestna pot: enosmerna pot vzdolž ceste, postaja za nočitev na kampu ob vsaki etapi.
 - Če uporabnik omeni periodične hotel nočitve ("vsak 5 dan hotel"), hotels[] ostane [], hotel omeni le kot izjemo v activities tistega dne.
-
+`
+}
 OPISI (STROGI JSON — jasno, ne naporno):
 - Preferiraj bullets: ["…", "…"] (2–4 kratke točke, vsaka ≤ ~120 znakov) ALI description z vrsticami "- točka".
 - PREPOVEDANO: en dolg neformatiran odstavek (wall of text) za večerjo/ogled — aplikacija razbije esej, a raje oddaj že strukturirano.
@@ -757,8 +811,10 @@ PRILAGODITEV TRAJANJU — BAZA / REGIJE (obvezno):
 ${
   explicitStayPlan
     ? `- Število baz = točno po uporabnikovih željah (ne uporabljaj limit 2/3/4 baz).`
-    : motorhome || roadTrip
+    : motorhome
       ? `- ROAD TRIP / AVTODOM: Enosmerna pot z največ ${motorhomeRoadTripMaxBases(params.days)} bazami/kampi (itinerar[]). Število kampov ≠ število dni. days[] (vsota itinerar[].days) = NATANKO ${params.days} koledarskih day{} — združi 2–3 noči na isti bazi (vsaka noč = svoj day{}). Vsak dan: smiselne aktivnosti + kamp/RV park za nočitev. PREPOVEDANO: ena baza na vsak dan (to preseže output limit). PREPOVEDANO: vrniti samo ${motorhomeRoadTripMaxBases(params.days)} day{} za ${params.days}-dnevni izlet.`
+      : carTrip || roadTrip
+        ? `- ROAD TRIP / AVTO + HOTELI: Enosmerna pot z največ ${motorhomeRoadTripMaxBases(params.days)} hotelskimi bazami (itinerar[]). Število mest ≠ število dni. days[] = NATANKO ${params.days} koledarskih day{} — združi 2–3 noči v istem mestu. Vsak dan: smiselne aktivnosti + hotel nočitev. PREPOVEDANO: kamp/RV/sosta. PREPOVEDANO: vrniti samo ${motorhomeRoadTripMaxBases(params.days)} day{} za ${params.days}-dnevni izlet.`
       : `- Število glavnih baz (mest/regij, kjer potnik prespi več dni) MORAŠ omejiti glede na dolžino poti — manj regij = manj prevozev, več uživanja:
   • 7–9 dni: največ 2 glavni bazi (+ morebitna kratka postaja),
   • 10–14 dni: največ 3 glavne baze (NE 4, 5 ali več — uporabnik ne sme preživeti dopusta na letalih/vlakih),
@@ -772,10 +828,11 @@ ${lastDayBlock}
 PRILAGODITEV POTNIKOM IN PRORAČUNU (obvezno):
 - Celoten itinerar, tempo, predlagana hrana, aktivnosti, prevoz in finance MORAŠ popolnoma prilagoditi natančni sestavi potnikov (pax) in izbranemu proračunu.
 - Otroci: upoštevaj starost vsakega otroka — manjši otroci = krajši dnevi, več odmorov, družinske aktivnosti, varna hrana in manj napornih prevozev.
-- Budget (nizki proračun): hostli, javni prevoz, brezplačne/poceni atrakcije, lokalna hrana.
-- Standard: uravnotežen mix cene in udobja.
-- Premium: boljši hoteli, fine dining, zasebni transferji, ekskluzivnejše izkušnje.
-- Posebne zahteve (npr. vegetarijansko/vegansko, dostopno z vozičkom, najem avtomobila, brez nočnih voženj) moraš dosledno upoštevati v celotnem planu — hrana, aktivnosti in logistika.`;
+- Budget (nizki proračun): hostli, javni prevoz, brezplačne/poceni atrakcije, lokalna hrana. Skupaj na destinaciji ≈ ≤1000 €/osebo (brez mednarodnih letov).
+- Standard: uravnotežen mix cene in udobja. Skupaj na destinaciji ≈ ≤2000 €/osebo (brez mednarodnih letov). PREPOVEDANO luxury fly-in Okavango / private safari lodges, razen če uporabnik eksplicitno zahteva premium.
+- Premium: boljši hoteli, fine dining, zasebni transferji, ekskluzivnejše izkušnje (vključno z lodgi, če sodi).
+- Posebne zahteve (npr. vegetarijansko/vegansko, dostopno z vozičkom, najem avtomobila, brez nočnih voženj) moraš dosledno upoštevati v celotnem planu — hrana, aktivnosti in logistika.
+${southernAfricaBudgetSteer(params.budget, params.destinationIata, params.destination)}`;
 }
 
 /** Streaming Gemini generation — keeps HTTP connection alive (avoids serverless timeout). */

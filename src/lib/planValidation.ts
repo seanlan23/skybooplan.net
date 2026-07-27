@@ -88,11 +88,20 @@ function isAllowedHubReturn(
   if (returnSeg.endDay !== totalDays) return false;
 
   const returnSpan = returnSeg.endDay - returnSeg.startDay + 1;
-  const maxHubReturnDays = totalDays >= 14 ? 6 : totalDays >= 10 ? 4 : 2;
+  // Safari capitals are flight buffers only — not multi-day city pads.
+  const isThinSafariHub =
+    /^(gaborone|windhoek|otjiwarongo|johannesburg|nairobi)$/i.test(city);
+  const maxHubReturnDays = isThinSafariHub
+    ? 2
+    : totalDays >= 14
+      ? 6
+      : totalDays >= 10
+        ? 4
+        : 2;
   if (returnSpan > maxHubReturnDays) return false;
 
   const firstSpan = first.endDay - first.startDay + 1;
-  if (firstSpan > 4) return false;
+  if (firstSpan > (isThinSafariHub ? 2 : 4)) return false;
 
   // Allow day-1 in-flight / red-eye before the hub (Bangkok often starts day 2).
   if (first.startDay > 4) return false;

@@ -545,4 +545,27 @@ describe("itineraryMapModel", () => {
     );
     expect(view?.pins.some((p) => /camping/i.test(p.name))).toBe(false);
   });
+
+  it("does not seed camp hubs on car + hotel road trips", () => {
+    const view = buildMapDay(
+      {
+        ...plan([
+          day({
+            day: 2,
+            city: "Vienna",
+            activities: {
+              morning: [{ name: "Stephansdom", type: "SIGHT", description: "Cathedral" }],
+              afternoon: [],
+              evening: [],
+            },
+          }),
+        ]),
+        groundTransportMode: "car",
+        accommodationMode: "hotel",
+        originPlace: "Ljubljana",
+      } as AiTripPlan,
+      2,
+    );
+    expect(view?.pins.some((p) => /camping|campground|RV/i.test(p.name))).toBe(false);
+  });
 });

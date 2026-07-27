@@ -39,6 +39,7 @@ import {
 import { resolveDestinationIata } from "@/lib/heroChatPlanner";
 import { MotorhomeSearchBrowser } from "@/components/MotorhomeSearchBrowser";
 import { buildHeroMotorhomeSearchQuery } from "@/lib/heroMotorhome";
+import { buildHeroCarSearchQuery } from "@/lib/heroCar";
 import { extractHeroChatDates } from "@/lib/heroChatDates";
 import {
   extractHeroChatPassengers,
@@ -256,12 +257,16 @@ function MotorhomeTypeEndField({
   onSubmit,
   disabled,
   t,
+  typeEndLabel,
+  typeEndPlaceholder,
 }: {
   value: string;
   onChange: (value: string) => void;
   onSubmit: () => void;
   disabled?: boolean;
   t: (key: never) => string;
+  typeEndLabel: string;
+  typeEndPlaceholder: string;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -273,7 +278,7 @@ function MotorhomeTypeEndField({
         onClick={() => setOpen(true)}
         className="w-full rounded-xl border border-dashed border-white/35 bg-white/10 py-2.5 text-sm font-medium text-white/90 transition hover:bg-white/15 disabled:opacity-50"
       >
-        {t("heroChat.motorhome.typeEnd" as never)}
+        {typeEndLabel}
       </button>
     );
   }
@@ -291,7 +296,7 @@ function MotorhomeTypeEndField({
           }
         }}
         disabled={disabled}
-        placeholder={t("heroChat.motorhome.typeEndPlaceholder" as never)}
+        placeholder={typeEndPlaceholder}
         className="min-w-0 flex-1 rounded-xl border border-white/30 bg-white/15 px-3 py-2.5 text-sm text-white placeholder:text-white/50 outline-none focus:border-white/50"
       />
       <button
@@ -554,8 +559,15 @@ export function HeroChatFlow({
   const isFlightsOnly = mode === "flights";
   const isStaysOnly = mode === "stays";
   const isMotorhomeOnly = mode === "motorhome";
-  /** Skip pace/budget — flights / stays / avtodom go straight to results after party size. */
-  const isQuickSearchMode = isFlightsOnly || isStaysOnly || isMotorhomeOnly;
+  const isCarOnly = mode === "car";
+  const isRoadGroundOnly = isMotorhomeOnly || isCarOnly;
+  /** Skip pace/budget — flights / stays / avtodom / car go straight to results after party size. */
+  const isQuickSearchMode = isFlightsOnly || isStaysOnly || isRoadGroundOnly;
+  const roadChatNs = isCarOnly ? "heroChat.car" : "heroChat.motorhome";
+  const roadT = useCallback(
+    (key: string) => t(`${roadChatNs}.${key}` as never),
+    [roadChatNs, t],
+  );
   const scrollRef = useRef<HTMLDivElement>(null);
   const activeControlsRef = useRef<HTMLDivElement>(null);
   const datePickerRef = useRef<HTMLDivElement>(null);
@@ -585,7 +597,7 @@ export function HeroChatFlow({
     !searchError &&
     (isStaysOnly
       ? !staySearch
-      : isMotorhomeOnly
+      : isRoadGroundOnly
         ? Boolean(loading)
         : flights.length === 0);
   const inputDisabled = isSearching;
@@ -658,11 +670,11 @@ export function HeroChatFlow({
           "user",
           `${data.origin} → ${data.destination} · ${data.dates} · ${data.passengers}`,
         ),
-        createChatMessage("ai", t("heroChat.motorhome.searching" as never)),
+        createChatMessage("ai", roadT("searching")),
       );
       setTextInput("");
     },
-    [appendMessages, conversationStarted, t],
+    [appendMessages, conversationStarted, roadT],
   );
 
   const startMotorhomeFromOrigin = useCallback(
@@ -674,12 +686,12 @@ export function HeroChatFlow({
       setCollected({ origin: trimmed });
       appendMessages(
         createChatMessage("user", userLabel),
-        createChatMessage("ai", t("heroChat.motorhome.askEnd" as never)),
+        createChatMessage("ai", roadT("askEnd")),
       );
       setStep("destination");
       setTextInput("");
     },
-    [appendMessages, conversationStarted, t],
+    [appendMessages, conversationStarted, roadT],
   );
 
   const startFlow = useCallback(
@@ -690,7 +702,7 @@ export function HeroChatFlow({
       if (!resolved || step !== "destination") return;
 
       // Avtodom: destination step = END place (origin already collected).
-      if (isMotorhomeOnly) {
+      if (isRoadGroundOnly) {
         const userLabel = displayLabel?.trim() || trimmed;
         setCollected((prev) => ({ ...prev, destination: resolved }));
         appendMessages(
@@ -713,7 +725,7 @@ export function HeroChatFlow({
             : userLabel;
 
       const destWithAirport =
-        !isStaysOnly && !isMotorhomeOnly ? withDestinationAirport(resolved) : resolved;
+        !isStaysOnly && !isRoadGroundOnly ? withDestinationAirport(resolved) : resolved;
       const boot = resolveHeroChatBootstrap(destWithAirport, lang);
       const baseCollected = {
         destination: destWithAirport,
@@ -729,7 +741,7 @@ export function HeroChatFlow({
       appendMessages(createChatMessage("user", userMessage));
 
       // Flights: destination → origin (MUC…) → trip type → dates → …
-      if (!isStaysOnly && !isMotorhomeOnly) {
+      if (!isStaysOnly && !isRoadGroundOnly) {
         const knownOrigin = originsFromCollected(destWithAirport, "");
         setAfterOrigin(isFlightsOnly ? "searching" : "pace");
         if (knownOrigin.length === 0) {
@@ -819,7 +831,7 @@ export function HeroChatFlow({
       appendMessages,
       attachment,
       isFlightsOnly,
-      isMotorhomeOnly,
+      isRoadGroundOnly,
       isStaysOnly,
       lang,
       step,
@@ -939,10 +951,10 @@ export function HeroChatFlow({
     }
 
     // Avtodom: origin + destination places already in collected — generate road plan.
-    if (isMotorhomeOnly) {
+    if (isRoadGroundOnly) {
       if (!collected.origin?.trim() || !collected.destination?.trim()) {
         appendMessages(
-          createChatMessage("ai", t("heroChat.motorhome.askEnd" as never)),
+          createChatMessage("ai", roadT("askEnd")),
         );
         setStep(collected.origin?.trim() ? "destination" : "origin");
         return;
@@ -952,7 +964,11 @@ export function HeroChatFlow({
         ...(collected as HeroChatCollected),
         attachment: attachment ?? collected.attachment,
       } satisfies HeroChatCollected;
-      onSearch(buildHeroMotorhomeSearchQuery(data), data, mode);
+      onSearch(
+        isCarOnly ? buildHeroCarSearchQuery(data) : buildHeroMotorhomeSearchQuery(data),
+        data,
+        mode,
+      );
       return;
     }
 
@@ -998,7 +1014,9 @@ export function HeroChatFlow({
     t,
     lang,
     isStaysOnly,
-    isMotorhomeOnly,
+    isRoadGroundOnly,
+    isCarOnly,
+    roadT,
   ]);
 
   useEffect(() => {
@@ -1085,9 +1103,9 @@ export function HeroChatFlow({
         dates: context.dates!.trim() || prev.dates || "",
       }));
     }
-    if (isStaysOnly || isMotorhomeOnly) {
-      if (isMotorhomeOnly) {
-        appendMessages(createChatMessage("ai", t("heroChat.motorhome.searching" as never)));
+    if (isStaysOnly || isRoadGroundOnly) {
+      if (isRoadGroundOnly) {
+        appendMessages(createChatMessage("ai", roadT("searching")));
         setStep("searching");
         return;
       }
@@ -1127,7 +1145,7 @@ export function HeroChatFlow({
   }
 
   function needsFlightTripType(): boolean {
-    return !isStaysOnly && !isMotorhomeOnly;
+    return !isStaysOnly && !isRoadGroundOnly;
   }
 
   function goAskDates(messageKey: "heroChat.stepDates.ask" | "heroChat.stepDates.vague" = "heroChat.stepDates.ask", period?: string) {
@@ -1396,8 +1414,8 @@ export function HeroChatFlow({
       startStaySearch();
       return;
     }
-    if (isMotorhomeOnly) {
-      appendMessages(createChatMessage("ai", t("heroChat.motorhome.searching" as never)));
+    if (isRoadGroundOnly) {
+      appendMessages(createChatMessage("ai", roadT("searching")));
       setStep("searching");
       return;
     }
@@ -1424,7 +1442,7 @@ export function HeroChatFlow({
       inputRef.current?.focus();
       return;
     }
-    if (isMotorhomeOnly && !conversationStarted) {
+    if (isRoadGroundOnly && !conversationStarted) {
       startMotorhomeFromOrigin(trimmed);
       return;
     }
@@ -1531,10 +1549,11 @@ export function HeroChatFlow({
               {fileError}
             </p>
           ) : null}
-          {isMotorhomeOnly ? (
+          {isRoadGroundOnly ? (
             <MotorhomeSearchBrowser
               disabled={inputDisabled}
               onSubmit={startMotorhomeBrowser}
+              variant={isCarOnly ? "car" : "motorhome"}
             />
           ) : (
             <HeroGuidedStart
@@ -1630,8 +1649,8 @@ export function HeroChatFlow({
               />
               <span className="text-sm font-medium tracking-wide text-white">
                 {t(
-                  (isMotorhomeOnly
-                    ? "heroChat.motorhome.searching"
+                  (isRoadGroundOnly
+                    ? `${roadChatNs}.searching`
                     : isStaysOnly
                       ? "cta.searchingStays"
                       : "cta.searchingFlights") as never,
@@ -1640,10 +1659,10 @@ export function HeroChatFlow({
             </div>
           ) : null}
 
-          {showConversationChips && step === "destination" && isMotorhomeOnly ? (
+          {showConversationChips && step === "destination" && isRoadGroundOnly ? (
             <div className="space-y-2">
               <p className="pl-0 text-center text-xs text-white/65 sm:pl-10 sm:text-left">
-                {t("heroChat.motorhome.endHint" as never)}
+                {roadT("endHint")}
               </p>
               <QuickReplyChips
                 layout="grid"
@@ -1663,6 +1682,8 @@ export function HeroChatFlow({
                     onChange={setTextInput}
                     disabled={loading}
                     t={t}
+                    typeEndLabel={roadT("typeEnd")}
+                    typeEndPlaceholder={roadT("typeEndPlaceholder")}
                     onSubmit={() => {
                       const trimmed = textInput.trim();
                       if (!trimmed || loading) return;
@@ -1790,7 +1811,7 @@ export function HeroChatFlow({
             />
           ) : null}
 
-          {showConversationChips && step === "origin" && !isMotorhomeOnly ? (
+          {showConversationChips && step === "origin" && !isRoadGroundOnly ? (
             <div className="hero-chips-enter pl-0 sm:pl-10">
               <OriginAirportPicker
                 excludeIata={parseMakeSearchDestination(collected.destination ?? "")}

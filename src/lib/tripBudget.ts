@@ -113,9 +113,11 @@ export type DayBudgetKind =
   | "safari-balloon"
   | "cross-country-travel";
 
+export type BudgetTier = "premium" | "mid" | "budget";
+
 /** Per-day budget inputs — varies by arrival, departure, theme-park days, etc. */
 export function dayBudgetParams(
-  tier: "premium" | "mid" | "budget",
+  tier: BudgetTier,
   kind: DayBudgetKind,
   sprawling: boolean,
   mealsFullDayEur: number,
@@ -255,23 +257,45 @@ export function classifyDayBudgetKind(
   return "sightseeing";
 }
 
+function isLodgeSafariDay(
+  activities: { morning: ActivityLike[]; afternoon: ActivityLike[]; evening: ActivityLike[] } | undefined,
+): boolean {
+  const text = activityText(activities);
+  return /lodge|tented\s*camp|serengeti|ngorongoro|manyara|tarangire|fly[\s-]?in|concession|okavango.*(camp|lodge)|moremi.*(overnight|camp)|chobe.*(lodge|overnight)/i.test(
+    text,
+  );
+}
+
 /** Floor unrealistically low AI safari quotes (park fees, 4x4, lodge). Per person. */
 export function applySafariBudgetFloor(
   eur: number,
   kind: DayBudgetKind,
   activities: { morning: ActivityLike[]; afternoon: ActivityLike[]; evening: ActivityLike[] } | undefined,
+  opts?: { tier?: BudgetTier },
 ): number {
   const listed = activityListTotalEur(activities);
+  const tier = opts?.tier ?? "mid";
+
   if (kind === "safari-balloon") {
-    // Balloon ~500 € + lodge night + meals
-    return Math.max(eur, listed + 180, 620);
+    // Balloon is a premium product — keep a firm floor when it appears.
+    return Math.max(eur, listed + 180, tier === "premium" ? 620 : 480);
   }
-  if (kind === "safari") {
-    // Game drive + park fees + tented camp (often 200–400 €/night pp)
-    const withLodge = listed >= 200 ? listed + 220 : 450;
-    return Math.max(eur, withLodge);
+
+  if (kind !== "safari") return eur;
+
+  // City / day-trip "safari" (Mokolodi, short game drive): do NOT invent lodge nights.
+  // Old floor forced €450/pp and blew Botswana/Namibia totals past €2k budgets.
+  if (!isLodgeSafariDay(activities) && listed < 160) {
+    return Math.max(eur, listed + 55, 95);
   }
-  return eur;
+
+  if (!isLodgeSafariDay(activities) && listed < 280) {
+    return Math.max(eur, listed + 90, 200);
+  }
+
+  // Multi-day lodge / fly-in safari nights (Serengeti, Okavango camps, …).
+  const lodgeFloor = tier === "premium" ? 450 : tier === "budget" ? 280 : 340;
+  return Math.max(eur, listed + 180, lodgeFloor);
 }
 
 /** Floor unrealistically low Canada quotes (Banff/Vancouver hotels, park fees, domestic flights). */
@@ -352,8 +376,6 @@ export function applyMotorhomeBudgetCeil(
   if (kind === "departure" || kind === "arrival") return Math.min(eur, 75);
   return Math.min(eur, 100);
 }
-
-type BudgetTier = "premium" | "mid" | "budget";
 
 /**
  * Hard per-person daily ceilings for ALL destinations.

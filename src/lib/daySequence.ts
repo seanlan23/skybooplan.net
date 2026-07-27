@@ -59,9 +59,11 @@ function thinPlaceholderDay(
   dayNum: number,
   template: ReturnType<typeof neighborTemplate>,
   lang: string,
+  opts?: { motorhome?: boolean },
 ): DayPlan {
   const slo = !lang || lang.startsWith("sl");
   const city = template.city || template.focusName || (slo ? "destinacija" : "destination");
+  const motorhome = opts?.motorhome === true;
   return {
     day: dayNum,
     date: template.date,
@@ -100,13 +102,21 @@ function thinPlaceholderDay(
         },
       ],
       evening: [
-        {
-          name: slo ? "Večer pri kampu" : "Evening at camp",
-          type: "ACTIVITY",
-          description: slo
-            ? "Lahek večer pri kampu — sprehod ali kuhanje v avtodomu, brez obvezne restavracije."
-            : "Easy evening at camp — stroll or cook in the RV, no restaurant required.",
-        },
+        motorhome
+          ? {
+              name: slo ? "Večer pri kampu" : "Evening at camp",
+              type: "ACTIVITY",
+              description: slo
+                ? "Lahek večer pri kampu — sprehod ali kuhanje v avtodomu, brez obvezne restavracije."
+                : "Easy evening at camp — stroll or cook in the RV, no restaurant required.",
+            }
+          : {
+              name: slo ? "Lahek večer v mestu" : "Easy evening in town",
+              type: "ACTIVITY",
+              description: slo
+                ? `Sprehod po ${city} in lahka večerja — brez dolgega programa.`
+                : `Stroll around ${city} and a light dinner — no heavy schedule.`,
+            },
       ],
     },
   };
@@ -117,6 +127,7 @@ function cloneStayDay(
   dayNum: number,
   lang: string,
   departDate?: string,
+  opts?: { motorhome?: boolean },
 ): DayPlan {
   // Never structuredClone full activity trees — that produced identical Day 3/4 clones.
   const date =
@@ -133,13 +144,19 @@ function cloneStayDay(
       date,
     },
     lang,
+    opts,
   );
   const slo = !lang || lang.startsWith("sl");
+  const motorhome = opts?.motorhome === true;
   return {
     ...thin,
     travelHack: slo
-      ? "Dodan dan na isti bazi (AI je vrnil premalo koledarskih dni) — lahek lokalni program, isti kamp."
-      : "Extra night at the same base (AI returned too few calendar days) — keep a light local day.",
+      ? motorhome
+        ? "Dodan dan na isti bazi (AI je vrnil premalo koledarskih dni) — lahek lokalni program, isti kamp."
+        : "Dodan dan v istem mestu (AI je vrnil premalo koledarskih dni) — lahek lokalni program, ista hotelska baza."
+      : motorhome
+        ? "Extra night at the same base (AI returned too few calendar days) — keep a light local day."
+        : "Extra night in the same city (AI returned too few calendar days) — keep a light local day.",
   };
 }
 
@@ -158,6 +175,11 @@ export function expandPlanDaysToExpected(
   const lang = opts.language ?? "sl";
   const expected = opts.expectedDays;
   const inserted: number[] = [];
+  const motorhomeOpts = {
+    motorhome:
+      plan.accommodationMode === "motorhome" ||
+      plan.groundTransportMode === "motorhome",
+  };
 
   if (plan.days.length < expected) {
     const need = expected - plan.days.length;
@@ -179,7 +201,7 @@ export function expandPlanDaysToExpected(
       expanded.push({ ...src, day: dayNum, date });
       dayNum += 1;
       for (let e = 0; e < extras[i]!; e++) {
-        expanded.push(cloneStayDay(src, dayNum, lang, opts.departDate));
+        expanded.push(cloneStayDay(src, dayNum, lang, opts.departDate, motorhomeOpts));
         inserted.push(dayNum);
         dayNum += 1;
       }
@@ -213,6 +235,11 @@ export function repairPlanDaySequence(
 
   const byDay = new Map(plan.days.map((d) => [d.day, d]));
   const inserted: number[] = [];
+  const motorhomeOpts = {
+    motorhome:
+      plan.accommodationMode === "motorhome" ||
+      plan.groundTransportMode === "motorhome",
+  };
 
   for (let n = 1; n <= target; n++) {
     if (byDay.has(n)) continue;
@@ -222,7 +249,7 @@ export function repairPlanDaySequence(
     if (opts?.departDate) {
       tmpl.date = isoPlusDays(opts.departDate, n - 1) ?? tmpl.date;
     }
-    const placeholder = thinPlaceholderDay(n, tmpl, lang);
+    const placeholder = thinPlaceholderDay(n, tmpl, lang, motorhomeOpts);
     byDay.set(n, placeholder);
     inserted.push(n);
   }

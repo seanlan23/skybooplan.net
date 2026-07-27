@@ -8,11 +8,12 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
-const TAB_ORDER: HeroChatMode[] = ["flights", "stays", "motorhome", "plan", "all"];
+const TAB_ORDER: HeroChatMode[] = ["flights", "stays", "car", "motorhome", "plan", "all"];
 
 const TAB_LABEL_KEYS: Record<HeroChatMode, string> = {
   flights: "heroMode.flights",
   stays: "heroMode.stays",
+  car: "heroMode.car",
   motorhome: "heroMode.motorhome",
   plan: "heroMode.plan",
   all: "heroMode.all",
@@ -78,10 +79,13 @@ export function HeroModeTabs({ value, onChange }: HeroModeTabsProps) {
                 role="tab"
                 aria-selected={isActive}
                 onClick={() => onChange(mode)}
-                className={cn(tabClass, mode === "motorhome" && "relative gap-1.5 pr-2.5 sm:pr-3")}
+                className={cn(
+                  tabClass,
+                  (mode === "motorhome" || mode === "car") && "relative gap-1.5 pr-2.5 sm:pr-3",
+                )}
               >
                 {label}
-                {mode === "motorhome" ? (
+                {mode === "motorhome" || mode === "car" ? (
                   <span
                     className={cn(
                       "rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase leading-none tracking-wide",

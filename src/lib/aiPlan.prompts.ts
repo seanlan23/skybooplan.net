@@ -58,7 +58,8 @@ Rules:
 - Linear routing: no mid-trip city revisit; final region may return to hub for flight home only
 - NEVER repeat the same sight/POI name on two different days (Griffith Observatory once; not again as "Griffith Park Observatory")
 - If metroClustering in user JSON: each day MUST stay within maxKmSameDay — cluster by zone (Hollywood one day, Santa Monica another; never cross LA in one day)
-- Tanzania safari: Arusha → Serengeti → Zanzibar linear; Ngorongoro Crater = FULL DAY transit (never same morning as Maasai boma inside Serengeti); safari game drives ≥200 €/person/day; balloon safari ~500 €
+- Tanzania safari: Arusha → Serengeti → Zanzibar linear; Ngorongoro Crater = FULL DAY transit (never same morning as Maasai boma inside Serengeti); safari game drives ≥200 €/person/day ONLY on premium / explicit safari lodge trips; balloon safari ~500 € (premium only)
+- Botswana / Namibia / Kenya / South Africa (JNB safari) on budget or standard (≤2000 €/person on destination): NO Okavango fly-in lodges, private concessions, or balloon safaris — use mid-range wilderness bases + day trips / self-drive (Maun, Makgadikgadi, Kasane/Chobe, Etosha, Sossusvlei, Kruger, Maasai Mara, Amboseli). Gaborone/Windhoek/Johannesburg/Nairobi = arrival/departure buffer only (≤1–2 nights each) — NEVER pad leftover days with capital malls/city walks; put surplus into wilderness. Cape Town may be a real destination (not only a hub). Luxury delta/Mara camps only when budget=premium or user explicitly asks.
 - Zanzibar: one island zone per day (north/east/south/Stone Town); NEVER Mikindani or Dar es Salaam — those are mainland Tanzania, not Zanzibar
 - Canada (YYZ/YVR): Toronto → Niagara (Canadian side: Hornblower/Journey Behind the Falls) → Ottawa → Banff → Vancouver — linear east to west. Ottawa→Banff and Banff→Vancouver need FULL travel days (domestic flight + transfer). Last day: if overnighting in Vancouver, include domestic air YVR→YYZ before the international return (never invent “no Uber in Canada” — Uber works in Canadian cities; use Uber/taxi/transit, not Grab). NEVER Maid of the Mist or Cave of the Winds (US side, border/visa). Banff/Vancouver budgets are premium (hotels, park fees, domestic flights)
 - Spain + Gibraltar: southbound linear route (Barcelona/Málaga → Seville → Gibraltar). Madrid ONLY on the return leg north (1–2 days) before final hub for outbound flight — NEVER Madrid → south → Madrid → hub (duplicate Madrid). Follow regionBlueprint when provided
@@ -67,7 +68,7 @@ Rules:
 - If writingRule in user JSON: follow it strictly (language + currency)
 - All text in languageCode from user message — never mix languages or provide dual translations
 - displayCurrency and priceCurrency in user JSON define the single currency for ALL costs (EUR or USD — never both)
-- REALISTIC PRICING: scale costs to destination (budget Asia/Africa lower; Western Europe/NYC/safari higher) then convert to displayCurrency
+- REALISTIC PRICING: scale costs to destination (budget Asia/Africa lower; Western Europe/NYC/premium safari higher) then convert to displayCurrency
 - Accurate lat/lng within each region city; never truncate with "..."
 - Omit transportToNext on the last region
 - If flightScheduling in user JSON: respect day1 and lastDay constraints (late arrival = light day 1; early return = short last day)

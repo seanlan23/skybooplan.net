@@ -83,11 +83,20 @@ function passengersLabel(adults: number, children: number, lang: string): string
 export type MotorhomeSearchBrowserProps = {
   disabled?: boolean;
   onSubmit: (collected: HeroChatCollected) => void;
+  /** Car = hotels; motorhome = camps. Same form UI. */
+  variant?: "motorhome" | "car";
 };
 
-/** Skyscanner-style motorhome search: From → To · dates · travelers · priorities · Search. */
-export function MotorhomeSearchBrowser({ disabled, onSubmit }: MotorhomeSearchBrowserProps) {
+/** Skyscanner-style road search: From → To · dates · travelers · priorities · Search. */
+export function MotorhomeSearchBrowser({
+  disabled,
+  onSubmit,
+  variant = "motorhome",
+}: MotorhomeSearchBrowserProps) {
   const { t, lang } = useI18n();
+  const titleKey = variant === "car" ? "car.browser.title" : "mh.browser.title";
+  const subtitleKey = variant === "car" ? "car.browser.subtitle" : "mh.browser.subtitle";
+  const searchKey = variant === "car" ? "car.browser.search" : "mh.browser.search";
   const [from, setFrom] = useState("Vienna");
   const [to, setTo] = useState("Croatia");
   const [depart, setDepart] = useState(defaultDepartIso);
@@ -155,9 +164,9 @@ export function MotorhomeSearchBrowser({ disabled, onSubmit }: MotorhomeSearchBr
       <div className="overflow-hidden rounded-2xl border border-white/25 bg-white/95 p-4 text-slate-900 shadow-xl backdrop-blur-md sm:p-5">
         <div className="mb-4 text-center">
           <p className="text-lg font-semibold tracking-tight sm:text-xl">
-            {t("mh.browser.title" as never)}
+            {t(titleKey as never)}
           </p>
-          <p className="mt-1 text-sm text-slate-600">{t("mh.browser.subtitle" as never)}</p>
+          <p className="mt-1 text-sm text-slate-600">{t(subtitleKey as never)}</p>
         </div>
 
         <div className="grid gap-2 sm:grid-cols-[1fr_auto_1fr]">
@@ -309,7 +318,7 @@ export function MotorhomeSearchBrowser({ disabled, onSubmit }: MotorhomeSearchBr
           onClick={handleSearch}
           className={cn(SEARCH_PRIMARY_BTN, "mt-4 h-12 w-full text-base")}
         >
-          {t("mh.browser.search" as never)}
+          {t(searchKey as never)}
           <ArrowRight className="h-4 w-4" />
         </button>
       </div>

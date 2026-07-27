@@ -53,3 +53,18 @@ describe("motorhome system prompt bases", () => {
     expect(system).not.toMatch(/z 11 postajami vzdolž ceste/);
   });
 });
+
+describe("car road trip system prompt", () => {
+  it("asks for hotels and forbids camp overnight rules", () => {
+    const system = tripPlanSystemPrompt(
+      motorhomeParams({
+        groundTransportMode: "car",
+        wishTags: ["sea", "avtodom"], // wishes must not flip car into motorhome
+      }),
+    );
+    expect(system).toMatch(/AVTO \/ ROAD TRIP Z HOTELI|hotelskimi bazami/);
+    expect(system).toMatch(/PREPOVEDANO[\s\S]*kamp/i);
+    expect(system).not.toMatch(/bazami\/kampi/);
+    expect(system).not.toMatch(/hotels MORA biti prazno/);
+  });
+});

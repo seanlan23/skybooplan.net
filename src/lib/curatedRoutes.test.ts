@@ -299,3 +299,94 @@ describe("curatedRoutes global defaults", () => {
     expect(route?.segments.some(([c]) => /ubud|bali|gili/i.test(c))).toBe(true);
   });
 });
+
+describe("curatedRoutes BW / NA safari", () => {
+  it("matches Botswana classic for GBE", () => {
+    const route = matchCuratedRoute(16, "GBE", ["nature", "sights"], "botswana safari");
+    expect(route?.id).toBe("bw-classic-delta-chobe");
+  });
+
+  it("does not dump leftover days into final Gaborone on 16-day trip", () => {
+    const payload = buildCuratedRoutePayload(16, "GBE", ["nature"], "botswana okavango chobe");
+    const blocks = payload?.regionBlueprint as
+      | Array<{ city: string; startDay: number; endDay: number }>
+      | undefined;
+    expect(blocks?.length).toBeGreaterThanOrEqual(4);
+
+    const gaboroneSpans = (blocks ?? [])
+      .filter((b) => /gaborone/i.test(b.city))
+      .map((b) => b.endDay - b.startDay + 1);
+    expect(Math.max(...gaboroneSpans)).toBeLessThanOrEqual(2);
+
+    const wildernessDays = (blocks ?? [])
+      .filter((b) => !/gaborone/i.test(b.city))
+      .reduce((sum, b) => sum + (b.endDay - b.startDay + 1), 0);
+    expect(wildernessDays).toBeGreaterThanOrEqual(12);
+  });
+
+  it("matches Namibia classic for WDH", () => {
+    const route = matchCuratedRoute(16, "WDH", ["nature"], "namibia etosha sossusvlei");
+    expect(route?.id).toBe("na-classic-loop");
+  });
+
+  it("keeps return Windhoek thin and grows Etosha/Sesriem on 16d loop", () => {
+    const blocks = templateToBlueprintBlocks(
+      [
+        ["Windhoek", 1],
+        ["Sesriem", 0],
+        ["Swakopmund", 0],
+        ["Damaraland", 0],
+        ["Etosha", 0],
+        ["Windhoek", 1],
+      ],
+      16,
+    );
+    const last = blocks[blocks.length - 1]!;
+    expect(last.city).toMatch(/windhoek/i);
+    expect(last.endDay - last.startDay + 1).toBeLessThanOrEqual(2);
+
+    const etosha = blocks.find((b) => /etosha/i.test(b.city));
+    expect(etosha).toBeTruthy();
+    expect((etosha!.endDay - etosha!.startDay + 1)).toBeGreaterThanOrEqual(3);
+  });
+
+  it("matches Johannesburg Kruger route for JNB", () => {
+    const route = matchCuratedRoute(10, "JNB", ["nature"], "kruger safari");
+    expect(route?.id).toBe("za-jnb-kruger");
+  });
+
+  it("does not dump leftover days into Johannesburg on 12-day Kruger trip", () => {
+    const payload = buildCuratedRoutePayload(12, "JNB", ["nature"], "kruger");
+    const blocks = payload?.regionBlueprint as
+      | Array<{ city: string; startDay: number; endDay: number }>
+      | undefined;
+    const jnbSpans = (blocks ?? [])
+      .filter((b) => /johannesburg/i.test(b.city))
+      .map((b) => b.endDay - b.startDay + 1);
+    expect(Math.max(...jnbSpans)).toBeLessThanOrEqual(2);
+    const krugerDays = (blocks ?? [])
+      .filter((b) => /kruger/i.test(b.city))
+      .reduce((sum, b) => sum + (b.endDay - b.startDay + 1), 0);
+    expect(krugerDays).toBeGreaterThanOrEqual(8);
+  });
+
+  it("matches Kenya Mara route for NBO", () => {
+    const route = matchCuratedRoute(12, "NBO", ["nature"], "maasai mara amboseli");
+    expect(route?.id).toBe("ke-classic-mara");
+  });
+
+  it("keeps Nairobi thin and grows Mara on 14d Kenya trip", () => {
+    const payload = buildCuratedRoutePayload(14, "NBO", ["nature"], "kenya safari");
+    const blocks = payload?.regionBlueprint as
+      | Array<{ city: string; startDay: number; endDay: number }>
+      | undefined;
+    const nairobiSpans = (blocks ?? [])
+      .filter((b) => /nairobi/i.test(b.city))
+      .map((b) => b.endDay - b.startDay + 1);
+    expect(Math.max(...nairobiSpans)).toBeLessThanOrEqual(2);
+    const wilderness = (blocks ?? [])
+      .filter((b) => !/nairobi/i.test(b.city))
+      .reduce((sum, b) => sum + (b.endDay - b.startDay + 1), 0);
+    expect(wilderness).toBeGreaterThanOrEqual(10);
+  });
+});

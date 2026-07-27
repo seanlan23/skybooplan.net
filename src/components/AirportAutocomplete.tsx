@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Loader2, MapPin, Plane, Globe, X } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
-import { didYouMeanAirport, searchAirportCatalog } from "@/lib/airportCatalog";
+import { didYouMeanAirport } from "@/lib/airportCatalog";
+import { searchDestinationAirports } from "@/lib/popularDestinationAirports";
 import { searchPlaces, type PlaceSuggestion } from "@/lib/places.functions";
 import { useI18n } from "@/lib/i18n";
 import {
@@ -18,7 +19,8 @@ function mergeLocalRemote(
   query: string,
   remote: PlaceSuggestion[],
 ): PlaceSuggestion[] {
-  const local = searchAirportCatalog(query, 8);
+  // Country → main hubs first (same as hero), then city/IATA — keeps IATA search intact.
+  const local = searchDestinationAirports(query, 8);
   const seen = new Set<string>();
   const out: PlaceSuggestion[] = [];
   for (const s of [...local, ...remote]) {

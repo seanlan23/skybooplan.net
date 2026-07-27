@@ -353,6 +353,166 @@ const ID_GRAND_CIRCLE: CuratedRoute = {
     "Indonezija grand tour: Jakarta hub → let Makassar → Toraja (trek) → let Bali (Ubud, Batur) → let Labuan Bajo (Wae Rebo + 2d Komodo cruise) → Jakarta odlet.",
 };
 
+/** Botswana: capital = flight buffer only; surplus → Maun / pans / Chobe. */
+const BW_CLASSIC_DELTA_CHOBE: CuratedRoute = {
+  id: "bw-classic-delta-chobe",
+  country: "BW",
+  hubIata: "GBE",
+  minDays: 10,
+  maxDays: 21,
+  priority: 30,
+  wishTest:
+    /botswana|bocvana|botsvana|gaborone|maun|okavango|chobe|kasane|makgadikgadi|kalahari/i,
+  interests: ["nature", "sights"],
+  // 0 = flex: surplus days go to wilderness, NEVER to final Gaborone hub.
+  segments: [
+    ["Gaborone", 1],
+    ["Maun", 0],
+    ["Makgadikgadi", 0],
+    ["Kasane", 0],
+    ["Gaborone", 1],
+  ],
+  mustIncludeHighlights: [
+    "Okavango Delta day trip",
+    "Moremi / Maun safari",
+    "Makgadikgadi Pans",
+    "Chobe National Park",
+  ],
+  steer:
+    "Bocvana: Gaborone (1 dan prihod) → Maun/Okavango day-access → Makgadikgadi → Kasane/Chobe → Gaborone (1 dan odlet). PREPOVEDANO: 3+ dni Gaborone / shopping malls. Odvečne dni na Maun/Makgadikgadi/Kasane.",
+};
+
+/** Namibia classic loop: Windhoek buffers only; surplus → desert/coast/Etosha. */
+const NA_CLASSIC_LOOP: CuratedRoute = {
+  id: "na-classic-loop",
+  country: "NA",
+  hubIata: "WDH",
+  minDays: 10,
+  maxDays: 21,
+  priority: 30,
+  wishTest:
+    /namibia|namibija|windhoek|etosha|sossusvlei|sesriem|swakopmund|damaraland/i,
+  interests: ["nature", "sights"],
+  segments: [
+    ["Windhoek", 1],
+    ["Sesriem", 0],
+    ["Swakopmund", 0],
+    ["Damaraland", 0],
+    ["Etosha", 0],
+    ["Windhoek", 1],
+  ],
+  mustIncludeHighlights: [
+    "Sossusvlei",
+    "Deadvlei",
+    "Swakopmund",
+    "Damaraland",
+    "Etosha National Park",
+  ],
+  steer:
+    "Namibija road-trip: Windhoek (1) → Sesriem/Sossusvlei → Swakopmund → Damaraland → Etosha (več dni) → Windhoek (1 dan odlet). PREPOVEDANO: Otjiwarongo 2+ dni, Windhoek shopping 2+ dni na koncu. Odvečne dni na Etosha/Damaraland/Sesriem/obalo.",
+};
+
+/** South Africa via Johannesburg: hub buffer only; surplus → Kruger. */
+const ZA_JNB_KRUGER: CuratedRoute = {
+  id: "za-jnb-kruger",
+  country: "ZA",
+  hubIata: "JNB",
+  minDays: 8,
+  maxDays: 21,
+  priority: 30,
+  wishTest: /kruger|johannesburg|jnb|mpumalanga|sabie|hoedspruit/i,
+  interests: ["nature", "sights"],
+  segments: [
+    ["Johannesburg", 1],
+    ["Kruger", 0],
+    ["Johannesburg", 1],
+  ],
+  mustIncludeHighlights: [
+    "Kruger National Park",
+    "Game drive",
+    "Panorama Route / Blyde River",
+  ],
+  steer:
+    "JAR prek JNB: Johannesburg (1 dan prihod) → Kruger / Mpumalanga (več dni) → Johannesburg (1 dan odlet). PREPOVEDANO: 3+ dni Johannesburg malls. Odvečne dni na Kruger.",
+};
+
+/** Longer JAR: Kruger + Cape Town; Johannesburg only as arrival buffer when flying JNB. */
+const ZA_JNB_KRUGER_CAPE: CuratedRoute = {
+  id: "za-jnb-kruger-cape",
+  country: "ZA",
+  hubIata: "JNB",
+  minDays: 14,
+  maxDays: 21,
+  priority: 28,
+  wishTest: /cape town|kapsko|garden route|stellenbosch|kruger.*cape|cape.*kruger/i,
+  interests: ["nature", "sights", "beaches"],
+  segments: [
+    ["Johannesburg", 1],
+    ["Kruger", 0],
+    ["Cape Town", 0],
+    ["Johannesburg", 1],
+  ],
+  mustIncludeHighlights: [
+    "Kruger National Park",
+    "Table Mountain",
+    "Cape Point",
+    "Stellenbosch",
+  ],
+  steer:
+    "JAR: Johannesburg (1) → Kruger → Cape Town (destinacija) → Johannesburg (1 odlet). Odvečne dni na Kruger/Cape Town — ne na Johannesburg.",
+};
+
+/** Cape Town as real destination (Garden Route), not a thin gateway. */
+const ZA_CPT_GARDEN: CuratedRoute = {
+  id: "za-cpt-garden",
+  country: "ZA",
+  hubIata: "CPT",
+  minDays: 8,
+  maxDays: 18,
+  priority: 30,
+  wishTest: /cape town|kapsko|garden route|stellenbosch|hermanus|cape point/i,
+  interests: ["nature", "sights", "beaches"],
+  segments: [
+    ["Cape Town", 0],
+    ["Garden Route", 0],
+    ["Cape Town", 2],
+  ],
+  mustIncludeHighlights: [
+    "Table Mountain",
+    "Cape Point",
+    "Stellenbosch",
+    "Garden Route",
+  ],
+  steer:
+    "JAR Cape Town: Cape Town (destinacija) → Garden Route → Cape Town buffer pred odletom. Cape Town sme dobiti več dni — ni samo hub.",
+};
+
+/** Kenya: Nairobi = flight buffer; surplus → Mara / Amboseli. */
+const KE_CLASSIC_MARA: CuratedRoute = {
+  id: "ke-classic-mara",
+  country: "KE",
+  hubIata: "NBO",
+  minDays: 8,
+  maxDays: 21,
+  priority: 30,
+  wishTest: /kenya|kenija|nairobi|maasai mara|masai mara|amboseli|nakuru|tsavo/i,
+  interests: ["nature", "sights"],
+  segments: [
+    ["Nairobi", 1],
+    ["Maasai Mara", 0],
+    ["Amboseli", 0],
+    ["Nairobi", 1],
+  ],
+  mustIncludeHighlights: [
+    "Maasai Mara",
+    "Game drive",
+    "Amboseli National Park",
+    "Kilimanjaro views",
+  ],
+  steer:
+    "Kenija: Nairobi (1 dan prihod) → Maasai Mara → Amboseli → Nairobi (1 dan odlet). PREPOVEDANO: 3+ dni Nairobi malls / city walks. Odvečne dni na Mara/Amboseli.",
+};
+
 const AGENCY_ROUTES: CuratedRoute[] = [
   VN_KH_TH_GRAND,
   VN_KH_ANGKOR,
@@ -366,6 +526,12 @@ const AGENCY_ROUTES: CuratedRoute[] = [
   TH_BEACHES_ANDAMAN,
   TH_PHUKET_ANDAMAN,
   TH_CHIANGMAI_NORTH,
+  BW_CLASSIC_DELTA_CHOBE,
+  NA_CLASSIC_LOOP,
+  ZA_JNB_KRUGER_CAPE,
+  ZA_JNB_KRUGER,
+  ZA_CPT_GARDEN,
+  KE_CLASSIC_MARA,
 ];
 
 /** Non-BKK Thailand arrival airports → start the trip there, not in Bangkok. */
@@ -580,6 +746,13 @@ export function matchCuratedRoute(
     }
     if (destCountry === "PH") return phDefaultRoute(nDays, keys);
     if (destCountry === "ID") return idDefaultRoute(nDays, keys, w);
+    if (destCountry === "BW") return BW_CLASSIC_DELTA_CHOBE;
+    if (destCountry === "NA") return NA_CLASSIC_LOOP;
+    if (destCountry === "ZA") {
+      if (iata === "CPT") return ZA_CPT_GARDEN;
+      return nDays >= 14 ? ZA_JNB_KRUGER_CAPE : ZA_JNB_KRUGER;
+    }
+    if (destCountry === "KE") return KE_CLASSIC_MARA;
     return null;
   }
 
@@ -688,7 +861,7 @@ export type RegionBlueprintBlock = { city: string; startDay: number; endDay: num
 
 /** International hubs: arrival/return buffers — do not absorb leftover trip days. */
 const BLUEPRINT_HUB_CITY_RE =
-  /^(manila|bangkok|jakarta|singapore|kuala lumpur|ho chi minh city|hanoi|tokyo|seoul|dubai|istanbul)$/i;
+  /^(manila|bangkok|jakarta|singapore|kuala lumpur|ho chi minh city|hanoi|tokyo|seoul|dubai|istanbul|gaborone|windhoek|johannesburg|nairobi)$/i;
 
 function isBlueprintReturnHub(
   index: number,

@@ -23,6 +23,7 @@ import {
   type HeroStaySearchParams,
 } from "@/lib/heroStaySearch";
 import { motorhomePlannerFromCollected } from "@/lib/heroMotorhome";
+import { carPlannerFromCollected } from "@/lib/heroCar";
 import { HeroAiPlanResults } from "@/components/HeroAiPlanResults";
 import { SocialProofSection } from "@/components/SocialProofSection";
 import { TripInspiration } from "@/components/TripInspiration";
@@ -659,6 +660,44 @@ function Landing() {
         await handleGeneratePlan(form, ctx, "trip", "hero-trip-plan");
       } catch (err) {
         console.error("Motorhome plan setup failed", err);
+        setHeroSearchError("heroSearch.error");
+        setHeroSearchLoading(false);
+      }
+      return;
+    }
+
+    // Car road trip: same flow as motorhome, but hotels (Booking) — no camps.
+    if (mode === "car") {
+      try {
+        const { ctx, form } = carPlannerFromCollected(collected, lang);
+        if (!ctx.originPlace?.trim() || !ctx.destinationPlace?.trim()) {
+          setHeroSearchError("error.destinationRequired");
+          return;
+        }
+        setHeroStaySearch(null);
+        setHeroFlights([]);
+        setAiContext(ctx);
+        setPlannerMode("trip");
+        setLastSearch({
+          mode: "ai",
+          from: ctx.from || ctx.originPlace,
+          to: ctx.to || ctx.destinationPlace,
+          originPlace: ctx.originPlace,
+          destinationPlace: ctx.destinationPlace,
+          groundTransportMode: "car",
+          departDate: ctx.departDate,
+          returnDate: ctx.returnDate ?? "",
+          tripType: "return",
+          pax: ctx.pax,
+          adults: ctx.adults,
+          children: ctx.childrenAges.length,
+          childrenAges: ctx.childrenAges,
+          language: lang,
+        });
+        setHeroSearchLoading(false);
+        await handleGeneratePlan(form, ctx, "trip", "hero-trip-plan");
+      } catch (err) {
+        console.error("Car plan setup failed", err);
         setHeroSearchError("heroSearch.error");
         setHeroSearchLoading(false);
       }

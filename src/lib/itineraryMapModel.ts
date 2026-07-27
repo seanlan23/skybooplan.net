@@ -531,7 +531,9 @@ export function buildMapDay(plan: AiTripPlan, activeDay: number): MapDay | null 
         },
       ]
     : collectPins(day, center, {
-        seedCampHub: roadTrip || plan.accommodationMode === "motorhome",
+        seedCampHub:
+          plan.accommodationMode === "motorhome" ||
+          plan.groundTransportMode === "motorhome",
       });
 
   let legIn: MapDayLeg | undefined;

@@ -49,6 +49,7 @@ describe("expandPlanDaysToExpected", () => {
     const plan = {
       destinationName: "Italy",
       groundTransportMode: "motorhome",
+      accommodationMode: "motorhome",
       days: [
         day({ day: 1, city: "Vienna", date: "2026-08-01" }),
         day({ day: 2, city: "Venice", date: "2026-08-02" }),
@@ -69,6 +70,33 @@ describe("expandPlanDaysToExpected", () => {
     expect(plan.days).toHaveLength(10);
     expect(plan.days.map((d) => d.day)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
     expect(plan.days[9]?.date).toBe("2026-08-10");
+    expect(
+      plan.days.some((d) => d.activities?.evening?.[0]?.name?.match(/kamp|camp/i)),
+    ).toBe(true);
+  });
+
+  it("pads car/hotel days without camp evening copy", () => {
+    const plan = {
+      destinationName: "Spain",
+      groundTransportMode: "car",
+      accommodationMode: "hotel",
+      days: [
+        day({ day: 1, city: "Ljubljana", date: "2026-07-01" }),
+        day({ day: 2, city: "Barcelona", date: "2026-07-02" }),
+      ],
+    } as AiTripPlan;
+
+    expandPlanDaysToExpected(plan, {
+      expectedDays: 4,
+      language: "sl",
+      departDate: "2026-07-01",
+    });
+
+    expect(plan.days).toHaveLength(4);
+    for (const d of plan.days) {
+      const eve = d.activities?.evening?.[0]?.name ?? "";
+      expect(eve).not.toMatch(/kamp|camp/i);
+    }
   });
 
   it("does not clone identical activity trees when padding stay nights", () => {

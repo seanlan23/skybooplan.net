@@ -45,6 +45,22 @@ describe("searchDestinationAirports", () => {
     ["tajska", ["BKK", "HKT"]],
     ["filipini", ["MNL", "CEB"]],
     ["japonska", ["NRT", "HND"]],
+    ["kuba", ["HAV", "VRA"]],
+    ["Cuba", ["HAV", "VRA"]],
+    ["namibija", ["WDH", "ERS"]],
+    ["Namibia", ["WDH", "ERS"]],
+    ["bocvana", ["GBE", "MUB"]],
+    ["Botswana", ["GBE", "MUB"]],
+    ["jamajka", ["MBJ", "KIN"]],
+    ["kostarika", ["SJO", "LIR"]],
+    ["kanada", ["YYZ", "YVR"]],
+    ["Canada", ["YYZ", "YVR"]],
+    ["Namibia", ["WDH", "ERS"]],
+    ["Kuba", ["HAV", "VRA"]],
+    ["Simbabwe", ["HRE", "VFA"]],
+    ["Tunesien", ["TUN", "DJE"]],
+    ["Neuseeland", ["AKL", "CHC"]],
+    ["Jamaika", ["MBJ", "KIN"]],
   ])("country %s returns ≥2 main hubs", (query, expected) => {
     const hits = searchDestinationAirports(query);
     const iatas = hits.map((h) => h.iata);

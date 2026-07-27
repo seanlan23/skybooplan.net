@@ -248,13 +248,40 @@ describe("estimateDayBudgetEur", () => {
     expect(departure).toBeLessThan(light);
   });
 
-  it("safari floor reflects lodge + park fees", () => {
+  it("safari floor reflects lodge + park fees for lodge nights", () => {
     const serengeti = applySafariBudgetFloor(
       200,
       "safari",
-      { morning: [{ priceLabel: "150 €", type: "ACTIVITY" }], afternoon: [], evening: [] },
+      {
+        morning: [
+          {
+            name: "Serengeti game drive",
+            priceLabel: "150 €",
+            type: "ACTIVITY",
+          },
+        ],
+        afternoon: [{ name: "Tented camp lodge siesta", priceLabel: "0 €", type: "ACTIVITY" }],
+        evening: [],
+      },
     );
-    expect(serengeti).toBeGreaterThanOrEqual(450);
+    expect(serengeti).toBeGreaterThanOrEqual(340);
+  });
+
+  it("day-trip safari does not invent a €450 lodge night", () => {
+    const mokolodi = applySafariBudgetFloor(
+      100,
+      "safari",
+      {
+        morning: [{ name: "Mokolodi Nature Reserve", priceLabel: "25 €", type: "ACTIVITY" }],
+        afternoon: [
+          { name: "Popoldanski safari v Mokolodi", priceLabel: "60 €", type: "ACTIVITY" },
+        ],
+        evening: [],
+      },
+      { tier: "mid" },
+    );
+    expect(mokolodi).toBeLessThan(160);
+    expect(mokolodi).toBeGreaterThanOrEqual(95);
   });
 
   it("balloon safari day floor is realistic", () => {
@@ -262,6 +289,7 @@ describe("estimateDayBudgetEur", () => {
       300,
       "safari-balloon",
       { morning: [{ priceLabel: "500 €", type: "ACTIVITY" }], afternoon: [], evening: [] },
+      { tier: "premium" },
     );
     expect(balloon).toBeGreaterThanOrEqual(620);
   });

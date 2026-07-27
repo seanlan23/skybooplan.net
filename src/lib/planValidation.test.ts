@@ -111,6 +111,33 @@ describe("findDuplicateCitySegments — no duplicate non-contiguous stays", () =
     expect(findDuplicateCitySegments(plan(days))).toEqual([]);
   });
 
+  it("flags padded Gaborone return (capital shopping days before flight)", () => {
+    const GAB = { lat: -24.555, lng: 25.918 };
+    const MAUN = { lat: -19.973, lng: 23.431 };
+    const days: DayPlan[] = [
+      ...[1, 2, 3].map((d) => day({ day: d, city: "Gaborone", ...GAB })),
+      ...[4, 5, 6, 7, 8, 9, 10, 11, 12].map((d) => day({ day: d, city: "Maun", ...MAUN })),
+      ...[13, 14, 15, 16].map((d) => day({ day: d, city: "Gaborone", ...GAB })),
+    ];
+    const v = findDuplicateCitySegments(plan(days));
+    expect(v).toHaveLength(1);
+    expect(v[0].rule).toBe("duplicate_destination_segment");
+  });
+
+  it("allows thin Gaborone hub return (1 night in + 1–2 nights out)", () => {
+    const GAB = { lat: -24.555, lng: 25.918 };
+    const MAUN = { lat: -19.973, lng: 23.431 };
+    const days: DayPlan[] = [
+      day({ day: 1, city: "Gaborone", ...GAB }),
+      ...[2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14].map((d) =>
+        day({ day: d, city: "Maun", ...MAUN }),
+      ),
+      day({ day: 15, city: "Gaborone", ...GAB }),
+      day({ day: 16, city: "Gaborone", ...GAB }),
+    ];
+    expect(findDuplicateCitySegments(plan(days))).toEqual([]);
+  });
+
   it("still flags mid-trip hub return (Bangkok → Chiang Mai → Bangkok → Phuket)", () => {
     const days: DayPlan[] = [
       day({ day: 1, city: "Bangkok", ...BANGKOK }),

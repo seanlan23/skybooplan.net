@@ -46,20 +46,36 @@ POVRATEK DOMOV — VLAK (obvezno, zadnji dnevi):
 - transportation[] zadnjega dne: type "train" proti domu.`;
   }
 
-  const vehicle = mode === "motorhome" ? "avtodomom" : "avtom";
-  return `
-PREVOZ DO DESTINACIJE — ${mode === "motorhome" ? "AVTODOM" : "AVTO"} (obvezno):
-- Potnik potuje iz "${origin}" do "${dest}" z ${vehicle} (ne z letalom za ta del poti).
+  if (mode === "motorhome") {
+    return `
+PREVOZ DO DESTINACIJE — AVTODOM (obvezno):
+- Potnik potuje iz "${origin}" do "${dest}" z avtodomom (ne z letalom za ta del poti).
 - Prvi dni morajo pokrivati celotno pot od doma do destinacije z realističnimi postanki (npr. "Postanek v Milanu", "Nočitev v Münchenu").
 - Vsak dan poti: drivingDistanceKm, drivingDurationHours, smiselne postanke ali kratki ogledi ob poti.
 - Za avtodom: kampiri/RV parki ob poti, ne hoteli v centru mest.
 - Po prihodu na destinacijo nadaljuj z glavnim programom na cilju.
 
-POVRATEK DOMOV — ${mode === "motorhome" ? "AVTODOM" : "AVTO"} (obvezno, zadnji dnevi):
-- Potnik se NE vrača z mednarodnega letala! Celotno potovanje je z ${vehicle} iz "${origin}" do "${dest}" in nazaj.
+POVRATEK DOMOV — AVTODOM (obvezno, zadnji dnevi):
+- Potnik se NE vrača z mednarodnega letala! Celotno potovanje je z avtodomom iz "${origin}" do "${dest}" in nazaj.
 - Zadnji dan (ali zadnja 1–3 dni, glede na razdaljo) mora biti vožnja NAZAJ do izhodišča "${origin}" z realističnimi postanki, drivingDistanceKm in drivingDurationHours.
 - Na zadnjem dnevu NE načrtuj mednarodnega leta, category airport za odlet v EU, prevoza na letališče ali trip_metadata.return_flight_eu.
-- transportation[] zadnjega dne: vožnja z avtom/avtodomom proti domu — ne flight.`;
+- transportation[] zadnjega dne: vožnja z avtodomom proti domu — ne flight.`;
+  }
+
+  // car
+  return `
+PREVOZ DO DESTINACIJE — AVTO (obvezno):
+- Potnik potuje iz "${origin}" do "${dest}" z avtom (ne z letalom za ta del poti).
+- Prvi dni morajo pokrivati celotno pot od doma do destinacije z realističnimi postanki (npr. "Postanek v Milanu", "Nočitev v Münchenu").
+- Vsak dan poti: drivingDistanceKm, drivingDurationHours, smiselne postanke ali kratki ogledi ob poti.
+- NOČITVE: vsak večer hotel v mestu (Booking-friendly city stay). PREPOVEDANO: kamp, RV park, campground, sosta ali "spanje v avtu" kot namestitev.
+- Po prihodu na destinacijo nadaljuj z glavnim programom na cilju.
+
+POVRATEK DOMOV — AVTO (obvezno, zadnji dnevi):
+- Potnik se NE vrača z mednarodnega letala! Celotno potovanje je z avtom iz "${origin}" do "${dest}" in nazaj.
+- Zadnji dan (ali zadnja 1–3 dni, glede na razdaljo) mora biti vožnja NAZAJ do izhodišča "${origin}" z realističnimi postanki, drivingDistanceKm in drivingDurationHours.
+- Na zadnjem dnevu NE načrtuj mednarodnega leta, category airport za odlet v EU, prevoza na letališče ali trip_metadata.return_flight_eu.
+- transportation[] zadnjega dne: vožnja z avtom proti domu — ne flight.`;
 }
 
 /** Last-day return rules — must match groundTransportMode (car ≠ flight home). */
@@ -214,6 +230,9 @@ export function enrichGroundTransportPlan(
 
   if (opts.mode === "motorhome") {
     plan.accommodationMode = "motorhome";
+  } else if (opts.mode === "car") {
+    plan.accommodationMode = "hotel";
+    delete plan.hotelRestEveryNDays;
   }
 
   let journeyDayCount = 0;
