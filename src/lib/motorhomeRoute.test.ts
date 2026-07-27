@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   collectMotorhomeRoadTripStops,
+  disambiguateMapPlaceQuery,
   isCampActivityName,
+  isCountryOnlyPlaceLabel,
   sanitizeMapPlaceLabel,
 } from "@/lib/motorhomeRoute";
 import type { AiTripPlan } from "@/lib/aiPlan.functions";
@@ -134,7 +136,7 @@ describe("motorhome route + camps", () => {
     expect(stops[0]).toMatch(/Vienna/i);
     expect(stops.some((s) => /Camping Ljubljana/i.test(s))).toBe(true);
     expect(stops.some((s) => /Avtokamp Zadar/i.test(s))).toBe(true);
-    expect(stops).toContain("Split");
+    expect(stops.some((s) => /^Split(,\s*Croatia)?$/i.test(s))).toBe(true);
     // Loop home — last pin is origin, not a country blob.
     expect(stops[stops.length - 1]).toMatch(/Vienna/i);
   });
@@ -161,6 +163,32 @@ describe("motorhome route + camps", () => {
 
   it("maps campground text to hotel category (camp pin budget)", () => {
     expect(inferMapPoiCategoryFromText("Avtokamp Poreč overnight")).toBe("hotel");
+  });
+
+  it("disambiguates Berat so Maps does not open Berat Grill in Germany", () => {
+    expect(disambiguateMapPlaceQuery("Berat")).toBe("Berat, Albania");
+    expect(disambiguateMapPlaceQuery("Shkoder")).toBe("Shkodër, Albania");
+    expect(disambiguateMapPlaceQuery("Kotor")).toBe("Kotor, Montenegro");
+    expect(isCountryOnlyPlaceLabel("Albania, AL")).toBe(true);
+    expect(isCountryOnlyPlaceLabel("Albanija")).toBe(true);
+
+    const plan = {
+      originPlace: "Ljubljana",
+      destinationPlace: "Albania, AL",
+      groundTransportMode: "car",
+      days: [
+        { day: 1, city: "Split", activities: { morning: [], afternoon: [], evening: [] } },
+        { day: 3, city: "Kotor", activities: { morning: [], afternoon: [], evening: [] } },
+        { day: 5, city: "Berat", activities: { morning: [], afternoon: [], evening: [] } },
+        { day: 7, city: "Himare", activities: { morning: [], afternoon: [], evening: [] } },
+      ],
+    } as AiTripPlan;
+
+    const stops = collectMotorhomeRoadTripStops(plan);
+    expect(stops.some((s) => /^Berat,\s*Albania$/i.test(s))).toBe(true);
+    expect(stops.every((s) => !/^Berat$/i.test(s))).toBe(true);
+    expect(stops.every((s) => !/^Albania/i.test(s))).toBe(true);
+    expect(stops.some((s) => /Himarë,\s*Albania/i.test(s))).toBe(true);
   });
 });
 

@@ -1727,6 +1727,9 @@ function Landing() {
             setHeroPlannerActive(false);
           }}
           onClearSearch={() => {
+            clearAiPlanOnly();
+            setAiLoading(false);
+            setHeroSearchLoading(false);
             setHeroFlights([]);
             setHeroStaySearch(null);
             setSelectedHeroFlightId(null);

@@ -9,7 +9,7 @@ import {
   type ChangeEvent,
   type ReactNode,
 } from "react";
-import { ArrowUp, Loader2, X } from "lucide-react";
+import { ArrowUp, Loader2, Trash2, X } from "lucide-react";
 import { resolveErrorMessage, useI18n } from "@/lib/i18n";
 import {
   createHeroAttachmentPreviewUrl,
@@ -1832,6 +1832,20 @@ export function HeroChatFlow({
           ) : null}
           </div>
         </div>
+
+        {/* Car / motorhome / flights / stays: checklist is "all"-only — always offer clear here. */}
+        {!showTripChecklist ? (
+          <div className="mt-3 flex justify-center sm:justify-start sm:pl-2">
+            <button
+              type="button"
+              onClick={clearSearch}
+              className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/10 px-3.5 py-1.5 text-sm font-medium text-white/90 shadow-sm backdrop-blur-md transition hover:bg-white/20 hover:text-white"
+            >
+              <Trash2 className="h-3.5 w-3.5" aria-hidden />
+              {t("search.clearNew" as never)}
+            </button>
+          </div>
+        ) : null}
 
         {showDatePicker && step === "dates" ? (
           <div

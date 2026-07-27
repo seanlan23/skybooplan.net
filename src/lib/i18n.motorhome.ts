@@ -82,7 +82,7 @@ export const motorhomeUiByLang = {
       "Camping cerca de {city} — aparca fuera del centro y entra en transporte público.",
     "aiplan.hotelRestDay": "Noche en hotel (descanso)",
     "aiplan.hotelRestNight": "Noche de hotel",
-    "aiplan.totalIncludesMotorhome": "Incluye: comida, visitas, combustible y camping",
+    "aiplan.totalIncludesMotorhome": "Incluye: comida, visitas, combustible, peajes y camping",
     "aiplan.totalExcludesMotorhome": "No incluye: alquiler de autocaravana, peajes, ferries",
   },
   fr: {
@@ -164,7 +164,7 @@ export const motorhomeUiByLang = {
       "Camping près de {city} — garez-vous hors centre-ville et utilisez les transports.",
     "aiplan.hotelRestDay": "Nuit d'hôtel (repos)",
     "aiplan.hotelRestNight": "Nuit d'hôtel",
-    "aiplan.totalIncludesMotorhome": "Inclut : repas, visites, carburant et camping",
+    "aiplan.totalIncludesMotorhome": "Inclut : repas, visites, carburant, péages et camping",
     "aiplan.totalExcludesMotorhome": "Hors : location camping-car, péages, ferries",
   },
   it: {
@@ -246,7 +246,7 @@ export const motorhomeUiByLang = {
       "Campeggio vicino a {city} — parcheggia fuori dal centro e usa i mezzi.",
     "aiplan.hotelRestDay": "Notte in hotel (riposo)",
     "aiplan.hotelRestNight": "Notte in hotel",
-    "aiplan.totalIncludesMotorhome": "Include: pasti, visite, carburante e campeggio",
+    "aiplan.totalIncludesMotorhome": "Include: pasti, visite, carburante, pedaggi e campeggio",
     "aiplan.totalExcludesMotorhome": "Esclude: noleggio camper, pedaggi, traghetti",
   },
   de: {
@@ -328,7 +328,7 @@ export const motorhomeUiByLang = {
       "Camping nahe {city} — außerhalb der Innenstadt parken und mit ÖPNV rein.",
     "aiplan.hotelRestDay": "Hotelnacht (Erholung)",
     "aiplan.hotelRestNight": "Hotelnacht",
-    "aiplan.totalIncludesMotorhome": "Inklusive: Essen, Sehenswürdigkeiten, Kraftstoff & Camping",
+    "aiplan.totalIncludesMotorhome": "Inklusive: Essen, Sehenswürdigkeiten, Kraftstoff, Maut & Camping",
     "aiplan.totalExcludesMotorhome": "Ohne: Wohnmobilmiete, Maut, Fähren",
   },
 } as const;

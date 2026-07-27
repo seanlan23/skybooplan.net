@@ -7,6 +7,10 @@ import {
   normalizePlanCurrency,
   type PlanCurrency,
 } from "@/lib/planCurrency";
+import {
+  COUNTRY_MID_DAILY_EUR,
+  priceTierFromCountryMid,
+} from "@/lib/countryDailyBudget";
 
 export type TripLocale = {
   langCode: string;
@@ -295,7 +299,11 @@ function tierPriceBands(
 }
 
 export function getPriceTier(country: string): PriceTier {
-  return TIER_BY_COUNTRY[country] ?? "mid";
+  const cc = (country ?? "").trim().toUpperCase();
+  if (cc && COUNTRY_MID_DAILY_EUR[cc] != null) {
+    return priceTierFromCountryMid(cc);
+  }
+  return TIER_BY_COUNTRY[cc] ?? "mid";
 }
 
 /** Midpoint of one meal band × 3 meals (per person). */

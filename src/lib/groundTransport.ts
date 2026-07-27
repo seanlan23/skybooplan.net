@@ -53,6 +53,7 @@ PREVOZ DO DESTINACIJE — AVTODOM (obvezno):
 - Prvi dni morajo pokrivati celotno pot od doma do destinacije z realističnimi postanki (npr. "Postanek v Milanu", "Nočitev v Münchenu").
 - Vsak dan poti: drivingDistanceKm, drivingDurationHours, smiselne postanke ali kratki ogledi ob poti.
 - Za avtodom: kampiri/RV parki ob poti, ne hoteli v centru mest.
+- Proračun: v dailyBudget vključni DELEŽ cestnin/vinjet, goriva in kampa (deljeno na potnike) — IT/FR avtoceste so drage.
 - Po prihodu na destinacijo nadaljuj z glavnim programom na cilju.
 
 POVRATEK DOMOV — AVTODOM (obvezno, zadnji dnevi):
@@ -70,6 +71,7 @@ PREVOZ DO DESTINACIJE — AVTO (obvezno):
 - Vsak dan poti: drivingDistanceKm, drivingDurationHours, smiselne postanke ali kratki ogledi ob poti.
 - NOČITVE: vsak večer hotel v mestu (Booking-friendly city stay). PREPOVEDANO: kamp, RV park, campground, sosta ali "spanje v avtu" kot namestitev.
 - transportation[] na dneh poti: type "car" (vožnja) — PREPOVEDANO type "flight" za cestne etape / izlete.
+- Proračun: v dailyBudget vključni DELEŽ cestnin/vinjet in goriva (deljeno na število potnikov) — IT/FR/ES/HR avtoceste so drage; AT/SI/CH vinjeta.
 - Po prihodu na destinacijo nadaljuj z glavnim programom na cilju.
 
 POVRATEK DOMOV — AVTO (obvezno, zadnji dnevi):

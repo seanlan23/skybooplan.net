@@ -520,8 +520,11 @@ const en: Dict = {
   "aiplan.total": "Total",
   "aiplan.totalIncludes": "Includes: meals, sights, local & domestic transport",
   "aiplan.totalExcludes": "Excludes international flights & hotels",
+  "aiplan.totalIncludesCar":
+    "Includes: meals, sights, fuel & toll/vignette share",
+  "aiplan.totalExcludesCar": "Excludes car rental & international flights",
   "aiplan.totalIncludesMotorhome":
-    "Includes: food, sights, fuel & campsite share",
+    "Includes: food, sights, fuel, tolls & campsite share",
   "aiplan.totalExcludesMotorhome":
     "Excludes motorhome rental & international transport",
   "aiplan.totalForTravelers": "Total for {n} travelers",
@@ -1591,9 +1594,12 @@ const dicts: Record<DictLang, Dict> = {
     "aiplan.badge": "AI potovalni plan",
     "aiplan.total": "Skupaj",
     "aiplan.totalIncludes": "Vključeno: hrana, vstopnine, lokalni in notranji prevoz",
-    "aiplan.totalExcludes": "Brez mednarodnih letov in hotelov",
+    "aiplan.totalIncludesCar":
+      "Vključeno: hrana, vstopnine, delež goriva in cestnin/vinjet",
     "aiplan.totalIncludesMotorhome":
-      "Vključeno: hrana, vstopnine, delež goriva in kampa",
+      "Vključeno: hrana, vstopnine, delež goriva, cestnin in kampa",
+    "aiplan.totalExcludes": "Brez mednarodnih letov in hotelov",
+    "aiplan.totalExcludesCar": "Brez najema avtomobila in mednarodnih letov",
     "aiplan.totalExcludesMotorhome":
       "Brez najema avtodoma in mednarodnega prevoza",
     "aiplan.totalForTravelers": "Skupaj za {n} potnike",

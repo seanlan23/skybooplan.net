@@ -1,3 +1,8 @@
+import {
+  COUNTRY_MID_DAILY_EUR,
+  countryTierDailyBudgetEur,
+} from "@/lib/countryDailyBudget";
+
 /** Parse price labels (€, $, THB, free) into approximate EUR for daily budget sums. */
 export function parsePriceLabelToEur(label?: string): number {
   if (!label || label === "—") return 0;
@@ -457,6 +462,7 @@ export function isValueDestinationBudget(country?: string, city?: string): boole
 
 /**
  * Tighter per-person daily caps for value destinations (Thailand, Vietnam, …).
+ * Prefer applyCountryDayBudgetCeil when the country is in the industry mid table.
  * Apply AFTER applyGlobalDayBudgetCeil. No-op outside value regions / safari days.
  */
 export function applyValueDestinationDayBudgetCeil(
@@ -493,6 +499,53 @@ export function applyValueDestinationDayBudgetCeil(
   };
   const cap = caps[tier][kind] ?? caps[tier].sightseeing ?? eur;
   return Math.min(Math.max(0, Math.round(eur)), cap);
+}
+
+export function hasCountryMidDailyBudget(country?: string): boolean {
+  const cc = (country ?? "").trim().toUpperCase();
+  return Boolean(cc && COUNTRY_MID_DAILY_EUR[cc] != null);
+}
+
+/**
+ * Industry mid-range daily budget per person (shared 3★ room + meals + local transport + 1–2 sights).
+ * Primary ceil for known countries — CH €200, NO €170, IT/FR €130, AL €50, TH €50, …
+ */
+export function applyCountryDayBudgetCeil(
+  eur: number,
+  kind: DayBudgetKind,
+  tier: BudgetTier = "mid",
+  opts?: { country?: string; city?: string },
+): number {
+  if (kind === "safari" || kind === "safari-balloon") return eur;
+  const cc = (opts?.country ?? "").trim().toUpperCase();
+  if (!cc || COUNTRY_MID_DAILY_EUR[cc] == null) return eur;
+
+  const base = countryTierDailyBudgetEur(cc, tier);
+  const kindFactor: Partial<Record<DayBudgetKind, number>> = {
+    arrival: 0.55,
+    departure: 0.4,
+    sightseeing: 1,
+    "ticket-heavy": 1.2,
+    "cross-country-travel": 0.85,
+  };
+  const cap = Math.max(20, Math.round(base * (kindFactor[kind] ?? 1)));
+  return Math.min(Math.max(0, Math.round(eur)), cap);
+}
+
+/** @deprecated Use applyCountryDayBudgetCeil — kept as alias for older imports/tests. */
+export function isEuropeTouristBudget(country?: string, city?: string): boolean {
+  const cc = (country ?? "").trim().toUpperCase();
+  return hasCountryMidDailyBudget(cc) && !isValueDestinationBudget(country, city);
+}
+
+/** @deprecated Use applyCountryDayBudgetCeil. */
+export function applyEuropeTouristDayBudgetCeil(
+  eur: number,
+  kind: DayBudgetKind,
+  tier: BudgetTier = "mid",
+  opts?: { country?: string; city?: string },
+): number {
+  return applyCountryDayBudgetCeil(eur, kind, tier, opts);
 }
 
 /** Hybrid motorhome + periodic hotel night — bump budget on hotel rest days. Per person. */
@@ -596,4 +649,52 @@ export function computeTripTotalBudgetEur(
 ): number {
   const travelers = Math.max(1, pax);
   return days.reduce((sum, d) => sum + (d.dailyBudgetEur ?? 0) * travelers, 0);
+}
+
+/**
+ * Soft trip envelope: trim only Gemini inflation above industry mid × days (+12%).
+ * Does NOT crush long IT/FR trips down to hero €2000/pp — that undercuts industry rates
+ * (e.g. Italy €130 × 21d = €2730/pp with hotels).
+ */
+export function scaleDailyBudgetsToTripCap(
+  days: Array<{ dailyBudgetEur?: number }>,
+  tier: BudgetTier,
+  opts?: { minDailyEur?: number; country?: string },
+): void {
+  if (tier === "premium" || days.length === 0) return;
+
+  const industryTotal = countryTierDailyBudgetEur(opts?.country, tier) * days.length;
+  const trimAt = Math.round(industryTotal * 1.12);
+  const sum = days.reduce((s, d) => s + (d.dailyBudgetEur ?? 0), 0);
+  if (sum <= trimAt) return;
+
+  const minD = Math.max(15, opts?.minDailyEur ?? 25);
+  const scale = trimAt / sum;
+  for (const d of days) {
+    const raw = d.dailyBudgetEur ?? 0;
+    d.dailyBudgetEur = Math.max(minD, Math.round(raw * scale));
+  }
+
+  let newSum = days.reduce((s, d) => s + (d.dailyBudgetEur ?? 0), 0);
+  let guard = 0;
+  while (newSum > trimAt && guard++ < 500) {
+    let idx = 0;
+    let max = -1;
+    for (let i = 0; i < days.length; i++) {
+      const v = days[i]!.dailyBudgetEur ?? 0;
+      if (v > max && v > minD) {
+        max = v;
+        idx = i;
+      }
+    }
+    if (max <= minD) break;
+    days[idx]!.dailyBudgetEur = max - 1;
+    newSum -= 1;
+  }
+}
+
+export function tripDestinationBudgetCapPerPerson(tier: BudgetTier): number | null {
+  if (tier === "budget") return 1000;
+  if (tier === "mid") return 2000;
+  return null;
 }

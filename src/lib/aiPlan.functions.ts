@@ -26,6 +26,7 @@ import { enrichDayActivities } from "@/lib/dayEnrichers";
 import { applyItineraryGuards } from "@/lib/itineraryGuards";
 import {
   applyCanadaBudgetFloor,
+  applyCountryDayBudgetCeil,
   applyGlobalDayBudgetCeil,
   applyHotelRestBudgetFloor,
   applyMotorhomeBudgetCeil,
@@ -37,6 +38,8 @@ import {
   computeTripTotalBudgetEur,
   dayBudgetParams,
   estimateDayBudgetEur,
+  hasCountryMidDailyBudget,
+  scaleDailyBudgetsToTripCap,
 } from "@/lib/tripBudget";
 import {
   buildMetroClusteringPayload,
@@ -3346,14 +3349,18 @@ export function buildSkeletonDayPlans(
               : motorhomeFloored;
           return applyMotorhomeBudgetCeil(withHotel, kind);
         }
+        const budgetPlace = {
+          country: locale.country,
+          city: `${region.city} ${destIata ?? ""} ${skeleton.destinationName ?? ""}`,
+        };
+        if (hasCountryMidDailyBudget(budgetPlace.country)) {
+          return applyCountryDayBudgetCeil(floored, kind, priceTier, budgetPlace);
+        }
         return applyValueDestinationDayBudgetCeil(
           applyGlobalDayBudgetCeil(floored, kind, priceTier),
           kind,
           priceTier,
-          {
-            country: locale.country,
-            city: `${region.city} ${destIata ?? ""} ${skeleton.destinationName ?? ""}`,
-          },
+          budgetPlace,
         );
       })(),
       lat: primaryCoord?.lat ?? region.lat,
@@ -3367,7 +3374,10 @@ export function buildSkeletonDayPlans(
     );
   }
 
-  return collapseSmallIslandStays(days, skeleton, opts?.lang ?? "sl");
+  const collapsed = collapseSmallIslandStays(days, skeleton, opts?.lang ?? "sl");
+  // Industry mid × days (+12% headroom); country-aware so long trips keep real rates.
+  scaleDailyBudgetsToTripCap(collapsed, priceTier, { country: locale.country });
+  return collapsed;
 }
 
 /** Convert skeleton to a plan for map pins and photo resolution. */

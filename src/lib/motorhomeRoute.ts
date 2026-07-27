@@ -34,7 +34,38 @@ const NARRATIVE_HEAD_RE =
 
 /** Country-only labels — not a Maps pin (would swallow the return-home stop). */
 const COUNTRY_ONLY_RE =
-  /^(italy|italija|italia|croatia|hrvaška|hrvatska|spain|španija|spanija|france|francija|germany|nemčija|austria|avstrija|slovenia|slovenija|greece|grčija|portugal|portugalska|netherlands|nizozemska|switzerland|švica|albania|albanija|montenegro|črna\s*gora|crna\s*gora)$/i;
+  /^(italy|italija|italia|croatia|hrvaška|hrvatska|spain|španija|spanija|france|francija|germany|nemčija|austria|avstrija|slovenia|slovenija|greece|grčija|portugal|portugalska|netherlands|nizozemska|switzerland|švica|albania|albanija|montenegro|črna\s*gora|crna\s*gora|bosnia|bosna)(\s*,\s*[A-Z]{2})?$/i;
+
+/**
+ * Ambiguous bare city names that Google Maps often resolves to the wrong country
+ * (e.g. "Berat" → "Berat Grill" in Rosche, DE instead of Berat, AL).
+ */
+const MAP_PLACE_COUNTRY_HINT: Array<{ test: RegExp; query: string }> = [
+  { test: /^berat$/i, query: "Berat, Albania" },
+  { test: /^shkod[eë]r$|^skadar$/i, query: "Shkodër, Albania" },
+  { test: /^himar[eë]$|^himara$/i, query: "Himarë, Albania" },
+  { test: /^sarand[eë]$|^saranda$/i, query: "Sarandë, Albania" },
+  { test: /^gjirokast[eë]r$|^girokastra$/i, query: "Gjirokastër, Albania" },
+  { test: /^tirana$/i, query: "Tirana, Albania" },
+  { test: /^ksamil$/i, query: "Ksamil, Albania" },
+  { test: /^kotor$/i, query: "Kotor, Montenegro" },
+  { test: /^budva$/i, query: "Budva, Montenegro" },
+  { test: /^mostar$/i, query: "Mostar, Bosnia and Herzegovina" },
+  { test: /^split$/i, query: "Split, Croatia" },
+  { test: /^dubrovnik$/i, query: "Dubrovnik, Croatia" },
+  { test: /^zadar$/i, query: "Zadar, Croatia" },
+  { test: /^ljubljana$/i, query: "Ljubljana, Slovenia" },
+];
+
+/** Append country when a bare city would otherwise geocode to the wrong place. */
+export function disambiguateMapPlaceQuery(label: string): string {
+  const s = sanitizeMapPlaceLabel(label);
+  if (!s) return s;
+  // Already has a country / region hint.
+  if (/,/.test(s)) return s;
+  const hit = MAP_PLACE_COUNTRY_HINT.find((h) => h.test.test(s));
+  return hit?.query ?? s;
+}
 
 /** Strip "Prihod v …" / "Arrival at …" so Maps gets a real place name. */
 export function sanitizeMapPlaceLabel(label: string): string {
@@ -157,7 +188,7 @@ function viaTitle(lang: string, dayNum: number, place: string): string {
 export function collectMotorhomeMapStops(plan: AiTripPlan, lang = "sl"): MotorhomeMapStop[] {
   const out: MotorhomeMapStop[] = [];
   const push = (stop: MotorhomeMapStop) => {
-    const s = sanitizeMapPlaceLabel(stop.placeQuery);
+    const s = disambiguateMapPlaceQuery(sanitizeMapPlaceLabel(stop.placeQuery));
     if (!s || !isPlausibleMapPlaceLabel(s)) return;
     if (out[out.length - 1] && samePlace(out[out.length - 1]!.placeQuery, s)) return;
     out.push({ ...stop, placeQuery: s });

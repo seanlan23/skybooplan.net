@@ -906,6 +906,7 @@ export function AiPlanView({
                 plan.groundTransportMode === "motorhome" ||
                 plan.accommodationMode === "motorhome"
               }
+              car={plan.groundTransportMode === "car"}
             />
           </div>
         </div>

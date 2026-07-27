@@ -763,7 +763,7 @@ OTOK Z LETALIŠČEM NA CELINI (Boracay/MPH in podobno — obvezno):
 - Polje city naj ostane ime otoka (Boracay); coordinates (lat/lng) naj kažejo sredi otoka, ne na letališče MPH.
 
 OBVEZNA DNEVNA LOGISTIKA (itinerar[].days[] — za vsak dan):
-- dailyBudget: ocena dnevnih stroškov v EUR NA OSEBO (ne za celotno skupino). Skupne postavke (gorivo, kamp, cestnine) razdeli na število potnikov, nato prištej hrano/vstopnine na osebo. Tipično EU avtodom: 45–90 €/osebo/dan — NE 150–400.
+- dailyBudget: ocena dnevnih stroškov v EUR NA OSEBO (ne za celotno skupino). Skupne postavke (gorivo, kamp, cestnine/vinjete) razdeli na število potnikov, nato prištej hrano/vstopnine na osebo. IT/FR/ES/HR avtoceste so drage — ne pozabi cestnin. Tipično EU avtodom: 45–90 €/osebo/dan — NE 150–400.
 - drivingDistanceKm: točna ocena dolžine vožnje za ta dan v km (0 le če ni vožnje).
 - drivingDurationHours: trajanje vožnje npr. "3h 45m" (0h le če ni vožnje — uporabi "0h").
 

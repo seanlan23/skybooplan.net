@@ -33,8 +33,12 @@ export const plannerFormByLang: Record<"es" | "fr" | "it" | "de", Dict> = {
     "aiplan.total": "Total",
     "aiplan.totalIncludes": "Incluye: comidas, visitas, transporte local y nacional",
     "aiplan.totalExcludes": "Excluye vuelos internacionales y hoteles",
-    "aiplan.totalIncludesMotorhome": "Incluye: comida, visitas, combustible y parte del camping",
-    "aiplan.totalExcludesMotorhome": "Excluye peajes/vinjetas y extras no listados",
+    "aiplan.totalIncludesCar":
+      "Incluye: comidas, visitas, cuota de combustible y peajes",
+    "aiplan.totalExcludesCar": "Excluye alquiler de coche y vuelos internacionales",
+    "aiplan.totalIncludesMotorhome":
+      "Incluye: comida, visitas, combustible, peajes y parte del camping",
+    "aiplan.totalExcludesMotorhome": "Excluye alquiler de autocaravana y transporte internacional",
     "aiplan.totalForTravelers": "Total para {n} viajeros",
     "aiplan.totalForOne": "Estimación para 1 viajero",
     "aiplan.downloadPdf": "Descargar plan PDF",
@@ -96,8 +100,12 @@ export const plannerFormByLang: Record<"es" | "fr" | "it" | "de", Dict> = {
     "aiplan.total": "Total",
     "aiplan.totalIncludes": "Inclut : repas, visites, transports locaux et domestiques",
     "aiplan.totalExcludes": "Hors vols internationaux et hôtels",
-    "aiplan.totalIncludesMotorhome": "Inclut : nourriture, visites, carburant et part camping",
-    "aiplan.totalExcludesMotorhome": "Hors péages/vignettes et extras non listés",
+    "aiplan.totalIncludesCar":
+      "Inclut : repas, visites, part carburant et péages/vignettes",
+    "aiplan.totalExcludesCar": "Hors location de voiture et vols internationaux",
+    "aiplan.totalIncludesMotorhome":
+      "Inclut : nourriture, visites, carburant, péages et part camping",
+    "aiplan.totalExcludesMotorhome": "Hors location de camping-car et transport international",
     "aiplan.totalForTravelers": "Total pour {n} voyageurs",
     "aiplan.totalForOne": "Estimation pour 1 voyageur",
     "aiplan.downloadPdf": "Télécharger le plan PDF",
@@ -159,8 +167,12 @@ export const plannerFormByLang: Record<"es" | "fr" | "it" | "de", Dict> = {
     "aiplan.total": "Totale",
     "aiplan.totalIncludes": "Include: pasti, visite, trasporti locali e nazionali",
     "aiplan.totalExcludes": "Esclude voli internazionali e hotel",
-    "aiplan.totalIncludesMotorhome": "Include: cibo, visite, carburante e quota campeggio",
-    "aiplan.totalExcludesMotorhome": "Esclude pedaggi/vignette ed extra non elencati",
+    "aiplan.totalIncludesCar":
+      "Include: pasti, visite, quota carburante e pedaggi/vignette",
+    "aiplan.totalExcludesCar": "Esclude noleggio auto e voli internazionali",
+    "aiplan.totalIncludesMotorhome":
+      "Include: cibo, visite, carburante, pedaggi e quota campeggio",
+    "aiplan.totalExcludesMotorhome": "Esclude noleggio camper e trasporto internazionale",
     "aiplan.totalForTravelers": "Totale per {n} viaggiatori",
     "aiplan.totalForOne": "Stima per 1 viaggiatore",
     "aiplan.downloadPdf": "Scarica piano PDF",
@@ -222,8 +234,12 @@ export const plannerFormByLang: Record<"es" | "fr" | "it" | "de", Dict> = {
     "aiplan.total": "Gesamt",
     "aiplan.totalIncludes": "Inklusive: Essen, Sehenswürdigkeiten, lokaler & Inlandsverkehr",
     "aiplan.totalExcludes": "Ohne internationale Flüge & Hotels",
-    "aiplan.totalIncludesMotorhome": "Inklusive: Essen, Sehenswürdigkeiten, Kraftstoff & Campinganteil",
-    "aiplan.totalExcludesMotorhome": "Ohne Maut/Vignetten und nicht gelistete Extras",
+    "aiplan.totalIncludesCar":
+      "Inklusive: Essen, Sehenswürdigkeiten, Kraftstoff- & Maut-/Vignettenanteil",
+    "aiplan.totalExcludesCar": "Ohne Mietwagen und internationale Flüge",
+    "aiplan.totalIncludesMotorhome":
+      "Inklusive: Essen, Sehenswürdigkeiten, Kraftstoff, Maut & Campinganteil",
+    "aiplan.totalExcludesMotorhome": "Ohne Wohnmobilmiete und internationalen Transport",
     "aiplan.totalForTravelers": "Gesamt für {n} Reisende",
     "aiplan.totalForOne": "Schätzung für 1 Reisenden",
     "aiplan.downloadPdf": "PDF-Plan herunterladen",
