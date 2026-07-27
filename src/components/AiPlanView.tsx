@@ -66,25 +66,9 @@ import {
 export type { StayInfo };
 
 function roadTripMapStops(plan: AiTripPlan): string[] {
-  if (plan.groundTransportMode === "motorhome" || plan.accommodationMode === "motorhome") {
-    return collectMotorhomeRoadTripStops(plan);
-  }
-  const stops: string[] = [];
-  const origin = plan.originPlace?.trim() || plan.originIata?.trim();
-  if (origin) stops.push(origin);
-  for (const day of plan.days ?? []) {
-    const city = day.city?.trim() || day.focusName?.trim();
-    if (!city) continue;
-    if (stops[stops.length - 1]?.toLowerCase() === city.toLowerCase()) continue;
-    stops.push(city);
-  }
-  const dest = plan.destinationPlace?.trim();
-  if (dest && stops[stops.length - 1]?.toLowerCase() !== dest.toLowerCase()) {
-    if (!stops.some((s) => s.toLowerCase() === dest.toLowerCase())) {
-      stops.push(dest);
-    }
-  }
-  return stops;
+  // Car + motorhome share the same geocode-safe stop builder (Berat → "Berat, Albania").
+  // Bare city names sent car-only used to geocode to random DE businesses (~5800 km).
+  return collectMotorhomeRoadTripStops(plan);
 }
 
 function scrollElementIntoPlanColumn(

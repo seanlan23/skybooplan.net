@@ -169,26 +169,36 @@ describe("motorhome route + camps", () => {
     expect(disambiguateMapPlaceQuery("Berat")).toBe("Berat, Albania");
     expect(disambiguateMapPlaceQuery("Shkoder")).toBe("Shkodër, Albania");
     expect(disambiguateMapPlaceQuery("Kotor")).toBe("Kotor, Montenegro");
+    expect(disambiguateMapPlaceQuery("Vlore")).toBe("Vlorë, Albania");
+    expect(disambiguateMapPlaceQuery("Ohrid")).toBe("Ohrid, North Macedonia");
+    expect(disambiguateMapPlaceQuery("Dunaj")).toBe("Vienna, Austria");
     expect(isCountryOnlyPlaceLabel("Albania, AL")).toBe(true);
     expect(isCountryOnlyPlaceLabel("Albanija")).toBe(true);
 
     const plan = {
-      originPlace: "Ljubljana",
+      originPlace: "Dunaj",
       destinationPlace: "Albania, AL",
       groundTransportMode: "car",
       days: [
         { day: 1, city: "Split", activities: { morning: [], afternoon: [], evening: [] } },
-        { day: 3, city: "Kotor", activities: { morning: [], afternoon: [], evening: [] } },
+        { day: 3, city: "Shkoder", activities: { morning: [], afternoon: [], evening: [] } },
+        { day: 4, city: "Tirana", activities: { morning: [], afternoon: [], evening: [] } },
         { day: 5, city: "Berat", activities: { morning: [], afternoon: [], evening: [] } },
-        { day: 7, city: "Himare", activities: { morning: [], afternoon: [], evening: [] } },
+        { day: 7, city: "Gjirokaster", activities: { morning: [], afternoon: [], evening: [] } },
+        { day: 8, city: "Sarande", activities: { morning: [], afternoon: [], evening: [] } },
+        { day: 11, city: "Ohrid", activities: { morning: [], afternoon: [], evening: [] } },
       ],
     } as AiTripPlan;
 
     const stops = collectMotorhomeRoadTripStops(plan);
+    // VIE.pdf horror: bare "Berat" / Balkan cities geocoded to DE bike shops (~5800 km).
+    expect(stops[0]).toMatch(/Vienna,\s*Austria/i);
     expect(stops.some((s) => /^Berat,\s*Albania$/i.test(s))).toBe(true);
     expect(stops.every((s) => !/^Berat$/i.test(s))).toBe(true);
     expect(stops.every((s) => !/^Albania/i.test(s))).toBe(true);
-    expect(stops.some((s) => /Himarë,\s*Albania/i.test(s))).toBe(true);
+    expect(stops.some((s) => /Gjirokastër,\s*Albania/i.test(s))).toBe(true);
+    expect(stops.some((s) => /Ohrid,\s*North Macedonia/i.test(s))).toBe(true);
+    expect(stops.every((s) => !/velo|braunschweig|atelier/i.test(s))).toBe(true);
   });
 });
 
