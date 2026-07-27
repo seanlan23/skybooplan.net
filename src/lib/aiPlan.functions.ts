@@ -1993,6 +1993,18 @@ export const generateAiPlan = createServerFn({ method: "POST" })
             arrivalDay: 1,
             language: langCode,
           });
+          // Same country/value budget ceils as the streaming catalog path (was skipped here).
+          const { enrichGeminiCatalogPlan } = await import("@/lib/geminiPlanMap");
+          enrichGeminiCatalogPlan(plan, {
+            budget: "standard",
+            pax: data.pax,
+            wishesText: [data.wishes, data.customPrompt].filter(Boolean).join("\n"),
+            language: langCode,
+            departDate: data.departDate,
+            returnDate: data.returnDate || undefined,
+            expectedDays: nDays,
+            pace: data.pace,
+          });
           trace(`complete: ${plan.days.length} days via LLM (attempt ${attempt + 1})`);
           return withDebug({ plan, error: null, violations: violations.length ? violations : undefined });
         }
@@ -3348,7 +3360,21 @@ export function buildSkeletonDayPlans(
             interval && isHotelRestDay(d, interval, { totalDays: nDays })
               ? applyHotelRestBudgetFloor(motorhomeFloored, true, Math.max(1, opts?.pax ?? 1))
               : motorhomeFloored;
-          return applyMotorhomeBudgetCeil(withHotel, kind);
+          let mh = applyMotorhomeBudgetCeil(withHotel, kind);
+          const mhCountry = resolveDayBudgetCountry({
+            dayCity: region.city,
+            destinationCountry: locale.country,
+            destinationName: skeleton.destinationName,
+            destinationIata: destIata,
+          });
+          const mhPlace = {
+            country: mhCountry,
+            city: `${region.city} ${destIata ?? ""} ${skeleton.destinationName ?? ""}`,
+          };
+          if (hasCountryMidDailyBudget(mhCountry)) {
+            mh = applyCountryDayBudgetCeil(mh, kind, priceTier, mhPlace);
+          }
+          return applyValueDestinationDayBudgetCeil(mh, kind, priceTier, mhPlace);
         }
         const dayCountry = resolveDayBudgetCountry({
           dayCity: region.city,

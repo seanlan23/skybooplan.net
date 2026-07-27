@@ -140,35 +140,64 @@ export function inferBudgetCountryFromPlace(place?: string): string | null {
   const n = (place ?? "").trim().toLowerCase();
   if (!n) return null;
 
-  if (/albania|albanij|tirana|berat|saranda|sarandë|himar|ksamil|gjirokast|shkod|shkodër|vlore|vlorë|durres|durrës|\btia\b|\bmub\b/.test(n)) {
+  if (/albania|albanij|tirana|berat|saranda|sarandë|himar|ksamil|gjirokast|shkod|shkodër|vlore|vlorë|durres|durrës|riviera|skadar|\btia\b/.test(n)) {
     return "AL";
   }
-  if (/montenegro|črna\s*gora|crna\s*gora|kotor|budva|tivat|podgorica|herceg|\btiv\b/.test(n)) {
+  if (/montenegro|črna\s*gora|crna\s*gora|kotor|budva|tivat|podgorica|herceg|\btiv\b|\btgd\b/.test(n)) {
     return "ME";
   }
   if (/bosnia|bosna|sarajevo|mostar|banja\s*luka|\bsjj\b/.test(n)) return "BA";
   if (/north\s*macedonia|severna\s*makedon|skopje|ohrid|\bskp\b/.test(n)) return "MK";
-  if (/serbia|srbija|belgrade|beograd|\bbeg\b/.test(n)) return "RS";
-  if (/kosovo|prishtina|priština/.test(n)) return "XK";
-  if (/croatia|hrvašk|hrvatsk|plitvice|plitvič|dubrovnik|split|zadar|zagreb|korenica/.test(n)) {
+  if (/serbia|srbija|belgrade|beograd|niš|nis\b|\bbeg\b/.test(n)) return "RS";
+  if (/kosovo|prishtina|priština|prizren/.test(n)) return "XK";
+  if (/croatia|hrvašk|hrvatsk|plitvice|plitvič|dubrovnik|split|zadar|zagreb|korenica|pula|rovinj|istria|dalmatia/.test(n)) {
     return "HR";
   }
   if (/slovenia|slovenij|ljubljana|lju\b|bled|piran|maribor/.test(n)) return "SI";
   if (/bulgaria|bolgarij|sofia|\bsof\b/.test(n)) return "BG";
   if (/romania|romunij|bucharest|\botp\b/.test(n)) return "RO";
   if (/greece|grčij|athens|athen|corfu|crete|santorini|\bath\b/.test(n)) return "GR";
+  if (/turkey|turčij|istanbul|antalya|cappadocia|\bist\b/.test(n)) return "TR";
+  if (/egypt|egipt|cairo|luxor|giza|\bcai\b/.test(n)) return "EG";
+  if (/morocco|marok|marrakech|casablanca|fez|\brak\b/.test(n)) return "MA";
+  if (/tunisia|tunizij|tunis|\btun\b/.test(n)) return "TN";
+  if (/georgia|gruzij|tbilisi/.test(n)) return "GE";
+  if (/kenya|kenij|nairobi|maasai|amboseli|\bnbo\b/.test(n)) return "KE";
+  if (/tanzania|tanzanij|serengeti|ngorongoro|zanzibar|arusha|\bjro\b/.test(n)) return "TZ";
+  if (/namibia|namibij|windhoek|etosha|sossusvlei|\bwdh\b/.test(n)) return "NA";
+  if (/botswana|bocvan|maun|gaborone|chobe|okavango|makgadikgadi|kasane|\bgbe\b|\bmub\b/.test(n)) {
+    return "BW";
+  }
+  if (/south\s*africa|južna\s*afrik|kruger|cape\s*town|johannesburg|\bjnb\b|\bcpt\b/.test(n)) {
+    return "ZA";
+  }
   if (/italy|italij|rome|roma|florence|firenze|venice|milan|cortina|\bfco\b|\bmxp\b/.test(n)) {
     return "IT";
   }
   if (/austria|avstrij|vienna|dunaj|klagenfurt|celovec|\bvie\b/.test(n)) return "AT";
-  if (/thailand|tajska|bangkok|phuket|krabi|chiang|\bhkt\b|\bbkk\b/.test(n)) return "TH";
-  if (/vietnam|hanoi|saigon|ho\s*chi|\bhan\b|\bsgn\b/.test(n)) return "VN";
-  if (/šri\s*lanka|sri\s*lanka|colombo|galle|\bcmb\b/.test(n)) return "LK";
+  if (/thailand|tajska|bangkok|phuket|krabi|chiang|patong|\bhkt\b|\bbkk\b/.test(n)) return "TH";
+  if (/vietnam|hanoi|saigon|ho\s*chi|da\s*nang|hoi\s*an|\bhan\b|\bsgn\b/.test(n)) return "VN";
+  if (/cambodia|kambodž|siem\s*reap|phnom|\brep\b|\bpnh\b/.test(n)) return "KH";
+  if (/šri\s*lanka|sri\s*lanka|colombo|galle|ella|\bcmb\b/.test(n)) return "LK";
+  if (/indonesia|indonezij|bali|ubud|jakarta|\bdps\b/.test(n)) return "ID";
+  if (/philippines|filipin|manila|boracay|el\s*nido|cebu|\bmnl\b/.test(n)) return "PH";
+  if (/malaysia|malezij|kuala|penang|\bkul\b/.test(n)) return "MY";
+  if (/peru|lima|cusco|cuzco|machu/.test(n)) return "PE";
+  if (/colombia|kolumbij|cartagena|bogot/.test(n)) return "CO";
+  if (/mexico|mehik|cancun|cancún|tulum/.test(n)) return "MX";
+  if (/portugal|portugalsk|lisbon|lisboa|porto/.test(n)) return "PT";
+  if (/spain|španij|barcelona|madrid|seville|valencia/.test(n)) return "ES";
+  if (/france|francij|paris|lyon|nice|marseille/.test(n)) return "FR";
+  if (/netherlands|nizozemsk|amsterdam/.test(n)) return "NL";
+  if (/germany|nemčij|berlin|munich|münchen|hamburg/.test(n)) return "DE";
+  if (/switzerland|švic|zurich|zürich|geneva|bern/.test(n)) return "CH";
+  if (/norway|norvešk|oslo|bergen/.test(n)) return "NO";
+  if (/iceland|islandij|reykjav/.test(n)) return "IS";
 
   return null;
 }
 
-/** Prefer day-city country, then destination country / name. */
+/** Prefer day-city country, then destination *name*, then hub country (never let LJU poison Albania). */
 export function resolveDayBudgetCountry(opts: {
   dayCity?: string;
   destinationCountry?: string;
@@ -177,11 +206,15 @@ export function resolveDayBudgetCountry(opts: {
 }): string {
   const fromDay = inferBudgetCountryFromPlace(opts.dayCity);
   if (fromDay) return fromDay;
-  const destCc = (opts.destinationCountry ?? "").trim().toUpperCase();
-  if (destCc && destCc !== "XX" && COUNTRY_MID_DAILY_EUR[destCc] != null) return destCc;
+
   const fromDest = inferBudgetCountryFromPlace(
     `${opts.destinationName ?? ""} ${opts.destinationIata ?? ""}`,
   );
+  const destCc = (opts.destinationCountry ?? "").trim().toUpperCase();
+
+  // Explicit trip name beats a poisoned hub locale (LJU→SI while name is Albania).
+  if (fromDest && destCc && fromDest !== destCc) return fromDest;
+  if (destCc && destCc !== "XX" && COUNTRY_MID_DAILY_EUR[destCc] != null) return destCc;
   if (fromDest) return fromDest;
   return destCc || "XX";
 }

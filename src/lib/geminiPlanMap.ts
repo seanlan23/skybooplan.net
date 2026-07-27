@@ -1004,6 +1004,21 @@ export function enrichGeminiCatalogPlan(
         daily = applyHotelRestBudgetFloor(daily, true, travelers);
       }
       daily = applyMotorhomeBudgetCeil(daily, kind);
+      // Country/value still win — AL motorhome must not sit at €100/pp.
+      const mhCountry = resolveDayBudgetCountry({
+        dayCity: finalDay.city,
+        destinationCountry: locale.country,
+        destinationName: plan.destinationName,
+        destinationIata: plan.destinationIata,
+      });
+      const mhPlace = {
+        country: mhCountry,
+        city: `${finalDay.city ?? ""} ${plan.destinationName ?? ""} ${plan.destinationIata ?? ""}`,
+      };
+      if (hasCountryMidDailyBudget(mhCountry)) {
+        daily = applyCountryDayBudgetCeil(daily, kind, tier, mhPlace);
+      }
+      daily = applyValueDestinationDayBudgetCeil(daily, kind, tier, mhPlace);
     } else {
       const dayCountry = resolveDayBudgetCountry({
         dayCity: finalDay.city,

@@ -269,14 +269,43 @@ function inferCountryFromName(destinationName: string): string | null {
   if (/indonezija|indonesia|bali|jakarta/.test(n)) return "ID";
   if (/indija|india|delhi|mumbai|goa/.test(n)) return "IN";
   if (/malezija|malaysia|kuala|penang/.test(n)) return "MY";
+  if (/kambodž|cambodia|siem\s*reap|phnom\s*penh/.test(n)) return "KH";
+  if (/laos|\bluang\b|\bvientiane\b/.test(n)) return "LA";
+  if (/nepal|\bkathmandu\b/.test(n)) return "NP";
   // Balkans — car trips often arrive as "Albania, AL" without a usable IATA.
   if (/albanij|albania|\btirana\b|\bberat\b|\bsaranda\b/.test(n)) return "AL";
   if (/črna\s*gora|crna\s*gora|montenegro|\bkotor\b|\bbudva\b/.test(n)) return "ME";
   if (/bosna|bosnia|\bmostar\b|\bsarajevo\b/.test(n)) return "BA";
+  if (/srbij|serbia|\bbeograd\b|\bbelgrade\b/.test(n)) return "RS";
+  if (/makedon|macedonia|\bskopje\b|\bohrid\b/.test(n)) return "MK";
+  if (/kosov|prishtina|priština/.test(n)) return "XK";
+  if (/bolgarij|bulgaria|\bsofia\b/.test(n)) return "BG";
+  if (/romunij|romania|\bbucharest\b/.test(n)) return "RO";
   if (/hrvašk|hrvatsk|croatia|\bdubrovnik\b|\bsplit\b|\bzadar\b|\bplitvic/.test(n)) {
     return "HR";
   }
   if (/slovenij|slovenia|\bljubljana\b/.test(n)) return "SI";
+  if (/turčij|turkey|türkiye|\bistambul\b|\bistanbul\b|\bantalya\b/.test(n)) return "TR";
+  if (/egipt|egypt|\bcairo\b|\bluxor\b/.test(n)) return "EG";
+  if (/marok|morocco|\bmarrakech\b|\bcasablanca\b/.test(n)) return "MA";
+  if (/tunizij|tunisia|\btunis\b/.test(n)) return "TN";
+  if (/gruzij|georgia|\btbilisi\b/.test(n)) return "GE";
+  if (/armenij|armenia|\byerevan\b/.test(n)) return "AM";
+  if (/kenij|kenya|\bnairobi\b|\bmara\b/.test(n)) return "KE";
+  if (/tanzanij|tanzania|\bserengeti\b|\bzanzibar\b/.test(n)) return "TZ";
+  if (/namibij|namibia|\bwindhoek\b|\betosha\b/.test(n)) return "NA";
+  if (/bocvan|botswana|\bmaun\b|\bgaborone\b/.test(n)) return "BW";
+  if (/portugalsk|portugal|\blisbon\b|\blisboa\b|\bporto\b/.test(n)) return "PT";
+  if (/nizozemsk|netherlands|\bamsterdam\b/.test(n)) return "NL";
+  if (/poljsk|poland|\bwarsaw\b|\bkrakow\b|\bkraków\b/.test(n)) return "PL";
+  if (/češk|czech|\bprague\b|\bpraha\b/.test(n)) return "CZ";
+  if (/madžarsk|hungary|\bbudapest\b/.test(n)) return "HU";
+  if (/slovašk|slovakia|\bbratislava\b/.test(n)) return "SK";
+  if (/danska|denmark|\bcopenhagen\b/.test(n)) return "DK";
+  if (/švedsk|sweden|\bstockholm\b/.test(n)) return "SE";
+  if (/finska|finland|\bhelsinki\b/.test(n)) return "FI";
+  if (/irland|ireland|\bdublin\b/.test(n)) return "IE";
+  if (/islandij|iceland|\breykjav/.test(n)) return "IS";
   if (/italij|italy|\brome\b|\broma\b|\bflorence\b|\bvenice\b/.test(n)) return "IT";
   if (/španij|spanij|spain|\bbarcelona\b|\bmadrid\b/.test(n)) return "ES";
   if (/francij|france|\bparis\b|\blyon\b/.test(n)) return "FR";
@@ -285,14 +314,26 @@ function inferCountryFromName(destinationName: string): string | null {
   if (/nemčij|germany|\bberlin\b|\bmunich\b|\bmünchen\b/.test(n)) return "DE";
   if (/švic|switzerland|\bzurich\b|\bzürich\b/.test(n)) return "CH";
   if (/norvešk|norway|\boslo\b/.test(n)) return "NO";
-  if (/bocvan|botswana|\bmaun\b|\bgaborone\b/.test(n)) return "BW";
+  if (/belgij|belgium|\bbrussels\b/.test(n)) return "BE";
+  if (/mehik|mexico|\bcancun\b|\bcancún\b/.test(n)) return "MX";
+  if (/peruj|peru|\blima\b|\bcusco\b|\bcuzco\b/.test(n)) return "PE";
+  if (/kolumbij|colombia|\bcartagena\b|\bbogot/.test(n)) return "CO";
+  if (/brazil|brasil|\briode?\s*janeiro\b|\bs[aã]o\s*paulo\b/.test(n)) return "BR";
+  if (/argentin|\bbuenos\s*aires\b/.test(n)) return "AR";
+  if (/čil|chile|\bsantiago\b/.test(n)) return "CL";
   return null;
 }
 
+/**
+ * Prefer an explicit destination *name* when it conflicts with the IATA hub country.
+ * Car trips often pass origin LJU as destinationIata while name is "Albania".
+ */
 function inferCountry(destinationIata: string, destinationName: string): string {
-  const meta = lookupDestination(destinationIata);
-  if (meta?.country) return meta.country;
-  return inferCountryFromName(destinationName) ?? "XX";
+  const fromName = inferCountryFromName(destinationName);
+  const fromIata = lookupDestination(destinationIata)?.country;
+  if (fromName && fromIata && fromName !== fromIata) return fromName;
+  if (fromIata) return fromIata;
+  return fromName ?? "XX";
 }
 
 function tierPriceBands(
