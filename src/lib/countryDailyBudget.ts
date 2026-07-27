@@ -131,3 +131,57 @@ export function priceTierFromCountryMid(country?: string): "budget" | "mid" | "p
   if (mid <= 55) return "budget";
   return "mid";
 }
+
+/**
+ * Resolve ISO country for a day/place label (road-trip budgets).
+ * "Berat" → AL, "Plitvice" → HR, "Kotor" → ME — not the trip's destination hub alone.
+ */
+export function inferBudgetCountryFromPlace(place?: string): string | null {
+  const n = (place ?? "").trim().toLowerCase();
+  if (!n) return null;
+
+  if (/albania|albanij|tirana|berat|saranda|sarandë|himar|ksamil|gjirokast|shkod|shkodër|vlore|vlorë|durres|durrës|\btia\b|\bmub\b/.test(n)) {
+    return "AL";
+  }
+  if (/montenegro|črna\s*gora|crna\s*gora|kotor|budva|tivat|podgorica|herceg|\btiv\b/.test(n)) {
+    return "ME";
+  }
+  if (/bosnia|bosna|sarajevo|mostar|banja\s*luka|\bsjj\b/.test(n)) return "BA";
+  if (/north\s*macedonia|severna\s*makedon|skopje|ohrid|\bskp\b/.test(n)) return "MK";
+  if (/serbia|srbija|belgrade|beograd|\bbeg\b/.test(n)) return "RS";
+  if (/kosovo|prishtina|priština/.test(n)) return "XK";
+  if (/croatia|hrvašk|hrvatsk|plitvice|plitvič|dubrovnik|split|zadar|zagreb|korenica/.test(n)) {
+    return "HR";
+  }
+  if (/slovenia|slovenij|ljubljana|lju\b|bled|piran|maribor/.test(n)) return "SI";
+  if (/bulgaria|bolgarij|sofia|\bsof\b/.test(n)) return "BG";
+  if (/romania|romunij|bucharest|\botp\b/.test(n)) return "RO";
+  if (/greece|grčij|athens|athen|corfu|crete|santorini|\bath\b/.test(n)) return "GR";
+  if (/italy|italij|rome|roma|florence|firenze|venice|milan|cortina|\bfco\b|\bmxp\b/.test(n)) {
+    return "IT";
+  }
+  if (/austria|avstrij|vienna|dunaj|klagenfurt|celovec|\bvie\b/.test(n)) return "AT";
+  if (/thailand|tajska|bangkok|phuket|krabi|chiang|\bhkt\b|\bbkk\b/.test(n)) return "TH";
+  if (/vietnam|hanoi|saigon|ho\s*chi|\bhan\b|\bsgn\b/.test(n)) return "VN";
+  if (/šri\s*lanka|sri\s*lanka|colombo|galle|\bcmb\b/.test(n)) return "LK";
+
+  return null;
+}
+
+/** Prefer day-city country, then destination country / name. */
+export function resolveDayBudgetCountry(opts: {
+  dayCity?: string;
+  destinationCountry?: string;
+  destinationName?: string;
+  destinationIata?: string;
+}): string {
+  const fromDay = inferBudgetCountryFromPlace(opts.dayCity);
+  if (fromDay) return fromDay;
+  const destCc = (opts.destinationCountry ?? "").trim().toUpperCase();
+  if (destCc && destCc !== "XX" && COUNTRY_MID_DAILY_EUR[destCc] != null) return destCc;
+  const fromDest = inferBudgetCountryFromPlace(
+    `${opts.destinationName ?? ""} ${opts.destinationIata ?? ""}`,
+  );
+  if (fromDest) return fromDest;
+  return destCc || "XX";
+}

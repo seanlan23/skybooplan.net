@@ -3,7 +3,9 @@ import {
   COUNTRY_MID_DAILY_EUR,
   countryMidDailyBudgetEur,
   countryTierDailyBudgetEur,
+  inferBudgetCountryFromPlace,
   priceTierFromCountryMid,
+  resolveDayBudgetCountry,
 } from "@/lib/countryDailyBudget";
 
 describe("countryDailyBudget", () => {
@@ -33,5 +35,22 @@ describe("countryDailyBudget", () => {
     expect(priceTierFromCountryMid("IT")).toBe("mid");
     expect(priceTierFromCountryMid("AL")).toBe("budget");
     expect(priceTierFromCountryMid("TH")).toBe("budget");
+  });
+
+  it("resolves road-trip day cities to the right budget country", () => {
+    expect(inferBudgetCountryFromPlace("Berat")).toBe("AL");
+    expect(inferBudgetCountryFromPlace("Plitvice Lakes National Park")).toBe("HR");
+    expect(inferBudgetCountryFromPlace("Kotor")).toBe("ME");
+    expect(inferBudgetCountryFromPlace("Shkoder")).toBe("AL");
+    expect(inferBudgetCountryFromPlace("Saranda")).toBe("AL");
+    expect(resolveDayBudgetCountry({ dayCity: "Berat", destinationCountry: "XX" })).toBe(
+      "AL",
+    );
+    expect(
+      resolveDayBudgetCountry({
+        destinationCountry: "XX",
+        destinationName: "Albania, AL",
+      }),
+    ).toBe("AL");
   });
 });

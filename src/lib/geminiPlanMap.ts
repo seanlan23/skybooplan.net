@@ -48,6 +48,7 @@ import {
   sumListedActivityEur,
 } from "@/lib/tripBudget";
 import { applyRoadTollToDailyBudget } from "@/lib/roadTripCosts";
+import { resolveDayBudgetCountry } from "@/lib/countryDailyBudget";
 import { addDays } from "@/lib/dateUtils";
 import { sortActivitiesByTime } from "@/lib/dayPlanUi";
 import { enrichDayActivities } from "@/lib/dayEnrichers";
@@ -1004,27 +1005,39 @@ export function enrichGeminiCatalogPlan(
       }
       daily = applyMotorhomeBudgetCeil(daily, kind);
     } else {
+      const dayCountry = resolveDayBudgetCountry({
+        dayCity: finalDay.city,
+        destinationCountry: locale.country,
+        destinationName: plan.destinationName,
+        destinationIata: plan.destinationIata,
+      });
       const budgetPlace = {
-        country: locale.country,
+        country: dayCountry,
         city: `${finalDay.city ?? ""} ${plan.destinationName ?? ""} ${plan.destinationIata ?? ""}`,
       };
-      // Industry country mid is source of truth (CH €200, IT €130, …).
-      // Global/value ceils only for countries not in the mid table.
-      if (hasCountryMidDailyBudget(budgetPlace.country)) {
+      // Industry country mid (AL €50, HR €100, IT €130…) — prefer day-city country on road trips.
+      if (hasCountryMidDailyBudget(dayCountry)) {
         daily = applyCountryDayBudgetCeil(daily, kind, tier, budgetPlace);
       } else {
         daily = applyGlobalDayBudgetCeil(daily, kind, tier);
-        daily = applyValueDestinationDayBudgetCeil(daily, kind, tier, budgetPlace);
       }
+      // Value band still clips SE Asia / Balkans when Gemini invents WE prices.
+      daily = applyValueDestinationDayBudgetCeil(daily, kind, tier, budgetPlace);
     }
 
     // Cestnine/vinjete: after ceils so IT/FR highway days keep real toll share.
     const roadMode =
       motorhome ? "motorhome" : plan.groundTransportMode === "car" ? "car" : null;
     if (roadMode) {
+      const tollCountry = resolveDayBudgetCountry({
+        dayCity: finalDay.city,
+        destinationCountry: locale.country,
+        destinationName: plan.destinationName,
+        destinationIata: plan.destinationIata,
+      });
       daily = applyRoadTollToDailyBudget(daily, {
         drivingDistanceKm: finalDay.drivingDistanceKm,
-        country: locale.country,
+        country: tollCountry,
         pax: travelers,
         mode: roadMode,
       });
@@ -1085,7 +1098,13 @@ export function enrichGeminiCatalogPlan(
   }
 
   // Trim only above industry mid × days (+12%); pass country so long IT trips aren't crushed.
-  scaleDailyBudgetsToTripCap(plan.days, tier, { country: locale.country });
+  scaleDailyBudgetsToTripCap(plan.days, tier, {
+    country: resolveDayBudgetCountry({
+      destinationCountry: locale.country,
+      destinationName: plan.destinationName,
+      destinationIata: plan.destinationIata,
+    }),
+  });
   plan.totalBudgetEur = computeTripTotalBudgetEur(plan.days, travelers);
   enrichIslandAirportTransfers(plan, {
     destinationIata: plan.destinationIata,

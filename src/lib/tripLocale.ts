@@ -269,6 +269,23 @@ function inferCountryFromName(destinationName: string): string | null {
   if (/indonezija|indonesia|bali|jakarta/.test(n)) return "ID";
   if (/indija|india|delhi|mumbai|goa/.test(n)) return "IN";
   if (/malezija|malaysia|kuala|penang/.test(n)) return "MY";
+  // Balkans — car trips often arrive as "Albania, AL" without a usable IATA.
+  if (/albanij|albania|\btirana\b|\bberat\b|\bsaranda\b/.test(n)) return "AL";
+  if (/črna\s*gora|crna\s*gora|montenegro|\bkotor\b|\bbudva\b/.test(n)) return "ME";
+  if (/bosna|bosnia|\bmostar\b|\bsarajevo\b/.test(n)) return "BA";
+  if (/hrvašk|hrvatsk|croatia|\bdubrovnik\b|\bsplit\b|\bzadar\b|\bplitvic/.test(n)) {
+    return "HR";
+  }
+  if (/slovenij|slovenia|\bljubljana\b/.test(n)) return "SI";
+  if (/italij|italy|\brome\b|\broma\b|\bflorence\b|\bvenice\b/.test(n)) return "IT";
+  if (/španij|spanij|spain|\bbarcelona\b|\bmadrid\b/.test(n)) return "ES";
+  if (/francij|france|\bparis\b|\blyon\b/.test(n)) return "FR";
+  if (/grčij|greece|\bathens\b/.test(n)) return "GR";
+  if (/avstrij|austria|\bvienna\b|\bdunaj\b/.test(n)) return "AT";
+  if (/nemčij|germany|\bberlin\b|\bmunich\b|\bmünchen\b/.test(n)) return "DE";
+  if (/švic|switzerland|\bzurich\b|\bzürich\b/.test(n)) return "CH";
+  if (/norvešk|norway|\boslo\b/.test(n)) return "NO";
+  if (/bocvan|botswana|\bmaun\b|\bgaborone\b/.test(n)) return "BW";
   return null;
 }
 

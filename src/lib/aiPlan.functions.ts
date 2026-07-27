@@ -53,6 +53,7 @@ import {
   resolveHighlightCoords,
 } from "@/lib/tripGeo";
 import { dailyMealsBudgetEur, getPriceTier } from "@/lib/tripLocale";
+import { resolveDayBudgetCountry } from "@/lib/countryDailyBudget";
 import { DESTINATION_BY_IATA } from "@/lib/destinationCoords";
 import { normalizePlanLangCode, STRICT_LLM_LANGUAGE_RULE } from "@/lib/planLanguages";
 import {
@@ -3349,15 +3350,24 @@ export function buildSkeletonDayPlans(
               : motorhomeFloored;
           return applyMotorhomeBudgetCeil(withHotel, kind);
         }
+        const dayCountry = resolveDayBudgetCountry({
+          dayCity: region.city,
+          destinationCountry: locale.country,
+          destinationName: skeleton.destinationName,
+          destinationIata: destIata,
+        });
         const budgetPlace = {
-          country: locale.country,
+          country: dayCountry,
           city: `${region.city} ${destIata ?? ""} ${skeleton.destinationName ?? ""}`,
         };
-        if (hasCountryMidDailyBudget(budgetPlace.country)) {
-          return applyCountryDayBudgetCeil(floored, kind, priceTier, budgetPlace);
+        let dayBudget = floored;
+        if (hasCountryMidDailyBudget(dayCountry)) {
+          dayBudget = applyCountryDayBudgetCeil(dayBudget, kind, priceTier, budgetPlace);
+        } else {
+          dayBudget = applyGlobalDayBudgetCeil(dayBudget, kind, priceTier);
         }
         return applyValueDestinationDayBudgetCeil(
-          applyGlobalDayBudgetCeil(floored, kind, priceTier),
+          dayBudget,
           kind,
           priceTier,
           budgetPlace,
@@ -3376,7 +3386,13 @@ export function buildSkeletonDayPlans(
 
   const collapsed = collapseSmallIslandStays(days, skeleton, opts?.lang ?? "sl");
   // Industry mid × days (+12% headroom); country-aware so long trips keep real rates.
-  scaleDailyBudgetsToTripCap(collapsed, priceTier, { country: locale.country });
+  scaleDailyBudgetsToTripCap(collapsed, priceTier, {
+    country: resolveDayBudgetCountry({
+      destinationCountry: locale.country,
+      destinationName: skeleton.destinationName,
+      destinationIata: destIata,
+    }),
+  });
   return collapsed;
 }
 

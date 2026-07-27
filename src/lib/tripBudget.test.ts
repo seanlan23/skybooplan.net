@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { lookupDestination } from "@/lib/destinationCoords";
 import { resolveTripLocale, getPriceTier } from "@/lib/tripLocale";
-import { countryMidDailyBudgetEur } from "@/lib/countryDailyBudget";
+import { countryMidDailyBudgetEur, resolveDayBudgetCountry } from "@/lib/countryDailyBudget";
 import {
   applyGlobalDayBudgetCeil,
   applyValueDestinationDayBudgetCeil,
@@ -107,19 +107,51 @@ describe("industry country mid daily budgets", () => {
     );
   });
 
-  it("keeps 3-pax Albania car-trip totals well under €6k (AL €50)", () => {
+  it("keeps 3-pax Albania car-trip totals near Thailand money not WE (€4596 LJU PDF)", () => {
     expect(lookupDestination("TIA")?.country).toBe("AL");
+    expect(resolveTripLocale("", "Albania, AL", "sl").country).toBe("AL");
     expect(hasCountryMidDailyBudget("AL")).toBe(true);
-    const days = Array.from({ length: 17 }, () =>
-      applyCountryDayBudgetCeil(159, "sightseeing", "mid", {
-        country: "AL",
-        city: "Tirana Albanija TIA",
-      }),
+
+    // Route mix like LJU-3.pdf: Plitvice(HR) + Berat/Saranda(AL) + Kotor(ME) + LJU(SI)
+    const route = [
+      "Plitvice",
+      "Plitvice",
+      "Shkoder",
+      "Shkoder",
+      "Berat",
+      "Berat",
+      "Saranda",
+      "Saranda",
+      "Saranda",
+      "Saranda",
+      "Kotor",
+      "Kotor",
+      "Ljubljana",
+      "Ljubljana",
+    ];
+    const days = route.map((city) => {
+      const cc = resolveDayBudgetCountry({
+        dayCity: city,
+        destinationCountry: "AL",
+        destinationName: "Albania, AL",
+      });
+      let d = applyCountryDayBudgetCeil(200, "sightseeing", "mid", {
+        country: cc,
+        city,
+      });
+      d = applyValueDestinationDayBudgetCeil(d, "sightseeing", "mid", {
+        country: cc,
+        city,
+      });
+      return d;
+    });
+    const total = computeTripTotalBudgetEur(
+      days.map((d) => ({ dailyBudgetEur: d })),
+      3,
     );
-    expect(days[0]).toBe(50);
-    expect(computeTripTotalBudgetEur(days.map((d) => ({ dailyBudgetEur: d })), 3)).toBeLessThan(
-      3000,
-    );
+    // Was €4596 (~€109/pp/day). Thailand mid €50×14×3 = €2100 — Balkans must stay in that band.
+    expect(total).toBeLessThanOrEqual(2800);
+    expect(days.filter((_, i) => i >= 2 && i <= 9).every((d) => d <= 50)).toBe(true);
   });
 
   it("Italy 21d mid tracks industry €130/pp/day (≈€8.2k for 3 with hotels)", () => {
