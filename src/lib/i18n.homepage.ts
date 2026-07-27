@@ -60,7 +60,7 @@ export const homepageUiByLang: Record<Exclude<Lang, "en" | "sl">, HomepageDict> 
     "social.feat.free.desc": "Planes IA completos, mapas y PDF — sin paywall.",
     "showcase.eyebrow": "Planes de ejemplo",
     "showcase.title": "Así se ve un plan terminado",
-    "showcase.subtitle": "Cuatro PDF demo para la beta — city break, largo recorrido, Francia y autocaravana — luego crea el tuyo arriba.",
+    "showcase.subtitle": "Cuatro PDF demo para la beta — city break, safari, Francia y autocaravana — luego crea el tuyo arriba.",
     "showcase.preview": "Ver PDF",
     "showcase.download": "Descargar",
     "showcase.nyc.route": "Liubliana → Nueva York",
@@ -68,11 +68,11 @@ export const homepageUiByLang: Record<Exclude<Lang, "en" | "sl">, HomepageDict> 
     "showcase.nyc.meta": "7 días · relajado · 2 viajeros",
     "showcase.nyc.blurb":
       "Llegada a Midtown, Central Park, Estatua de la Libertad, Brooklyn, MoMA — un día libre, una cena por noche.",
-    "showcase.sydney.route": "Zúrich → Sídney",
-    "showcase.sydney.title": "Sídney",
-    "showcase.sydney.meta": "8 días · equilibrado · 2 viajeros",
-    "showcase.sydney.blurb":
-      "Puerto, paseo costero Bondi, Blue Mountains, ferry a Manly — sin días duplicados ni llegadas fantasma.",
+    "showcase.botswana.route": "Múnich → Botsuana",
+    "showcase.botswana.title": "Botsuana",
+    "showcase.botswana.meta": "18 días · safari · 2 viajeros",
+    "showcase.botswana.blurb":
+      "Saltos internos Gaborone→Maun→Kasane, mokoro en el Okavango, safaris en Chobe — ritmo safari desde Europa, no city-break en la capital.",
     "showcase.france.route": "Múnich → Francia",
     "showcase.france.title": "París y Lyon",
     "showcase.france.meta": "8 días · TGV · 2 viajeros",
@@ -209,7 +209,7 @@ export const homepageUiByLang: Record<Exclude<Lang, "en" | "sl">, HomepageDict> 
     "social.feat.free.desc": "Plans IA complets, cartes et PDF — sans paywall.",
     "showcase.eyebrow": "Exemples de plans",
     "showcase.title": "Voici à quoi ressemble un plan fini",
-    "showcase.subtitle": "Quatre PDF démo pour la bêta — city break, long-courrier, France et camping-car — puis créez le vôtre ci-dessus.",
+    "showcase.subtitle": "Quatre PDF démo pour la bêta — city break, safari, France et camping-car — puis créez le vôtre ci-dessus.",
     "showcase.preview": "Aperçu PDF",
     "showcase.download": "Télécharger",
     "showcase.nyc.route": "Ljubljana → New York",
@@ -217,11 +217,11 @@ export const homepageUiByLang: Record<Exclude<Lang, "en" | "sl">, HomepageDict> 
     "showcase.nyc.meta": "7 jours · détendu · 2 voyageurs",
     "showcase.nyc.blurb":
       "Arrivée Midtown, Central Park, Statue de la Liberté, Brooklyn, MoMA — un jour libre, un dîner par soir.",
-    "showcase.sydney.route": "Zurich → Sydney",
-    "showcase.sydney.title": "Sydney",
-    "showcase.sydney.meta": "8 jours · équilibré · 2 voyageurs",
-    "showcase.sydney.blurb":
-      "Port, coastal walk Bondi, Blue Mountains, ferry Manly — sans jours copiés-collés ni arrivées fantômes.",
+    "showcase.botswana.route": "Munich → Botswana",
+    "showcase.botswana.title": "Botswana",
+    "showcase.botswana.meta": "18 jours · safari · 2 voyageurs",
+    "showcase.botswana.blurb":
+      "Vols intérieurs Gaborone→Maun→Kasane, mokoro dans l'Okavango, safaris au Chobe — rythme safari depuis l'Europe, pas un city-break en capitale.",
     "showcase.france.route": "Munich → France",
     "showcase.france.title": "Paris & Lyon",
     "showcase.france.meta": "8 jours · TGV · 2 voyageurs",
@@ -358,7 +358,7 @@ export const homepageUiByLang: Record<Exclude<Lang, "en" | "sl">, HomepageDict> 
     "social.feat.free.desc": "Volle KI-Pläne, Karten und PDF — ohne Paywall.",
     "showcase.eyebrow": "Beispielpläne",
     "showcase.title": "So sieht ein fertiger Plan aus",
-    "showcase.subtitle": "Vier kuratierte Demo-PDFs für die Beta — City Break, Langstrecke, Frankreich und Wohnmobil — dann oben deinen eigenen bauen.",
+    "showcase.subtitle": "Vier kuratierte Demo-PDFs für die Beta — City Break, Safari, Frankreich und Wohnmobil — dann oben deinen eigenen bauen.",
     "showcase.preview": "PDF ansehen",
     "showcase.download": "Herunterladen",
     "showcase.nyc.route": "Ljubljana → New York",
@@ -366,11 +366,11 @@ export const homepageUiByLang: Record<Exclude<Lang, "en" | "sl">, HomepageDict> 
     "showcase.nyc.meta": "7 Tage · entspannt · 2 Reisende",
     "showcase.nyc.blurb":
       "Ankunft Midtown, Central Park, Freiheitsstatue, Brooklyn, MoMA — ein freier Tag, ein Abendessen pro Abend.",
-    "showcase.sydney.route": "Zürich → Sydney",
-    "showcase.sydney.title": "Sydney",
-    "showcase.sydney.meta": "8 Tage · ausgewogen · 2 Reisende",
-    "showcase.sydney.blurb":
-      "Hafen, Bondi Coastal Walk, Blue Mountains, Manly-Fähre — keine Copy-Paste-Tage, keine Phantom-Ankunft.",
+    "showcase.botswana.route": "München → Botswana",
+    "showcase.botswana.title": "Botswana",
+    "showcase.botswana.meta": "18 Tage · Safari · 2 Reisende",
+    "showcase.botswana.blurb":
+      "Inlandsflüge Gaborone→Maun→Kasane, Mokoro im Okavango, Safaris im Chobe — Safari-Tempo aus Europa, kein Hauptstadt-City-Break.",
     "showcase.france.route": "München → Frankreich",
     "showcase.france.title": "Paris & Lyon",
     "showcase.france.meta": "8 Tage · TGV · 2 Reisende",
@@ -510,7 +510,7 @@ export const homepageUiByLang: Record<Exclude<Lang, "en" | "sl">, HomepageDict> 
     "social.feat.free.desc": "Piani IA completi, mappe e PDF — senza paywall.",
     "showcase.eyebrow": "Piani di esempio",
     "showcase.title": "Ecco com’è un piano finito",
-    "showcase.subtitle": "Quattro PDF demo per la beta — city break, long-haul, Francia e camper — poi crea il tuo sopra.",
+    "showcase.subtitle": "Quattro PDF demo per la beta — city break, safari, Francia e camper — poi crea il tuo sopra.",
     "showcase.preview": "Anteprima PDF",
     "showcase.download": "Scarica",
     "showcase.nyc.route": "Lubiana → New York",
@@ -518,11 +518,11 @@ export const homepageUiByLang: Record<Exclude<Lang, "en" | "sl">, HomepageDict> 
     "showcase.nyc.meta": "7 giorni · rilassato · 2 viaggiatori",
     "showcase.nyc.blurb":
       "Arrivo a Midtown, Central Park, Statua della Libertà, Brooklyn, MoMA — un giorno libero, una cena a sera.",
-    "showcase.sydney.route": "Zurigo → Sydney",
-    "showcase.sydney.title": "Sydney",
-    "showcase.sydney.meta": "8 giorni · bilanciato · 2 viaggiatori",
-    "showcase.sydney.blurb":
-      "Porto, coastal walk Bondi, Blue Mountains, ferry Manly — senza giorni duplicati né arrivi fantasma.",
+    "showcase.botswana.route": "Monaco di Baviera → Botswana",
+    "showcase.botswana.title": "Botswana",
+    "showcase.botswana.meta": "18 giorni · safari · 2 viaggiatori",
+    "showcase.botswana.blurb":
+      "Voli interni Gaborone→Maun→Kasane, mokoro nell'Okavango, safari al Chobe — ritmo safari dall'Europa, non un city-break in capitale.",
     "showcase.france.route": "Monaco di Baviera → Francia",
     "showcase.france.title": "Parigi & Lione",
     "showcase.france.meta": "8 giorni · TGV · 2 viaggiatori",

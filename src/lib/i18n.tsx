@@ -366,7 +366,7 @@ const en: Dict = {
   "social.feat.free.desc": "Full AI plans, maps and PDF — no paywall, no hidden fees.",
   "showcase.eyebrow": "Sample plans",
   "showcase.title": "See what a finished plan looks like",
-  "showcase.subtitle": "Four curated demo PDFs for beta — city break, long-haul, France, and motorhome — then build your own above.",
+  "showcase.subtitle": "Four curated demo PDFs for beta — city break, safari, France, and motorhome — then build your own above.",
   "showcase.preview": "Preview PDF",
   "showcase.download": "Download",
   "showcase.nyc.route": "Ljubljana → New York",
@@ -374,11 +374,11 @@ const en: Dict = {
   "showcase.nyc.meta": "7 days · relaxed · 2 travelers",
   "showcase.nyc.blurb":
     "Midtown arrival, Central Park, Statue of Liberty, Brooklyn, MoMA — one free day, one dinner per evening.",
-  "showcase.sydney.route": "Zürich → Sydney",
-  "showcase.sydney.title": "Sydney",
-  "showcase.sydney.meta": "14 days · long-haul pace · 2 travelers",
-  "showcase.sydney.blurb":
-    "Jet-lag buffer, harbour icons, Bondi, Blue Mountains, Manly, Watsons Bay, Newtown — tempo built for Europe→Australia, not a city break.",
+  "showcase.botswana.route": "Munich → Botswana",
+  "showcase.botswana.title": "Botswana",
+  "showcase.botswana.meta": "18 days · safari · 2 travelers",
+  "showcase.botswana.blurb":
+    "Internal hops Gaborone→Maun→Kasane, Okavango mokoro, Chobe game drives — safari tempo from Europe, not a capital city-break.",
   "showcase.france.route": "Munich → France",
   "showcase.france.title": "Paris & Lyon",
   "showcase.france.meta": "8 days · TGV · 2 travelers",
@@ -1438,7 +1438,7 @@ const dicts: Record<DictLang, Dict> = {
     "social.feat.free.desc": "Celoten AI načrt, zemljevid in PDF — brez plačilnega zidu.",
     "showcase.eyebrow": "Primer načrta",
     "showcase.title": "Tako izgleda končni načrt",
-    "showcase.subtitle": "Štirje curated demo PDF-ji za beto — city break, dolgi let, Francija in avtodom — nato sestavi svojega zgoraj.",
+    "showcase.subtitle": "Štirje curated demo PDF-ji za beto — city break, safari, Francija in avtodom — nato sestavi svojega zgoraj.",
     "showcase.preview": "Predogled PDF",
     "showcase.download": "Prenesi",
     "showcase.nyc.route": "Ljubljana → New York",
@@ -1446,11 +1446,11 @@ const dicts: Record<DictLang, Dict> = {
     "showcase.nyc.meta": "7 dni · sproščeno · 2 potnika",
     "showcase.nyc.blurb":
       "Prihod v Midtown, Central Park, Kip svobode, Brooklyn, MoMA — en prosti dan, ena večerja na večer.",
-    "showcase.sydney.route": "Zürich → Sydney",
-    "showcase.sydney.title": "Sydney",
-    "showcase.sydney.meta": "14 dni · long-haul tempo · 2 potnika",
-    "showcase.sydney.blurb":
-      "Dan za jet lag, pristanišče, Bondi, Blue Mountains, Manly, Watsons Bay, Newtown — tempo za Evropo→Avstralijo, ne city-break.",
+    "showcase.botswana.route": "München → Bocvana",
+    "showcase.botswana.title": "Bocvana",
+    "showcase.botswana.meta": "18 dni · safari · 2 potnika",
+    "showcase.botswana.blurb":
+      "Notranji leti Gaborone→Maun→Kasane, mokoro v Okavangu, safari v Chobeju — tempo za Evropo→Bocvano, ne city-break v glavnem mestu.",
     "showcase.france.route": "München → Francija",
     "showcase.france.title": "Pariz & Lyon",
     "showcase.france.meta": "8 dni · TGV · 2 potnika",

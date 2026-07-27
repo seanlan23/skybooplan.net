@@ -1,5 +1,6 @@
 /**
- * Export curated landing showcase PDFs (NYC + Sydney + France + motorhome).
+ * Export curated landing showcase PDFs (NYC + France + motorhome).
+ * Botswana showcase PDF is hand-placed (MUC→GBE) — not regenerated here.
  * npx vitest run scripts/export-landing-showcase.test.ts
  */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -19,15 +20,6 @@ const SHOWCASES = [
     end: "2026-09-18",
     wishes: "Relaxed New York: icons, Brooklyn, one free day.",
     pace: "relaxed",
-  },
-  {
-    id: "sydney",
-    file: "sydney-curated.json",
-    title: "Zurich → Sydney — showcase",
-    start: "2026-10-03",
-    end: "2026-10-16",
-    wishes: "Long-haul Sydney: jet-lag buffer, harbour, Bondi, Blue Mountains, Manly, Watsons Bay.",
-    pace: "balanced",
   },
   {
     id: "france",
@@ -125,16 +117,16 @@ describe("landing showcase PDFs", () => {
         [
           "# Landing showcase PDFs",
           "",
-          "Curated English demo plans for the beta landing (not live Gemini output).",
+          "Curated demo plans for the beta landing (not live Gemini output).",
           "",
           "- `nyc-showcase.pdf` — New York, 7 days",
-          "- `sydney-showcase.pdf` — Sydney, 14 days (long-haul)",
+          "- `botswana-showcase.pdf` — Botswana safari (MUC→GBE), 18 days — hand-placed, not regenerated here",
           "- `france-showcase.pdf` — Paris + Lyon (MUC→CDG), 8 days",
           "- `motorhome-nl-showcase.pdf` — Motorhome SG → North Holland, 11 days",
           "",
           "Public copies: `/showcase/*.pdf`",
           "",
-          "Regenerate: `npx vitest run scripts/export-landing-showcase.test.ts`",
+          "Regenerate NYC/France/motorhome: `npx vitest run scripts/export-landing-showcase.test.ts`",
           "",
         ].join("\n"),
       );

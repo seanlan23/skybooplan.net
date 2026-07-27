@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 
 type ShowcasePlan = {
-  id: "nyc" | "sydney" | "france" | "motorhome";
+  id: "nyc" | "botswana" | "france" | "motorhome";
   href: string;
   imageUrl: string;
   routeKey: string;
@@ -24,14 +24,14 @@ const PLANS: ShowcasePlan[] = [
     blurbKey: "showcase.nyc.blurb",
   },
   {
-    id: "sydney",
-    href: "/showcase/sydney-showcase.pdf",
+    id: "botswana",
+    href: "/showcase/botswana-showcase.pdf",
     imageUrl:
-      "https://images.unsplash.com/photo-1506973035872-a4ec16b8e8d9?auto=format&fit=crop&w=1400&q=80",
-    routeKey: "showcase.sydney.route",
-    metaKey: "showcase.sydney.meta",
-    titleKey: "showcase.sydney.title",
-    blurbKey: "showcase.sydney.blurb",
+      "https://images.unsplash.com/photo-1516426122078-c23e76319801?auto=format&fit=crop&w=1400&q=80",
+    routeKey: "showcase.botswana.route",
+    metaKey: "showcase.botswana.meta",
+    titleKey: "showcase.botswana.title",
+    blurbKey: "showcase.botswana.blurb",
   },
   {
     id: "france",
