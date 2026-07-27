@@ -1,0 +1,1059 @@
+{
+  "destinationName": "Botswana",
+  "destinationIata": "GBE",
+  "originIata": "MUC",
+  "contentLanguage": "en",
+  "summary": "Eighteen days of mid-range Botswana safari for two: Maun and the Okavango by mokoro and game drive, Makgadikgadi pans by road, then Kasane and Chobe — with a Victoria Falls day trip. Bases in town and lodge day trips, not luxury fly-in camps.",
+  "totalBudgetEur": 4500,
+  "centerLat": -22,
+  "centerLng": 24,
+  "days": [
+    {
+      "day": 1,
+      "date": "2026-10-26",
+      "title": "Late arrival in Gaborone",
+      "city": "Gaborone",
+      "focusName": "Gaborone",
+      "lat": -24.6282,
+      "lng": 25.9231,
+      "dailyBudgetEur": 55,
+      "category": "transport",
+      "travelHack": "Book an airport hotel transfer in advance — late arrivals mean limited public transport.",
+      "transportationTips": "Sir Seretse Khama (GBE) to city hotels: pre-booked transfer ~30–45 min.",
+      "localWarnings": "After a late arrival, keep the evening light — safari starts tomorrow.",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [],
+        "afternoon": [],
+        "evening": [
+          {
+            "name": "Arrival at GBE and hotel transfer",
+            "type": "TRANSPORT",
+            "description": "Land from Munich, collect luggage, and transfer to an airport-area hotel.",
+            "bullets": [
+              "Expect landing around 20:40.",
+              "Pre-booked transfer is simplest after dark."
+            ],
+            "arrivalTime": "20:40"
+          },
+          {
+            "name": "Check-in and rest",
+            "type": "STAY",
+            "description": "Settle in and rest before the domestic hop to Maun tomorrow.",
+            "bullets": [
+              "Light snack if needed — save energy for the delta.",
+              "Confirm tomorrow's GBE→MUB flight times tonight."
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "day": 2,
+      "date": "2026-10-27",
+      "title": "Fly to Maun and optional scenic flight",
+      "city": "Maun",
+      "focusName": "Okavango Delta",
+      "lat": -19.9833,
+      "lng": 23.4167,
+      "dailyBudgetEur": 120,
+      "category": "transport",
+      "travelHack": "Optional scenic flight over the Okavango is best booked in Maun — morning light if weather allows.",
+      "transportationTips": "Domestic GBE→MUB ~1h30. In Maun, lodges and operators run shuttles; taxis for town.",
+      "localWarnings": "",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "transportation": [
+        {
+          "type": "flight",
+          "from": "Gaborone (GBE)",
+          "to": "Maun (MUB)",
+          "duration": "1h30",
+          "estimatedPrice": 250
+        }
+      ],
+      "activities": {
+        "morning": [
+          {
+            "name": "Domestic flight Gaborone to Maun",
+            "type": "TRANSPORT",
+            "description": "Morning hop to Botswana's safari gateway on the Okavango.",
+            "bullets": [
+              "Arrive at GBE 60–90 min before departure.",
+              "Window seat worth it for the approach over the delta fringe."
+            ],
+            "priceLabel": "€250",
+            "transportType": "flight"
+          },
+          {
+            "name": "Check-in and settle in Maun",
+            "type": "STAY",
+            "description": "Transfer to lodge or guesthouse and drop bags before activities.",
+            "bullets": [
+              "Most operators pick up from town hotels.",
+              "Confirm mokoro and game-drive times for the next days."
+            ]
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Optional scenic flight over the Okavango",
+            "type": "ACTIVITY",
+            "description": "Short fixed-wing circuit for a bird's-eye view of channels and islands — skip if budget is tight.",
+            "bullets": [
+              "Book locally; ~45–60 min airborne.",
+              "Best in clear morning or late afternoon."
+            ],
+            "priceLabel": "€120–180"
+          }
+        ],
+        "evening": [
+          {
+            "name": "Dinner by the Thamalakane River",
+            "type": "EAT",
+            "description": "Relaxed riverside meal — Maun's easy intro before delta days.",
+            "bullets": [
+              "Several lodges and restaurants line the river.",
+              "Early night — full mokoro day tomorrow."
+            ],
+            "priceLabel": "€20–35",
+            "lat": -19.9833,
+            "lng": 23.4167
+          }
+        ]
+      }
+    },
+    {
+      "day": 3,
+      "date": "2026-10-28",
+      "title": "Full-day mokoro in the Okavango Delta",
+      "city": "Maun",
+      "focusName": "Okavango Delta",
+      "lat": -19.9833,
+      "lng": 23.4167,
+      "dailyBudgetEur": 180,
+      "category": "nature",
+      "travelHack": "Pack a dry bag — mokoro polers may splash; sun hat and repellent essential.",
+      "transportationTips": "Operator 4x4 to mokoro station, then poler-guided channels — typically half- to full-day.",
+      "localWarnings": "Hippos and crocs are real — follow poler instructions at all times.",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [
+          {
+            "name": "Mokoro excursion into the delta",
+            "type": "NATURE",
+            "description": "Traditional dugout through papyrus channels — birds, lilies, and quiet water.",
+            "bullets": [
+              "Includes guided poling and short island walks.",
+              "Mid-range day trip from Maun — not a fly-in camp."
+            ],
+            "priceLabel": "€120–150"
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Delta walk and picnic lunch",
+            "type": "ACTIVITY",
+            "description": "Guided bush walk on a delta island with a simple packed lunch.",
+            "bullets": [
+              "Track and bird focus depending on season.",
+              "Return to Maun by late afternoon."
+            ]
+          }
+        ],
+        "evening": [
+          {
+            "name": "Easy dinner in Maun",
+            "type": "EAT",
+            "description": "Low-key meal after a long day on the water.",
+            "bullets": [
+              "Hotel restaurant or town spot — no need to dress up.",
+              "Rehydrate and prep for tomorrow's free morning."
+            ],
+            "priceLabel": "€15–25"
+          }
+        ]
+      }
+    },
+    {
+      "day": 4,
+      "date": "2026-10-29",
+      "title": "Free morning and village visit",
+      "city": "Maun",
+      "focusName": "Maun",
+      "lat": -19.9833,
+      "lng": 23.4167,
+      "dailyBudgetEur": 100,
+      "category": "activity",
+      "travelHack": "Use a slow morning to laundry, SIM card, and cash — ATMs can be finicky.",
+      "transportationTips": "Village visits are usually short taxi or operator shuttle from town.",
+      "localWarnings": "",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [
+          {
+            "name": "Free morning in Maun",
+            "type": "ACTIVITY",
+            "description": "Markets, curio shops, or pool time — recover before Moremi.",
+            "bullets": [
+              "Grab supplies for upcoming road days.",
+              "Optional short riverside walk."
+            ]
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Community village visit",
+            "type": "SIGHT",
+            "description": "Guided look at local life outside the tourism bubble — crafts and culture.",
+            "bullets": [
+              "Book through a reputable operator.",
+              "Buy crafts directly if you wish — cash helps."
+            ],
+            "priceLabel": "€25–40"
+          }
+        ],
+        "evening": [
+          {
+            "name": "Dinner in town",
+            "type": "EAT",
+            "description": "Casual meal before tomorrow's early Moremi departure.",
+            "bullets": [
+              "Confirm pickup time tonight.",
+              "Pack neutral colours for game drive."
+            ],
+            "priceLabel": "€15–30"
+          }
+        ]
+      }
+    },
+    {
+      "day": 5,
+      "date": "2026-10-30",
+      "title": "Full-day Moremi game drive",
+      "city": "Maun",
+      "focusName": "Moremi Game Reserve",
+      "lat": -19.9833,
+      "lng": 23.4167,
+      "dailyBudgetEur": 270,
+      "category": "nature",
+      "travelHack": "Moremi day trips from Maun are long — leave early; park fees are included in most packages.",
+      "transportationTips": "Full-day 4x4 from Maun (~2–3h each way with game viewing en route).",
+      "localWarnings": "Stay in the vehicle except at designated stops.",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [
+          {
+            "name": "Moremi Game Reserve game drive",
+            "type": "NATURE",
+            "description": "Classic Botswana safari — elephant, antelope, predators if you're lucky.",
+            "bullets": [
+              "Day trip base in Maun, not an overnight fly-in lodge.",
+              "Includes park fees and picnic lunch on most tours."
+            ],
+            "priceLabel": "€180–220"
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Continued game viewing and return",
+            "type": "NATURE",
+            "description": "Afternoon loop through floodplains and mopane woodland before heading back.",
+            "bullets": [
+              "Golden hour can be excellent for photography.",
+              "Expect back in Maun early evening."
+            ]
+          }
+        ],
+        "evening": [
+          {
+            "name": "Recovery dinner",
+            "type": "EAT",
+            "description": "Simple dinner after a dusty, rewarding safari day.",
+            "bullets": [
+              "Early night recommended.",
+              "Boteti riverside tomorrow — lighter pace."
+            ],
+            "priceLabel": "€15–25"
+          }
+        ]
+      }
+    },
+    {
+      "day": 6,
+      "date": "2026-10-31",
+      "title": "Boteti riverside and sunset cruise",
+      "city": "Maun",
+      "focusName": "Boteti River",
+      "lat": -19.9833,
+      "lng": 23.4167,
+      "dailyBudgetEur": 120,
+      "category": "nature",
+      "travelHack": "Boteti elephant viewing depends on water levels — ask locally what's active this week.",
+      "transportationTips": "Half-day 4x4 to Boteti area; sunset cruise on Thamalakane in Maun.",
+      "localWarnings": "",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [
+          {
+            "name": "Boteti riverside wildlife viewing",
+            "type": "NATURE",
+            "description": "Morning at the Boteti fringe — elephants and riverine birds when water draws game.",
+            "bullets": [
+              "Shorter outing than Moremi.",
+              "Good buffer before the pans drive."
+            ],
+            "priceLabel": "€60–80"
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Free afternoon in Maun",
+            "type": "ACTIVITY",
+            "description": "Rest, repack, or last-minute shopping before Makgadikgadi.",
+            "bullets": [
+              "Check van transfer details for Nata.",
+              "Charge cameras and power banks."
+            ]
+          }
+        ],
+        "evening": [
+          {
+            "name": "Thamalakane sunset cruise",
+            "type": "ACTIVITY",
+            "description": "Relaxed boat ride with sundowners on the river.",
+            "bullets": [
+              "Hippos possible — stay seated.",
+              "Book through lodge or local operator."
+            ],
+            "priceLabel": "€35–50"
+          }
+        ]
+      }
+    },
+    {
+      "day": 7,
+      "date": "2026-11-01",
+      "title": "Rest day before the pans",
+      "city": "Maun",
+      "focusName": "Maun",
+      "lat": -19.9833,
+      "lng": 23.4167,
+      "dailyBudgetEur": 80,
+      "category": "activity",
+      "travelHack": "Treat this as a buffer — road days ahead are longer.",
+      "transportationTips": "Light local errands only; confirm Nata pickup time.",
+      "localWarnings": "",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [
+          {
+            "name": "Slow morning and packing",
+            "type": "ACTIVITY",
+            "description": "Sleep in, laundry, and prep for the drive to Makgadikgadi.",
+            "bullets": [
+              "Snacks and water for tomorrow's van leg.",
+              "Neutral layers for hot days and cool pans nights."
+            ]
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Optional riverside walk or pool",
+            "type": "ACTIVITY",
+            "description": "Unstructured downtime — no fixed program.",
+            "bullets": [
+              "Good day to journal or edit photos.",
+              "Early dinner if you prefer."
+            ]
+          }
+        ],
+        "evening": [
+          {
+            "name": "Light dinner",
+            "type": "EAT",
+            "description": "Easy meal before tomorrow's transfer.",
+            "bullets": [
+              "Confirm van pickup time and luggage limit.",
+              "Charge everything overnight."
+            ],
+            "priceLabel": "€15–25"
+          }
+        ]
+      }
+    },
+    {
+      "day": 8,
+      "date": "2026-11-02",
+      "title": "Drive to Nata and bird sanctuary",
+      "city": "Nata",
+      "focusName": "Makgadikgadi Pans",
+      "lat": -20.2167,
+      "lng": 26.1833,
+      "dailyBudgetEur": 120,
+      "category": "transport",
+      "travelHack": "Maun→Nata is ~3h by van — sit up front if you get motion sick on corrugated roads.",
+      "transportationTips": "Shared or private van Maun→Nata ~3h. Nata Bird Sanctuary is a short drive from town.",
+      "localWarnings": "Carry water; stops are limited on the cross-country leg.",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "transportation": [
+        {
+          "type": "van",
+          "from": "Maun",
+          "to": "Nata",
+          "duration": "3h",
+          "estimatedPrice": 80
+        }
+      ],
+      "activities": {
+        "morning": [
+          {
+            "name": "Van transfer Maun to Nata",
+            "type": "TRANSPORT",
+            "description": "Overland hop toward the Makgadikgadi pans — savanna and cattle country.",
+            "bullets": [
+              "Depart early to beat midday heat.",
+              "Luggage in roof rack or trailer on shared transfers."
+            ],
+            "priceLabel": "€80",
+            "transportType": "van"
+          },
+          {
+            "name": "Check-in near Nata",
+            "type": "STAY",
+            "description": "Settle at lodge or campsite base for pans exploration.",
+            "bullets": [
+              "Most bases are simple — mid-range, not luxury.",
+              "Confirm meerkat and pans tours for tomorrow."
+            ]
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Nata Bird Sanctuary",
+            "type": "NATURE",
+            "description": "Seasonal flamingos and waterbirds when Sowa Pan holds water.",
+            "bullets": [
+              "Best Nov–Apr depending on rains.",
+              "Short boardwalk and viewpoint loop."
+            ],
+            "priceLabel": "€15–25",
+            "lat": -20.2167,
+            "lng": 26.1833
+          }
+        ],
+        "evening": [
+          {
+            "name": "Dinner at lodge",
+            "type": "EAT",
+            "description": "Simple lodge meal under wide pans skies.",
+            "bullets": [
+              "Stars are excellent here — step outside after dinner.",
+              "Early start for meerkats tomorrow."
+            ],
+            "priceLabel": "€15–25"
+          }
+        ]
+      }
+    },
+    {
+      "day": 9,
+      "date": "2026-11-03",
+      "title": "Pans exploration and meerkats",
+      "city": "Makgadikgadi Pans",
+      "focusName": "Makgadikgadi Pans",
+      "lat": -20.2167,
+      "lng": 26.1833,
+      "dailyBudgetEur": 160,
+      "category": "nature",
+      "travelHack": "Meerkat habituation walks start at dawn — wrap up warm; pans mornings are cold.",
+      "transportationTips": "Full-day 4x4 or van from Nata/Gweta — no fly-in required.",
+      "localWarnings": "No shade on the pans — hat, sunscreen, and water.",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [
+          {
+            "name": "Meerkat habituation walk",
+            "type": "NATURE",
+            "description": "Sit quietly near a habituated colony as they emerge to warm up.",
+            "bullets": [
+              "Book with a licensed operator.",
+              "Keep distance — no touching or feeding."
+            ],
+            "priceLabel": "€60–90"
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Makgadikgadi pans drive",
+            "type": "NATURE",
+            "description": "Vast salt pans and baobab fringe — surreal midday horizons.",
+            "bullets": [
+              "4x4 essential on the pan surface.",
+              "Classic photo stops at island outcrops."
+            ],
+            "priceLabel": "€50–70"
+          }
+        ],
+        "evening": [
+          {
+            "name": "Camp or lodge dinner",
+            "type": "EAT",
+            "description": "Return to base for a fireside meal.",
+            "bullets": [
+              "Baines' Baobabs tomorrow.",
+              "Bring a headlamp for night walks to rooms."
+            ],
+            "priceLabel": "€15–25"
+          }
+        ]
+      }
+    },
+    {
+      "day": 10,
+      "date": "2026-11-04",
+      "title": "Baines' Baobabs and stargazing",
+      "city": "Makgadikgadi Pans",
+      "focusName": "Baines' Baobabs",
+      "lat": -20.2167,
+      "lng": 26.1833,
+      "dailyBudgetEur": 150,
+      "category": "nature",
+      "travelHack": "Sunset at Baines' Baobabs is iconic — time the drive for golden hour.",
+      "transportationTips": "Half- to full-day 4x4 from Nata/Gweta area.",
+      "localWarnings": "",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [
+          {
+            "name": "Drive to Baines' Baobabs",
+            "type": "SIGHT",
+            "description": "Historic baobab cluster painted by Thomas Baines — remote and photogenic.",
+            "bullets": [
+              "Allow half a day including transit.",
+              "Pack lunch unless operator provides."
+            ],
+            "priceLabel": "€50–70"
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Pans photography and exploration",
+            "type": "ACTIVITY",
+            "description": "Open salt crust, mirages, and endless horizons.",
+            "bullets": [
+              "Tripod useful for sunset shots.",
+              "Stay on established tracks."
+            ]
+          }
+        ],
+        "evening": [
+          {
+            "name": "Stargazing on the pans",
+            "type": "NATURE",
+            "description": "Some operators offer night drives or simple sky-watching away from light pollution.",
+            "bullets": [
+              "Milky Way season is strong in spring.",
+              "Wrap up — nights get cold."
+            ],
+            "priceLabel": "€30–50"
+          }
+        ]
+      }
+    },
+    {
+      "day": 11,
+      "date": "2026-11-05",
+      "title": "Gweta market and craft workshop",
+      "city": "Makgadikgadi Pans",
+      "focusName": "Gweta",
+      "lat": -20.2167,
+      "lng": 26.1833,
+      "dailyBudgetEur": 70,
+      "category": "activity",
+      "travelHack": "Gweta is the pans hub — good for crafts and a lower-cost day between safari outings.",
+      "transportationTips": "Short taxi or lodge shuttle to Gweta village.",
+      "localWarnings": "",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [
+          {
+            "name": "Gweta village market",
+            "type": "SIGHT",
+            "description": "Local market for produce, basics, and everyday Botswana life.",
+            "bullets": [
+              "Cash is king.",
+              "Photograph people only with permission."
+            ],
+            "priceLabel": "€5–15"
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Craft workshop visit",
+            "type": "ACTIVITY",
+            "description": "Basket weaving or pottery demo with local artisans.",
+            "bullets": [
+              "Buy direct if you find something you like.",
+              "Supports community projects."
+            ],
+            "priceLabel": "€20–35"
+          }
+        ],
+        "evening": [
+          {
+            "name": "Simple lodge dinner",
+            "type": "EAT",
+            "description": "Quiet evening before the last full pans day.",
+            "bullets": [
+              "Prep for long drive to Kasane in two days.",
+              "Repack safari gear."
+            ],
+            "priceLabel": "€15–20"
+          }
+        ]
+      }
+    },
+    {
+      "day": 12,
+      "date": "2026-11-06",
+      "title": "Easy morning and last pans evening",
+      "city": "Makgadikgadi Pans",
+      "focusName": "Makgadikgadi Pans",
+      "lat": -20.2167,
+      "lng": 26.1833,
+      "dailyBudgetEur": 80,
+      "category": "activity",
+      "travelHack": "Optional short revisit to a favourite pan spot — don't over-schedule before Kasane.",
+      "transportationTips": "Light local outings only; confirm Kasane van for tomorrow or day after.",
+      "localWarnings": "",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [
+          {
+            "name": "Relaxed morning",
+            "type": "ACTIVITY",
+            "description": "Sleep in, pool if available, or short walk around camp.",
+            "bullets": [
+              "Charge devices for the long transfer.",
+              "Snacks for the road tomorrow."
+            ]
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Optional short pans outing",
+            "type": "NATURE",
+            "description": "Repeat a favourite viewpoint or baobab stop if energy allows.",
+            "bullets": [
+              "Skip if you prefer rest.",
+              "Sunset can be as good as sunrise here."
+            ],
+            "priceLabel": "€30–40"
+          }
+        ],
+        "evening": [
+          {
+            "name": "Last pans sunset",
+            "type": "NATURE",
+            "description": "Final wide-open horizon before heading north to Chobe.",
+            "bullets": [
+              "Bring a jacket.",
+              "Pack tonight for Nata→Kasane drive."
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "day": 13,
+      "date": "2026-11-07",
+      "title": "Drive to Kasane and Chobe sunset cruise",
+      "city": "Kasane",
+      "focusName": "Chobe River",
+      "lat": -17.8017,
+      "lng": 25.1553,
+      "dailyBudgetEur": 150,
+      "category": "transport",
+      "travelHack": "Nata→Kasane is ~5h30 — break at Nata or Pandamatenga; book Chobe cruise for late afternoon.",
+      "transportationTips": "Van Nata→Kasane ~5h30. Chobe river cruises depart from Kasane waterfront.",
+      "localWarnings": "Long travel day — hydrate and stretch at stops.",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "transportation": [
+        {
+          "type": "van",
+          "from": "Nata",
+          "to": "Kasane",
+          "duration": "5h30",
+          "estimatedPrice": 120
+        }
+      ],
+      "activities": {
+        "morning": [
+          {
+            "name": "Van transfer Nata to Kasane",
+            "type": "TRANSPORT",
+            "description": "Overland leg to Chobe — border forests and elephant country.",
+            "bullets": [
+              "Early start recommended.",
+              "Border formalities possible depending on route."
+            ],
+            "priceLabel": "€120",
+            "transportType": "van"
+          },
+          {
+            "name": "Check-in in Kasane",
+            "type": "STAY",
+            "description": "Settle at riverside lodge or guesthouse.",
+            "bullets": [
+              "Confirm tomorrow's game drive slot.",
+              "Victoria Falls day trip often booked from here."
+            ]
+          }
+        ],
+        "afternoon": [],
+        "evening": [
+          {
+            "name": "Chobe sunset river cruise",
+            "type": "NATURE",
+            "description": "Boat safari on the Chobe — elephant, hippo, and croc at the water's edge.",
+            "bullets": [
+              "Sunset departures are popular — book ahead.",
+              "Bring binoculars and a light layer."
+            ],
+            "priceLabel": "€45–65",
+            "lat": -17.8017,
+            "lng": 25.1553
+          }
+        ]
+      }
+    },
+    {
+      "day": 14,
+      "date": "2026-11-08",
+      "title": "Morning Chobe game drive",
+      "city": "Kasane",
+      "focusName": "Chobe National Park",
+      "lat": -17.8017,
+      "lng": 25.1553,
+      "dailyBudgetEur": 200,
+      "category": "nature",
+      "travelHack": "Morning drives in Chobe catch elephant herds heading to the river — leave at first light.",
+      "transportationTips": "Park entrance and 4x3 pickup from Kasane lodges.",
+      "localWarnings": "Stay in the vehicle except at designated areas.",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [
+          {
+            "name": "Chobe National Park game drive",
+            "type": "NATURE",
+            "description": "Renowned elephant density and riverfront game viewing.",
+            "bullets": [
+              "Half- or full-day from Kasane.",
+              "Includes park fees on most packages."
+            ],
+            "priceLabel": "€120–160"
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Free afternoon in Kasane",
+            "type": "ACTIVITY",
+            "description": "Pool, river walk, or prep for Victoria Falls tomorrow.",
+            "bullets": [
+              "Check passport for Zimbabwe border crossing.",
+              "USD cash useful for visa-on-arrival if required."
+            ]
+          }
+        ],
+        "evening": [
+          {
+            "name": "Dinner in Kasane",
+            "type": "EAT",
+            "description": "Riverside or lodge restaurant — early night before Falls day.",
+            "bullets": [
+              "Pack day bag for border crossing.",
+              "Confirm pickup time for Falls transfer."
+            ],
+            "priceLabel": "€20–35"
+          }
+        ]
+      }
+    },
+    {
+      "day": 15,
+      "date": "2026-11-09",
+      "title": "Victoria Falls day trip",
+      "city": "Kasane",
+      "focusName": "Victoria Falls",
+      "lat": -17.8017,
+      "lng": 25.1553,
+      "dailyBudgetEur": 180,
+      "category": "sight",
+      "travelHack": "Organized Kasane→Victoria Falls day trips handle border paperwork — bring passport and visa cash if needed.",
+      "transportationTips": "Road transfer ~1h30 each way via Kazungula border — van or car, not flight.",
+      "localWarnings": "Spray at the falls soaks cameras — use a rain sleeve or dry bag.",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "transportation": [
+        {
+          "type": "van",
+          "from": "Kasane",
+          "to": "Victoria Falls (Zimbabwe)",
+          "duration": "1h30",
+          "estimatedPrice": 90
+        }
+      ],
+      "activities": {
+        "morning": [
+          {
+            "name": "Road transfer to Victoria Falls",
+            "type": "TRANSPORT",
+            "description": "Cross at Kazungula and continue to the Zimbabwe side of the falls.",
+            "bullets": [
+              "Operator assists with border formalities.",
+              "Carry passport and printed booking."
+            ],
+            "priceLabel": "€90",
+            "transportType": "van"
+          },
+          {
+            "name": "Victoria Falls rainforest walk",
+            "type": "SIGHT",
+            "description": "Main viewpoints along the gorge — thunder, spray, and rainbows.",
+            "bullets": [
+              "Park entry fee paid locally or included.",
+              "Rain gear or poncho essential."
+            ],
+            "priceLabel": "€30–40",
+            "lat": -17.9243,
+            "lng": 25.8572
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Lunch and optional bridge viewpoint",
+            "type": "EAT",
+            "description": "Meal in Victoria Falls town; optional look at the bridge or craft market.",
+            "bullets": [
+              "Return transfer mid-afternoon.",
+              "Keep border closing times in mind."
+            ],
+            "priceLabel": "€15–25"
+          }
+        ],
+        "evening": [
+          {
+            "name": "Return to Kasane",
+            "type": "TRANSPORT",
+            "description": "Cross back to Botswana and unwind at lodge.",
+            "bullets": [
+              "Long but rewarding day.",
+              "Light dinner on arrival."
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "day": 16,
+      "date": "2026-11-10",
+      "title": "Culture and conservation visit",
+      "city": "Kasane",
+      "focusName": "Kasane",
+      "lat": -17.8017,
+      "lng": 25.1553,
+      "dailyBudgetEur": 90,
+      "category": "activity",
+      "travelHack": "Snake park and small conservation centres are good rainy-day or slow-day options.",
+      "transportationTips": "Short taxi rides within Kasane.",
+      "localWarnings": "",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [
+          {
+            "name": "Snake park or reptile centre",
+            "type": "SIGHT",
+            "description": "Intro to local snakes and reptiles — educational, not a big-ticket safari.",
+            "bullets": [
+              "Guided handling only where permitted.",
+              "1–2 hours is enough."
+            ],
+            "priceLabel": "€10–20"
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Conservation or community project visit",
+            "type": "ACTIVITY",
+            "description": "Short look at anti-poaching or community tourism work around Chobe.",
+            "bullets": [
+              "Book through lodge or local NGO partner.",
+              "Donations often welcome."
+            ],
+            "priceLabel": "€20–35"
+          }
+        ],
+        "evening": [
+          {
+            "name": "Casual dinner",
+            "type": "EAT",
+            "description": "Low-key meal — wind-down before farewell night.",
+            "bullets": [
+              "Optional short river walk at sunset.",
+              "Confirm GBE flight for departure day."
+            ],
+            "priceLabel": "€15–25"
+          }
+        ]
+      }
+    },
+    {
+      "day": 17,
+      "date": "2026-11-11",
+      "title": "River rest and farewell dinner",
+      "city": "Kasane",
+      "focusName": "Chobe River",
+      "lat": -17.8017,
+      "lng": 25.1553,
+      "dailyBudgetEur": 70,
+      "category": "activity",
+      "travelHack": "Use this buffer for laundry, souvenirs, and a calm last full day in Botswana.",
+      "transportationTips": "Walk or short taxi only.",
+      "localWarnings": "",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [
+          {
+            "name": "Pool or river relaxation",
+            "type": "ACTIVITY",
+            "description": "Unstructured morning — you've earned a slow day.",
+            "bullets": [
+              "Optional short curio shopping.",
+              "Pack for tomorrow's flights."
+            ]
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Free afternoon",
+            "type": "ACTIVITY",
+            "description": "Read, nap, or one last riverside photo walk.",
+            "bullets": [
+              "Check international departure from GBE tonight.",
+              "Organize documents and boarding passes."
+            ]
+          }
+        ],
+        "evening": [
+          {
+            "name": "Farewell dinner",
+            "type": "EAT",
+            "description": "Final Botswana meal — celebrate eighteen days of safari.",
+            "bullets": [
+              "Reserve if dining at a popular lodge restaurant.",
+              "Early night — travel tomorrow."
+            ],
+            "priceLabel": "€25–40"
+          }
+        ]
+      }
+    },
+    {
+      "day": 18,
+      "date": "2026-11-12",
+      "title": "Domestic hop and international departure",
+      "city": "Gaborone",
+      "focusName": "GBE",
+      "lat": -24.6282,
+      "lng": 25.9231,
+      "dailyBudgetEur": 55,
+      "category": "transport",
+      "travelHack": "Kasane→GBE domestic plus evening international — allow buffer for connections; stay airside once checked in.",
+      "transportationTips": "Morning flight Kasane→Gaborone ~1h30. International departure ~17:30 from GBE — arrive ~3h early.",
+      "localWarnings": "Domestic delays happen — don't cut the GBE connection too tight.",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "transportation": [
+        {
+          "type": "flight",
+          "from": "Kasane (BBK)",
+          "to": "Gaborone (GBE)",
+          "duration": "1h30",
+          "estimatedPrice": 180
+        }
+      ],
+      "activities": {
+        "morning": [
+          {
+            "name": "Domestic flight Kasane to Gaborone",
+            "type": "TRANSPORT",
+            "description": "Morning hop back to Sir Seretse Khama for international connection.",
+            "bullets": [
+              "Check in luggage through if on one ticket.",
+              "Light breakfast before departure."
+            ],
+            "priceLabel": "€180",
+            "transportType": "flight"
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "GBE layover and check-in",
+            "type": "TRANSPORT",
+            "description": "Transfer to international terminal and clear departure formalities.",
+            "bullets": [
+              "Allow time for security and immigration.",
+              "Duty-free is limited — snacks if needed."
+            ]
+          }
+        ],
+        "evening": [
+          {
+            "name": "International departure to Munich",
+            "type": "TRANSPORT",
+            "description": "Evening flight home after the safari circuit.",
+            "bullets": [
+              "Target airport arrival ~3h before departure.",
+              "Departure around 17:30."
+            ],
+            "departureTime": "17:30"
+          }
+        ]
+      }
+    }
+  ]
+}
