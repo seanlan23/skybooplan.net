@@ -154,6 +154,21 @@ describe("industry country mid daily budgets", () => {
     expect(days.filter((_, i) => i >= 2 && i <= 9).every((d) => d <= 50)).toBe(true);
   });
 
+  it("never allows Albania sightseeing above €50 mid (was €109 on LJU PDF)", () => {
+    expect(
+      applyCountryDayBudgetCeil(109, "sightseeing", "mid", {
+        country: "AL",
+        city: "Berat",
+      }),
+    ).toBe(50);
+    expect(
+      applyCountryDayBudgetCeil(200, "ticket-heavy", "mid", {
+        country: "AL",
+        city: "Saranda",
+      }),
+    ).toBeLessThanOrEqual(53);
+  });
+
   it("Italy 21d mid tracks industry €130/pp/day (≈€8.2k for 3 with hotels)", () => {
     expect(lookupDestination("FCO")?.country).toBe("IT");
     expect(resolveTripLocale("FCO", "Italy", "sl").country).toBe("IT");
@@ -164,7 +179,6 @@ describe("industry country mid daily budgets", () => {
       }),
     );
     expect(days[0]).toBe(130);
-    // Industry mid includes shared 3★ lodging — not the old €4.5k undercut.
     expect(computeTripTotalBudgetEur(days.map((d) => ({ dailyBudgetEur: d })), 3)).toBe(8190);
   });
 });

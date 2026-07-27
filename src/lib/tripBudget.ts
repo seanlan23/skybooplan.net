@@ -525,7 +525,8 @@ export function applyCountryDayBudgetCeil(
     arrival: 0.55,
     departure: 0.4,
     sightseeing: 1,
-    "ticket-heavy": 1.2,
+    // Value markets: don't let "ticket-heavy" inflate past the industry mid (AL €50 → €60).
+    "ticket-heavy": isValueDestinationBudget(cc) ? 1.05 : 1.2,
     "cross-country-travel": 0.85,
   };
   const cap = Math.max(20, Math.round(base * (kindFactor[kind] ?? 1)));

@@ -1026,6 +1026,7 @@ export function enrichGeminiCatalogPlan(
     }
 
     // Cestnine/vinjete: after ceils so IT/FR highway days keep real toll share.
+    // Value destinations (AL/TH/…): fold tolls into the country envelope — never €100+ on Berat.
     const roadMode =
       motorhome ? "motorhome" : plan.groundTransportMode === "car" ? "car" : null;
     if (roadMode) {
@@ -1035,12 +1036,22 @@ export function enrichGeminiCatalogPlan(
         destinationName: plan.destinationName,
         destinationIata: plan.destinationIata,
       });
+      const tollPlace = {
+        country: tollCountry,
+        city: `${finalDay.city ?? ""} ${plan.destinationName ?? ""} ${plan.destinationIata ?? ""}`,
+      };
       daily = applyRoadTollToDailyBudget(daily, {
         drivingDistanceKm: finalDay.drivingDistanceKm,
         country: tollCountry,
         pax: travelers,
         mode: roadMode,
       });
+      if (isValueDestinationBudget(tollCountry, tollPlace.city)) {
+        if (hasCountryMidDailyBudget(tollCountry)) {
+          daily = applyCountryDayBudgetCeil(daily, kind, tier, tollPlace);
+        }
+        daily = applyValueDestinationDayBudgetCeil(daily, kind, tier, tollPlace);
+      }
     }
 
     finalDay.dailyBudgetEur = daily;
