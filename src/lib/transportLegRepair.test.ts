@@ -59,6 +59,55 @@ describe("repairTransportLegs", () => {
     expect(legs![0]!.to).toBe("Koh Samui");
   });
 
+  it("coerces fake FLIGHT day-trips to car on car/motorhome road trips", () => {
+    const legs = repairTransportLegs(
+      [
+        {
+          type: "flight",
+          from: "Izlet v kanjon reke Osum",
+          to: "Berat",
+          duration: "1h",
+          estimatedPrice: 30,
+        },
+      ],
+      {
+        dayNumber: 7,
+        city: "Berat",
+        previousCity: "Berat",
+        groundTransportMode: "car",
+      },
+    );
+
+    expect(legs).toHaveLength(1);
+    expect(legs![0]!.type).toBe("car");
+    expect(legs![0]!.type).not.toBe("flight");
+  });
+
+  it("coerces Himara→Kotor FLIGHT label to car on road trips", () => {
+    const legs = repairTransportLegs(
+      [
+        {
+          type: "flight",
+          from: "Himara",
+          to: "Kotor",
+          duration: "1h",
+          estimatedPrice: 25,
+        },
+      ],
+      {
+        dayNumber: 14,
+        city: "Kotor",
+        previousCity: "Himara",
+        groundTransportMode: "car",
+      },
+    );
+
+    expect(legs).toHaveLength(1);
+    expect(legs![0]!.type).toBe("car");
+    expect(legs![0]!.from).toBe("Himara");
+    expect(legs![0]!.to).toBe("Kotor");
+  });
+
   it("does not invent a direct flight from Koh Lipe to Phuket", () => {
     const legs = repairTransportLegs(
       [

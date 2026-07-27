@@ -405,7 +405,13 @@ export function coerceTripPlanPayload(raw: unknown): unknown {
             const arrow = title.split(/\s*[→\-–]\s*/);
             const type = (a.transport_type as string) || inferTransportType(title, String(a.category ?? ""));
             const legType =
-              type === "bus" || type === "taxi" ? "van" : type === "flight" || type === "ferry" || type === "train" || type === "van" ? type : "van";
+              type === "bus" || type === "taxi"
+                ? "van"
+                : type === "car" || type === "drive" || type === "driving" || type === "auto"
+                  ? "car"
+                  : type === "flight" || type === "ferry" || type === "train" || type === "van"
+                    ? type
+                    : "van";
             return {
               type: legType,
               from: arrow[0]?.trim() || city,

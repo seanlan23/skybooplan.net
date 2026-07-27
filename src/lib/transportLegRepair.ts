@@ -1,4 +1,5 @@
 import type { Activity, DayTransportLeg } from "@/lib/aiPlan.functions";
+import type { GroundTransportMode } from "@/lib/aiPlan.functions";
 import { DESTINATION_BY_IATA } from "@/lib/destinationCoords";
 import { haversineKm } from "@/lib/geoMath";
 import { lookupRegionCoords } from "@/lib/regionCoords";
@@ -9,6 +10,10 @@ const MAX_PLAUSIBLE_VAN_HOP_KM = 120;
 /** Islands without a commercial runway — never invent direct flights to/from these. */
 const NO_AIRPORT_ISLAND =
   /koh\s*lipe|\blipe\b|boracay|phi\s*phi|maya\s*bay|koh\s*lanta|\blanta\b|railay|ao\s*nang/i;
+
+function isRoadGroundMode(mode?: GroundTransportMode): boolean {
+  return mode === "car" || mode === "motorhome";
+}
 
 function normalizePlaceLabel(value: string): string {
   return value
@@ -133,6 +138,7 @@ export function repairTransportLegs(
     city: string;
     destinationIata?: string;
     previousCity?: string;
+    groundTransportMode?: GroundTransportMode;
     activities?: {
       morning: Activity[];
       afternoon: Activity[];
@@ -147,9 +153,15 @@ export function repairTransportLegs(
   const center = cityCenterLabel(ctx.city);
   const isArrival = ctx.dayNumber === 1;
   const prevCity = ctx.previousCity?.trim();
+  const roadTrip = isRoadGroundMode(ctx.groundTransportMode);
 
   const repaired = legs.flatMap((leg) => {
     leg = repairNarrativeMotorhomeLeg(leg, { city: ctx.city, previousCity: prevCity });
+
+    // Car / motorhome plans: never keep FLIGHT badges on road day-trips.
+    if (roadTrip && leg.type === "flight") {
+      leg = { ...leg, type: "car" };
+    }
 
     const fromIata = extractIata(leg.from);
     const toIata = extractIata(leg.to);
@@ -170,7 +182,7 @@ export function repairTransportLegs(
       return [];
     }
 
-    if (leg.type === "van" || leg.type === "train") {
+    if (leg.type === "van" || leg.type === "train" || leg.type === "car") {
       const fromC = lookupRegionCoords(leg.from);
       const toC = lookupRegionCoords(leg.to);
       if (fromC && toC) {
@@ -181,11 +193,15 @@ export function repairTransportLegs(
 
     if (!placesMatch(leg.from, leg.to)) return [leg];
 
-    if (isArrival && (leg.type === "van" || leg.type === "flight")) {
+    if (isArrival && (leg.type === "van" || leg.type === "flight" || leg.type === "car")) {
       if (leg.type === "flight") {
         // Arrival day "flight" with same from/to is almost always a bad Gemini leg —
         // treat as airport → hotel van instead of inventing a city hop.
         return [{ ...leg, type: "van", from: airport, to: center }];
+      }
+      if (roadTrip) {
+        // Road trips don't start with airport vans — drop same-city noise.
+        return [];
       }
       return [{ ...leg, from: airport, to: center }];
     }

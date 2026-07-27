@@ -435,12 +435,22 @@ const VALUE_BUDGET_COUNTRIES = new Set([
   "IN",
   "NP",
   "BD",
+  // Balkans / SE Europe road-trip value band (food + stays cheap vs WE/US).
+  "AL",
+  "BA",
+  "ME",
+  "MK",
+  "RS",
+  "XK",
+  "BG",
+  "RO",
+  "HR",
 ]);
 
 export function isValueDestinationBudget(country?: string, city?: string): boolean {
   const cc = (country ?? "").trim().toUpperCase();
   if (VALUE_BUDGET_COUNTRIES.has(cc)) return true;
-  return /phuket|bangkok|krabi|chiang\s*mai|patong|karon|ao\s*nang|railay|koh\s*|ko\s*|bali|ubud|kuta|hanoi|saigon|ho\s*chi\s*minh|siem\s*reap|manila|cebu|boracay|el\s*nido|kuala|penang|šri\s*lanka|sri\s*lanka|srilanka|colombo|galle|ella|negombo|unawatuna|hkt|bkk|cnx|kbv|dps|sgn|han|mnl|cmb|hri/i.test(
+  return /phuket|bangkok|krabi|chiang\s*mai|patong|karon|ao\s*nang|railay|koh\s*|ko\s*|bali|ubud|kuta|hanoi|saigon|ho\s*chi\s*minh|siem\s*reap|manila|cebu|boracay|el\s*nido|kuala|penang|šri\s*lanka|sri\s*lanka|srilanka|colombo|galle|ella|negombo|unawatuna|hkt|bkk|cnx|kbv|dps|sgn|han|mnl|cmb|hri|tirana|berat|saranda|himar|ksamil|gjirokast|mostar|kotor|budva|dubrovnik|split|zadar|albania|albanij|bocna|bosnia|crna\s*gora|montenegro|tia\b/i.test(
     city ?? "",
   );
 }

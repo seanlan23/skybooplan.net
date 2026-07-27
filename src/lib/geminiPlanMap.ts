@@ -182,8 +182,9 @@ type RawActivity = TripPlanResponse["itinerar"][number]["days"][number]["activit
 
 function normalizeLegType(value: unknown): DayTransportLeg["type"] | null {
   if (typeof value !== "string") return null;
-  const v = value.toLowerCase();
+  const v = value.toLowerCase().trim();
   if (v === "flight" || v === "ferry" || v === "train") return v;
+  if (v === "car" || v === "drive" || v === "driving" || v === "auto") return "car";
   if (v === "van" || v === "bus" || v === "taxi") return "van";
   return null;
 }
@@ -254,6 +255,7 @@ function resolveDayTransportation(
   ctx: {
     dayNumber: number;
     destinationIata?: string;
+    groundTransportMode?: GroundTransportMode;
     activities?: {
       morning: Activity[];
       afternoon: Activity[];
@@ -277,6 +279,7 @@ function resolveDayTransportation(
     destinationIata: ctx.destinationIata,
     previousCity,
     activities: ctx.activities,
+    groundTransportMode: ctx.groundTransportMode,
   });
 }
 
@@ -583,6 +586,7 @@ export function tripPlanResponseToAiTripPlan(
       const dayTransportation = resolveDayTransportation(day, city, previousCity, {
         dayNumber: day.day_number,
         destinationIata: opts?.destinationIata,
+        groundTransportMode: opts?.groundTransportMode,
         activities: slots.structured,
       });
 
@@ -820,6 +824,26 @@ export function enrichGeminiCatalogPlan(
   }
   if (plan.accommodationMode === "motorhome" && !plan.hotelRestEveryNDays) {
     plan.hotelRestEveryNDays = detectHotelRestInterval(wishesText) ?? undefined;
+  }
+
+  // Car / motorhome: never keep FLIGHT badges on road day-trips (Gemini often mislabels drives).
+  if (plan.groundTransportMode === "car" || plan.groundTransportMode === "motorhome") {
+    for (const day of plan.days) {
+      if (day.transportation?.length) {
+        day.transportation = day.transportation.map((leg) =>
+          leg.type === "flight" ? { ...leg, type: "car" as const } : leg,
+        );
+      }
+      if (day.activities) {
+        for (const slot of ["morning", "afternoon", "evening"] as const) {
+          day.activities[slot] = day.activities[slot].map((a) =>
+            a.transportType === "flight"
+              ? { ...a, transportType: undefined }
+              : a,
+          );
+        }
+      }
+    }
   }
 
   const motorhome =

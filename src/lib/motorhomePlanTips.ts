@@ -207,6 +207,7 @@ export function enrichMotorhomePlanTips(plan: AiTripPlan, lang = "sl"): void {
         city,
         previousCity: previousCity || undefined,
         activities: day.activities,
+        groundTransportMode: plan.groundTransportMode ?? "motorhome",
       });
     }
 

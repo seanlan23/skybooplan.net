@@ -1,4 +1,4 @@
-import { ArrowDown, Bus, Plane, Ship, TrainFront } from "lucide-react";
+import { ArrowDown, Bus, Car, Plane, Ship, TrainFront } from "lucide-react";
 import type { DayTransportLeg } from "@/lib/aiPlan.functions";
 import { useI18n } from "@/lib/i18n";
 
@@ -17,6 +17,12 @@ const STEP_META: Record<
     icon: Bus,
     accent: "border-sky-200 bg-gradient-to-br from-sky-50 to-white",
     badge: "bg-sky-600",
+  },
+  car: {
+    label: "Vožnja",
+    icon: Car,
+    accent: "border-emerald-200 bg-gradient-to-br from-emerald-50 to-white",
+    badge: "bg-emerald-700",
   },
   ferry: {
     label: "Trajekt",

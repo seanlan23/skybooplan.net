@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
+import { langFromIpCountry, type IpUiLang } from "@/lib/langFromIpCountry";
 import { resolveOriginHubsForGeo } from "@/lib/originHubsByGeo";
 
 function header(headers: Headers, name: string): string | null {
@@ -12,6 +13,32 @@ function parseCoord(raw: string | null): number | null {
   const n = Number.parseFloat(raw);
   return Number.isFinite(n) ? n : null;
 }
+
+function countryFromHeaders(headers: Headers): string | null {
+  const country = (
+    header(headers, "x-vercel-ip-country") ||
+    header(headers, "cf-ipcountry") ||
+    header(headers, "x-country-code") ||
+    ""
+  )
+    .toUpperCase()
+    .replace(/[^A-Z]/g, "")
+    .slice(0, 2);
+  return country || null;
+}
+
+/**
+ * Suggest UI language from coarse IP geo (Vercel / Cloudflare headers).
+ * No GPS — country header only. Local/dev without headers → en.
+ */
+export const suggestUiLang = createServerFn({ method: "GET" }).handler(
+  async (): Promise<{ country: string | null; lang: IpUiLang }> => {
+    const request = getRequest();
+    const headers = request?.headers ?? new Headers();
+    const country = countryFromHeaders(headers);
+    return { country, lang: langFromIpCountry(country) };
+  },
+);
 
 /**
  * Suggest origin airport chips from coarse IP geo (Vercel / Cloudflare headers).
@@ -26,15 +53,7 @@ export const suggestOriginHubs = createServerFn({ method: "GET" }).handler(
     const request = getRequest();
     const headers = request?.headers ?? new Headers();
 
-    const country = (
-      header(headers, "x-vercel-ip-country") ||
-      header(headers, "cf-ipcountry") ||
-      header(headers, "x-country-code") ||
-      ""
-    )
-      .toUpperCase()
-      .replace(/[^A-Z]/g, "")
-      .slice(0, 2);
+    const country = countryFromHeaders(headers);
 
     const city =
       header(headers, "x-vercel-ip-city") ||
@@ -50,14 +69,14 @@ export const suggestOriginHubs = createServerFn({ method: "GET" }).handler(
 
     // Local/dev often has no geo headers — keep CE defaults.
     const iatas = resolveOriginHubsForGeo({
-      country: country || null,
+      country,
       lat,
       lng,
       limit: 6,
     });
 
     return {
-      country: country || null,
+      country,
       city,
       iatas,
     };

@@ -15,6 +15,8 @@ import {
   readStoredCurrency,
   type PlanCurrency,
 } from "@/lib/planCurrency";
+import { suggestUiLang } from "@/lib/originGeo.functions";
+import { useServerFn } from "@tanstack/react-start";
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
 /** Active UI languages — es/fr/it packs stay in repo but are not selectable. */
@@ -2840,6 +2842,16 @@ export function readStoredLang(): Lang {
   return "en";
 }
 
+/** True when the user (or a prior IP default) already persisted a language. */
+export function hasStoredLang(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return localStorage.getItem(STORAGE_KEY) != null;
+  } catch {
+    return false;
+  }
+}
+
 type I18nCtx = {
   lang: Lang;
   setLang: (l: Lang) => void;
@@ -2959,6 +2971,7 @@ export function isSoftQuotaError(code: string | null | undefined): boolean {
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState<Lang>(readStoredLang);
   const [currency, setCurrencyState] = useState<PlanCurrency>(readStoredCurrency);
+  const suggestUiLangFn = useServerFn(suggestUiLang);
 
   useEffect(() => {
     if (typeof document !== "undefined") {
@@ -2966,6 +2979,28 @@ export function I18nProvider({ children }: { children: ReactNode }) {
       document.documentElement.dir = RTL.includes(lang) ? "rtl" : "ltr";
     }
   }, [lang]);
+
+  // First visit only: suggest UI lang from IP country (SI→sl, DE/AT/CH→de, else en).
+  useEffect(() => {
+    if (hasStoredLang()) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const { lang: suggested } = await suggestUiLangFn();
+        if (cancelled || hasStoredLang()) return;
+        const normalized = normalizeAppLang(suggested);
+        setLangState(normalized);
+        try {
+          localStorage.setItem(STORAGE_KEY, normalized);
+        } catch {}
+      } catch {
+        // Offline / no geo headers — keep current default (en).
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [suggestUiLangFn]);
 
   const value = useMemo<I18nCtx>(() => {
     return {

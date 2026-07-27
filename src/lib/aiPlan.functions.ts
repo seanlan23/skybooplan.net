@@ -268,7 +268,7 @@ export type DayTransport = {
 };
 
 export type DayTransportLeg = {
-  type: "flight" | "ferry" | "train" | "van";
+  type: "flight" | "ferry" | "train" | "van" | "car";
   from: string;
   to: string;
   duration: string;

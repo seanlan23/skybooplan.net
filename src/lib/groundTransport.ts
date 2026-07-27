@@ -69,13 +69,14 @@ PREVOZ DO DESTINACIJE — AVTO (obvezno):
 - Prvi dni morajo pokrivati celotno pot od doma do destinacije z realističnimi postanki (npr. "Postanek v Milanu", "Nočitev v Münchenu").
 - Vsak dan poti: drivingDistanceKm, drivingDurationHours, smiselne postanke ali kratki ogledi ob poti.
 - NOČITVE: vsak večer hotel v mestu (Booking-friendly city stay). PREPOVEDANO: kamp, RV park, campground, sosta ali "spanje v avtu" kot namestitev.
+- transportation[] na dneh poti: type "car" (vožnja) — PREPOVEDANO type "flight" za cestne etape / izlete.
 - Po prihodu na destinacijo nadaljuj z glavnim programom na cilju.
 
 POVRATEK DOMOV — AVTO (obvezno, zadnji dnevi):
 - Potnik se NE vrača z mednarodnega letala! Celotno potovanje je z avtom iz "${origin}" do "${dest}" in nazaj.
 - Zadnji dan (ali zadnja 1–3 dni, glede na razdaljo) mora biti vožnja NAZAJ do izhodišča "${origin}" z realističnimi postanki, drivingDistanceKm in drivingDurationHours.
 - Na zadnjem dnevu NE načrtuj mednarodnega leta, category airport za odlet v EU, prevoza na letališče ali trip_metadata.return_flight_eu.
-- transportation[] zadnjega dne: vožnja z avtom proti domu — ne flight.`;
+- transportation[] zadnjega dne: type "car" proti domu — ne flight.`;
 }
 
 /** Last-day return rules — must match groundTransportMode (car ≠ flight home). */

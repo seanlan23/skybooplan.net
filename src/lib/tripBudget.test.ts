@@ -138,6 +138,26 @@ describe("applyGlobalDayBudgetCeil", () => {
       3600,
     );
   });
+
+  it("keeps 3-pax Albania/Balkans car-trip totals well under €6k (TIA value ceil)", () => {
+    expect(lookupDestination("TIA")?.country).toBe("AL");
+    expect(resolveTripLocale("TIA", "Albanija", "sl").country).toBe("AL");
+    expect(isValueDestinationBudget("AL", "Tirana Berat Kotor")).toBe(true);
+
+    const days = Array.from({ length: 17 }, () =>
+      applyValueDestinationDayBudgetCeil(
+        applyGlobalDayBudgetCeil(159, "sightseeing", "mid"),
+        "sightseeing",
+        "mid",
+        { country: "AL", city: "Tirana Albanija TIA" },
+      ),
+    );
+    expect(days[0]).toBeLessThanOrEqual(75);
+    // Was €6144 on LJU→TIA PDF with mid/WE-sized daily ceilings.
+    expect(computeTripTotalBudgetEur(days.map((d) => ({ dailyBudgetEur: d })), 3)).toBeLessThan(
+      4000,
+    );
+  });
 });
 
 describe("applyValueDestinationDayBudgetCeil", () => {
