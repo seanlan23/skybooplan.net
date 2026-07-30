@@ -2,9 +2,10 @@ import { describe, expect, it } from "vitest";
 import { hasUnlimitedAccess } from "@/lib/unlimitedAccess";
 
 describe("hasUnlimitedAccess", () => {
-  it("grants rokkricej@gmail.com unlimited access", () => {
+  it("grants founder and allowlisted emails unlimited access", () => {
     expect(hasUnlimitedAccess("rokkricej@gmail.com")).toBe(true);
     expect(hasUnlimitedAccess(" RokKricej@Gmail.com ")).toBe(true);
+    expect(hasUnlimitedAccess("tomazgorec@gmail.com")).toBe(true);
   });
 
   it("denies other emails", () => {
