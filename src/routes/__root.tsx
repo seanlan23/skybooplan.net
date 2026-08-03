@@ -17,6 +17,10 @@ import { AuthProvider } from "@/hooks/use-auth";
 
 import { I18nProvider } from "@/lib/i18n";
 import { CookieConsentBanner } from "@/components/CookieConsentBanner";
+import {
+  isMaintenanceModeEnabled,
+  MaintenanceScreen,
+} from "@/components/MaintenanceScreen";
 import { PwaInstallPrompt } from "@/components/PwaInstallPrompt";
 import { PwaRegister } from "@/components/PwaRegister";
 
@@ -182,11 +186,15 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
+  // Maintenance: do not mount the app UI at all (no homepage flash underneath).
+  if (isMaintenanceModeEnabled()) {
+    return <MaintenanceScreen />;
+  }
+
   return (
     <QueryClientProvider client={queryClient}>
       <I18nProvider>
         <AuthProvider>
-          
           {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
           <Outlet />
           <PwaRegister />
