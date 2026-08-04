@@ -23,6 +23,10 @@ import {
   type TripFlightContext,
 } from "@/lib/flightScheduling";
 import { enrichDayActivities } from "@/lib/dayEnrichers";
+import {
+  bangkokKwaiDayTripTitle,
+  slotsLookLikeKwaiDayTrip,
+} from "@/lib/bangkokKwaiDayTrip";
 import { applyItineraryGuards } from "@/lib/itineraryGuards";
 import {
   applyCanadaBudgetFloor,
@@ -3187,6 +3191,13 @@ export function buildSkeletonDayPlans(
               /phi phi|maya bay/i.test(`${h.name} ${h.description}`),
           ),
         );
+      const bangkokStayDays = skeleton.regions
+        .filter((r) => /bangkok|krung thep|\bbkk\b/i.test(r.city))
+        .reduce((sum, r) => sum + Math.max(1, r.endDay - r.startDay + 1), 0);
+      const dayLabelText = [
+        ...dayHighlights.map((h) => `${h.name} ${h.description ?? ""}`),
+        region.summary ?? "",
+      ].join(" ");
       activities = enrichDayActivities(activities, region.city, dayInRegion, locale, {
         isTripDay1: d === arrivalDayNum,
         isArrivalDay: d === arrivalDayNum || d === region.startDay,
@@ -3197,6 +3208,8 @@ export function buildSkeletonDayPlans(
         destinationIata: destIata,
         plannedSights: dayHighlights.length,
         dayHighlightNames: dayHighlights.map((h) => h.name),
+        dayLabelText,
+        bangkokStayDays: bangkokStayDays || undefined,
         usedEveningVenues,
         paceLabel: opts?.paceLabel,
         phiPhiExcursionDone: phiPhiDoneBeforeDay,
@@ -3204,6 +3217,7 @@ export function buildSkeletonDayPlans(
         priorScheduledText: priorHighlightText,
         tripDate: isoDateAtOffset(skeleton.departDate, d - 1),
         motorhome: skeleton.accommodationMode === "motorhome",
+        isDepartureDay: d === nDays && !!flights?.inboundDepart,
       });
       activities = stripWrongCityActivities(activities, region.city);
       activities = reconcileWeekdayGatedActivities(activities, skeleton.departDate, d, langCode);
@@ -3284,18 +3298,24 @@ export function buildSkeletonDayPlans(
           ? { lat: regionLat, lng: regionLng }
           : null;
 
+    const kwaiExclusiveDay =
+      activities != null && slotsLookLikeKwaiDayTrip(activities);
+    const dayTitle = kwaiExclusiveDay
+      ? bangkokKwaiDayTripTitle(locale.slo)
+      : skeletonDayTitle(region, d, dayHighlights, activities, {
+          departureOnly:
+            d === nDays &&
+            !!flights?.inboundDepart &&
+            isOvernightDeparture(flights) &&
+            (activities?.morning.length ?? 0) > 0 &&
+            !(activities?.afternoon.length || activities?.evening.length),
+        });
+
     days.push(
       attachActivityCoordinates({
       day: d,
       date: isoDateAtOffset(skeleton.departDate, d - 1),
-      title: skeletonDayTitle(region, d, dayHighlights, activities, {
-        departureOnly:
-          d === nDays &&
-          !!flights?.inboundDepart &&
-          isOvernightDeparture(flights) &&
-          (activities?.morning.length ?? 0) > 0 &&
-          !(activities?.afternoon.length || activities?.evening.length),
-      }),
+      title: dayTitle,
       morning: "",
       afternoon: "",
       evening: "",
@@ -3322,7 +3342,11 @@ export function buildSkeletonDayPlans(
           ? locale.slo
             ? "Deževna sezona — An Bang in staro mestno lahko poplavljeno; indoor rezerva (kuharstvo, lampioni) ima prednost pred plažo."
             : "Rainy season — An Bang and old town may flood; indoor backup (cooking, lanterns) beats beach lounging."
-          : "",
+          : kwaiExclusiveDay
+            ? locale.slo
+              ? "Celodnevni izlet ~06:30–21:00 — brez dodatnega mestnega programa; po vrnitvi samo lahka večerja pri hotelu."
+              : "Full-day trip ~06:30–21:00 — no extra city program; after return only a light dinner near the hotel."
+            : "",
       dailyBudgetEur: (() => {
         const sprawling = isSprawlingMetroRegion(region, destIata, nDays);
         const mealsFull = dailyMealsBudgetEur(priceTier);
@@ -3401,7 +3425,11 @@ export function buildSkeletonDayPlans(
       })(),
       lat: primaryCoord?.lat ?? region.lat,
       lng: primaryCoord?.lng ?? region.lng,
-      focusName: primary?.name ?? region.city,
+      focusName: kwaiExclusiveDay
+        ? locale.slo
+          ? "Mae Klong → River Kwai → Death Railway"
+          : "Mae Klong → River Kwai → Death Railway"
+        : primary?.name ?? region.city,
       city: region.city,
       category: dayCategoryFromHighlights(dayHighlights),
       transport,

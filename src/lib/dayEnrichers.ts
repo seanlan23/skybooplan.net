@@ -2285,6 +2285,8 @@ export function enrichDayActivities(
     tripDate?: string;
     /** Total Bangkok stay nights/days in this trip (for Kwai day-trip scheduling). */
     bangkokStayDays?: number;
+    /** Day title / focus / highlight blob — forces Kwai overwrite when labeled but polluted. */
+    dayLabelText?: string;
     isDepartureDay?: boolean;
     /** RV / campervan — no hotel copy, no daily meal padding. */
     motorhome?: boolean;
@@ -2659,6 +2661,9 @@ export function enrichDayActivities(
       priorScheduledText: opts?.priorScheduledText,
       isArrivalDay: opts?.isArrivalDay,
       isDepartureDay: opts?.isDepartureDay,
+      dayLabelText: [opts?.dayLabelText, ...(opts?.dayHighlightNames ?? [])]
+        .filter(Boolean)
+        .join(" "),
     });
     for (const a of result.evening) {
       const key = eveningVenueKey(a.name);

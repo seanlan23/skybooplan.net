@@ -244,7 +244,7 @@ TAJSKA — POSEBNA OPOZORILA (obvezno ko je destinacija Tajska ali faza v Tajske
   • BTS/MRT v Bangkoku — Rabbit Card; izogibaj prometni konici 07–09 in 17–19,
   • trajekti na otoke: preveri sezonske odpovedi, vihar, dnevne urnike (npr. Phi Phi, Koh Lipe, Koh Samui).
 - Ne piši generičnega "uporabite Grab" brez konteksta mesta in relacije A→B.
-- Ko je baza Bangkok (BKK): vključi 1 celodnevni izlet Mae Klong → Damnoen Saduak → Kanchanaburi (War Cemetery + River Kwai) → Tham Krasae Death Railway → Suan Sai Yok → nazaj. Odhod izpred hotela ob 6:30 za vlak 8:30. NIKOLI konkretno ime hotela — vedno „tvoj hotel“ / „your hotel“.
+- Ko je baza Bangkok (BKK): vključi 1 celodnevni izlet Mae Klong → Damnoen Saduak → Kanchanaburi (War Cemetery + River Kwai) → Tham Krasae Death Railway → Suan Sai Yok → nazaj (~06:30–21:00, ~14–15 ur). Ta dan JE SAMO TA IZLET — PREPOVEDANO Siam Paragon / templji / nakupi isti dan; zvečer samo lahka večerja pri hotelu. Odhod 6:30 za vlak ~8:30 na Mae Klong. NIKOLI konkretno ime hotela — vedno „tvoj hotel“ / „your hotel“.
 `.trim();
 }
 
