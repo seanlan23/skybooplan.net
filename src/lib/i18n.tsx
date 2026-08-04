@@ -263,6 +263,10 @@ const en: Dict = {
   "heroChat.pace.calm": "Calm",
   "heroChat.budget.ask":
     "What's your rough budget per person for the whole trip (including flights)?",
+  "heroChat.wishes.ask":
+    "Any wishes for the trip? For example specific cities or places in the destination country. Or skip.",
+  "heroChat.wishes.skip": "Skip",
+  "heroChat.wishes.placeholder": "e.g. Chiang Mai, islands in the south…",
   "heroChat.stepDates.exact": "Perfect! Travel dates: {{dates}}.",
   "heroChat.stepDates.vague": "Got it — roughly {{period}}.",
   "heroChat.stepDates.ask": "When would you like to travel?",
@@ -1338,6 +1342,10 @@ const dicts: Record<DictLang, Dict> = {
     "heroChat.pace.calm": "Umirjen",
     "heroChat.budget.ask":
       "Kakšen okvirni proračun imaš na osebo za celotno potovanje (vključno z letom)?",
+    "heroChat.wishes.ask":
+      "Imaš kakšne želje za potovanje? Npr. točna mesta ali lokacije v ciljni državi. Lahko tudi preskočiš.",
+    "heroChat.wishes.skip": "Preskoči",
+    "heroChat.wishes.placeholder": "npr. Chiang Mai, otoki na jugu…",
     "heroChat.stepDates.exact": "Super! Termin potovanja: {{dates}}.",
     "heroChat.stepDates.vague": "Razumem — približno {{period}}.",
     "heroChat.stepDates.ask": "Kdaj načrtuješ potovanje?",

@@ -55,6 +55,7 @@ export type HeroChatStep =
   | "passengers"
   | "pace"
   | "budget"
+  | "wishes"
   | "searching";
 
 export type HeroChatCollected = {
@@ -65,6 +66,8 @@ export type HeroChatCollected = {
   passengers: string;
   pace: string;
   budget: string;
+  /** Free-text places / preferences in the destination country (optional). */
+  locationWishes?: string;
   /** Round-trip / one-way / open-jaw (return from another airport). */
   tripType?: HeroTripType;
   /** Open-jaw: IATA for the return-leg origin (e.g. CEB when destination land was MNL). */
@@ -273,6 +276,7 @@ export function heroChatStepNumber(step: HeroChatStep): number {
     case "pace":
       return 4;
     case "budget":
+    case "wishes":
       return 5;
     case "nights":
       return 6;
@@ -383,6 +387,9 @@ export function buildHeroMakeSearchQuery(
   if (data.budget?.trim()) {
     const budgetPart = formatBudgetForQuery(data.budget, translate);
     if (budgetPart) parts.push(budgetPart);
+  }
+  if (data.locationWishes?.trim()) {
+    parts.push(data.locationWishes.trim());
   }
   return parts.join(", ");
 }

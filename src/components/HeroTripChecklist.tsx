@@ -92,7 +92,11 @@ function buildItems(
       labelKey: "heroChat.checklist.what",
       hintKey: "heroChat.checklist.whatHint",
       done: Boolean(collected.pace?.trim() && collected.budget?.trim()),
-      value: [collected.pace, collected.budget].filter(Boolean).join(" · ") || undefined,
+      value:
+        [collected.pace, collected.budget, collected.locationWishes]
+          .map((part) => part?.trim())
+          .filter(Boolean)
+          .join(" · ") || undefined,
     },
   ].map((item) => ({
     ...item,

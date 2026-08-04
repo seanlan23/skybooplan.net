@@ -28,6 +28,21 @@ describe("heroChatPlanner", () => {
     expect(form.budget).toBe("standard");
   });
 
+  it("appends locationWishes into form.wishes for the plan", () => {
+    const { form } = heroChatToPlannerPayload({
+      destination: "Thailand",
+      dates: "Konec oktobra",
+      nights: "",
+      origin: "Ljubljana",
+      passengers: "2 odrasla",
+      pace: "Sproščen",
+      budget: "1000–2000€ / osebo",
+      locationWishes: "Chiang Mai, otoki na jugu",
+    });
+
+    expect(form.wishes).toMatch(/Želje:\s*Chiang Mai, otoki na jugu/);
+  });
+
   it("resolves city names to IATA", () => {
     expect(resolveOriginIata("Zagreb")).toBe("ZAG");
     expect(resolveDestinationIata("Bali")).toBe("DPS");

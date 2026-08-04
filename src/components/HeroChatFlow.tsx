@@ -1425,14 +1425,37 @@ export function HeroChatFlow({
   function handleBudgetSelect(_id: string, label: string) {
     appendMessages(
       createChatMessage("user", label),
-      createChatMessage("ai", t("heroChat.step6.loading" as never)),
+      createChatMessage("ai", t("heroChat.wishes.ask" as never)),
     );
     setCollected((prev) => ({
       ...prev,
       budget: label,
       attachment: attachment ?? prev.attachment,
     }));
+    setStep("wishes");
+  }
+
+  function finishWishesAndSearch(locationWishes?: string) {
+    const trimmed = locationWishes?.trim() || "";
+    setCollected((prev) => ({
+      ...prev,
+      ...(trimmed ? { locationWishes: trimmed } : {}),
+      attachment: attachment ?? prev.attachment,
+    }));
+    appendMessages(createChatMessage("ai", t("heroChat.step6.loading" as never)));
     setStep("searching");
+  }
+
+  function handleWishesSubmit(label: string) {
+    const trimmed = label.trim();
+    if (!trimmed) return;
+    appendMessages(createChatMessage("user", trimmed));
+    finishWishesAndSearch(trimmed);
+  }
+
+  function handleWishesSkip() {
+    appendMessages(createChatMessage("user", t("heroChat.wishes.skip" as never)));
+    finishWishesAndSearch();
   }
 
   function handleStartPlanning() {
@@ -1498,6 +1521,9 @@ export function HeroChatFlow({
       case "budget":
         handleBudgetSelect("custom", trimmed);
         break;
+      case "wishes":
+        handleWishesSubmit(trimmed);
+        break;
       default:
         break;
     }
@@ -1518,7 +1544,10 @@ export function HeroChatFlow({
 
   const showConversationChips = conversationStarted && !isSearching;
 
-  const placeholder = chatPlaceholder(t);
+  const placeholder =
+    step === "wishes"
+      ? t("heroChat.wishes.placeholder" as never)
+      : chatPlaceholder(t);
   const canSubmit =
     !inputDisabled &&
     !fileProcessing &&
@@ -1828,6 +1857,19 @@ export function HeroChatFlow({
                 label: chipLabel("heroChat.budget", id),
               }))}
               onSelect={handleBudgetSelect}
+            />
+          ) : null}
+
+          {showConversationChips && step === "wishes" && !isQuickSearchMode ? (
+            <QuickReplyChips
+              disabled={loading}
+              options={[
+                {
+                  id: "skip",
+                  label: t("heroChat.wishes.skip" as never),
+                },
+              ]}
+              onSelect={() => handleWishesSkip()}
             />
           ) : null}
           </div>

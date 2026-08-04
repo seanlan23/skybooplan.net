@@ -270,6 +270,8 @@ export function heroChatToPlannerPayload(
         ? ("calm" as const)
         : ("relaxed" as const);
 
+  const locationWishes = collected.locationWishes?.trim() || "";
+
   const form: AiPlannerSubmit = {
     pace,
     wishes: [
@@ -281,6 +283,7 @@ export function heroChatToPlannerPayload(
       /\b(osebo|person)\b/i.test(budgetLabel)
         ? `Proračun: ${budgetLabel}`
         : `Proračun: ${budgetLabel} na osebo`,
+      locationWishes ? `Želje: ${locationWishes}` : "",
     ]
       .filter(Boolean)
       .join(". "),

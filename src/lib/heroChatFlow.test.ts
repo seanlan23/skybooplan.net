@@ -79,6 +79,23 @@ describe("buildHeroMakeSearchQuery", () => {
     expect(query).not.toMatch(/\bThailand\b/);
     expect(query).not.toMatch(/\bMunich\b/);
   });
+
+  it("includes locationWishes in the Make/plan query string", () => {
+    const query = buildHeroMakeSearchQuery(
+      {
+        destination: "Thailand",
+        dates: "Konec oktobra",
+        nights: "",
+        origin: "Ljubljana",
+        passengers: "2 odrasla",
+        pace: "Sproščen",
+        budget: "1000–2000€ / osebo",
+        locationWishes: "Chiang Mai in Phuket",
+      },
+      "all",
+    );
+    expect(query).toContain("Chiang Mai in Phuket");
+  });
 });
 
 describe("localizeWishesDisplay", () => {
