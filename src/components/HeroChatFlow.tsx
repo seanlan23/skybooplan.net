@@ -1450,11 +1450,13 @@ export function HeroChatFlow({
     const trimmed = label.trim();
     if (!trimmed) return;
     appendMessages(createChatMessage("user", trimmed));
+    setTextInput("");
     finishWishesAndSearch(trimmed);
   }
 
   function handleWishesSkip() {
     appendMessages(createChatMessage("user", t("heroChat.wishes.skip" as never)));
+    setTextInput("");
     finishWishesAndSearch();
   }
 
@@ -1861,16 +1863,44 @@ export function HeroChatFlow({
           ) : null}
 
           {showConversationChips && step === "wishes" && !isQuickSearchMode ? (
-            <QuickReplyChips
-              disabled={loading}
-              options={[
-                {
-                  id: "skip",
-                  label: t("heroChat.wishes.skip" as never),
-                },
-              ]}
-              onSelect={() => handleWishesSkip()}
-            />
+            <div className="space-y-2 pl-0 sm:pl-10">
+              <div className="flex items-center gap-2">
+                <input
+                  autoFocus
+                  value={textInput}
+                  onChange={(e) => setTextInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      if (textInput.trim()) handleWishesSubmit(textInput);
+                    }
+                  }}
+                  disabled={loading}
+                  placeholder={t("heroChat.wishes.placeholder" as never)}
+                  aria-label={t("heroChat.wishes.placeholder" as never)}
+                  className="min-w-0 flex-1 rounded-xl border border-white/30 bg-white/15 px-3 py-2.5 text-sm text-white placeholder:text-white/50 outline-none focus:border-white/50"
+                />
+                <button
+                  type="button"
+                  disabled={loading || !textInput.trim()}
+                  onClick={() => handleWishesSubmit(textInput)}
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-500 text-white disabled:opacity-40"
+                  aria-label={t("heroChat.send" as never)}
+                >
+                  <ArrowUp className="h-4 w-4" />
+                </button>
+              </div>
+              <QuickReplyChips
+                disabled={loading}
+                options={[
+                  {
+                    id: "skip",
+                    label: t("heroChat.wishes.skip" as never),
+                  },
+                ]}
+                onSelect={() => handleWishesSkip()}
+              />
+            </div>
           ) : null}
           </div>
         </div>
