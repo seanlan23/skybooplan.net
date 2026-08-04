@@ -626,7 +626,10 @@ function Landing() {
     setSelectedHeroFlightId(null);
     setError(null);
     beginNewSearch();
-    setHeroDreamPrompt(trimmed);
+    // Prefer structured planner wishes (includes "Želje: …") over the Make search query,
+    // so AiPlannerPreview / Gemini actually receive location preferences.
+    const { form: plannerFormFromChat } = heroChatToPlannerPayload(collected, lang);
+    setHeroDreamPrompt(plannerFormFromChat.wishes?.trim() || trimmed);
 
     // Avtodom: start → end → dates → people → AI road-trip plan + Mapbox.
     if (mode === "motorhome") {

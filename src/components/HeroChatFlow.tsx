@@ -576,6 +576,8 @@ export function HeroChatFlow({
   const searchSentRef = useRef(false);
   const flightsAnnouncedRef = useRef(false);
   const staysAnnouncedRef = useRef(false);
+  /** Ensures location wishes survive into onSearch even if state batching lags. */
+  const pendingLocationWishesRef = useRef<string>("");
 
   const [step, setStep] = useState<HeroChatStep>("destination");
   const [conversationStarted, setConversationStarted] = useState(false);
@@ -984,10 +986,15 @@ export function HeroChatFlow({
 
     searchSentRef.current = true;
 
+    const locationWishes =
+      collected.locationWishes?.trim() || pendingLocationWishesRef.current.trim() || "";
+    pendingLocationWishesRef.current = "";
+
     const data = {
       ...(collected as HeroChatCollected),
       origin: formatOriginSelection(safeOrigins, lang),
       attachment: attachment ?? collected.attachment,
+      ...(locationWishes ? { locationWishes } : {}),
     } satisfies HeroChatCollected;
     // Keep English chip destination on `data` for IATA; localize only the Make/wishes query.
     const query = buildHeroMakeSearchQuery(
@@ -1437,9 +1444,10 @@ export function HeroChatFlow({
 
   function finishWishesAndSearch(locationWishes?: string) {
     const trimmed = locationWishes?.trim() || "";
+    pendingLocationWishesRef.current = trimmed;
     setCollected((prev) => ({
       ...prev,
-      ...(trimmed ? { locationWishes: trimmed } : {}),
+      ...(trimmed ? { locationWishes: trimmed } : { locationWishes: undefined }),
       attachment: attachment ?? prev.attachment,
     }));
     appendMessages(createChatMessage("ai", t("heroChat.step6.loading" as never)));

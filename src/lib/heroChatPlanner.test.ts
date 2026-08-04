@@ -40,7 +40,7 @@ describe("heroChatPlanner", () => {
       locationWishes: "Chiang Mai, otoki na jugu",
     });
 
-    expect(form.wishes).toMatch(/Želje:\s*Chiang Mai, otoki na jugu/);
+    expect(form.wishes).toMatch(/Želje \(obvezno upoštevaj mesta\/lokacije\):\s*Chiang Mai, otoki na jugu/);
   });
 
   it("resolves city names to IATA", () => {

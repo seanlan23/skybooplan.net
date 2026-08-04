@@ -94,7 +94,7 @@ describe("buildHeroMakeSearchQuery", () => {
       },
       "all",
     );
-    expect(query).toContain("Chiang Mai in Phuket");
+    expect(query).toContain("Želje / must visit: Chiang Mai in Phuket");
   });
 });
 

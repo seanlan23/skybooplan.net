@@ -283,7 +283,9 @@ export function heroChatToPlannerPayload(
       /\b(osebo|person)\b/i.test(budgetLabel)
         ? `Proračun: ${budgetLabel}`
         : `Proračun: ${budgetLabel} na osebo`,
-      locationWishes ? `Želje: ${locationWishes}` : "",
+      locationWishes
+        ? `Želje (obvezno upoštevaj mesta/lokacije): ${locationWishes}`
+        : "",
     ]
       .filter(Boolean)
       .join(". "),

@@ -389,7 +389,7 @@ export function buildHeroMakeSearchQuery(
     if (budgetPart) parts.push(budgetPart);
   }
   if (data.locationWishes?.trim()) {
-    parts.push(data.locationWishes.trim());
+    parts.push(`Želje / must visit: ${data.locationWishes.trim()}`);
   }
   return parts.join(", ");
 }
