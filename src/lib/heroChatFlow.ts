@@ -120,11 +120,11 @@ export const HERO_DESTINATION_CHIPS: HeroDestinationChip[] = [
     nameKey: "hero.chip.paris.name",
   },
   {
-    id: "croatia",
-    destination: "Croatia",
-    emoji: "🌊",
-    labelKey: "hero.chip.croatia.label",
-    nameKey: "hero.chip.croatia.name",
+    id: "slovenia",
+    destination: "Slovenia",
+    emoji: "🏔️",
+    labelKey: "hero.chip.slovenia.label",
+    nameKey: "hero.chip.slovenia.name",
   },
   {
     id: "bali",
@@ -141,11 +141,11 @@ export const HERO_DESTINATION_CHIPS: HeroDestinationChip[] = [
     nameKey: "hero.chip.newyork.name",
   },
   {
-    id: "japan",
-    destination: "Japan",
-    emoji: "🏯",
-    labelKey: "hero.chip.japan.label",
-    nameKey: "hero.chip.japan.name",
+    id: "croatia",
+    destination: "Croatia",
+    emoji: "🌊",
+    labelKey: "hero.chip.croatia.label",
+    nameKey: "hero.chip.croatia.name",
   },
 ];
 

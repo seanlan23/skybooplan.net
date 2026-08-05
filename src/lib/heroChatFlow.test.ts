@@ -20,10 +20,25 @@ describe("getDestinationChipDisplay", () => {
   });
 
   it("returns English names when lang is en", () => {
-    const japan = HERO_DESTINATION_CHIPS.find((c) => c.id === "japan")!;
-    const display = getDestinationChipDisplay(japan, (key) => translate("en", key as never));
-    expect(display.name).toBe("Japan");
-    expect(display.label).toBe("🏯 Japan");
+    const croatia = HERO_DESTINATION_CHIPS.find((c) => c.id === "croatia")!;
+    const display = getDestinationChipDisplay(croatia, (key) => translate("en", key as never));
+    expect(display.name).toBe("Croatia");
+    expect(display.label).toBe("🌊 Croatia");
+  });
+
+  it("shows Slovenia where Croatia was and Croatia where Japan was", () => {
+    expect(HERO_DESTINATION_CHIPS.map((c) => c.id)).toEqual([
+      "thailand",
+      "paris",
+      "slovenia",
+      "bali",
+      "newyork",
+      "croatia",
+    ]);
+    const slovenia = HERO_DESTINATION_CHIPS.find((c) => c.id === "slovenia")!;
+    const display = getDestinationChipDisplay(slovenia, (key) => translate("sl", key as never));
+    expect(display.name).toBe("Slovenija");
+    expect(display.label).toBe("🏔️ Slovenija");
   });
 
   it("localizes stored English chip destination for checklist", () => {
