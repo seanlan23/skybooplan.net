@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 
-export const HERO_PHOTO_QUERY = "beach tropical ocean";
+export const HERO_PHOTO_QUERY = "lake bled slovenia";
 export const HERO_PHOTO_FALLBACK =
-  "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1600";
+  "https://images.unsplash.com/photo-1478088913771-e3a36f50bb63?w=1600";
 
 type HeroPhotoState = {
   url: string;

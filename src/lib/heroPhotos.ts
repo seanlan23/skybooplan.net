@@ -2,16 +2,16 @@ import { fetchWithTimeout } from "@/lib/asyncTimeout";
 
 const UNSPLASH_SEARCH_URL = "https://api.unsplash.com/search/photos";
 
-/** Landscape hero backgrounds — beach, city, mountains, etc. */
+/** Landscape hero backgrounds — Slovenia + nearby Alps / Adriatic. */
 export const HERO_TRAVEL_QUERIES = [
-  "tropical beach travel paradise",
-  "european city skyline travel",
-  "mountain landscape adventure travel",
-  "santorini greece travel",
-  "tokyo city night travel",
-  "bali rice terrace travel",
-  "swiss alps mountain travel",
-  "morocco desert travel",
+  "lake bled slovenia travel",
+  "piran slovenia adriatic coast",
+  "julian alps slovenia mountains",
+  "ljubljana castle slovenia",
+  "triglav national park slovenia",
+  "soča valley slovenia",
+  "bled island church slovenia",
+  "slovenia alpine lake travel",
 ] as const;
 
 type UnsplashSearchResponse = {
