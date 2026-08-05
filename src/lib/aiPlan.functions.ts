@@ -24,6 +24,7 @@ import {
 } from "@/lib/flightScheduling";
 import { enrichDayActivities } from "@/lib/dayEnrichers";
 import {
+  applyBangkokKwaiDayTripToPlan,
   bangkokKwaiDayTripTitle,
   slotsLookLikeKwaiDayTrip,
 } from "@/lib/bangkokKwaiDayTrip";
@@ -3438,7 +3439,10 @@ export function buildSkeletonDayPlans(
     );
   }
 
-  const collapsed = collapseSmallIslandStays(days, skeleton, opts?.lang ?? "sl");
+  const collapsed = applyBangkokKwaiDayTripToPlan(
+    collapseSmallIslandStays(days, skeleton, opts?.lang ?? "sl"),
+    locale,
+  );
   // Industry mid × days (+12% headroom); country-aware so long trips keep real rates.
   scaleDailyBudgetsToTripCap(collapsed, priceTier, {
     country: resolveDayBudgetCountry({

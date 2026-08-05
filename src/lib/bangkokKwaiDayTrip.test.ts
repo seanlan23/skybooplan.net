@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   BANGKOK_KWAI_DAY_TRIP_STOPS,
+  applyBangkokKwaiDayTripToPlan,
+  bangkokKwaiDayTripMapsNote,
   buildBangkokKwaiDayTripMapsUrl,
   buildBangkokKwaiDayTripSlots,
   ensureBangkokKwaiDayTrip,
@@ -14,10 +16,22 @@ describe("bangkokKwaiDayTrip", () => {
   it("builds Maps URL with generic hotel, never Tinidee", () => {
     const url = buildBangkokKwaiDayTripMapsUrl();
     expect(url).toContain("google.com/maps/dir/");
-    expect(url).toMatch(/Your%20hotel%2C%20Bangkok|Your hotel/i);
+    expect(url).toMatch(/Your%20hotel|Your hotel/i);
+    expect(url).toMatch(/Rom%20Hup|Maeklong/i);
+    expect(url).toMatch(/Tham%20Krasae|Death%20Railway/i);
     expect(url).not.toMatch(/Tinidee/i);
-    expect(BANGKOK_KWAI_DAY_TRIP_STOPS[0]).toBe("Your hotel, Bangkok");
-    expect(BANGKOK_KWAI_DAY_TRIP_STOPS.at(-1)).toBe("Your hotel, Bangkok");
+    expect(BANGKOK_KWAI_DAY_TRIP_STOPS[0]).toMatch(/Your hotel/i);
+    expect(BANGKOK_KWAI_DAY_TRIP_STOPS.at(-1)).toMatch(/Your hotel/i);
+  });
+
+  it("maps note tells users to replace start/end with their lodging", () => {
+    const note = bangkokKwaiDayTripMapsNote(true);
+    expect(note).toContain("google.com/maps/dir/");
+    expect(note).toMatch(/zamenjaj s svojo namestitvijo/i);
+    expect(note).not.toMatch(/Tinidee/i);
+    const slots = buildBangkokKwaiDayTripSlots(locale);
+    expect(slots.morning[0]?.description).toContain("google.com/maps/dir/");
+    expect(slots.morning[0]?.description).toMatch(/svojo namestitvijo/i);
   });
 
   it("injects on Bangkok day 3 when stay ≥ 3", () => {
@@ -47,7 +61,7 @@ describe("bangkokKwaiDayTrip", () => {
     ).toBe(true);
   });
 
-  it("skips arrival and when trip already has Mae Klong", () => {
+  it("skips arrival; Mae Klong alone does not block inject", () => {
     expect(
       shouldInjectBangkokKwaiDayTrip({
         dayInRegion: 3,
@@ -55,11 +69,20 @@ describe("bangkokKwaiDayTrip", () => {
         isArrivalDay: true,
       }),
     ).toBe(false);
+    // Need Mae Klong + west Kwai cues before we treat the trip as already covered.
     expect(
       shouldInjectBangkokKwaiDayTrip({
         dayInRegion: 3,
         bangkokStayDays: 4,
         priorScheduledText: "Mae Klong Railway Market včeraj",
+      }),
+    ).toBe(true);
+    expect(
+      shouldInjectBangkokKwaiDayTrip({
+        dayInRegion: 3,
+        bangkokStayDays: 4,
+        priorScheduledText:
+          "Mae Klong Railway Market + River Kwai Bridge + Tham Krasae Death Railway",
       }),
     ).toBe(false);
   });
@@ -129,5 +152,77 @@ describe("bangkokKwaiDayTrip", () => {
     expect(out.morning.some((a) => /siam paragon/i.test(a.name))).toBe(false);
     expect(out.afternoon.some((a) => /art and culture|bacc/i.test(a.name))).toBe(false);
     expect(out.evening.some((a) => a.type === "EAT")).toBe(true);
+  });
+
+  it("applyBangkokKwaiDayTripToPlan fixes Gemini Kwai day with Sai Yok in Bangkok + drive card", () => {
+    const out = applyBangkokKwaiDayTripToPlan(
+      [
+        {
+          day: 4,
+          city: "Bangkok",
+          title: "Dan 4: Celodnevni izlet: Tržnice, most na reki Kwai in Železnica smrti",
+          focusName: "River Kwai",
+          activities: {
+            morning: [
+              {
+                name: "Mae Klong Railway Market",
+                type: "ACTIVITY",
+                description: "Tržnica",
+                lat: 13.75,
+                lng: 100.5,
+              },
+            ],
+            afternoon: [
+              {
+                name: "Most na reki Kwai",
+                type: "SIGHT",
+                description: "Ogled",
+                lat: 13.76,
+                lng: 100.5,
+              },
+            ],
+            evening: [
+              {
+                name: "Postanek pri slapovih Sai Yok Noi",
+                type: "NATURE",
+                description: "Osvežitev pred vračilom",
+                lat: 13.7563,
+                lng: 100.5018,
+              },
+            ],
+          },
+          transportation: [
+            { type: "car", duration: "14 ur", cost: "", description: "300 km" },
+          ],
+          drivingDistanceKm: 300,
+          drivingDurationHours: "14",
+        },
+        {
+          day: 5,
+          city: "Bangkok",
+          title: "Templji",
+          activities: {
+            morning: [{ name: "Wat Pho", type: "SIGHT", description: "Tempelj" }],
+            afternoon: [],
+            evening: [],
+          },
+        },
+      ],
+      locale,
+    );
+
+    const day4 = out[0]!;
+    expect(day4.title).toMatch(/Mae Klong|Death Railway/i);
+    expect(day4.transportation).toBeUndefined();
+    expect(day4.drivingDistanceKm).toBeUndefined();
+    expect(day4.activities?.evening.some((a) => /Sai Yok Noi/i.test(a.name))).toBe(
+      false,
+    );
+    expect(
+      day4.activities?.evening.some((a) => /Tham Krasae|Suan Sai Yok/i.test(a.name)),
+    ).toBe(true);
+    const sai = day4.activities?.evening.find((a) => /Tham Krasae|Suan Sai Yok/i.test(a.name));
+    expect(sai?.lng).toBeLessThan(100);
+    expect(out[1]?.activities?.morning[0]?.name).toMatch(/Wat Pho/i);
   });
 });

@@ -52,6 +52,7 @@ import { resolveDayBudgetCountry } from "@/lib/countryDailyBudget";
 import { addDays } from "@/lib/dateUtils";
 import { sortActivitiesByTime } from "@/lib/dayPlanUi";
 import { enrichDayActivities } from "@/lib/dayEnrichers";
+import { applyBangkokKwaiDayTripToPlan } from "@/lib/bangkokKwaiDayTrip";
 import { reconcileWeekdayGatedActivities } from "@/lib/tripContent";
 import { resolveTripLocale } from "@/lib/tripLocale";
 import {
@@ -906,6 +907,9 @@ export function enrichGeminiCatalogPlan(
         (d) => /bangkok/i.test(d.city ?? "") && !d.inFlightDay,
       ).length;
 
+      const dayLabelText = [day.title, day.focusName, day.category]
+        .filter(Boolean)
+        .join(" ");
       let enriched = enrichDayActivities(
         {
           morning: [...day.activities.morning],
@@ -926,6 +930,7 @@ export function enrichGeminiCatalogPlan(
           priorScheduledText,
           motorhome,
           paceLabel: plan.travelPace,
+          dayLabelText,
         },
       );
       // Chatuchak / weekend markets — same gate as skeleton path.
@@ -1122,6 +1127,11 @@ export function enrichGeminiCatalogPlan(
       };
     }
   }
+
+  // Bangkok full-day Kwai loop: overwrite mixed Gemini days, clear bogus 14h/300km drive card.
+  plan.days = applyBangkokKwaiDayTripToPlan(plan.days, locale).map((d) =>
+    attachActivityCoordinates(d),
+  );
 
   // Trim only above industry mid × days (+12%); pass country so long IT trips aren't crushed.
   scaleDailyBudgetsToTripCap(plan.days, tier, {

@@ -20,7 +20,7 @@ import { lookupRegionCoords } from "@/lib/regionCoords";
 
 export const MAX_DAY_PINS = 4;
 /** Allow day-trips (e.g. Blue Mountains from Sydney, Sintra from Lisbon). */
-export const MAX_PIN_FROM_CENTER_KM = 120;
+export const MAX_PIN_FROM_CENTER_KM = 180;
 export const COLOCATE_KM = 1.2;
 export const DAY_VIEW_ZOOM = 11.2;
 export const PLAY_VIEW_ZOOM = 11.2;
