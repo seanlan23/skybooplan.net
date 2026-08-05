@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 
-export const HERO_PHOTO_QUERY = "lake bled slovenia";
+export const HERO_PHOTO_QUERY = "travel destination landscape";
 export const HERO_PHOTO_FALLBACK =
   "https://images.unsplash.com/photo-1478088913771-e3a36f50bb63?w=1600";
 
