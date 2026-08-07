@@ -621,9 +621,20 @@ export function tripPlanResponseToAiTripPlan(
         if (seenTransportTips.has(norm)) transportationTips = "";
         else seenTransportTips.add(norm);
       }
+      const planLangEarly = normalizePlanLangCode(opts?.language ?? "sl");
       const localWarnings =
         isFirstDay && meta?.visa_required
-          ? "Preveri vizne zahteve pred odhodom."
+          ? planLangEarly === "sl"
+            ? "Preveri vizne zahteve pred odhodom."
+            : planLangEarly === "de"
+              ? "Vor der Abreise Visabestimmungen prüfen."
+              : planLangEarly === "it"
+                ? "Verifica i requisiti del visto prima della partenza."
+                : planLangEarly === "fr"
+                  ? "Vérifiez les exigences de visa avant le départ."
+                  : planLangEarly === "es"
+                    ? "Comprueba los requisitos de visado antes de salir."
+                    : "Check visa requirements before departure."
           : "";
 
       const landCenter =

@@ -24,7 +24,9 @@ function isStandalone(): boolean {
 function isIosSafari(): boolean {
   if (typeof navigator === "undefined") return false;
   const ua = navigator.userAgent;
-  const iOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const iOS =
+    /iPad|iPhone|iPod/.test(ua) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
   const webkit = /WebKit/.test(ua);
   const chrome = /CriOS|FxiOS|EdgiOS/.test(ua);
   return iOS && webkit && !chrome;
@@ -51,8 +53,8 @@ function markDismissed() {
 }
 
 /**
- * Professional install sheet — Chrome/Edge beforeinstallprompt + iOS Share tip.
- * Hidden when already installed or recently dismissed.
+ * Install sheet — Chrome/Edge beforeinstallprompt + iOS Safari instructions.
+ * iOS cannot programmatically open “Add to Home Screen”; never fake a broken CTA.
  */
 export function PwaInstallPrompt() {
   const { t } = useI18n();
@@ -73,7 +75,7 @@ export function PwaInstallPrompt() {
 
     window.addEventListener("beforeinstallprompt", onBeforeInstall);
 
-    // iOS has no beforeinstallprompt — soft tip after a short delay on mobile Safari.
+    // iOS has no beforeinstallprompt — show how-to after a short delay on Safari.
     if (isIosSafari()) {
       const timer = window.setTimeout(() => {
         setIosHint(true);
@@ -161,10 +163,14 @@ export function PwaInstallPrompt() {
             </p>
 
             {iosHint ? (
-              <p className="mt-2.5 inline-flex items-center gap-1.5 rounded-lg bg-white/10 px-2.5 py-1.5 text-xs font-medium text-sky-100">
-                <Share className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                {t("pwa.installIosSteps" as never)}
-              </p>
+              <ol className="mt-3 space-y-1.5 rounded-xl border border-white/15 bg-white/5 px-3 py-2.5 text-left text-xs font-medium leading-snug text-sky-50/95">
+                <li className="flex gap-2">
+                  <Share className="mt-0.5 h-3.5 w-3.5 shrink-0 text-sky-300" aria-hidden />
+                  <span>{t("pwa.installIosStep1" as never)}</span>
+                </li>
+                <li>{t("pwa.installIosStep2" as never)}</li>
+                <li>{t("pwa.installIosStep3" as never)}</li>
+              </ol>
             ) : (
               <div className="mt-3.5 flex flex-wrap gap-2">
                 <button
