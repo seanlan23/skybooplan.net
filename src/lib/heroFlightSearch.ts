@@ -386,6 +386,26 @@ export type HeroFlightSearchResult =
     }
   | { ok: false; error: string; status: number };
 
+/**
+ * Opt-in: route hero search through Make.com first.
+ * Default is direct Duffel (avoids Make queue / 429 storms).
+ * Set MAKE_FLIGHT_SEARCH_PRIMARY=1 only when intentionally testing Make.
+ */
+export function isMakeFlightSearchPrimary(): boolean {
+  const v = process.env.MAKE_FLIGHT_SEARCH_PRIMARY?.trim().toLowerCase();
+  return v === "1" || v === "true" || v === "yes";
+}
+
+/** When Make is primary but returns an error or empty offers, fall back to Duffel once. */
+export function shouldFallbackFromMakeToDuffel(result: HeroFlightSearchResult): boolean {
+  if (!result.ok) return true;
+  if ("pending" in result && result.pending) return false;
+  if ("flights" in result && Array.isArray(result.flights) && result.flights.length > 0) {
+    return false;
+  }
+  return true;
+}
+
 function stubParsedFromMake(parsed: MakeSearchParsedData): ParsedHeroQuery {
   const tripType = parsed.trip_type ?? "return";
   return {
@@ -756,16 +776,11 @@ export async function checkHeroMultiOriginSearchStatus(
   return { ok: true, status: "ready", flights: merged };
 }
 
-async function runHeroFlightSearch(
+async function searchViaDirectDuffel(
   query: string,
   attachment?: HeroChatAttachmentPayload,
-  location?: HeroFlightSearchLocation,
   tripHints?: HeroTripSearchHints,
 ): Promise<HeroFlightSearchResult> {
-  if (process.env.MAKE_WEBHOOK_URL?.trim()) {
-    return searchViaMakeWebhook(query, attachment, location, tripHints);
-  }
-
   const parsedResult = await parseQueryWithOpenAI(query, attachment);
   if ("error" in parsedResult) {
     return { ok: false, error: parsedResult.error, status: 502 };
@@ -830,7 +845,27 @@ async function runHeroFlightSearch(
   return { ok: true, flights, parsed };
 }
 
-/** Natural-language hero search: Make.com webhook or OpenAI parse → Duffel offers → OpenAI top 3. */
+async function runHeroFlightSearch(
+  query: string,
+  attachment?: HeroChatAttachmentPayload,
+  location?: HeroFlightSearchLocation,
+  tripHints?: HeroTripSearchHints,
+): Promise<HeroFlightSearchResult> {
+  // Default: direct Duffel. Make only when MAKE_FLIGHT_SEARCH_PRIMARY=1 (and webhook URL set).
+  if (isMakeFlightSearchPrimary() && process.env.MAKE_WEBHOOK_URL?.trim()) {
+    const makeResult = await searchViaMakeWebhook(query, attachment, location, tripHints);
+    if (!shouldFallbackFromMakeToDuffel(makeResult)) {
+      return makeResult;
+    }
+    console.warn(
+      "[heroFlightSearch] Make primary failed or empty — falling back to direct Duffel",
+    );
+  }
+
+  return searchViaDirectDuffel(query, attachment, tripHints);
+}
+
+/** Natural-language hero search: Duffel direct (default) or opt-in Make → Duffel fallback. */
 export async function searchHeroFlights(
   query: string,
   attachment?: HeroChatAttachmentPayload,

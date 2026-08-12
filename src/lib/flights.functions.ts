@@ -14,6 +14,63 @@ const DUFFEL_API_BASE = "https://api.duffel.com";
 const DUFFEL_API_VERSION = "v2";
 const DUFFEL_SUPPLIER_TIMEOUT_MS = 25_000;
 
+/** Create + list each get this many attempts (1 initial + retries on 429). */
+export const DUFFEL_RATE_LIMIT_MAX_ATTEMPTS = 3;
+const DUFFEL_RATE_LIMIT_BACKOFF_MS = [2_000, 5_000] as const;
+
+/**
+ * Delay before the next Duffel attempt after a 429.
+ * Prefer `ratelimit-reset` (unix seconds or delay seconds); else 2s then 5s.
+ * Returns null when no further retry should be scheduled.
+ */
+export function resolveDuffelRetryDelayMs(
+  status: number,
+  attemptIndex: number,
+  ratelimitResetHeader: string | null,
+  nowMs = Date.now(),
+): number | null {
+  if (status !== 429) return null;
+  if (attemptIndex >= DUFFEL_RATE_LIMIT_MAX_ATTEMPTS - 1) return null;
+
+  const raw = ratelimitResetHeader?.trim();
+  if (raw) {
+    const n = Number(raw);
+    if (Number.isFinite(n) && n > 0) {
+      // Unix timestamp (seconds) vs relative delay (seconds).
+      const delayMs =
+        n > 1_000_000_000 ? Math.max(0, n * 1000 - nowMs) : Math.max(0, n * 1000);
+      return Math.min(Math.max(delayMs, 500), 15_000);
+    }
+  }
+
+  return DUFFEL_RATE_LIMIT_BACKOFF_MS[Math.min(attemptIndex, DUFFEL_RATE_LIMIT_BACKOFF_MS.length - 1)]!;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Fetch with up to DUFFEL_RATE_LIMIT_MAX_ATTEMPTS tries on HTTP 429. */
+export async function fetchDuffelWithRateLimitRetry(
+  url: string,
+  init: RequestInit,
+): Promise<Response> {
+  let last: Response | null = null;
+  for (let attempt = 0; attempt < DUFFEL_RATE_LIMIT_MAX_ATTEMPTS; attempt++) {
+    last = await fetch(url, init);
+    if (last.status !== 429) return last;
+    const delay = resolveDuffelRetryDelayMs(
+      last.status,
+      attempt,
+      last.headers.get("ratelimit-reset") ?? last.headers.get("RateLimit-Reset"),
+    );
+    if (delay == null) return last;
+    console.warn(`Duffel 429 — retry ${attempt + 1}/${DUFFEL_RATE_LIMIT_MAX_ATTEMPTS - 1} in ${delay}ms`);
+    await sleep(delay);
+  }
+  return last!;
+}
+
 /** Read Duffel token from env (trimmed). Supports legacy alias. */
 export function getDuffelApiKey(): string | null {
   const raw = process.env.DUFFEL_API_KEY ?? process.env.DUFFEL_ACCESS_TOKEN ?? "";
@@ -262,7 +319,7 @@ async function createDuffelOfferRequest(
   supplierTimeoutMs = DUFFEL_SUPPLIER_TIMEOUT_MS,
 ): Promise<{ offerRequestId: string } | { error: string }> {
   const url = `${DUFFEL_API_BASE}/air/offer_requests?return_offers=false&supplier_timeout=${supplierTimeoutMs}`;
-  const createRes = await fetch(url, {
+  const createRes = await fetchDuffelWithRateLimitRetry(url, {
     method: "POST",
     headers: duffelHeaders(token),
     body: JSON.stringify({
@@ -300,7 +357,7 @@ async function listDuffelOffers(
   url.searchParams.set("limit", String(limit));
   url.searchParams.set("sort", "total_amount");
 
-  const listRes = await fetch(url.toString(), {
+  const listRes = await fetchDuffelWithRateLimitRetry(url.toString(), {
     method: "GET",
     headers: duffelHeaders(token),
   });
