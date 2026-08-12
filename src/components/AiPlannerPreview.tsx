@@ -383,10 +383,7 @@ export function AiPlannerPreview({
 
             <div>
               <label className="text-sm font-semibold text-foreground">
-                {t("ai.wishes")}{" "}
-                <span className="text-xs font-normal text-muted-foreground">
-                  {t("ai.wishesOptional")}
-                </span>
+                {t("ai.wishes")}
               </label>
               <textarea
                 value={wishes}

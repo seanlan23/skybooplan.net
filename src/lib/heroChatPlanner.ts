@@ -2,12 +2,9 @@ import type { AiPlannerContext, AiPlannerSubmit } from "@/components/AiPlannerPr
 import { defaultDateFrom, defaultDateTo } from "@/lib/heroFlightSearch";
 import { parseHeroDateRange } from "@/lib/heroDateRange";
 import {
-  localizeDestinationDisplay,
   normalizeHeroTripType,
   type HeroChatCollected,
 } from "@/lib/heroChatFlow";
-import { localizeOriginLabel } from "@/lib/airportCatalog";
-import { translate } from "@/lib/i18n";
 import { normalizeIata, type TripBudgetTier } from "@/lib/geminiPro.shared";
 import { parseMakeSearchDestination, parseMakeSearchOriginAirports } from "@/lib/makeSearch";
 
@@ -242,9 +239,6 @@ export function heroChatToPlannerPayload(
   const { adults, childrenAges } = parseChatPassengers(collected.passengers);
   const originPlace = collected.origin?.trim() || "Ljubljana";
   const destinationPlace = (collected.destination ?? "").trim() || "Thailand";
-  const t = (key: string) => translate(language, key as never);
-  const destinationLabel = localizeDestinationDisplay(destinationPlace, t);
-  const originLabel = localizeOriginLabel(originPlace, language);
   const returnFromIata =
     tripType === "openjaw" && collected.returnFromIata?.trim()
       ? collected.returnFromIata.trim().toUpperCase()
@@ -275,23 +269,13 @@ export function heroChatToPlannerPayload(
 
   const locationWishes = collected.locationWishes?.trim() || "";
 
+  // Destination / dates / pace / budget already live in ctx + structured form fields
+  // (and the planner summary chip). Keep this box for free-form places only.
   const form: AiPlannerSubmit = {
     pace,
-    wishes: [
-      `Destinacija: ${destinationLabel}`,
-      `Datumi: ${collected.dates}`,
-      nightsLabel || undefined,
-      originLabel ? `Odhod: ${originLabel}` : "",
-      collected.pace ? `Tempo: ${collected.pace}` : "",
-      /\b(osebo|person)\b/i.test(budgetLabel)
-        ? `Proračun: ${budgetLabel}`
-        : `Proračun: ${budgetLabel} na osebo`,
-      locationWishes
-        ? `Želje (obvezno upoštevaj mesta/lokacije): ${locationWishes}`
-        : "",
-    ]
-      .filter(Boolean)
-      .join(". "),
+    wishes: locationWishes
+      ? `Želje (obvezno upoštevaj mesta/lokacije): ${locationWishes}`
+      : "",
     tags: [],
     customPrompt: "",
     budget: mapChatBudget(budgetLabel),

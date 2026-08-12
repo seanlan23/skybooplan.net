@@ -28,7 +28,7 @@ describe("heroChatPlanner", () => {
     expect(form.budget).toBe("standard");
   });
 
-  it("appends locationWishes into form.wishes for the plan", () => {
+  it("puts only locationWishes into form.wishes (not destination/dates dump)", () => {
     const { form } = heroChatToPlannerPayload({
       destination: "Thailand",
       dates: "Konec oktobra",
@@ -41,6 +41,8 @@ describe("heroChatPlanner", () => {
     });
 
     expect(form.wishes).toMatch(/Želje \(obvezno upoštevaj mesta\/lokacije\):\s*Chiang Mai, otoki na jugu/);
+    expect(form.wishes).not.toMatch(/Destinacija:/);
+    expect(form.wishes).not.toMatch(/Proračun:/);
   });
 
   it("resolves city names to IATA", () => {
