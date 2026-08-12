@@ -80,8 +80,7 @@ export function AiPlanLoader({
   }, [phases.length]);
 
   useEffect(() => {
-    // ~10s so a 1–2 sentence tip is readable before rotate
-    const id = setInterval(() => setTipStep((s) => s + 1), 10_000);
+    const id = setInterval(() => setTipStep((s) => s + 1), 7_000);
     return () => clearInterval(id);
   }, []);
 
