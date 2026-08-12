@@ -9,9 +9,10 @@ const FAST_KMH = 95;
 /** Realistic mixed motorway average for the card. */
 const TYPICAL_KMH = 80;
 const MIN_REPAIR_ROAD_KM = 60;
-/** Last calendar days that should not add a hotel in the origin country. */
+/** Last calendar days: skip a hotel if home is an easy same-day drive. */
 const HOMEBOUND_TAIL_DAYS = 3;
-const HOMEBOUND_SAME_COUNTRY_KM = 220;
+/** ~2.5–3 h motorway — Graz, Ljubljana, Nuremberg when origin is nearby. */
+const HOMEBOUND_DRIVE_HOME_KM = 220;
 
 const CITY_COUNTRY: Record<string, string> = {
   maribor: "SI",
@@ -157,10 +158,6 @@ export function isHomeboundUnpaidNight(plan: AiTripPlan, day: DayPlan, index: nu
   const total = plan.days?.length ?? 0;
   if (total < 2 || index < total - HOMEBOUND_TAIL_DAYS) return false;
 
-  const originCc = countryFromPlaceLabel(plan.originPlace ?? origin);
-  const dayCc = countryFromPlaceLabel(city) ?? CITY_COUNTRY[cityKey(city)] ?? null;
-  if (!originCc || !dayCc || originCc !== dayCc) return false;
-
   const originCoord = coordsForPlace(origin);
   const dayCoord = coordsForPlace(city, day);
   if (originCoord && dayCoord) {
@@ -168,9 +165,12 @@ export function isHomeboundUnpaidNight(plan: AiTripPlan, day: DayPlan, index: nu
       [originCoord.lng, originCoord.lat],
       [dayCoord.lng, dayCoord.lat],
     );
-    return km <= HOMEBOUND_SAME_COUNTRY_KM;
+    return km <= HOMEBOUND_DRIVE_HOME_KM;
   }
-  return true;
+
+  const originCc = countryFromPlaceLabel(plan.originPlace ?? origin);
+  const dayCc = countryFromPlaceLabel(city) ?? CITY_COUNTRY[cityKey(city)] ?? null;
+  return Boolean(originCc && dayCc && originCc === dayCc);
 }
 
 export function countHomeboundUnpaidNights(plan: AiTripPlan): number {
@@ -190,7 +190,7 @@ function homeStayCopy(plan: AiTripPlan, day: DayPlan): { name: string; descripti
   return sl
     ? {
         name: `Vožnja domov do ${origin}`,
-        description: `Zvečer nadaljuj do ${origin} in spi doma. Hotel v Sloveniji na povratku ni potreben.`,
+        description: `Zvečer nadaljuj do ${origin} in spi doma. Hotel blizu izhodišča na povratku ni potreben.`,
       }
     : {
         name: `Drive home to ${origin}`,

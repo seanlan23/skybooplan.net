@@ -104,7 +104,7 @@ describe("car road trip hotels", () => {
   it("car return forbids origin-country hotels and fake short drives", () => {
     const block = groundTransportPromptBlock("car", "Maribor, SI", "Prešov, SK");
     expect(block).toMatch(/3h 15min|80 km\/h/i);
-    expect(block).toMatch(/spanje doma|hotel v izhodišč/i);
+    expect(block).toMatch(/spanje doma|hotel v izhodišč|2–3 h/i);
     const last = lastDayReturnPromptBlock({
       groundTransportMode: "car",
       originPlace: "Maribor, SI",

@@ -142,13 +142,62 @@ describe("stripHomeboundPaidStays", () => {
       ],
     } as AiTripPlan;
 
-    expect(stripHomeboundPaidStays(plan)).toBe(2);
+    expect(stripHomeboundPaidStays(plan)).toBe(3);
     expect(plan.days[0]!.activities!.evening[0]!.estimatedCostEur).toBe(90);
-    expect(plan.days[1]!.activities!.evening[0]!.estimatedCostEur).toBe(80);
+    expect(plan.days[1]!.activities!.evening[0]!.estimatedCostEur).toBe(0);
     expect(plan.days[2]!.activities!.evening[0]!.estimatedCostEur).toBe(0);
     expect(plan.days[2]!.activities!.evening[0]!.name).toMatch(/domov|Maribor/i);
     expect(plan.days[3]!.activities!.evening[0]!.estimatedCostEur).toBe(0);
     expect(plan.days[3]!.activities!.evening[0]!.name).toMatch(/doma/i);
-    expect(countHomeboundUnpaidNights(plan)).toBe(2);
+    expect(countHomeboundUnpaidNights(plan)).toBe(3);
+  });
+
+  it("drops a nearby last-night hotel for any origin, not only Slovenia", () => {
+    const plan = {
+      destinationName: "Prague",
+      originPlace: "Munich, DE",
+      groundTransportMode: "car",
+      contentLanguage: "en",
+      days: [
+        day({
+          day: 1,
+          city: "Prague",
+          lat: 50.075,
+          lng: 14.438,
+          activities: {
+            morning: [],
+            afternoon: [],
+            evening: [{ name: "Hotel Prague", type: "hotel", estimatedCostEur: 110, priceLabel: "€110" }],
+          },
+        }),
+        day({
+          day: 2,
+          city: "Nuremberg",
+          lat: 49.452,
+          lng: 11.077,
+          activities: {
+            morning: [],
+            afternoon: [],
+            evening: [{ name: "Hotel Nuremberg", type: "hotel", estimatedCostEur: 95, priceLabel: "€95" }],
+          },
+        }),
+        day({
+          day: 3,
+          city: "Munich",
+          lat: 48.137,
+          lng: 11.575,
+          activities: {
+            morning: [],
+            afternoon: [],
+            evening: [{ name: "Hotel Munich", type: "hotel", estimatedCostEur: 120, priceLabel: "€120" }],
+          },
+        }),
+      ],
+    } as AiTripPlan;
+
+    expect(stripHomeboundPaidStays(plan)).toBe(2);
+    expect(plan.days[0]!.activities!.evening[0]!.estimatedCostEur).toBe(110);
+    expect(plan.days[1]!.activities!.evening[0]!.estimatedCostEur).toBe(0);
+    expect(plan.days[2]!.activities!.evening[0]!.estimatedCostEur).toBe(0);
   });
 });
