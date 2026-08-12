@@ -31,6 +31,26 @@ describe("motorhomePlannerFromCollected", () => {
     expect(form.wishes).toMatch(/Prioritete/i);
     expect(form.tags).toEqual(["beaches", "nature"]);
   });
+
+  it("includes free-text places and wishes in the planner prompt", () => {
+    const { form } = motorhomePlannerFromCollected(
+      {
+        origin: "Vienna",
+        destination: "Croatia",
+        dates: "2026-09-02 – 2026-09-12",
+        nights: "",
+        passengers: "2 odrasli",
+        pace: "",
+        budget: "",
+        priorities: ["nature"],
+        locationWishes: "Plitvice, Krka",
+      },
+      "sl",
+    );
+    expect(form.wishes).toMatch(/Plitvice/);
+    expect(form.wishes).toMatch(/Krka/);
+    expect(form.wishes).toMatch(/Mesta \/ znamenitosti/);
+  });
 });
 
 describe("buildHeroMotorhomeSearchQuery", () => {

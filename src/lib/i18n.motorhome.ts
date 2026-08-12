@@ -69,6 +69,10 @@ export const motorhomeUiByLang = {
     "mh.browser.swap": "Intercambiar origen y destino",
     "mh.browser.priorities": "¿Qué te importa en la ruta?",
     "mh.browser.prioritiesHint": "Elige al menos una — sin grandes ciudades (camping fuera del centro).",
+    "mh.browser.wishes": "Lugares y deseos (opcional)",
+    "mh.browser.wishesHint":
+      "Ciudades, atracciones o tips que te recomendaron — los incluimos y añadimos ideas nuevas.",
+    "mh.browser.wishesPh": "p. ej. Plitvice, casco antiguo de Split, ostras en Ston…",
     "mh.interest.beaches": "Mar y costa",
     "mh.interest.mountains": "Montañas",
     "mh.interest.nature": "Naturaleza",
@@ -151,6 +155,10 @@ export const motorhomeUiByLang = {
     "mh.browser.swap": "Inverser départ et arrivée",
     "mh.browser.priorities": "Qu'est-ce qui compte sur la route ?",
     "mh.browser.prioritiesHint": "Choisissez au moins une — pas de grandes villes (camping hors centre).",
+    "mh.browser.wishes": "Lieux et souhaits (facultatif)",
+    "mh.browser.wishesHint":
+      "Villes, sites ou tips qu'on vous a conseillés — on les intègre et on ajoute de nouvelles idées.",
+    "mh.browser.wishesPh": "ex. Plitvice, vieille ville de Split, huîtres à Ston…",
     "mh.interest.beaches": "Mer et côte",
     "mh.interest.mountains": "Montagnes",
     "mh.interest.nature": "Nature",
@@ -233,6 +241,10 @@ export const motorhomeUiByLang = {
     "mh.browser.swap": "Scambia partenza e destinazione",
     "mh.browser.priorities": "Cosa conta lungo la strada?",
     "mh.browser.prioritiesHint": "Scegli almeno una — niente grandi città (campeggio fuori dal centro).",
+    "mh.browser.wishes": "Luoghi e desideri (facoltativo)",
+    "mh.browser.wishesHint":
+      "Città, attrazioni o consigli che ti hanno suggerito — li includiamo e aggiungiamo idee nuove.",
+    "mh.browser.wishesPh": "es. Plitvice, centro storico di Split, ostriche a Ston…",
     "mh.interest.beaches": "Mare e costa",
     "mh.interest.mountains": "Montagne",
     "mh.interest.nature": "Natura",
@@ -315,6 +327,10 @@ export const motorhomeUiByLang = {
     "mh.browser.swap": "Start und Ziel tauschen",
     "mh.browser.priorities": "Was zählt auf der Route?",
     "mh.browser.prioritiesHint": "Mindestens eine wählen — keine Großstädte (Camping außerhalb).",
+    "mh.browser.wishes": "Orte & Wünsche (optional)",
+    "mh.browser.wishesHint":
+      "Städte, Sehenswürdigkeiten oder Tipps, die dir jemand genannt hat — wir planen sie ein und ergänzen Neues.",
+    "mh.browser.wishesPh": "z. B. Plitvicer Seen, Altstadt Split, Austern in Ston…",
     "mh.interest.beaches": "Meer & Küste",
     "mh.interest.mountains": "Berge",
     "mh.interest.nature": "Natur",

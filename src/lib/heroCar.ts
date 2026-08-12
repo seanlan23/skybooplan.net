@@ -39,6 +39,15 @@ function carWishes(
         ? `Prioritäten: ${interestLabels}.`
         : `Priorities: ${interestLabels}.`);
 
+  const mustVisit = collected.locationWishes?.trim();
+  const mustVisitLine = mustVisit
+    ? lang === "sl"
+      ? `Mesta / znamenitosti / želje (vključi v pot, kjer smiselno; lahko dopolni z novimi predlogi): ${mustVisit}.`
+      : lang === "de"
+        ? `Orte / Sehenswürdigkeiten / Wünsche (wo sinnvoll einplanen; gerne mit neuen Vorschlägen ergänzen): ${mustVisit}.`
+        : `Places / sights / wishes (include on the route where sensible; feel free to add new suggestions too): ${mustVisit}.`
+    : "";
+
   if (lang === "sl") {
     return [
       `Potovanje z AVTOM (road trip) — ne z letalom, ne z avtodomom.`,
@@ -47,6 +56,7 @@ function carWishes(
       `Datumi: ${dates}.`,
       pax,
       priorityLine,
+      mustVisitLine,
       `Nočitve = hoteli v mestih vsak večer (Booking). PREPOVEDANO: kampi, RV parki, sosta, spanje v avtu.`,
       `Vključi: dnevne etape vožnje, okvirne cene goriva in hotelov, konkretna mesta za nočitev.`,
     ]
@@ -62,6 +72,7 @@ function carWishes(
       `Daten: ${dates}.`,
       pax,
       priorityLine,
+      mustVisitLine,
       `Übernachtungen = Hotels in Städten jede Nacht (Booking). VERBOTEN: Camping, RV Parks, Sosta, Schlafen im Auto.`,
       `Enthalten: Tagesetappen, ungefähre Kraftstoff- und Hotelkosten, konkrete Übernachtungsstädte.`,
     ]
@@ -76,6 +87,7 @@ function carWishes(
     `Dates: ${dates}.`,
     pax,
     priorityLine,
+    mustVisitLine,
     `Overnights = hotels in cities every night (Booking). FORBIDDEN: camps, RV parks, sosta, sleeping in the car.`,
     `Include: daily driving stages, rough fuel and hotel costs, clear overnight cities.`,
   ]
@@ -132,5 +144,6 @@ export function buildHeroCarSearchQuery(data: HeroChatCollected): string {
   if (data.passengers?.trim()) parts.push(data.passengers.trim());
   const labels = formatPlannerInterests(data.priorities ?? [], "en");
   if (labels) parts.push(`priorities: ${labels}`);
+  if (data.locationWishes?.trim()) parts.push(`wishes: ${data.locationWishes.trim()}`);
   return parts.join(", ");
 }

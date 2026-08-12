@@ -146,6 +146,10 @@ const en: Dict = {
   "mh.browser.swap": "Swap from and to",
   "mh.browser.priorities": "What matters on the road?",
   "mh.browser.prioritiesHint": "Pick at least one — no big cities (camps stay outside centres).",
+  "mh.browser.wishes": "Places & wishes (optional)",
+  "mh.browser.wishesHint":
+    "Cities, sights or tips someone suggested — we’ll weave them in and still add new ideas.",
+  "mh.browser.wishesPh": "e.g. Plitvice, Split old town, oyster tasting in Ston…",
   "mh.interest.beaches": "Sea & coast",
   "mh.interest.mountains": "Mountains",
   "mh.interest.nature": "Nature",
@@ -1233,6 +1237,10 @@ const dicts: Record<DictLang, Dict> = {
     "mh.browser.swap": "Zamenjaj odhod in cilj",
     "mh.browser.priorities": "Kaj ti je pomembno na poti?",
     "mh.browser.prioritiesHint": "Izberi vsaj eno — brez velikih mest (kampi zunaj jeder).",
+    "mh.browser.wishes": "Kraji in želje (neobvezno)",
+    "mh.browser.wishesHint":
+      "Mesta, znamenitosti ali nasveti, ki so ti jih predlagali — vključimo jih in še vedno dodamo kaj novega.",
+    "mh.browser.wishesPh": "npr. Plitvice, Split staro mestno jedro, ostrige v Stonu…",
     "mh.interest.beaches": "Morje & obala",
     "mh.interest.mountains": "Gore",
     "mh.interest.nature": "Narava",

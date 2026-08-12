@@ -104,6 +104,7 @@ export function MotorhomeSearchBrowser({
   const [adults, setAdults] = useState(2);
   const [children, setChildren] = useState(0);
   const [priorities, setPriorities] = useState<MotorhomeInterestKey[]>([]);
+  const [locationWishes, setLocationWishes] = useState("");
   const [showCalendar, setShowCalendar] = useState(false);
 
   const initialRange = useMemo<DateRange | undefined>(() => {
@@ -146,6 +147,7 @@ export function MotorhomeSearchBrowser({
   const handleSearch = () => {
     if (!canSearch || disabled) return;
     // ISO range so planner + DB dates stay YYYY-MM-DD (human labels break Postgres date).
+    const wishes = locationWishes.trim();
     const collected: HeroChatCollected = {
       origin: from.trim(),
       destination: to.trim(),
@@ -155,6 +157,7 @@ export function MotorhomeSearchBrowser({
       pace: "relaxed",
       budget: "500–1000€",
       priorities: [...priorities],
+      ...(wishes ? { locationWishes: wishes } : {}),
     };
     onSubmit(collected);
   };
@@ -310,6 +313,23 @@ export function MotorhomeSearchBrowser({
               );
             })}
           </div>
+        </div>
+
+        <div className="mt-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+            {t("mh.browser.wishes" as never)}
+          </p>
+          <p className="mt-0.5 text-xs text-slate-500">{t("mh.browser.wishesHint" as never)}</p>
+          <textarea
+            value={locationWishes}
+            onChange={(e) => setLocationWishes(e.target.value)}
+            disabled={disabled}
+            rows={3}
+            maxLength={800}
+            placeholder={t("mh.browser.wishesPh" as never)}
+            aria-label={t("mh.browser.wishes" as never)}
+            className="mt-2 w-full resize-y rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 shadow-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100 disabled:opacity-50"
+          />
         </div>
 
         <button

@@ -45,6 +45,21 @@ function motorhomeWishes(
               ? `Prioridades: ${interestLabels}. Prioriza costa/montañas/naturaleza/lagos — evita centros urbanos densos (autocaravana no apta).`
               : `Priorities: ${interestLabels}. Favour coast/mountains/nature/lakes — avoid dense city centres (motorhome-unfriendly).`);
 
+  const mustVisit = collected.locationWishes?.trim();
+  const mustVisitLine = mustVisit
+    ? lang === "sl"
+      ? `Mesta / znamenitosti / želje (vključi v pot, kjer smiselno; lahko dopolni z novimi predlogi): ${mustVisit}.`
+      : lang === "de"
+        ? `Orte / Sehenswürdigkeiten / Wünsche (wo sinnvoll einplanen; gerne mit neuen Vorschlägen ergänzen): ${mustVisit}.`
+        : lang === "fr"
+          ? `Lieux / sites / souhaits (intégrer sur l'itinéraire si pertinent ; compléter avec de nouvelles idées): ${mustVisit}.`
+          : lang === "it"
+            ? `Luoghi / attrazioni / desideri (includili nel percorso dove ha senso; integra con nuove proposte): ${mustVisit}.`
+            : lang === "es"
+              ? `Lugares / atracciones / deseos (inclúyelos en la ruta donde tenga sentido; completa con nuevas ideas): ${mustVisit}.`
+              : `Places / sights / wishes (include on the route where sensible; feel free to add new suggestions too): ${mustVisit}.`
+    : "";
+
   if (lang === "sl") {
     return [
       `Potovanje z AVTODOMOM (motorhome / campervan) — ne z letalom.`,
@@ -53,6 +68,7 @@ function motorhomeWishes(
       `Datumi: ${dates}.`,
       pax,
       priorityLine,
+      mustVisitLine,
       `Vključi: dnevne etape vožnje, kje parkirati / kje ne sme (mestna središča), predlagane kampe / RV parke z imeni, okvirne cene kampov in goriva, napotke za avtodom. Vsak dan jasno poimenuj kamp za nočitev.`,
     ]
       .filter(Boolean)
@@ -67,6 +83,7 @@ function motorhomeWishes(
       `Daten: ${dates}.`,
       pax,
       priorityLine,
+      mustVisitLine,
       `Enthalten: Tagesetappen, Parkregeln (keine Innenstadt), Campingplätze / RV Parks mit Namen, ungefähre Camping- und Kraftstoffkosten, Wohnmobil-Tipps. Jeden Tag klar den Übernachtungs-Camp nennen.`,
     ]
       .filter(Boolean)
@@ -81,6 +98,7 @@ function motorhomeWishes(
       `Dates: ${dates}.`,
       pax,
       priorityLine,
+      mustVisitLine,
       `Inclure: étapes journalières, où stationner (pas en centre-ville), campings / aires avec noms, coûts estimés camping et carburant, conseils camping-car. Nommer clairement le camping de chaque nuit.`,
     ]
       .filter(Boolean)
@@ -95,6 +113,7 @@ function motorhomeWishes(
       `Date: ${dates}.`,
       pax,
       priorityLine,
+      mustVisitLine,
       `Includere: tappe giornaliere, dove parcheggiare (non in centro), campeggi / sosta con nomi, costi stimati campeggio e carburante, consigli camper. Nomina chiaramente il campeggio di ogni notte.`,
     ]
       .filter(Boolean)
@@ -109,6 +128,7 @@ function motorhomeWishes(
       `Fechas: ${dates}.`,
       pax,
       priorityLine,
+      mustVisitLine,
       `Incluye: etapas diarias, dónde aparcar (no en el centro), campings / áreas con nombres, costes estimados de camping y combustible, consejos de autocaravana. Nombra claramente el camping de cada noche.`,
     ]
       .filter(Boolean)
@@ -122,6 +142,7 @@ function motorhomeWishes(
     `Dates: ${dates}.`,
     pax,
     priorityLine,
+    mustVisitLine,
     `Include: daily driving stages, where to park / where not (city centres), suggested campgrounds / RV parks with names, rough camp + fuel costs, motorhome tips. Clearly name the overnight camp each day.`,
   ]
     .filter(Boolean)
@@ -177,5 +198,6 @@ export function buildHeroMotorhomeSearchQuery(data: HeroChatCollected): string {
   if (data.passengers?.trim()) parts.push(data.passengers.trim());
   const labels = formatPlannerInterests(data.priorities ?? [], "en");
   if (labels) parts.push(`priorities: ${labels}`);
+  if (data.locationWishes?.trim()) parts.push(`wishes: ${data.locationWishes.trim()}`);
   return parts.join(", ");
 }
