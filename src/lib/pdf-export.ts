@@ -527,15 +527,28 @@ function legacyItems(day: Record<string, unknown>, labels?: PdfLabels): PdfActiv
     .filter(Boolean) as PdfActivity[];
 }
 
+function cloneItineraryForPdf(
+  sourceItin: PlanItinerary & Record<string, unknown>,
+): PlanItinerary & Record<string, unknown> {
+  try {
+    if (typeof structuredClone === "function") {
+      return structuredClone(sourceItin);
+    }
+  } catch {
+    /* Proxies / non-cloneables — fall through to JSON */
+  }
+  try {
+    return JSON.parse(JSON.stringify(sourceItin)) as PlanItinerary & Record<string, unknown>;
+  } catch {
+    return { ...sourceItin, days: Array.isArray(sourceItin.days) ? [...sourceItin.days] : [] };
+  }
+}
+
 /** Normalize AI / saved plan shapes into a clean PDF model. */
 export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
   const sourceItin = (plan.itinerary ?? {}) as PlanItinerary & Record<string, unknown>;
   // Clone so PDF scrubbing never mutates live planner state.
-  const itin = (
-    typeof structuredClone === "function"
-      ? structuredClone(sourceItin)
-      : JSON.parse(JSON.stringify(sourceItin))
-  ) as PlanItinerary & Record<string, unknown>;
+  const itin = cloneItineraryForPdf(sourceItin);
   const motorhome =
     itin.groundTransportMode === "motorhome" || itin.accommodationMode === "motorhome";
   if (Array.isArray(itin.days)) {
@@ -644,29 +657,39 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
   });
 
   const flights = Array.isArray(itin.flights)
-    ? itin.flights.map((f) =>
-        [
-          f.from && f.to ? `${f.from} → ${f.to}` : "",
-          fmtDate(f.date, contentLang),
-          f.airline,
-          f.price,
-        ]
-          .filter(Boolean)
-          .join("  ·  "),
-      )
+    ? itin.flights
+        .map((raw) => {
+          if (!raw || typeof raw !== "object") return "";
+          const f = raw as Record<string, unknown>;
+          const from = textOf(f.from);
+          const to = textOf(f.to);
+          return [
+            from && to ? `${from} → ${to}` : "",
+            fmtDate(textOf(f.date) || null, contentLang),
+            textOf(f.airline),
+            textOf(f.price),
+          ]
+            .filter(Boolean)
+            .join("  ·  ");
+        })
+        .filter(Boolean)
     : [];
 
   const hotels = Array.isArray(itin.hotels)
-    ? itin.hotels.map((h) =>
-        [
-          h.name,
-          h.area,
-          h.nights ? `${h.nights} nights` : "",
-          h.price,
-        ]
-          .filter(Boolean)
-          .join("  ·  "),
-      )
+    ? itin.hotels
+        .map((raw) => {
+          if (!raw || typeof raw !== "object") return "";
+          const h = raw as Record<string, unknown>;
+          return [
+            textOf(h.name),
+            textOf(h.area) || textOf(h.city),
+            typeof h.nights === "number" && h.nights > 0 ? `${h.nights} nights` : "",
+            textOf(h.price) || textOf(h.note),
+          ]
+            .filter(Boolean)
+            .join("  ·  ");
+        })
+        .filter(Boolean)
     : [];
 
   const packing = Array.isArray(itin.packing)
@@ -840,7 +863,7 @@ function asciiFallback(text: string): string {
     .replace(/€/g, "EUR ");
 }
 
-export async function generatePlanPdf(plan: PlanForPdf): Promise<{
+async function renderPlanPdf(plan: PlanForPdf): Promise<{
   buffer: ArrayBuffer;
   fileName: string;
   doc: jsPDF;
@@ -1215,11 +1238,8 @@ export async function generatePlanPdf(plan: PlanForPdf): Promise<{
   const fileName = `${safe}.pdf`;
   const buffer = doc.output("arraybuffer");
   if (typeof window !== "undefined") {
+    // Blob download first — more reliable than doc.save() in Safari / iOS.
     try {
-      doc.save(fileName);
-    } catch (saveErr) {
-      // Safari / popup blockers — fall back to Blob download.
-      console.warn("[pdf] doc.save failed, using blob download", saveErr);
       const blob = new Blob([new Uint8Array(buffer)], { type: "application/pdf" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -1230,7 +1250,26 @@ export async function generatePlanPdf(plan: PlanForPdf): Promise<{
       a.click();
       a.remove();
       window.setTimeout(() => URL.revokeObjectURL(url), 2_000);
+    } catch (blobErr) {
+      console.warn("[pdf] blob download failed, trying doc.save", blobErr);
+      doc.save(fileName);
     }
   }
   return { buffer, fileName, doc };
+}
+
+export async function generatePlanPdf(plan: PlanForPdf): Promise<{
+  buffer: ArrayBuffer;
+  fileName: string;
+  doc: jsPDF;
+}> {
+  try {
+    return await renderPlanPdf(plan);
+  } catch (err) {
+    // Custom font / VFS quirks — retry once with Helvetica ASCII fallback.
+    console.warn("[pdf] export failed, retrying without DejaVu fonts", err);
+    fontsUnavailable = true;
+    fontCache = null;
+    return await renderPlanPdf(plan);
+  }
 }

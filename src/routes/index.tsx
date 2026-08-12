@@ -1348,6 +1348,10 @@ function Landing() {
 
   const downloadPlanPdfAndSave = useCallback(
     async (planForPdf: AiTripPlan) => {
+      if (!planForPdf?.days?.length) {
+        alert(t("trips.pdfError"));
+        return;
+      }
       try {
         const { generatePlanPdf } = await import("@/lib/pdf-export");
         const { buildPdfPlanTitle } = await import("@/lib/pdfPlanTitle");
@@ -1402,16 +1406,20 @@ function Landing() {
           language: aiContext?.language,
           pax: paxPdf,
         });
-        // Always persist when logged in — do not gate on isActiveAiContext (was skipping saves).
-        if (user) {
-          const ok = await persistPlanToTrips(planForPdf, aiContext);
-          if (!ok) {
-            alert(t("plan.saveFailed" as never));
-          }
-        }
       } catch (e) {
         console.error("PDF export failed", e);
         alert(t("trips.pdfError"));
+        return;
+      }
+      // Save is separate — a DB failure must not look like a PDF failure.
+      if (user) {
+        try {
+          const ok = await persistPlanToTrips(planForPdf, aiContext);
+          if (!ok) alert(t("plan.saveFailed" as never));
+        } catch (err) {
+          console.error("Save after PDF failed", err);
+          alert(t("plan.saveFailed" as never));
+        }
       }
     },
     [aiContext, persistPlanToTrips, t, user],
