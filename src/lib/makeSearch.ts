@@ -974,6 +974,15 @@ function parseFlightItem(item: unknown, index: number): MakeSearchFlight | null 
       : priceTotal ||
         readNumber(record, "cena_eur", "price_eur", "price_total", "total_amount", "price", "cena");
 
+  const priceBasisRaw = readString(record, "price_basis").toLowerCase();
+  const price_basis =
+    priceBasisRaw === "party_total" || priceBasisRaw === "per_adult"
+      ? (priceBasisRaw as "party_total" | "per_adult")
+      : undefined;
+  const travelersRaw = readNumber(record, "travelers", "pax", "passengers");
+  const travelers =
+    travelersRaw > 0 ? Math.min(9, Math.round(travelersRaw)) : undefined;
+
   const stopsRaw =
     record.stops_outbound ?? record.stops ?? record.stop_count ?? record.postanki;
 
@@ -1143,6 +1152,8 @@ function parseFlightItem(item: unknown, index: number): MakeSearchFlight | null 
     id: rank || readString(record, "id") || `flight-${index}`,
     destinacija: destinacija || "—",
     cena_eur,
+    ...(price_basis ? { price_basis } : {}),
+    ...(travelers != null ? { travelers } : {}),
     odhod: odhod || "—",
     ...(povratek ? { povratek } : {}),
     prevoznik: prevoznik || "—",

@@ -379,6 +379,16 @@ export function FlightCard({
   const bookUrl = directBookUrl || skyscannerUrl;
   const isSkyscannerSearch = Boolean(bookUrl && !directBookUrl);
 
+  const travelerCount = Math.max(1, flight.travelers ?? adults);
+  // Duffel (and our API) send party totals. Only show "per adult"
+  // when explicitly marked — never when multiple travelers.
+  const showPartyTotal =
+    flight.price_basis === "party_total" ||
+    (flight.price_basis !== "per_adult" && travelerCount > 1);
+  const priceBasisLabel = showPartyTotal
+    ? t("results.totalForTravelers" as never).replace("{n}", String(travelerCount))
+    : t("results.perAdult" as never);
+
   const outDepart = displayTime(flight.outbound_depart, flight.odhod);
   const inDepart = displayTime(flight.inbound_depart, flight.povratek);
   const outDate = displayDate(flight.depart_date, flight.odhod, lang);
@@ -528,12 +538,7 @@ export function FlightCard({
               {formatPrice(flight.cena_eur, lang)}
             </p>
             <p className="mt-0.5 text-[10px] text-muted-foreground">
-              {flight.price_basis === "party_total"
-                ? t("results.totalForTravelers" as never).replace(
-                    "{n}",
-                    String(Math.max(1, flight.travelers ?? adults)),
-                  )
-                : t("results.perAdult" as never)}
+              {priceBasisLabel}
             </p>
           </div>
 

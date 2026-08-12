@@ -321,6 +321,30 @@ describe("parseMakeSearchFlights", () => {
     });
   });
 
+  it("preserves price_basis and travelers from API/Duffel-mapped cards", () => {
+    const result = parseMakeSearchFlights({
+      flights: [
+        {
+          destinacija: "MUC → HKT",
+          cena_eur: 1564,
+          price_basis: "party_total",
+          travelers: 3,
+          odhod: "26 Oct 2026, 21:10",
+          prevoznik: "Etihad Airways",
+          postanki: "1/1",
+          origin_iata: "MUC",
+          destination_iata: "HKT",
+        },
+      ],
+    });
+
+    expect(result[0]).toMatchObject({
+      cena_eur: 1564,
+      price_basis: "party_total",
+      travelers: 3,
+    });
+  });
+
   it("parses Make.com offers array with structured flight fields", () => {
     const result = parseMakeSearchFlights({
       offers: [
