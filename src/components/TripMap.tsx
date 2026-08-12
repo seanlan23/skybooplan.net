@@ -343,7 +343,8 @@ function paintRoute(
         "line-color": "#0ea5e9",
         "line-width": 3.5,
         "line-opacity": 0.85,
-        "line-dasharray": mode === "flight" ? [1.5, 1.2] : [1, 0],
+        "line-dasharray":
+          mode === "flight" || mode === "ferry" ? [1.5, 1.2] : [1, 0],
       },
     });
   }
@@ -354,7 +355,7 @@ function paintRoute(
       map.setPaintProperty(
         ROUTE_LAYER,
         "line-dasharray",
-        mode === "flight" ? [1.5, 1.2] : [1, 0],
+        mode === "flight" || mode === "ferry" ? [1.5, 1.2] : [1, 0],
       );
     }
   }
@@ -535,6 +536,14 @@ function TripMapInner({
         return;
       }
 
+      // Boat / island hops: soft sea arc only — never Mapbox "driving" across the bay.
+      if (mode === "ferry") {
+        if (!cancelled) {
+          paintRoute(map!, buildGreatCircleCoords(from, to, 48), "ferry");
+        }
+        return;
+      }
+
       const tok = tokenRef.current;
       if (tok) {
         const result = await fetchDrivingDirections(from, to, tok);
@@ -544,14 +553,8 @@ function TripMapInner({
           return;
         }
       }
-      // Ferry / Directions miss → short arc (still not a camera fitBounds)
-      if (!cancelled) {
-        paintRoute(
-          map!,
-          mode === "ferry" ? buildGreatCircleCoords(from, to, 48) : [from, to],
-          mode,
-        );
-      }
+      // Directions miss: hide the line (straight [from,to] looked like a highway at sea).
+      if (!cancelled) paintRoute(map!, [], mode);
     }
 
     if (!dayView) {

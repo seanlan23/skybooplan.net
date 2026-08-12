@@ -15,6 +15,7 @@ import {
   resolveMapPoiCategory,
   type MapPoiCategory,
 } from "@/lib/mapPoiCategory";
+import { isSmallIsland } from "@/lib/islandStays";
 import { isCampActivityName } from "@/lib/motorhomeRoute";
 import { lookupRegionCoords } from "@/lib/regionCoords";
 
@@ -486,11 +487,40 @@ function collectPins(
   return pins;
 }
 
-function inferLegMode(day: DayPlan, distKm: number): MapDayLeg["mode"] {
+/** Boat / island hops — never ask Mapbox driving (draws fake highways across the bay). */
+export function looksLikeBoatHop(day: DayPlan, prev?: DayPlan | null): boolean {
+  if ((day.transportation ?? []).some((t) => t.type === "ferry")) return true;
+  const blob = [
+    day.title,
+    day.category,
+    day.transport?.type,
+    day.transport?.description,
+    ...(day.transportation ?? []).map((t) => `${t.type} ${t.from ?? ""} ${t.to ?? ""}`),
+  ]
+    .filter(Boolean)
+    .join(" ");
+  if (/ferry|feribot|speedboat|longtail|čoln|boat|trajekt|pier|pristan/i.test(blob)) {
+    return true;
+  }
+  const a = prev?.city ?? "";
+  const b = day.city ?? "";
+  if (isSmallIsland(a) || isSmallIsland(b)) return true;
+  // Mainland ↔ Andaman islands (Phi Phi / Lanta / Lipe…) is always water.
+  if (/\b(phi\s*phi|koh\s*lanta|ko\s*lanta|lipe|tao\b|phangan|samui|racha|yao\s*yai|yao\s*noi)\b/i.test(`${a} ${b}`)) {
+    return true;
+  }
+  return false;
+}
+
+function inferLegMode(
+  day: DayPlan,
+  distKm: number,
+  prev?: DayPlan | null,
+): MapDayLeg["mode"] {
   if ((day.transportation ?? []).some((t) => t.type === "flight") || day.inFlightDay) {
     return "flight";
   }
-  if ((day.transportation ?? []).some((t) => t.type === "ferry")) return "ferry";
+  if (looksLikeBoatHop(day, prev)) return "ferry";
   const title = day.title ?? "";
   if (/trajekt|ferry/i.test(title)) return "ferry";
   if (/let|flight|airport/i.test(title) || distKm > 900) return "flight";
@@ -564,9 +594,13 @@ export function buildMapDay(plan: AiTripPlan, activeDay: number): MapDay | null 
         [center.lng, center.lat],
       );
       const roadHop = roadTrip && dist >= MIN_ROUTE_DRAW_KM;
-      if ((isTravelDay(day) || roadHop) && dist >= MIN_ROUTE_DRAW_KM) {
+      const boatHop = looksLikeBoatHop(day, prev) && dist >= 12;
+      if ((isTravelDay(day) || roadHop || boatHop) && (dist >= MIN_ROUTE_DRAW_KM || boatHop)) {
         legIn = {
-          mode: roadHop && !isTravelDay(day) ? "drive" : inferLegMode(day, dist),
+          mode:
+            roadHop && !isTravelDay(day) && !boatHop
+              ? "drive"
+              : inferLegMode(day, dist, prev),
           from: prevCenter,
           to: center,
         };

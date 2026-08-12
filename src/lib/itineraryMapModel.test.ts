@@ -336,6 +336,30 @@ describe("itineraryMapModel", () => {
     expect(view?.legIn?.to.lat).toBeCloseTo(43.65, 0);
   });
 
+  it("buildMapDay uses ferry leg for Ao Nang → Phi Phi (no sea highway)", () => {
+    const p = plan([
+      day({
+        day: 5,
+        city: "Ao Nang",
+        title: "Beach day",
+        lat: 8.03,
+        lng: 98.83,
+      }),
+      day({
+        day: 6,
+        city: "Koh Phi Phi",
+        title: "Boat to Phi Phi",
+        lat: 7.74,
+        lng: 98.77,
+        transportation: [
+          { type: "ferry", from: "Ao Nang", to: "Koh Phi Phi", duration: "2h", estimatedPrice: 30 },
+        ],
+      }),
+    ]);
+    const view = buildMapDay(p, 6);
+    expect(view?.legIn?.mode).toBe("ferry");
+  });
+
   it("buildMapDay draws inbound flight leg on travel day only", () => {
     const p = plan([
       day({
