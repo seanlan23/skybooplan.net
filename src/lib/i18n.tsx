@@ -529,14 +529,19 @@ const en: Dict = {
   "aiplan.badge": "AI travel plan",
   "aiplan.total": "Total",
   "aiplan.totalIncludes": "Includes: meals, sights, local & domestic transport",
-  "aiplan.totalExcludes": "Excludes international flights & hotels",
+  "aiplan.totalIncludesWithFlights":
+    "Includes: meals, sights, local & domestic transport + selected flights",
+  "aiplan.totalExcludes": "Hotels/apartments shown separately below (approx.)",
   "aiplan.totalIncludesCar":
     "Includes: meals, sights, fuel & toll/vignette share",
-  "aiplan.totalExcludesCar": "Excludes car rental & international flights",
+  "aiplan.totalIncludesCarWithFlights":
+    "Includes: meals, sights, fuel & tolls + selected flights",
+  "aiplan.totalExcludesCar": "Excludes car rental · hotels approx. below",
   "aiplan.totalIncludesMotorhome":
     "Includes: food, sights, fuel, tolls & campsite share",
   "aiplan.totalExcludesMotorhome":
     "Excludes motorhome rental & international transport",
+  "aiplan.overnightApprox": "+ Stays (approx.): €{n}",
   "aiplan.totalForTravelers": "Total for {n} travelers",
   "aiplan.totalForOne": "Estimate for 1 traveler",
   "aiplan.loading": "AI is building your plan...",
@@ -1614,14 +1619,19 @@ const dicts: Record<DictLang, Dict> = {
     "aiplan.badge": "AI potovalni plan",
     "aiplan.total": "Skupaj",
     "aiplan.totalIncludes": "Vključeno: hrana, vstopnine, lokalni in notranji prevoz",
+    "aiplan.totalIncludesWithFlights":
+      "Vključeno: hrana, vstopnine, lokalni in notranji prevoz + izbrani leti",
     "aiplan.totalIncludesCar":
       "Vključeno: hrana, vstopnine, delež goriva in cestnin/vinjet",
+    "aiplan.totalIncludesCarWithFlights":
+      "Vključeno: hrana, vstopnine, gorivo in cestnine + izbrani leti",
     "aiplan.totalIncludesMotorhome":
       "Vključeno: hrana, vstopnine, delež goriva, cestnin in kampa",
-    "aiplan.totalExcludes": "Brez mednarodnih letov in hotelov",
-    "aiplan.totalExcludesCar": "Brez najema avtomobila in mednarodnih letov",
+    "aiplan.totalExcludes": "Hoteli/apartmaji ločeno spodaj (okvirno)",
+    "aiplan.totalExcludesCar": "Brez najema avtomobila · hoteli okvirno spodaj",
     "aiplan.totalExcludesMotorhome":
       "Brez najema avtodoma in mednarodnega prevoza",
+    "aiplan.overnightApprox": "+ Nastanitev (okvirno): €{n}",
     "aiplan.totalForTravelers": "Skupaj za {n} potnike",
     "aiplan.totalForOne": "Ocena za 1 potnika",
     "aiplan.loading": "AI sestavlja tvoj plan...",

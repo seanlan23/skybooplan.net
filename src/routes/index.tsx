@@ -65,6 +65,9 @@ import { normalizePlanLangCode } from "@/lib/planLanguages";
 import { normalizePlanCurrency } from "@/lib/planCurrency";
 import { applyFlightContextToGeminiPlan } from "@/lib/geminiFlightContext";
 import { flightContextFromLegs } from "@/lib/flightScheduling";
+import { buildTripCostSummary, heroFlightPartyTotalEur } from "@/lib/tripCostSummary";
+import { resolveDayBudgetCountry } from "@/lib/countryDailyBudget";
+import { computeTripTotalBudgetEur } from "@/lib/tripBudget";
 import { isClassicRoundTrip } from "@/lib/flightSearch";
 import { formatPlannerInterests } from "@/lib/plannerInterests";
 import { Button } from "@/components/ui/button";
@@ -207,6 +210,12 @@ function normalizeAiContext(
           ? normalizePlanCurrency(input.currency)
           : base.currency,
       flights: input.flights,
+      flightTotalEur:
+        typeof input.flightTotalEur === "number" &&
+        Number.isFinite(input.flightTotalEur) &&
+        input.flightTotalEur > 0
+          ? Math.round(input.flightTotalEur)
+          : undefined,
       originPlace: typeof input.originPlace === "string" ? input.originPlace.trim() : undefined,
       destinationPlace:
         typeof input.destinationPlace === "string" ? input.destinationPlace.trim() : undefined,
@@ -1165,6 +1174,10 @@ function Landing() {
           }
         : aiContext.flights;
 
+    const adultsForPrice = Math.max(
+      1,
+      aiContext.adults || lastSearch?.adults || lastSearch?.pax || 1,
+    );
     setAiContext({
       ...aiContext,
       from,
@@ -1173,6 +1186,7 @@ function Landing() {
       returnDate: returnDate || undefined,
       ...(returnFromIata && returnFromIata !== to ? { returnFromIata } : {}),
       flights: flightCtx,
+      flightTotalEur: heroFlightPartyTotalEur(flight.cena_eur, adultsForPrice),
     });
 
     window.setTimeout(() => {
@@ -1207,6 +1221,7 @@ function Landing() {
       childrenAges,
       language: lastSearch?.language || "en",
       flights: flightContextFromLegs(f.outbound, f.inbound),
+      flightTotalEur: Math.round(f.price),
     });
     setTimeout(() => {
       document.getElementById("ai-planner")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -1336,6 +1351,29 @@ function Landing() {
           aiContext?.returnDate ??
           (lastDay?.dateEnd ?? lastDay?.date)?.slice(0, 10) ??
           null;
+        const paxPdf = Math.max(1, aiContext?.pax ?? 1);
+        const planEurPdf =
+          planForPdf.totalBudgetEur > 0
+            ? planForPdf.totalBudgetEur
+            : computeTripTotalBudgetEur(planForPdf.days, paxPdf);
+        const motorhomePdf =
+          planForPdf.groundTransportMode === "motorhome" ||
+          planForPdf.accommodationMode === "motorhome";
+        const costPdf = buildTripCostSummary({
+          planEur: planEurPdf,
+          flightTotalEur: motorhomePdf ? 0 : aiContext?.flightTotalEur ?? 0,
+          dayCount: planForPdf.days.length,
+          pax: paxPdf,
+          countryCode: resolveDayBudgetCountry({
+            destinationName: planForPdf.destinationName,
+            destinationIata: planForPdf.destinationIata ?? aiContext?.to,
+          }),
+          mode: motorhomePdf
+            ? "motorhome"
+            : planForPdf.groundTransportMode === "car"
+              ? "car"
+              : "hotel",
+        });
         await generatePlanPdf({
           title: buildPdfPlanTitle({
             groundTransportMode:
@@ -1354,9 +1392,9 @@ function Landing() {
             "",
           start_date: startDate,
           end_date: endDate,
-          itinerary: planForPdf as never,
+          itinerary: { ...planForPdf, totalBudgetEur: costPdf.grandTotalEur } as never,
           language: aiContext?.language,
-          pax: aiContext?.pax ?? 1,
+          pax: paxPdf,
         });
         // Always persist when logged in — do not gate on isActiveAiContext (was skipping saves).
         if (user) {
@@ -1891,6 +1929,7 @@ function Landing() {
                   departDate={aiContext?.departDate}
                   returnDate={aiContext?.returnDate}
                   flights={aiContext?.flights}
+                  flightTotalEur={aiContext?.flightTotalEur}
                   loaderOrbit={
                     aiContext?.groundTransportMode === "motorhome"
                       ? "motorhome"

@@ -17,7 +17,7 @@ import type { TripFlightContext } from "@/lib/flightScheduling";
  * Bump when AI plan / budget / map enrichment changes materially so old
  * inflated cached plans are never restored after deploy.
  */
-export const PLAN_SCHEMA_VERSION = 3;
+export const PLAN_SCHEMA_VERSION = 4;
 
 const KEY = `skybooplan:lastSession:v${PLAN_SCHEMA_VERSION}`;
 
@@ -43,6 +43,8 @@ export type AiPlannerCtx = {
   pax: number;
   language?: string;
   flights?: TripFlightContext;
+  /** Selected flight party total (EUR). */
+  flightTotalEur?: number;
 };
 
 export type SavedSession = {

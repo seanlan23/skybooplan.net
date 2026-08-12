@@ -30,6 +30,8 @@ export type AiPlannerContext = {
   adults: number;
   childrenAges: number[];
   flights?: TripFlightContext;
+  /** Selected offer total for the whole party (EUR) — added into plan TOTAL. */
+  flightTotalEur?: number;
   /** Ground transport planner — city/place labels */
   originPlace?: string;
   destinationPlace?: string;
