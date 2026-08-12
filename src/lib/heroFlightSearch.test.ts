@@ -185,11 +185,16 @@ describe("duffelFlightToMakeSearchFlight", () => {
     expect(resolveMakeFlightLegAirports(card).hasReturn).toBe(true);
   });
 
+  it("converts Duffel party total into per-adult cena_eur for the card", () => {
+    const card = duffelFlightToMakeSearchFlight(roundTrip, "Thailand", "", { pax: 2 });
+    expect(card.cena_eur).toBe(Math.round(1437 / 2));
+  });
+
   it("ranks by price+time score — long cheap layover loses to shorter offer", () => {
     const cheapLong: DuffelFlight = {
       ...roundTrip,
       id: "off_long",
-      price: 800,
+      price: 1600,
       duration: "31h",
       durationMin: 31 * 60,
       outbound: {
@@ -208,7 +213,7 @@ describe("duffelFlightToMakeSearchFlight", () => {
     const fairFaster: DuffelFlight = {
       ...roundTrip,
       id: "off_fair",
-      price: 954,
+      price: 1908,
       duration: "20h 35m",
       durationMin: 20 * 60 + 35,
       outbound: {
@@ -225,11 +230,12 @@ describe("duffelFlightToMakeSearchFlight", () => {
       },
     };
 
-    const top = rankDuffelOffersForHero([cheapLong, fairFaster], "New York");
+    const top = rankDuffelOffersForHero([cheapLong, fairFaster], "New York", 2);
     expect(top[0]?.id).toBe("off_fair");
     expect(top[0]?.badge).toMatch(/^best/);
+    expect(top[0]?.cena_eur).toBe(Math.round(1908 / 2));
     expect(scoreMakeSearchFlight(top[0]!)).toBeLessThan(
-      scoreMakeSearchFlight(duffelFlightToMakeSearchFlight(cheapLong)),
+      scoreMakeSearchFlight(duffelFlightToMakeSearchFlight(cheapLong, undefined, "", { pax: 2 })),
     );
   });
 });

@@ -246,6 +246,7 @@ export function duffelFlightToMakeSearchFlight(
   flight: DuffelFlight,
   destinationName?: string,
   aiSummary = "",
+  opts?: { pax?: number },
 ): MakeSearchFlight {
   const out = flight.outbound;
   const inn = flight.inbound;
@@ -254,11 +255,14 @@ export function duffelFlightToMakeSearchFlight(
     ? `${outStops}/${inn.stops === 0 ? "0" : String(inn.stops)}`
     : outStops;
   const airlineIata = (flight.airlineCode || out.airlineCode || "").toUpperCase();
+  // Duffel total_amount is for the whole party; cards show "per adult".
+  const pax = Math.max(1, opts?.pax ?? 1);
+  const cena_eur = Math.max(1, Math.round(flight.price / pax));
 
   return {
     id: flight.id,
     destinacija: destinationName ?? out.to,
-    cena_eur: flight.price,
+    cena_eur,
     odhod: formatFallbackDeparture(flight),
     ...(inn
       ? {
@@ -294,10 +298,11 @@ export function duffelFlightToMakeSearchFlight(
 export function rankDuffelOffersForHero(
   flights: DuffelFlight[],
   destinationName?: string,
+  pax = 1,
 ): MakeSearchFlight[] {
   if (flights.length === 0) return [];
   const mapped = flights.map((f) =>
-    duffelFlightToMakeSearchFlight(f, destinationName),
+    duffelFlightToMakeSearchFlight(f, destinationName, "", { pax }),
   );
   return selectTopMakeSearchFlights(mapped);
 }
@@ -779,6 +784,7 @@ async function searchViaDirectDuffel(
   const flights = rankDuffelOffersForHero(
     duffelResult.flights,
     parsed.destination_name ?? parsed.destination_iata,
+    pax,
   );
   return { ok: true, flights, parsed };
 }
