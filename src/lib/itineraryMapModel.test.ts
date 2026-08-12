@@ -239,6 +239,55 @@ describe("itineraryMapModel", () => {
     expect(view!.pins.length).toBeLessThanOrEqual(MAX_DAY_PINS);
   });
 
+  it("buildMapDay does not stack 3 plane pins for MUC departure logistics", () => {
+    const p = {
+      ...plan([
+        day({
+          day: 1,
+          city: "Munich",
+          title: "Day 1: Departure from MUC / international flight",
+          lat: 48.137,
+          lng: 11.575,
+          inFlightDay: true,
+          activities: {
+            morning: [
+              {
+                name: "Arrive at Munich Airport (MUC)",
+                type: "TRANSPORT",
+                description: "Be at the airport 3 hours early for the 16:50 flight.",
+              },
+              {
+                name: "Check-in and security",
+                type: "TRANSPORT",
+                description: "Drop bags and clear security 2–3 hours before departure.",
+              },
+              {
+                name: "International flight (MUC)",
+                type: "TRANSPORT",
+                description: "16:50 from MUC.",
+              },
+            ],
+            afternoon: [],
+            evening: [],
+          },
+        }),
+      ]),
+      originIata: "MUC",
+      destinationIata: "HKT",
+      destinationName: "Thailand",
+    } as AiTripPlan;
+
+    const view = buildMapDay(p, 1);
+    expect(view).not.toBeNull();
+    const airportish = view!.pins.filter(
+      (pin) =>
+        pin.category === "airport" ||
+        pin.category === "transport" ||
+        /airport|flight|check-?in|security|letališč/i.test(pin.name),
+    );
+    expect(airportish).toHaveLength(0);
+  });
+
   it("buildMapDay cameras on origin city when day-1 lists home-airport logistics", () => {
     const p = {
       ...plan([

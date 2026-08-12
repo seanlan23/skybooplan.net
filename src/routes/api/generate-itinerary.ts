@@ -132,10 +132,14 @@ export const Route = createFileRoute("/api/generate-itinerary")({
               for await (const partial of result.partialObjectStream) {
                 if (abortSignal.aborted) break;
                 stallWatchdog.bump();
-                const preview = partialTripPlanToPreviewPlan(partial, mapOpts);
+                // Light map only — heavy enrich on every Gemini token batch stalls 10+ day trips.
+                const preview = partialTripPlanToPreviewPlan(partial, {
+                  ...mapOpts,
+                  enrich: false,
+                });
                 const dayCount = preview?.days.length ?? 0;
                 if (preview && dayCount > lastDayCount) {
-                  // Apply flight rewrite on EVERY partial — otherwise UI shows Phuket
+                  // Apply flight rewrite on EVERY new day — otherwise UI shows Phuket
                   // breakfast + Munich airport on day 1 while "Generiram… 10/16".
                   applyFlightContextIfPresent(preview, data);
                   lastDayCount = dayCount;

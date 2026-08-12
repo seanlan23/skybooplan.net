@@ -150,13 +150,15 @@ function coercePartialResponse(partial: PartialResponse): TripPlanResponse | nul
 /** Map streaming partial Gemini JSON → preview `AiTripPlan` (text only, no images). */
 export function partialTripPlanToPreviewPlan(
   partial: PartialResponse,
-  opts: GeminiPlanMapOpts,
+  opts: GeminiPlanMapOpts & { enrich?: boolean },
 ): AiTripPlan | null {
   const coerced = coercePartialResponse(partial);
   if (!coerced) return null;
   try {
     const plan = tripPlanResponseToAiTripPlan(coerced, opts);
-    if (opts.budget && opts.pax) {
+    // Streaming emits many partials per day — full enrich blocks the event loop and
+    // makes long trips look "stuck" at 2/N. Final `done` path still enriches.
+    if (opts.enrich !== false && opts.budget && opts.pax) {
       enrichGeminiCatalogPlan(plan, {
         budget: opts.budget,
         pax: opts.pax,

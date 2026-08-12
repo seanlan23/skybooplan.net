@@ -172,10 +172,29 @@ export function resolveCityCenter(day: DayPlan): LngLat | null {
   return null;
 }
 
-function isLogisticsName(name: string): boolean {
-  return /^(odhod|departure|prihod|arrival|check-?in|prevoz|transfer|letališč|airport|mednarodni let|notranji let)\b/i.test(
-    name.trim(),
-  );
+/** Airport / check-in / boarding rows — never stack as map pins (smoke: no logistics stack). */
+export function isLogisticsName(name: string): boolean {
+  const n = name.trim();
+  if (!n) return false;
+  if (
+    /^(odhod|departure|abflug|partenza|salida|départ|prihod|arrival|arrive|ankunft|check-?in|prevoz|transfer|letališč|airport|mednarodni let|notranji let|international flight|domestic flight)\b/i.test(
+      n,
+    )
+  ) {
+    return true;
+  }
+  // "Arrive at Munich Airport (MUC)", "flight (MUC)", "… and security"
+  if (/\b(airport|letališč|flughafen|aeroporto)\b/i.test(n) && /\b(arrive|arrival|prihod|ankunft|check-?in|security|varnost)\b/i.test(n)) {
+    return true;
+  }
+  if (/\b(international flight|mednarodni let|domestic flight|notranji let)\b/i.test(n)) {
+    return true;
+  }
+  if (/^(flight|let)\s*\([A-Z]{3}\)/i.test(n)) return true;
+  if (/check-in.+security|security.+check-in|varnostni pregled|controlli di sicurezza/i.test(n)) {
+    return true;
+  }
+  return false;
 }
 
 /** Home-airport rows prepended on same-day arrival (Arrive at MUC / Check-in / International flight). */
@@ -282,16 +301,9 @@ function pushPinCandidate(
 ): void {
   if (!isValidMapCoord(candidate.lat, candidate.lng)) return;
   const category = normalizeMapPoiCategory(candidate.category);
-  if (!travel && (category === "airport" || isLogisticsName(candidate.name))) return;
-  // Only drop runway snaps for airport-category pins — small islands (e.g. Santorini/Oia)
-  // sit within AIRPORT_SNAP_KM of JTR and must still show sightseeing pins.
-  if (
-    !travel &&
-    category === "airport" &&
-    isAirportRunwayCoord({ lat: candidate.lat, lng: candidate.lng })
-  ) {
-    return;
-  }
+  // Always drop logistics / airport stack — travel days use the flight leg, not 3 plane pins.
+  if (category === "airport" || isLogisticsName(candidate.name)) return;
+  void travel;
   if (haversineKm([center.lng, center.lat], [candidate.lng, candidate.lat]) > MAX_PIN_FROM_CENTER_KM) {
     return;
   }
@@ -619,15 +631,13 @@ export function finalizeItineraryMapCoords(plan: AiTripPlan): AiTripPlan {
       day.lng = center.lng;
     }
 
-    const travel = isTravelDay(day);
     if (!day.mapPins?.length) continue;
 
     const kept: NonNullable<DayPlan["mapPins"]> = [];
     for (const pin of day.mapPins) {
       if (!isValidMapCoord(pin.lat, pin.lng)) continue;
       const cat = normalizeMapPoiCategory(pin.category);
-      if (!travel && (cat === "airport" || isLogisticsName(pin.name))) continue;
-      if (!travel && isAirportRunwayCoord({ lat: pin.lat, lng: pin.lng })) continue;
+      if (cat === "airport" || isLogisticsName(pin.name)) continue;
       kept.push(pin);
     }
     day.mapPins = kept.length > 0 ? kept : undefined;
