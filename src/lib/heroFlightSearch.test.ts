@@ -1,12 +1,15 @@
 import { afterEach, describe, expect, it } from "vitest";
+import type { DuffelFlight } from "@/lib/flights.functions";
 import {
   coerceParsedHeroQuery,
   defaultDateFrom,
   defaultDateTo,
+  duffelFlightToMakeSearchFlight,
   isMakeFlightSearchPrimary,
   shouldFallbackFromMakeToDuffel,
   type HeroFlightSearchResult,
 } from "@/lib/heroFlightSearch";
+import { resolveMakeFlightLegAirports } from "@/lib/flightCardRoute";
 
 describe("coerceParsedHeroQuery", () => {
   it("normalizes OpenAI-style payload with defaults", () => {
@@ -128,5 +131,55 @@ describe("Make vs Duffel routing helpers", () => {
       parsed: empty.parsed,
     };
     expect(shouldFallbackFromMakeToDuffel(ok)).toBe(false);
+  });
+});
+
+describe("duffelFlightToMakeSearchFlight", () => {
+  const roundTrip: DuffelFlight = {
+    id: "off_rt",
+    airline: "Turkish Airlines",
+    airlineCode: "TK",
+    price: 1437,
+    currency: "EUR",
+    stops: 1,
+    duration: "28h",
+    durationMin: 1680,
+    outbound: {
+      from: "VCE",
+      to: "BKK",
+      depart: "09:20",
+      arrive: "06:40",
+      date: "2026-09-12",
+      duration: "14h 20m",
+      durationMin: 860,
+      arriveDayOffset: 1,
+      stops: 1,
+      airline: "Turkish Airlines",
+      airlineCode: "TK",
+    },
+    inbound: {
+      from: "BKK",
+      to: "VCE",
+      depart: "22:10",
+      arrive: "06:05",
+      date: "2026-09-26",
+      duration: "13h 55m",
+      durationMin: 835,
+      arriveDayOffset: 1,
+      stops: 1,
+      airline: "Turkish Airlines",
+      airlineCode: "TK",
+    },
+    tripKind: "roundtrip",
+  };
+
+  it("keeps return leg + airline IATA so cards are not one-way without logos", () => {
+    const card = duffelFlightToMakeSearchFlight(roundTrip, "Thailand");
+    expect(card.airline_iata).toBe("TK");
+    expect(card.povratek).toContain("2026-09-26");
+    expect(card.inbound_depart).toBe("22:10");
+    expect(card.return_date).toBe("2026-09-26");
+    expect(card.postanki).toBe("1/1");
+    expect(resolveMakeFlightLegAirports(card).hasReturn).toBe(true);
   });
 });

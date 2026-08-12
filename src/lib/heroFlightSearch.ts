@@ -282,20 +282,58 @@ function formatFallbackDeparture(flight: DuffelFlight): string {
   return `${leg.date}, ${leg.depart}`;
 }
 
+/** Map a Duffel offer into the hero/Make card shape (return leg + airline IATA for logos). */
+export function duffelFlightToMakeSearchFlight(
+  flight: DuffelFlight,
+  destinationName?: string,
+  aiSummary = "",
+): MakeSearchFlight {
+  const out = flight.outbound;
+  const inn = flight.inbound;
+  const outStops = out.stops === 0 ? "0" : String(out.stops);
+  const postanki = inn
+    ? `${outStops}/${inn.stops === 0 ? "0" : String(inn.stops)}`
+    : outStops;
+  const airlineIata = (flight.airlineCode || out.airlineCode || "").toUpperCase();
+
+  return {
+    id: flight.id,
+    destinacija: destinationName ?? out.to,
+    cena_eur: flight.price,
+    odhod: formatFallbackDeparture(flight),
+    ...(inn
+      ? {
+          povratek: `${inn.date}, ${inn.depart}`,
+          return_date: inn.date,
+          inbound_depart: inn.depart,
+          inbound_arrive: inn.arrive,
+          inbound_arrive_day_offset: inn.arriveDayOffset || undefined,
+          inbound_duration: inn.duration,
+          inbound_origin_iata: inn.from,
+          inbound_destination_iata: inn.to,
+        }
+      : {}),
+    prevoznik: flight.airline || out.airline,
+    ...(airlineIata ? { airline_iata: airlineIata } : {}),
+    postanki,
+    ai_povzetek: aiSummary,
+    origin_iata: out.from,
+    destination_iata: out.to,
+    depart_date: out.date,
+    outbound_depart: out.depart,
+    outbound_arrive: out.arrive,
+    outbound_arrive_day_offset: out.arriveDayOffset || undefined,
+    outbound_duration: out.duration,
+    duration_minutes: flight.durationMin,
+  };
+}
+
 function mapDuffelToHeroFlight(
   flight: DuffelFlight,
   destinationName?: string,
   aiSummary = "",
 ): MakeSearchFlight {
-  return {
-    id: flight.id,
-    destinacija: destinationName ?? flight.outbound.to,
-    cena_eur: flight.price,
-    odhod: formatFallbackDeparture(flight),
-    prevoznik: flight.airline,
-    postanki: flight.stops === 0 ? "0" : String(flight.stops),
-    ai_povzetek: aiSummary,
-  };
+  return duffelFlightToMakeSearchFlight(flight, destinationName, aiSummary);
 }
 
 function fallbackTopFlights(
@@ -353,15 +391,23 @@ async function rankFlightsWithOpenAI(
 
   for (const item of ranked.data.flights) {
     const source = byId.get(item.offer_id);
+    if (!source) continue;
+    const mapped = duffelFlightToMakeSearchFlight(
+      source,
+      item.destinacija || parsed.destination_name || parsed.destination_iata,
+      item.ai_povzetek,
+    );
     output.push({
-      id: item.offer_id,
-      destinacija: item.destinacija || parsed.destination_name || parsed.destination_iata,
-      cena_eur: item.cena_eur || source?.price || 0,
-      odhod: item.odhod || (source ? formatFallbackDeparture(source) : "—"),
-      prevoznik: item.prevoznik || source?.airline || "—",
-      postanki: item.postanki || (source ? String(source.stops) : "—"),
-      ai_povzetek: item.ai_povzetek,
+      ...mapped,
+      // Keep AI copy for display fields; never drop return / airline IATA from Duffel.
+      cena_eur: item.cena_eur || mapped.cena_eur,
+      odhod: item.odhod || mapped.odhod,
+      prevoznik: item.prevoznik || mapped.prevoznik,
     });
+  }
+
+  if (output.length === 0) {
+    return fallbackTopFlights(flights, parsed);
   }
 
   return output.slice(0, 3);
