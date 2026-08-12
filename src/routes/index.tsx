@@ -66,6 +66,7 @@ import { normalizePlanCurrency } from "@/lib/planCurrency";
 import { applyFlightContextToGeminiPlan } from "@/lib/geminiFlightContext";
 import { flightContextFromLegs } from "@/lib/flightScheduling";
 import { buildTripCostSummary, heroFlightPartyTotalEur } from "@/lib/tripCostSummary";
+import { countHomeboundUnpaidNights } from "@/lib/roadTripLogistics";
 import { resolveDayBudgetCountry } from "@/lib/countryDailyBudget";
 import { computeTripTotalBudgetEur } from "@/lib/tripBudget";
 import { isClassicRoundTrip } from "@/lib/flightSearch";
@@ -1414,6 +1415,10 @@ function Landing() {
             : planForPdf.groundTransportMode === "car"
               ? "car"
               : "hotel",
+          unpaidNights:
+            motorhomePdf || planForPdf.groundTransportMode === "car"
+              ? countHomeboundUnpaidNights(planForPdf)
+              : 0,
         });
         await generatePlanPdf({
           title: buildPdfPlanTitle({

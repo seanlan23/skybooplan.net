@@ -20,6 +20,7 @@ export function buildTripCostSummary(opts: {
   pax: number;
   countryCode?: string;
   mode: "hotel" | "car" | "motorhome";
+  unpaidNights?: number;
 }): TripCostSummary {
   const planEur = Math.max(0, Math.round(opts.planEur));
   const flightEur = Math.max(0, Math.round(opts.flightTotalEur ?? 0));
@@ -28,6 +29,7 @@ export function buildTripCostSummary(opts: {
     pax: opts.pax,
     countryCode: opts.countryCode,
     mode: opts.mode,
+    unpaidNights: opts.unpaidNights,
   });
   return {
     planEur,

@@ -44,6 +44,17 @@ describe("overnightEstimate", () => {
     expect(est.totalEur).toBe(0);
   });
 
+  it("subtracts unpaid home nights on a car loop", () => {
+    const est = estimateOvernightStay({
+      dayCount: 19,
+      pax: 2,
+      countryCode: "SK",
+      mode: "car",
+      unpaidNights: 2,
+    });
+    expect(est.nights).toBe(16);
+  });
+
   it("camp nightly scales with pax", () => {
     expect(estimateCampNightlyEur("HR", 2)).toBeGreaterThanOrEqual(40);
     expect(estimateCampNightlyEur("HR", 4)).toBeGreaterThan(estimateCampNightlyEur("HR", 2));

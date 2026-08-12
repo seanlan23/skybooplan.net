@@ -189,6 +189,12 @@ const REGION_COORDS: Record<string, { lat: number; lng: number }> = {
   frankfurt: { lat: 50.111, lng: 8.682 },
   amsterdam: { lat: 52.368, lng: 4.904 },
   zagreb: { lat: 45.815, lng: 15.982 },
+  gyor: { lat: 47.687, lng: 17.635 },
+  budapest: { lat: 47.498, lng: 19.04 },
+  bratislava: { lat: 48.148, lng: 17.107 },
+  presov: { lat: 48.998, lng: 21.24 },
+  kosice: { lat: 48.716, lng: 21.261 },
+  poprad: { lat: 49.052, lng: 20.298 },
   kyoto: { lat: 35.012, lng: 135.768 },
   osaka: { lat: 34.694, lng: 135.502 },
 };

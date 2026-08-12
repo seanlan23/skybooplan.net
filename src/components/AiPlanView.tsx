@@ -16,6 +16,7 @@ import { getSeasonalHints } from "@/lib/seasonalHints";
 import { resolveDayBudgetCountry } from "@/lib/countryDailyBudget";
 import { computeTripTotalBudgetEur } from "@/lib/tripBudget";
 import { buildTripCostSummary } from "@/lib/tripCostSummary";
+import { countHomeboundUnpaidNights } from "@/lib/roadTripLogistics";
 import { buildWeatherWidgetFallback } from "@/lib/weatherWidgetFallback";
 import { useDestinationContext } from "@/hooks/useDestinationContext";
 import { DestinationInsightBanner } from "@/components/DestinationInsightBanner";
@@ -257,6 +258,7 @@ export function AiPlanView({
       pax: Math.max(1, pax),
       countryCode,
       mode: motorhome ? "motorhome" : car ? "car" : "hotel",
+      unpaidNights: car || motorhome ? countHomeboundUnpaidNights(plan) : 0,
     });
   }, [
     plan?.totalBudgetEur,
@@ -265,6 +267,7 @@ export function AiPlanView({
     plan?.destinationIata,
     plan?.groundTransportMode,
     plan?.accommodationMode,
+    plan?.originPlace,
     destinationIata,
     flightTotalEur,
     pax,

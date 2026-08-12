@@ -101,6 +101,17 @@ describe("car road trip hotels", () => {
     expect(block).not.toMatch(/Za avtodom: kampiri/);
   });
 
+  it("car return forbids origin-country hotels and fake short drives", () => {
+    const block = groundTransportPromptBlock("car", "Maribor, SI", "Prešov, SK");
+    expect(block).toMatch(/3h 15min|80 km\/h/i);
+    expect(block).toMatch(/spanje doma|hotel v izhodišč/i);
+    const last = lastDayReturnPromptBlock({
+      groundTransportMode: "car",
+      originPlace: "Maribor, SI",
+    });
+    expect(last).toMatch(/spanje je doma/i);
+  });
+
   it("motorhome prompt still asks for camps", () => {
     const block = groundTransportPromptBlock("motorhome", "Ljubljana", "Barcelona");
     expect(block).toMatch(/kampiri\/RV/);

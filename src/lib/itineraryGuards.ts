@@ -1,6 +1,7 @@
 import type { Activity, AiTripPlan, DayPlan } from "@/lib/aiPlan.functions";
 import { isAiPlaceholderText } from "@/lib/tripContent";
 import { sameDayActivityCoreKey, stripTruncatedCopyFromPlan } from "@/lib/textSanitize";
+import { repairImplausibleDriveTimes, stripHomeboundPaidStays } from "@/lib/roadTripLogistics";
 
 type DaySlots = NonNullable<DayPlan["activities"]>;
 type Slot = keyof DaySlots;
@@ -629,6 +630,8 @@ export function applyItineraryGuards(
   returnFlights: number;
   earlyAirport: number;
   durationAlign: number;
+  driveTimes: number;
+  homeStays: number;
 } {
   const placeholders = stripPlaceholderActivities(plan);
   const genericMeals = stripGenericMealActivities(plan);
@@ -643,6 +646,8 @@ export function applyItineraryGuards(
   const returnFlights = dedupeLastDayReturnFlights(plan);
   const earlyAirport = scrubUnsafeEarlyAirportTips(plan);
   const durationAlign = alignTransportationDurationWithTips(plan);
+  const driveTimes = repairImplausibleDriveTimes(plan);
+  const homeStays = stripHomeboundPaidStays(plan);
   return {
     placeholders,
     genericMeals,
@@ -655,5 +660,7 @@ export function applyItineraryGuards(
     returnFlights,
     earlyAirport,
     durationAlign,
+    driveTimes,
+    homeStays,
   };
 }

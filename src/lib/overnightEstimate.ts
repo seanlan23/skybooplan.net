@@ -102,8 +102,10 @@ export function estimateOvernightStay(opts: {
   pax: number;
   countryCode?: string;
   mode: "hotel" | "car" | "motorhome";
+  /** Nights at home / origin on a car loop — do not bill a hotel. */
+  unpaidNights?: number;
 }): OvernightEstimate {
-  const nights = tripOvernightNights(opts.dayCount);
+  const nights = Math.max(0, tripOvernightNights(opts.dayCount) - Math.max(0, opts.unpaidNights ?? 0));
   if (nights <= 0 || opts.mode === "motorhome") {
     return { kind: "none", nightlyEur: 0, nights: 0, rooms: 0, totalEur: 0 };
   }

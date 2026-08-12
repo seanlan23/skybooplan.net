@@ -106,6 +106,8 @@ ${westernBalkansRoadTripPrompt(dest)}
 
 POVRATEK DOMOV — AVTO (obvezno, zadnji dnevi):
 - Potnik se NE vrača z mednarodnega letala! Celotno potovanje je z avtom iz "${origin}" do "${dest}" in nazaj.
+- ČAS VOŽNJE mora biti realističen: avtocesta ~80 km/h povprečno (meje, počivališča). Primer: Győr→Zagreb ≈ 320 km / 3h 15min–4h — NIKOLI 1h 45min. Če je etapa >250 km, drivingDurationHours ≥ 3h.
+- Zadnja PLAČANA hotelska nočitev je v zadnjem tujem mestu. PREPOVEDANO: hotel v izhodišču "${origin}" in PREPOVEDANO hotel v isti državi kot izhodišče na zadnjih 1–2 dneh (npr. Ljubljana + Maribor, če je dom Maribor). Zadnji koledarski dan = vožnja domov, spanje doma, estimatedCostEur hotela = 0.
 - Zadnji dan (ali zadnja 1–3 dni, glede na razdaljo) mora biti vožnja NAZAJ do izhodišča "${origin}" z realističnimi postanki, drivingDistanceKm in drivingDurationHours.
 - Na zadnjem dnevu NE načrtuj mednarodnega leta, category airport za odlet v EU, prevoza na letališče ali trip_metadata.return_flight_eu.
 - transportation[] zadnjega dne: type "car" proti domu — ne flight. Ne izmišljuj novega turističnega mesta (npr. Rijeka), če ni na najkrajši poti domov.`;
@@ -125,7 +127,8 @@ export function lastDayReturnPromptBlock(params: {
     const vehicle = mode === "motorhome" ? "avtodomom" : "avtom";
     return `ZADNJI DAN — POVRATEK DOMOV (obvezno, ${mode === "motorhome" ? "AVTODOM" : "AVTO"}):
 - Striktno: potnik potuje z ${vehicle} od "${origin}" — zadnji dan je vožnja NAZAJ na "${origin}", NE mednarodni let z letališča!
-- Zadnji dan: check-out, nato vožnja domov z drivingDistanceKm, drivingDurationHours in po potrebi postanki ob cesti.
+- Zadnji dan: check-out v tujini (če je treba), nato vožnja domov z realističnim drivingDistanceKm in drivingDurationHours (avtocesta ~80 km/h, ne izmišljuj 1–2h za 300 km).
+- PREPOVEDANO: hotel/nočitev z estimatedCostEur > 0 v "${origin}" ali v isti državi kot izhodišče na zadnjih dneh — spanje je doma.
 - Prepovedano na zadnjem dnevu: mednarodni let, aktivnost category airport za odlet v EU, prevoz na letališče za povratek domov.
 - trip_metadata.return_flight_eu NE izpolnjuj — potnik se vrne z ${vehicle}.`;
   }
