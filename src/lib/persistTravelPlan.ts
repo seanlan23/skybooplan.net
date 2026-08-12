@@ -54,6 +54,12 @@ export function isPayloadTooLargeError(message: string): boolean {
   return /too large|payload|request entity|413|jsonb|could not serialize/i.test(message);
 }
 
+export function isAuthPersistError(message: string): boolean {
+  return /jwt|expired|not authenticated|invalid token|unauthorized|row-level security|401/i.test(
+    message,
+  );
+}
+
 function jsonReplacer(_key: string, value: unknown): unknown {
   if (typeof value === "function") return undefined;
   if (typeof value === "number" && !Number.isFinite(value)) return null;
@@ -96,6 +102,19 @@ export function serializePlanForDb(plan: AiTripPlan): Json {
     return JSON.parse(JSON.stringify(plan, jsonReplacer)) as Json;
   } catch {
     return JSON.parse(JSON.stringify(slimPlanForDb(plan), jsonReplacer)) as Json;
+  }
+}
+
+const MAX_PLAN_JSON_CHARS = 120_000;
+
+/** Keep photos when small; slim 11-day road plans so PostgREST does not 413. */
+export function planForDatabase(plan: AiTripPlan): AiTripPlan {
+  try {
+    const json = JSON.stringify(plan, jsonReplacer);
+    if (json.length > MAX_PLAN_JSON_CHARS) return slimPlanForDb(plan);
+    return plan;
+  } catch {
+    return slimPlanForDb(plan);
   }
 }
 
@@ -217,7 +236,8 @@ export async function persistTravelPlanViaClient(
   ctx: PersistTravelPlanContext,
   userId: string,
 ): Promise<{ id: string } | { error: string }> {
-  let row = buildTravelPlanRow(plan, ctx, userId);
+  const compact = planForDatabase(plan);
+  let row = buildTravelPlanRow(compact, ctx, userId);
   let result = await upsertTravelPlanRow(supabase, row, userId);
   if ("error" in result && isPayloadTooLargeError(result.error)) {
     row = buildTravelPlanRow(slimPlanForDb(plan), ctx, userId);

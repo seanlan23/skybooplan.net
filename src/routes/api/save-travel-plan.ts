@@ -1,10 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type { AiTripPlan } from "@/lib/aiPlan.functions";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { requireSupabaseAuthRequest } from "@/lib/supabaseRequestAuth.server";
 import {
   buildTravelPlanRow,
   isPayloadTooLargeError,
+  planForDatabase,
   slimPlanForDb,
   upsertTravelPlanRow,
   type PersistTravelPlanContext,
@@ -22,7 +22,8 @@ export const Route = createFileRoute("/api/save-travel-plan")({
         const authResult = await requireSupabaseAuthRequest(request);
         if (!authResult.ok) return authResult.response;
 
-        const { userId } = authResult.auth;
+        // User JWT + RLS — do not require SUPABASE_SERVICE_ROLE_KEY on Vercel.
+        const { userId, supabase } = authResult.auth;
 
         let body: Body;
         try {
@@ -39,11 +40,11 @@ export const Route = createFileRoute("/api/save-travel-plan")({
         const ctx = body.context ?? {};
 
         try {
-          let row = buildTravelPlanRow(plan, ctx, userId);
-          let result = await upsertTravelPlanRow(supabaseAdmin, row, userId);
+          let row = buildTravelPlanRow(planForDatabase(plan), ctx, userId);
+          let result = await upsertTravelPlanRow(supabase, row, userId);
           if ("error" in result && isPayloadTooLargeError(result.error)) {
             row = buildTravelPlanRow(slimPlanForDb(plan), ctx, userId);
-            result = await upsertTravelPlanRow(supabaseAdmin, row, userId);
+            result = await upsertTravelPlanRow(supabase, row, userId);
           }
           if ("id" in result) return Response.json({ id: result.id });
           console.error("[save-travel-plan] upsert failed:", result.error);

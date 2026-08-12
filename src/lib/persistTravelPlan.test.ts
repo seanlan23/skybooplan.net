@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import type { AiTripPlan } from "@/lib/aiPlan.functions";
 import {
   buildTravelPlanRow,
+  isAuthPersistError,
   isNoRowLookupError,
   isPayloadTooLargeError,
+  planForDatabase,
   serializePlanForDb,
   slimPlanForDb,
   toSqlDate,
@@ -101,5 +103,37 @@ describe("payload errors", () => {
   it("detects oversized jsonb / HTTP 413", () => {
     expect(isPayloadTooLargeError("Payload too large")).toBe(true);
     expect(isPayloadTooLargeError("new row violates row-level security")).toBe(false);
+  });
+});
+
+describe("isAuthPersistError", () => {
+  it("treats expired JWT and RLS as login/session problems", () => {
+    expect(isAuthPersistError("JWT expired")).toBe(true);
+    expect(isAuthPersistError("new row violates row-level security policy")).toBe(true);
+    expect(isAuthPersistError("Unauthorized: Invalid token.")).toBe(true);
+    expect(isAuthPersistError("Payload too large")).toBe(false);
+  });
+});
+
+describe("planForDatabase", () => {
+  it("keeps a small plan intact", () => {
+    const plan = {
+      destinationName: "Balkan",
+      days: [{ day: 1, city: "Zadar", imageUrl: "https://example.com/a.jpg" }],
+    } as unknown as AiTripPlan;
+    expect(planForDatabase(plan)).toBe(plan);
+  });
+
+  it("slims when serialized JSON is huge", () => {
+    const plan = {
+      destinationName: "Balkan",
+      days: Array.from({ length: 12 }, (_, i) => ({
+        day: i + 1,
+        city: "Zadar",
+        imageUrl: `https://example.com/${"x".repeat(12_000)}.jpg`,
+      })),
+    } as unknown as AiTripPlan;
+    const out = planForDatabase(plan);
+    expect(out.days[0]!.imageUrl).toBeUndefined();
   });
 });

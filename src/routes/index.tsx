@@ -1287,23 +1287,22 @@ function Landing() {
       };
 
       try {
-        // Prefer the local JWT (what PostgREST actually sends). getUser() can
-        // 401 after a pause/resume while getSession() still has a usable token.
-        let { data: sessionData } = await supabase.auth.getSession();
-        if (!sessionData.session?.access_token) {
-          const refreshed = await supabase.auth.refreshSession();
-          sessionData = refreshed.data;
-        }
-        const userId = sessionData.session?.user?.id;
-        if (!userId || !sessionData.session?.access_token) {
+        const { ensureFreshAuthSession, supabaseAuthHeaders } = await import(
+          "@/lib/supabaseAuthHeaders"
+        );
+        const { persistTravelPlanViaClient, isAuthPersistError, slimPlanForDb } = await import(
+          "@/lib/persistTravelPlan"
+        );
+
+        let session = await ensureFreshAuthSession();
+        const userId = session?.user?.id;
+        if (!userId || !session?.access_token) {
           setPlanSaveError("login_required");
           return false;
         }
 
         setPlanSaveError(null);
-        const { persistTravelPlanViaClient } = await import("@/lib/persistTravelPlan");
 
-        // Client RLS first — works without SERVICE_ROLE on Vercel.
         const clientResult = await persistTravelPlanViaClient(
           supabase,
           plan,
@@ -1317,13 +1316,34 @@ function Landing() {
         }
         console.warn("Client save failed, trying API:", clientResult.error);
 
-        const { supabaseAuthHeaders } = await import("@/lib/supabaseAuthHeaders");
+        if (isAuthPersistError(clientResult.error)) {
+          session = await ensureFreshAuthSession();
+          if (!session?.access_token || !session.user?.id) {
+            setPlanSaveError("login_required");
+            return false;
+          }
+          const retry = await persistTravelPlanViaClient(
+            supabase,
+            plan,
+            persistCtx,
+            session.user.id,
+          );
+          if ("id" in retry) {
+            setSavedPlanId(retry.id);
+            setPlanSaveError(null);
+            return true;
+          }
+        }
+
         const headers = await supabaseAuthHeaders({ "Content-Type": "application/json" });
         if (headers.Authorization) {
           const res = await fetch("/api/save-travel-plan", {
             method: "POST",
             headers,
-            body: JSON.stringify({ plan, context: persistCtx }),
+            body: JSON.stringify({
+              plan: slimPlanForDb(plan),
+              context: persistCtx,
+            }),
           });
           const data = (await res.json().catch(() => ({}))) as {
             id?: string;
@@ -1334,12 +1354,19 @@ function Landing() {
             setPlanSaveError(null);
             return true;
           }
-          console.error("Save plan API failed:", data.error || res.status);
-          setPlanSaveError(data.error || clientResult.error || "save_failed");
+          const errMsg = data.error || `http_${res.status}`;
+          console.error("Save plan API failed:", errMsg);
+          if (res.status === 401 || isAuthPersistError(errMsg)) {
+            setPlanSaveError("login_required");
+            return false;
+          }
+          setPlanSaveError(errMsg || clientResult.error || "save_failed");
           return false;
         }
 
-        setPlanSaveError(clientResult.error || "save_failed");
+        setPlanSaveError(
+          isAuthPersistError(clientResult.error) ? "login_required" : clientResult.error || "save_failed",
+        );
         return false;
       } catch (err) {
         console.error("Save plan failed:", err);
