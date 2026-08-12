@@ -103,3 +103,61 @@ describe("resolveTravelRequirements replaces generic AI copy", () => {
     expect(resolved?.visaInfo[0]!.requirement).not.toMatch(/Check current visa requirements/i);
   });
 });
+
+describe("Balkan road trip travel requirements", () => {
+  it("does not mention Italy when cities are Balkan and IATA is leftover FCO", () => {
+    const hint = "Balkan Zadar Split Mostar Kotor Shkoder Dubrovnik";
+    const req = buildFallbackTravelRequirements("", "FCO", "en", hint);
+    expect(req?.visaInfo[0]!.requirement).toMatch(/Croatia|Bosnia|Montenegro|Albania/i);
+    expect(req?.visaInfo[0]!.requirement).not.toMatch(/Italy/i);
+  });
+
+  it("replaces concrete Italy visa copy on a Balkan itinerary", async () => {
+    const { resolveTravelRequirements } = await import("@/lib/travelRequirements");
+    const resolved = resolveTravelRequirements(
+      {
+        targetResidents: ["EU"],
+        visaInfo: [
+          {
+            country: "EU / Schengen",
+            requirement:
+              "EU/Schengen citizens do not need a visa for Italy. Free movement applies — a valid ID card or passport is enough.",
+            howToApply: "No visa application. Show ID at the border if asked.",
+          },
+        ],
+        vaccinations: "No special travel vaccines required for EU destinations.",
+        estimatedCosts: "Visa: €0. Vaccines: €0 if routines are current.",
+      },
+      "",
+      "FCO",
+      "en",
+      "Balkan Zadar Split Mostar Kotor Shkoder Dubrovnik",
+    );
+    expect(resolved?.visaInfo[0]!.requirement).not.toMatch(/Italy/i);
+    expect(resolved?.visaInfo[0]!.requirement).toMatch(/Croatia|Bosnia|Montenegro|Albania/i);
+  });
+
+  it("keeps Italy copy for a real Italy destination", async () => {
+    const { resolveTravelRequirements } = await import("@/lib/travelRequirements");
+    const resolved = resolveTravelRequirements(
+      {
+        targetResidents: ["EU"],
+        visaInfo: [
+          {
+            country: "EU / Schengen",
+            requirement:
+              "EU/Schengen citizens do not need a visa for Italy. Free movement applies — a valid ID card or passport is enough.",
+            howToApply: "No visa application.",
+          },
+        ],
+        vaccinations: "No special vaccines.",
+        estimatedCosts: "Visa: €0.",
+      },
+      "LJU",
+      "FCO",
+      "en",
+      "Rome Italy",
+    );
+    expect(resolved?.visaInfo[0]!.requirement).toMatch(/Italy/i);
+  });
+});

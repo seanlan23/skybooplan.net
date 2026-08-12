@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import type { AiTripPlan } from "@/lib/aiPlan.functions";
 import {
   buildTravelPlanRow,
+  isNoRowLookupError,
+  isPayloadTooLargeError,
   serializePlanForDb,
+  slimPlanForDb,
   toSqlDate,
 } from "@/lib/persistTravelPlan";
 
@@ -54,5 +57,49 @@ describe("buildTravelPlanRow", () => {
     expect(row.end_date).toBe("2026-08-24");
     expect(row.user_id).toBe("user-1");
     expect(row.title).toMatch(/Slovenj Gradec/);
+  });
+});
+
+describe("isNoRowLookupError", () => {
+  it("treats PostgREST 0-row object coercion as empty, not fatal", () => {
+    expect(isNoRowLookupError({ code: "PGRST116", message: "JSON object requested, multiple (or no) rows returned" })).toBe(
+      true,
+    );
+    expect(isNoRowLookupError({ status: 406, message: "Not Acceptable" })).toBe(true);
+    expect(isNoRowLookupError({ code: "42501", message: "permission denied" })).toBe(false);
+  });
+});
+
+describe("slimPlanForDb", () => {
+  it("drops photo URLs so a first save is not blocked by payload size", () => {
+    const slim = slimPlanForDb({
+      destinationName: "Balkan",
+      days: [
+        {
+          day: 1,
+          city: "Zadar",
+          imageUrl: "https://example.com/huge.jpg",
+          activities: {
+            morning: [
+              {
+                name: "Old town",
+                imageUrl: "https://example.com/a.jpg",
+                tripAdvisorStyleDetails: { blurb: "x".repeat(5000) } as never,
+              },
+            ],
+          },
+        },
+      ],
+    } as unknown as AiTripPlan);
+    expect(slim.days[0]!.imageUrl).toBeUndefined();
+    expect(slim.days[0]!.activities?.morning?.[0]?.imageUrl).toBeUndefined();
+    expect(slim.days[0]!.activities?.morning?.[0]?.tripAdvisorStyleDetails).toBeUndefined();
+  });
+});
+
+describe("payload errors", () => {
+  it("detects oversized jsonb / HTTP 413", () => {
+    expect(isPayloadTooLargeError("Payload too large")).toBe(true);
+    expect(isPayloadTooLargeError("new row violates row-level security")).toBe(false);
   });
 });

@@ -201,6 +201,13 @@ export function AiPlanView({
       plan
         ? buildWeatherWidgetFallback({
             destinationIata: destinationIata ?? plan.destinationIata,
+            destinationPlace: [
+              plan.destinationPlace,
+              plan.destinationName,
+              ...(plan.days ?? []).map((d) => d.city),
+            ]
+              .filter(Boolean)
+              .join(" "),
             departDate: departDate ?? plan.days[0]?.date,
             returnDate,
             lang,
@@ -880,6 +887,15 @@ export function AiPlanView({
                 requirements={plan.travelRequirements}
                 originIata={plan.originIata}
                 destinationIata={plan.destinationIata}
+                destinationPlace={[
+                  plan.destinationPlace,
+                  plan.destinationName,
+                  plan.summary,
+                  ...(plan.days ?? []).map((d) => d.city),
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+                groundTransportMode={plan.groundTransportMode}
               />
             </div>
             <PlannerChoicesSummary form={plannerForm} className="mt-4" />

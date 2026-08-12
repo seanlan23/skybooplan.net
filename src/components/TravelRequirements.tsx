@@ -10,12 +10,16 @@ type TravelRequirementsProps = {
   requirements?: TravelRequirements | null;
   originIata?: string;
   destinationIata?: string;
+  destinationPlace?: string;
+  groundTransportMode?: string;
 };
 
 export function TravelRequirements({
   requirements,
   originIata,
   destinationIata,
+  destinationPlace,
+  groundTransportMode,
 }: TravelRequirementsProps) {
   const { t, lang } = useI18n();
 
@@ -24,12 +28,16 @@ export function TravelRequirements({
     originIata,
     destinationIata,
     lang,
+    destinationPlace,
   );
   if (!resolved?.targetResidents.length) return null;
 
   const visaCards = resolved.visaInfo ?? [];
   const hasVaccinations = Boolean(resolved.vaccinations?.trim());
   const hasCosts = Boolean(resolved.estimatedCosts?.trim());
+  const subtitleKey = groundTransportMode
+    ? ("travelReq.subtitleRoad" as const)
+    : ("travelReq.subtitle" as const);
 
   return (
     <section
@@ -40,7 +48,7 @@ export function TravelRequirements({
         <Globe2 className="h-5 w-5 text-emerald-700 shrink-0 mt-0.5" />
         <div>
           <h3 className="text-sm font-bold text-emerald-950">{t("travelReq.title")}</h3>
-          <p className="text-xs text-emerald-800/90 mt-0.5">{t("travelReq.subtitle")}</p>
+          <p className="text-xs text-emerald-800/90 mt-0.5">{t(subtitleKey)}</p>
         </div>
       </div>
 

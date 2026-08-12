@@ -854,6 +854,7 @@ const en: Dict = {
   "safety.criticalAria": "Critical destination safety alert",
   "travelReq.title": "Smart travel requirements",
   "travelReq.subtitle": "Visa, vaccinations and costs for travellers who usually fly from your departure airport.",
+  "travelReq.subtitleRoad": "Visa, vaccinations and costs for this road trip (EU travellers).",
   "travelReq.previewHint": "Detailed visa and vaccination info will be included in your AI plan after generation.",
   "travelReq.howToApply": "How to apply",
   "travelReq.vaccinations": "Vaccinations & health",
@@ -1952,6 +1953,7 @@ const dicts: Record<DictLang, Dict> = {
     "safety.criticalAria": "Kritično varnostno opozorilo za destinacijo",
     "travelReq.title": "Pametni potovalni pogoji",
     "travelReq.subtitle": "Viza, cepljenja in stroški za potnike, ki običajno letijo z izbranega letališča odhoda.",
+    "travelReq.subtitleRoad": "Viza, cepljenja in stroški za to cestno potovanje (potniki iz EU).",
     "travelReq.previewHint": "Podrobne informacije o vizah in cepljenjih bodo vključene v AI načrt po generiranju.",
     "travelReq.howToApply": "Kako urediti",
     "travelReq.vaccinations": "Cepljenja in zdravje",
@@ -2749,6 +2751,8 @@ const dicts: Record<DictLang, Dict> = {
     "travelReq.title": "Wichtige Reiseinfos",
     "travelReq.subtitle":
       "Visum, Impfungen und Kosten für Reisende, die üblicherweise von deinem Abflughafen starten.",
+    "travelReq.subtitleRoad":
+      "Visum, Impfungen und Kosten für diese Autoreise (EU-Reisende).",
     "travelReq.previewHint":
       "Detaillierte Visa- und Impfinfos erscheinen im KI-Plan nach der Erstellung.",
     "travelReq.howToApply": "So beantragen",

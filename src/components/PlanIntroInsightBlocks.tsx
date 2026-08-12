@@ -1,7 +1,8 @@
-import type { AiTripPlan, DayPlan } from "@/lib/aiPlan.functions";
+import type { AiTripPlan } from "@/lib/aiPlan.functions";
 import { SafetyWarningCard } from "@/components/SafetyWarningCard";
 import { WeatherWidgetCard } from "@/components/WeatherWidgetCard";
 import type { WeatherWidget } from "@/lib/aiPlan.functions";
+import { weatherWidgetNeedsClimateFallback } from "@/lib/weatherWidgetFallback";
 
 /** Safety + weather intro cards below planner settings, above trip narrative. */
 export function PlanIntroInsightBlocks({
@@ -14,7 +15,9 @@ export function PlanIntroInsightBlocks({
   className?: string;
 }) {
   const hasSafety = Boolean(plan.safetyWarning?.message?.trim());
-  const widget = plan.weatherWidget ?? weatherFallback ?? null;
+  const widget = weatherWidgetNeedsClimateFallback(plan.weatherWidget)
+    ? (weatherFallback ?? plan.weatherWidget ?? null)
+    : (plan.weatherWidget ?? weatherFallback ?? null);
   const hasWeather = Boolean(widget?.season && widget?.avgTemp && widget?.clothing);
 
   if (!hasSafety && !hasWeather) return null;

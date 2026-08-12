@@ -23,4 +23,16 @@ describe("buildPdfPlanTitle", () => {
       }),
     ).toBe("LJU → FCO");
   });
+
+  it("uses places for car trips even when origin IATA is LJU and dest IATA is empty", () => {
+    expect(
+      buildPdfPlanTitle({
+        groundTransportMode: "car",
+        originPlace: "Črna na Koroškem",
+        destinationPlace: "Balkan",
+        from: "LJU",
+        to: "",
+      }),
+    ).toBe("Črna na Koroškem → Balkan");
+  });
 });

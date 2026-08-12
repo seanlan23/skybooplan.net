@@ -5,6 +5,7 @@ import {
   resolveDestinationIata,
   resolveOriginIata,
 } from "@/lib/heroChatPlanner";
+import { sanitizeGroundDestinationPlace } from "@/lib/groundTransport";
 import {
   formatPlannerInterests,
   parsePlannerInterestKeys,
@@ -157,8 +158,9 @@ export function motorhomePlannerFromCollected(
   const { ctx: baseCtx, form: baseForm } = heroChatToPlannerPayload(collected, language);
 
   const originPlace = (collected.origin ?? "").trim() || baseCtx.originPlace || "Vienna";
-  const destinationPlace =
-    (collected.destination ?? "").trim() || baseCtx.destinationPlace || "Amsterdam";
+  const destinationPlace = sanitizeGroundDestinationPlace(
+    (collected.destination ?? "").trim() || baseCtx.destinationPlace || "Amsterdam",
+  );
 
   const from = resolveOriginIata(originPlace) || baseCtx.from || "";
   const to = resolveDestinationIata(destinationPlace) || baseCtx.to || "";

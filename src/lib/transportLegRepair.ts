@@ -162,6 +162,22 @@ export function repairTransportLegs(
     if (roadTrip && leg.type === "flight") {
       leg = { ...leg, type: "car" };
     }
+    // Self-drive stages must not look like a hired van.
+    if (roadTrip && leg.type === "van") {
+      leg = { ...leg, type: "car" };
+    }
+
+    // Yesterday's city leftover on a local ferry (Shkodër → Lokrum while overnight is Dubrovnik).
+    if (
+      leg.type === "ferry" &&
+      prevCity &&
+      placesMatch(leg.from, prevCity) &&
+      !placesMatch(leg.from, ctx.city) &&
+      !placesMatch(leg.to, ctx.city) &&
+      !placesMatch(leg.to, prevCity)
+    ) {
+      leg = { ...leg, from: ctx.city };
+    }
 
     const fromIata = extractIata(leg.from);
     const toIata = extractIata(leg.to);

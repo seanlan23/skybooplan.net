@@ -83,6 +83,8 @@ type NormalizedPdfPlan = {
   endDate: string;
   summary: string;
   totalBudgetEur?: number;
+  staysApproxEur?: number;
+  roadTrip: boolean;
   pax: number;
   days: PdfDay[];
   flights: string[];
@@ -205,6 +207,33 @@ function isPdfLogisticsTitle(title: string): boolean {
   return /^(arrive at .+ airport|prihod na letališče|check-in and security|check-in in varnostni|international flight|mednarodni let|airport arrival|airport check-in)\b/i.test(
     title.trim(),
   );
+}
+
+function roadBudgetCaption(model: NormalizedPdfPlan): string {
+  if (!model.roadTrip) return model.labels.budgetForPax(model.pax);
+  const n = model.pax;
+  const lang = model.contentLang;
+  if (lang === "sl") {
+    return n <= 1
+      ? "Skupaj (hrana, gorivo, cestnine — hoteli posebej)"
+      : `Skupaj za ${n} oseb (hrana, gorivo, cestnine — hoteli posebej)`;
+  }
+  if (lang === "de") {
+    return n <= 1
+      ? "Gesamt (Essen, Kraftstoff, Maut — Hotels extra)"
+      : `Gesamt für ${n} Reisende (Essen, Kraftstoff, Maut — Hotels extra)`;
+  }
+  return n <= 1
+    ? "Total (meals, fuel, tolls — hotels extra)"
+    : `Total for ${n} travelers (meals, fuel, tolls — hotels extra)`;
+}
+
+function roadStaysCaption(model: NormalizedPdfPlan): string {
+  const eur = Math.round(model.staysApproxEur ?? 0);
+  const lang = model.contentLang;
+  if (lang === "sl") return `+ Namestitve (okvirno): €${eur}`;
+  if (lang === "de") return `+ Unterkünfte (ca.): €${eur}`;
+  return `+ Stays (approx.): €${eur}`;
 }
 
 function labelsFor(lang: PlanForPdf["language"], sampleText: string): PdfLabels {
@@ -565,6 +594,7 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
   const itin = cloneItineraryForPdf(sourceItin);
   const motorhome =
     itin.groundTransportMode === "motorhome" || itin.accommodationMode === "motorhome";
+  const roadTrip = motorhome || itin.groundTransportMode === "car";
   if (Array.isArray(itin.days)) {
     try {
       // Clean FRA→EZE-class LLM leftovers even on older saved plans.
@@ -603,16 +633,20 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
     const dayNum = typeof d.day === "number" ? d.day : idx + 1;
     const dayEnd = typeof d.dayEnd === "number" ? d.dayEnd : undefined;
     const transportation = Array.isArray(d.transportation)
-      ? (d.transportation as Array<Record<string, unknown>>).map((t) => ({
-          type: textOf(t.type) || "transport",
-          from: textOf(t.from),
-          to: textOf(t.to),
-          duration: textOf(t.duration) || undefined,
-          price:
-            typeof t.estimatedPrice === "number"
-              ? `€${t.estimatedPrice}`
-              : textOf(t.cost) || textOf(t.price) || undefined,
-        }))
+      ? (d.transportation as Array<Record<string, unknown>>).map((t) => {
+          const rawType = textOf(t.type) || "transport";
+          const type = roadTrip && rawType.toLowerCase() === "van" ? "car" : rawType;
+          return {
+            type,
+            from: textOf(t.from),
+            to: textOf(t.to),
+            duration: textOf(t.duration) || undefined,
+            price:
+              typeof t.estimatedPrice === "number"
+                ? `€${t.estimatedPrice}`
+                : textOf(t.cost) || textOf(t.price) || undefined,
+          };
+        })
       : [];
 
     const slots: PdfDay["slots"] = [
@@ -731,6 +765,12 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
       ? plan.cover_image_url.trim()
       : undefined;
 
+  const staysApproxEur =
+    typeof (itin as { staysApproxEur?: number }).staysApproxEur === "number" &&
+    Number.isFinite((itin as { staysApproxEur?: number }).staysApproxEur)
+      ? (itin as { staysApproxEur: number }).staysApproxEur
+      : undefined;
+
   return {
     title: plan.title || destination || "Skybooplan",
     destination,
@@ -738,6 +778,8 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
     endDate: fmtDate(plan.end_date, contentLang),
     summary: cleanSummary(stripPlanTeaser(textOf(itin.summary), contentLang)),
     totalBudgetEur,
+    staysApproxEur,
+    roadTrip,
     pax,
     days,
     flights,
@@ -1105,12 +1147,19 @@ async function renderPlanPdf(plan: PlanForPdf): Promise<{
 
   if (model.totalBudgetEur != null) {
     heading(model.labels.budget);
-    const budgetH = 48;
+    const budgetH = model.roadTrip && model.staysApproxEur ? 60 : 48;
     softPanel(budgetH);
     setFont("bold", 20, INK);
     safeText(`€${Math.round(model.totalBudgetEur)}`, margin + 16, y + 20);
     setFont("normal", 9, MUTED);
-    safeText(model.labels.budgetForPax(model.pax), margin + 16, y + 36);
+    safeText(roadBudgetCaption(model), margin + 16, y + 36);
+    if (model.roadTrip && model.staysApproxEur && model.staysApproxEur > 0) {
+      safeText(
+        roadStaysCaption(model),
+        margin + 16,
+        y + 48,
+      );
+    }
     y += budgetH + 12;
   }
 

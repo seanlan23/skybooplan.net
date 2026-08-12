@@ -13,7 +13,7 @@ import {
   incompletePlanDayCoverageMessage,
   buildGeminiTripPlanParamsWithAttachment,
   formatGenerateTripInputError,
-  generateGeminiProTripInputSchema,
+  generateTripInputSchema,
   type GenerateGeminiProTripInput,
 } from "@/lib/geminiPro.functions";
 import { createTripPlanStream } from "@/lib/geminiPro";
@@ -26,11 +26,7 @@ import {
 import { optionalSupabaseAuthRequest } from "@/lib/supabaseRequestAuth.server";
 import { enforceItineraryQuota, recordPlanGeneration } from "@/lib/quota.server";
 
-const generateInput = generateGeminiProTripInputSchema.transform((data) => ({
-  ...data,
-  originIata: data.originIata ?? "LJU",
-  destinationIata: data.destinationIata ?? "FCO",
-}));
+const generateInput = generateTripInputSchema;
 
 type StreamEvent =
   | { type: "partial"; plan: unknown; dayCount: number; expectedDays: number }

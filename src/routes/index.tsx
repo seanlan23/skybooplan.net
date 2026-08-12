@@ -1287,11 +1287,15 @@ function Landing() {
       };
 
       try {
-        // Refresh so Bearer token / RLS session is valid.
-        await supabase.auth.refreshSession().catch(() => undefined);
-        const { data: userData } = await supabase.auth.getUser();
-        const userId = userData.user?.id;
-        if (!userId) {
+        // Prefer the local JWT (what PostgREST actually sends). getUser() can
+        // 401 after a pause/resume while getSession() still has a usable token.
+        let { data: sessionData } = await supabase.auth.getSession();
+        if (!sessionData.session?.access_token) {
+          const refreshed = await supabase.auth.refreshSession();
+          sessionData = refreshed.data;
+        }
+        const userId = sessionData.session?.user?.id;
+        if (!userId || !sessionData.session?.access_token) {
           setPlanSaveError("login_required");
           return false;
         }
@@ -1402,7 +1406,11 @@ function Landing() {
             "",
           start_date: startDate,
           end_date: endDate,
-          itinerary: { ...planForPdf, totalBudgetEur: costPdf.grandTotalEur } as never,
+          itinerary: {
+            ...planForPdf,
+            totalBudgetEur: costPdf.grandTotalEur,
+            staysApproxEur: costPdf.overnight.totalEur,
+          } as never,
           language: aiContext?.language,
           pax: paxPdf,
         });
@@ -1411,14 +1419,12 @@ function Landing() {
         alert(t("trips.pdfError"));
         return;
       }
-      // Save is separate — a DB failure must not look like a PDF failure.
+      // Save is separate — PDF already downloaded; never alert() over a DB miss.
       if (user) {
         try {
-          const ok = await persistPlanToTrips(planForPdf, aiContext);
-          if (!ok) alert(t("plan.saveFailed" as never));
+          await persistPlanToTrips(planForPdf, aiContext);
         } catch (err) {
           console.error("Save after PDF failed", err);
-          alert(t("plan.saveFailed" as never));
         }
       }
     },

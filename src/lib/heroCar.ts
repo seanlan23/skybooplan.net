@@ -9,6 +9,7 @@ import {
   formatPlannerInterests,
   parsePlannerInterestKeys,
 } from "@/lib/plannerInterests";
+import { sanitizeGroundDestinationPlace } from "@/lib/groundTransport";
 
 export type HeroCarPlannerPayload = {
   ctx: AiPlannerContext & { language?: string; currency?: "EUR" | "USD" };
@@ -95,6 +96,26 @@ function carWishes(
     .join(" ");
 }
 
+/** UI summary: keep the traveller’s places, drop the generated car/motorhome boilerplate. */
+export function plannerWishesForDisplay(wishes: string): string {
+  const text = wishes.trim();
+  if (!text) return "";
+  const must = text.match(
+    /(?:Places \/ sights \/ wishes|Mesta \/ znamenitosti \/ želje|Orte \/ Sehenswürdigkeiten \/ Wünsche)[^:]*:\s*(.+?)(?:\.\s*(?:Overnights|Nočitve|Übernachtungen|FORBIDDEN|PREPOVEDANO|VERBOTEN)|$)/i,
+  );
+  if (must?.[1]) return must[1].replace(/\.\s*$/, "").trim();
+  return text
+    .replace(/Car road trip[^.]*\./gi, "")
+    .replace(/Potovanje z AVTOM[^.]*\./gi, "")
+    .replace(/Autoreise[^.]*\./gi, "")
+    .replace(/\b(?:Start|Začetek|Destination \/ direction|Cilj \/ smer|Ziel \/ Richtung|Dates|Datumi|Daten):[^.]*\./gi, "")
+    .replace(/\b(?:Overnights|Nočitve|Übernachtungen)\s*=[^.]*\./gi, "")
+    .replace(/\b(?:FORBIDDEN|PREPOVEDANO|VERBOTEN):[^.]*\./gi, "")
+    .replace(/\b(?:Include|Vključi|Enthalten):[^.]*\./gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 /** Map hero Car answers → planner context with car ground trip + hotels. */
 export function carPlannerFromCollected(
   collected: HeroChatCollected,
@@ -103,8 +124,9 @@ export function carPlannerFromCollected(
   const { ctx: baseCtx, form: baseForm } = heroChatToPlannerPayload(collected, language);
 
   const originPlace = (collected.origin ?? "").trim() || baseCtx.originPlace || "Vienna";
-  const destinationPlace =
-    (collected.destination ?? "").trim() || baseCtx.destinationPlace || "Amsterdam";
+  const destinationPlace = sanitizeGroundDestinationPlace(
+    (collected.destination ?? "").trim() || baseCtx.destinationPlace || "Amsterdam",
+  );
 
   const from = resolveOriginIata(originPlace) || baseCtx.from || "";
   const to = resolveDestinationIata(destinationPlace) || baseCtx.to || "";

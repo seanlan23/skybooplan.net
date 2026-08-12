@@ -122,6 +122,45 @@ function schengenInternal(destName: string, lang: LangCode): CuratedTravelPack {
   };
 }
 
+/** Multi-country Western Balkans road trip (HR + BA/ME/AL) — not Italy. */
+export function balkanRoadPack(lang: LangCode): CuratedTravelPack {
+  const L = lang2(lang);
+  if (L === "sl") {
+    return {
+      visaRequirement:
+        "Državljani EU/Schengen: Hrvaška je v schengenskem območju (osebna izkaznica ali potni list). Bosna in Hercegovina, Črna gora in Albanija so brezvizumske do 90 dni v 180-dnevnem obdobju. Na vsaki meji imej pripravljen osebni dokument; za avto zeleno karto / zavarovanje.",
+      howToApply:
+        "Ni vize vnaprej. Na mejah pokažeš osebni dokument. Pri avtu: prometno, zavarovanje (zelena karta kjer je potrebna), vinjete/cestnine po državah.",
+      vaccinations:
+        "Posebna potovalna cepljenja niso obvezna. Posodobi rutinska (tetanus, MMR). Hepatitis A je smiseln pri daljšem potovanju. Poleti: sončna zaščita in repelent.",
+      estimatedCosts:
+        "Viza: 0 €. Cepljenja: 0 €, če so rutinska urejena. Extra: gorivo, cestnine/vinjete, zavarovanje vozila.",
+    };
+  }
+  if (L === "de") {
+    return {
+      visaRequirement:
+        "EU-/Schengen-Bürger: Kroatien ist Schengen (Personalausweis oder Reisepass). Bosnien-Herzegowina, Montenegro und Albanien sind visumfrei bis 90 Tage in 180. An jeder Grenze Ausweis bereithalten; fürs Auto Versicherung/grüne Karte.",
+      howToApply:
+        "Kein Visum im Voraus. Ausweis an Grenzen zeigen. Auto: Fahrzeugpapiere, Versicherung (grüne Karte wo nötig), Vignetten/Maut je nach Land.",
+      vaccinations:
+        "Keine speziellen Reiseimpfungen nötig. Routine (Tetanus, MMR) aktuell halten. Hepatitis A bei längerem Trip sinnvoll. Im Sommer: Sonnenschutz und Repellent.",
+      estimatedCosts:
+        "Visum: 0 €. Impfungen: 0 € bei aktuellen Routineimpfungen. Extra: Kraftstoff, Maut/Vignetten, Fahrzeugversicherung.",
+    };
+  }
+  return {
+    visaRequirement:
+      "EU/Schengen citizens: Croatia is in the Schengen Area (ID card or passport). Bosnia and Herzegovina, Montenegro and Albania are visa-free for up to 90 days in 180. Carry ID at each border; for the car, green-card insurance where required.",
+    howToApply:
+      "No visa in advance. Show ID at borders. For the car: registration, insurance (green card where needed), vignettes/tolls by country.",
+    vaccinations:
+      "No special travel vaccines required. Keep routine shots (tetanus, MMR) current. Hepatitis A is sensible on a longer trip. In summer: sun protection and mosquito repellent.",
+    estimatedCosts:
+      "Visa: €0. Vaccines: €0 if routines are current. Extra: fuel, tolls/vignettes, vehicle insurance.",
+  };
+}
+
 function albaniaPack(lang: LangCode): CuratedTravelPack {
   const L = lang2(lang);
   if (L === "sl") {

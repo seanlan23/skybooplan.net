@@ -23,6 +23,35 @@ export function usesRoadRouting(mode?: GroundTransportMode): boolean {
   return mode === "car" || mode === "motorhome";
 }
 
+/** Mapbox geocodes “Balkan” to Balkan Province, Turkmenistan (TM). */
+export function sanitizeGroundDestinationPlace(place: string): string {
+  const t = place.trim();
+  if (!t) return t;
+  if (/\bbalkan\b/i.test(t) && /\bTM\b/i.test(t)) return "Balkan";
+  return t;
+}
+
+function isWesternBalkansDestination(place: string): boolean {
+  const t = place.toLowerCase();
+  if (/\bbalkan/.test(t)) return true;
+  const hits = [
+    /bosnia|bosna|mostar|sarajevo/,
+    /montenegro|črna\s*gora|crna\s*gora|kotor|budva/,
+    /albania|albanij|shkod|tirana|saranda/,
+  ].filter((re) => re.test(t)).length;
+  return hits >= 2;
+}
+
+function westernBalkansRoadTripPrompt(dest: string): string {
+  if (!isWesternBalkansDestination(dest)) return "";
+  return `
+ZAHODNI BALKAN (obvezno, če je cilj Balkan / BiH+Črna gora+Albanija):
+- Večina NOČITEV mora biti v državah, ki jih je uporabnik navedel (Bosna in Hercegovina, Črna gora, Albanija) — plaže, gore, narava.
+- Hrvaška (Zadar/Split/Dubrovnik) je samo kratek tranzit, če je nujna za vožnjo iz Slovenije — NE 6 od 11 noči na Hrvaškem.
+- Ne zamenjaj “Balkan” z Italijo, Turkmenistanom ali FCO.
+- transportation[]: type "car", nikoli "van" za etape z lastnim avtom.`;
+}
+
 export function groundTransportPromptBlock(
   mode: GroundTransportMode,
   originPlace: string,
@@ -70,15 +99,16 @@ PREVOZ DO DESTINACIJE — AVTO (obvezno):
 - Prvi dni morajo pokrivati celotno pot od doma do destinacije z realističnimi postanki (npr. "Postanek v Milanu", "Nočitev v Münchenu").
 - Vsak dan poti: drivingDistanceKm, drivingDurationHours, smiselne postanke ali kratki ogledi ob poti.
 - NOČITVE: vsak večer hotel v mestu (Booking-friendly city stay). PREPOVEDANO: kamp, RV park, campground, sosta ali "spanje v avtu" kot namestitev.
-- transportation[] na dneh poti: type "car" (vožnja) — PREPOVEDANO type "flight" za cestne etape / izlete.
-- Proračun: v dailyBudget vključni DELEŽ cestnin/vinjet in goriva (deljeno na število potnikov) — IT/FR/ES/HR avtoceste so drage; AT/SI/CH vinjeta.
+- transportation[] na dneh poti: type "car" (vožnja) — PREPOVEDANO type "flight" ali type "van" za cestne etape.
+- Proračun: v dailyBudget vključni DELEŽ cestnin/vinjet in goriva (deljeno na število potnikov) — IT/FR/ES/HR avtoceste so drage; AT/SI/CH vinjeta. V hotels[] ali estimatedCostEur dodaj okvirno ceno hotela/noč v mestu nočitve.
 - Po prihodu na destinacijo nadaljuj z glavnim programom na cilju.
+${westernBalkansRoadTripPrompt(dest)}
 
 POVRATEK DOMOV — AVTO (obvezno, zadnji dnevi):
 - Potnik se NE vrača z mednarodnega letala! Celotno potovanje je z avtom iz "${origin}" do "${dest}" in nazaj.
 - Zadnji dan (ali zadnja 1–3 dni, glede na razdaljo) mora biti vožnja NAZAJ do izhodišča "${origin}" z realističnimi postanki, drivingDistanceKm in drivingDurationHours.
 - Na zadnjem dnevu NE načrtuj mednarodnega leta, category airport za odlet v EU, prevoza na letališče ali trip_metadata.return_flight_eu.
-- transportation[] zadnjega dne: type "car" proti domu — ne flight.`;
+- transportation[] zadnjega dne: type "car" proti domu — ne flight. Ne izmišljuj novega turističnega mesta (npr. Rijeka), če ni na najkrajši poti domov.`;
 }
 
 /** Last-day return rules — must match groundTransportMode (car ≠ flight home). */

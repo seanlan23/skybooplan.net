@@ -169,13 +169,13 @@ export function HeroAiPlanResults({
             </div>
           ) : null}
 
-          {aiPlan && !savedPlanId && !user ? (
+          {aiPlan && !savedPlanId && (!user || planSaveError === "login_required") ? (
             <div className="mt-4 rounded-2xl border border-amber-300 bg-amber-50 px-5 py-3 text-sm text-amber-900">
               {t("plan.loginToSave")}
             </div>
           ) : null}
 
-          {aiPlan && !savedPlanId && user && planSaveError ? (
+          {aiPlan && !savedPlanId && user && planSaveError && planSaveError !== "login_required" ? (
             <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-rose-300 bg-rose-50 px-5 py-3 text-sm text-rose-900">
               <span>{t("plan.saveFailed" as never)}</span>
               {onRetrySave ? (

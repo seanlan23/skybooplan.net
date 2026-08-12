@@ -12,7 +12,7 @@ Distance rules:
 Regional overrides:
 - Croatia: Ljubljana → any Croatian coast city (Zadar, Split, Dubrovnik, Rijeka, Pula, Šibenik) = CAR only (typically 2–4 h drive, cheaper and more convenient than flying). Same for Zagreb → Croatian coast when under 400 km.
 - Slovenia neighbors (Austria, Italy, Hungary, Croatia inland): prefer CAR or TRAIN for cross-border trips under 500 km — e.g. Ljubljana–Vienna, Ljubljana–Venice, Ljubljana–Zagreb, Ljubljana–Budapest.
-- Short-hop flights (e.g. LJU–ZAD ~220 km) are WRONG — use transportation[] type "van" or "train" with realistic drive duration (e.g. "3h 30min") and estimatedPrice for fuel/tolls, NOT type "flight".
+- Short-hop flights (e.g. LJU–ZAD ~220 km) are WRONG — use transportation[] type "car" (road trip) or "train" with realistic drive duration (e.g. "3h 30min") and estimatedPrice for fuel/tolls, NOT type "flight". Never label a self-drive road stage as type "van".
 
-When recommending car: fill drivingDistanceKm and drivingDurationHours on that day; use transportation[] with type "van" (or describe car hire) and activities with transport_type "bus" or omit flight entirely.
+When recommending car: fill drivingDistanceKm and drivingDurationHours on that day; use transportation[] with type "car" and activities with transport_type "car" or omit flight entirely.
 `.trim();

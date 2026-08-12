@@ -34,4 +34,20 @@ describe("generateGeminiProTripInputSchema", () => {
     });
     expect(result.success).toBe(true);
   });
+
+  it("does not default car trips to FCO", async () => {
+    const { generateTripInputSchema } = await import("@/lib/geminiPro.functions");
+    const result = generateTripInputSchema.safeParse({
+      departDate: "2026-08-14",
+      returnDate: "2026-08-24",
+      groundTransportMode: "car",
+      originPlace: "Črna na Koroškem",
+      destinationPlace: "Balkan, TM",
+    });
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.destinationIata).toBe("");
+    expect(result.data.originIata).toBe("");
+    expect(result.data.destinationPlace).toBe("Balkan");
+  });
 });

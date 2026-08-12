@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { rankAirportSuggestions } from "@/lib/airportRank";
+import { rankWesternBalkansPlaces } from "@/lib/placesBalkan";
 import { checkPlacesSearchRateLimit, extractIp } from "@/lib/quota.server";
 
 export type PlaceSuggestion = {
@@ -78,11 +79,11 @@ export const searchPlaces = createServerFn({ method: "POST" })
             name: cityName,
             city: regionCtx?.text && regionCtx.text !== cityName ? regionCtx.text : cityName,
             country,
-            type: "city",
+            type: "city" as const,
           };
         });
 
-        return { suggestions, error: null };
+        return { suggestions: rankWesternBalkansPlaces(data.query, suggestions), error: null };
       } catch (err) {
         console.error("Mapbox places fetch failed:", err);
         return { suggestions: [], error: "Predlogi trenutno niso na voljo" };

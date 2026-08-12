@@ -1,8 +1,10 @@
+import { inferBudgetCountryFromPlace } from "@/lib/countryDailyBudget";
 import { targetResidentsForOrigin } from "@/lib/originResidents";
 import { DESTINATION_BY_IATA } from "@/lib/destinationCoords";
 import { normalizeIata } from "@/lib/geminiPro.shared";
 import { planLangCopy } from "@/lib/planLangCopy";
 import {
+  balkanRoadPack,
   curatedTravelPackForCountry,
   looksConcreteTravelCopy,
   looksGenericTravelCopy,
@@ -162,10 +164,43 @@ export function previewTravelRequirements(
   return { targetResidents: residents };
 }
 
-function destinationCountry(destinationIata: string | undefined | null): string | null {
+function isBalkanRoadHint(hint: string): boolean {
+  const t = hint.toLowerCase();
+  if (/\bbalkan/.test(t)) return true;
+  const hits = [
+    /croatia|hrvašk|zadar|split|dubrovnik/,
+    /bosnia|bosna|mostar|sarajevo/,
+    /montenegro|črna\s*gora|crna\s*gora|kotor|budva/,
+    /albania|albanij|shkod|tirana|saranda/,
+  ].filter((re) => re.test(t)).length;
+  return hits >= 2;
+}
+
+function destinationCountry(
+  destinationIata: string | undefined | null,
+  placeHint?: string | null,
+): string | null {
+  const fromPlace = inferBudgetCountryFromPlace(placeHint ?? "");
   const code = normalizeIata(destinationIata ?? "");
-  if (!code) return null;
-  return DESTINATION_BY_IATA[code]?.country ?? null;
+  const fromIata = code ? DESTINATION_BY_IATA[code]?.country ?? null : null;
+  // Place/cities beat a leftover hub (FCO → Italy on a Balkan car trip).
+  if (fromPlace && fromIata && fromPlace !== fromIata) return fromPlace;
+  return fromPlace || fromIata;
+}
+
+function visaCopyMismatchesDestination(
+  sample: string,
+  destHint: string,
+  destIata?: string | null,
+): boolean {
+  const mentionsItaly = /\bital(y|ija|ien)\b|\brome\b|\bfco\b/i.test(sample);
+  if (!mentionsItaly) return false;
+  if (isBalkanRoadHint(destHint)) return true;
+  const destCc = destinationCountry(destIata, destHint);
+  if (destCc === "IT") return false;
+  if (destCc && destCc !== "IT") return true;
+  if (destHint.trim() && !/ital|rome|roma|\bfco\b/i.test(destHint)) return true;
+  return false;
 }
 
 function looksSlovenianTravelCopy(text: string): boolean {
@@ -224,6 +259,7 @@ export function buildFallbackTravelRequirements(
   originIata: string | undefined | null,
   destinationIata: string | undefined | null,
   lang: LangCode = "en",
+  destinationHint?: string | null,
 ): TravelRequirements | null {
   // Ground trips (motorhome) often lack a hub IATA — assume Central-EU passports.
   let rawResidents = targetResidentsForOrigin(originIata);
@@ -232,9 +268,26 @@ export function buildFallbackTravelRequirements(
   }
 
   const targetResidents = collapseResidentLabels(rawResidents);
-  const destCountry = destinationCountry(destinationIata);
-  const destLabel = destinationLabelForRequirements(destinationIata, lang);
+  const hint = destinationHint ?? "";
+  const destCountry = destinationCountry(destinationIata, hint);
+  const destLabel = destinationLabelForRequirements(destinationIata, lang, hint);
   const langCode = lang.toLowerCase().slice(0, 2);
+
+  if (isBalkanRoadHint(hint)) {
+    const curated = balkanRoadPack(lang);
+    return {
+      targetResidents,
+      visaInfo: [
+        {
+          country: euVisaCountryLabel(lang),
+          requirement: curated.visaRequirement,
+          howToApply: curated.howToApply,
+        },
+      ],
+      vaccinations: curated.vaccinations,
+      estimatedCosts: curated.estimatedCosts,
+    };
+  }
 
   if (destCountry === "TH") {
     const euGroup = rawResidents.filter((c) => EU_SCHENGEN_RESIDENTS.has(c));
@@ -340,8 +393,14 @@ export function resolveTravelRequirements(
   originIata: string | undefined | null,
   destinationIata: string | undefined | null,
   lang: LangCode = "en",
+  destinationHint?: string | null,
 ): TravelRequirements | null {
-  const fb = buildFallbackTravelRequirements(originIata, destinationIata, lang);
+  const fb = buildFallbackTravelRequirements(
+    originIata,
+    destinationIata,
+    lang,
+    destinationHint,
+  );
 
   if (fromPlan?.visaInfo?.length) {
     const sample = [
@@ -349,6 +408,11 @@ export function resolveTravelRequirements(
       fromPlan.vaccinations ?? "",
       fromPlan.estimatedCosts ?? "",
     ].join(" ");
+
+    // Wrong country (Italy copy on a Balkan road trip) → curated pack.
+    if (fb && visaCopyMismatchesDestination(sample, destinationHint ?? "", destinationIata)) {
+      return fb;
+    }
 
     // UI language mismatch → prefer curated.
     if (lang !== "sl" && looksSlovenianTravelCopy(sample) && fb) return fb;
@@ -381,9 +445,17 @@ export function resolveTravelRequirements(
 export function destinationLabelForRequirements(
   destinationIata: string | undefined,
   lang: LangCode = "en",
+  destinationHint?: string | null,
 ): string {
+  const hint = (destinationHint ?? "").trim();
+  if (isBalkanRoadHint(hint)) {
+    return lang === "sl" ? "Balkan" : lang === "de" ? "den Balkan" : "the Balkans";
+  }
   const code = normalizeIata(destinationIata ?? "");
-  if (!code) return lang === "sl" ? "destinacija" : "destination";
+  if (!code) {
+    if (hint) return hint.slice(0, 80);
+    return lang === "sl" ? "destinacija" : "destination";
+  }
   const meta = DESTINATION_BY_IATA[code];
   if (!meta) return code;
   return `${meta.name} (${code})`;
@@ -424,6 +496,8 @@ SMART TRAVEL REQUIREMENTS (travel_requirements — required in JSON):
 - FORBIDDEN boilerplate: do NOT write only “check official sources”, “rules change often”, or “see a travel clinic 4–6 weeks” without stating the actual rule for this destination first.
 - Tailor everything to ${opts.destinationLabel} (${dest}) with real 2025–2026 rules for EU/Schengen passport holders.
 - Intra-EU/Schengen (Spain, Italy, France, Croatia, Greece, Netherlands, Germany, Austria…): free movement, ID/passport enough, visa €0, no special vaccines.
+- NEVER write visa rules for Italy/Rome/FCO unless the destination is actually Italy.
+- Western Balkans road trip (Croatia + Bosnia + Montenegro + Albania, or “Balkan”): Croatia is Schengen; BA/ME/AL visa-free 90 days in 180 for EU; mention car green card / borders. This is NOT an Italy trip.
 - THAILAND 2026: visa-free for EU/Schengen is 30 days (temporary 60-day scheme ended May 2026), max 2 entries/year — do NOT write 60 days visa-free.
 - vaccinations / estimated_costs: destination-specific and practical (fees in €/USD where known).
 - ${langLine}`;

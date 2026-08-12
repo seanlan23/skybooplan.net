@@ -1,8 +1,25 @@
 import type { WeatherWidget } from "@/lib/aiPlan.functions";
 import type { DestinationContext } from "@/lib/tripContext.functions";
+import { inferBudgetCountryFromPlace } from "@/lib/countryDailyBudget";
 import { lookupDestination } from "@/lib/destinationCoords";
 import { planLangCopy } from "@/lib/planLangCopy";
 import { buildTripClimate } from "@/lib/seasonalHints";
+
+/** Typical Adriatic / Western Balkans daytime range (shared by HR, BA, ME, AL, SI…). */
+const ADRIATIC_TEMP: Partial<Record<number, string>> = {
+  1: "4–10 °C",
+  2: "5–12 °C",
+  3: "8–16 °C",
+  4: "12–20 °C",
+  5: "16–25 °C",
+  6: "22–31 °C",
+  7: "24–34 °C",
+  8: "24–34 °C",
+  9: "18–28 °C",
+  10: "14–22 °C",
+  11: "9–16 °C",
+  12: "5–12 °C",
+};
 
 /** Typical daytime range by country + month (rough climate guide for trip dates). */
 const MONTH_TEMP_RANGE: Record<string, Partial<Record<number, string>>> = {
@@ -23,7 +40,73 @@ const MONTH_TEMP_RANGE: Record<string, Partial<Record<number, string>>> = {
   PH: { 6: "27–32 °C", 7: "27–32 °C", 8: "27–32 °C", 12: "26–30 °C", 1: "26–30 °C" },
   VN: { 7: "28–35 °C", 8: "28–34 °C", 1: "18–24 °C", 2: "19–25 °C" },
   ID: { 7: "27–31 °C", 8: "27–31 °C", 4: "27–32 °C" },
+  HR: ADRIATIC_TEMP,
+  BA: ADRIATIC_TEMP,
+  ME: ADRIATIC_TEMP,
+  AL: ADRIATIC_TEMP,
+  SI: ADRIATIC_TEMP,
+  MK: ADRIATIC_TEMP,
+  RS: ADRIATIC_TEMP,
 };
+
+function climateCountry(iata?: string, placeHint?: string): string | null {
+  const dest = iata ? lookupDestination(iata.trim().toUpperCase()) : null;
+  const fromPlace = inferBudgetCountryFromPlace(placeHint ?? "");
+  if (fromPlace && dest && fromPlace !== dest.country) return fromPlace;
+  return fromPlace || dest?.country || null;
+}
+
+function adriaticSeason(month: number, lang: string): string {
+  if (month >= 6 && month <= 8) {
+    return planLangCopy(lang, {
+      sl: "Visoko poletje na Jadranu — vroči dnevi, toplo morje; Hrvaška, Bosna in Hercegovina, Črna gora in Albanija.",
+      en: "High summer on the Adriatic — hot days, warm sea; Croatia, Bosnia and Herzegovina, Montenegro and Albania.",
+      de: "Hochsommer an der Adria — heiße Tage, warmes Meer; Kroatien, Bosnien-Herzegowina, Montenegro und Albanien.",
+      it: "Alta estate sull'Adriatico — giornate calde, mare tiepido; Croazia, Bosnia, Montenegro e Albania.",
+      es: "Verano alto en el Adriático — días calurosos, mar cálido; Croacia, Bosnia, Montenegro y Albania.",
+      fr: "Plein été sur l'Adriatique — journées chaudes, mer tiède ; Croatie, Bosnie, Monténégro et Albanie.",
+    });
+  }
+  if (month === 5 || month === 9) {
+    return planLangCopy(lang, {
+      sl: "Pozno pomlad / zgodnja jesen na Jadranu — prijetno toplo, manj gneče.",
+      en: "Late spring / early autumn on the Adriatic — pleasantly warm, fewer crowds.",
+      de: "Spätfrühling / Frühherbst an der Adria — angenehm warm, weniger Andrang.",
+      it: "Tarda primavera / inizio autunno sull'Adriatico — mite, meno folla.",
+      es: "Final de primavera / inicio de otoño en el Adriático — agradable, menos gente.",
+      fr: "Fin de printemps / début d'automne sur l'Adriatique — doux, moins de foule.",
+    });
+  }
+  return planLangCopy(lang, {
+    sl: "Hladnejša sezona na Jadranu — jakna za večer, manj kopanja.",
+    en: "Cooler Adriatic season — jacket for evenings, less swimming.",
+    de: "Kühlere Adria-Saison — Jacke für den Abend, weniger Baden.",
+    it: "Stagione adriatica più fresca — giacca la sera, meno nuoto.",
+    es: "Temporada adriática más fresca — chaqueta por la noche, menos baño.",
+    fr: "Saison adriatique plus fraîche — veste le soir, moins de baignade.",
+  });
+}
+
+function isBalkanPlaceHint(hint: string): boolean {
+  const t = hint.toLowerCase();
+  if (/\bbalkan/.test(t)) return true;
+  const hits = [
+    /croatia|hrvašk|zadar|split|dubrovnik/,
+    /bosnia|bosna|mostar|sarajevo/,
+    /montenegro|črna\s*gora|crna\s*gora|kotor|budva/,
+    /albania|albanij|shkod|tirana|saranda/,
+  ].filter((re) => re.test(t)).length;
+  return hits >= 2;
+}
+
+/** Gemini sometimes dumps the trip summary into “season” and a check-forecast stub into temp. */
+export function weatherWidgetNeedsClimateFallback(widget?: WeatherWidget | null): boolean {
+  if (!widget?.season || !widget.avgTemp || !widget.clothing) return true;
+  if (/check weather forecast|preveri vremensko|wettervorhersage prüfen/i.test(widget.avgTemp)) {
+    return true;
+  }
+  return /^\s*(this|ta|diese|cette|questa)\s+\d+/i.test(widget.season);
+}
 
 function monthFromIso(iso?: string): number | null {
   const m = iso?.match(/^\d{4}-(\d{2})-/);
@@ -76,6 +159,7 @@ function clothingFromHints(hints: string[], lang: string): string {
 
 export function buildWeatherWidgetFallback(opts: {
   destinationIata?: string;
+  destinationPlace?: string;
   departDate?: string;
   returnDate?: string;
   lang?: string;
@@ -88,6 +172,10 @@ export function buildWeatherWidgetFallback(opts: {
   const iata = opts.destinationIata?.trim().toUpperCase();
   const dest = iata ? lookupDestination(iata) : null;
   const month = monthFromIso(opts.departDate);
+  const country = climateCountry(iata, opts.destinationPlace);
+  const adriatic =
+    isBalkanPlaceHint(opts.destinationPlace ?? "") ||
+    (country != null && ["HR", "BA", "ME", "AL", "SI", "MK", "RS"].includes(country));
 
   const climate =
     iata && opts.departDate
@@ -107,7 +195,10 @@ export function buildWeatherWidgetFallback(opts: {
     ...(opts.context?.regionClimate?.flatMap((r) => r.hints) ?? []),
   ].filter(Boolean);
 
+  const seasonFromClimate = adriatic && month ? adriaticSeason(month, lang) : "";
+
   const season =
+    seasonFromClimate ||
     hints[0]?.trim() ||
     opts.context?.weatherLabel ||
     planLangCopy(lang, {
@@ -122,6 +213,8 @@ export function buildWeatherWidgetFallback(opts: {
   let avgTemp = "";
   if (opts.context?.tempC != null) {
     avgTemp = `${opts.context.tempC}°C`;
+  } else if (country && month && MONTH_TEMP_RANGE[country]?.[month]) {
+    avgTemp = MONTH_TEMP_RANGE[country]![month]!;
   } else if (dest && month && MONTH_TEMP_RANGE[dest.country]?.[month]) {
     avgTemp = MONTH_TEMP_RANGE[dest.country]![month]!;
   } else if (month && iata === "BKK") {

@@ -233,4 +233,49 @@ describe("repairTransportLegs", () => {
       },
     ]);
   });
+
+  it("relabels self-drive van stages as car on a car road trip", () => {
+    const legs = repairTransportLegs(
+      [
+        {
+          type: "van",
+          from: "Črna na Koroškem, SI",
+          to: "Zadar, HR",
+          duration: "4h 15m",
+          estimatedPrice: 30,
+        },
+      ],
+      {
+        dayNumber: 1,
+        city: "Zadar",
+        previousCity: "Črna na Koroškem",
+        groundTransportMode: "car",
+      },
+    );
+    expect(legs?.[0]?.type).toBe("car");
+    expect(legs?.[0]?.from).toMatch(/Črna/i);
+    expect(legs?.[0]?.to).toMatch(/Zadar/i);
+  });
+
+  it("rebases leftover ferry from yesterday's city onto today's overnight", () => {
+    const legs = repairTransportLegs(
+      [
+        {
+          type: "ferry",
+          from: "Shkoder",
+          to: "Lokrum Island",
+          duration: "1h",
+          estimatedPrice: 20,
+        },
+      ],
+      {
+        dayNumber: 9,
+        city: "Dubrovnik",
+        previousCity: "Shkoder",
+        groundTransportMode: "car",
+      },
+    );
+    expect(legs?.[0]?.from).toMatch(/Dubrovnik/i);
+    expect(legs?.[0]?.to).toMatch(/Lokrum/i);
+  });
 });

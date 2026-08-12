@@ -16,6 +16,7 @@ import {
 } from "@/lib/geminiProCatalog";
 import type { AiTripPlan } from "@/lib/aiPlan.functions";
 import { DESTINATION_BY_IATA } from "@/lib/destinationCoords";
+import { sanitizeGroundDestinationPlace } from "@/lib/groundTransport";
 
 const SL_MONTHS = [
   "januar",
@@ -148,11 +149,18 @@ export const generateGeminiProTripInputSchema = z
     }
   });
 
-const generateInput = generateGeminiProTripInputSchema.transform((data) => ({
+/** Shared by the server fn and `/api/generate-itinerary` — do not duplicate FCO defaults. */
+export const generateTripInputSchema = generateGeminiProTripInputSchema.transform((data) => ({
   ...data,
-  originIata: data.originIata ?? "LJU",
-  destinationIata: data.destinationIata ?? "FCO",
+  destinationPlace: data.destinationPlace
+    ? sanitizeGroundDestinationPlace(data.destinationPlace)
+    : data.destinationPlace,
+  // Ground trips must not inherit Rome (FCO) — that made Balkan car plans say “visa for Italy”.
+  originIata: data.originIata ?? (data.groundTransportMode ? "" : "LJU"),
+  destinationIata: data.destinationIata ?? (data.groundTransportMode ? "" : "FCO"),
 }));
+
+const generateInput = generateTripInputSchema;
 
 export type GenerateGeminiProTripInput = z.infer<typeof generateInput>;
 
