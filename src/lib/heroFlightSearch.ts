@@ -21,6 +21,7 @@ import {
   parseMakeSearchFlights,
   parseMakeSearchStatus,
   parseMakeSearchUserMessage,
+  selectTopMakeSearchFlights,
   tagMakeSearchFlightsWithOrigin,
   unwrapMakeSearchOffersPayload,
   type HeroTripSearchHints,
@@ -50,20 +51,6 @@ const ParsedQuerySchema = z.object({
 
 export type ParsedHeroQuery = z.infer<typeof ParsedQuerySchema>;
 
-const RankedFlightSchema = z.object({
-  offer_id: z.string(),
-  destinacija: z.string(),
-  cena_eur: z.number(),
-  odhod: z.string(),
-  prevoznik: z.string(),
-  postanki: z.string(),
-  ai_povzetek: z.string(),
-});
-
-const RankResponseSchema = z.object({
-  flights: z.array(RankedFlightSchema).max(3),
-});
-
 const PARSE_SYSTEM = `You extract flight search parameters from natural-language travel queries.
 Return ONE JSON object with these keys:
 - origin_iata: 3-letter IATA airport code. If origin is not specified, use "LJU" (Ljubljana).
@@ -92,11 +79,6 @@ Hong Kong→HKG, Phuket→HKT, Kuala Lumpur→KUL, Jakarta→CGK, Manila→MNL, 
 Cancun→CUN, Mexico City→MEX, Buenos Aires→EZE, Rio→GIG, Lima→LIM, Bogota→BOG.
 
 Use uppercase IATA codes only. Pick the primary international airport for each city.`;
-
-const RANK_SYSTEM = `You are a travel assistant. From Duffel flight offers, pick the best 3 for the user's query.
-Prefer good value, reasonable duration, and fewer stops. Respect budget_eur when provided.
-Return JSON: { "flights": [ { "offer_id": "...", "destinacija": "...", "cena_eur": number, "odhod": "human-readable departure (date + time)", "prevoznik": "airline name", "postanki": "0" or "1" or "2+", "ai_povzetek": "1-2 sentence summary in the user's language" } ] }
-Include at most 3 flights. Every offer_id must come from the input list.`;
 
 function addDays(isoDate: string, days: number): string {
   const d = new Date(`${isoDate}T12:00:00Z`);
@@ -254,29 +236,6 @@ async function parseQueryWithOpenAI(
   return parsed;
 }
 
-function summarizeOffersForRank(flights: DuffelFlight[]): unknown[] {
-  return flights.slice(0, 15).map((f) => ({
-    offer_id: f.id,
-    price_eur: f.price,
-    airline: f.airline,
-    origin: f.outbound.from,
-    destination: f.outbound.to,
-    depart_date: f.outbound.date,
-    depart_time: f.outbound.depart,
-    arrive_time: f.outbound.arrive,
-    duration: f.duration,
-    stops: f.stops,
-    return_leg: f.inbound
-      ? {
-          depart_date: f.inbound.date,
-          depart_time: f.inbound.depart,
-          arrive_time: f.inbound.arrive,
-          stops: f.inbound.stops,
-        }
-      : null,
-  }));
-}
-
 function formatFallbackDeparture(flight: DuffelFlight): string {
   const leg = flight.outbound;
   return `${leg.date}, ${leg.depart}`;
@@ -328,89 +287,19 @@ export function duffelFlightToMakeSearchFlight(
   };
 }
 
-function mapDuffelToHeroFlight(
-  flight: DuffelFlight,
+/**
+ * Deterministic top-3 by price + travel-time penalty (same as Make merge/rank).
+ * No LLM ranking on the direct Duffel path.
+ */
+export function rankDuffelOffersForHero(
+  flights: DuffelFlight[],
   destinationName?: string,
-  aiSummary = "",
-): MakeSearchFlight {
-  return duffelFlightToMakeSearchFlight(flight, destinationName, aiSummary);
-}
-
-function fallbackTopFlights(
-  flights: DuffelFlight[],
-  parsed: ParsedHeroQuery,
 ): MakeSearchFlight[] {
-  return flights.slice(0, 3).map((f) =>
-    mapDuffelToHeroFlight(
-      f,
-      parsed.destination_name,
-      f.stops === 0
-        ? "Neposreden let — dobra cena."
-        : `${f.stops} postanek(a) — ugoden let.`,
-    ),
-  );
-}
-
-async function rankFlightsWithOpenAI(
-  query: string,
-  parsed: ParsedHeroQuery,
-  flights: DuffelFlight[],
-): Promise<MakeSearchFlight[]> {
   if (flights.length === 0) return [];
-
-  const summaries = summarizeOffersForRank(flights);
-  const userPayload = JSON.stringify({
-    user_query: query,
-    budget_eur: parsed.budget_eur ?? null,
-    destination_name: parsed.destination_name ?? parsed.destination_iata,
-    offers: summaries,
-  });
-
-  const result = await generateJson<unknown>({
-    role: "skeleton",
-    provider: "openai",
-    model: "gpt-4o-mini",
-    system: RANK_SYSTEM,
-    user: userPayload,
-    maxTokens: 1200,
-    timeoutMs: 10_000,
-    label: "hero-search/rank",
-  });
-
-  if (!result.data) {
-    return fallbackTopFlights(flights, parsed);
-  }
-
-  const ranked = RankResponseSchema.safeParse(result.data);
-  if (!ranked.success || ranked.data.flights.length === 0) {
-    return fallbackTopFlights(flights, parsed);
-  }
-
-  const byId = new Map(flights.map((f) => [f.id, f]));
-  const output: MakeSearchFlight[] = [];
-
-  for (const item of ranked.data.flights) {
-    const source = byId.get(item.offer_id);
-    if (!source) continue;
-    const mapped = duffelFlightToMakeSearchFlight(
-      source,
-      item.destinacija || parsed.destination_name || parsed.destination_iata,
-      item.ai_povzetek,
-    );
-    output.push({
-      ...mapped,
-      // Keep AI copy for display fields; never drop return / airline IATA from Duffel.
-      cena_eur: item.cena_eur || mapped.cena_eur,
-      odhod: item.odhod || mapped.odhod,
-      prevoznik: item.prevoznik || mapped.prevoznik,
-    });
-  }
-
-  if (output.length === 0) {
-    return fallbackTopFlights(flights, parsed);
-  }
-
-  return output.slice(0, 3);
+  const mapped = flights.map((f) =>
+    duffelFlightToMakeSearchFlight(f, destinationName),
+  );
+  return selectTopMakeSearchFlights(mapped);
 }
 
 export type HeroFlightSearchLocation = {
@@ -876,7 +765,7 @@ async function searchViaDirectDuffel(
       tripType === "openjaw" ? "multicity" : tripType === "oneway" ? "oneway" : "return",
     pax,
     supplierTimeoutMs: 12_000,
-    maxOffers: 20,
+    maxOffers: 40,
   });
 
   if ("error" in duffelResult) {
@@ -887,7 +776,10 @@ async function searchViaDirectDuffel(
     return { ok: false, error: message, status: 502 };
   }
 
-  const flights = await rankFlightsWithOpenAI(query, parsed, duffelResult.flights);
+  const flights = rankDuffelOffersForHero(
+    duffelResult.flights,
+    parsed.destination_name ?? parsed.destination_iata,
+  );
   return { ok: true, flights, parsed };
 }
 
@@ -911,7 +803,7 @@ async function runHeroFlightSearch(
   return searchViaDirectDuffel(query, attachment, tripHints);
 }
 
-/** Natural-language hero search: Duffel direct (default) or opt-in Make → Duffel fallback. */
+/** Natural-language hero search: Duffel direct + value score (default), or opt-in Make. */
 export async function searchHeroFlights(
   query: string,
   attachment?: HeroChatAttachmentPayload,

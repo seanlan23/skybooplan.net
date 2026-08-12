@@ -6,10 +6,12 @@ import {
   defaultDateTo,
   duffelFlightToMakeSearchFlight,
   isMakeFlightSearchPrimary,
+  rankDuffelOffersForHero,
   shouldFallbackFromMakeToDuffel,
   type HeroFlightSearchResult,
 } from "@/lib/heroFlightSearch";
 import { resolveMakeFlightLegAirports } from "@/lib/flightCardRoute";
+import { scoreMakeSearchFlight } from "@/lib/makeSearch";
 
 describe("coerceParsedHeroQuery", () => {
   it("normalizes OpenAI-style payload with defaults", () => {
@@ -181,5 +183,53 @@ describe("duffelFlightToMakeSearchFlight", () => {
     expect(card.return_date).toBe("2026-09-26");
     expect(card.postanki).toBe("1/1");
     expect(resolveMakeFlightLegAirports(card).hasReturn).toBe(true);
+  });
+
+  it("ranks by price+time score — long cheap layover loses to shorter offer", () => {
+    const cheapLong: DuffelFlight = {
+      ...roundTrip,
+      id: "off_long",
+      price: 800,
+      duration: "31h",
+      durationMin: 31 * 60,
+      outbound: {
+        ...roundTrip.outbound,
+        duration: "20h",
+        durationMin: 20 * 60,
+        stops: 2,
+      },
+      inbound: {
+        ...roundTrip.inbound!,
+        duration: "11h",
+        durationMin: 11 * 60,
+        stops: 1,
+      },
+    };
+    const fairFaster: DuffelFlight = {
+      ...roundTrip,
+      id: "off_fair",
+      price: 954,
+      duration: "20h 35m",
+      durationMin: 20 * 60 + 35,
+      outbound: {
+        ...roundTrip.outbound,
+        duration: "12h 30m",
+        durationMin: 12 * 60 + 30,
+        stops: 1,
+      },
+      inbound: {
+        ...roundTrip.inbound!,
+        duration: "8h 5m",
+        durationMin: 8 * 60 + 5,
+        stops: 0,
+      },
+    };
+
+    const top = rankDuffelOffersForHero([cheapLong, fairFaster], "New York");
+    expect(top[0]?.id).toBe("off_fair");
+    expect(top[0]?.badge).toMatch(/^best/);
+    expect(scoreMakeSearchFlight(top[0]!)).toBeLessThan(
+      scoreMakeSearchFlight(duffelFlightToMakeSearchFlight(cheapLong)),
+    );
   });
 });
