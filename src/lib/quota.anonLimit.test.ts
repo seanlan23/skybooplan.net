@@ -3,8 +3,8 @@ import { ANON_FREE_COMPLETE_PLANS } from "@/lib/quota.server";
 import { isSoftQuotaError } from "@/lib/i18n";
 
 describe("anon plan quota", () => {
-  it("allows one complete free plan per IP", () => {
-    expect(ANON_FREE_COMPLETE_PLANS).toBe(1);
+  it("allows three complete free plans per IP", () => {
+    expect(ANON_FREE_COMPLETE_PLANS).toBe(3);
   });
 
   it("treats quota messages as soft (non-red) errors", () => {

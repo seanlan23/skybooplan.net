@@ -65,7 +65,7 @@ export function checkPlacesSearchRateLimit(ip: string): { allowed: boolean } {
 }
 
 /** Free complete AI plans per IP before asking the guest to take a break / sign in. */
-export const ANON_FREE_COMPLETE_PLANS = 1;
+export const ANON_FREE_COMPLETE_PLANS = 3;
 
 function quotaErrorResponse(errorKey: string): Response {
   return Response.json({ error: errorKey }, { status: 429 });
