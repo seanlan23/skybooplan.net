@@ -16,7 +16,8 @@ describe("buildTripCostSummary", () => {
     expect(s.overnight.totalEur).toBe(55 * 14);
   });
 
-  it("hero per-adult × adults", () => {
+  it("hero per-adult × adults; party_total stays as-is", () => {
     expect(heroFlightPartyTotalEur(1437, 2)).toBe(2874);
+    expect(heroFlightPartyTotalEur(1564, 2, "party_total")).toBe(1564);
   });
 });

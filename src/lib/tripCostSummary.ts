@@ -37,7 +37,16 @@ export function buildTripCostSummary(opts: {
   };
 }
 
-/** Hero cards are priced per adult; classic Duffel `price` is already party total. */
-export function heroFlightPartyTotalEur(pricePerAdult: number, adults: number): number {
-  return Math.max(0, Math.round(pricePerAdult * Math.max(1, adults)));
+/**
+ * Party total for the selected hero flight.
+ * Duffel cards use `price_basis: party_total` (do not multiply).
+ * Legacy Make cards are per-adult.
+ */
+export function heroFlightPartyTotalEur(
+  priceEur: number,
+  adults: number,
+  priceBasis?: "per_adult" | "party_total",
+): number {
+  if (priceBasis === "party_total") return Math.max(0, Math.round(priceEur));
+  return Math.max(0, Math.round(priceEur * Math.max(1, adults)));
 }

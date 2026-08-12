@@ -314,7 +314,7 @@ export function filterFlightsForTripType(
 async function createDuffelOfferRequest(
   token: string,
   slices: ReturnType<typeof buildDuffelSlices>,
-  passengers: Array<{ type: "adult" }>,
+  passengers: Array<{ type: "adult" | "child" }>,
   cabinClass: string,
   supplierTimeoutMs = DUFFEL_SUPPLIER_TIMEOUT_MS,
 ): Promise<{ offerRequestId: string } | { error: string }> {
@@ -380,11 +380,26 @@ export type SimpleDuffelSearchInput = {
   /** Open-jaw: return-leg origin (fly home from a different hub). */
   returnFromIata?: string;
   tripType?: "return" | "oneway" | "multicity";
+  /** Total travelers (legacy). Prefer adults + children when available. */
   pax: number;
+  adults?: number;
+  children?: number;
   cabinClass?: FlightSearchInput["cabinClass"];
   supplierTimeoutMs?: number;
   maxOffers?: number;
 };
+
+function buildDuffelPassengers(
+  adults: number,
+  children: number,
+): Array<{ type: "adult" | "child" }> {
+  const a = Math.min(9, Math.max(1, adults));
+  const c = Math.min(8, Math.max(0, children));
+  return [
+    ...Array.from({ length: a }, () => ({ type: "adult" as const })),
+    ...Array.from({ length: c }, () => ({ type: "child" as const })),
+  ];
+}
 
 /** Duffel offer search for hero / API routes (no TanStack server fn). */
 export async function searchDuffelOffers(
@@ -423,7 +438,9 @@ export async function searchDuffelOffers(
       };
 
   const slices = buildDuffelSlices(flightInput);
-  const passengers = Array.from({ length: input.pax }, () => ({ type: "adult" as const }));
+  const adults = Math.min(9, Math.max(1, input.adults ?? input.pax));
+  const children = Math.min(8, Math.max(0, input.children ?? 0));
+  const passengers = buildDuffelPassengers(adults, children);
   const cabinClass = flightInput.cabinClass ?? "economy";
 
   try {

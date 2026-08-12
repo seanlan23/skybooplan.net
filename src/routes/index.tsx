@@ -793,6 +793,8 @@ function Landing() {
               : {}),
             originIata: hintCtx.from,
             destinationIata: hintCtx.to,
+            adults: hintCtx.adults,
+            children: hintCtx.childrenAges?.length ?? 0,
           },
           ...(userLocation
             ? {
@@ -1186,7 +1188,11 @@ function Landing() {
       returnDate: returnDate || undefined,
       ...(returnFromIata && returnFromIata !== to ? { returnFromIata } : {}),
       flights: flightCtx,
-      flightTotalEur: heroFlightPartyTotalEur(flight.cena_eur, adultsForPrice),
+      flightTotalEur: heroFlightPartyTotalEur(
+        flight.cena_eur,
+        adultsForPrice,
+        flight.price_basis,
+      ),
     });
 
     window.setTimeout(() => {

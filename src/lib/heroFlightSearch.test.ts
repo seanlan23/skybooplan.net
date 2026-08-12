@@ -185,28 +185,30 @@ describe("duffelFlightToMakeSearchFlight", () => {
     expect(resolveMakeFlightLegAirports(card).hasReturn).toBe(true);
   });
 
-  it("converts Duffel party total into per-adult cena_eur for the card", () => {
-    const card = duffelFlightToMakeSearchFlight(roundTrip, "Thailand", "", { pax: 2 });
-    expect(card.cena_eur).toBe(Math.round(1437 / 2));
+  it("keeps Duffel party total and marks price_basis for the card label", () => {
+    const card = duffelFlightToMakeSearchFlight(roundTrip, "Thailand", "", { travelers: 3 });
+    expect(card.cena_eur).toBe(1437);
+    expect(card.price_basis).toBe("party_total");
+    expect(card.travelers).toBe(3);
   });
 
   it("ranks by price+time score — long cheap layover loses to shorter offer", () => {
     const cheapLong: DuffelFlight = {
       ...roundTrip,
       id: "off_long",
-      price: 1600,
-      duration: "31h",
-      durationMin: 31 * 60,
+      price: 1700,
+      duration: "40h",
+      durationMin: 40 * 60,
       outbound: {
         ...roundTrip.outbound,
-        duration: "20h",
-        durationMin: 20 * 60,
+        duration: "26h",
+        durationMin: 26 * 60,
         stops: 2,
       },
       inbound: {
         ...roundTrip.inbound!,
-        duration: "11h",
-        durationMin: 11 * 60,
+        duration: "14h",
+        durationMin: 14 * 60,
         stops: 1,
       },
     };
@@ -230,12 +232,16 @@ describe("duffelFlightToMakeSearchFlight", () => {
       },
     };
 
-    const top = rankDuffelOffersForHero([cheapLong, fairFaster], "New York", 2);
+    const top = rankDuffelOffersForHero([cheapLong, fairFaster], "New York", 3);
     expect(top[0]?.id).toBe("off_fair");
     expect(top[0]?.badge).toMatch(/^best/);
-    expect(top[0]?.cena_eur).toBe(Math.round(1908 / 2));
+    expect(top[0]?.cena_eur).toBe(1908);
+    expect(top[0]?.price_basis).toBe("party_total");
+    expect(top[0]?.travelers).toBe(3);
     expect(scoreMakeSearchFlight(top[0]!)).toBeLessThan(
-      scoreMakeSearchFlight(duffelFlightToMakeSearchFlight(cheapLong, undefined, "", { pax: 2 })),
+      scoreMakeSearchFlight(
+        duffelFlightToMakeSearchFlight(cheapLong, undefined, "", { travelers: 3 }),
+      ),
     );
   });
 });

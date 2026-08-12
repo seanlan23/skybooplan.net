@@ -528,7 +528,12 @@ export function FlightCard({
               {formatPrice(flight.cena_eur, lang)}
             </p>
             <p className="mt-0.5 text-[10px] text-muted-foreground">
-              {t("results.perAdult" as never)}
+              {flight.price_basis === "party_total"
+                ? t("results.totalForTravelers" as never).replace(
+                    "{n}",
+                    String(Math.max(1, flight.travelers ?? adults)),
+                  )
+                : t("results.perAdult" as never)}
             </p>
           </div>
 

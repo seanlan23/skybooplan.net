@@ -12,6 +12,13 @@ export type MakeSearchFlight = {
   id: string;
   destinacija: string;
   cena_eur: number;
+  /**
+   * How `cena_eur` should be read in the UI.
+   * Duffel offer totals are party totals; legacy Make cards are often per-adult.
+   */
+  price_basis?: "per_adult" | "party_total";
+  /** Traveler count when `price_basis` is party_total (adults + children). */
+  travelers?: number;
   odhod: string;
   /** Return-leg departure when the offer has a second Duffel slice. */
   povratek?: string;
@@ -1195,6 +1202,8 @@ export type HeroTripSearchHints = {
   returnDate?: string;
   originIata?: string;
   destinationIata?: string;
+  adults?: number;
+  children?: number;
 };
 
 export type SearchRequestBody = {
@@ -1739,6 +1748,15 @@ export function applyHeroTripHints(
     ];
   }
 
+  const adultsHint =
+    typeof hints.adults === "number" && Number.isFinite(hints.adults)
+      ? Math.min(9, Math.max(1, Math.round(hints.adults)))
+      : null;
+  const childrenHint =
+    typeof hints.children === "number" && Number.isFinite(hints.children)
+      ? Math.min(8, Math.max(0, Math.round(hints.children)))
+      : null;
+
   return {
     ...parsed,
     origin_airports,
@@ -1750,6 +1768,10 @@ export function applyHeroTripHints(
     departure_date: departDate,
     return_date: returnDate,
     trip_type: tripType,
+    passengers: {
+      adults: adultsHint ?? parsed.passengers.adults,
+      children: childrenHint ?? parsed.passengers.children,
+    },
     ...(returnFrom && /^[A-Z]{3}$/.test(returnFrom)
       ? { return_from_airport: returnFrom }
       : { return_from_airport: null }),
@@ -1959,6 +1981,16 @@ export function parseSearchRequestBody(body: unknown): SearchRequestBody | null 
       "destinationIata",
       "destination_iata",
     ).toUpperCase();
+    const adultsRaw = hintsRaw.adults;
+    const childrenRaw = hintsRaw.children;
+    const adults =
+      typeof adultsRaw === "number" && Number.isFinite(adultsRaw)
+        ? Math.min(9, Math.max(1, Math.round(adultsRaw)))
+        : undefined;
+    const children =
+      typeof childrenRaw === "number" && Number.isFinite(childrenRaw)
+        ? Math.min(8, Math.max(0, Math.round(childrenRaw)))
+        : undefined;
     tripHints = {
       ...(tripType ? { tripType } : {}),
       ...( /^[A-Z]{3}$/.test(returnFromIata) ? { returnFromIata } : {}),
@@ -1966,6 +1998,8 @@ export function parseSearchRequestBody(body: unknown): SearchRequestBody | null 
       ...( /^\d{4}-\d{2}-\d{2}$/.test(returnDate) ? { returnDate } : {}),
       ...( /^[A-Z]{3}$/.test(originIata) ? { originIata } : {}),
       ...( /^[A-Z]{3}$/.test(destinationIata) ? { destinationIata } : {}),
+      ...(adults != null ? { adults } : {}),
+      ...(children != null ? { children } : {}),
     };
   }
 

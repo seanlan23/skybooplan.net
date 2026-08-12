@@ -246,7 +246,7 @@ export function duffelFlightToMakeSearchFlight(
   flight: DuffelFlight,
   destinationName?: string,
   aiSummary = "",
-  opts?: { pax?: number },
+  opts?: { travelers?: number },
 ): MakeSearchFlight {
   const out = flight.outbound;
   const inn = flight.inbound;
@@ -255,14 +255,15 @@ export function duffelFlightToMakeSearchFlight(
     ? `${outStops}/${inn.stops === 0 ? "0" : String(inn.stops)}`
     : outStops;
   const airlineIata = (flight.airlineCode || out.airlineCode || "").toUpperCase();
-  // Duffel total_amount is for the whole party; cards show "per adult".
-  const pax = Math.max(1, opts?.pax ?? 1);
-  const cena_eur = Math.max(1, Math.round(flight.price / pax));
+  // Duffel total_amount is always the party total for the searched passengers.
+  const travelers = Math.max(1, opts?.travelers ?? 1);
 
   return {
     id: flight.id,
     destinacija: destinationName ?? out.to,
-    cena_eur,
+    cena_eur: flight.price,
+    price_basis: "party_total",
+    travelers,
     odhod: formatFallbackDeparture(flight),
     ...(inn
       ? {
@@ -298,11 +299,11 @@ export function duffelFlightToMakeSearchFlight(
 export function rankDuffelOffersForHero(
   flights: DuffelFlight[],
   destinationName?: string,
-  pax = 1,
+  travelers = 1,
 ): MakeSearchFlight[] {
   if (flights.length === 0) return [];
   const mapped = flights.map((f) =>
-    duffelFlightToMakeSearchFlight(f, destinationName, "", { pax }),
+    duffelFlightToMakeSearchFlight(f, destinationName, "", { travelers }),
   );
   return selectTopMakeSearchFlights(mapped);
 }
@@ -748,6 +749,8 @@ async function searchViaDirectDuffel(
       return_date: hinted.return_date || null,
       trip_type: hinted.trip_type,
       return_from_iata: hinted.return_from_airport || null,
+      adults: hinted.passengers.adults,
+      children: hinted.passengers.children,
     };
   }
 
@@ -755,7 +758,9 @@ async function searchViaDirectDuffel(
     return { ok: false, error: "heroSearch.error", status: 503 };
   }
 
-  const pax = Math.min(9, parsed.adults + (parsed.children ?? 0));
+  const adults = Math.min(9, Math.max(1, parsed.adults));
+  const children = Math.min(8, Math.max(0, parsed.children ?? 0));
+  const travelers = Math.min(9, adults + children);
   const tripType = parsed.trip_type ?? "return";
   const returnDate =
     tripType !== "oneway" && parsed.return_date ? parsed.return_date : undefined;
@@ -768,7 +773,9 @@ async function searchViaDirectDuffel(
     returnFromIata: parsed.return_from_iata || undefined,
     tripType:
       tripType === "openjaw" ? "multicity" : tripType === "oneway" ? "oneway" : "return",
-    pax,
+    pax: travelers,
+    adults,
+    children,
     supplierTimeoutMs: 12_000,
     maxOffers: 40,
   });
@@ -784,7 +791,7 @@ async function searchViaDirectDuffel(
   const flights = rankDuffelOffersForHero(
     duffelResult.flights,
     parsed.destination_name ?? parsed.destination_iata,
-    pax,
+    travelers,
   );
   return { ok: true, flights, parsed };
 }
