@@ -25,13 +25,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession);
       setUser(newSession?.user ?? null);
-      router.invalidate();
-      queryClient.invalidateQueries();
+      void router.invalidate().catch((error) => {
+        console.error("[auth] router invalidate failed", error);
+      });
+      void queryClient.invalidateQueries();
     });
 
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
       setUser(data.session?.user ?? null);
+      setLoading(false);
+    }).catch((error) => {
+      console.error("[auth] getSession failed", error);
+      setSession(null);
+      setUser(null);
       setLoading(false);
     });
 

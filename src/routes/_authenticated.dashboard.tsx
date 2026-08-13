@@ -58,8 +58,14 @@ function DashboardPage() {
       .select("id,title,destination,start_date,end_date,cover_image_url,created_at")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
-      .then(({ data }) => {
+      .then(({ data, error }) => {
+        if (error) console.error("[dashboard] load plans", error.message);
         setPlans(data ?? []);
+        setLoading(false);
+      })
+      .catch((error) => {
+        console.error("[dashboard] load plans failed", error);
+        setPlans([]);
         setLoading(false);
       });
   }, [user]);

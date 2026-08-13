@@ -123,7 +123,7 @@ export function HotelsSection({
     [checkIn, checkOut, adults, rooms, childrenAges, aid],
   );
 
-  const [sort, setSort] = useState<HotelResultSort>("top");
+  const [sort, setSort] = useState<HotelResultSort>(bookingFirst ? "top" : "priceAsc");
   const [minRating, setMinRating] = useState(0);
   const [starFilter, setStarFilter] = useState<number[]>([]);
   const [maxPerNight, setMaxPerNight] = useState<number | null>(null);
@@ -212,6 +212,9 @@ export function HotelsSection({
   const hasStars = realHotels.some((h) => (h.stars ?? 0) >= 3);
 
   const filtered = useMemo(() => {
+    if (!bookingFirst) {
+      return sortHotels(realHotels, sort === "top" ? "priceAsc" : sort);
+    }
     const next = applyHotelFilters(realHotels, nights, {
       maxPerNight: budgetMax,
       minRating,
@@ -219,7 +222,7 @@ export function HotelsSection({
       ...popular,
     });
     return sortHotels(next, sort);
-  }, [realHotels, nights, budgetMax, minRating, starFilter, sort, popular]);
+  }, [bookingFirst, realHotels, nights, budgetMax, minRating, starFilter, sort, popular]);
 
   const popularCounts = useMemo(() => {
     const count = (pred: (h: (typeof realHotels)[number]) => boolean) =>
@@ -276,21 +279,23 @@ export function HotelsSection({
 
   return (
     <div className="border-t border-slate-100 pt-2" onClick={(e) => e.stopPropagation()}>
-      <div className="mb-3 mt-2 flex flex-wrap items-center justify-between gap-3">
+      <div className="mb-3 mt-3 flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2 font-bold text-slate-900">
-            <Hotel className="h-5 w-5 text-[#0071c2]" />
+            <Hotel className={`h-5 w-5 ${bookingFirst ? "text-[#0071c2]" : "text-sky-600"}`} />
             {t("aiplan.hotelsIn" as never)} {sourceCity}
           </div>
-          <p className="mt-0.5 text-xs text-slate-500">
-            {dateLabel}
-            {" · "}
-            {adults} {t("heroChat.passengers.adults" as never).toLowerCase()}
-            {childrenAges.length > 0
-              ? ` · ${childrenAges.length} ${t("heroChat.passengers.children" as never).toLowerCase()}`
-              : ""}
-            {` · ${rooms} ${rooms === 1 ? t("trav.room") : t("trav.roomsPlural")}`}
-          </p>
+          {bookingFirst ? (
+            <p className="mt-0.5 text-xs text-slate-500">
+              {dateLabel}
+              {" · "}
+              {adults} {t("heroChat.passengers.adults" as never).toLowerCase()}
+              {childrenAges.length > 0
+                ? ` · ${childrenAges.length} ${t("heroChat.passengers.children" as never).toLowerCase()}`
+                : ""}
+              {` · ${rooms} ${rooms === 1 ? t("trav.room") : t("trav.roomsPlural")}`}
+            </p>
+          ) : null}
         </div>
         {!bookingFirst ? <BookingCta href={bookingHref} label={t("aiplan.browseHotels" as never)} /> : null}
       </div>
@@ -337,6 +342,77 @@ export function HotelsSection({
             </div>
           </div>
         )
+      ) : !bookingFirst ? (
+        <>
+          <div className="mb-3 flex flex-wrap items-center gap-2 text-xs">
+            <span className="font-medium text-slate-500">{t("aiplan.sortBy" as never)}</span>
+            {(["priceAsc", "priceDesc", "ratingDesc"] as const).map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setSort(s)}
+                className={`rounded-full border px-2.5 py-1 transition-colors ${
+                  sort === s
+                    ? "border-sky-600 bg-sky-600 text-white"
+                    : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+                }`}
+              >
+                {t(`aiplan.${s}` as never)}
+              </button>
+            ))}
+          </div>
+          <div className="-mx-1 snap-x snap-mandatory overflow-x-auto pb-2">
+            <div className="flex gap-3 px-1">
+              {filtered.map((h) => {
+                const bookUrl = resolveHotelBookingUrl(h.bookingUrl, {
+                  ...bookingBase,
+                  destination: hotelSearchQueryAlias(sourceCity),
+                  hotelName: h.name,
+                  destId: dest?.destId,
+                  destType: dest?.destType,
+                  lang,
+                });
+                return (
+                  <BookingLink
+                    key={h.id}
+                    href={bookUrl}
+                    className="block w-[260px] shrink-0 snap-start overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:border-sky-200 hover:shadow-md"
+                  >
+                    <div className="relative h-36 w-full bg-slate-100">
+                      <img src={h.image} alt={h.name} loading="lazy" className="h-full w-full object-cover" />
+                      {h.rating > 0 ? (
+                        <div className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-md bg-sky-600 px-2 py-0.5 text-xs font-bold text-white shadow">
+                          {h.rating.toFixed(1)}
+                        </div>
+                      ) : null}
+                    </div>
+                    <div className="p-3">
+                      <div className="line-clamp-2 min-h-[2.5rem] text-sm font-semibold leading-tight text-slate-900">
+                        {h.name}
+                      </div>
+                      <div className="mt-1 text-[11px] text-slate-500">
+                        {fmtDate(checkIn)}
+                        {checkOut ? ` – ${fmtDate(checkOut)}` : ""}
+                      </div>
+                      <div className="mt-2 flex items-end justify-between gap-2">
+                        <div className="text-base font-bold text-slate-900">
+                          {h.price > 0 ? `€${h.price}` : "—"}
+                          <span className="text-xs font-normal text-slate-500">
+                            {t("aiplan.perNight" as never)}
+                          </span>
+                        </div>
+                        <span className="inline-flex items-center gap-1 rounded-md bg-sky-600 px-2.5 py-1.5 text-xs font-semibold text-white">
+                          {t("aiplan.book" as never)}
+                          <ExternalLink className="h-3 w-3" />
+                        </span>
+                      </div>
+                    </div>
+                  </BookingLink>
+                );
+              })}
+            </div>
+          </div>
+        </>
       ) : (
         <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
           <aside className="h-fit space-y-4 rounded-lg border border-slate-200 bg-white p-3 lg:sticky lg:top-4">
