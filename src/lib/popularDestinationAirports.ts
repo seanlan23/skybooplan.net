@@ -228,6 +228,16 @@ const COUNTRY_TO_HUBS: Array<{ aliases: string[]; iatas: string[] }> = [
     aliases: ["canada", "kanada"],
     iatas: ["YYZ", "YVR"],
   },
+  {
+    aliases: [
+      "kazakhstan",
+      "kazahstan",
+      "kasachstan",
+      "kazajistan",
+      "qazaqstan",
+    ],
+    iatas: ["NQZ", "ALA"],
+  },
 ];
 
 /** Instant local hits for “Želim drugam” before Duffel returns. */
@@ -945,6 +955,29 @@ const POPULAR_DESTINATION_AIRPORTS: AirportHub[] = [
     name: "Vancouver International",
     country: "CA",
     aliases: ["vancouver", "yvr", "canada", "kanada"],
+  },
+  {
+    iata: "NQZ",
+    city: "Astana",
+    name: "Nursultan Nazarbayev International",
+    country: "KZ",
+    aliases: [
+      "astana",
+      "nur-sultan",
+      "nursultan",
+      "nqz",
+      "tse",
+      "kazakhstan",
+      "kazahstan",
+      "kasachstan",
+    ],
+  },
+  {
+    iata: "ALA",
+    city: "Almaty",
+    name: "Almaty International",
+    country: "KZ",
+    aliases: ["almaty", "alma ata", "ala", "kazakhstan", "kazahstan", "kasachstan"],
   },
 ];
 

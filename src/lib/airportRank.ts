@@ -1,4 +1,4 @@
-import { searchAirportCatalog } from "@/lib/airportCatalog";
+import { normalizeAirportQuery, searchAirportCatalog } from "@/lib/airportCatalog";
 import type { PlaceSuggestion } from "@/lib/places.functions";
 
 /** Well-known hubs to surface when Duffel returns obscure homonyms (Sydney ≠ Sidney MT). */
@@ -44,6 +44,65 @@ const PREFERRED_BY_QUERY: Record<string, PlaceSuggestion[]> = {
   roma: [
     { iata: "FCO", name: "Rome Fiumicino", city: "Rome", country: "IT", type: "airport" },
   ],
+  astana: [
+    {
+      iata: "NQZ",
+      name: "Nursultan Nazarbayev International",
+      city: "Astana",
+      country: "KZ",
+      type: "airport",
+    },
+  ],
+  "nur-sultan": [
+    {
+      iata: "NQZ",
+      name: "Nursultan Nazarbayev International",
+      city: "Astana",
+      country: "KZ",
+      type: "airport",
+    },
+  ],
+  kazahstan: [
+    {
+      iata: "NQZ",
+      name: "Nursultan Nazarbayev International",
+      city: "Astana",
+      country: "KZ",
+      type: "airport",
+    },
+    {
+      iata: "ALA",
+      name: "Almaty International",
+      city: "Almaty",
+      country: "KZ",
+      type: "airport",
+    },
+  ],
+  kazakhstan: [
+    {
+      iata: "NQZ",
+      name: "Nursultan Nazarbayev International",
+      city: "Astana",
+      country: "KZ",
+      type: "airport",
+    },
+    {
+      iata: "ALA",
+      name: "Almaty International",
+      city: "Almaty",
+      country: "KZ",
+      type: "airport",
+    },
+  ],
+  almaty: [
+    {
+      iata: "ALA",
+      name: "Almaty International",
+      city: "Almaty",
+      country: "KZ",
+      type: "airport",
+    },
+  ],
 };
 
 /** Regional traps — demote when query clearly targets a major city. */
@@ -81,7 +140,26 @@ function injectedForQuery(query: string): PlaceSuggestion[] {
   if (/^paris/.test(q)) return PREFERRED_BY_QUERY.paris;
   if (/^london/.test(q)) return PREFERRED_BY_QUERY.london;
   if (/^rom[ae]/.test(q)) return PREFERRED_BY_QUERY.rome;
+  if (/^astan/.test(q) || /^nur[-\s]?sultan/.test(q)) return PREFERRED_BY_QUERY.astana;
+  if (/^kazahstan|^kazakhstan|^kasachstan/.test(q)) return PREFERRED_BY_QUERY.kazahstan;
+  if (/^almaty|^alma\s*ata/.test(q)) return PREFERRED_BY_QUERY.almaty;
   return [];
+}
+
+/** Drop Duffel/catalog noise that does not mention the typed city or IATA. */
+export function airportTextMatchesQuery(
+  suggestion: PlaceSuggestion,
+  query: string,
+): boolean {
+  const q = normalizeAirportQuery(query);
+  if (q.length < 2) return false;
+  const iata = suggestion.iata.toLowerCase();
+  if (iata === q || iata.startsWith(q)) return true;
+  const city = normalizeAirportQuery(suggestion.city);
+  const name = normalizeAirportQuery(suggestion.name);
+  if (city === q || city.startsWith(q) || (q.length >= 3 && city.includes(q))) return true;
+  if (q.length >= 3 && name.includes(q)) return true;
+  return false;
 }
 
 export function rankAirportSuggestions(
@@ -94,9 +172,12 @@ export function rankAirportSuggestions(
   const merged: PlaceSuggestion[] = [];
   const seen = new Set<string>();
 
+  const trusted = new Set(injected.map((p) => p.iata.toUpperCase()));
+
   for (const p of [...injected, ...catalog, ...suggestions]) {
     const key = p.iata.toUpperCase();
     if (!/^[A-Z]{3}$/.test(key) || seen.has(key)) continue;
+    if (!trusted.has(key) && !airportTextMatchesQuery(p, query)) continue;
     seen.add(key);
     merged.push({ ...p, iata: key });
   }

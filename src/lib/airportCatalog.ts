@@ -339,6 +339,29 @@ export const AIRPORT_HUBS: AirportHub[] = [
     country: "ES",
     aliases: ["malaga", "málaga", "agp"],
   },
+  {
+    iata: "NQZ",
+    city: "Astana",
+    name: "Nursultan Nazarbayev International",
+    country: "KZ",
+    aliases: [
+      "astana",
+      "nur-sultan",
+      "nursultan",
+      "nqz",
+      "tse",
+      "kazakhstan",
+      "kazahstan",
+      "kasachstan",
+    ],
+  },
+  {
+    iata: "ALA",
+    city: "Almaty",
+    name: "Almaty International",
+    country: "KZ",
+    aliases: ["almaty", "alma ata", "ala", "kazakhstan", "kazahstan", "kasachstan"],
+  },
 ];
 
 const HUB_BY_IATA = new Map(AIRPORT_HUBS.map((h) => [h.iata, h]));

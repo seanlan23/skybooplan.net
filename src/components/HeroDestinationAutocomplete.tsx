@@ -8,6 +8,7 @@ import {
 import { ArrowUp, Loader2, MapPin, Plane } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { useI18n } from "@/lib/i18n";
+import { airportTextMatchesQuery } from "@/lib/airportRank";
 import { searchPlaces, type PlaceSuggestion } from "@/lib/places.functions";
 import {
   formatDestinationAirportPick,
@@ -25,9 +26,11 @@ function mergeAirportSuggestions(
   const local = searchDestinationAirports(query, 8);
   const seen = new Set<string>();
   const out: PlaceSuggestion[] = [];
+  const trusted = new Set(local.map((s) => s.iata.toUpperCase()));
   for (const s of [...local, ...remote]) {
     const key = s.iata.toUpperCase();
     if (!/^[A-Z]{3}$/.test(key) || seen.has(key)) continue;
+    if (!trusted.has(key) && !airportTextMatchesQuery(s, query)) continue;
     seen.add(key);
     out.push({ ...s, iata: key });
     if (out.length >= 10) break;

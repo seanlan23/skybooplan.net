@@ -17,6 +17,21 @@ describe("searchDestinationAirports", () => {
     expect(hits[0]?.iata).toBe("MNL");
   });
 
+  it("suggests Astana (NQZ) with the city name", () => {
+    const hits = searchDestinationAirports("Astana");
+    expect(hits[0]?.iata).toBe("NQZ");
+    expect(hits[0]?.city).toBe("Astana");
+    expect(formatDestinationAirportPick(hits[0]!)).toEqual({
+      value: "Astana (NQZ)",
+      label: "Astana (NQZ)",
+    });
+  });
+
+  it("does not suggest European hubs for Kazakhstan", () => {
+    const iatas = searchDestinationAirports("Kazahstan").map((h) => h.iata);
+    expect(iatas).toEqual(["NQZ", "ALA"]);
+  });
+
   it("does not fuzzy-match unrelated hubs for phuke", () => {
     const hits = searchDestinationAirports("phuke");
     expect(hits.map((h) => h.iata)).toEqual(["HKT"]);
@@ -61,6 +76,8 @@ describe("searchDestinationAirports", () => {
     ["Tunesien", ["TUN", "DJE"]],
     ["Neuseeland", ["AKL", "CHC"]],
     ["Jamaika", ["MBJ", "KIN"]],
+    ["kazahstan", ["NQZ", "ALA"]],
+    ["Kazakhstan", ["NQZ", "ALA"]],
   ])("country %s returns ≥2 main hubs", (query, expected) => {
     const hits = searchDestinationAirports(query);
     const iatas = hits.map((h) => h.iata);

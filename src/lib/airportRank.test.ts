@@ -11,6 +11,18 @@ const sdy: PlaceSuggestion = {
 };
 
 describe("rankAirportSuggestions", () => {
+  it("keeps Astana (NQZ) and drops unrelated European airports", () => {
+    const ranked = rankAirportSuggestions("Astana", [
+      { iata: "FRA", name: "Frankfurt Airport", city: "Frankfurt", country: "DE", type: "airport" },
+      { iata: "GVA", name: "Geneva Airport", city: "Geneva", country: "CH", type: "airport" },
+      { iata: "HAM", name: "Hamburg Airport", city: "Hamburg", country: "DE", type: "airport" },
+    ]);
+    expect(ranked[0]?.iata).toBe("NQZ");
+    expect(ranked[0]?.city).toBe("Astana");
+    expect(ranked.map((h) => h.iata)).not.toContain("FRA");
+    expect(ranked.map((h) => h.iata)).not.toContain("GVA");
+  });
+
   it("prefers SYD over SDY for sydney query", () => {
     const ranked = rankAirportSuggestions("sydney", [sdy]);
     expect(ranked[0]?.iata).toBe("SYD");
