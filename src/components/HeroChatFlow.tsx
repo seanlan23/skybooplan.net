@@ -547,6 +547,11 @@ function chatPlaceholder(t: (key: never) => string): string {
   return t("heroChat.searchPlaceholder" as never);
 }
 
+/** Same breakpoint as HeroModeTabs: desktop already has Car / Motorhome tabs. */
+function heroHasRoadModeTabs(): boolean {
+  return typeof window !== "undefined" && window.matchMedia("(min-width: 640px)").matches;
+}
+
 export function HeroChatFlow({
   mode,
   onSearch,
@@ -760,6 +765,11 @@ export function HeroChatFlow({
       appendMessages(createChatMessage("user", userMessage));
 
       if (isFullPlan) {
+        if (heroHasRoadModeTabs()) {
+          setPlanTravel("flight");
+          continueFlightAfterDestination(destWithAirport);
+          return;
+        }
         appendMessages(createChatMessage("ai", t("heroChat.travelMode.ask" as never)));
         setStep("travelMode");
         return;
@@ -1125,8 +1135,8 @@ export function HeroChatFlow({
     setStep("searching");
   }
 
-  function continueFlightAfterDestination() {
-    const dest = collected.destination ?? "";
+  function continueFlightAfterDestination(destinationOverride?: string) {
+    const dest = destinationOverride ?? collected.destination ?? "";
     const destAir = withDestinationAirport(dest);
     if (destAir !== dest) {
       setCollected((prev) => ({ ...prev, destination: destAir }));
