@@ -5,6 +5,7 @@ import {
   searchAirportCatalog,
   type AirportHub,
 } from "@/lib/airportCatalog";
+import { searchWorldAirports } from "@/lib/worldAirports";
 
 /**
  * Country / region query (any common language) → at least 2 main airports.
@@ -1057,11 +1058,12 @@ export function searchDestinationAirports(
     const name = normalizeAirportQuery(s.name);
     return iata.startsWith(q) || city.includes(q) || name.includes(q);
   });
+  const fromWorld = searchWorldAirports(query, limit);
 
   const seen = new Set<string>();
   const out: PlaceSuggestion[] = [];
-  // Country hubs first (guarantees ≥2 for country queries), then city matches.
-  for (const s of [...fromCountry, ...fromPopular, ...fromCatalog]) {
+  // Country hubs first, then world IATA catalog, then popular/local matches.
+  for (const s of [...fromCountry, ...fromWorld, ...fromPopular, ...fromCatalog]) {
     const key = s.iata.toUpperCase();
     if (!/^[A-Z]{3}$/.test(key) || seen.has(key)) continue;
     seen.add(key);

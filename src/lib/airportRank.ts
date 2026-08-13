@@ -172,12 +172,16 @@ export function rankAirportSuggestions(
   const merged: PlaceSuggestion[] = [];
   const seen = new Set<string>();
 
-  const trusted = new Set(injected.map((p) => p.iata.toUpperCase()));
-
-  for (const p of [...injected, ...catalog, ...suggestions]) {
+  for (const p of [...injected, ...catalog]) {
     const key = p.iata.toUpperCase();
     if (!/^[A-Z]{3}$/.test(key) || seen.has(key)) continue;
-    if (!trusted.has(key) && !airportTextMatchesQuery(p, query)) continue;
+    seen.add(key);
+    merged.push({ ...p, iata: key });
+  }
+  for (const p of suggestions) {
+    const key = p.iata.toUpperCase();
+    if (!/^[A-Z]{3}$/.test(key) || seen.has(key)) continue;
+    if (!airportTextMatchesQuery(p, query)) continue;
     seen.add(key);
     merged.push({ ...p, iata: key });
   }

@@ -29,7 +29,11 @@ describe("searchDestinationAirports", () => {
 
   it("does not suggest European hubs for Kazakhstan", () => {
     const iatas = searchDestinationAirports("Kazahstan").map((h) => h.iata);
-    expect(iatas).toEqual(["NQZ", "ALA"]);
+    expect(iatas[0]).toBe("NQZ");
+    expect(iatas).toContain("ALA");
+    expect(iatas).not.toContain("FRA");
+    expect(iatas).not.toContain("MAN");
+    expect(iatas).not.toContain("CGN");
   });
 
   it("does not fuzzy-match unrelated hubs for phuke", () => {

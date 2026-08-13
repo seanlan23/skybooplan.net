@@ -8,6 +8,7 @@
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
+    "airports:build": "node scripts/build-world-airports.mjs",
     "lint": "eslint .",
     "format": "prettier --write ."
   },

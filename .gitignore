@@ -41,6 +41,7 @@ make/ready/
 .vercel
 
 # Local AI plan QA dumps
+.tmp-airports/
 .tmp-plan-qa/
 .tmp-plan-qa-15/
 .tmp-plan-qa-10/

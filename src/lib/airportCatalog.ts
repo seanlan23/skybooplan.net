@@ -1,4 +1,5 @@
 import type { PlaceSuggestion } from "@/lib/places.functions";
+import { searchWorldAirports } from "@/lib/worldAirports";
 
 /** Curated hubs for chip-first origin UX + offline fuzzy match. */
 export type AirportHub = {
@@ -508,7 +509,7 @@ function scoreHub(hub: AirportHub, q: string): number {
   return best;
 }
 
-/** Offline fuzzy airport search — works even when Duffel is slow/empty. */
+/** Offline airport search — curated hubs first, then the world IATA catalog. */
 export function searchAirportCatalog(query: string, limit = 8): PlaceSuggestion[] {
   const q = normalizeAirportQuery(query);
   if (q.length < 1) return [];
@@ -519,10 +520,24 @@ export function searchAirportCatalog(query: string, limit = 8): PlaceSuggestion[
     if (score > 0) scored.push({ hub, score });
   }
 
-  return scored
+  const world = searchWorldAirports(query, limit);
+  // Weak Levenshtein hits (Frankfurt for "Astana") stay out once the world catalog matched.
+  const curatedMin = world.length > 0 ? 5_000 : 3_500;
+  const curated = scored
+    .filter((s) => s.score >= curatedMin)
     .sort((a, b) => b.score - a.score || a.hub.city.localeCompare(b.hub.city))
-    .slice(0, limit)
     .map((s) => hubToSuggestion(s.hub));
+
+  const seen = new Set<string>();
+  const out: PlaceSuggestion[] = [];
+  for (const suggestion of [...curated, ...world]) {
+    const key = suggestion.iata.toUpperCase();
+    if (!/^[A-Z]{3}$/.test(key) || seen.has(key)) continue;
+    seen.add(key);
+    out.push({ ...suggestion, iata: key });
+    if (out.length >= limit) break;
+  }
+  return out;
 }
 
 /** Best single correction when the user mistyped a city. */
