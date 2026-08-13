@@ -5,7 +5,7 @@ import {
   type KeyboardEvent,
   type RefObject,
 } from "react";
-import { ArrowUp, Loader2, Plane } from "lucide-react";
+import { ArrowUp, Loader2, MapPin, Plane } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { useI18n } from "@/lib/i18n";
 import { searchPlaces, type PlaceSuggestion } from "@/lib/places.functions";
@@ -13,9 +13,10 @@ import {
   formatDestinationAirportPick,
   searchDestinationAirports,
 } from "@/lib/popularDestinationAirports";
+import { formatStayPlacePick, mergeStaySuggestions } from "@/lib/stayPlaces";
 import { cn } from "@/lib/utils";
 
-function mergeSuggestions(
+function mergeAirportSuggestions(
   query: string,
   remote: PlaceSuggestion[],
 ): PlaceSuggestion[] {
@@ -44,9 +45,11 @@ type Props = {
   canSubmit: boolean;
   disabled?: boolean;
   placeholder: string;
+  /** Stays search places (Mapbox). Flights keep airport IATA. */
+  kind?: "airport" | "place";
 };
 
-/** Destination airport typeahead for hero “Želim drugam”. */
+/** Destination typeahead for hero “Želim drugam”. */
 export function HeroDestinationAutocomplete({
   value,
   onChange,
@@ -57,8 +60,10 @@ export function HeroDestinationAutocomplete({
   canSubmit,
   disabled,
   placeholder,
+  kind = "airport",
 }: Props) {
   const { t } = useI18n();
+  const isPlace = kind === "place";
   const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -85,8 +90,7 @@ export function HeroDestinationAutocomplete({
       return;
     }
 
-    // Instant local catalog (Barcelona → BCN, Manila → MNL, …).
-    setSuggestions(mergeSuggestions(q, []));
+    setSuggestions(isPlace ? mergeStaySuggestions(q, []) : mergeAirportSuggestions(q, []));
     setOpen(true);
     setHighlight(0);
     setLoading(true);
@@ -95,16 +99,20 @@ export function HeroDestinationAutocomplete({
     const timer = setTimeout(async () => {
       try {
         const res = await placesFnRef.current({
-          data: { query: q, kind: "airport" },
+          data: { query: q, kind: isPlace ? "place" : "airport" },
         });
         if (cancelled) return;
-        setSuggestions(mergeSuggestions(q, res.suggestions));
+        setSuggestions(
+          isPlace
+            ? mergeStaySuggestions(q, res.suggestions)
+            : mergeAirportSuggestions(q, res.suggestions),
+        );
         setOpen(true);
         setHighlight(0);
       } catch (err) {
         if (!cancelled) {
           console.error("Hero destination places:", err);
-          setSuggestions(mergeSuggestions(q, []));
+          setSuggestions(isPlace ? mergeStaySuggestions(q, []) : mergeAirportSuggestions(q, []));
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -115,7 +123,7 @@ export function HeroDestinationAutocomplete({
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [value, focused]);
+  }, [value, focused, isPlace]);
 
   useEffect(() => {
     function onDoc(e: MouseEvent) {
@@ -126,7 +134,9 @@ export function HeroDestinationAutocomplete({
   }, []);
 
   function pick(s: PlaceSuggestion) {
-    const { value: dest, label } = formatDestinationAirportPick(s);
+    const { value: dest, label } = isPlace
+      ? formatStayPlacePick(s)
+      : formatDestinationAirportPick(s);
     justPickedRef.current = true;
     onChange(dest);
     setSuggestions([]);
@@ -160,11 +170,12 @@ export function HeroDestinationAutocomplete({
   }
 
   const showList = open && value.trim().length >= 2;
+  const Icon = isPlace ? MapPin : Plane;
 
   return (
     <div className="relative" ref={boxRef}>
       <div className="flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3 py-2">
-        <Plane className="h-4 w-4 shrink-0 text-sky-300" aria-hidden />
+        <Icon className="h-4 w-4 shrink-0 text-sky-300" aria-hidden />
         <input
           ref={inputRef}
           type="text"
@@ -215,6 +226,10 @@ export function HeroDestinationAutocomplete({
                   s.city && s.city !== s.name
                     ? s.city
                     : s.name.replace(/ Airport$/i, "");
+                const title = isPlace ? s.name : city;
+                const subtitle = isPlace
+                  ? [t("autocomplete.type.place" as never), s.country].filter(Boolean).join(" · ")
+                  : `${t("autocomplete.type.airport" as never)}${s.country ? ` · ${s.country}` : ""}`;
                 return (
                   <li key={`${s.iata}-${i}`}>
                     <button
@@ -227,20 +242,21 @@ export function HeroDestinationAutocomplete({
                         i === highlight ? "bg-white/15" : "hover:bg-white/10",
                       )}
                     >
-                      <Plane className="mt-0.5 h-4 w-4 shrink-0 text-sky-400" />
+                      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-sky-400" />
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-sm font-semibold text-white">
-                          <span className="text-sky-300">{s.iata}</span>
-                          <span className="ml-1.5">{city}</span>
+                          {!isPlace ? (
+                            <span className="text-sky-300">{s.iata}</span>
+                          ) : null}
+                          <span className={!isPlace ? "ml-1.5" : undefined}>{title}</span>
                         </div>
-                        <div className="text-xs text-white/55">
-                          {t("autocomplete.type.airport" as never)}
-                          {s.country ? ` · ${s.country}` : ""}
-                        </div>
+                        <div className="text-xs text-white/55">{subtitle}</div>
                       </div>
-                      <span className="mt-0.5 shrink-0 text-xs font-bold text-sky-300">
-                        {s.iata}
-                      </span>
+                      {!isPlace ? (
+                        <span className="mt-0.5 shrink-0 text-xs font-bold text-sky-300">
+                          {s.iata}
+                        </span>
+                      ) : null}
                     </button>
                   </li>
                 );

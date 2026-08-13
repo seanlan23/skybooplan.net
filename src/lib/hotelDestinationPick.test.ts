@@ -10,6 +10,7 @@ describe("hotelSearchQueryAlias", () => {
     expect(hotelSearchQueryAlias("Bangkok")).toBe("Bangkok");
     expect(hotelSearchQueryAlias("Thailand")).toBe("Bangkok");
     expect(hotelSearchQueryAlias("Tajska")).toBe("Bangkok");
+    expect(hotelSearchQueryAlias("phi phi don")).toBe("Ko Phi Phi Don");
   });
 });
 

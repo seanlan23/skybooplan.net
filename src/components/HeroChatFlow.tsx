@@ -408,7 +408,12 @@ function HeroGuidedStart({
               }}
               canSubmit={canSubmit}
               disabled={inputDisabled || fileProcessing}
-              placeholder={t("heroChat.guided.typePlaceholder" as never)}
+              placeholder={t(
+                (staysOnly
+                  ? "heroChat.guided.staysPlaceholder"
+                  : "heroChat.guided.typePlaceholder") as never,
+              )}
+              kind={staysOnly ? "place" : "airport"}
             />
           </div>
         )}

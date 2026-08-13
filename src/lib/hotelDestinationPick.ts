@@ -16,6 +16,7 @@ export function hotelSearchQueryAlias(city: string): string {
   if (/^krabi$/i.test(trimmed)) return "Ao Nang";
   // Country chips must resolve to a bookable city — Booking rejects / empties regions.
   if (/^(thailand|tajska)$/i.test(trimmed)) return "Bangkok";
+  if (/phi\s*phi/i.test(trimmed)) return "Ko Phi Phi Don";
   if (/^(spain|španija|spanija|españa)$/i.test(trimmed)) return "Barcelona";
   if (/^(italy|italija|italia)$/i.test(trimmed)) return "Rome";
   if (/^(croatia|hrvaška|hrvaska|hrvatska)$/i.test(trimmed)) return "Split";
