@@ -101,7 +101,7 @@ export function HotelsSection({
   /** Hero stays: Booking link is the product; RapidAPI cards are optional. */
   bookingFirst?: boolean;
 }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const aid = import.meta.env.VITE_BOOKING_AFFILIATE_ID || "";
 
   const adults = stayInfo?.adults ?? 2;
@@ -138,14 +138,6 @@ export function HotelsSection({
   });
 
   const nflt = useMemo(() => bookingNfltFor(popular), [popular]);
-
-  const buildBookingUrl = (queryCity: string, hotelName?: string) =>
-    buildBookingSearchUrl({
-      ...bookingBase,
-      destination: hotelSearchQueryAlias(queryCity),
-      hotelName,
-      nflt,
-    });
 
   const fetchHotels = useServerFn(searchHotels);
   const effectiveCheckOut = checkOut ?? checkIn;
@@ -197,6 +189,18 @@ export function HotelsSection({
   const { isLoading, usedFallback, sourceCity } = selection;
   const realHotels = selection.hotels;
   const isError = selection.isError || Boolean(primary.data?.error ?? (shouldFallback ? fallback.data?.error : null));
+  const dest = usedFallback ? fallback.data?.dest : primary.data?.dest;
+
+  const buildBookingUrl = (queryCity: string, hotelName?: string) =>
+    buildBookingSearchUrl({
+      ...bookingBase,
+      destination: hotelSearchQueryAlias(queryCity),
+      hotelName,
+      nflt,
+      destId: dest?.destId,
+      destType: dest?.destType,
+      lang,
+    });
   const bookingHref = buildBookingUrl(regionFallback && usedFallback ? sourceCity : city);
 
   const nightlyPrices = realHotels.map((h) => perNightPrice(h.price, nights));
@@ -330,7 +334,7 @@ export function HotelsSection({
         )
       ) : (
         <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
-          <aside className="space-y-4 rounded-lg border border-slate-200 bg-white p-3">
+          <aside className="h-fit space-y-4 rounded-lg border border-slate-200 bg-white p-3 lg:sticky lg:top-4">
             <BookingLink
               href={bookingHref}
               className="relative block overflow-hidden rounded-md border border-slate-200"
@@ -511,6 +515,9 @@ export function HotelsSection({
                     ...bookingBase,
                     destination: hotelSearchQueryAlias(sourceCity),
                     hotelName: h.name,
+                    destId: dest?.destId,
+                    destType: dest?.destType,
+                    lang,
                   });
                   const nightly = perNightPrice(h.price, nights);
                   return (

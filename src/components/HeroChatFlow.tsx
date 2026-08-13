@@ -626,7 +626,7 @@ export function HeroChatFlow({
   );
 
   const scrollActiveStepIntoView = useCallback(() => {
-    if (showSearchLoader) return;
+    if (showSearchLoader || staySearch) return;
     window.requestAnimationFrame(() => {
       const target =
         showDatePicker && datePickerRef.current
@@ -638,11 +638,11 @@ export function HeroChatFlow({
         behavior: "smooth",
       });
     });
-  }, [showSearchLoader, showDatePicker]);
+  }, [showSearchLoader, showDatePicker, staySearch]);
 
   const scrollToBottom = useCallback(() => {
     // While the search loader is up, freeze auto-scroll so the spinner stays in view.
-    if (showSearchLoader) return;
+    if (showSearchLoader || staySearch) return;
     window.requestAnimationFrame(() => {
       scrollRef.current?.scrollTo({
         top: scrollRef.current.scrollHeight,
@@ -655,7 +655,7 @@ export function HeroChatFlow({
           : activeControlsRef.current;
       target?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
     });
-  }, [showSearchLoader, showDatePicker]);
+  }, [showSearchLoader, showDatePicker, staySearch]);
 
   useEffect(() => {
     if (!conversationStarted || isSearching) return;
@@ -1755,15 +1755,15 @@ export function HeroChatFlow({
         <div
           ref={scrollRef}
           className={cn(
-            "mt-6 space-y-3 overflow-x-clip overscroll-y-contain px-1 py-1",
+            "mt-6 space-y-3 px-1 py-1",
             // When the calendar is open, collapse the chat transcript so the picker fits.
             showDatePicker && step === "dates"
-              ? "max-h-28 overflow-y-auto sm:max-h-36"
+              ? "max-h-28 overflow-x-clip overflow-y-auto overscroll-y-contain sm:max-h-36"
               : showSearchLoader
-                ? "max-h-[min(420px,50vh)] overflow-y-hidden"
+                ? "max-h-[min(420px,50vh)] overflow-x-clip overflow-y-hidden"
                 : staySearch
-                  ? "max-h-none overflow-visible sm:max-h-[min(720px,75vh)] sm:overflow-y-auto"
-                  : "max-h-[min(420px,50vh)] overflow-y-auto",
+                  ? "max-h-none overflow-visible"
+                  : "max-h-[min(420px,50vh)] overflow-x-clip overflow-y-auto overscroll-y-contain",
           )}
         >
           {messages.map((message) => (
@@ -1853,7 +1853,7 @@ export function HeroChatFlow({
           ) : null}
 
           {!loading && staySearch ? (
-            <div className="hero-sky-enter mx-auto w-full max-w-5xl overflow-hidden rounded-2xl bg-white p-3 shadow-lg sm:p-4">
+            <div className="hero-sky-enter mx-auto w-full max-w-5xl overflow-visible rounded-2xl bg-white p-3 shadow-lg sm:p-4">
               <HotelsSection
                 city={staySearch.city}
                 checkIn={staySearch.checkIn}

@@ -50,7 +50,11 @@ export function HeroSection({
 
   return (
     <section
-      className="relative isolate -mb-px flex min-h-screen w-full flex-col items-center justify-center overflow-x-clip overscroll-y-none pb-10"
+      className={
+        staySearch
+          ? "relative isolate -mb-px flex min-h-screen w-full flex-col items-center justify-start overflow-x-clip pb-16"
+          : "relative isolate -mb-px flex min-h-screen w-full flex-col items-center justify-center overflow-x-clip overscroll-y-none pb-10"
+      }
       aria-label={t("hero.sectionLabel" as never)}
     >
       <HeroRotatingBackground />
@@ -71,7 +75,13 @@ export function HeroSection({
         aria-hidden
       />
 
-      <div className="relative z-10 mx-auto w-full min-w-0 max-w-5xl px-5 py-24 text-center sm:px-6 sm:py-28">
+      <div
+        className={
+          staySearch
+            ? "relative z-10 mx-auto w-full min-w-0 max-w-5xl px-5 pb-8 pt-24 text-center sm:px-6 sm:pt-28"
+            : "relative z-10 mx-auto w-full min-w-0 max-w-5xl px-5 py-24 text-center sm:px-6 sm:py-28"
+        }
+      >
         <div className="mb-5 inline-flex items-center rounded-full border border-white/15 bg-white/10 px-4 py-1.5 text-sm font-medium text-white backdrop-blur-md">
           {t("hero.badge" as never)}
         </div>

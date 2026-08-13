@@ -83,7 +83,11 @@ function extractHotelsRows(result: unknown): any[] {
 
 export const searchHotels = createServerFn({ method: "POST" })
   .inputValidator((d) => Input.parse(d))
-  .handler(async ({ data }): Promise<{ hotels: RealHotel[]; error: string | null }> => {
+  .handler(async ({ data }): Promise<{
+    hotels: RealHotel[];
+    error: string | null;
+    dest?: { destId: string; destType: string };
+  }> => {
     const city = data.city.trim();
     const { arrival, departure } = normalizeSearchDates(data.checkIn, data.checkOut);
 
@@ -139,6 +143,11 @@ export const searchHotels = createServerFn({ method: "POST" })
       if (!best?.dest_id) {
         return { hotels: [], error: `No destination found for "${city}"` };
       }
+
+      const dest = {
+        destId: String(best.dest_id),
+        destType: String(best.search_type || "city"),
+      };
 
       const params: Record<string, string> = {
         dest_id: String(best.dest_id),
@@ -233,7 +242,7 @@ export const searchHotels = createServerFn({ method: "POST" })
         };
       });
 
-      return { hotels, error: null };
+      return { hotels, error: null, dest };
     } catch (e: any) {
       console.error("searchHotels failed:", e?.message);
       return { hotels: [], error: e?.message ?? "Failed to fetch hotels" };
