@@ -78,8 +78,8 @@ export function HeroSection({
       <div
         className={
           staySearch
-            ? "relative z-10 mx-auto w-full min-w-0 max-w-5xl px-5 pb-8 pt-24 text-center sm:px-6 sm:pt-28"
-            : "relative z-10 mx-auto w-full min-w-0 max-w-5xl px-5 py-24 text-center sm:px-6 sm:py-28"
+            ? "relative z-10 mx-auto w-full min-w-0 max-w-5xl px-5 pb-8 pt-[calc(6rem+env(safe-area-inset-top))] text-center sm:px-6 sm:pt-[calc(7rem+env(safe-area-inset-top))]"
+            : "relative z-10 mx-auto w-full min-w-0 max-w-5xl px-5 pb-24 pt-[calc(6rem+env(safe-area-inset-top))] text-center sm:px-6 sm:pb-28 sm:pt-[calc(7rem+env(safe-area-inset-top))]"
         }
       >
         <div className="mb-5 inline-flex items-center rounded-full border border-white/15 bg-white/10 px-4 py-1.5 text-sm font-medium text-white backdrop-blur-md">

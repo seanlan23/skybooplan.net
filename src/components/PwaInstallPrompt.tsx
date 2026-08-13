@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
 import { Download, Share, X } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import {
+  isRunningAsInstalledApp,
+  markPwaInstalled,
+  shouldHideInstallPrompt,
+} from "@/lib/pwaDisplay";
 import { cn } from "@/lib/utils";
 
 const SESSION_DISMISS_KEY = "skybooplan.pwa.installSessionDismissed";
@@ -10,16 +15,6 @@ type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
 };
-
-function isStandalone(): boolean {
-  if (typeof window === "undefined") return false;
-  const nav = window.navigator as Navigator & { standalone?: boolean };
-  return (
-    window.matchMedia("(display-mode: standalone)").matches ||
-    nav.standalone === true ||
-    document.referrer.startsWith("android-app://")
-  );
-}
 
 function isMobileBrowser(): boolean {
   if (typeof navigator === "undefined") return false;
@@ -63,8 +58,8 @@ function clearLegacyDismiss() {
 }
 
 /**
- * Bottom install sheet on every mobile visit until the PWA is installed.
- * “Not now” only hides it for this tab session.
+ * Bottom install sheet on mobile until the app is on the home screen.
+ * “Not now” hides it for this tab only. Opening from the icon hides it forever.
  */
 export function PwaInstallPrompt() {
   const { t } = useI18n();
@@ -76,33 +71,68 @@ export function PwaInstallPrompt() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     clearLegacyDismiss();
-    if (isStandalone() || !isMobileBrowser() || wasDismissedThisSession()) return;
+
+    const hideIfInstalled = () => {
+      if (!shouldHideInstallPrompt()) return false;
+      if (isRunningAsInstalledApp()) markPwaInstalled();
+      setVisible(false);
+      return true;
+    };
+
+    if (hideIfInstalled() || !isMobileBrowser() || wasDismissedThisSession()) return;
 
     const ios = isIos();
     setIosHint(ios);
 
     const onBeforeInstall = (e: Event) => {
       e.preventDefault();
+      if (hideIfInstalled()) return;
       setDeferred(e as BeforeInstallPromptEvent);
       setVisible(true);
     };
+    const onAppInstalled = () => {
+      markPwaInstalled();
+      setVisible(false);
+      setDeferred(null);
+    };
     window.addEventListener("beforeinstallprompt", onBeforeInstall);
+    window.addEventListener("appinstalled", onAppInstalled);
+
+    const mq = window.matchMedia("(display-mode: standalone)");
+    const onDisplayMode = () => {
+      hideIfInstalled();
+    };
+    mq.addEventListener?.("change", onDisplayMode);
 
     // iOS never fires beforeinstallprompt. Android: wait for the native Install event.
     const timer = window.setTimeout(() => {
+      if (hideIfInstalled() || wasDismissedThisSession()) return;
       setVisible(true);
     }, ios ? 600 : 2800);
 
+    // iOS can report standalone / start_url a moment after first paint.
+    const recheck = window.setTimeout(() => {
+      hideIfInstalled();
+    }, 250);
+
     return () => {
       window.removeEventListener("beforeinstallprompt", onBeforeInstall);
+      window.removeEventListener("appinstalled", onAppInstalled);
+      mq.removeEventListener?.("change", onDisplayMode);
       window.clearTimeout(timer);
+      window.clearTimeout(recheck);
     };
   }, []);
 
-  if (!visible || isStandalone()) return null;
+  if (!visible || shouldHideInstallPrompt()) return null;
 
   const dismiss = () => {
     markDismissedThisSession();
+    setVisible(false);
+  };
+
+  const dismissInstalled = () => {
+    markPwaInstalled();
     setVisible(false);
   };
 
@@ -111,7 +141,8 @@ export function PwaInstallPrompt() {
     setBusy(true);
     try {
       await deferred.prompt();
-      await deferred.userChoice;
+      const choice = await deferred.userChoice;
+      if (choice.outcome === "accepted") markPwaInstalled();
     } catch {
       /* user cancelled */
     } finally {
@@ -210,13 +241,22 @@ export function PwaInstallPrompt() {
                 </button>
               </div>
             ) : (
-              <button
-                type="button"
-                onClick={dismiss}
-                className="mt-3 text-xs font-medium text-white/55 underline-offset-2 hover:text-white/80 hover:underline"
-              >
-                {t("pwa.installLater" as never)}
-              </button>
+              <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1">
+                <button
+                  type="button"
+                  onClick={dismiss}
+                  className="text-xs font-medium text-white/55 underline-offset-2 hover:text-white/80 hover:underline"
+                >
+                  {t("pwa.installLater" as never)}
+                </button>
+                <button
+                  type="button"
+                  onClick={dismissInstalled}
+                  className="text-xs font-medium text-white/55 underline-offset-2 hover:text-white/80 hover:underline"
+                >
+                  {t("pwa.installAlready" as never)}
+                </button>
+              </div>
             )}
           </div>
 

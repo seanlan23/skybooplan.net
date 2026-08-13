@@ -75,7 +75,7 @@ export function SiteHeader({
   return (
     <header
       className={cn(
-        "sticky top-0 z-40 w-full max-w-full overflow-visible border-b backdrop-blur-md",
+        "sticky top-0 z-40 w-full max-w-full overflow-visible border-b backdrop-blur-md pt-[env(safe-area-inset-top)]",
         isHero
           ? "border-white/15 bg-gradient-to-b from-black/55 via-black/40 to-black/25 text-white"
           : "border-border/60 bg-background/80 text-foreground",
