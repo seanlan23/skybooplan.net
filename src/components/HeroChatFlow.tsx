@@ -558,11 +558,19 @@ export function HeroChatFlow({
   onClearSearch,
 }: HeroChatFlowProps) {
   const { t, lang } = useI18n();
+  const [planTravel, setPlanTravel] = useState<"flight" | "car" | "motorhome" | null>(null);
   const isFlightsOnly = mode === "flights";
   const isStaysOnly = mode === "stays";
-  const isMotorhomeOnly = mode === "motorhome";
-  const isCarOnly = mode === "car";
-  const isRoadGroundOnly = isMotorhomeOnly || isCarOnly;
+  const effectiveRoadMode: "car" | "motorhome" | null =
+    mode === "car" || planTravel === "car"
+      ? "car"
+      : mode === "motorhome" || planTravel === "motorhome"
+        ? "motorhome"
+        : null;
+  const isMotorhomeOnly = effectiveRoadMode === "motorhome";
+  const isCarOnly = effectiveRoadMode === "car";
+  const isRoadGroundOnly = effectiveRoadMode != null;
+  const isFullPlan = mode === "all";
   /** Skip pace/budget — flights / stays / avtodom / car go straight to results after party size. */
   const isQuickSearchMode = isFlightsOnly || isStaysOnly || isRoadGroundOnly;
   const roadChatNs = isCarOnly ? "heroChat.car" : "heroChat.motorhome";
@@ -605,7 +613,7 @@ export function HeroChatFlow({
         ? Boolean(loading)
         : flights.length === 0);
   const inputDisabled = isSearching;
-  const showTripChecklist = conversationStarted && mode === "all";
+  const showTripChecklist = conversationStarted && isFullPlan && !isRoadGroundOnly;
 
   const firstSkyMessageId = useMemo(
     () => messages.find((m) => m.role === "ai")?.id,
@@ -729,7 +737,9 @@ export function HeroChatFlow({
             : userLabel;
 
       const destWithAirport =
-        !isStaysOnly && !isRoadGroundOnly ? withDestinationAirport(resolved) : resolved;
+        !isStaysOnly && !isRoadGroundOnly && !isFullPlan
+          ? withDestinationAirport(resolved)
+          : resolved;
       const boot = resolveHeroChatBootstrap(destWithAirport, lang);
       const baseCollected = {
         destination: destWithAirport,
@@ -743,6 +753,12 @@ export function HeroChatFlow({
       setConversationStarted(true);
       setCollected(baseCollected);
       appendMessages(createChatMessage("user", userMessage));
+
+      if (isFullPlan) {
+        appendMessages(createChatMessage("ai", t("heroChat.travelMode.ask" as never)));
+        setStep("travelMode");
+        return;
+      }
 
       // Flights: destination → origin (MUC…) → trip type → dates → …
       if (!isStaysOnly && !isRoadGroundOnly) {
@@ -837,6 +853,7 @@ export function HeroChatFlow({
       isFlightsOnly,
       isRoadGroundOnly,
       isStaysOnly,
+      isFullPlan,
       lang,
       step,
       t,
@@ -875,6 +892,7 @@ export function HeroChatFlow({
     setTextInput("");
     setShowDatePicker(false);
     setAfterOrigin("searching");
+    setPlanTravel(null);
     searchSentRef.current = false;
     flightsAnnouncedRef.current = false;
     staysAnnouncedRef.current = false;
@@ -971,7 +989,7 @@ export function HeroChatFlow({
       onSearch(
         isCarOnly ? buildHeroCarSearchQuery(data) : buildHeroMotorhomeSearchQuery(data),
         data,
-        mode,
+        effectiveRoadMode ?? mode,
       );
       return;
     }
@@ -1025,6 +1043,7 @@ export function HeroChatFlow({
     isStaysOnly,
     isRoadGroundOnly,
     isCarOnly,
+    effectiveRoadMode,
     roadT,
   ]);
 
@@ -1092,6 +1111,54 @@ export function HeroChatFlow({
   function startStaySearch() {
     appendMessages(createChatMessage("ai", t("cta.searchingStays" as never)));
     setStep("searching");
+  }
+
+  function continueFlightAfterDestination() {
+    const dest = collected.destination ?? "";
+    const destAir = withDestinationAirport(dest);
+    if (destAir !== dest) {
+      setCollected((prev) => ({ ...prev, destination: destAir }));
+    }
+    const knownOrigin = originsFromCollected(destAir, collected.origin);
+    setAfterOrigin("pace");
+    if (knownOrigin.length === 0) {
+      appendMessages(createChatMessage("ai", t("heroChat.origin.ask" as never)));
+      setStep("origin");
+      return;
+    }
+    const originLabel = formatOriginSelection(knownOrigin, lang);
+    setCollected((prev) => ({ ...prev, origin: originLabel, destination: destAir || prev.destination }));
+    appendMessages(createChatMessage("ai", t("heroChat.tripType.ask" as never)));
+    setStep("tripType");
+  }
+
+  function handleRoadOriginPick(place: string, label: string) {
+    const trimmed = place.trim();
+    if (!trimmed) return;
+    setCollected((prev) => ({ ...prev, origin: trimmed }));
+    appendMessages(createChatMessage("user", label.trim() || trimmed));
+    if (!collected.dates?.trim()) {
+      goAskDates();
+      return;
+    }
+    if (!collected.passengers?.trim()) {
+      askPassengers(collected.dates);
+      return;
+    }
+    appendMessages(createChatMessage("ai", roadT("searching")));
+    setStep("searching");
+  }
+
+  function handleTravelModeSelect(id: string, label: string) {
+    appendMessages(createChatMessage("user", label));
+    if (id === "car" || id === "motorhome") {
+      setPlanTravel(id);
+      appendMessages(createChatMessage("ai", t("heroChat.travelMode.askOrigin" as never)));
+      setStep("origin");
+      return;
+    }
+    setPlanTravel("flight");
+    continueFlightAfterDestination();
   }
 
   function goToOriginStep(next: "searching" | "pace") {
@@ -1277,6 +1344,10 @@ export function HeroChatFlow({
   }
 
   function advanceFromOrigin(label: string, iatas: string[] = []) {
+    if (isRoadGroundOnly) {
+      handleRoadOriginPick(label, label);
+      return;
+    }
     const destCode =
       parseMakeSearchDestination(collected.destination ?? "")?.toUpperCase() ?? null;
     const codes = (
@@ -1798,6 +1869,35 @@ export function HeroChatFlow({
                 label: t(`heroChat.pace.${id}` as never),
               }))}
               onSelect={handlePaceSelect}
+            />
+          ) : null}
+
+          {showConversationChips && step === "travelMode" ? (
+            <QuickReplyChips
+              layout="grid"
+              disabled={loading}
+              options={[
+                { id: "flight", label: t("heroChat.travelMode.flight" as never) },
+                { id: "car", label: t("heroChat.travelMode.car" as never) },
+                { id: "motorhome", label: t("heroChat.travelMode.motorhome" as never) },
+              ]}
+              onSelect={handleTravelModeSelect}
+            />
+          ) : null}
+
+          {showConversationChips && step === "origin" && isRoadGroundOnly ? (
+            <QuickReplyChips
+              layout="grid"
+              disabled={loading}
+              options={HERO_MOTORHOME_START_CHIPS.map((chip) => {
+                const name = t(chip.nameKey as never);
+                const label = name.startsWith("hero.mhStart.") ? chip.place : `${chip.emoji} ${name}`;
+                return { id: chip.id, label };
+              })}
+              onSelect={(id, label) => {
+                const chip = HERO_MOTORHOME_START_CHIPS.find((c) => c.id === id);
+                handleRoadOriginPick(chip?.place ?? label, label);
+              }}
             />
           ) : null}
 

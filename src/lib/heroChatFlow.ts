@@ -47,6 +47,7 @@ export type HeroTripType = "return" | "oneway" | "openjaw";
 
 export type HeroChatStep =
   | "destination"
+  | "travelMode"
   | "tripType"
   | "returnFrom"
   | "dates"
