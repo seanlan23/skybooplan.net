@@ -123,8 +123,8 @@ export const searchHotels = createServerFn({ method: "POST" })
       const searchQuery = hotelSearchQueryAlias(city);
       const destParams = { query: searchQuery };
       console.log("[searchHotels] searchDestination", destParams);
-      const dest = await rapid("/searchDestination", destParams);
-      const destRows = Array.isArray(dest?.data) ? dest.data : [];
+      const destLookup = await rapid("/searchDestination", destParams);
+      const destRows = Array.isArray(destLookup?.data) ? destLookup.data : [];
       const best = pickBestBookingDestination(searchQuery, destRows);
 
       console.log("[searchHotels] searchDestination result", {
@@ -144,7 +144,7 @@ export const searchHotels = createServerFn({ method: "POST" })
         return { hotels: [], error: `No destination found for "${city}"` };
       }
 
-      const dest = {
+      const bookingDest = {
         destId: String(best.dest_id),
         destType: String(best.search_type || "city"),
       };
@@ -242,7 +242,7 @@ export const searchHotels = createServerFn({ method: "POST" })
         };
       });
 
-      return { hotels, error: null, dest };
+      return { hotels, error: null, dest: bookingDest };
     } catch (e: any) {
       console.error("searchHotels failed:", e?.message);
       return { hotels: [], error: e?.message ?? "Failed to fetch hotels" };
