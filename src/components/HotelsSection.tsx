@@ -5,6 +5,7 @@ import { ExternalLink, Hotel, Loader2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { buildBookingSearchUrl, resolveHotelBookingUrl } from "@/lib/bookingUrl";
 import { searchHotels } from "@/lib/hotels.functions";
+import { hotelSearchQueryAlias } from "@/lib/hotelDestinationPick";
 import { selectHotelSource } from "@/lib/hotelSelection";
 import { interpolate } from "@/lib/interpolate";
 import { formatLocalDate } from "@/lib/dateUtils";
@@ -39,18 +40,45 @@ function BookingLink({
   );
 }
 
+function BookingCta({
+  href,
+  label,
+  size = "compact",
+}: {
+  href: string;
+  label: string;
+  size?: "compact" | "hero";
+}) {
+  return (
+    <BookingLink
+      href={href}
+      className={
+        size === "hero"
+          ? "inline-flex w-full items-center justify-center gap-2 rounded-xl bg-sky-600 px-4 py-3.5 text-sm font-semibold text-white transition-colors hover:bg-sky-700"
+          : "inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-sky-600 px-3 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-sky-700 sm:w-auto"
+      }
+    >
+      {label}
+      <ExternalLink className={size === "hero" ? "h-4 w-4" : "h-3 w-3"} />
+    </BookingLink>
+  );
+}
+
 export function HotelsSection({
   city,
   checkIn,
   checkOut,
   stayInfo,
   regionFallback,
+  bookingFirst = false,
 }: {
   city: string;
   checkIn: string;
   checkOut?: string;
   stayInfo?: StayInfo;
   regionFallback?: string;
+  /** Hero stays: Booking link is the product; RapidAPI cards are optional. */
+  bookingFirst?: boolean;
 }) {
   const { t } = useI18n();
   const aid = import.meta.env.VITE_BOOKING_AFFILIATE_ID || "";
@@ -74,7 +102,7 @@ export function HotelsSection({
   const buildBookingUrl = (queryCity: string, hotelName?: string) =>
     buildBookingSearchUrl({
       ...bookingBase,
-      destination: queryCity,
+      destination: hotelSearchQueryAlias(queryCity),
       hotelName,
     });
 
@@ -130,8 +158,8 @@ export function HotelsSection({
   const selection = selectHotelSource(primary, fallback, city, regionFallback);
   const { isLoading, usedFallback, sourceCity } = selection;
   const realHotels = selection.hotels;
-  const apiError = primary.data?.error ?? (shouldFallback ? fallback.data?.error : null);
-  const isError = selection.isError || Boolean(apiError);
+  const isError = selection.isError || Boolean(primary.data?.error ?? (shouldFallback ? fallback.data?.error : null));
+  const bookingHref = buildBookingUrl(regionFallback && usedFallback ? sourceCity : city);
 
   const hotels = realHotels.map((h) => ({
     id: h.id,
@@ -153,6 +181,7 @@ export function HotelsSection({
   }, [hotels, sort]);
 
   const fmtDate = (iso: string) => formatLocalDate(iso, undefined, { day: "numeric", month: "short" });
+  const dateLabel = checkOut ? `${fmtDate(checkIn)} – ${fmtDate(checkOut)}` : fmtDate(checkIn);
 
   return (
     <div className="pt-2 border-t border-slate-100" onClick={(e) => e.stopPropagation()}>
@@ -161,14 +190,22 @@ export function HotelsSection({
           <Hotel className="h-5 w-5 text-sky-600" />
           {t("aiplan.hotelsIn" as never)} {sourceCity}
         </div>
-        <BookingLink
-          href={buildBookingUrl(sourceCity)}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 px-3 py-2 text-xs font-semibold text-white transition-colors"
-        >
-          {t("aiplan.browseHotels" as never)}
-          <ExternalLink className="h-3 w-3" />
-        </BookingLink>
+        {!bookingFirst ? (
+          <BookingCta href={bookingHref} label={t("aiplan.browseHotels" as never)} />
+        ) : null}
       </div>
+
+      {bookingFirst ? (
+        <div className="mb-3 space-y-2">
+          <p className="text-xs text-slate-500">{dateLabel}</p>
+          <BookingCta
+            href={bookingHref}
+            label={t("aiplan.hotelsEmptyCta" as never)}
+            size="hero"
+          />
+          <p className="text-xs text-slate-500">{t("aiplan.hotelsBookingFirstSub" as never)}</p>
+        </div>
+      ) : null}
 
       {usedFallback && (
         <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
@@ -204,33 +241,40 @@ export function HotelsSection({
           {t("aiplan.hotelsLoading" as never)}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-600">
-          <p className="font-medium text-slate-700">
-            {interpolate(t("aiplan.hotelsEmptyTitle" as never), {
-              city: <strong key="city">{city}</strong>,
-              dates: checkOut ? ` (${fmtDate(checkIn)} – ${fmtDate(checkOut)})` : "",
-            })}
-          </p>
-          <p className="mt-1 text-xs text-slate-500">
+        bookingFirst ? (
+          <p className="text-xs text-slate-500">
             {isError
-              ? apiError || t("aiplan.hotelsEmptyErrorSub" as never)
+              ? t("aiplan.hotelsEmptyErrorSub" as never)
               : t("aiplan.hotelsEmptyDefaultSub" as never)}
           </p>
-          <BookingLink
-            href={buildBookingUrl(regionFallback || city)}
-            className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 px-3 py-2 text-xs font-semibold text-white"
-          >
-            {t("aiplan.hotelsEmptyCta" as never)}
-            <ExternalLink className="h-3 w-3" />
-          </BookingLink>
-        </div>
+        ) : (
+          <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-600">
+            <p className="font-medium text-slate-700">
+              {interpolate(t("aiplan.hotelsEmptyTitle" as never), {
+                city: <strong key="city">{city}</strong>,
+                dates: checkOut ? ` (${fmtDate(checkIn)} – ${fmtDate(checkOut)})` : "",
+              })}
+            </p>
+            <p className="mt-1 text-xs text-slate-500">
+              {isError
+                ? t("aiplan.hotelsEmptyErrorSub" as never)
+                : t("aiplan.hotelsEmptyDefaultSub" as never)}
+            </p>
+            <div className="mt-3">
+              <BookingCta
+                href={buildBookingUrl(regionFallback || city)}
+                label={t("aiplan.hotelsEmptyCta" as never)}
+              />
+            </div>
+          </div>
+        )
       ) : (
         <div className="-mx-1 overflow-x-auto pb-2 snap-x snap-mandatory">
           <div className="flex gap-3 px-1">
             {filtered.map((h) => {
               const bookUrl = resolveHotelBookingUrl(h.bookingUrl, {
                 ...bookingBase,
-                destination: sourceCity,
+                destination: hotelSearchQueryAlias(sourceCity),
                 hotelName: h.name,
               });
               return (

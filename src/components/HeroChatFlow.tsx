@@ -1833,6 +1833,7 @@ export function HeroChatFlow({
                   childrenAges: staySearch.childrenAges,
                   rooms: staySearch.rooms,
                 }}
+                bookingFirst
               />
             </div>
           ) : null}

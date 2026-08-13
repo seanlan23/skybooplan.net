@@ -29,6 +29,7 @@ const HOTEL_KEYS = [
   "aiplan.hotelsEmptyDefaultSub",
   "aiplan.hotelsEmptyErrorSub",
   "aiplan.hotelsEmptyCta",
+  "aiplan.hotelsBookingFirstSub",
 ] as const;
 
 /**
