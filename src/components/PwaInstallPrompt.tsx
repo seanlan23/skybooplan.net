@@ -28,15 +28,13 @@ function isMobileBrowser(): boolean {
   return navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
 }
 
-function isIosSafari(): boolean {
+function isIos(): boolean {
   if (typeof navigator === "undefined") return false;
   const ua = navigator.userAgent;
-  const iOS =
+  return (
     /iPad|iPhone|iPod/.test(ua) ||
-    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-  const webkit = /WebKit/.test(ua);
-  const chrome = /CriOS|FxiOS|EdgiOS/.test(ua);
-  return iOS && webkit && !chrome;
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+  );
 }
 
 function wasDismissedThisSession(): boolean {
@@ -80,16 +78,20 @@ export function PwaInstallPrompt() {
     clearLegacyDismiss();
     if (isStandalone() || !isMobileBrowser() || wasDismissedThisSession()) return;
 
+    const ios = isIos();
+    setIosHint(ios);
+
     const onBeforeInstall = (e: Event) => {
       e.preventDefault();
       setDeferred(e as BeforeInstallPromptEvent);
+      setVisible(true);
     };
     window.addEventListener("beforeinstallprompt", onBeforeInstall);
 
+    // iOS never fires beforeinstallprompt. Android: wait for the native Install event.
     const timer = window.setTimeout(() => {
-      setIosHint(isIosSafari());
       setVisible(true);
-    }, 700);
+    }, ios ? 600 : 2800);
 
     return () => {
       window.removeEventListener("beforeinstallprompt", onBeforeInstall);
