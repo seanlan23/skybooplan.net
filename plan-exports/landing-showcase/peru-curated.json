@@ -1,0 +1,713 @@
+{
+  "destinationName": "Peru",
+  "destinationIata": "LIM",
+  "originIata": "LJU",
+  "contentLanguage": "en",
+  "summary": "Fourteen days in Peru: Lima’s coast and food, acclimatize in Cusco, Sacred Valley, Machu Picchu, Lake Titicaca, then Arequipa and Colca — paced for altitude, not a rushed checklist.",
+  "days": [
+    {
+      "day": 1,
+      "date": "2026-10-04",
+      "title": "Arrival in Lima and Miraflores",
+      "city": "Lima",
+      "focusName": "Miraflores",
+      "lat": -12.121,
+      "lng": -77.03,
+      "dailyBudgetEur": 70,
+      "category": "transport",
+      "travelHack": "Official taxi or pre-booked transfer from LIM — ignore unmarked touts in the arrivals hall.",
+      "transportationTips": "LIM to Miraflores is 45–75 min in traffic. Keep cash in soles for the first taxi if the card reader fails.",
+      "localWarnings": "",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [],
+        "afternoon": [
+          {
+            "name": "Arrival at LIM and transfer to Miraflores",
+            "type": "TRANSPORT",
+            "description": "Land, collect luggage, and transfer to the hotel.",
+            "bullets": [
+              "Allow 60–90 min to Miraflores in afternoon traffic.",
+              "Keep a small USD/EUR reserve; change a little at the airport."
+            ],
+            "arrivalTime": "16:20"
+          },
+          {
+            "name": "Check-in and short break",
+            "type": "STAY",
+            "description": "Settle in and freshen up after the long haul.",
+            "bullets": [
+              "Drop bags and rest 45–60 min.",
+              "Skip a heavy first-night itinerary."
+            ]
+          }
+        ],
+        "evening": [
+          {
+            "name": "Malecón sunset walk and dinner in Miraflores",
+            "type": "EAT",
+            "description": "Cliff-top walk, then one relaxed ceviche dinner.",
+            "bullets": [
+              "Walk Parque del Amor before dark.",
+              "Ceviche or causa — one dinner only."
+            ],
+            "priceLabel": "€20–35"
+          }
+        ]
+      }
+    },
+    {
+      "day": 2,
+      "date": "2026-10-05",
+      "title": "Historic Lima and Barranco",
+      "city": "Lima",
+      "focusName": "Centro Histórico",
+      "lat": -12.0464,
+      "lng": -77.0428,
+      "dailyBudgetEur": 85,
+      "category": "sight",
+      "travelHack": "Plaza de Armas is safest by day; use a registered taxi or Uber back to Miraflores after dark.",
+      "transportationTips": "Taxi or Metro line 1 + short walk. Don’t wander side streets with phones out.",
+      "localWarnings": "",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [
+          {
+            "name": "Plaza de Armas and the Cathedral",
+            "type": "SIGHT",
+            "description": "Colonial core of Lima — plaza, cathedral, and government palace views.",
+            "bullets": [
+              "Go early for softer light and fewer tour groups.",
+              "San Francisco monastery catacombs if you want one indoor visit."
+            ],
+            "priceLabel": "€8–12"
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Barranco murals and the Puente de los Suspiros",
+            "type": "SIGHT",
+            "description": "Lima’s bohemian district — galleries, street art, and the wooden bridge.",
+            "bullets": [
+              "Coffee on a Bajada de Baños terrace.",
+              "Optional: Pedro de Osma museum if you like colonial art."
+            ]
+          }
+        ],
+        "evening": [
+          {
+            "name": "Dinner in Barranco",
+            "type": "EAT",
+            "description": "One dinner — pisco sour and a simple criollo plate.",
+            "bullets": ["Stay in Barranco or taxi back to Miraflores."],
+            "priceLabel": "€18–32"
+          }
+        ]
+      }
+    },
+    {
+      "day": 3,
+      "date": "2026-10-06",
+      "title": "Flight to Cusco and acclimatize",
+      "city": "Cusco",
+      "focusName": "Cusco historic center",
+      "lat": -13.5167,
+      "lng": -71.9788,
+      "dailyBudgetEur": 95,
+      "category": "transport",
+      "travelHack": "First afternoon in Cusco is for altitude — walk slowly, drink coca tea, no big hikes.",
+      "transportationTips": "LIM–CUZ is ~1h 20min. Taxi from CUZ to the historic center ~25 min.",
+      "localWarnings": "Altitude ~3,400 m. Skip alcohol the first night.",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [
+          {
+            "name": "Domestic flight Lima to Cusco",
+            "type": "TRANSPORT",
+            "description": "Short hop over the Andes to CUZ.",
+            "bullets": [
+              "Keep a layer in the cabin — it gets cold on descent.",
+              "Window seat on the left often has mountain views."
+            ]
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Check-in and a slow Plaza de Armas loop",
+            "type": "SIGHT",
+            "description": "Light walk only — get used to the altitude.",
+            "bullets": [
+              "Sit on the plaza, don’t climb Sacsayhuamán today.",
+              "Coca tea at the hotel is normal, not a tourist gimmick."
+            ]
+          }
+        ],
+        "evening": [
+          {
+            "name": "Early dinner near the plaza",
+            "type": "EAT",
+            "description": "One light dinner — soup or quinoa, not a heavy steak.",
+            "bullets": ["Eat early and sleep."],
+            "priceLabel": "€12–22"
+          }
+        ]
+      }
+    },
+    {
+      "day": 4,
+      "date": "2026-10-07",
+      "title": "Cusco on foot",
+      "city": "Cusco",
+      "focusName": "San Blas",
+      "lat": -13.514,
+      "lng": -71.975,
+      "dailyBudgetEur": 80,
+      "category": "sight",
+      "travelHack": "Buy the boleto turístico only if you will use two or more included sites.",
+      "transportationTips": "The center is walkable. Taxis for the short hop to Qorikancha if tired.",
+      "localWarnings": "",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [
+          {
+            "name": "Qorikancha and Avenida El Sol",
+            "type": "SIGHT",
+            "description": "Inca stonework under the Santo Domingo convent.",
+            "bullets": [
+              "Go at opening to avoid cruise-day crowds.",
+              "Look at the curved wall — the famous tight-fit masonry."
+            ],
+            "priceLabel": "€8–15"
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "San Blas workshops and viewpoints",
+            "type": "SIGHT",
+            "description": "Steep lanes, artisan studios, and a view back over the roofs.",
+            "bullets": [
+              "Climb slowly — this is still acclimatization.",
+              "Optional short visit to San Blas church."
+            ]
+          }
+        ],
+        "evening": [
+          {
+            "name": "Dinner in San Blas",
+            "type": "EAT",
+            "description": "One dinner — Andean tasting plate or a simple trout.",
+            "bullets": ["Book if the place is popular after 19:00."],
+            "priceLabel": "€15–28"
+          }
+        ]
+      }
+    },
+    {
+      "day": 5,
+      "date": "2026-10-08",
+      "title": "Sacred Valley — Pisac and Ollantaytambo",
+      "city": "Ollantaytambo",
+      "focusName": "Sacred Valley",
+      "lat": -13.258,
+      "lng": -72.263,
+      "dailyBudgetEur": 110,
+      "category": "sight",
+      "travelHack": "Sleep in Ollantaytambo tonight — the morning train to Machu Picchu is calmer from here than from Cusco.",
+      "transportationTips": "Private driver or shared van Cusco → Pisac → Ollantaytambo (~full day).",
+      "localWarnings": "",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [
+          {
+            "name": "Pisac ruins and market",
+            "type": "SIGHT",
+            "description": "Terraces above the village, then a short market walk.",
+            "bullets": [
+              "Ruins first, market after — fewer buses at opening.",
+              "Bargain politely; start well below the first price."
+            ],
+            "priceLabel": "€15–25"
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Ollantaytambo fortress",
+            "type": "SIGHT",
+            "description": "Steep terraces and the temple of the sun at the valley pinch-point.",
+            "bullets": [
+              "The climb is short but high — go slow.",
+              "Check in at the hotel before the last light."
+            ]
+          }
+        ],
+        "evening": [
+          {
+            "name": "Dinner in Ollantaytambo",
+            "type": "EAT",
+            "description": "One dinner on the plaza — early night before the train.",
+            "bullets": ["Pack a small bag for Machu Picchu; leave the rest at the hotel."],
+            "priceLabel": "€12–22"
+          }
+        ]
+      }
+    },
+    {
+      "day": 6,
+      "date": "2026-10-09",
+      "title": "Machu Picchu",
+      "city": "Aguas Calientes",
+      "focusName": "Machu Picchu",
+      "lat": -13.1631,
+      "lng": -72.545,
+      "dailyBudgetEur": 160,
+      "category": "sight",
+      "travelHack": "Tickets are timed circuits — buy official tickets in advance. No large bags on site.",
+      "transportationTips": "Train Ollantaytambo → Aguas Calientes, then the official bus up to the citadel.",
+      "localWarnings": "Drones and climbing off-circuit are fined. Bring a rain layer.",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [
+          {
+            "name": "Train and bus to Machu Picchu",
+            "type": "TRANSPORT",
+            "description": "Early train, then the switchback bus to the gate.",
+            "bullets": [
+              "Be at the station 30 min early.",
+              "Keep your passport with the ticket."
+            ]
+          },
+          {
+            "name": "Machu Picchu citadel circuit",
+            "type": "SIGHT",
+            "description": "Guided or self-guided circuit through the terraces and temples.",
+            "bullets": [
+              "A licensed guide for 2 hours is worth it on a first visit.",
+              "Huayna Picchu only if you booked that ticket months ahead."
+            ],
+            "priceLabel": "€45–70"
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Return to Aguas Calientes and train back",
+            "type": "TRANSPORT",
+            "description": "Bus down, a short break, afternoon train to Ollantaytambo or Cusco.",
+            "bullets": [
+              "Eat a simple lunch in town if you skipped food on site.",
+              "Confirm which station you booked for the return."
+            ]
+          }
+        ],
+        "evening": [
+          {
+            "name": "Dinner after the train",
+            "type": "EAT",
+            "description": "One dinner in Ollantaytambo or Cusco — keep it simple.",
+            "bullets": ["Sleep — tomorrow is a travel day."],
+            "priceLabel": "€12–22"
+          }
+        ]
+      }
+    },
+    {
+      "day": 7,
+      "date": "2026-10-10",
+      "title": "Cusco buffer and Sacsayhuamán",
+      "city": "Cusco",
+      "focusName": "Sacsayhuamán",
+      "lat": -13.508,
+      "lng": -71.982,
+      "dailyBudgetEur": 75,
+      "category": "sight",
+      "travelHack": "If yesterday ran late, this is your recovery day — Sacsayhuamán is optional, not mandatory.",
+      "transportationTips": "Taxi up to Sacsayhuamán, walk down to the plaza (20–30 min downhill).",
+      "localWarnings": "",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [
+          {
+            "name": "Sacsayhuamán zigzag walls",
+            "type": "SIGHT",
+            "description": "Massive fitted stones above Cusco — one of the best Inca sites after Machu Picchu.",
+            "bullets": [
+              "Go in the morning before the sun is harsh.",
+              "Included on the boleto turístico."
+            ],
+            "priceLabel": "€0–15"
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "San Pedro market and a slow café",
+            "type": "ACTIVITY",
+            "description": "Fruit juices, textiles, and a pause before tomorrow’s bus to Puno.",
+            "bullets": [
+              "Watch bags in the aisles.",
+              "Buy coca sweets for the high-altitude bus, not heavy souvenirs."
+            ]
+          }
+        ],
+        "evening": [
+          {
+            "name": "Dinner in Cusco",
+            "type": "EAT",
+            "description": "One Andean dinner — roast chicken or a tasting menu if you booked.",
+            "bullets": ["Pack tonight; tourist bus to Puno leaves early."],
+            "priceLabel": "€15–35"
+          }
+        ]
+      }
+    },
+    {
+      "day": 8,
+      "date": "2026-10-11",
+      "title": "Andean tourist bus to Puno",
+      "city": "Puno",
+      "focusName": "Puno",
+      "lat": -15.8402,
+      "lng": -70.0219,
+      "dailyBudgetEur": 70,
+      "category": "transport",
+      "travelHack": "Book the tourist bus (Inka Express / similar), not the cheap night coach — stops at Andahuaylillas and Raqchi break the 3,800 m climb.",
+      "transportationTips": "Cusco → Puno tourist bus ~8–10 h with ruins stops. Bring a layer; the Altiplano is cold even in sun.",
+      "localWarnings": "Puno sits at ~3,800 m. Walk slowly on arrival. Skip alcohol.",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [
+          {
+            "name": "Tourist bus Cusco to Puno",
+            "type": "TRANSPORT",
+            "description": "Day bus across the Altiplano with short ruin and chapel stops.",
+            "bullets": [
+              "Andahuaylillas chapel and Raqchi are the usual pauses.",
+              "Keep water and coca sweets in the day bag."
+            ]
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Arrival in Puno and lakeside check-in",
+            "type": "STAY",
+            "description": "Settle near the waterfront. No extra sightseeing tonight.",
+            "bullets": [
+              "A short walk on the malecón is enough.",
+              "Confirm tomorrow’s Uros / Taquile boat time."
+            ]
+          }
+        ],
+        "evening": [
+          {
+            "name": "Early dinner in Puno",
+            "type": "EAT",
+            "description": "One light dinner — trout or quinoa soup.",
+            "bullets": ["Sleep early; the lake boat leaves in the morning."],
+            "priceLabel": "€10–20"
+          }
+        ]
+      }
+    },
+    {
+      "day": 9,
+      "date": "2026-10-12",
+      "title": "Lake Titicaca — Uros and Taquile",
+      "city": "Puno",
+      "focusName": "Lake Titicaca",
+      "lat": -15.82,
+      "lng": -69.96,
+      "dailyBudgetEur": 95,
+      "category": "sight",
+      "travelHack": "A full-day boat with Uros plus Taquile is enough — skip the overnight homestay unless you want a slower pace.",
+      "transportationTips": "Shared boat from Puno harbour. Sun is harsh on the water; bring a hat and SPF.",
+      "localWarnings": "",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [
+          {
+            "name": "Uros floating islands",
+            "type": "SIGHT",
+            "description": "Reed islands on the lake — a short visit, then on to Taquile.",
+            "bullets": [
+              "Stay 30–40 min; the sales pitch is part of the stop.",
+              "Pay in soles if you buy a small reed souvenir."
+            ],
+            "priceLabel": "€25–40"
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Taquile island walk and lunch",
+            "type": "SIGHT",
+            "description": "Steep paths, textile cooperatives, and a simple lake-trout lunch.",
+            "bullets": [
+              "The climb from the dock is slow at this altitude.",
+              "Boat back to Puno in the late afternoon."
+            ]
+          }
+        ],
+        "evening": [
+          {
+            "name": "Dinner in Puno",
+            "type": "EAT",
+            "description": "One dinner near the plaza — keep it simple after the sun and the boat.",
+            "bullets": ["Tomorrow is the bus or flight to Arequipa."],
+            "priceLabel": "€10–20"
+          }
+        ]
+      }
+    },
+    {
+      "day": 10,
+      "date": "2026-10-13",
+      "title": "Puno to Arequipa",
+      "city": "Arequipa",
+      "focusName": "Arequipa historic center",
+      "lat": -16.409,
+      "lng": -71.5375,
+      "dailyBudgetEur": 80,
+      "category": "transport",
+      "travelHack": "A morning JUL–AQP hop is worth the fare versus the 6-hour bus — you arrive with a full afternoon in the white city.",
+      "transportationTips": "Juliaca (JUL) is ~1 h from Puno. Taxi to the airport, then a short flight to Arequipa.",
+      "localWarnings": "Arequipa is ~2,300 m — easier than Puno. You will feel the extra oxygen.",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [
+          {
+            "name": "Transfer to Juliaca and flight to Arequipa",
+            "type": "TRANSPORT",
+            "description": "Leave the Altiplano for the white-stone city under El Misti.",
+            "bullets": [
+              "Allow 90 min Puno → JUL including check-in.",
+              "Keep a layer; Arequipa evenings are cool."
+            ]
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Plaza de Armas and a first walk in sillar stone",
+            "type": "SIGHT",
+            "description": "The cathedral and arcades — no museum rush on arrival day.",
+            "bullets": [
+              "Sit on the plaza and look up at El Misti if the sky is clear.",
+              "Santa Catalina can wait until tomorrow."
+            ]
+          }
+        ],
+        "evening": [
+          {
+            "name": "Dinner in Arequipa",
+            "type": "EAT",
+            "description": "One dinner — rocoto relleno or a simple chupe, not a tasting menu after travel.",
+            "bullets": ["Book Santa Catalina for the morning."],
+            "priceLabel": "€12–24"
+          }
+        ]
+      }
+    },
+    {
+      "day": 11,
+      "date": "2026-10-14",
+      "title": "Arequipa — Santa Catalina and Yanahuara",
+      "city": "Arequipa",
+      "focusName": "Santa Catalina",
+      "lat": -16.395,
+      "lng": -71.537,
+      "dailyBudgetEur": 75,
+      "category": "sight",
+      "travelHack": "Santa Catalina is a half-day if you go at opening — the colour-washed lanes empty out after the first tour groups.",
+      "transportationTips": "The center is walkable. Taxi up to Yanahuara viewpoint, walk back if you have the legs.",
+      "localWarnings": "",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [
+          {
+            "name": "Monasterio de Santa Catalina",
+            "type": "SIGHT",
+            "description": "A city inside the city — blue and terracotta lanes, cloisters, and kitchens.",
+            "bullets": [
+              "Go at opening; 2 hours is enough.",
+              "A licensed guide for the first 45 min helps the layout."
+            ],
+            "priceLabel": "€12–18"
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Yanahuara viewpoint and San Camilo market",
+            "type": "SIGHT",
+            "description": "Volcano arches, then fruit and juices in the market.",
+            "bullets": [
+              "Yanahuara is the postcard of El Misti.",
+              "Confirm tomorrow’s Colca pickup time tonight."
+            ]
+          }
+        ],
+        "evening": [
+          {
+            "name": "Dinner in Arequipa",
+            "type": "EAT",
+            "description": "One dinner — alpaca or a vegetarian Novoandina plate.",
+            "bullets": ["Early night; Colca vans leave before dawn."],
+            "priceLabel": "€14–28"
+          }
+        ]
+      }
+    },
+    {
+      "day": 12,
+      "date": "2026-10-15",
+      "title": "To Colca Canyon — Chivay",
+      "city": "Chivay",
+      "focusName": "Colca Valley",
+      "lat": -15.638,
+      "lng": -71.604,
+      "dailyBudgetEur": 90,
+      "category": "sight",
+      "travelHack": "Do Colca as two days with a night in Chivay — the one-day dash from Arequipa is 15 hours and you miss the condors at first light.",
+      "transportationTips": "Shared van Arequipa → Chivay ~3.5–4 h via the high pass (Patapampa ~4,800 m).",
+      "localWarnings": "The pass is higher than Cusco. Coca tea and a slow walk on arrival.",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [
+          {
+            "name": "Van Arequipa to Chivay via Patapampa",
+            "type": "TRANSPORT",
+            "description": "High-pass transfer into the Colca valley.",
+            "bullets": [
+              "Vicunas at the lookout if the group stops.",
+              "Keep water; the air is dry on the pass."
+            ]
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Chivay village and La Calera hot springs",
+            "type": "ACTIVITY",
+            "description": "Check in, then a soak — the classic Colca first afternoon.",
+            "bullets": [
+              "The pools are the recovery after the pass.",
+              "Confirm the 05:00 Cruz del Cóndor pickup."
+            ],
+            "priceLabel": "€5–10"
+          }
+        ],
+        "evening": [
+          {
+            "name": "Dinner in Chivay",
+            "type": "EAT",
+            "description": "One dinner on the plaza — early, then sleep.",
+            "bullets": ["Dawn start for the condors."],
+            "priceLabel": "€10–18"
+          }
+        ]
+      }
+    },
+    {
+      "day": 13,
+      "date": "2026-10-16",
+      "title": "Cruz del Cóndor and flight to Lima",
+      "city": "Lima",
+      "focusName": "Miraflores",
+      "lat": -12.121,
+      "lng": -77.03,
+      "dailyBudgetEur": 110,
+      "category": "transport",
+      "travelHack": "Book a late-afternoon AQP–LIM flight — Cruz del Cóndor plus the drive back needs the morning.",
+      "transportationTips": "Dawn van to Cruz del Cóndor, back through Chivay to Arequipa airport (~6–7 h total road).",
+      "localWarnings": "",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [
+          {
+            "name": "Cruz del Cóndor viewpoint",
+            "type": "SIGHT",
+            "description": "Andean condors riding the canyon thermals — go at first light.",
+            "bullets": [
+              "Stand at the rail; the birds often pass below you.",
+              "If the sky is empty, wait 20 min before giving up."
+            ],
+            "priceLabel": "€15–25"
+          }
+        ],
+        "afternoon": [
+          {
+            "name": "Return to Arequipa and flight to Lima",
+            "type": "TRANSPORT",
+            "description": "Van back to AQP, then the hop to the coast.",
+            "bullets": [
+              "Keep the day bag ready for the airport.",
+              "Lima evening is grey and cool after the canyon sun."
+            ]
+          }
+        ],
+        "evening": [
+          {
+            "name": "Farewell dinner in Miraflores",
+            "type": "EAT",
+            "description": "One dinner — ceviche or grilled fish after the Andes.",
+            "bullets": ["International departure is tomorrow."],
+            "priceLabel": "€20–40"
+          }
+        ]
+      }
+    },
+    {
+      "day": 14,
+      "date": "2026-10-17",
+      "title": "Departure from Lima",
+      "city": "Lima",
+      "focusName": "Jorge Chávez Airport",
+      "lat": -12.022,
+      "lng": -77.114,
+      "dailyBudgetEur": 40,
+      "category": "transport",
+      "travelHack": "LIM international: arrive 3 hours early. The new terminal still has uneven signage.",
+      "transportationTips": "Pre-booked transfer or official airport taxi. Allow 60–90 min from Miraflores.",
+      "localWarnings": "",
+      "morning": "",
+      "afternoon": "",
+      "evening": "",
+      "activities": {
+        "morning": [
+          {
+            "name": "Transfer to LIM and international departure",
+            "type": "TRANSPORT",
+            "description": "Check out, airport, long-haul home.",
+            "bullets": [
+              "Keep soles for the last taxi if the card fails.",
+              "Water after security — the air on the climb-out is dry."
+            ],
+            "departureTime": "13:40"
+          }
+        ],
+        "afternoon": [],
+        "evening": []
+      }
+    }
+  ]
+}

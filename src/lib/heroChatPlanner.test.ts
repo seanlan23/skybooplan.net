@@ -51,6 +51,8 @@ describe("heroChatPlanner", () => {
     expect(resolveDestinationIata("🏯 Japonska")).toBe("NRT");
     expect(resolveDestinationIata("🏔️ Slovenija")).toBe("LJU");
     expect(resolveDestinationIata("Croatia")).toBe("SPU");
+    expect(resolveDestinationIata("Dubai")).toBe("DXB");
+    expect(resolveDestinationIata("🏙️ Dubaj")).toBe("DXB");
   });
 
   it("resolves south Thailand / Phuket prompts to HKT", () => {

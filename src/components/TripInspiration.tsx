@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 
 type InspirationCardDef = {
-  id: "paris" | "croatia" | "asia";
+  id: "paris" | "dubai" | "asia";
   emoji: string;
   /** English search destination — stable across languages. */
   destination: string;
@@ -22,12 +22,12 @@ const CARDS: InspirationCardDef[] = [
       "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=1200&q=80",
   },
   {
-    id: "croatia",
-    emoji: "🌊",
-    destination: "Croatia",
-    titleKey: "inspiration.croatia.title",
+    id: "dubai",
+    emoji: "🏙️",
+    destination: "Dubai",
+    titleKey: "inspiration.dubai.title",
     imageUrl:
-      "https://images.unsplash.com/photo-1555881400-74d7acaacd8b?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-1512453979798-5ea9516f8e4d?auto=format&fit=crop&w=1200&q=80",
   },
   {
     id: "asia",

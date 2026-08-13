@@ -1,5 +1,6 @@
 /**
- * Export curated landing showcase PDFs (NYC + Botswana + France + motorhome).
+ * Export curated landing showcase PDFs (NYC + Peru + France + motorhome).
+ * Tanzania uses the hand-curated LJU→DAR file — do not regenerate it here.
  * npx vitest run scripts/export-landing-showcase.test.ts
  */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -21,13 +22,13 @@ const SHOWCASES = [
     pace: "relaxed",
   },
   {
-    id: "botswana",
-    file: "botswana-curated.json",
-    title: "Munich → Botswana — showcase",
-    start: "2026-10-26",
-    end: "2026-11-12",
-    wishes: "Mid-range Botswana safari: Maun, Makgadikgadi, Chobe, Victoria Falls day trip.",
-    pace: "relaxed",
+    id: "peru",
+    file: "peru-curated.json",
+    title: "Ljubljana → Peru — showcase",
+    start: "2026-10-04",
+    end: "2026-10-17",
+    wishes: "Lima, Cusco, Sacred Valley, Machu Picchu, Titicaca, Arequipa, Colca — altitude-paced.",
+    pace: "balanced",
   },
   {
     id: "france",
@@ -127,8 +128,9 @@ describe("landing showcase PDFs", () => {
           "",
           "Curated demo plans for the beta landing (not live Gemini output).",
           "",
+          "- `tanzania-showcase.pdf` — LJU→DAR safari (hand-curated file, not regenerated)",
+          "- `peru-showcase.pdf` — Peru (LIM/CUZ/JUL/AQP), 14 days",
           "- `nyc-showcase.pdf` — New York, 7 days",
-          "- `botswana-showcase.pdf` — Botswana safari (MUC→GBE), 18 days",
           "- `france-showcase.pdf` — Paris + Lyon (MUC→CDG), 8 days",
           "- `motorhome-nl-showcase.pdf` — Motorhome SG → North Holland, 11 days",
           "",

@@ -362,7 +362,7 @@ function HeroGuidedStart({
           {t((staysOnly ? "heroChat.guided.staysHint" : "heroChat.guided.whereHint") as never)}
         </p>
 
-        <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3">
+        <div key="hero-dest-dubai-v2" className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3">
           {HERO_DESTINATION_CHIPS.map((chip) => {
             const { emoji, name } = getDestinationChipDisplay(chip, t);
             return (

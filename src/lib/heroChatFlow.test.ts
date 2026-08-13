@@ -20,20 +20,20 @@ describe("getDestinationChipDisplay", () => {
   });
 
   it("returns English names when lang is en", () => {
-    const croatia = HERO_DESTINATION_CHIPS.find((c) => c.id === "croatia")!;
-    const display = getDestinationChipDisplay(croatia, (key) => translate("en", key as never));
-    expect(display.name).toBe("Croatia");
-    expect(display.label).toBe("🌊 Croatia");
+    const dubai = HERO_DESTINATION_CHIPS.find((c) => c.id === "dubai")!;
+    const display = getDestinationChipDisplay(dubai, (key) => translate("en", key as never));
+    expect(display.name).toBe("Dubai");
+    expect(display.label).toBe("🏙️ Dubai");
   });
 
-  it("shows Slovenia where Croatia was and Croatia where Japan was", () => {
+  it("shows Slovenia, New York, and Dubai on the destination grid", () => {
     expect(HERO_DESTINATION_CHIPS.map((c) => c.id)).toEqual([
       "thailand",
       "paris",
       "slovenia",
       "bali",
       "newyork",
-      "croatia",
+      "dubai",
     ]);
     const slovenia = HERO_DESTINATION_CHIPS.find((c) => c.id === "slovenia")!;
     const display = getDestinationChipDisplay(slovenia, (key) => translate("sl", key as never));

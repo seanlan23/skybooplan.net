@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 
 type ShowcasePlan = {
-  id: "nyc" | "botswana" | "france" | "motorhome";
+  id: "tanzania" | "peru" | "nyc" | "france" | "motorhome";
   href: string;
   imageUrl: string;
   routeKey: string;
@@ -14,6 +14,26 @@ type ShowcasePlan = {
 
 const PLANS: ShowcasePlan[] = [
   {
+    id: "tanzania",
+    href: "/showcase/tanzania-showcase.pdf",
+    imageUrl:
+      "https://images.unsplash.com/photo-1516426122078-c23e76319801?auto=format&fit=crop&w=1400&q=80",
+    routeKey: "showcase.tanzania.route",
+    metaKey: "showcase.tanzania.meta",
+    titleKey: "showcase.tanzania.title",
+    blurbKey: "showcase.tanzania.blurb",
+  },
+  {
+    id: "peru",
+    href: "/showcase/peru-showcase.pdf",
+    imageUrl:
+      "https://images.unsplash.com/photo-1526392060635-9d6019884377?auto=format&fit=crop&w=1400&q=80",
+    routeKey: "showcase.peru.route",
+    metaKey: "showcase.peru.meta",
+    titleKey: "showcase.peru.title",
+    blurbKey: "showcase.peru.blurb",
+  },
+  {
     id: "nyc",
     href: "/showcase/nyc-showcase.pdf",
     imageUrl:
@@ -22,16 +42,6 @@ const PLANS: ShowcasePlan[] = [
     metaKey: "showcase.nyc.meta",
     titleKey: "showcase.nyc.title",
     blurbKey: "showcase.nyc.blurb",
-  },
-  {
-    id: "botswana",
-    href: "/showcase/botswana-showcase.pdf",
-    imageUrl:
-      "https://images.unsplash.com/photo-1516426122078-c23e76319801?auto=format&fit=crop&w=1400&q=80",
-    routeKey: "showcase.botswana.route",
-    metaKey: "showcase.botswana.meta",
-    titleKey: "showcase.botswana.title",
-    blurbKey: "showcase.botswana.blurb",
   },
   {
     id: "france",
@@ -140,7 +150,7 @@ export function ShowcasePlansSection() {
           </p>
         </div>
 
-        <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4 sm:gap-5">
+        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 sm:gap-5">
           {PLANS.map((plan) => (
             <ShowcasePlanCard key={plan.id} plan={plan} />
           ))}

@@ -26,6 +26,8 @@ const DESTINATION_IATA: Record<string, string> = {
   hrvaška: "SPU",
   hrvatska: "SPU",
   croatia: "SPU",
+  dubai: "DXB",
+  dubaj: "DXB",
   slovenija: "LJU",
   slovenia: "LJU",
   ljubljana: "LJU",
