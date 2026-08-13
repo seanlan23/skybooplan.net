@@ -38,4 +38,29 @@ describe("hotel result filters", () => {
   it("computes per-night from stay total", () => {
     expect(perNightPrice(200, 2)).toBe(100);
   });
+
+  it("does not empty the list when amenity data is missing", () => {
+    const out = applyHotelFilters(hotels, 2, {
+      maxPerNight: 400,
+      minRating: 0,
+      stars: [],
+      breakfast: true,
+      balcony: true,
+    });
+    expect(out.map((h) => h.id)).toEqual(["a", "b", "c"]);
+  });
+
+  it("filters amenities only when at least one hotel has that flag", () => {
+    const withFlags = [
+      { id: "a", price: 200, rating: 8, amenities: { breakfast: true, balcony: false } },
+      { id: "b", price: 80, rating: 7, amenities: { breakfast: false, balcony: true } },
+    ];
+    const out = applyHotelFilters(withFlags, 1, {
+      maxPerNight: 400,
+      minRating: 0,
+      stars: [],
+      breakfast: true,
+    });
+    expect(out.map((h) => h.id)).toEqual(["a"]);
+  });
 });

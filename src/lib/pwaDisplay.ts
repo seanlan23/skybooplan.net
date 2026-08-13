@@ -1,4 +1,18 @@
 const INSTALLED_KEY = "skybooplan.pwa.installed";
+const SNOOZE_KEY = "skybooplan.pwa.installSnoozeUntil";
+
+export const INSTALL_SNOOZE_DAYS = 3;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+export function snoozeUntilTimestamp(now: number, days = INSTALL_SNOOZE_DAYS): number {
+  return now + days * DAY_MS;
+}
+
+export function isSnoozeActive(untilRaw: string | null, now: number): boolean {
+  if (!untilRaw) return false;
+  const until = Number(untilRaw);
+  return Number.isFinite(until) && now < until;
+}
 
 /** Manifest start_url / shortcuts stamp this so we know the icon launched us. */
 export function isPwaLaunchSource(search: string): boolean {
@@ -33,6 +47,22 @@ export function isRunningAsInstalledApp(): boolean {
     if (window.matchMedia(`(display-mode: ${mode})`).matches) return true;
   }
   return false;
+}
+
+export function isInstallPromptSnoozed(now = Date.now()): boolean {
+  try {
+    return isSnoozeActive(localStorage.getItem(SNOOZE_KEY), now);
+  } catch {
+    return false;
+  }
+}
+
+export function snoozeInstallPrompt(now = Date.now(), days = INSTALL_SNOOZE_DAYS) {
+  try {
+    localStorage.setItem(SNOOZE_KEY, String(snoozeUntilTimestamp(now, days)));
+  } catch {
+    /* ignore quota / private mode */
+  }
 }
 
 export function shouldHideInstallPrompt(): boolean {

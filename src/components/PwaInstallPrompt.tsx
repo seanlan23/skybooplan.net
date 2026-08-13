@@ -2,9 +2,11 @@ import { useEffect, useState } from "react";
 import { Download, Share, X } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import {
+  isInstallPromptSnoozed,
   isRunningAsInstalledApp,
   markPwaInstalled,
   shouldHideInstallPrompt,
+  snoozeInstallPrompt,
 } from "@/lib/pwaDisplay";
 import { cn } from "@/lib/utils";
 
@@ -59,7 +61,7 @@ function clearLegacyDismiss() {
 
 /**
  * Bottom install sheet on mobile until the app is on the home screen.
- * “Not now” hides it for this tab only. Opening from the icon hides it forever.
+ * After a show or “Not now”, wait 3 days. Opening from the icon hides it forever.
  */
 export function PwaInstallPrompt() {
   const { t } = useI18n();
@@ -79,15 +81,23 @@ export function PwaInstallPrompt() {
       return true;
     };
 
-    if (hideIfInstalled() || !isMobileBrowser() || wasDismissedThisSession()) return;
+    if (
+      hideIfInstalled() ||
+      isInstallPromptSnoozed() ||
+      !isMobileBrowser() ||
+      wasDismissedThisSession()
+    ) {
+      return;
+    }
 
     const ios = isIos();
     setIosHint(ios);
 
     const onBeforeInstall = (e: Event) => {
       e.preventDefault();
-      if (hideIfInstalled()) return;
+      if (hideIfInstalled() || isInstallPromptSnoozed()) return;
       setDeferred(e as BeforeInstallPromptEvent);
+      snoozeInstallPrompt();
       setVisible(true);
     };
     const onAppInstalled = () => {
@@ -106,7 +116,8 @@ export function PwaInstallPrompt() {
 
     // iOS never fires beforeinstallprompt. Android: wait for the native Install event.
     const timer = window.setTimeout(() => {
-      if (hideIfInstalled() || wasDismissedThisSession()) return;
+      if (hideIfInstalled() || isInstallPromptSnoozed() || wasDismissedThisSession()) return;
+      snoozeInstallPrompt();
       setVisible(true);
     }, ios ? 600 : 2800);
 
@@ -127,6 +138,7 @@ export function PwaInstallPrompt() {
   if (!visible || shouldHideInstallPrompt()) return null;
 
   const dismiss = () => {
+    snoozeInstallPrompt();
     markDismissedThisSession();
     setVisible(false);
   };

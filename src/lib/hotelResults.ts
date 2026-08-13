@@ -35,6 +35,25 @@ export function reviewBand(rating: number): 9 | 8 | 7 | 6 | 0 {
   return 0;
 }
 
+export const LOCAL_AMENITY_KEYS = [
+  "breakfast",
+  "allInclusive",
+  "balcony",
+  "pool",
+  "parking",
+  "freeCancel",
+] as const;
+
+export function amenityKeysWithLocalData<
+  T extends { amenities?: Partial<Record<(typeof LOCAL_AMENITY_KEYS)[number], boolean>> },
+>(hotels: T[]): Set<(typeof LOCAL_AMENITY_KEYS)[number]> {
+  const known = new Set<(typeof LOCAL_AMENITY_KEYS)[number]>();
+  for (const key of LOCAL_AMENITY_KEYS) {
+    if (hotels.some((h) => h.amenities?.[key])) known.add(key);
+  }
+  return known;
+}
+
 export function applyHotelFilters<
   T extends {
     price: number;
@@ -51,6 +70,7 @@ export function applyHotelFilters<
     };
   },
 >(hotels: T[], nights: number, filters: HotelResultFilters): T[] {
+  const knownAmenities = amenityKeysWithLocalData(hotels);
   return hotels.filter((h) => {
     const nightly = perNightPrice(h.price, nights);
     if (nightly > 0 && nightly > filters.maxPerNight) return false;
@@ -62,12 +82,9 @@ export function applyHotelFilters<
         (filters.apartment && h.kind === "apartment");
       if (!matchKind) return false;
     }
-    if (filters.breakfast && !h.amenities?.breakfast) return false;
-    if (filters.allInclusive && !h.amenities?.allInclusive) return false;
-    if (filters.balcony && !h.amenities?.balcony) return false;
-    if (filters.pool && !h.amenities?.pool) return false;
-    if (filters.parking && !h.amenities?.parking) return false;
-    if (filters.freeCancel && !h.amenities?.freeCancel) return false;
+    for (const key of LOCAL_AMENITY_KEYS) {
+      if (filters[key] && knownAmenities.has(key) && !h.amenities?.[key]) return false;
+    }
     return true;
   });
 }

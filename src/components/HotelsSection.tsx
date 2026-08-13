@@ -12,6 +12,7 @@ import { interpolate } from "@/lib/interpolate";
 import { formatLocalDate } from "@/lib/dateUtils";
 import {
   applyHotelFilters,
+  LOCAL_AMENITY_KEYS,
   perNightPrice,
   priceExtent,
   priceHistogram,
@@ -235,6 +236,10 @@ export function HotelsSection({
     };
   }, [realHotels]);
 
+  const bookingOnlyPopular = LOCAL_AMENITY_KEYS.some(
+    (key) => popular[key] && popularCounts[key] === 0,
+  );
+
   const mapCenter = useMemo(() => {
     const pts = realHotels.filter((h) => h.lat != null && h.lng != null) as Array<{
       lat: number;
@@ -408,10 +413,17 @@ export function HotelsSection({
                       />
                       {t(label as never)}
                     </span>
-                    <span className="text-xs text-slate-400">{popularCounts[key]}</span>
+                    <span className="text-xs text-slate-400">
+                      {popularCounts[key] > 0 ? popularCounts[key] : ""}
+                    </span>
                   </label>
                 ))}
               </div>
+              {bookingOnlyPopular ? (
+                <p className="mt-2 text-[11px] leading-snug text-slate-500">
+                  {t("aiplan.filterOnBooking" as never)}
+                </p>
+              ) : null}
             </div>
 
             <div>
