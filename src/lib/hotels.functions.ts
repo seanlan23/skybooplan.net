@@ -9,6 +9,7 @@ import {
   hotelSearchQueryAlias,
   pickBestBookingDestination,
 } from "./hotelDestinationPick";
+import { inferHotelAmenities, type HotelAmenities, type HotelKind } from "./hotelAmenities";
 
 const RAPID_HOST = "booking-com15.p.rapidapi.com";
 const BASE = `https://${RAPID_HOST}/api/v1/hotels`;
@@ -29,6 +30,8 @@ export type RealHotel = {
   neighborhood?: string;
   preferred?: boolean;
   originalPrice?: number;
+  kind?: HotelKind;
+  amenities?: HotelAmenities;
 };
 
 const Input = z.object({
@@ -192,6 +195,18 @@ export const searchHotels = createServerFn({ method: "POST" })
           ...linkBase,
           hotelName: String(prop.name ?? ""),
         });
+        const badges = Array.isArray(prop.priceBreakdown?.benefitBadges)
+          ? prop.priceBreakdown.benefitBadges
+              .map((b: { text?: string; identifier?: string }) => `${b.text ?? ""} ${b.identifier ?? ""}`)
+              .join(" ")
+          : "";
+        const inferred = inferHotelAmenities({
+          name: String(prop.name ?? ""),
+          typeName: String(prop.accommodationTypeName ?? prop.propertyType ?? ""),
+          typeId: Number(prop.accommodationType ?? prop.accommodationTypeId ?? 0) || undefined,
+          label: String(prop.accessibilityLabel ?? ""),
+          badges,
+        });
 
         return {
           id: id || String(prop.name ?? "hotel"),
@@ -213,6 +228,8 @@ export const searchHotels = createServerFn({ method: "POST" })
           neighborhood: String(prop.wishlistName ?? "").trim() || undefined,
           preferred: Boolean(prop.isPreferred || prop.isPreferredPlus),
           originalPrice: strike > price ? Math.round(strike) : undefined,
+          kind: inferred.kind,
+          amenities: inferred.amenities,
         };
       });
 

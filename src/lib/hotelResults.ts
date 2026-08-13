@@ -4,6 +4,14 @@ export type HotelResultFilters = {
   maxPerNight: number;
   minRating: number;
   stars: number[];
+  hotel?: boolean;
+  apartment?: boolean;
+  breakfast?: boolean;
+  allInclusive?: boolean;
+  balcony?: boolean;
+  pool?: boolean;
+  parking?: boolean;
+  freeCancel?: boolean;
 };
 
 export function stayNights(checkIn: string, checkOut?: string): number {
@@ -28,13 +36,38 @@ export function reviewBand(rating: number): 9 | 8 | 7 | 6 | 0 {
 }
 
 export function applyHotelFilters<
-  T extends { price: number; rating: number; stars?: number },
+  T extends {
+    price: number;
+    rating: number;
+    stars?: number;
+    kind?: "hotel" | "apartment" | "other";
+    amenities?: {
+      breakfast?: boolean;
+      allInclusive?: boolean;
+      balcony?: boolean;
+      pool?: boolean;
+      parking?: boolean;
+      freeCancel?: boolean;
+    };
+  },
 >(hotels: T[], nights: number, filters: HotelResultFilters): T[] {
   return hotels.filter((h) => {
     const nightly = perNightPrice(h.price, nights);
     if (nightly > 0 && nightly > filters.maxPerNight) return false;
     if (filters.minRating > 0 && h.rating < filters.minRating) return false;
     if (filters.stars.length > 0 && !filters.stars.includes(h.stars ?? 0)) return false;
+    if (filters.hotel || filters.apartment) {
+      const matchKind =
+        (filters.hotel && h.kind === "hotel") ||
+        (filters.apartment && h.kind === "apartment");
+      if (!matchKind) return false;
+    }
+    if (filters.breakfast && !h.amenities?.breakfast) return false;
+    if (filters.allInclusive && !h.amenities?.allInclusive) return false;
+    if (filters.balcony && !h.amenities?.balcony) return false;
+    if (filters.pool && !h.amenities?.pool) return false;
+    if (filters.parking && !h.amenities?.parking) return false;
+    if (filters.freeCancel && !h.amenities?.freeCancel) return false;
     return true;
   });
 }

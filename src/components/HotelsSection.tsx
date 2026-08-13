@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { ExternalLink, Hotel, Loader2, MapPin, Star } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { buildBookingSearchUrl, resolveHotelBookingUrl } from "@/lib/bookingUrl";
+import { bookingNfltFor } from "@/lib/hotelAmenities";
 import { searchHotels } from "@/lib/hotels.functions";
 import { hotelSearchQueryAlias } from "@/lib/hotelDestinationPick";
 import { selectHotelSource } from "@/lib/hotelSelection";
@@ -121,17 +122,30 @@ export function HotelsSection({
     [checkIn, checkOut, adults, rooms, childrenAges, aid],
   );
 
+  const [sort, setSort] = useState<HotelResultSort>("top");
+  const [minRating, setMinRating] = useState(0);
+  const [starFilter, setStarFilter] = useState<number[]>([]);
+  const [maxPerNight, setMaxPerNight] = useState<number | null>(null);
+  const [popular, setPopular] = useState({
+    breakfast: false,
+    allInclusive: false,
+    balcony: false,
+    hotel: false,
+    apartment: false,
+    pool: false,
+    parking: false,
+    freeCancel: false,
+  });
+
+  const nflt = useMemo(() => bookingNfltFor(popular), [popular]);
+
   const buildBookingUrl = (queryCity: string, hotelName?: string) =>
     buildBookingSearchUrl({
       ...bookingBase,
       destination: hotelSearchQueryAlias(queryCity),
       hotelName,
+      nflt,
     });
-
-  const [sort, setSort] = useState<HotelResultSort>("top");
-  const [minRating, setMinRating] = useState(0);
-  const [starFilter, setStarFilter] = useState<number[]>([]);
-  const [maxPerNight, setMaxPerNight] = useState<number | null>(null);
 
   const fetchHotels = useServerFn(searchHotels);
   const effectiveCheckOut = checkOut ?? checkIn;
@@ -197,9 +211,25 @@ export function HotelsSection({
       maxPerNight: budgetMax,
       minRating,
       stars: starFilter,
+      ...popular,
     });
     return sortHotels(next, sort);
-  }, [realHotels, nights, budgetMax, minRating, starFilter, sort]);
+  }, [realHotels, nights, budgetMax, minRating, starFilter, sort, popular]);
+
+  const popularCounts = useMemo(() => {
+    const count = (pred: (h: (typeof realHotels)[number]) => boolean) =>
+      realHotels.filter(pred).length;
+    return {
+      breakfast: count((h) => Boolean(h.amenities?.breakfast)),
+      allInclusive: count((h) => Boolean(h.amenities?.allInclusive)),
+      balcony: count((h) => Boolean(h.amenities?.balcony)),
+      hotel: count((h) => h.kind === "hotel"),
+      apartment: count((h) => h.kind === "apartment"),
+      pool: count((h) => Boolean(h.amenities?.pool)),
+      parking: count((h) => Boolean(h.amenities?.parking)),
+      freeCancel: count((h) => Boolean(h.amenities?.freeCancel)),
+    };
+  }, [realHotels]);
 
   const mapCenter = useMemo(() => {
     const pts = realHotels.filter((h) => h.lat != null && h.lng != null) as Array<{
@@ -229,7 +259,11 @@ export function HotelsSection({
     setStarFilter((prev) => (prev.includes(n) ? prev.filter((s) => s !== n) : [...prev, n]));
   }
 
-  const filtersActive = minRating > 0 || starFilter.length > 0 || (maxPerNight != null && maxPerNight < extent.max);
+  const filtersActive =
+    minRating > 0 ||
+    starFilter.length > 0 ||
+    (maxPerNight != null && maxPerNight < extent.max) ||
+    Object.values(popular).some(Boolean);
 
   return (
     <div className="border-t border-slate-100 pt-2" onClick={(e) => e.stopPropagation()}>
@@ -348,6 +382,39 @@ export function HotelsSection({
               <div className="space-y-1.5 text-sm text-slate-700">
                 {(
                   [
+                    ["breakfast", "aiplan.filterBreakfast"],
+                    ["allInclusive", "aiplan.filterAllInclusive"],
+                    ["balcony", "aiplan.filterBalcony"],
+                    ["hotel", "aiplan.filterHotels"],
+                    ["apartment", "aiplan.filterApartments"],
+                    ["pool", "aiplan.filterPool"],
+                    ["parking", "aiplan.filterParking"],
+                    ["freeCancel", "aiplan.filterFreeCancel"],
+                  ] as const
+                ).map(([key, label]) => (
+                  <label key={key} className="flex cursor-pointer items-center justify-between gap-2">
+                    <span className="inline-flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={popular[key]}
+                        onChange={() =>
+                          setPopular((cur) => ({ ...cur, [key]: !cur[key] }))
+                        }
+                        className="h-3.5 w-3.5 accent-[#0071c2]"
+                      />
+                      {t(label as never)}
+                    </span>
+                    <span className="text-xs text-slate-400">{popularCounts[key]}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <p className="mb-2 text-sm font-bold text-slate-900">{t("aiplan.filterGuestRating" as never)}</p>
+              <div className="space-y-1.5 text-sm text-slate-700">
+                {(
+                  [
                     [9, "aiplan.filterRating9"],
                     [8, "aiplan.filterRating8"],
                     [7, "aiplan.filterRating7"],
@@ -392,6 +459,16 @@ export function HotelsSection({
                   setMinRating(0);
                   setStarFilter([]);
                   setMaxPerNight(null);
+                  setPopular({
+                    breakfast: false,
+                    allInclusive: false,
+                    balcony: false,
+                    hotel: false,
+                    apartment: false,
+                    pool: false,
+                    parking: false,
+                    freeCancel: false,
+                  });
                 }}
                 className="text-xs font-semibold text-[#0071c2] hover:underline"
               >

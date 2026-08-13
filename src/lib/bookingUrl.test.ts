@@ -34,4 +34,16 @@ describe("buildBookingSearchUrl", () => {
     expect(url.searchParams.get("ss")).toBe("Barcelona");
     expect(url.searchParams.get("aid")).toBeNull();
   });
+
+  it("forwards popular filters as Booking nflt", () => {
+    const url = new URL(
+      buildBookingSearchUrl({
+        destination: "Berlin",
+        checkIn: "2026-11-02",
+        checkOut: "2026-11-04",
+        nflt: ["mealplan=1", "ht_id=204"],
+      }),
+    );
+    expect(url.searchParams.get("nflt")).toBe("mealplan=1;ht_id=204");
+  });
 });

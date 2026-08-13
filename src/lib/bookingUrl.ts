@@ -8,6 +8,8 @@ export type BookingSearchParams = {
   affiliateId?: string;
   /** When set, search targets a specific property within the destination. */
   hotelName?: string;
+  /** Booking.com `nflt` tokens (mealplan, ht_id, facilities). */
+  nflt?: string[];
 };
 
 function normalizeBookingDate(iso: string): string {
@@ -62,6 +64,9 @@ export function buildBookingSearchUrl(params: BookingSearchParams): string {
   url.searchParams.set("sb", "1");
   url.searchParams.set("src_elem", "sb");
   url.searchParams.set("src", "searchresults");
+  if (params.nflt?.length) {
+    url.searchParams.set("nflt", params.nflt.join(";"));
+  }
 
   return url.toString();
 }
