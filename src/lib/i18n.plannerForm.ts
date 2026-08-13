@@ -3,7 +3,7 @@ type Dict = Partial<Record<string, string>>;
 /** AI planner form + plan chrome missing from partial locale packs. */
 export const plannerFormByLang: Record<"es" | "fr" | "it" | "de", Dict> = {
   es: {
-    "heroTrip.planTitle": "Tu itinerario IA",
+    "heroTrip.planTitle": "Tu itinerario",
     "ai.interests": "¿Qué te importa?",
     "ai.interestsSubtitle": "Elige al menos 3 — equilibraremos el itinerario en torno a esto.",
     "ai.interestsHint": "Selecciona al menos {min}",
@@ -55,8 +55,7 @@ export const plannerFormByLang: Record<"es" | "fr" | "it" | "de", Dict> = {
     "aiplan.langName.de": "alemán",
     "dashboard.donationBadge": "Mantenerlo gratis",
     "dashboard.donationTitle": "Skybooplan sigue gratis gracias a ti",
-    "dashboard.donationHint":
-      "Si un plan te ahorró horas, una pequeña propina ayuda a cubrir IA, mapas y hosting — para que el siguiente viajero también pueda planificar gratis.",
+    "dashboard.donationHint": "Si un plan te ahorró horas, una pequeña propina ayuda a cubrir planificación, mapas y hosting — para que el siguiente viajero también pueda planificar gratis.",
     "context.flightLand": "Llegada",
     "context.flightDepart": "regreso",
     "query.tripTo": "Viaje a {dest}",
@@ -70,7 +69,7 @@ export const plannerFormByLang: Record<"es" | "fr" | "it" | "de", Dict> = {
     "query.perPerson": "por persona",
   },
   fr: {
-    "heroTrip.planTitle": "Votre itinéraire IA",
+    "heroTrip.planTitle": "Votre itinéraire",
     "ai.interests": "Qu'est-ce qui compte pour vous ?",
     "ai.interestsSubtitle": "Choisissez au moins 3 — nous équilibrerons l'itinéraire autour de cela.",
     "ai.interestsHint": "Sélectionnez au moins {min}",
@@ -122,8 +121,7 @@ export const plannerFormByLang: Record<"es" | "fr" | "it" | "de", Dict> = {
     "aiplan.langName.de": "allemand",
     "dashboard.donationBadge": "Restez gratuit",
     "dashboard.donationTitle": "Skybooplan reste gratuit grâce à vous",
-    "dashboard.donationHint":
-      "Si un plan vous a fait gagner des heures, un petit pourboire aide à couvrir l'IA, les cartes et l'hébergement — pour que le prochain voyageur puisse aussi planifier gratuitement.",
+    "dashboard.donationHint": "Si un plan vous a fait gagner des heures, un petit pourboire aide à couvrir planning, les cartes et l'hébergement — pour que le prochain voyageur puisse aussi planifier gratuitement.",
     "context.flightLand": "Arrivée",
     "context.flightDepart": "retour",
     "query.tripTo": "Voyage à {dest}",
@@ -137,7 +135,7 @@ export const plannerFormByLang: Record<"es" | "fr" | "it" | "de", Dict> = {
     "query.perPerson": "par personne",
   },
   it: {
-    "heroTrip.planTitle": "Il tuo itinerario IA",
+    "heroTrip.planTitle": "Il tuo itinerario",
     "ai.interests": "Cosa conta per te?",
     "ai.interestsSubtitle": "Scegli almeno 3 — bilanceremo l'itinerario su queste priorità.",
     "ai.interestsHint": "Seleziona almeno {min}",
@@ -189,8 +187,7 @@ export const plannerFormByLang: Record<"es" | "fr" | "it" | "de", Dict> = {
     "aiplan.langName.de": "tedesco",
     "dashboard.donationBadge": "Restiamo gratis",
     "dashboard.donationTitle": "Skybooplan resta gratis grazie a te",
-    "dashboard.donationHint":
-      "Se un piano ti ha fatto risparmiare ore, una piccola mancia aiuta a coprire IA, mappe e hosting — così il prossimo viaggiatore può pianificare gratis.",
+    "dashboard.donationHint": "Se un piano ti ha fatto risparmiare ore, una piccola mancia aiuta a coprire pianificazione, mappe e hosting — così il prossimo viaggiatore può pianificare gratis.",
     "context.flightLand": "Arrivo",
     "context.flightDepart": "ritorno",
     "query.tripTo": "Viaggio a {dest}",
@@ -204,7 +201,7 @@ export const plannerFormByLang: Record<"es" | "fr" | "it" | "de", Dict> = {
     "query.perPerson": "a persona",
   },
   de: {
-    "heroTrip.planTitle": "Dein KI-Reiseplan",
+    "heroTrip.planTitle": "Dein Reiseplan",
     "ai.interests": "Was ist dir wichtig?",
     "ai.interestsSubtitle": "Wähle mindestens 3 — wir balancieren den Plan darum.",
     "ai.interestsHint": "Mindestens {min} auswählen",

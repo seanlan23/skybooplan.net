@@ -791,9 +791,16 @@ export function HeroChatFlow({
         appendMessages(
           createChatMessage(
             "ai",
-            skyMessageWithVars(t("heroChat.passengers.tripReady" as never), {
-              dates: boot.dates.label,
-            }),
+            skyMessageWithVars(
+              t(
+                (isStaysOnly
+                  ? "heroChat.passengers.tripReadyStays"
+                  : "heroChat.passengers.tripReady") as never,
+              ),
+              {
+                dates: boot.dates.label,
+              },
+            ),
           ),
         );
         setStep("passengers");
@@ -1217,7 +1224,14 @@ export function HeroChatFlow({
       createChatMessage(
         "ai",
         dates
-          ? skyMessageWithVars(t("heroChat.passengers.tripReady" as never), { dates })
+          ? skyMessageWithVars(
+              t(
+                (isStaysOnly
+                  ? "heroChat.passengers.tripReadyStays"
+                  : "heroChat.passengers.tripReady") as never,
+              ),
+              { dates },
+            )
           : t("heroChat.passengers.browserTitle" as never),
       ),
     );
@@ -1426,7 +1440,7 @@ export function HeroChatFlow({
     advanceFromOrigin(label, iatas);
   }
 
-  function handlePassengersSelect(label: string) {
+  function handlePassengersSelect(label: string, rooms?: number) {
     const destination = collected.destination ?? "";
     const parsed = extractHeroChatDates(destination, lang);
     const knownDates =
@@ -1434,12 +1448,21 @@ export function HeroChatFlow({
       (parsed.departDate || parsed.precision === "exact" ? parsed.label : "");
 
     appendMessages(createChatMessage("user", label));
-    setCollected((prev) => ({ ...prev, passengers: label }));
+    setCollected((prev) => ({
+      ...prev,
+      passengers: label,
+      ...(rooms != null ? { rooms } : {}),
+    }));
 
     // Guided path: dates already chosen → trip type (if needed) → origin / search.
     if (knownDates) {
       const dateLabel = knownDates;
-      setCollected((prev) => ({ ...prev, dates: dateLabel, passengers: label }));
+      setCollected((prev) => ({
+        ...prev,
+        dates: dateLabel,
+        passengers: label,
+        ...(rooms != null ? { rooms } : {}),
+      }));
       if (needsFlightTripType() && !collected.tripType) {
         appendMessages(createChatMessage("ai", t("heroChat.tripType.ask" as never)));
         setStep("tripType");
@@ -1650,7 +1673,9 @@ export function HeroChatFlow({
       id="hero-chat-window"
       className={cn(
         "relative z-20 mx-auto mt-10 w-full min-w-0 text-left pointer-events-auto",
-        showTripChecklist ? "max-w-4xl sm:max-w-5xl" : "max-w-2xl sm:max-w-3xl",
+        showTripChecklist || staySearch
+          ? "max-w-4xl sm:max-w-5xl"
+          : "max-w-2xl sm:max-w-3xl",
       )}
     >
       <div
@@ -1828,7 +1853,7 @@ export function HeroChatFlow({
           ) : null}
 
           {!loading && staySearch ? (
-            <div className="hero-sky-enter mx-auto w-full max-w-xl overflow-hidden rounded-2xl bg-white p-3 shadow-lg sm:ml-10 sm:p-4">
+            <div className="hero-sky-enter mx-auto w-full max-w-5xl overflow-hidden rounded-2xl bg-white p-3 shadow-lg sm:p-4">
               <HotelsSection
                 city={staySearch.city}
                 checkIn={staySearch.checkIn}
@@ -1863,7 +1888,10 @@ export function HeroChatFlow({
           {showConversationChips && step === "passengers" ? (
             <HeroPassengerBrowser
               disabled={loading}
-              onSelect={(label) => handlePassengersSelect(label)}
+              stays={isStaysOnly}
+              onSelect={(label, _adults, _children, rooms) =>
+                handlePassengersSelect(label, rooms)
+              }
             />
           ) : null}
 

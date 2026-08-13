@@ -92,7 +92,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         name: "description",
         content:
-          "AI-powered travel platform designed to automate itinerary planning and booking.",
+          "Travel platform designed to automate itinerary planning and booking.",
       },
       { name: "author", content: "Skybooplan" },
       { name: "theme-color", content: "#0284C7" },
@@ -105,7 +105,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         property: "og:description",
         content:
-          "AI-powered travel platform designed to automate itinerary planning and booking.",
+          "Travel platform designed to automate itinerary planning and booking.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -113,7 +113,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         name: "twitter:description",
         content:
-          "AI-powered travel platform designed to automate itinerary planning and booking.",
+          "Travel platform designed to automate itinerary planning and booking.",
       },
       { property: "og:image", content: "/og-image.svg" },
       { name: "twitter:image", content: "/og-image.svg" },

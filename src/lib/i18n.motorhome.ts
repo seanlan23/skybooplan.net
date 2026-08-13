@@ -314,8 +314,7 @@ export const motorhomeUiByLang = {
     "heroChat.motorhome.openAppleMaps": "In Apple Maps öffnen",
     "heroChat.motorhome.downloadStopsKml": "Stopps herunterladen (KML)",
     "heroChat.motorhome.kmlHelpAria": "Was ist eine KML-Datei?",
-    "heroChat.motorhome.kmlHelp":
-      "KML ist eine Datei mit deinen Übernachtungsstopps (Koordinaten, Namen, Notizen) für Google My Maps oder Google Earth — kein PDF. Herunterladen, dann google.com/mymaps → Karte erstellen → Importieren → diese Datei wählen. Du bekommst Pins mit Titeln und Notizen. macOS öffnet .kml oft nicht selbst — im Browser importieren.",
+    "heroChat.motorhome.kmlHelp": "KML ist eine Datei mit deinen Übernachtungsstopps (Koordinaten, Namen, Notizen) für Google My Maps oder Google Earth — kein PDF. Herunterladen, dann google.com/mymaps → Karte erstellen → Importieren → diese Datei wählen. Du bekommst Pins mit Titeln und Notizen. macOS öffnet.kml oft nicht selbst — im Browser importieren.",
     "heroChat.motorhome.stopsTitle": "Wo du übernachtest",
     "heroChat.motorhome.stopOvernight": "Camp",
     "heroChat.motorhome.stopsHint":

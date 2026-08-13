@@ -106,7 +106,7 @@ function GoogleAuthStartPage() {
           </Link>
         )}
         <p className="mt-6 text-xs text-slate-500">
-          AI travel agent · <span className="font-semibold text-sky-700">skybooplan</span>
+          Travel planner · <span className="font-semibold text-sky-700">skybooplan</span>
         </p>
       </div>
     </div>

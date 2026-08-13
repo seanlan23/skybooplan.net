@@ -130,9 +130,9 @@ function LandingRoute() {
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Skybooplan — AI-powered travel planning, flights & stays" },
-      { name: "description", content: "Find flights, plan your route and book accommodation. Free AI itineraries, interactive maps and PDF download — no paywall." },
-      { property: "og:title", content: "Skybooplan — Plan your next trip with AI" },
+      { title: "Skybooplan — Travel planning, flights & stays" },
+      { name: "description", content: "Find flights, plan your route and book accommodation. Free itineraries, interactive maps and PDF download — no paywall." },
+      { property: "og:title", content: "Skybooplan — Plan your next trip" },
       { property: "og:description", content: "Real-time flights, smart itineraries, beautiful maps. Free for everyone." },
       { property: "og:type", content: "website" },
     ],

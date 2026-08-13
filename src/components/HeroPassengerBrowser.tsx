@@ -5,18 +5,27 @@ import { formatPassengersLabel } from "@/lib/heroChatExtract";
 /** Compact Skyscanner-style traveler counts — no preset card carousel. */
 export function HeroPassengerBrowser({
   disabled,
+  stays,
   onSelect,
 }: {
   disabled?: boolean;
-  onSelect: (label: string, adults: number, children: number) => void;
+  /** Stays: 18+ adults, rooms stepper. Flights keep 16+ / no rooms. */
+  stays?: boolean;
+  onSelect: (label: string, adults: number, children: number, rooms?: number) => void;
 }) {
   const { t, lang } = useI18n();
   const [adults, setAdults] = useState(2);
   const [children, setChildren] = useState(0);
+  const [rooms, setRooms] = useState(1);
 
   function confirm() {
     if (disabled) return;
-    onSelect(formatPassengersLabel(adults, children, lang), adults, children);
+    onSelect(
+      formatPassengersLabel(adults, children, lang, stays ? rooms : undefined),
+      adults,
+      children,
+      stays ? rooms : undefined,
+    );
   }
 
   return (
@@ -28,7 +37,11 @@ export function HeroPassengerBrowser({
       <div className="rounded-2xl border border-white/20 bg-white/10 px-3 py-2 backdrop-blur-md">
         <CountRow
           label={t("heroChat.passengers.adults" as never)}
-          hint={t("heroChat.passengers.adultsHint" as never)}
+          hint={
+            stays
+              ? t("trav.adultsAge")
+              : t("heroChat.passengers.adultsHint" as never)
+          }
           value={adults}
           min={1}
           max={9}
@@ -38,13 +51,31 @@ export function HeroPassengerBrowser({
         <div className="my-1.5 h-px bg-white/15" />
         <CountRow
           label={t("heroChat.passengers.children" as never)}
-          hint={t("heroChat.passengers.childrenHint" as never)}
+          hint={
+            stays
+              ? t("trav.childrenAge")
+              : t("heroChat.passengers.childrenHint" as never)
+          }
           value={children}
           min={0}
           max={8}
           disabled={disabled}
           onChange={setChildren}
         />
+        {stays ? (
+          <>
+            <div className="my-1.5 h-px bg-white/15" />
+            <CountRow
+              label={t("trav.rooms")}
+              hint={t("trav.roomsDesc")}
+              value={rooms}
+              min={1}
+              max={8}
+              disabled={disabled}
+              onChange={setRooms}
+            />
+          </>
+        ) : null}
       </div>
 
       <button

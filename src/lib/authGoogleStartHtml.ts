@@ -152,7 +152,7 @@ export function buildGoogleOAuthStartHtml(opts: {
       <h1>Povezujem z Googlom</h1>
       <p>Trenutek — odpiram varno Google prijavo za tvoj skybooplan račun.</p>
       <div class="orbit" aria-hidden="true">${LOGO_MARK_SVG.replace('width="44"', 'width="28"').replace('height="44"', 'height="28"')}</div>
-      <p class="footer">AI travel agent · <span>skybooplan</span></p>
+      <p class="footer">Travel planner · <span>skybooplan</span></p>
       <form id="google-oauth" method="POST" action="${actionEsc}">
         <input type="hidden" name="csrfToken" value="${csrf}" />
         <input type="hidden" name="callbackUrl" value="${callback}" />

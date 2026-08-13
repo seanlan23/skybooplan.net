@@ -166,8 +166,8 @@ function thinLocalDay(day: DayPlan, lang: string): DayPlan {
     ...day,
     title: slo ? `${city} — prosti / lokalni dan` : `${city} — free / local day`,
     travelHack: slo
-      ? "Dan je bil podvojen v AI osnutku — zamenjan z lahkotnim lokalnim programom."
-      : "Day was duplicated in the AI draft — replaced with a light local schedule.",
+      ? "Dan je bil podvojen v osnutku — zamenjan z lahkotnim lokalnim programom."
+      : "Day was duplicated in the draft — replaced with a light local schedule.",
     morning: "",
     afternoon: "",
     evening: "",

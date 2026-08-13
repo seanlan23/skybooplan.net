@@ -7,7 +7,7 @@ export const pricingUiByLang: Record<"es" | "it" | "de", Dict> = {
     "pricing.title1": "Precios simples.",
     "pricing.title2": "Paga solo lo que necesitas.",
     "pricing.subtitle":
-      "Empieza con un plan suelto o ahorra con una suscripción. Todos incluyen itinerario IA completo y PDF.",
+      "Empieza con un plan suelto o ahorra con una suscripción. Todos incluyen itinerario completo y PDF.",
     "pricing.note":
       "Precios en EUR. Apple Pay, Google Pay y tarjetas. Las suscripciones se renuevan hasta que las canceles.",
     "pricing.singleName": "Plan único",
@@ -18,7 +18,7 @@ export const pricingUiByLang: Record<"es" | "it" | "de", Dict> = {
     "pricing.perYear": "al año",
     "pricing.mostFlexible": "Más flexible",
     "pricing.save48": "Ahorra 48 €",
-    "pricing.feat.aiPlan": "1 plan de viaje IA",
+    "pricing.feat.aiPlan": "1 plan de viaje",
     "pricing.feat.pdf": "Descarga PDF",
     "pricing.feat.payOnce": "Pago único — sin suscripción",
     "pricing.feat.twoPerDay": "2 planes al día",
@@ -34,7 +34,7 @@ export const pricingUiByLang: Record<"es" | "it" | "de", Dict> = {
     "pricing.title1": "Prezzi semplici.",
     "pricing.title2": "Paga solo ciò che ti serve.",
     "pricing.subtitle":
-      "Inizia con un piano singolo o risparmia con un abbonamento. Tutti includono itinerario IA completo e PDF.",
+      "Inizia con un piano singolo o risparmia con un abbonamento. Tutti includono itinerario completo e PDF.",
     "pricing.note":
       "Prezzi in EUR. Apple Pay, Google Pay e carte. Gli abbonamenti si rinnovano fino alla cancellazione.",
     "pricing.singleName": "Piano singolo",
@@ -45,7 +45,7 @@ export const pricingUiByLang: Record<"es" | "it" | "de", Dict> = {
     "pricing.perYear": "all'anno",
     "pricing.mostFlexible": "Più flessibile",
     "pricing.save48": "Risparmia 48 €",
-    "pricing.feat.aiPlan": "1 piano di viaggio IA",
+    "pricing.feat.aiPlan": "1 piano di viaggio",
     "pricing.feat.pdf": "Download PDF",
     "pricing.feat.payOnce": "Pagamento unico — senza abbonamento",
     "pricing.feat.twoPerDay": "2 piani al giorno",
@@ -61,7 +61,7 @@ export const pricingUiByLang: Record<"es" | "it" | "de", Dict> = {
     "pricing.title1": "Einfache Preise.",
     "pricing.title2": "Zahle nur, was du brauchst.",
     "pricing.subtitle":
-      "Starte mit einem Einzelplan oder spare mit Abo. Alle enthalten volles KI-Itinerar und PDF.",
+      "Starte mit einem Einzelplan oder spare mit Abo. Alle enthalten volles Itinerar und PDF.",
     "pricing.note":
       "Preise in EUR. Apple Pay, Google Pay und Karten. Abos verlängern sich bis zur Kündigung.",
     "pricing.singleName": "Einzelplan",
@@ -72,7 +72,7 @@ export const pricingUiByLang: Record<"es" | "it" | "de", Dict> = {
     "pricing.perYear": "pro Jahr",
     "pricing.mostFlexible": "Am flexibelsten",
     "pricing.save48": "48 € sparen",
-    "pricing.feat.aiPlan": "1 KI-Reiseplan",
+    "pricing.feat.aiPlan": "1 Reiseplan",
     "pricing.feat.pdf": "PDF-Download",
     "pricing.feat.payOnce": "Einmal zahlen — kein Abo",
     "pricing.feat.twoPerDay": "2 Pläne pro Tag",

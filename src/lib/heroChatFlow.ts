@@ -65,6 +65,8 @@ export type HeroChatCollected = {
   nights: string;
   origin: string;
   passengers: string;
+  /** Stays only — Booking room count. */
+  rooms?: number;
   pace: string;
   budget: string;
   /** Free-text places / preferences in the destination country (optional). */

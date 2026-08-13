@@ -1925,11 +1925,11 @@ export const generateAiPlan = createServerFn({ method: "POST" })
           });
 
           if (!parsed) {
-            return withDebug({ plan: null, error: "AI predolgo odgovarja, poskusi znova." });
+            return withDebug({ plan: null, error: "Planer predolgo odgovarja, poskusi znova." });
           }
           if (!parsed?.days?.length) {
             trace(`batch ${batch.start}-${batch.end}: parse failed — not valid JSON`);
-            return withDebug({ plan: null, error: "AI plan se trenutno ne da generirati." });
+            return withDebug({ plan: null, error: "Plana trenutno ni mogoče ustvariti." });
           }
 
           if (!meta) {
@@ -1965,7 +1965,7 @@ export const generateAiPlan = createServerFn({ method: "POST" })
 
         if (normalizedDays.length < nDays) {
           trace(`incomplete: got ${normalizedDays.length}/${nDays} days`);
-          return withDebug({ plan: null, error: "AI plan se trenutno ne da generirati." });
+          return withDebug({ plan: null, error: "Plana trenutno ni mogoče ustvariti." });
         }
 
         const accommodationMode = detectAccommodationMode(data.wishes, data.customPrompt);
@@ -2026,11 +2026,11 @@ export const generateAiPlan = createServerFn({ method: "POST" })
         }
       }
 
-      return withDebug({ plan: null, error: "AI plan se trenutno ne da generirati." });
+      return withDebug({ plan: null, error: "Plana trenutno ni mogoče ustvariti." });
     } catch (err) {
       trace(`fatal: ${err instanceof Error ? err.message : String(err)}`);
       console.error("AI plan failed:", err);
-      return withDebug({ plan: null, error: "AI plan se trenutno ne da generirati." });
+      return withDebug({ plan: null, error: "Plana trenutno ni mogoče ustvariti." });
     }
   });
 
@@ -4257,7 +4257,7 @@ export const generateAiPlanSkeleton = createServerFn({ method: "POST" })
         if (geminiRateLimited) {
           return withDebug({ skeleton: null, error: "error.geminiRateLimit" });
         }
-        return withDebug({ skeleton: null, error: "AI plan se trenutno ne da generirati." });
+        return withDebug({ skeleton: null, error: "Plana trenutno ni mogoče ustvariti." });
       }
 
       const skipAiRegionFill = usedBlueprintFallback || geminiRateLimited;
@@ -4399,6 +4399,6 @@ export const generateAiPlanSkeleton = createServerFn({ method: "POST" })
       return withDebug({ skeleton, error: null });
     } catch (err) {
       trace(`fatal: ${err instanceof Error ? err.message : String(err)}`);
-      return withDebug({ skeleton: null, error: "AI plan se trenutno ne da generirati." });
+      return withDebug({ skeleton: null, error: "Plana trenutno ni mogoče ustvariti." });
     }
   });

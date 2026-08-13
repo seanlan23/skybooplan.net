@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   extractHeroChatPassengers,
+  formatPassengersLabel,
   resolveHeroChatBootstrap,
 } from "@/lib/heroChatExtract";
 
@@ -16,6 +17,10 @@ describe("extractHeroChatPassengers", () => {
       children: 1,
       label: "2 odrasla + 1 otrok",
     });
+  });
+
+  it("appends rooms on the stays label", () => {
+    expect(formatPassengersLabel(2, 1, "sl", 2)).toBe("2 odrasla + 1 otrok · 2 sobi");
   });
 
   it("parses party size without adult/child words", () => {

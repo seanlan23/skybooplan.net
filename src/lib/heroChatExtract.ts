@@ -10,19 +10,43 @@ function clamp(n: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, Math.round(n)));
 }
 
-export function formatPassengersLabel(adults: number, children: number, lang: string): string {
+export function formatRoomsLabel(rooms: number, lang: string): string {
+  const n = Math.max(1, Math.min(10, Math.round(rooms)));
+  if (lang === "sl") {
+    if (n === 1) return "1 soba";
+    if (n === 2) return "2 sobi";
+    return `${n} sob`;
+  }
+  if (lang === "de") return n === 1 ? "1 Zimmer" : `${n} Zimmer`;
+  return n === 1 ? "1 room" : `${n} rooms`;
+}
+
+export function formatPassengersLabel(
+  adults: number,
+  children: number,
+  lang: string,
+  rooms?: number,
+): string {
+  let base: string;
   if (lang === "sl") {
     const adultPart =
       adults === 1 ? "1 odrasel" : adults === 2 ? "2 odrasla" : `${adults} odraslih`;
-    if (children <= 0) return adultPart;
-    const childPart =
-      children === 1 ? "1 otrok" : children === 2 ? "2 otroka" : `${children} otrok`;
-    return `${adultPart} + ${childPart}`;
+    if (children <= 0) base = adultPart;
+    else {
+      const childPart =
+        children === 1 ? "1 otrok" : children === 2 ? "2 otroka" : `${children} otrok`;
+      base = `${adultPart} + ${childPart}`;
+    }
+  } else {
+    const adultPart = adults === 1 ? "1 adult" : `${adults} adults`;
+    if (children <= 0) base = adultPart;
+    else {
+      const childPart = children === 1 ? "1 child" : `${children} children`;
+      base = `${adultPart} + ${childPart}`;
+    }
   }
-  const adultPart = adults === 1 ? "1 adult" : `${adults} adults`;
-  if (children <= 0) return adultPart;
-  const childPart = children === 1 ? "1 child" : `${children} children`;
-  return `${adultPart} + ${childPart}`;
+  if (rooms == null) return base;
+  return `${base} · ${formatRoomsLabel(rooms, lang)}`;
 }
 
 /** Extract passenger counts only when the user explicitly mentioned them. */

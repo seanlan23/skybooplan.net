@@ -22,6 +22,13 @@ export type RealHotel = {
   reviews: number;
   image: string;
   bookingUrl: string;
+  reviewWord?: string;
+  stars?: number;
+  lat?: number;
+  lng?: number;
+  neighborhood?: string;
+  preferred?: boolean;
+  originalPrice?: number;
 };
 
 const Input = z.object({
@@ -167,10 +174,18 @@ export const searchHotels = createServerFn({ method: "POST" })
         childrenAges: data.childrenAges,
         affiliateId: aid,
       };
-      const hotels: RealHotel[] = rows.slice(0, 20).map((h: any) => {
+      const hotels: RealHotel[] = rows.slice(0, 40).map((h: any) => {
         const prop = h.property ?? {};
         const priceObj = prop.priceBreakdown?.grossPrice ?? {};
-        const id = String(h.hotel_id ?? prop.id ?? Math.random());
+        const strike = Number(prop.priceBreakdown?.strikethroughPrice?.value ?? 0);
+        const id = String(h.hotel_id ?? prop.id ?? "");
+        const price = Math.round(Number(priceObj.value ?? 0));
+        const lat = Number(prop.latitude ?? prop.lat);
+        const lng = Number(prop.longitude ?? prop.lng);
+        const hasCoords = Number.isFinite(lat) && Number.isFinite(lng) && (lat !== 0 || lng !== 0);
+        const starsRaw = Math.round(
+          Number(prop.accuratePropertyClass ?? prop.propertyClass ?? prop.qualityClass ?? 0),
+        );
 
         const directUrl: string | undefined = prop.url ?? h.url;
         const bookingUrl = resolveHotelBookingUrl(directUrl, {
@@ -179,9 +194,9 @@ export const searchHotels = createServerFn({ method: "POST" })
         });
 
         return {
-          id,
+          id: id || String(prop.name ?? "hotel"),
           name: String(prop.name ?? "Hotel"),
-          price: Math.round(Number(priceObj.value ?? 0)),
+          price,
           currency: String(priceObj.currency ?? data.currency),
           rating: Number(prop.reviewScore ?? 0),
           reviews: Number(prop.reviewCount ?? 0),
@@ -191,6 +206,13 @@ export const searchHotels = createServerFn({ method: "POST" })
               "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=400",
           ),
           bookingUrl,
+          reviewWord: String(prop.reviewScoreWord ?? "").trim() || undefined,
+          stars: starsRaw >= 1 && starsRaw <= 5 ? starsRaw : undefined,
+          lat: hasCoords ? lat : undefined,
+          lng: hasCoords ? lng : undefined,
+          neighborhood: String(prop.wishlistName ?? "").trim() || undefined,
+          preferred: Boolean(prop.isPreferred || prop.isPreferredPlus),
+          originalPrice: strike > price ? Math.round(strike) : undefined,
         };
       });
 

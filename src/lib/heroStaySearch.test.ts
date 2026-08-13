@@ -16,7 +16,8 @@ describe("staySearchFromCollected", () => {
         dates: "16. jul → 23. jul 2026", // SL range label from calendar
         nights: "",
         origin: "",
-        passengers: "2 odrasli",
+        passengers: "2 odrasla · 2 sobi",
+        rooms: 2,
         pace: "",
         budget: "",
       },
@@ -26,6 +27,22 @@ describe("staySearchFromCollected", () => {
     expect(stay.checkIn).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(stay.checkOut > stay.checkIn).toBe(true);
     expect(stay.adults).toBe(2);
-    expect(stay.rooms).toBeGreaterThanOrEqual(1);
+    expect(stay.rooms).toBe(2);
+  });
+
+  it("reads rooms from the passenger label when rooms field is missing", () => {
+    const stay = staySearchFromCollected(
+      {
+        destination: "Piran",
+        dates: "2. nov → 4. nov 2026",
+        nights: "",
+        origin: "",
+        passengers: "2 odrasla · 3 sobe",
+        pace: "",
+        budget: "",
+      },
+      "sl",
+    );
+    expect(stay.rooms).toBe(3);
   });
 });

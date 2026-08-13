@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { X, Sparkles } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
 
 type Rect = { top: number; left: number; width: number; height: number };
 
@@ -12,6 +13,7 @@ export function SpotlightOverlay({
   message: string;
   onDismiss: () => void;
 }) {
+  const { t } = useI18n();
   const [rect, setRect] = useState<Rect | null>(null);
 
   useEffect(() => {
@@ -83,7 +85,7 @@ export function SpotlightOverlay({
           <div className="flex-1">
             <div className="text-sm font-semibold text-foreground">{message}</div>
             <div className="text-xs text-muted-foreground mt-1">
-              Klikni gumb in AI bo pripravil personaliziran plan.
+              {t("spotlight.hint")}
             </div>
           </div>
           <button

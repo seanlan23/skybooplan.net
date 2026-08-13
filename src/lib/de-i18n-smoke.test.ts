@@ -29,7 +29,7 @@ describe("de plan language consistency", () => {
 
   it("homepage/plan UI keys resolve in German", () => {
     expect(translate("de", "support.title")).toMatch(/Hat Skybooplan/);
-    expect(translate("de", "feat.itin.title")).toMatch(/KI-Reiseplan/);
+    expect(translate("de", "feat.itin.title")).toMatch(/Reiseplan/);
     expect(translate("de", "activity.type.transport")).toBe("Transport");
     expect(translate("de", "transport.mode.drive")).toBe("Fahrt");
     expect(translate("de", "aiplan.perPerson")).toBe("/ Person");
