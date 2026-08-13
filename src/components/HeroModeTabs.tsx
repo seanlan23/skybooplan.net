@@ -24,15 +24,11 @@ function ModeButton({
   value,
   onChange,
   label,
-  newBadge,
-  large,
 }: {
   mode: HeroChatMode;
   value: HeroChatMode;
   onChange: (mode: HeroChatMode) => void;
   label: string;
-  newBadge?: string;
-  large?: boolean;
 }) {
   const isActive = value === mode;
   return (
@@ -42,67 +38,56 @@ function ModeButton({
       aria-selected={isActive}
       onClick={() => onChange(mode)}
       className={cn(
-        "flex items-center justify-center gap-1.5 border font-semibold transition",
-        large ? "min-h-14 rounded-2xl px-4 py-3.5 text-base" : "min-h-[52px] rounded-2xl px-3 py-3 text-sm",
+        "rounded-full px-3 py-1.5 text-[13px] font-medium leading-none transition sm:px-3.5 sm:text-sm",
         isActive
-          ? "border-white bg-white text-slate-900 shadow-sm"
-          : "border-white/20 bg-white/10 text-white hover:bg-white/20 active:scale-[0.99]",
+          ? "bg-white text-slate-900 shadow-sm"
+          : "text-white/80 hover:bg-white/10 hover:text-white",
       )}
     >
-      <span>{label}</span>
-      {newBadge ? (
-        <span
-          className={cn(
-            "rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase leading-none tracking-wide",
-            isActive ? "bg-sky-600 text-white" : "bg-sky-400 text-slate-900",
-          )}
-        >
-          {newBadge}
-        </span>
-      ) : null}
+      {label}
     </button>
   );
 }
 
-export function HeroModeTabs({ value, onChange }: HeroModeTabsProps) {
+function ModeRow({
+  modes,
+  value,
+  onChange,
+  className,
+}: {
+  modes: HeroChatMode[];
+  value: HeroChatMode;
+  onChange: (mode: HeroChatMode) => void;
+  className?: string;
+}) {
   const { t } = useI18n();
-  const newBadge = t("heroMode.newBadge" as never);
-
   return (
-    <div className="mx-auto mt-8 w-full max-w-md sm:max-w-3xl" role="tablist" aria-label={t("heroMode.label" as never)}>
-      <div className="grid gap-2 sm:hidden">
+    <div
+      className={cn(
+        "inline-flex flex-wrap items-center justify-center gap-0.5 rounded-full border border-white/20 bg-black/30 p-1 backdrop-blur-md",
+        className,
+      )}
+      role="tablist"
+      aria-label={t("heroMode.label" as never)}
+    >
+      {modes.map((mode) => (
         <ModeButton
-          mode="all"
+          key={mode}
+          mode={mode}
           value={value}
           onChange={onChange}
-          label={t(TAB_LABEL_KEYS.all as never)}
-          large
+          label={t(TAB_LABEL_KEYS[mode] as never)}
         />
-        <div className="grid grid-cols-2 gap-2">
-          {MOBILE_MODES.filter((m) => m !== "all").map((mode) => (
-            <ModeButton
-              key={mode}
-              mode={mode}
-              value={value}
-              onChange={onChange}
-              label={t(TAB_LABEL_KEYS[mode] as never)}
-            />
-          ))}
-        </div>
-      </div>
+      ))}
+    </div>
+  );
+}
 
-      <div className="hidden grid-cols-5 gap-2 sm:grid">
-        {DESKTOP_MODES.map((mode) => (
-          <ModeButton
-            key={mode}
-            mode={mode}
-            value={value}
-            onChange={onChange}
-            label={t(TAB_LABEL_KEYS[mode] as never)}
-            newBadge={mode === "car" || mode === "motorhome" ? newBadge : undefined}
-          />
-        ))}
-      </div>
+export function HeroModeTabs({ value, onChange }: HeroModeTabsProps) {
+  return (
+    <div className="mx-auto mt-5 flex w-full justify-center">
+      <ModeRow modes={MOBILE_MODES} value={value} onChange={onChange} className="sm:hidden" />
+      <ModeRow modes={DESKTOP_MODES} value={value} onChange={onChange} className="hidden sm:inline-flex" />
     </div>
   );
 }
