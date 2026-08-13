@@ -3,8 +3,8 @@ import { Download, Share, X } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
-const DISMISS_KEY = "skybooplan.pwa.installDismissed";
-const DISMISS_MS = 1000 * 60 * 60 * 24 * 21; // 21 days
+const SESSION_DISMISS_KEY = "skybooplan.pwa.installSessionDismissed";
+const LEGACY_DISMISS_KEY = "skybooplan.pwa.installDismissed";
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -21,6 +21,13 @@ function isStandalone(): boolean {
   );
 }
 
+function isMobileBrowser(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent;
+  if (/Android|iPhone|iPad|iPod/i.test(ua)) return true;
+  return navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
+}
+
 function isIosSafari(): boolean {
   if (typeof navigator === "undefined") return false;
   const ua = navigator.userAgent;
@@ -32,29 +39,34 @@ function isIosSafari(): boolean {
   return iOS && webkit && !chrome;
 }
 
-function wasDismissedRecently(): boolean {
+function wasDismissedThisSession(): boolean {
   try {
-    const raw = localStorage.getItem(DISMISS_KEY);
-    if (!raw) return false;
-    const at = Number(raw);
-    if (!Number.isFinite(at)) return false;
-    return Date.now() - at < DISMISS_MS;
+    return sessionStorage.getItem(SESSION_DISMISS_KEY) === "1";
   } catch {
     return false;
   }
 }
 
-function markDismissed() {
+function markDismissedThisSession() {
   try {
-    localStorage.setItem(DISMISS_KEY, String(Date.now()));
+    sessionStorage.setItem(SESSION_DISMISS_KEY, "1");
+    localStorage.removeItem(LEGACY_DISMISS_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+function clearLegacyDismiss() {
+  try {
+    localStorage.removeItem(LEGACY_DISMISS_KEY);
   } catch {
     /* ignore */
   }
 }
 
 /**
- * Install sheet — Chrome/Edge beforeinstallprompt + iOS Safari instructions.
- * iOS cannot programmatically open “Add to Home Screen”; never fake a broken CTA.
+ * Bottom install sheet on every mobile visit until the PWA is installed.
+ * “Not now” only hides it for this tab session.
  */
 export function PwaInstallPrompt() {
   const { t } = useI18n();
@@ -65,37 +77,31 @@ export function PwaInstallPrompt() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (isStandalone() || wasDismissedRecently()) return;
+    clearLegacyDismiss();
+    if (isStandalone() || !isMobileBrowser() || wasDismissedThisSession()) return;
 
     const onBeforeInstall = (e: Event) => {
       e.preventDefault();
       setDeferred(e as BeforeInstallPromptEvent);
-      window.setTimeout(() => setVisible(true), 1800);
     };
-
     window.addEventListener("beforeinstallprompt", onBeforeInstall);
 
-    // iOS has no beforeinstallprompt — show how-to after a short delay on Safari.
-    if (isIosSafari()) {
-      const timer = window.setTimeout(() => {
-        setIosHint(true);
-        setVisible(true);
-      }, 4200);
-      return () => {
-        window.removeEventListener("beforeinstallprompt", onBeforeInstall);
-        window.clearTimeout(timer);
-      };
-    }
+    const timer = window.setTimeout(() => {
+      setIosHint(isIosSafari());
+      setVisible(true);
+    }, 700);
 
-    return () => window.removeEventListener("beforeinstallprompt", onBeforeInstall);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", onBeforeInstall);
+      window.clearTimeout(timer);
+    };
   }, []);
 
   if (!visible || isStandalone()) return null;
 
   const dismiss = () => {
-    markDismissed();
+    markDismissedThisSession();
     setVisible(false);
-    setDeferred(null);
   };
 
   const install = async () => {
@@ -108,11 +114,12 @@ export function PwaInstallPrompt() {
       /* user cancelled */
     } finally {
       setBusy(false);
-      markDismissed();
       setVisible(false);
       setDeferred(null);
     }
   };
+
+  const showHowTo = iosHint || !deferred;
 
   return (
     <div
@@ -159,10 +166,12 @@ export function PwaInstallPrompt() {
             >
               {iosHint
                 ? t("pwa.installIosHint" as never)
-                : t("pwa.installBody" as never)}
+                : deferred
+                  ? t("pwa.installBody" as never)
+                  : t("pwa.installAndroidHint" as never)}
             </p>
 
-            {iosHint ? (
+            {showHowTo && iosHint ? (
               <ol className="mt-3 space-y-1.5 rounded-xl border border-white/15 bg-white/5 px-3 py-2.5 text-left text-xs font-medium leading-snug text-sky-50/95">
                 <li className="flex gap-2">
                   <Share className="mt-0.5 h-3.5 w-3.5 shrink-0 text-sky-300" aria-hidden />
@@ -171,12 +180,21 @@ export function PwaInstallPrompt() {
                 <li>{t("pwa.installIosStep2" as never)}</li>
                 <li>{t("pwa.installIosStep3" as never)}</li>
               </ol>
-            ) : (
+            ) : null}
+
+            {showHowTo && !iosHint ? (
+              <ol className="mt-3 space-y-1.5 rounded-xl border border-white/15 bg-white/5 px-3 py-2.5 text-left text-xs font-medium leading-snug text-sky-50/95">
+                <li>{t("pwa.installAndroidStep1" as never)}</li>
+                <li>{t("pwa.installAndroidStep2" as never)}</li>
+              </ol>
+            ) : null}
+
+            {deferred && !iosHint ? (
               <div className="mt-3.5 flex flex-wrap gap-2">
                 <button
                   type="button"
                   onClick={() => void install()}
-                  disabled={busy || !deferred}
+                  disabled={busy}
                   className="inline-flex min-h-10 items-center justify-center rounded-xl bg-sky-500 px-4 text-sm font-semibold text-white shadow-md transition hover:bg-sky-400 disabled:opacity-50"
                 >
                   {t("pwa.installCta" as never)}
@@ -189,9 +207,7 @@ export function PwaInstallPrompt() {
                   {t("pwa.installLater" as never)}
                 </button>
               </div>
-            )}
-
-            {iosHint ? (
+            ) : (
               <button
                 type="button"
                 onClick={dismiss}
@@ -199,7 +215,7 @@ export function PwaInstallPrompt() {
               >
                 {t("pwa.installLater" as never)}
               </button>
-            ) : null}
+            )}
           </div>
 
           <button
