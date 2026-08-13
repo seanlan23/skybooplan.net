@@ -5,6 +5,7 @@ import {
   parseChatPassengers,
 } from "@/lib/heroChatPlanner";
 import { ensureHotelCheckoutAfterCheckin } from "@/lib/bookingUrl";
+import { hotelSearchQueryAlias } from "@/lib/hotelDestinationPick";
 
 export type HeroStaySearchParams = {
   city: string;
@@ -28,7 +29,8 @@ export function staySearchFromCollected(
   collected: HeroChatCollected,
   language = "sl",
 ): HeroStaySearchParams {
-  const city = stayDestinationLabel(collected.destination) || "Bangkok";
+  const city =
+    hotelSearchQueryAlias(stayDestinationLabel(collected.destination)) || "Bangkok";
   const range = parseChatDateRange(collected.dates, language);
   const checkIn = range.departDate;
   const nights = collected.nights?.trim()

@@ -336,6 +336,7 @@ function HeroGuidedStart({
   inputDisabled,
   fileProcessing,
   featureBadges,
+  staysOnly = false,
   t,
 }: {
   onPickDestination: (destination: string, label: string) => void;
@@ -346,6 +347,7 @@ function HeroGuidedStart({
   inputDisabled: boolean;
   fileProcessing: boolean;
   featureBadges: string[];
+  staysOnly?: boolean;
   t: (key: never) => string;
 }) {
   const [showTypeBox, setShowTypeBox] = useState(false);
@@ -354,10 +356,10 @@ function HeroGuidedStart({
     <div className="relative z-20 w-full">
       <div className="rounded-2xl border border-white/25 bg-white/12 p-5 shadow-lg backdrop-blur-md sm:p-6">
         <p className="text-center text-lg font-semibold text-white sm:text-xl">
-          {t("heroChat.guided.whereTitle" as never)}
+          {t((staysOnly ? "heroChat.guided.staysTitle" : "heroChat.guided.whereTitle") as never)}
         </p>
         <p className="mt-1.5 text-center text-sm text-white/70">
-          {t("heroChat.guided.whereHint" as never)}
+          {t((staysOnly ? "heroChat.guided.staysHint" : "heroChat.guided.whereHint") as never)}
         </p>
 
         <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -1604,6 +1606,7 @@ export function HeroChatFlow({
               inputDisabled={inputDisabled}
               fileProcessing={fileProcessing}
               featureBadges={featureBadges}
+              staysOnly={isStaysOnly}
               t={t}
             />
           )}
@@ -1658,7 +1661,7 @@ export function HeroChatFlow({
               : showSearchLoader
                 ? "max-h-[min(420px,50vh)] overflow-y-hidden"
                 : staySearch
-                  ? "max-h-[min(640px,70vh)] overflow-y-auto"
+                  ? "max-h-none overflow-visible sm:max-h-[min(720px,75vh)] sm:overflow-y-auto"
                   : "max-h-[min(420px,50vh)] overflow-y-auto",
           )}
         >

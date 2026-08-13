@@ -8,6 +8,8 @@ describe("hotelSearchQueryAlias", () => {
   it("maps Krabi to Ao Nang for tighter Booking results", () => {
     expect(hotelSearchQueryAlias("Krabi")).toBe("Ao Nang");
     expect(hotelSearchQueryAlias("Bangkok")).toBe("Bangkok");
+    expect(hotelSearchQueryAlias("Thailand")).toBe("Bangkok");
+    expect(hotelSearchQueryAlias("Tajska")).toBe("Bangkok");
   });
 });
 

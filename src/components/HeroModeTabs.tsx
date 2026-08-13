@@ -1,11 +1,5 @@
 import { useI18n } from "@/lib/i18n";
 import type { HeroChatMode } from "@/lib/heroChatFlow";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 const TAB_ORDER: HeroChatMode[] = ["flights", "stays", "car", "motorhome", "plan", "all"];
@@ -19,7 +13,7 @@ const TAB_LABEL_KEYS: Record<HeroChatMode, string> = {
   all: "heroMode.all",
 };
 
-/** Plan tab still gated; Stays + Avtodom are live. */
+/** Plan tab still gated; Stays + road modes are live. */
 const DISABLED_MODES = new Set<HeroChatMode>(["plan"]);
 
 type HeroModeTabsProps = {
@@ -32,76 +26,57 @@ export function HeroModeTabs({ value, onChange }: HeroModeTabsProps) {
   const comingSoon = t("heroMode.comingSoon" as never);
 
   return (
-    <TooltipProvider delayDuration={200}>
-      <div
-        className="mx-auto mt-8 flex w-full max-w-2xl justify-center sm:max-w-3xl"
-        role="tablist"
-        aria-label={t("heroMode.label" as never)}
-      >
-        <div className="inline-flex max-w-full flex-wrap items-center justify-center gap-1 rounded-full border border-white/20 bg-white/10 p-1 backdrop-blur-md">
-          {TAB_ORDER.map((mode) => {
-            const isActive = value === mode;
-            const isDisabled = DISABLED_MODES.has(mode);
-            const label = t(TAB_LABEL_KEYS[mode] as never);
+    <div
+      className="mx-auto mt-8 w-full max-w-md sm:max-w-2xl"
+      role="tablist"
+      aria-label={t("heroMode.label" as never)}
+    >
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        {TAB_ORDER.map((mode) => {
+          const isActive = value === mode;
+          const isDisabled = DISABLED_MODES.has(mode);
+          const label = t(TAB_LABEL_KEYS[mode] as never);
+          const isWide = mode === "all";
 
-            const tabClass = cn(
-              "inline-flex shrink-0 items-center rounded-full px-3.5 py-2 text-sm transition-colors sm:px-4",
-              isDisabled && "cursor-not-allowed text-white/40",
-              !isDisabled && isActive && "bg-white/25 font-medium text-white",
-              !isDisabled && !isActive && "text-white/60 hover:text-white/90",
-            );
-
-            if (isDisabled) {
-              return (
-                <Tooltip key={mode}>
-                  <TooltipTrigger asChild>
-                    <span
-                      role="tab"
-                      aria-selected={false}
-                      aria-disabled="true"
-                      tabIndex={-1}
-                      className={tabClass}
-                    >
-                      {label}
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" className="text-xs">
-                    {comingSoon}
-                  </TooltipContent>
-                </Tooltip>
-              );
-            }
-
-            return (
-              <button
-                key={mode}
-                type="button"
-                role="tab"
-                aria-selected={isActive}
-                onClick={() => onChange(mode)}
-                className={cn(
-                  tabClass,
-                  (mode === "motorhome" || mode === "car") && "relative gap-1.5 pr-2.5 sm:pr-3",
-                )}
-              >
-                {label}
-                {mode === "motorhome" || mode === "car" ? (
-                  <span
-                    className={cn(
-                      "rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase leading-none tracking-wide",
-                      isActive
-                        ? "bg-sky-300 text-slate-900"
-                        : "bg-sky-400/95 text-slate-900 shadow-sm",
-                    )}
-                  >
-                    {t("heroMode.newBadge" as never)}
-                  </span>
-                ) : null}
-              </button>
-            );
-          })}
-        </div>
+          return (
+            <button
+              key={mode}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
+              aria-disabled={isDisabled}
+              disabled={isDisabled}
+              title={isDisabled ? comingSoon : undefined}
+              onClick={() => {
+                if (!isDisabled) onChange(mode);
+              }}
+              className={cn(
+                "flex min-h-[52px] items-center justify-center gap-1.5 rounded-2xl border px-3 py-3 text-sm font-semibold transition",
+                isWide && "col-span-2 sm:col-span-1",
+                isDisabled && "cursor-not-allowed border-white/10 bg-white/5 text-white/35",
+                !isDisabled &&
+                  isActive &&
+                  "border-white bg-white text-slate-900 shadow-sm",
+                !isDisabled &&
+                  !isActive &&
+                  "border-white/20 bg-white/10 text-white hover:bg-white/20 active:scale-[0.99]",
+              )}
+            >
+              <span>{label}</span>
+              {mode === "motorhome" || mode === "car" ? (
+                <span
+                  className={cn(
+                    "rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase leading-none tracking-wide",
+                    isActive ? "bg-sky-600 text-white" : "bg-sky-400 text-slate-900",
+                  )}
+                >
+                  {t("heroMode.newBadge" as never)}
+                </span>
+              ) : null}
+            </button>
+          );
+        })}
       </div>
-    </TooltipProvider>
+    </div>
   );
 }

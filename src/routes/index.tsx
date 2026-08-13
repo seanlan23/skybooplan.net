@@ -723,6 +723,7 @@ function Landing() {
         const stay = staySearchFromCollected(collected, lang);
         if (!stay.city) {
           setHeroSearchError("error.destinationRequired");
+          setHeroSearchLoading(false);
           return;
         }
         setHeroStaySearch(stay);

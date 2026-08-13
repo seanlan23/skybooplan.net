@@ -22,7 +22,7 @@ describe("staySearchFromCollected", () => {
       },
       "sl",
     );
-    expect(stay.city).toBe("Thailand");
+    expect(stay.city).toBe("Bangkok");
     expect(stay.checkIn).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(stay.checkOut > stay.checkIn).toBe(true);
     expect(stay.adults).toBe(2);

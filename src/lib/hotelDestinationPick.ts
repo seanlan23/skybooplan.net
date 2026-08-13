@@ -14,6 +14,15 @@ export type BookingDestRow = {
 export function hotelSearchQueryAlias(city: string): string {
   const trimmed = city.trim();
   if (/^krabi$/i.test(trimmed)) return "Ao Nang";
+  // Country chips must resolve to a bookable city — Booking rejects / empties regions.
+  if (/^(thailand|tajska)$/i.test(trimmed)) return "Bangkok";
+  if (/^(spain|španija|spanija|españa)$/i.test(trimmed)) return "Barcelona";
+  if (/^(italy|italija|italia)$/i.test(trimmed)) return "Rome";
+  if (/^(croatia|hrvaška|hrvaska|hrvatska)$/i.test(trimmed)) return "Split";
+  if (/^(greece|grčija|grcija|ellada)$/i.test(trimmed)) return "Athens";
+  if (/^(slovenia|slovenija)$/i.test(trimmed)) return "Ljubljana";
+  if (/^(france|francija)$/i.test(trimmed)) return "Paris";
+  if (/^(portugal)$/i.test(trimmed)) return "Lisbon";
   return trimmed;
 }
 
