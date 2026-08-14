@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildBookingSearchUrl } from "@/lib/bookingUrl";
+import { applyBookingNetworkTracking, buildBookingSearchUrl } from "@/lib/bookingUrl";
 
 describe("buildBookingSearchUrl", () => {
   it("keeps city, dates, guests, and affiliate id on the Booking link", () => {
@@ -65,5 +65,33 @@ describe("buildBookingSearchUrl", () => {
       }),
     );
     expect(url.searchParams.get("nflt")).toBe("mealplan=1;ht_id=204");
+  });
+});
+
+describe("applyBookingNetworkTracking", () => {
+  it("wraps Booking search through the CJ click URL and drops the old aid", () => {
+    const booking =
+      "https://www.booking.com/searchresults.html?ss=Dubai&checkin=2026-09-20&checkout=2026-09-27&aid=7969731";
+    const tracked = applyBookingNetworkTracking(booking, {
+      cjClickUrl: "https://www.anrdoezrs.net/click-10111111-15333333",
+      label: "skybooplan-test",
+    });
+    const url = new URL(tracked);
+    expect(url.hostname).toBe("www.anrdoezrs.net");
+    expect(url.pathname).toBe("/click-10111111-15333333");
+    const dest = new URL(url.searchParams.get("url") ?? "");
+    expect(dest.hostname).toBe("www.booking.com");
+    expect(dest.searchParams.get("ss")).toBe("Dubai");
+    expect(dest.searchParams.get("checkin")).toBe("2026-09-20");
+    expect(dest.searchParams.get("aid")).toBeNull();
+    expect(dest.searchParams.get("label")).toBe("skybooplan-test");
+  });
+
+  it("leaves a Booking URL unchanged when CJ click is not configured", () => {
+    const booking =
+      "https://www.booking.com/searchresults.html?ss=Paris&aid=7969731";
+    expect(
+      applyBookingNetworkTracking(booking, { cjClickUrl: "" }),
+    ).toBe(booking);
   });
 });

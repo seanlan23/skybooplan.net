@@ -104,7 +104,7 @@ export function buildBookingSearchUrl(params: BookingSearchParams): string {
     url.searchParams.set("nflt", params.nflt.join(";"));
   }
 
-  return url.toString();
+  return applyBookingNetworkTracking(url.toString());
 }
 
 function isBookingHomepage(pathname: string, search: string): boolean {
@@ -157,8 +157,69 @@ export function resolveHotelBookingUrl(
       }
     }
 
-    return u.toString();
+    return applyBookingNetworkTracking(u.toString());
   } catch {
     return buildBookingSearchUrl(fallback);
+  }
+}
+
+const CJ_TRACK_HOST =
+  /(?:^|\.)(?:anrdoezrs|jdoqocy|tkqlhce|dpbolvw|kqzyfj|tqlkg|qksrv|emjcd|awxibrm)\.net$/i;
+
+function readAffiliateEnv(name: string): string {
+  const vite = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env;
+  const fromVite = vite?.[name] ?? vite?.[`VITE_${name}`];
+  if (fromVite?.trim()) return fromVite.trim();
+  if (typeof process === "undefined") return "";
+  return (process.env[name] ?? process.env[`VITE_${name}`] ?? "").trim();
+}
+
+/**
+ * CJ Affiliate hop for Booking.com (Partner Hub `aid` is no longer the live program).
+ * Set VITE_CJ_CLICK_URL to the Home Page text-link from CJ → Booking.com → Links
+ * (https://www.anrdoezrs.net/click-PID-ADID). Optional VITE_BOOKING_AFFILIATE_LABEL
+ * is copied onto the Booking destination when CJ provided one.
+ */
+export function applyBookingNetworkTracking(
+  bookingUrl: string,
+  tracking?: { cjClickUrl?: string; label?: string },
+): string {
+  if (!bookingUrl.startsWith("http")) return bookingUrl;
+
+  const label =
+    tracking?.label ?? readAffiliateEnv("BOOKING_AFFILIATE_LABEL");
+  const cjClick =
+    tracking && "cjClickUrl" in tracking
+      ? (tracking.cjClickUrl ?? "").trim()
+      : readAffiliateEnv("CJ_CLICK_URL");
+
+  let dest = bookingUrl;
+  try {
+    const destUrl = new URL(dest);
+    if (label && destUrl.hostname.includes("booking.com")) {
+      destUrl.searchParams.set("label", label);
+      dest = destUrl.toString();
+    }
+  } catch {
+    return bookingUrl;
+  }
+
+  if (!cjClick) return dest;
+
+  try {
+    const destHost = new URL(dest).hostname;
+    if (CJ_TRACK_HOST.test(destHost)) return dest;
+
+    const click = new URL(cjClick.includes("://") ? cjClick : `https://${cjClick}`);
+    // Inner aid from the old Partner Hub would fight CJ attribution.
+    const inner = new URL(dest);
+    if (inner.hostname.includes("booking.com")) {
+      inner.searchParams.delete("aid");
+      dest = inner.toString();
+    }
+    click.searchParams.set("url", dest);
+    return click.toString();
+  } catch {
+    return dest;
   }
 }
