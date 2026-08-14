@@ -72,7 +72,7 @@ function setBookingStayDates(url: URL, checkIn: string, checkOut: string) {
 /** Standard Booking.com affiliate search URL with destination + stay dates. */
 export function buildBookingSearchUrl(params: BookingSearchParams): string {
   const destination = searchDestination(params);
-  if (!destination) return "https://www.booking.com/";
+  if (!destination) return applyBookingNetworkTracking("https://www.booking.com/");
 
   const checkIn = normalizeBookingDate(params.checkIn);
   const checkOut = ensureCheckoutAfterCheckin(checkIn, params.checkOut);
@@ -164,21 +164,49 @@ export function resolveHotelBookingUrl(
 }
 
 const CJ_TRACK_HOST =
-  /(?:^|\.)(?:anrdoezrs|jdoqocy|tkqlhce|dpbolvw|kqzyfj|tqlkg|qksrv|emjcd|awxibrm)\.net$/i;
+  /(?:^|\.)(?:anrdoezrs|jdoqocy|tkqlhce|dpbolvw|kqzyfj|tqlkg|qksrv|emjcd|awxibrm)\.(?:net|com)$/i;
 
-function readAffiliateEnv(name: string): string {
-  const vite = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env;
-  const fromVite = vite?.[name] ?? vite?.[`VITE_${name}`];
-  if (fromVite?.trim()) return fromVite.trim();
+/** Evergreen CJ click for Skybooplan website (PID 101761713). Public tracking URL. */
+export const SKYBOOPLAN_CJ_CLICK_URL =
+  "https://www.jdoqocy.com/click-101761713-15735418";
+
+function readViteCjClickUrl(): string {
+  // Static access only — Vite replaces this at build time. Dynamic
+  // `import.meta.env[name]` is empty in the production client bundle.
+  return String(import.meta.env.VITE_CJ_CLICK_URL ?? "").trim();
+}
+
+function readViteAffiliateLabel(): string {
+  return String(import.meta.env.VITE_BOOKING_AFFILIATE_LABEL ?? "").trim();
+}
+
+function readCjClickUrl(): string {
+  const fromVite = readViteCjClickUrl();
+  if (fromVite) return fromVite;
+  if (typeof process !== "undefined") {
+    const fromProc = String(
+      process.env.CJ_CLICK_URL || process.env.VITE_CJ_CLICK_URL || "",
+    ).trim();
+    if (fromProc) return fromProc;
+  }
+  return SKYBOOPLAN_CJ_CLICK_URL;
+}
+
+function readAffiliateLabel(): string {
+  const fromVite = readViteAffiliateLabel();
+  if (fromVite) return fromVite;
   if (typeof process === "undefined") return "";
-  return (process.env[name] ?? process.env[`VITE_${name}`] ?? "").trim();
+  return String(
+    process.env.BOOKING_AFFILIATE_LABEL ||
+      process.env.VITE_BOOKING_AFFILIATE_LABEL ||
+      "",
+  ).trim();
 }
 
 /**
  * CJ Affiliate hop for Booking.com (Partner Hub `aid` is no longer the live program).
- * Set VITE_CJ_CLICK_URL to the Home Page text-link from CJ → Booking.com → Links
- * (https://www.anrdoezrs.net/click-PID-ADID). Optional VITE_BOOKING_AFFILIATE_LABEL
- * is copied onto the Booking destination when CJ provided one.
+ * Default is the Skybooplan CJ click URL. Override with VITE_CJ_CLICK_URL.
+ * Pass `{ cjClickUrl: "" }` to skip wrapping (tests / opt-out).
  */
 export function applyBookingNetworkTracking(
   bookingUrl: string,
@@ -186,12 +214,11 @@ export function applyBookingNetworkTracking(
 ): string {
   if (!bookingUrl.startsWith("http")) return bookingUrl;
 
-  const label =
-    tracking?.label ?? readAffiliateEnv("BOOKING_AFFILIATE_LABEL");
+  const label = tracking?.label ?? readAffiliateLabel();
   const cjClick =
     tracking && "cjClickUrl" in tracking
       ? (tracking.cjClickUrl ?? "").trim()
-      : readAffiliateEnv("CJ_CLICK_URL");
+      : readCjClickUrl();
 
   let dest = bookingUrl;
   try {

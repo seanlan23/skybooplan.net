@@ -1,19 +1,34 @@
 import { describe, expect, it } from "vitest";
-import { applyBookingNetworkTracking, buildBookingSearchUrl } from "@/lib/bookingUrl";
+import {
+  applyBookingNetworkTracking,
+  buildBookingSearchUrl,
+  SKYBOOPLAN_CJ_CLICK_URL,
+} from "@/lib/bookingUrl";
+
+function innerBookingUrl(href: string): URL {
+  const click = new URL(href);
+  const dest = click.searchParams.get("url");
+  if (!dest) throw new Error(`expected CJ wrap, got ${href}`);
+  return new URL(dest);
+}
 
 describe("buildBookingSearchUrl", () => {
-  it("keeps city, dates, guests, and affiliate id on the Booking link", () => {
-    const url = new URL(
-      buildBookingSearchUrl({
-        destination: "Bangkok",
-        checkIn: "2026-10-12",
-        checkOut: "2026-10-18",
-        adults: 2,
-        rooms: 1,
-        affiliateId: "7969731",
-      }),
-    );
+  it("keeps city, dates, and guests, then hops through the CJ click URL", () => {
+    const href = buildBookingSearchUrl({
+      destination: "Bangkok",
+      checkIn: "2026-10-12",
+      checkOut: "2026-10-18",
+      adults: 2,
+      rooms: 1,
+      affiliateId: "7969731",
+    });
+    const click = new URL(href);
+    const expected = new URL(SKYBOOPLAN_CJ_CLICK_URL);
 
+    expect(click.hostname).toBe(expected.hostname);
+    expect(click.pathname).toBe(expected.pathname);
+
+    const url = innerBookingUrl(href);
     expect(url.hostname).toBe("www.booking.com");
     expect(url.searchParams.get("ss")).toBe("Bangkok");
     expect(url.searchParams.get("checkin")).toBe("2026-10-12");
@@ -21,12 +36,12 @@ describe("buildBookingSearchUrl", () => {
     expect(url.searchParams.get("checkin_year")).toBe("2026");
     expect(url.searchParams.get("checkin_month")).toBe("10");
     expect(url.searchParams.get("group_adults")).toBe("2");
-    expect(url.searchParams.get("aid")).toBe("7969731");
+    expect(url.searchParams.get("aid")).toBeNull();
     expect(url.searchParams.get("src")).toBe("index");
   });
 
   it("includes dest_id so Booking keeps the city for signed-in users", () => {
-    const url = new URL(
+    const url = innerBookingUrl(
       buildBookingSearchUrl({
         destination: "New York",
         checkIn: "2026-09-20",
@@ -43,7 +58,7 @@ describe("buildBookingSearchUrl", () => {
   });
 
   it("still opens a destination search when affiliate id is missing", () => {
-    const url = new URL(
+    const url = innerBookingUrl(
       buildBookingSearchUrl({
         destination: "Barcelona",
         checkIn: "2026-11-01",
@@ -56,7 +71,7 @@ describe("buildBookingSearchUrl", () => {
   });
 
   it("forwards popular filters as Booking nflt", () => {
-    const url = new URL(
+    const url = innerBookingUrl(
       buildBookingSearchUrl({
         destination: "Berlin",
         checkIn: "2026-11-02",
@@ -93,5 +108,16 @@ describe("applyBookingNetworkTracking", () => {
     expect(
       applyBookingNetworkTracking(booking, { cjClickUrl: "" }),
     ).toBe(booking);
+  });
+
+  it("defaults to the Skybooplan jdoqocy click hop", () => {
+    const booking =
+      "https://www.booking.com/searchresults.html?ss=New+York&checkin=2026-09-20&checkout=2026-09-27";
+    const tracked = applyBookingNetworkTracking(booking);
+    const click = new URL(tracked);
+    const expected = new URL(SKYBOOPLAN_CJ_CLICK_URL);
+    expect(click.hostname).toBe(expected.hostname);
+    expect(click.pathname).toBe(expected.pathname);
+    expect(innerBookingUrl(tracked).searchParams.get("ss")).toBe("New York");
   });
 });
