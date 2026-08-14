@@ -236,6 +236,28 @@ export function toCjTrackedUrl(
   }
 }
 
+/** HTML hop so the browser actually loads jdoqocy (Safari skips tracker 302 chains). */
+export function renderBookingHopHtml(cjUrl: string): string {
+  const js = JSON.stringify(cjUrl);
+  const href = cjUrl
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;");
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="refresh" content="0;url=${href}">
+<title>Opening Booking.com</title>
+<script>location.replace(${js});</script>
+</head>
+<body>
+<p>Opening Booking.com…</p>
+<p><a href="${href}">Continue</a></p>
+</body>
+</html>`;
+}
+
 function readViteCjClickUrl(): string {
   // Static access only — Vite replaces this at build time. Dynamic
   // `import.meta.env[name]` is empty in the production client bundle.

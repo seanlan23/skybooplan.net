@@ -9,6 +9,7 @@ import {
   SKYBOOPLAN_CJ_CLICK_URL,
   toBookingClickHref,
   toCjTrackedUrl,
+  renderBookingHopHtml,
 } from "@/lib/bookingUrl";
 
 function hopDest(href: string): URL {
@@ -178,5 +179,15 @@ describe("toBookingClickHref", () => {
     );
     expect(href.startsWith(BOOKING_CLICK_HOP_PATH)).toBe(true);
     expect(hopDest(href).pathname).toContain("/hotel/es/w-barcelona.html");
+  });
+});
+
+describe("renderBookingHopHtml", () => {
+  it("sends the browser to the CJ click URL in page JavaScript", () => {
+    const html = renderBookingHopHtml(
+      "https://www.jdoqocy.com/click-101761713-15735418?url=https%3A%2F%2Fwww.booking.com%2F",
+    );
+    expect(html).toContain("jdoqocy.com/click-101761713-15735418");
+    expect(html).toContain("location.replace");
   });
 });
