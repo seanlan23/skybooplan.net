@@ -125,12 +125,13 @@ export function resolveHotelBookingUrl(
   apiUrl: string | undefined,
   fallback: BookingSearchParams,
 ): string {
-  if (!apiUrl || !/^https?:\/\/(www\.)?booking\.com/i.test(apiUrl)) {
+  const incoming = extractBookingHopDest(apiUrl ?? "") ?? apiUrl;
+  if (!incoming || !allowedBookingDest(incoming)) {
     return buildBookingSearchUrl(fallback);
   }
 
   try {
-    const u = new URL(apiUrl);
+    const u = new URL(incoming);
     if (isBookingHomepage(u.pathname, u.search)) {
       return buildBookingSearchUrl(fallback);
     }
@@ -179,12 +180,33 @@ export function bookingClickHopHref(bookingDest: string): string {
 
 export function isSkybooplanBookingHop(href: string): boolean {
   if (!href) return false;
-  if (href.startsWith(BOOKING_CLICK_HOP_PATH)) return true;
+  if (href.startsWith(`${BOOKING_CLICK_HOP_PATH}?`) || href === BOOKING_CLICK_HOP_PATH) {
+    return true;
+  }
   try {
     return new URL(href, "https://www.skybooplan.com").pathname === BOOKING_CLICK_HOP_PATH;
   } catch {
     return false;
   }
+}
+
+export function extractBookingHopDest(href: string): string | null {
+  if (!isSkybooplanBookingHop(href)) return null;
+  try {
+    const u = href.startsWith("http")
+      ? new URL(href)
+      : new URL(href, "https://www.skybooplan.com");
+    return allowedBookingDest(u.searchParams.get("u") ?? "");
+  } catch {
+    return null;
+  }
+}
+
+/** Every hotel/stay <a href> must pass through here so cards cannot leak booking.com. */
+export function toBookingClickHref(href: string): string {
+  if (isSkybooplanBookingHop(href)) return href;
+  if (href.startsWith("http")) return applyBookingNetworkTracking(href);
+  return applyBookingNetworkTracking("https://www.booking.com/");
 }
 
 export function allowedBookingDest(raw: string): string | null {
@@ -279,7 +301,12 @@ export function applyBookingNetworkTracking(
 
   try {
     const destHost = new URL(dest).hostname;
-    if (CJ_TRACK_HOST.test(destHost)) return dest;
+    if (CJ_TRACK_HOST.test(destHost)) {
+      if (tracking && "cjClickUrl" in tracking) return dest;
+      const nested = new URL(dest).searchParams.get("url");
+      const booking = nested ? allowedBookingDest(nested) : null;
+      return booking ? bookingClickHopHref(booking) : dest;
+    }
 
     const inner = new URL(dest);
     if (inner.hostname.includes("booking.com")) {

@@ -3,8 +3,11 @@ import {
   allowedBookingDest,
   applyBookingNetworkTracking,
   BOOKING_CLICK_HOP_PATH,
+  bookingClickHopHref,
   buildBookingSearchUrl,
+  resolveHotelBookingUrl,
   SKYBOOPLAN_CJ_CLICK_URL,
+  toBookingClickHref,
   toCjTrackedUrl,
 } from "@/lib/bookingUrl";
 
@@ -124,5 +127,56 @@ describe("applyBookingNetworkTracking", () => {
     expect(allowedBookingDest("https://www.booking.com/searchresults.html?ss=NY")).toContain(
       "booking.com",
     );
+  });
+
+  it("turns a leftover jdoqocy href into the Skybooplan hop", () => {
+    const cj =
+      "https://www.jdoqocy.com/click-101761713-15735418?url=" +
+      encodeURIComponent(
+        "https://www.booking.com/hotel/ae/atlantis.html?checkin=2026-09-20",
+      );
+    const tracked = applyBookingNetworkTracking(cj);
+    expect(hopDest(tracked).pathname).toContain("/hotel/ae/atlantis.html");
+  });
+});
+
+describe("resolveHotelBookingUrl", () => {
+  it("hops a hotel property page used by See availability cards", () => {
+    const href = resolveHotelBookingUrl(
+      "https://www.booking.com/hotel/ae/atlantis-the-palm.html?aid=304142",
+      {
+        destination: "Dubai",
+        checkIn: "2026-09-20",
+        checkOut: "2026-09-27",
+        adults: 2,
+        rooms: 1,
+      },
+    );
+    const dest = hopDest(href);
+    expect(dest.hostname).toBe("www.booking.com");
+    expect(dest.pathname).toContain("/hotel/ae/atlantis-the-palm.html");
+    expect(dest.searchParams.get("checkin")).toBe("2026-09-20");
+    expect(dest.searchParams.get("aid")).toBeNull();
+  });
+
+  it("keeps the hotel page when the API already returned a Skybooplan hop", () => {
+    const inner =
+      "https://www.booking.com/hotel/us/pod-times-square.html?checkin=2026-09-20";
+    const href = resolveHotelBookingUrl(bookingClickHopHref(inner), {
+      destination: "New York",
+      checkIn: "2026-09-20",
+      checkOut: "2026-09-27",
+    });
+    expect(hopDest(href).pathname).toContain("/hotel/us/pod-times-square.html");
+  });
+});
+
+describe("toBookingClickHref", () => {
+  it("never leaves a raw Booking.com URL on hotel card buttons", () => {
+    const href = toBookingClickHref(
+      "https://www.booking.com/hotel/es/w-barcelona.html",
+    );
+    expect(href.startsWith(BOOKING_CLICK_HOP_PATH)).toBe(true);
+    expect(hopDest(href).pathname).toContain("/hotel/es/w-barcelona.html");
   });
 });

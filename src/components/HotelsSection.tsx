@@ -5,7 +5,7 @@ import { ExternalLink, Hotel, Loader2, MapPin, Star } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import {
   buildBookingSearchUrl,
-  isSkybooplanBookingHop,
+  toBookingClickHref,
   resolveHotelBookingUrl,
 } from "@/lib/bookingUrl";
 import { bookingNfltFor } from "@/lib/hotelAmenities";
@@ -41,10 +41,7 @@ function BookingLink({
   className?: string;
   children: ReactNode;
 }) {
-  const safeHref =
-    href.startsWith("http") || isSkybooplanBookingHop(href)
-      ? href
-      : "https://www.booking.com/";
+  const safeHref = toBookingClickHref(href);
 
   return (
     <a
