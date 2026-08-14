@@ -46,6 +46,7 @@ import {
   resolveHeroChatBootstrap,
 } from "@/lib/heroChatExtract";
 import type { HeroStaySearchParams } from "@/lib/heroStaySearch";
+import { HOME_RESET_EVENT } from "@/lib/sessionStore";
 import { FlightCard } from "@/components/FlightCard";
 import { HotelsSection } from "@/components/HotelsSection";
 import { HeroPassengerBrowser } from "@/components/HeroPassengerBrowser";
@@ -921,6 +922,12 @@ export function HeroChatFlow({
     if (fileInputRef.current) fileInputRef.current.value = "";
     onClearSearch?.();
   }, [onClearSearch, selectedFilePreview?.previewUrl]);
+
+  useEffect(() => {
+    const onHomeReset = () => clearSearch();
+    window.addEventListener(HOME_RESET_EVENT, onHomeReset);
+    return () => window.removeEventListener(HOME_RESET_EVENT, onHomeReset);
+  }, [clearSearch]);
 
   async function handleFileUpload(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];

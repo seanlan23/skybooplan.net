@@ -56,6 +56,7 @@ export function SiteHeader({
     if (pathname === "/") {
       e.preventDefault();
       window.dispatchEvent(new CustomEvent(HOME_RESET_EVENT));
+      window.location.reload();
     }
   }
 

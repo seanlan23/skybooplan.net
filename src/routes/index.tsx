@@ -424,6 +424,9 @@ function Landing() {
     setHeroSkyChatComplete(false);
     setHeroChatMode("all");
     setHeroFlights([]);
+    setHeroStaySearch(null);
+    setSelectedHeroFlightId(null);
+    setHeroSearchLoading(false);
     setHeroSearchError(null);
     streamItinerary.reset();
   }, [queryClient, streamItinerary]);
