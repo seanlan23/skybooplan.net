@@ -247,13 +247,17 @@ export function renderBookingHopHtml(cjUrl: string): string {
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="refresh" content="0;url=${href}">
 <title>Opening Booking.com</title>
-<script>location.replace(${js});</script>
+<style>
+  body{font-family:system-ui,sans-serif;margin:0;min-height:100vh;display:grid;place-items:center;background:#0b1f33;color:#fff}
+  p{margin:0 0 .75rem;opacity:.85}
+  a{color:#7dd3fc}
+</style>
 </head>
 <body>
 <p>Opening Booking.com…</p>
 <p><a href="${href}">Continue</a></p>
+<script>setTimeout(function(){location.replace(${js});},800);</script>
 </body>
 </html>`;
 }

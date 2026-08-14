@@ -189,5 +189,6 @@ describe("renderBookingHopHtml", () => {
     );
     expect(html).toContain("jdoqocy.com/click-101761713-15735418");
     expect(html).toContain("location.replace");
+    expect(html).toContain("setTimeout");
   });
 });
