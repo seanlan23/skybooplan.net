@@ -3,7 +3,11 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { ExternalLink, Hotel, Loader2, MapPin, Star } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import { buildBookingSearchUrl, resolveHotelBookingUrl } from "@/lib/bookingUrl";
+import {
+  buildBookingSearchUrl,
+  isSkybooplanBookingHop,
+  resolveHotelBookingUrl,
+} from "@/lib/bookingUrl";
 import { bookingNfltFor } from "@/lib/hotelAmenities";
 import { searchHotels } from "@/lib/hotels.functions";
 import { hotelSearchQueryAlias } from "@/lib/hotelDestinationPick";
@@ -37,7 +41,10 @@ function BookingLink({
   className?: string;
   children: ReactNode;
 }) {
-  const safeHref = href.startsWith("http") ? href : "https://www.booking.com/";
+  const safeHref =
+    href.startsWith("http") || isSkybooplanBookingHop(href)
+      ? href
+      : "https://www.booking.com/";
 
   return (
     <a

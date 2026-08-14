@@ -1,19 +1,23 @@
 import { describe, expect, it } from "vitest";
 import {
+  allowedBookingDest,
   applyBookingNetworkTracking,
+  BOOKING_CLICK_HOP_PATH,
   buildBookingSearchUrl,
   SKYBOOPLAN_CJ_CLICK_URL,
+  toCjTrackedUrl,
 } from "@/lib/bookingUrl";
 
-function innerBookingUrl(href: string): URL {
-  const click = new URL(href);
-  const dest = click.searchParams.get("url");
-  if (!dest) throw new Error(`expected CJ wrap, got ${href}`);
+function hopDest(href: string): URL {
+  expect(href.startsWith(`${BOOKING_CLICK_HOP_PATH}?`)).toBe(true);
+  const params = new URLSearchParams(href.slice(href.indexOf("?") + 1));
+  const dest = params.get("u");
+  if (!dest) throw new Error(`expected hop dest, got ${href}`);
   return new URL(dest);
 }
 
 describe("buildBookingSearchUrl", () => {
-  it("keeps city, dates, and guests, then hops through the CJ click URL", () => {
+  it("keeps city, dates, and guests, then hops through Skybooplan then CJ", () => {
     const href = buildBookingSearchUrl({
       destination: "Bangkok",
       checkIn: "2026-10-12",
@@ -22,13 +26,8 @@ describe("buildBookingSearchUrl", () => {
       rooms: 1,
       affiliateId: "7969731",
     });
-    const click = new URL(href);
-    const expected = new URL(SKYBOOPLAN_CJ_CLICK_URL);
 
-    expect(click.hostname).toBe(expected.hostname);
-    expect(click.pathname).toBe(expected.pathname);
-
-    const url = innerBookingUrl(href);
+    const url = hopDest(href);
     expect(url.hostname).toBe("www.booking.com");
     expect(url.searchParams.get("ss")).toBe("Bangkok");
     expect(url.searchParams.get("checkin")).toBe("2026-10-12");
@@ -41,7 +40,7 @@ describe("buildBookingSearchUrl", () => {
   });
 
   it("includes dest_id so Booking keeps the city for signed-in users", () => {
-    const url = innerBookingUrl(
+    const url = hopDest(
       buildBookingSearchUrl({
         destination: "New York",
         checkIn: "2026-09-20",
@@ -58,7 +57,7 @@ describe("buildBookingSearchUrl", () => {
   });
 
   it("still opens a destination search when affiliate id is missing", () => {
-    const url = innerBookingUrl(
+    const url = hopDest(
       buildBookingSearchUrl({
         destination: "Barcelona",
         checkIn: "2026-11-01",
@@ -71,7 +70,7 @@ describe("buildBookingSearchUrl", () => {
   });
 
   it("forwards popular filters as Booking nflt", () => {
-    const url = innerBookingUrl(
+    const url = hopDest(
       buildBookingSearchUrl({
         destination: "Berlin",
         checkIn: "2026-11-02",
@@ -110,14 +109,20 @@ describe("applyBookingNetworkTracking", () => {
     ).toBe(booking);
   });
 
-  it("defaults to the Skybooplan jdoqocy click hop", () => {
+  it("defaults to a Skybooplan hop that still encodes the Booking search", () => {
     const booking =
       "https://www.booking.com/searchresults.html?ss=New+York&checkin=2026-09-20&checkout=2026-09-27";
     const tracked = applyBookingNetworkTracking(booking);
-    const click = new URL(tracked);
-    const expected = new URL(SKYBOOPLAN_CJ_CLICK_URL);
-    expect(click.hostname).toBe(expected.hostname);
-    expect(click.pathname).toBe(expected.pathname);
-    expect(innerBookingUrl(tracked).searchParams.get("ss")).toBe("New York");
+    expect(hopDest(tracked).searchParams.get("ss")).toBe("New York");
+    const cj = toCjTrackedUrl(hopDest(tracked).toString(), SKYBOOPLAN_CJ_CLICK_URL);
+    expect(cj).toContain("jdoqocy.com/click-101761713-15735418");
+  });
+
+  it("rejects non-Booking destinations for the hop", () => {
+    expect(allowedBookingDest("https://evil.example/phish")).toBeNull();
+    expect(allowedBookingDest("https://www.booking.com.evil.test/")).toBeNull();
+    expect(allowedBookingDest("https://www.booking.com/searchresults.html?ss=NY")).toContain(
+      "booking.com",
+    );
   });
 });

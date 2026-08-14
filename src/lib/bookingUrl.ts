@@ -170,6 +170,50 @@ const CJ_TRACK_HOST =
 export const SKYBOOPLAN_CJ_CLICK_URL =
   "https://www.jdoqocy.com/click-101761713-15735418";
 
+/** First-party hop so Safari/adblock cannot skip the CJ tracker in the <a href>. */
+export const BOOKING_CLICK_HOP_PATH = "/api/go/booking";
+
+export function bookingClickHopHref(bookingDest: string): string {
+  return `${BOOKING_CLICK_HOP_PATH}?u=${encodeURIComponent(bookingDest)}`;
+}
+
+export function isSkybooplanBookingHop(href: string): boolean {
+  if (!href) return false;
+  if (href.startsWith(BOOKING_CLICK_HOP_PATH)) return true;
+  try {
+    return new URL(href, "https://www.skybooplan.com").pathname === BOOKING_CLICK_HOP_PATH;
+  } catch {
+    return false;
+  }
+}
+
+export function allowedBookingDest(raw: string): string | null {
+  try {
+    const u = new URL(raw);
+    if (u.protocol !== "http:" && u.protocol !== "https:") return null;
+    if (!/(^|\.)booking\.com$/i.test(u.hostname)) return null;
+    return u.toString();
+  } catch {
+    return null;
+  }
+}
+
+export function toCjTrackedUrl(
+  bookingDest: string,
+  cjClickUrl: string = SKYBOOPLAN_CJ_CLICK_URL,
+): string | null {
+  try {
+    if (CJ_TRACK_HOST.test(new URL(bookingDest).hostname)) return bookingDest;
+    const click = new URL(
+      cjClickUrl.includes("://") ? cjClickUrl : `https://${cjClickUrl}`,
+    );
+    click.searchParams.set("url", bookingDest);
+    return click.toString();
+  } catch {
+    return null;
+  }
+}
+
 function readViteCjClickUrl(): string {
   // Static access only — Vite replaces this at build time. Dynamic
   // `import.meta.env[name]` is empty in the production client bundle.
@@ -180,7 +224,7 @@ function readViteAffiliateLabel(): string {
   return String(import.meta.env.VITE_BOOKING_AFFILIATE_LABEL ?? "").trim();
 }
 
-function readCjClickUrl(): string {
+export function readCjClickUrl(): string {
   const fromVite = readViteCjClickUrl();
   if (fromVite) return fromVite;
   if (typeof process !== "undefined") {
@@ -237,15 +281,18 @@ export function applyBookingNetworkTracking(
     const destHost = new URL(dest).hostname;
     if (CJ_TRACK_HOST.test(destHost)) return dest;
 
-    const click = new URL(cjClick.includes("://") ? cjClick : `https://${cjClick}`);
-    // Inner aid from the old Partner Hub would fight CJ attribution.
     const inner = new URL(dest);
     if (inner.hostname.includes("booking.com")) {
       inner.searchParams.delete("aid");
       dest = inner.toString();
     }
-    click.searchParams.set("url", dest);
-    return click.toString();
+
+    // Direct jdoqocy hrefs are skipped by Safari/ITP and many ad blockers:
+    // they open the inner booking.com `url=` and never hit CJ. Hop via Skybooplan first.
+    if (tracking && "cjClickUrl" in tracking) {
+      return toCjTrackedUrl(dest, cjClick) ?? dest;
+    }
+    return bookingClickHopHref(dest);
   } catch {
     return dest;
   }

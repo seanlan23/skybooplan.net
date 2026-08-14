@@ -25,6 +25,7 @@ import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
 import { Route as ApiSearchRouteImport } from './routes/api/search'
 import { Route as ApiSaveTravelPlanRouteImport } from './routes/api/save-travel-plan'
 import { Route as ApiHeroPhotoRouteImport } from './routes/api/hero-photo'
+import { Route as ApiGoBookingRouteImport } from './routes/api/go/booking'
 import { Route as ApiGenerateItineraryRouteImport } from './routes/api/generate-itinerary'
 import { Route as ApiEnrichPlanPhotosRouteImport } from './routes/api/enrich-plan-photos'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated.profile'
@@ -118,6 +119,11 @@ const ApiHeroPhotoRoute = ApiHeroPhotoRouteImport.update({
   path: '/api/hero-photo',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiGoBookingRoute = ApiGoBookingRouteImport.update({
+  id: '/api/go/booking',
+  path: '/api/go/booking',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiGenerateItineraryRoute = ApiGenerateItineraryRouteImport.update({
   id: '/api/generate-itinerary',
   path: '/api/generate-itinerary',
@@ -204,6 +210,7 @@ export interface FileRoutesByFullPath {
   '/api/enrich-plan-photos': typeof ApiEnrichPlanPhotosRoute
   '/api/generate-itinerary': typeof ApiGenerateItineraryRoute
   '/api/hero-photo': typeof ApiHeroPhotoRoute
+  '/api/go/booking': typeof ApiGoBookingRoute
   '/api/save-travel-plan': typeof ApiSaveTravelPlanRoute
   '/api/search': typeof ApiSearchRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
@@ -234,6 +241,7 @@ export interface FileRoutesByTo {
   '/api/enrich-plan-photos': typeof ApiEnrichPlanPhotosRoute
   '/api/generate-itinerary': typeof ApiGenerateItineraryRoute
   '/api/hero-photo': typeof ApiHeroPhotoRoute
+  '/api/go/booking': typeof ApiGoBookingRoute
   '/api/save-travel-plan': typeof ApiSaveTravelPlanRoute
   '/api/search': typeof ApiSearchRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
@@ -266,6 +274,7 @@ export interface FileRoutesById {
   '/api/enrich-plan-photos': typeof ApiEnrichPlanPhotosRoute
   '/api/generate-itinerary': typeof ApiGenerateItineraryRoute
   '/api/hero-photo': typeof ApiHeroPhotoRoute
+  '/api/go/booking': typeof ApiGoBookingRoute
   '/api/save-travel-plan': typeof ApiSaveTravelPlanRoute
   '/api/search': typeof ApiSearchRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
@@ -298,6 +307,7 @@ export interface FileRouteTypes {
     | '/api/enrich-plan-photos'
     | '/api/generate-itinerary'
     | '/api/hero-photo'
+    | '/api/go/booking'
     | '/api/save-travel-plan'
     | '/api/search'
     | '/auth/callback'
@@ -328,6 +338,7 @@ export interface FileRouteTypes {
     | '/api/enrich-plan-photos'
     | '/api/generate-itinerary'
     | '/api/hero-photo'
+    | '/api/go/booking'
     | '/api/save-travel-plan'
     | '/api/search'
     | '/auth/callback'
@@ -359,6 +370,7 @@ export interface FileRouteTypes {
     | '/api/enrich-plan-photos'
     | '/api/generate-itinerary'
     | '/api/hero-photo'
+    | '/api/go/booking'
     | '/api/save-travel-plan'
     | '/api/search'
     | '/auth/callback'
@@ -388,6 +400,7 @@ export interface RootRouteChildren {
   ApiEnrichPlanPhotosRoute: typeof ApiEnrichPlanPhotosRoute
   ApiGenerateItineraryRoute: typeof ApiGenerateItineraryRoute
   ApiHeroPhotoRoute: typeof ApiHeroPhotoRoute
+  ApiGoBookingRoute: typeof ApiGoBookingRoute
   ApiSaveTravelPlanRoute: typeof ApiSaveTravelPlanRoute
   ApiSearchRoute: typeof ApiSearchRouteWithChildren
   AuthCallbackRoute: typeof AuthCallbackRoute
@@ -511,6 +524,13 @@ declare module '@tanstack/react-router' {
       path: '/api/hero-photo'
       fullPath: '/api/hero-photo'
       preLoaderRoute: typeof ApiHeroPhotoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/go/booking': {
+      id: '/api/go/booking'
+      path: '/api/go/booking'
+      fullPath: '/api/go/booking'
+      preLoaderRoute: typeof ApiGoBookingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/generate-itinerary': {
@@ -664,6 +684,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiEnrichPlanPhotosRoute: ApiEnrichPlanPhotosRoute,
   ApiGenerateItineraryRoute: ApiGenerateItineraryRoute,
   ApiHeroPhotoRoute: ApiHeroPhotoRoute,
+  ApiGoBookingRoute: ApiGoBookingRoute,
   ApiSaveTravelPlanRoute: ApiSaveTravelPlanRoute,
   ApiSearchRoute: ApiSearchRouteWithChildren,
   AuthCallbackRoute: AuthCallbackRoute,
