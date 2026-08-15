@@ -1,6 +1,13 @@
 import { Download, ExternalLink, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel";
 
 type ShowcasePlan = {
   id: "tanzania" | "peru" | "nyc" | "france" | "motorhome" | "botswana";
@@ -82,7 +89,7 @@ function ShowcasePlanCard({ plan }: { plan: ShowcasePlan }) {
   return (
     <article
       className={cn(
-        "group relative flex min-h-[280px] flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-md",
+        "group relative flex h-full min-h-[280px] flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-md",
         "transition-all duration-300 hover:-translate-y-1 hover:shadow-xl",
       )}
     >
@@ -160,11 +167,29 @@ export function ShowcasePlansSection() {
           </p>
         </div>
 
-        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 sm:gap-5">
-          {PLANS.map((plan) => (
-            <ShowcasePlanCard key={plan.id} plan={plan} />
-          ))}
-        </div>
+        <Carousel
+          opts={{ align: "start", skipSnaps: false }}
+          className="mt-8"
+        >
+          <CarouselContent className="-ml-4">
+            {PLANS.map((plan) => (
+              <CarouselItem
+                key={plan.id}
+                className="basis-[min(85vw,300px)] pl-4 sm:basis-[340px] lg:basis-[360px]"
+              >
+                <ShowcasePlanCard plan={plan} />
+              </CarouselItem>
+            ))}
+          </CarouselContent>
+          <CarouselPrevious
+            aria-label={t("showcase.prev" as never)}
+            className="left-1 top-[42%] z-10 h-10 w-10 border-border bg-white shadow-md sm:-left-3"
+          />
+          <CarouselNext
+            aria-label={t("showcase.next" as never)}
+            className="right-1 top-[42%] z-10 h-10 w-10 border-border bg-white shadow-md sm:-right-3"
+          />
+        </Carousel>
       </div>
     </section>
   );
