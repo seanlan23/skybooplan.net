@@ -105,6 +105,8 @@ export type HeroDestinationChip = {
   emoji: string;
   labelKey: string;
   nameKey: string;
+  /** One-word feeling — identity, not a packing list. */
+  feelKey: string;
 };
 
 export const HERO_DESTINATION_CHIPS: HeroDestinationChip[] = [
@@ -114,6 +116,7 @@ export const HERO_DESTINATION_CHIPS: HeroDestinationChip[] = [
     emoji: "🏝️",
     labelKey: "hero.chip.thailand.label",
     nameKey: "hero.chip.thailand.name",
+    feelKey: "hero.chip.thailand.feel",
   },
   {
     id: "paris",
@@ -121,6 +124,7 @@ export const HERO_DESTINATION_CHIPS: HeroDestinationChip[] = [
     emoji: "🗼",
     labelKey: "hero.chip.paris.label",
     nameKey: "hero.chip.paris.name",
+    feelKey: "hero.chip.paris.feel",
   },
   {
     id: "slovenia",
@@ -128,6 +132,7 @@ export const HERO_DESTINATION_CHIPS: HeroDestinationChip[] = [
     emoji: "🏔️",
     labelKey: "hero.chip.slovenia.label",
     nameKey: "hero.chip.slovenia.name",
+    feelKey: "hero.chip.slovenia.feel",
   },
   {
     id: "bali",
@@ -135,6 +140,7 @@ export const HERO_DESTINATION_CHIPS: HeroDestinationChip[] = [
     emoji: "🌴",
     labelKey: "hero.chip.bali.label",
     nameKey: "hero.chip.bali.name",
+    feelKey: "hero.chip.bali.feel",
   },
   {
     id: "newyork",
@@ -142,6 +148,7 @@ export const HERO_DESTINATION_CHIPS: HeroDestinationChip[] = [
     emoji: "🗽",
     labelKey: "hero.chip.newyork.label",
     nameKey: "hero.chip.newyork.name",
+    feelKey: "hero.chip.newyork.feel",
   },
   {
     id: "dubai",
@@ -149,6 +156,7 @@ export const HERO_DESTINATION_CHIPS: HeroDestinationChip[] = [
     emoji: "🏙️",
     labelKey: "hero.chip.dubai.label",
     nameKey: "hero.chip.dubai.name",
+    feelKey: "hero.chip.dubai.feel",
   },
 ];
 
@@ -166,13 +174,16 @@ export function resolveDestinationChipLabel(
 export function getDestinationChipDisplay(
   chip: HeroDestinationChip,
   translate: (key: string) => string,
-): { emoji: string; name: string; label: string } {
+): { emoji: string; name: string; label: string; feel: string } {
   const translatedName = translate(chip.nameKey);
   const name =
     translatedName && !translatedName.startsWith("hero.chip.")
       ? translatedName
       : chip.destination;
-  return { emoji: chip.emoji, name, label: `${chip.emoji} ${name}` };
+  const translatedFeel = translate(chip.feelKey);
+  const feel =
+    translatedFeel && !translatedFeel.startsWith("hero.chip.") ? translatedFeel : "";
+  return { emoji: chip.emoji, name, label: `${chip.emoji} ${name}`, feel };
 }
 
 /** Checklist / UI label for a stored chip destination (search value stays English). */

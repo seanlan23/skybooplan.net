@@ -365,19 +365,22 @@ function HeroGuidedStart({
 
         <div key="hero-dest-dubai-v2" className="hero-chips-enter mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3">
           {HERO_DESTINATION_CHIPS.map((chip) => {
-            const { emoji, name } = getDestinationChipDisplay(chip, t);
+            const { emoji, name, feel } = getDestinationChipDisplay(chip, t);
             return (
               <button
                 key={chip.id}
                 type="button"
                 disabled={inputDisabled || fileProcessing}
                 onClick={() => onPickDestination(chip.destination, `${emoji} ${name}`)}
-                className="flex flex-col items-center justify-center gap-1 rounded-2xl border border-white/30 bg-white/15 px-3 py-4 text-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:bg-white/25 hover:shadow-md active:scale-[0.98] disabled:opacity-50"
+                className="flex flex-col items-center justify-center gap-0.5 rounded-2xl border border-white/30 bg-white/15 px-3 py-3.5 text-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:bg-white/25 hover:shadow-md active:scale-[0.98] disabled:opacity-50"
               >
                 <span className="text-2xl" aria-hidden>
                   {emoji}
                 </span>
                 <span className="text-sm font-semibold sm:text-[15px]">{name}</span>
+                {feel ? (
+                  <span className="text-[11px] font-medium tracking-wide text-white/60">{feel}</span>
+                ) : null}
               </button>
             );
           })}

@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 
 type InspirationCardDef = {
-  id: "paris" | "dubai" | "asia";
+  id: "paris" | "slovenia" | "dubai" | "tanzania" | "asia";
   emoji: string;
   /** English search destination — stable across languages. */
   destination: string;
@@ -22,12 +22,28 @@ const CARDS: InspirationCardDef[] = [
       "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=1200&q=80",
   },
   {
+    id: "slovenia",
+    emoji: "🏔️",
+    destination: "Slovenia",
+    titleKey: "inspiration.slovenia.title",
+    imageUrl:
+      "https://images.unsplash.com/photo-1478088913771-e3a36f50bb63?auto=format&fit=crop&w=1200&q=80",
+  },
+  {
     id: "dubai",
     emoji: "🏙️",
     destination: "Dubai",
     titleKey: "inspiration.dubai.title",
     imageUrl:
       "https://images.unsplash.com/photo-1518684079-3c830dcef090?auto=format&fit=crop&w=1200&q=80",
+  },
+  {
+    id: "tanzania",
+    emoji: "🦁",
+    destination: "Tanzania",
+    titleKey: "inspiration.tanzania.title",
+    imageUrl:
+      "https://images.unsplash.com/photo-1516426122078-c23e76319801?auto=format&fit=crop&w=1200&q=80",
   },
   {
     id: "asia",
@@ -111,7 +127,7 @@ export function TripInspiration({
         <div
           className={cn(
             "mt-8 flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory",
-            "sm:grid sm:grid-cols-3 sm:overflow-visible sm:pb-0",
+            "sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-0 lg:grid-cols-3",
           )}
         >
           {CARDS.map((card) => (

@@ -24,6 +24,7 @@ describe("getDestinationChipDisplay", () => {
     const display = getDestinationChipDisplay(dubai, (key) => translate("en", key as never));
     expect(display.name).toBe("Dubai");
     expect(display.label).toBe("🏙️ Dubai");
+    expect(display.feel).toBe("Wow");
   });
 
   it("shows Slovenia, New York, and Dubai on the destination grid", () => {
@@ -39,6 +40,7 @@ describe("getDestinationChipDisplay", () => {
     const display = getDestinationChipDisplay(slovenia, (key) => translate("sl", key as never));
     expect(display.name).toBe("Slovenija");
     expect(display.label).toBe("🏔️ Slovenija");
+    expect(display.feel).toBe("Doma");
   });
 
   it("localizes stored English chip destination for checklist", () => {
