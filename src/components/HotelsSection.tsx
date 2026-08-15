@@ -8,7 +8,7 @@ import {
   toBookingClickHref,
   resolveHotelBookingUrl,
 } from "@/lib/bookingUrl";
-import { bookingNfltFor } from "@/lib/hotelAmenities";
+import { bookingCategoriesFilterFor, bookingNfltFor } from "@/lib/hotelAmenities";
 import { searchHotels } from "@/lib/hotels.functions";
 import { hotelCapitalFallback, hotelSearchQueryAlias } from "@/lib/hotelDestinationPick";
 import type { StayIntentFilters } from "@/lib/stayIntent";
@@ -160,24 +160,39 @@ export function HotelsSection({
   const capitalFallback = regionFallback ?? hotelCapitalFallback(city);
 
   const nflt = useMemo(() => bookingNfltFor(popular), [popular]);
+  const categoriesFilter = useMemo(() => bookingCategoriesFilterFor(popular), [popular]);
 
   const fetchHotels = useServerFn(searchHotels);
   const effectiveCheckOut = checkOut ?? checkIn;
 
+  const stayPayload = {
+    checkIn,
+    checkOut: effectiveCheckOut,
+    adults,
+    rooms,
+    childrenAges,
+    currency: "EUR" as const,
+    ...(categoriesFilter ? { filters: popular } : {}),
+  };
+
   const primary = useQuery({
-    queryKey: ["hotels", city, checkIn, effectiveCheckOut, adults, rooms, childrenAges.join(",")],
-    queryFn: () => {
-      const payload = {
-        city,
-        checkIn,
-        checkOut: effectiveCheckOut,
-        adults,
-        rooms,
-        childrenAges,
-        currency: "EUR" as const,
-      };
-      return fetchHotels({ data: payload });
-    },
+    queryKey: [
+      "hotels",
+      city,
+      checkIn,
+      effectiveCheckOut,
+      adults,
+      rooms,
+      childrenAges.join(","),
+      categoriesFilter,
+    ],
+    queryFn: () =>
+      fetchHotels({
+        data: {
+          ...stayPayload,
+          city,
+        },
+      }),
     staleTime: 5 * 60 * 1000,
     retry: 1,
   });
@@ -189,18 +204,22 @@ export function HotelsSection({
     capitalFallback.trim().toLowerCase() !== city.trim().toLowerCase();
 
   const fallback = useQuery({
-    queryKey: ["hotels-fallback", capitalFallback, checkIn, effectiveCheckOut, adults, rooms, childrenAges.join(",")],
+    queryKey: [
+      "hotels-fallback",
+      capitalFallback,
+      checkIn,
+      effectiveCheckOut,
+      adults,
+      rooms,
+      childrenAges.join(","),
+      categoriesFilter,
+    ],
     enabled: shouldFallback,
     queryFn: () =>
       fetchHotels({
         data: {
+          ...stayPayload,
           city: capitalFallback!,
-          checkIn,
-          checkOut: effectiveCheckOut,
-          adults,
-          rooms,
-          childrenAges,
-          currency: "EUR",
         },
       }),
     staleTime: 5 * 60 * 1000,
@@ -396,6 +415,7 @@ export function HotelsSection({
                   hotelName: h.name,
                   destId: dest?.destId,
                   destType: dest?.destType,
+                  nflt,
                   lang,
                 });
                 return (
@@ -625,6 +645,7 @@ export function HotelsSection({
                     hotelName: h.name,
                     destId: dest?.destId,
                     destType: dest?.destType,
+                    nflt,
                     lang,
                   });
                   const nightly = perNightPrice(h.price, nights);

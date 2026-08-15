@@ -96,12 +96,13 @@ export function buildBookingSearchUrl(params: BookingSearchParams): string {
   url.searchParams.set("selected_currency", "EUR");
   url.searchParams.set("sb", "1");
   url.searchParams.set("src_elem", "sb");
-  // `index` = new homepage search. `searchresults` is a refinement and
-  // Booking often drops ss/dates for signed-in users (empty destination).
-  url.searchParams.set("src", "index");
   url.searchParams.set("do_availability_check", "1");
   if (params.nflt?.length) {
     url.searchParams.set("nflt", params.nflt.join(";"));
+    // Homepage `src=index` drops nflt. dest_id keeps the place for signed-in users.
+    url.searchParams.set("src", "searchresults");
+  } else {
+    url.searchParams.set("src", "index");
   }
 
   return applyBookingNetworkTracking(url.toString());
@@ -147,6 +148,9 @@ export function resolveHotelBookingUrl(
     if (fallback.destId) {
       u.searchParams.set("dest_id", fallback.destId);
       u.searchParams.set("dest_type", fallback.destType || "city");
+    }
+    if (fallback.nflt?.length) {
+      u.searchParams.set("nflt", fallback.nflt.join(";"));
     }
 
     if (u.pathname.includes("searchresults") && !u.searchParams.get("ss")) {

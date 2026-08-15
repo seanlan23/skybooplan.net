@@ -83,6 +83,7 @@ describe("buildBookingSearchUrl", () => {
       }),
     );
     expect(url.searchParams.get("nflt")).toBe("mealplan=1;ht_id=204");
+    expect(url.searchParams.get("src")).toBe("searchresults");
   });
 });
 

@@ -9,7 +9,13 @@ import {
   hotelSearchQueryAlias,
   pickBestBookingDestination,
 } from "./hotelDestinationPick";
-import { inferHotelAmenities, type HotelAmenities, type HotelKind } from "./hotelAmenities";
+import {
+  bookingCategoriesFilterFor,
+  inferHotelAmenities,
+  type HotelAmenities,
+  type HotelKind,
+  type StayFilterFlags,
+} from "./hotelAmenities";
 
 const RAPID_HOST = "booking-com15.p.rapidapi.com";
 const BASE = `https://${RAPID_HOST}/api/v1/hotels`;
@@ -42,6 +48,21 @@ const Input = z.object({
   rooms: z.number().int().min(1).max(10).default(1),
   childrenAges: z.array(z.number().int().min(0).max(17)).max(10).default([]),
   currency: z.string().min(3).max(3).default("EUR"),
+  filters: z
+    .object({
+      hotel: z.boolean().optional(),
+      apartment: z.boolean().optional(),
+      cabin: z.boolean().optional(),
+      nature: z.boolean().optional(),
+      jacuzzi: z.boolean().optional(),
+      breakfast: z.boolean().optional(),
+      allInclusive: z.boolean().optional(),
+      balcony: z.boolean().optional(),
+      pool: z.boolean().optional(),
+      parking: z.boolean().optional(),
+      freeCancel: z.boolean().optional(),
+    })
+    .optional(),
 });
 
 function isIsoDate(value: string): boolean {
@@ -165,9 +186,21 @@ export const searchHotels = createServerFn({ method: "POST" })
       if (data.childrenAges.length > 0) {
         params.children_age = data.childrenAges.join(",");
       }
+      const categories = bookingCategoriesFilterFor((data.filters ?? {}) as StayFilterFlags);
+      if (categories) {
+        params.categories_filter = categories;
+      }
 
       console.log("[searchHotels] searchHotels params", params);
-      const result = await rapid("/searchHotels", params);
+      let result: unknown;
+      try {
+        result = await rapid("/searchHotels", params);
+      } catch (err) {
+        if (!params.categories_filter) throw err;
+        const { categories_filter: _dropped, ...unfiltered } = params;
+        console.warn("[searchHotels] categories_filter rejected, retrying without it");
+        result = await rapid("/searchHotels", unfiltered);
+      }
       const rows = extractHotelsRows(result);
 
       console.log("[searchHotels] searchHotels result", {

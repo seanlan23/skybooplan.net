@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { bookingNfltFor, inferHotelAmenities, inferHotelKind } from "./hotelAmenities";
+import {
+  bookingCategoriesFilterFor,
+  bookingNfltFor,
+  inferHotelAmenities,
+  inferHotelKind,
+} from "./hotelAmenities";
 
 describe("inferHotelKind", () => {
   it("maps Booking type ids", () => {
@@ -9,6 +14,14 @@ describe("inferHotelKind", () => {
 });
 
 describe("inferHotelAmenities", () => {
+  it("reads all-inclusive from benefit badge text", () => {
+    const out = inferHotelAmenities({
+      name: "Iberostar Selection",
+      badges: "All-inclusive Included_14",
+    });
+    expect(out.amenities.allInclusive).toBe(true);
+  });
+
   it("reads breakfast, balcony and apartment from Booking label text", () => {
     const out = inferHotelAmenities({
       name: "Phi Phi Garden Apartment",
@@ -37,5 +50,11 @@ describe("bookingNfltFor", () => {
       "ht_id=228",
       "hotelfacility=46",
     ]);
+  });
+
+  it("maps All inclusive and other popular filters to RapidAPI categories_filter", () => {
+    expect(bookingCategoriesFilterFor({ allInclusive: true, breakfast: true, freeCancel: true })).toBe(
+      "mealplan::1,mealplan::9,free_cancellation::1",
+    );
   });
 });
