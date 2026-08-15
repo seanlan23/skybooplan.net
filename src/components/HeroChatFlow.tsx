@@ -364,7 +364,7 @@ function HeroGuidedStart({
           {t((staysOnly ? "heroChat.guided.staysHint" : "heroChat.guided.whereHint") as never)}
         </p>
 
-        <div key="hero-dest-dubai-v2" className="hero-chips-enter mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3">
+        <div key="hero-dest-dubai-v2" className="hero-chips-enter mt-5 grid grid-cols-3 gap-1.5 sm:gap-2">
           {HERO_DESTINATION_CHIPS.map((chip) => {
             const { emoji, name, feel } = getDestinationChipDisplay(chip, t);
             return (
@@ -373,14 +373,18 @@ function HeroGuidedStart({
                 type="button"
                 disabled={inputDisabled || fileProcessing}
                 onClick={() => onPickDestination(chip.destination, `${emoji} ${name}`)}
-                className="flex flex-col items-center justify-center gap-0.5 rounded-2xl border border-white/30 bg-white/15 px-3 py-3.5 text-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:bg-white/25 hover:shadow-md active:scale-[0.98] disabled:opacity-50"
+                className="flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-2xl border border-white/30 bg-white/15 px-1.5 py-2.5 text-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:bg-white/25 hover:shadow-md active:scale-[0.98] disabled:opacity-50 sm:px-3 sm:py-3.5"
               >
-                <span className="text-2xl" aria-hidden>
+                <span className="text-xl sm:text-2xl" aria-hidden>
                   {emoji}
                 </span>
-                <span className="text-sm font-semibold sm:text-[15px]">{name}</span>
+                <span className="max-w-full truncate text-center text-[12px] font-semibold leading-tight sm:text-[15px]">
+                  {name}
+                </span>
                 {feel ? (
-                  <span className="text-[11px] font-medium tracking-wide text-white/60">{feel}</span>
+                  <span className="max-w-full truncate text-[10px] font-medium tracking-wide text-white/60 sm:text-[11px]">
+                    {feel}
+                  </span>
                 ) : null}
               </button>
             );
@@ -391,7 +395,7 @@ function HeroGuidedStart({
           <button
             type="button"
             onClick={() => setShowTypeBox(true)}
-            className="mt-4 w-full rounded-xl bg-white px-4 py-3 text-sm font-semibold text-slate-900 shadow-sm transition hover:bg-white/90"
+            className="mt-4 w-full rounded-xl bg-white px-3 py-3 text-[13px] font-semibold leading-snug text-slate-900 shadow-sm transition hover:bg-white/90 sm:px-4 sm:text-sm"
           >
             {t("heroChat.guided.typeOwn" as never)}
           </button>
@@ -420,7 +424,7 @@ function HeroGuidedStart({
               )}
               kind={staysOnly ? "place" : "airport"}
             />
-            <div className="flex flex-wrap gap-2 pt-1">
+            <div className="grid grid-cols-3 gap-1.5 pt-1">
               {HERO_TYPE_SUGGESTIONS.map((hint) => {
                 const name = t(hint.nameKey as never);
                 const label = name.startsWith("hero.") ? hint.destination : name;
@@ -430,7 +434,7 @@ function HeroGuidedStart({
                     type="button"
                     disabled={inputDisabled || fileProcessing}
                     onClick={() => onPickDestination(hint.destination, `${hint.emoji} ${label}`)}
-                    className="rounded-full border border-white/30 bg-white/10 px-3 py-1.5 text-xs font-medium text-white/90 transition hover:bg-white/20 disabled:opacity-50"
+                    className="min-w-0 truncate rounded-full border border-white/30 bg-white/10 px-1.5 py-1.5 text-[11px] font-medium text-white/90 transition hover:bg-white/20 disabled:opacity-50 sm:px-3 sm:text-xs"
                   >
                     {hint.emoji} {label}
                   </button>
