@@ -109,6 +109,7 @@ export type HeroDestinationChip = {
   feelKey: string;
 };
 
+/** Dream row first, then classic + nearby — same size, order is the hierarchy. */
 export const HERO_DESTINATION_CHIPS: HeroDestinationChip[] = [
   {
     id: "thailand",
@@ -119,28 +120,28 @@ export const HERO_DESTINATION_CHIPS: HeroDestinationChip[] = [
     feelKey: "hero.chip.thailand.feel",
   },
   {
-    id: "paris",
-    destination: "Paris (CDG)",
-    emoji: "🗼",
-    labelKey: "hero.chip.paris.label",
-    nameKey: "hero.chip.paris.name",
-    feelKey: "hero.chip.paris.feel",
-  },
-  {
-    id: "slovenia",
-    destination: "Slovenia",
-    emoji: "🏔️",
-    labelKey: "hero.chip.slovenia.label",
-    nameKey: "hero.chip.slovenia.name",
-    feelKey: "hero.chip.slovenia.feel",
-  },
-  {
     id: "bali",
     destination: "Bali",
     emoji: "🌴",
     labelKey: "hero.chip.bali.label",
     nameKey: "hero.chip.bali.name",
     feelKey: "hero.chip.bali.feel",
+  },
+  {
+    id: "dubai",
+    destination: "Dubai",
+    emoji: "🏙️",
+    labelKey: "hero.chip.dubai.label",
+    nameKey: "hero.chip.dubai.name",
+    feelKey: "hero.chip.dubai.feel",
+  },
+  {
+    id: "paris",
+    destination: "Paris (CDG)",
+    emoji: "🗼",
+    labelKey: "hero.chip.paris.label",
+    nameKey: "hero.chip.paris.name",
+    feelKey: "hero.chip.paris.feel",
   },
   {
     id: "newyork",
@@ -151,13 +152,25 @@ export const HERO_DESTINATION_CHIPS: HeroDestinationChip[] = [
     feelKey: "hero.chip.newyork.feel",
   },
   {
-    id: "dubai",
-    destination: "Dubai",
-    emoji: "🏙️",
-    labelKey: "hero.chip.dubai.label",
-    nameKey: "hero.chip.dubai.name",
-    feelKey: "hero.chip.dubai.feel",
+    id: "croatia",
+    destination: "Croatia",
+    emoji: "🌊",
+    labelKey: "hero.chip.croatia.label",
+    nameKey: "hero.chip.croatia.name",
+    feelKey: "hero.chip.croatia.feel",
   },
+];
+
+/** Shown when the traveler opens “find any destination”. */
+export const HERO_TYPE_SUGGESTIONS: Array<{
+  id: string;
+  destination: string;
+  emoji: string;
+  nameKey: string;
+}> = [
+  { id: "portugal", destination: "Portugal", emoji: "🇵🇹", nameKey: "hero.suggest.portugal" },
+  { id: "japan", destination: "Japan", emoji: "🏯", nameKey: "hero.chip.japan.name" },
+  { id: "iceland", destination: "Iceland", emoji: "🌋", nameKey: "hero.suggest.iceland" },
 ];
 
 /** Full chip label e.g. "🗼 Pariz" — never emoji-only. */
@@ -195,13 +208,13 @@ export function localizeDestinationDisplay(
   if (!trimmed) return trimmed;
   const normalized = trimmed
     .replace(/^[\p{Emoji_Presentation}\p{Extended_Pictographic}\s]+/u, "")
+    .replace(/\s*\([A-Za-z]{3}\)\s*$/u, "")
     .trim()
     .toLowerCase();
-  const chip = HERO_DESTINATION_CHIPS.find(
-    (c) =>
-      c.destination.toLowerCase() === normalized ||
-      c.destination.toLowerCase() === trimmed.toLowerCase(),
-  );
+  const chip = HERO_DESTINATION_CHIPS.find((c) => {
+    const stored = c.destination.replace(/\s*\([A-Za-z]{3}\)\s*$/u, "").trim().toLowerCase();
+    return stored === normalized || c.destination.toLowerCase() === trimmed.toLowerCase();
+  });
   if (!chip) return trimmed;
   return getDestinationChipDisplay(chip, translate).name;
 }

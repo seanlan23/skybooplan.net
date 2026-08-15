@@ -26,6 +26,7 @@ import {
   createChatMessage,
   getDestinationChipDisplay,
   HERO_DESTINATION_CHIPS,
+  HERO_TYPE_SUGGESTIONS,
   HERO_MOTORHOME_END_CHIPS,
   HERO_MOTORHOME_START_CHIPS,
   localizeHeroCollectedForUi,
@@ -419,6 +420,23 @@ function HeroGuidedStart({
               )}
               kind={staysOnly ? "place" : "airport"}
             />
+            <div className="flex flex-wrap gap-2 pt-1">
+              {HERO_TYPE_SUGGESTIONS.map((hint) => {
+                const name = t(hint.nameKey as never);
+                const label = name.startsWith("hero.") ? hint.destination : name;
+                return (
+                  <button
+                    key={hint.id}
+                    type="button"
+                    disabled={inputDisabled || fileProcessing}
+                    onClick={() => onPickDestination(hint.destination, `${hint.emoji} ${label}`)}
+                    className="rounded-full border border-white/30 bg-white/10 px-3 py-1.5 text-xs font-medium text-white/90 transition hover:bg-white/20 disabled:opacity-50"
+                  >
+                    {hint.emoji} {label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>

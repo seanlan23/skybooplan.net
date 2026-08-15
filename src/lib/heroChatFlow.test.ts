@@ -27,20 +27,20 @@ describe("getDestinationChipDisplay", () => {
     expect(display.feel).toBe("Wow");
   });
 
-  it("shows Slovenia, New York, and Dubai on the destination grid", () => {
+  it("orders dream destinations first, then classic and nearby", () => {
     expect(HERO_DESTINATION_CHIPS.map((c) => c.id)).toEqual([
       "thailand",
-      "paris",
-      "slovenia",
       "bali",
-      "newyork",
       "dubai",
+      "paris",
+      "newyork",
+      "croatia",
     ]);
-    const slovenia = HERO_DESTINATION_CHIPS.find((c) => c.id === "slovenia")!;
-    const display = getDestinationChipDisplay(slovenia, (key) => translate("sl", key as never));
-    expect(display.name).toBe("Slovenija");
-    expect(display.label).toBe("🏔️ Slovenija");
-    expect(display.feel).toBe("Odkrij");
+    const croatia = HERO_DESTINATION_CHIPS.find((c) => c.id === "croatia")!;
+    const display = getDestinationChipDisplay(croatia, (key) => translate("sl", key as never));
+    expect(display.name).toBe("Hrvaška");
+    expect(display.label).toBe("🌊 Hrvaška");
+    expect(display.feel).toBe("Obala");
   });
 
   it("localizes stored English chip destination for checklist", () => {
