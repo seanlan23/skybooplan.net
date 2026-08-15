@@ -25,13 +25,14 @@ import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
 import { Route as ApiSearchRouteImport } from './routes/api/search'
 import { Route as ApiSaveTravelPlanRouteImport } from './routes/api/save-travel-plan'
 import { Route as ApiHeroPhotoRouteImport } from './routes/api/hero-photo'
-import { Route as ApiGoBookingRouteImport } from './routes/api/go/booking'
 import { Route as ApiGenerateItineraryRouteImport } from './routes/api/generate-itinerary'
 import { Route as ApiEnrichPlanPhotosRouteImport } from './routes/api/enrich-plan-photos'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated.profile'
 import { Route as AuthenticatedMyTripsRouteImport } from './routes/_authenticated.my-trips'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated.dashboard'
 import { Route as ApiSearchStatusRouteImport } from './routes/api/search/status'
+import { Route as ApiGoBookingRouteImport } from './routes/api/go/booking'
+import { Route as ApiCronSocialPostRouteImport } from './routes/api/cron/social-post'
 import { Route as ApiAuthGoogleStartRouteImport } from './routes/api/auth/google-start'
 import { Route as ApiAuthCompleteGoogleRouteImport } from './routes/api/auth/complete-google'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
@@ -119,11 +120,6 @@ const ApiHeroPhotoRoute = ApiHeroPhotoRouteImport.update({
   path: '/api/hero-photo',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiGoBookingRoute = ApiGoBookingRouteImport.update({
-  id: '/api/go/booking',
-  path: '/api/go/booking',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiGenerateItineraryRoute = ApiGenerateItineraryRouteImport.update({
   id: '/api/generate-itinerary',
   path: '/api/generate-itinerary',
@@ -153,6 +149,16 @@ const ApiSearchStatusRoute = ApiSearchStatusRouteImport.update({
   id: '/status',
   path: '/status',
   getParentRoute: () => ApiSearchRoute,
+} as any)
+const ApiGoBookingRoute = ApiGoBookingRouteImport.update({
+  id: '/api/go/booking',
+  path: '/api/go/booking',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCronSocialPostRoute = ApiCronSocialPostRouteImport.update({
+  id: '/api/cron/social-post',
+  path: '/api/cron/social-post',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAuthGoogleStartRoute = ApiAuthGoogleStartRouteImport.update({
   id: '/api/auth/google-start',
@@ -210,7 +216,6 @@ export interface FileRoutesByFullPath {
   '/api/enrich-plan-photos': typeof ApiEnrichPlanPhotosRoute
   '/api/generate-itinerary': typeof ApiGenerateItineraryRoute
   '/api/hero-photo': typeof ApiHeroPhotoRoute
-  '/api/go/booking': typeof ApiGoBookingRoute
   '/api/save-travel-plan': typeof ApiSaveTravelPlanRoute
   '/api/search': typeof ApiSearchRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
@@ -222,6 +227,8 @@ export interface FileRoutesByFullPath {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/auth/complete-google': typeof ApiAuthCompleteGoogleRoute
   '/api/auth/google-start': typeof ApiAuthGoogleStartRoute
+  '/api/cron/social-post': typeof ApiCronSocialPostRoute
+  '/api/go/booking': typeof ApiGoBookingRoute
   '/api/search/status': typeof ApiSearchStatusRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
@@ -241,7 +248,6 @@ export interface FileRoutesByTo {
   '/api/enrich-plan-photos': typeof ApiEnrichPlanPhotosRoute
   '/api/generate-itinerary': typeof ApiGenerateItineraryRoute
   '/api/hero-photo': typeof ApiHeroPhotoRoute
-  '/api/go/booking': typeof ApiGoBookingRoute
   '/api/save-travel-plan': typeof ApiSaveTravelPlanRoute
   '/api/search': typeof ApiSearchRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
@@ -253,6 +259,8 @@ export interface FileRoutesByTo {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/auth/complete-google': typeof ApiAuthCompleteGoogleRoute
   '/api/auth/google-start': typeof ApiAuthGoogleStartRoute
+  '/api/cron/social-post': typeof ApiCronSocialPostRoute
+  '/api/go/booking': typeof ApiGoBookingRoute
   '/api/search/status': typeof ApiSearchStatusRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
@@ -274,7 +282,6 @@ export interface FileRoutesById {
   '/api/enrich-plan-photos': typeof ApiEnrichPlanPhotosRoute
   '/api/generate-itinerary': typeof ApiGenerateItineraryRoute
   '/api/hero-photo': typeof ApiHeroPhotoRoute
-  '/api/go/booking': typeof ApiGoBookingRoute
   '/api/save-travel-plan': typeof ApiSaveTravelPlanRoute
   '/api/search': typeof ApiSearchRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
@@ -286,6 +293,8 @@ export interface FileRoutesById {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/auth/complete-google': typeof ApiAuthCompleteGoogleRoute
   '/api/auth/google-start': typeof ApiAuthGoogleStartRoute
+  '/api/cron/social-post': typeof ApiCronSocialPostRoute
+  '/api/go/booking': typeof ApiGoBookingRoute
   '/api/search/status': typeof ApiSearchStatusRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
@@ -307,7 +316,6 @@ export interface FileRouteTypes {
     | '/api/enrich-plan-photos'
     | '/api/generate-itinerary'
     | '/api/hero-photo'
-    | '/api/go/booking'
     | '/api/save-travel-plan'
     | '/api/search'
     | '/auth/callback'
@@ -319,6 +327,8 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/api/auth/complete-google'
     | '/api/auth/google-start'
+    | '/api/cron/social-post'
+    | '/api/go/booking'
     | '/api/search/status'
     | '/api/public/payments/webhook'
   fileRoutesByTo: FileRoutesByTo
@@ -338,7 +348,6 @@ export interface FileRouteTypes {
     | '/api/enrich-plan-photos'
     | '/api/generate-itinerary'
     | '/api/hero-photo'
-    | '/api/go/booking'
     | '/api/save-travel-plan'
     | '/api/search'
     | '/auth/callback'
@@ -350,6 +359,8 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/api/auth/complete-google'
     | '/api/auth/google-start'
+    | '/api/cron/social-post'
+    | '/api/go/booking'
     | '/api/search/status'
     | '/api/public/payments/webhook'
   id:
@@ -370,7 +381,6 @@ export interface FileRouteTypes {
     | '/api/enrich-plan-photos'
     | '/api/generate-itinerary'
     | '/api/hero-photo'
-    | '/api/go/booking'
     | '/api/save-travel-plan'
     | '/api/search'
     | '/auth/callback'
@@ -382,6 +392,8 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/api/auth/complete-google'
     | '/api/auth/google-start'
+    | '/api/cron/social-post'
+    | '/api/go/booking'
     | '/api/search/status'
     | '/api/public/payments/webhook'
   fileRoutesById: FileRoutesById
@@ -400,7 +412,6 @@ export interface RootRouteChildren {
   ApiEnrichPlanPhotosRoute: typeof ApiEnrichPlanPhotosRoute
   ApiGenerateItineraryRoute: typeof ApiGenerateItineraryRoute
   ApiHeroPhotoRoute: typeof ApiHeroPhotoRoute
-  ApiGoBookingRoute: typeof ApiGoBookingRoute
   ApiSaveTravelPlanRoute: typeof ApiSaveTravelPlanRoute
   ApiSearchRoute: typeof ApiSearchRouteWithChildren
   AuthCallbackRoute: typeof AuthCallbackRoute
@@ -409,6 +420,8 @@ export interface RootRouteChildren {
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiAuthCompleteGoogleRoute: typeof ApiAuthCompleteGoogleRoute
   ApiAuthGoogleStartRoute: typeof ApiAuthGoogleStartRoute
+  ApiCronSocialPostRoute: typeof ApiCronSocialPostRoute
+  ApiGoBookingRoute: typeof ApiGoBookingRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
 }
 
@@ -526,13 +539,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiHeroPhotoRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/go/booking': {
-      id: '/api/go/booking'
-      path: '/api/go/booking'
-      fullPath: '/api/go/booking'
-      preLoaderRoute: typeof ApiGoBookingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/generate-itinerary': {
       id: '/api/generate-itinerary'
       path: '/api/generate-itinerary'
@@ -574,6 +580,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/search/status'
       preLoaderRoute: typeof ApiSearchStatusRouteImport
       parentRoute: typeof ApiSearchRoute
+    }
+    '/api/go/booking': {
+      id: '/api/go/booking'
+      path: '/api/go/booking'
+      fullPath: '/api/go/booking'
+      preLoaderRoute: typeof ApiGoBookingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/cron/social-post': {
+      id: '/api/cron/social-post'
+      path: '/api/cron/social-post'
+      fullPath: '/api/cron/social-post'
+      preLoaderRoute: typeof ApiCronSocialPostRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/auth/google-start': {
       id: '/api/auth/google-start'
@@ -684,7 +704,6 @@ const rootRouteChildren: RootRouteChildren = {
   ApiEnrichPlanPhotosRoute: ApiEnrichPlanPhotosRoute,
   ApiGenerateItineraryRoute: ApiGenerateItineraryRoute,
   ApiHeroPhotoRoute: ApiHeroPhotoRoute,
-  ApiGoBookingRoute: ApiGoBookingRoute,
   ApiSaveTravelPlanRoute: ApiSaveTravelPlanRoute,
   ApiSearchRoute: ApiSearchRouteWithChildren,
   AuthCallbackRoute: AuthCallbackRoute,
@@ -693,6 +712,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiAuthCompleteGoogleRoute: ApiAuthCompleteGoogleRoute,
   ApiAuthGoogleStartRoute: ApiAuthGoogleStartRoute,
+  ApiCronSocialPostRoute: ApiCronSocialPostRoute,
+  ApiGoBookingRoute: ApiGoBookingRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
 }
 export const routeTree = rootRouteImport
