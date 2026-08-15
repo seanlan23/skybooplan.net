@@ -148,10 +148,10 @@ export function ShowcasePlansSection() {
 
   return (
     <section
-      className="border-b border-border/60 bg-slate-50/80"
+      className="overflow-x-clip border-b border-border/60 bg-slate-50/80"
       aria-labelledby="showcase-heading"
     >
-      <div className="mx-auto max-w-6xl px-6 py-12 sm:py-14">
+      <div className="mx-auto min-w-0 max-w-6xl px-6 py-12 sm:py-14">
         <div className="mx-auto max-w-2xl text-center">
           <div className="mb-3 inline-flex items-center gap-2 text-brand">
             <FileText className="h-4 w-4" aria-hidden />
@@ -168,14 +168,14 @@ export function ShowcasePlansSection() {
         </div>
 
         <Carousel
-          opts={{ align: "start", skipSnaps: false }}
-          className="mt-8"
+          opts={{ align: "start", skipSnaps: false, containScroll: "trimSnaps" }}
+          className="mt-8 min-w-0 overflow-x-clip"
         >
           <CarouselContent className="-ml-4">
             {PLANS.map((plan) => (
               <CarouselItem
                 key={plan.id}
-                className="basis-[min(85vw,300px)] pl-4 sm:basis-[340px] lg:basis-[360px]"
+                className="basis-[min(82%,18rem)] pl-4 sm:basis-[340px] lg:basis-[360px]"
               >
                 <ShowcasePlanCard plan={plan} />
               </CarouselItem>

@@ -40,7 +40,7 @@ export function SocialProofSection() {
 
   return (
     <section
-      className="relative z-10 border-b border-border/60 bg-background"
+      className="relative z-10 overflow-x-clip border-b border-border/60 bg-background"
       aria-labelledby="social-proof-heading"
     >
       <div className="mx-auto max-w-6xl px-6 py-12 sm:py-14">

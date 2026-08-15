@@ -20,7 +20,7 @@ function InspirationCardItem({
   return (
     <article
       className={cn(
-        "group relative flex h-[280px] w-[min(85vw,320px)] shrink-0 snap-center flex-col justify-end overflow-hidden rounded-2xl sm:h-[320px] sm:w-auto sm:flex-1",
+        "group relative flex h-[280px] w-[min(82%,19rem)] shrink-0 snap-center flex-col justify-end overflow-hidden rounded-2xl sm:h-[320px] sm:w-auto sm:flex-1",
         "border border-border/80 shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-xl",
       )}
     >
@@ -73,8 +73,8 @@ export function TripInspiration({
   }, [now]);
 
   return (
-    <section className="border-b border-border/60 bg-background" aria-labelledby="inspiration-heading">
-      <div className="mx-auto max-w-6xl px-6 py-12 sm:py-14">
+    <section className="overflow-x-clip border-b border-border/60 bg-background" aria-labelledby="inspiration-heading">
+      <div className="mx-auto min-w-0 max-w-6xl px-6 py-12 sm:py-14">
         <div className="text-center">
           <h2 id="inspiration-heading" className="text-2xl font-bold text-foreground sm:text-3xl">
             {t("inspiration.title" as never)}
@@ -86,7 +86,7 @@ export function TripInspiration({
 
         <div
           className={cn(
-            "mt-8 flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory",
+            "mt-8 flex min-w-0 gap-4 overflow-x-auto overscroll-x-contain pb-2 snap-x snap-mandatory",
             "sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-0 lg:grid-cols-3",
           )}
         >
