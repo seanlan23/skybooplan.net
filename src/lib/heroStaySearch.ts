@@ -6,6 +6,7 @@ import {
 } from "@/lib/heroChatPlanner";
 import { ensureHotelCheckoutAfterCheckin } from "@/lib/bookingUrl";
 import { hotelSearchQueryAlias } from "@/lib/hotelDestinationPick";
+import { mergeStayFilters, parseStayIntent, type StayIntentFilters } from "@/lib/stayIntent";
 
 export type HeroStaySearchParams = {
   city: string;
@@ -14,6 +15,7 @@ export type HeroStaySearchParams = {
   adults: number;
   rooms: number;
   childrenAges: number[];
+  filters?: StayIntentFilters;
 };
 
 /** Strip emoji / IATA so Booking searchDestination gets a clean place name. */
@@ -29,8 +31,17 @@ export function staySearchFromCollected(
   collected: HeroChatCollected,
   language = "sl",
 ): HeroStaySearchParams {
+  const rawDest = stayDestinationLabel(collected.destination);
+  const destIntent = parseStayIntent(rawDest);
+  const wishIntent = collected.locationWishes?.trim()
+    ? parseStayIntent(collected.locationWishes)
+    : null;
+  const filters = mergeStayFilters(destIntent.filters, wishIntent?.filters);
   const city =
-    hotelSearchQueryAlias(stayDestinationLabel(collected.destination)) || "Bangkok";
+    destIntent.place ||
+    wishIntent?.place ||
+    hotelSearchQueryAlias(rawDest) ||
+    "";
   const range = parseChatDateRange(collected.dates, language);
   const checkIn = range.departDate;
   const nights = collected.nights?.trim()
@@ -68,5 +79,6 @@ export function staySearchFromCollected(
     adults,
     rooms,
     childrenAges,
+    ...(Object.keys(filters).length > 0 ? { filters } : {}),
   };
 }

@@ -1880,6 +1880,7 @@ export function HeroChatFlow({
                   childrenAges: staySearch.childrenAges,
                   rooms: staySearch.rooms,
                 }}
+                initialFilters={staySearch.filters}
                 bookingFirst
               />
             </div>

@@ -59,6 +59,9 @@ export function inferHotelAmenities(input: {
 export function bookingNfltFor(filters: {
   hotel?: boolean;
   apartment?: boolean;
+  cabin?: boolean;
+  nature?: boolean;
+  jacuzzi?: boolean;
   breakfast?: boolean;
   allInclusive?: boolean;
   balcony?: boolean;
@@ -69,11 +72,16 @@ export function bookingNfltFor(filters: {
   const out: string[] = [];
   if (filters.hotel) out.push("ht_id=204");
   if (filters.apartment) out.push("ht_id=201");
+  // Holiday homes / chalets / lodges — country-wide cabin search.
+  if (filters.cabin) out.push("ht_id=208", "ht_id=223", "ht_id=228");
+  // Farm stays + country houses when the guest asked for nature / countryside.
+  if (filters.nature) out.push("ht_id=221", "ht_id=230");
   if (filters.breakfast) out.push("mealplan=1");
   if (filters.allInclusive) out.push("mealplan=9");
   if (filters.balcony) out.push("roomfacility=17");
   if (filters.pool) out.push("hotelfacility=301");
   if (filters.parking) out.push("hotelfacility=2");
+  if (filters.jacuzzi) out.push("hotelfacility=46");
   if (filters.freeCancel) out.push("fc=2");
   return out;
 }

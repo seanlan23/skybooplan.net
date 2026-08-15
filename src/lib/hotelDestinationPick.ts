@@ -7,23 +7,61 @@ export type BookingDestRow = {
   city_name?: string;
 };
 
+type StayCountry = {
+  english: string;
+  capital: string;
+  pattern: RegExp;
+  /** Stems so "v Sloveniji" / "na Tajskem" still resolve to the country. */
+  needles: string[];
+};
+
 /**
- * Prefer a precise city/district dest over a broad region.
- * Blind `destRows[0]` for "Krabi" can resolve to a province that includes Koh Lanta.
+ * Country chips / typed country names. Search the country, not the capital.
+ * Capital is only a fallback when the country dest returns zero stays.
+ */
+const STAY_COUNTRIES: StayCountry[] = [
+  { english: "Thailand", capital: "Bangkok", pattern: /^(thailand|tajska)$/i, needles: ["thailand", "tajsk"] },
+  { english: "Spain", capital: "Barcelona", pattern: /^(spain|španija|spanija|españa|spanien)$/i, needles: ["spain", "španij", "spanij", "españa", "spanien"] },
+  { english: "Italy", capital: "Rome", pattern: /^(italy|italija|italia|italien)$/i, needles: ["italy", "italij", "italia", "italien"] },
+  { english: "Croatia", capital: "Split", pattern: /^(croatia|hrvaška|hrvaska|hrvatska|kroatien)$/i, needles: ["croatia", "hrvašk", "hrvask", "hrvatsk", "kroatien"] },
+  { english: "Greece", capital: "Athens", pattern: /^(greece|grčija|grcija|ellada|griechenland)$/i, needles: ["greece", "grčij", "grcij", "ellada", "griechenland"] },
+  { english: "Slovenia", capital: "Ljubljana", pattern: /^(slovenia|slovenija|slowenien)$/i, needles: ["slovenia", "slovenij", "slowenien"] },
+  { english: "France", capital: "Paris", pattern: /^(france|francija|frankreich)$/i, needles: ["france", "francij", "frankreich"] },
+  { english: "Portugal", capital: "Lisbon", pattern: /^(portugal)$/i, needles: ["portugal"] },
+];
+
+export function matchStayCountry(query: string): StayCountry | null {
+  const trimmed = query.trim();
+  if (!trimmed) return null;
+  return STAY_COUNTRIES.find((c) => c.pattern.test(trimmed)) ?? null;
+}
+
+/** Find a country mentioned anywhere in a stay query. */
+export function findStayCountryInText(text: string): StayCountry | null {
+  const lower = text.toLowerCase();
+  if (!lower.trim()) return null;
+  return STAY_COUNTRIES.find((c) => c.needles.some((n) => lower.includes(n))) ?? null;
+}
+
+export function isCountryStayQuery(query: string): boolean {
+  return matchStayCountry(query) != null;
+}
+
+/** Capital / bookable city — only when a country-wide dest comes back empty. */
+export function hotelCapitalFallback(query: string): string | undefined {
+  return matchStayCountry(query)?.capital;
+}
+
+/**
+ * Normalize the Booking lookup string.
+ * City-specific aliases stay; countries stay countries (English name).
  */
 export function hotelSearchQueryAlias(city: string): string {
   const trimmed = city.trim();
   if (/^krabi$/i.test(trimmed)) return "Ao Nang";
-  // Country chips must resolve to a bookable city — Booking rejects / empties regions.
-  if (/^(thailand|tajska)$/i.test(trimmed)) return "Bangkok";
   if (/phi\s*phi/i.test(trimmed)) return "Ko Phi Phi Don";
-  if (/^(spain|španija|spanija|españa)$/i.test(trimmed)) return "Barcelona";
-  if (/^(italy|italija|italia)$/i.test(trimmed)) return "Rome";
-  if (/^(croatia|hrvaška|hrvaska|hrvatska)$/i.test(trimmed)) return "Split";
-  if (/^(greece|grčija|grcija|ellada)$/i.test(trimmed)) return "Athens";
-  if (/^(slovenia|slovenija)$/i.test(trimmed)) return "Ljubljana";
-  if (/^(france|francija)$/i.test(trimmed)) return "Paris";
-  if (/^(portugal)$/i.test(trimmed)) return "Lisbon";
+  const country = matchStayCountry(trimmed);
+  if (country) return country.english;
   return trimmed;
 }
 
@@ -40,6 +78,7 @@ export function pickBestBookingDestination(
   if (!q) return rows[0] ?? null;
 
   const isKrabiSearch = /^krabi$|^ao nang$/i.test(query.trim());
+  const preferCountry = isCountryStayQuery(query);
 
   let best: BookingDestRow | null = null;
   let bestScore = -Infinity;
@@ -55,8 +94,15 @@ export function pickBestBookingDestination(
     else if (label.startsWith(q + ",") || label.startsWith(q + " ")) score += 85;
     else if (label.includes(q)) score += 45;
 
-    if (type === "city" || type === "district" || type === "hotel") score += 35;
-    else if (type === "region" || type === "province") score -= 25;
+    if (preferCountry) {
+      if (type === "country") score += 80;
+      else if (type === "region" || type === "province") score += 15;
+      else if (type === "city" || type === "district" || type === "hotel") score -= 20;
+    } else if (type === "city" || type === "district" || type === "hotel") {
+      score += 35;
+    } else if (type === "region" || type === "province") {
+      score -= 25;
+    }
 
     if (isKrabiSearch) {
       if (/ao nang|krabi town|krabi city/.test(label)) score += 55;

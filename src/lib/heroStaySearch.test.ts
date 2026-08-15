@@ -23,7 +23,7 @@ describe("staySearchFromCollected", () => {
       },
       "sl",
     );
-    expect(stay.city).toBe("Bangkok");
+    expect(stay.city).toBe("Thailand");
     expect(stay.checkIn).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(stay.checkOut > stay.checkIn).toBe(true);
     expect(stay.adults).toBe(2);
@@ -44,5 +44,40 @@ describe("staySearchFromCollected", () => {
       "sl",
     );
     expect(stay.rooms).toBe(3);
+  });
+
+  it("keeps Slovenia as a country-wide stay search", () => {
+    const stay = staySearchFromCollected(
+      {
+        destination: "🇸🇮 Slovenia",
+        dates: "15. nov → 16. nov 2026",
+        nights: "",
+        origin: "",
+        passengers: "2 odrasla · 1 soba",
+        rooms: 1,
+        pace: "",
+        budget: "",
+      },
+      "sl",
+    );
+    expect(stay.city).toBe("Slovenia");
+  });
+
+  it("extracts cabin + jacuzzi from a vibe query and keeps the country", () => {
+    const stay = staySearchFromCollected(
+      {
+        destination: "koča v naravi z jacuzzijem v Sloveniji",
+        dates: "15. nov → 16. nov 2026",
+        nights: "",
+        origin: "",
+        passengers: "2 odrasla · 1 soba",
+        rooms: 1,
+        pace: "",
+        budget: "",
+      },
+      "sl",
+    );
+    expect(stay.city).toBe("Slovenia");
+    expect(stay.filters).toMatchObject({ cabin: true, jacuzzi: true, nature: true });
   });
 });

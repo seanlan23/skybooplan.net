@@ -10,7 +10,8 @@ import {
 } from "@/lib/bookingUrl";
 import { bookingNfltFor } from "@/lib/hotelAmenities";
 import { searchHotels } from "@/lib/hotels.functions";
-import { hotelSearchQueryAlias } from "@/lib/hotelDestinationPick";
+import { hotelCapitalFallback, hotelSearchQueryAlias } from "@/lib/hotelDestinationPick";
+import type { StayIntentFilters } from "@/lib/stayIntent";
 import { selectHotelSource } from "@/lib/hotelSelection";
 import { interpolate } from "@/lib/interpolate";
 import { formatLocalDate } from "@/lib/dateUtils";
@@ -90,12 +91,27 @@ function Stars({ count }: { count: number }) {
   );
 }
 
+const EMPTY_POPULAR = {
+  breakfast: false,
+  allInclusive: false,
+  balcony: false,
+  hotel: false,
+  apartment: false,
+  cabin: false,
+  nature: false,
+  jacuzzi: false,
+  pool: false,
+  parking: false,
+  freeCancel: false,
+};
+
 export function HotelsSection({
   city,
   checkIn,
   checkOut,
   stayInfo,
   regionFallback,
+  initialFilters,
   bookingFirst = false,
 }: {
   city: string;
@@ -103,6 +119,8 @@ export function HotelsSection({
   checkOut?: string;
   stayInfo?: StayInfo;
   regionFallback?: string;
+  /** Pre-check popular filters from hero text ("koča z jacuzzijem"). */
+  initialFilters?: StayIntentFilters;
   /** Hero stays: Booking link is the product; RapidAPI cards are optional. */
   bookingFirst?: boolean;
 }) {
@@ -132,15 +150,14 @@ export function HotelsSection({
   const [starFilter, setStarFilter] = useState<number[]>([]);
   const [maxPerNight, setMaxPerNight] = useState<number | null>(null);
   const [popular, setPopular] = useState({
-    breakfast: false,
-    allInclusive: false,
-    balcony: false,
-    hotel: false,
-    apartment: false,
-    pool: false,
-    parking: false,
-    freeCancel: false,
+    ...EMPTY_POPULAR,
+    hotel: Boolean(initialFilters?.hotel),
+    apartment: Boolean(initialFilters?.apartment),
+    cabin: Boolean(initialFilters?.cabin),
+    nature: Boolean(initialFilters?.nature),
+    jacuzzi: Boolean(initialFilters?.jacuzzi),
   });
+  const capitalFallback = regionFallback ?? hotelCapitalFallback(city);
 
   const nflt = useMemo(() => bookingNfltFor(popular), [popular]);
 
@@ -168,16 +185,16 @@ export function HotelsSection({
   const shouldFallback =
     primary.isSuccess &&
     (primary.data?.hotels?.length ?? 0) === 0 &&
-    !!regionFallback &&
-    regionFallback.trim().toLowerCase() !== city.trim().toLowerCase();
+    !!capitalFallback &&
+    capitalFallback.trim().toLowerCase() !== city.trim().toLowerCase();
 
   const fallback = useQuery({
-    queryKey: ["hotels-fallback", regionFallback, checkIn, effectiveCheckOut, adults, rooms, childrenAges.join(",")],
+    queryKey: ["hotels-fallback", capitalFallback, checkIn, effectiveCheckOut, adults, rooms, childrenAges.join(",")],
     enabled: shouldFallback,
     queryFn: () =>
       fetchHotels({
         data: {
-          city: regionFallback!,
+          city: capitalFallback!,
           checkIn,
           checkOut: effectiveCheckOut,
           adults,
@@ -190,7 +207,7 @@ export function HotelsSection({
     retry: 1,
   });
 
-  const selection = selectHotelSource(primary, fallback, city, regionFallback);
+  const selection = selectHotelSource(primary, fallback, city, capitalFallback);
   const { isLoading, usedFallback, sourceCity } = selection;
   const realHotels = selection.hotels;
   const isError = selection.isError || Boolean(primary.data?.error ?? (shouldFallback ? fallback.data?.error : null));
@@ -206,7 +223,7 @@ export function HotelsSection({
       destType: dest?.destType,
       lang,
     });
-  const bookingHref = buildBookingUrl(regionFallback && usedFallback ? sourceCity : city);
+  const bookingHref = buildBookingUrl(capitalFallback && usedFallback ? sourceCity : city);
 
   const nightlyPrices = realHotels.map((h) => perNightPrice(h.price, nights));
   const extent = priceExtent(nightlyPrices);
@@ -237,15 +254,20 @@ export function HotelsSection({
       balcony: count((h) => Boolean(h.amenities?.balcony)),
       hotel: count((h) => h.kind === "hotel"),
       apartment: count((h) => h.kind === "apartment"),
+      cabin: 0,
+      nature: 0,
+      jacuzzi: 0,
       pool: count((h) => Boolean(h.amenities?.pool)),
       parking: count((h) => Boolean(h.amenities?.parking)),
       freeCancel: count((h) => Boolean(h.amenities?.freeCancel)),
     };
   }, [realHotels]);
 
-  const bookingOnlyPopular = LOCAL_AMENITY_KEYS.some(
-    (key) => popular[key] && popularCounts[key] === 0,
-  );
+  const bookingOnlyPopular =
+    LOCAL_AMENITY_KEYS.some((key) => popular[key] && popularCounts[key] === 0) ||
+    popular.cabin ||
+    popular.nature ||
+    popular.jacuzzi;
 
   const mapCenter = useMemo(() => {
     const pts = realHotels.filter((h) => h.lat != null && h.lng != null) as Array<{
@@ -342,7 +364,7 @@ export function HotelsSection({
               {isError ? t("aiplan.hotelsEmptyErrorSub" as never) : t("aiplan.hotelsEmptyDefaultSub" as never)}
             </p>
             <div className="mt-3">
-              <BookingCta href={buildBookingUrl(regionFallback || city)} label={t("aiplan.hotelsEmptyCta" as never)} />
+              <BookingCta href={buildBookingUrl(capitalFallback || city)} label={t("aiplan.hotelsEmptyCta" as never)} />
             </div>
           </div>
         )
@@ -476,6 +498,9 @@ export function HotelsSection({
                     ["balcony", "aiplan.filterBalcony"],
                     ["hotel", "aiplan.filterHotels"],
                     ["apartment", "aiplan.filterApartments"],
+                    ["cabin", "aiplan.filterCabin"],
+                    ["nature", "aiplan.filterNature"],
+                    ["jacuzzi", "aiplan.filterJacuzzi"],
                     ["pool", "aiplan.filterPool"],
                     ["parking", "aiplan.filterParking"],
                     ["freeCancel", "aiplan.filterFreeCancel"],
@@ -555,16 +580,7 @@ export function HotelsSection({
                   setMinRating(0);
                   setStarFilter([]);
                   setMaxPerNight(null);
-                  setPopular({
-                    breakfast: false,
-                    allInclusive: false,
-                    balcony: false,
-                    hotel: false,
-                    apartment: false,
-                    pool: false,
-                    parking: false,
-                    freeCancel: false,
-                  });
+                  setPopular({ ...EMPTY_POPULAR });
                 }}
                 className="text-xs font-semibold text-[#0071c2] hover:underline"
               >

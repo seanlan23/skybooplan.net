@@ -29,4 +29,13 @@ describe("bookingNfltFor", () => {
       bookingNfltFor({ breakfast: true, hotel: true, balcony: true }),
     ).toEqual(["ht_id=204", "mealplan=1", "roomfacility=17"]);
   });
+
+  it("maps cabin and jacuzzi to Booking property / facility tokens", () => {
+    expect(bookingNfltFor({ cabin: true, jacuzzi: true })).toEqual([
+      "ht_id=208",
+      "ht_id=223",
+      "ht_id=228",
+      "hotelfacility=46",
+    ]);
+  });
 });

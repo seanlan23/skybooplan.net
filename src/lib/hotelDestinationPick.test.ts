@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  hotelCapitalFallback,
   hotelSearchQueryAlias,
   pickBestBookingDestination,
 } from "@/lib/hotelDestinationPick";
@@ -8,9 +9,14 @@ describe("hotelSearchQueryAlias", () => {
   it("maps Krabi to Ao Nang for tighter Booking results", () => {
     expect(hotelSearchQueryAlias("Krabi")).toBe("Ao Nang");
     expect(hotelSearchQueryAlias("Bangkok")).toBe("Bangkok");
-    expect(hotelSearchQueryAlias("Thailand")).toBe("Bangkok");
-    expect(hotelSearchQueryAlias("Tajska")).toBe("Bangkok");
     expect(hotelSearchQueryAlias("phi phi don")).toBe("Ko Phi Phi Don");
+  });
+
+  it("keeps country names as countries, not capitals", () => {
+    expect(hotelSearchQueryAlias("Thailand")).toBe("Thailand");
+    expect(hotelSearchQueryAlias("Tajska")).toBe("Thailand");
+    expect(hotelSearchQueryAlias("Slovenia")).toBe("Slovenia");
+    expect(hotelSearchQueryAlias("Slovenija")).toBe("Slovenia");
   });
 });
 
@@ -42,5 +48,14 @@ describe("pickBestBookingDestination", () => {
       { dest_id: "2", search_type: "city", label: "Krabi Town" },
     ]);
     expect(picked?.dest_id).toBe("2");
+  });
+
+  it("prefers the country dest when the query is a country", () => {
+    const picked = pickBestBookingDestination("Slovenia", [
+      { dest_id: "-123", search_type: "city", label: "Ljubljana, Slovenia" },
+      { dest_id: "202", search_type: "country", label: "Slovenia" },
+    ]);
+    expect(picked?.dest_id).toBe("202");
+    expect(hotelCapitalFallback("Slovenija")).toBe("Ljubljana");
   });
 });
