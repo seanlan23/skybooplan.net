@@ -1,59 +1,12 @@
+import { useEffect, useMemo, useState } from "react";
 import { ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
-
-type InspirationCardDef = {
-  id: "paris" | "slovenia" | "dubai" | "tanzania" | "asia";
-  emoji: string;
-  /** English search destination — stable across languages. */
-  destination: string;
-  titleKey: string;
-  /** Fixed curated photo — no API dependency (reliable on cards). */
-  imageUrl: string;
-};
-
-const CARDS: InspirationCardDef[] = [
-  {
-    id: "paris",
-    emoji: "🗼",
-    destination: "Paris",
-    titleKey: "inspiration.paris.title",
-    imageUrl:
-      "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=1200&q=80",
-  },
-  {
-    id: "slovenia",
-    emoji: "🏔️",
-    destination: "Slovenia",
-    titleKey: "inspiration.slovenia.title",
-    imageUrl:
-      "https://images.unsplash.com/photo-1478088913771-e3a36f50bb63?auto=format&fit=crop&w=1200&q=80",
-  },
-  {
-    id: "dubai",
-    emoji: "🏙️",
-    destination: "Dubai",
-    titleKey: "inspiration.dubai.title",
-    imageUrl:
-      "https://images.unsplash.com/photo-1518684079-3c830dcef090?auto=format&fit=crop&w=1200&q=80",
-  },
-  {
-    id: "tanzania",
-    emoji: "🦁",
-    destination: "Tanzania",
-    titleKey: "inspiration.tanzania.title",
-    imageUrl:
-      "https://images.unsplash.com/photo-1516426122078-c23e76319801?auto=format&fit=crop&w=1200&q=80",
-  },
-  {
-    id: "asia",
-    emoji: "🌴",
-    destination: "Bali",
-    titleKey: "inspiration.asia.title",
-    imageUrl:
-      "https://images.unsplash.com/photo-1537953773345-d172ccf13cf1?auto=format&fit=crop&w=1200&q=80",
-  },
-];
+import {
+  msUntilNextInspirationSlot,
+  pickVisibleInspirationCards,
+  type InspirationCardDef,
+} from "@/lib/tripInspiration";
 
 function InspirationCardItem({
   card,
@@ -111,6 +64,13 @@ export function TripInspiration({
   onSelectDestination: (destination: string) => void;
 }) {
   const { t } = useI18n();
+  const [now, setNow] = useState(() => Date.now());
+  const cards = useMemo(() => pickVisibleInspirationCards(now), [now]);
+
+  useEffect(() => {
+    const id = window.setTimeout(() => setNow(Date.now()), msUntilNextInspirationSlot(now));
+    return () => window.clearTimeout(id);
+  }, [now]);
 
   return (
     <section className="border-b border-border/60 bg-background" aria-labelledby="inspiration-heading">
@@ -130,7 +90,7 @@ export function TripInspiration({
             "sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-0 lg:grid-cols-3",
           )}
         >
-          {CARDS.map((card) => (
+          {cards.map((card) => (
             <InspirationCardItem key={card.id} card={card} onSelect={onSelectDestination} />
           ))}
         </div>
