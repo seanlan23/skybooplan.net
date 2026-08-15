@@ -40,7 +40,7 @@ describe("getDestinationChipDisplay", () => {
     const display = getDestinationChipDisplay(slovenia, (key) => translate("sl", key as never));
     expect(display.name).toBe("Slovenija");
     expect(display.label).toBe("🏔️ Slovenija");
-    expect(display.feel).toBe("Doma");
+    expect(display.feel).toBe("Odkrij");
   });
 
   it("localizes stored English chip destination for checklist", () => {
