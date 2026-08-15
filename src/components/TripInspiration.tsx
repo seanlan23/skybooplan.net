@@ -27,7 +27,7 @@ const CARDS: InspirationCardDef[] = [
     destination: "Dubai",
     titleKey: "inspiration.dubai.title",
     imageUrl:
-      "https://images.unsplash.com/photo-1512453979798-5ea9516f8e4d?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-1518684079-3c830dcef090?auto=format&fit=crop&w=1200&q=80",
   },
   {
     id: "asia",
@@ -60,6 +60,9 @@ function InspirationCardItem({
         alt=""
         loading="lazy"
         decoding="async"
+        onError={(e) => {
+          e.currentTarget.style.display = "none";
+        }}
         className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
       />
       <div
