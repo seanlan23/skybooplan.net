@@ -5,8 +5,7 @@ export const legalUiByLang: Record<"es" | "fr" | "it" | "de", Dict> = {
   es: {
     "legal.backHome": "Volver al inicio",
     "cookieConsent.label": "Consentimiento de cookies",
-    "cookieConsent.message":
-      "Usamos cookies para una mejor experiencia. Al continuar, aceptas nuestra política de privacidad.",
+    "cookieConsent.message": "Cookies para el sitio y analítica opcional.",
     "cookieConsent.acceptAll": "Aceptar todo",
     "cookieConsent.essential": "Solo esenciales",
     "about.title": "Sobre nosotros y contacto",
@@ -32,16 +31,14 @@ export const legalUiByLang: Record<"es" | "fr" | "it" | "de", Dict> = {
   },
   fr: {
     "cookieConsent.label": "Consentement cookies",
-    "cookieConsent.message":
-      "Nous utilisons des cookies pour une meilleure expérience. En continuant, vous acceptez notre politique de confidentialité.",
+    "cookieConsent.message": "Cookies pour le site et l’analytique optionnelle.",
     "cookieConsent.acceptAll": "Tout accepter",
     "cookieConsent.essential": "Essentiels uniquement",
   },
   it: {
     "legal.backHome": "Torna alla home",
     "cookieConsent.label": "Consenso cookie",
-    "cookieConsent.message":
-      "Usiamo i cookie per una migliore esperienza. Continuando, accetti la nostra privacy policy.",
+    "cookieConsent.message": "Cookie per il sito e analitica opzionale.",
     "cookieConsent.acceptAll": "Accetta tutti",
     "cookieConsent.essential": "Solo essenziali",
     "about.title": "Chi siamo e contatti",
@@ -68,8 +65,7 @@ export const legalUiByLang: Record<"es" | "fr" | "it" | "de", Dict> = {
   de: {
     "legal.backHome": "Zurück zur Startseite",
     "cookieConsent.label": "Cookie-Einwilligung",
-    "cookieConsent.message":
-      "Wir verwenden Cookies für ein besseres Erlebnis. Mit dem Fortfahren stimmst du unserer Datenschutzerklärung zu.",
+    "cookieConsent.message": "Cookies für die Seite und optionale Analysen.",
     "cookieConsent.acceptAll": "Alle akzeptieren",
     "cookieConsent.essential": "Nur essenziell",
     "about.title": "Über uns & Kontakt",

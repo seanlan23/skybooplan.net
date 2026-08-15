@@ -355,7 +355,7 @@ function HeroGuidedStart({
 
   return (
     <div className="relative z-20 w-full">
-      <div className="rounded-2xl border border-white/25 bg-white/12 p-5 shadow-lg backdrop-blur-md sm:p-6">
+      <div className="hero-sky-enter rounded-2xl border border-white/40 bg-black/50 p-5 shadow-[0_18px_50px_rgba(0,0,0,0.45)] backdrop-blur-xl sm:p-6">
         <p className="text-center text-lg font-semibold text-white sm:text-xl">
           {t((staysOnly ? "heroChat.guided.staysTitle" : "heroChat.guided.whereTitle") as never)}
         </p>
@@ -363,7 +363,7 @@ function HeroGuidedStart({
           {t((staysOnly ? "heroChat.guided.staysHint" : "heroChat.guided.whereHint") as never)}
         </p>
 
-        <div key="hero-dest-dubai-v2" className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3">
+        <div key="hero-dest-dubai-v2" className="hero-chips-enter mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3">
           {HERO_DESTINATION_CHIPS.map((chip) => {
             const { emoji, name } = getDestinationChipDisplay(chip, t);
             return (
@@ -372,7 +372,7 @@ function HeroGuidedStart({
                 type="button"
                 disabled={inputDisabled || fileProcessing}
                 onClick={() => onPickDestination(chip.destination, `${emoji} ${name}`)}
-                className="flex flex-col items-center justify-center gap-1 rounded-2xl border border-white/25 bg-white/15 px-3 py-4 text-white shadow-sm transition hover:bg-white/25 active:scale-[0.98] disabled:opacity-50"
+                className="flex flex-col items-center justify-center gap-1 rounded-2xl border border-white/30 bg-white/15 px-3 py-4 text-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:bg-white/25 hover:shadow-md active:scale-[0.98] disabled:opacity-50"
               >
                 <span className="text-2xl" aria-hidden>
                   {emoji}
@@ -387,7 +387,7 @@ function HeroGuidedStart({
           <button
             type="button"
             onClick={() => setShowTypeBox(true)}
-            className="mt-4 w-full rounded-xl border border-dashed border-white/30 py-2.5 text-sm font-medium text-white/85 hover:bg-white/10"
+            className="mt-4 w-full rounded-xl bg-white px-4 py-3 text-sm font-semibold text-slate-900 shadow-sm transition hover:bg-white/90"
           >
             {t("heroChat.guided.typeOwn" as never)}
           </button>
@@ -446,7 +446,7 @@ function HeroMotorhomeGuidedStart({
 
   return (
     <div className="relative z-20 w-full">
-      <div className="rounded-2xl border border-white/25 bg-white/12 p-5 shadow-lg backdrop-blur-md sm:p-6">
+      <div className="hero-sky-enter rounded-2xl border border-white/40 bg-black/50 p-5 shadow-[0_18px_50px_rgba(0,0,0,0.45)] backdrop-blur-xl sm:p-6">
         <p className="text-center text-lg font-semibold text-white sm:text-xl">
           {t("heroChat.motorhome.startTitle" as never)}
         </p>
@@ -479,7 +479,7 @@ function HeroMotorhomeGuidedStart({
           <button
             type="button"
             onClick={() => setShowTypeBox(true)}
-            className="mt-4 w-full rounded-xl border border-dashed border-white/30 py-2.5 text-sm font-medium text-white/85 hover:bg-white/10"
+            className="mt-4 w-full rounded-xl bg-white px-4 py-3 text-sm font-semibold text-slate-900 shadow-sm transition hover:bg-white/90"
           >
             {t("heroChat.motorhome.typeStart" as never)}
           </button>

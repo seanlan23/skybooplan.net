@@ -14,6 +14,15 @@ const TAB_LABEL_KEYS: Record<HeroChatMode, string> = {
   all: "heroMode.all",
 };
 
+const TAB_HINT_KEYS: Record<HeroChatMode, string> = {
+  flights: "heroMode.hint.flights",
+  stays: "heroMode.hint.stays",
+  car: "heroMode.hint.car",
+  motorhome: "heroMode.hint.motorhome",
+  plan: "heroMode.hint.plan",
+  all: "heroMode.hint.all",
+};
+
 type HeroModeTabsProps = {
   value: HeroChatMode;
   onChange: (mode: HeroChatMode) => void;
@@ -84,10 +93,14 @@ function ModeRow({
 }
 
 export function HeroModeTabs({ value, onChange }: HeroModeTabsProps) {
+  const { t } = useI18n();
   return (
-    <div className="mx-auto mt-5 flex w-full justify-center">
+    <div className="mx-auto mt-5 flex w-full flex-col items-center">
       <ModeRow modes={MOBILE_MODES} value={value} onChange={onChange} className="sm:hidden" />
       <ModeRow modes={DESKTOP_MODES} value={value} onChange={onChange} className="hidden sm:inline-flex" />
+      <p className="mt-2.5 max-w-md text-center text-[13px] leading-snug text-white/65 sm:text-sm">
+        {t(TAB_HINT_KEYS[value] as never)}
+      </p>
     </div>
   );
 }

@@ -82,16 +82,16 @@ export function HeroSection({
             : "relative z-10 mx-auto w-full min-w-0 max-w-5xl px-5 pb-24 pt-[calc(6rem+env(safe-area-inset-top))] text-center sm:px-6 sm:pb-28 sm:pt-[calc(7rem+env(safe-area-inset-top))]"
         }
       >
-        <div className="mb-5 inline-flex items-center rounded-full border border-white/15 bg-white/10 px-4 py-1.5 text-sm font-medium text-white backdrop-blur-md">
-          {t("hero.badge" as never)}
-        </div>
-
         <h1 className="text-4xl font-black leading-[1.08] tracking-tight text-white sm:text-5xl md:text-6xl lg:text-7xl">
           {t("hero.chatHeadline" as never)}
         </h1>
 
         <p className="mx-auto mt-4 max-w-xl text-base text-white/70 sm:text-lg">
           {t("hero.chatSubtitle" as never)}
+        </p>
+
+        <p className="mx-auto mt-3 text-sm font-medium tracking-wide text-white/80">
+          {t("hero.trust" as never)}
         </p>
 
         <HeroModeTabs value={mode} onChange={handleModeChange} />

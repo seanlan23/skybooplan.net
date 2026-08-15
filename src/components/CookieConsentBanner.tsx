@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { useI18n } from "@/lib/i18n";
 import {
   getCookieConsent,
@@ -28,25 +29,27 @@ export function CookieConsentBanner() {
       role="dialog"
       aria-live="polite"
       aria-label={t("cookieConsent.label" as never)}
-      className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/10 bg-black/80 text-white backdrop-blur-md"
+      className="fixed inset-x-0 bottom-0 z-50 border-t border-white/10 bg-black/85 text-white backdrop-blur-md"
     >
-      <div className="mx-auto flex max-w-6xl flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:px-6 sm:py-5">
-        <p className="text-sm leading-relaxed text-white sm:max-w-2xl sm:text-[15px]">
-          {t("cookieConsent.message" as never)}
+      <div className="mx-auto flex max-w-6xl items-center gap-3 px-3 py-2 sm:gap-4 sm:px-5">
+        <p className="min-w-0 flex-1 text-[11px] leading-snug text-white/90 sm:text-xs">
+          {t("cookieConsent.message" as never)}{" "}
+          <Link to="/privacy" className="underline decoration-white/40 underline-offset-2 hover:text-white">
+            {t("footer.privacy" as never)}
+          </Link>
         </p>
-
-        <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center">
+        <div className="flex shrink-0 items-center gap-1.5">
           <button
             type="button"
             onClick={() => accept("all")}
-            className="rounded-full bg-blue-600 px-6 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+            className="rounded-full bg-blue-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-blue-700 sm:px-3.5 sm:text-xs"
           >
             {t("cookieConsent.acceptAll" as never)}
           </button>
           <button
             type="button"
             onClick={() => accept("essential")}
-            className="rounded-full bg-white/10 px-6 py-2 text-sm font-medium text-white transition-colors hover:bg-white/15"
+            className="rounded-full bg-white/10 px-2.5 py-1.5 text-[11px] font-medium text-white/90 hover:bg-white/15 sm:text-xs"
           >
             {t("cookieConsent.essential" as never)}
           </button>
