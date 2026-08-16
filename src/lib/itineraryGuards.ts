@@ -1,6 +1,7 @@
 import type { Activity, AiTripPlan, DayPlan } from "@/lib/aiPlan.functions";
 import { isAiPlaceholderText, isWrongCityPoi } from "@/lib/tripContent";
 import {
+  dedupeSameDayActivities,
   sameDayActivityCoreKey,
   sanitizeLegacyTemplateLeak,
   stripTruncatedCopyFromPlan,
@@ -723,6 +724,7 @@ export function applyItineraryGuards(
   templateScrub: number;
 } {
   const placeholders = stripPlaceholderActivities(plan);
+  dedupeSameDayActivities(plan);
   const wrongCity = stripWrongCityDayActivities(plan);
   const templateScrub = scrubForbiddenTemplateCopy(plan);
   const genericMeals = stripGenericMealActivities(plan);

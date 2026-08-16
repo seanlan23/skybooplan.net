@@ -265,6 +265,44 @@ function stripSightClocks(a: Activity): Activity {
   return cleared;
 }
 
+function isGeminiCoveredArrivalLogistics(a: Activity): boolean {
+  const name = a.name ?? "";
+  const blob = `${name} ${a.description ?? ""}`;
+  if (
+    /airport|letališč|check-?in|check-?out|transfer|immigraz|baggage|prtljag|mednarodni\s*let|international\s*(return\s*)?flight/i.test(
+      blob,
+    )
+  ) {
+    return true;
+  }
+  return (
+    /prevoz do (hotela|kampa|najema)|prihod v hotel|prihod v kamp|hotel arrival|arrival at camp|namestitev okoli/i.test(
+      name,
+    ) ||
+    /rer b do centra|roissybus|airtrain \+|prevoz z letališča do/i.test(blob)
+  );
+}
+
+/** Keep one land / transfer / hotel block on the arrival day — never copy into every slot. */
+function keepFirstArrivalLogistics(
+  activities: NonNullable<DayPlan["activities"]>,
+): NonNullable<DayPlan["activities"]> {
+  const seen = new Set<ArrivalLogisticsKind>();
+  const keep = (list: Activity[]): Activity[] =>
+    list.filter((a) => {
+      const kind = classifyArrivalLogisticsActivity(a);
+      if (kind === "other" || kind === "origin") return true;
+      if (seen.has(kind)) return false;
+      seen.add(kind);
+      return true;
+    });
+  return {
+    morning: keep(activities.morning ?? []),
+    afternoon: keep(activities.afternoon ?? []),
+    evening: keep(activities.evening ?? []),
+  };
+}
+
 function mergeArrivalDay(
   day: DayPlan,
   flights: TripFlightContext,
@@ -278,13 +316,9 @@ function mergeArrivalDay(
         !isPreLandingDestinationFiller(a) &&
         !isMorningOnlyFiller(a),
     )
-    // Drop Gemini airport/transfer dupes — logistics rows already cover them.
-    .filter(
-      (a) =>
-        !/airport|letališč|check-?in|check-?out|transfer|immigraz|baggage|prtljag|mednarodni\s*let|international\s*(return\s*)?flight/i.test(
-          `${a.name} ${a.description ?? ""}`,
-        ),
-    )
+    // Drop Gemini airport/transfer/hotel dupes — code logistics already cover them.
+    // Slovenian names are "Prevoz do hotela" / "Prihod v hotel" (no English "transfer").
+    .filter((a) => !isGeminiCoveredArrivalLogistics(a))
     .map(stripSightClocks);
   const slot = arrivalDaySlot(flights);
 
@@ -961,6 +995,8 @@ export function applyFlightContextToGeminiPlan(
           evening: (activities.evening ?? []).filter((a) => !isPreLandingDestinationFiller(a)),
         };
       }
+
+      activities = keepFirstArrivalLogistics(activities);
 
       // Nuke Gemini-invented landing times (e.g. 12:00) — boarding-pass time wins.
       day.activities = lockCodeOwnedFlightDayClocks(

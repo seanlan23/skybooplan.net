@@ -532,6 +532,111 @@ describe("applyFlightContextToGeminiPlan", () => {
     expect(hotel?.arrivalTime).toBe("11:10");
   });
 
+  it("does not copy hotel transfer into afternoon and evening on arrival day", () => {
+    const plan = basePlan({
+      destinationName: "France",
+      destinationIata: "CDG",
+      contentLanguage: "sl",
+      days: [
+        {
+          day: 1,
+          date: "2026-09-19",
+          title: "Prihod v Pariz",
+          morning: "",
+          afternoon: "",
+          evening: "",
+          travelHack: "",
+          transportationTips: "",
+          localWarnings: "",
+          dailyBudgetEur: 80,
+          lat: 48.86,
+          lng: 2.35,
+          focusName: "Paris",
+          city: "Paris",
+          category: "activity",
+          activities: {
+            morning: [
+              {
+                name: "Prevoz do hotela (metro / taxi)",
+                type: "TRANSPORT",
+                description: "Iz CDG do Paris: RER B do centra.",
+              },
+              {
+                name: "Prihod v hotel",
+                type: "STAY",
+                description: "Namestitev okoli. 1–2 uri počitka.",
+              },
+            ],
+            afternoon: [
+              {
+                name: "Prevoz do hotela (metro / taxi)",
+                type: "TRANSPORT",
+                description: "Iz CDG do Paris: RER B do centra.",
+              },
+              {
+                name: "Prihod v hotel",
+                type: "STAY",
+                description: "Namestitev okoli. 1–2 uri počitka.",
+              },
+            ],
+            evening: [
+              {
+                name: "Prevoz do hotela (metro / taxi)",
+                type: "TRANSPORT",
+                description: "Iz CDG do Paris: RER B do centra.",
+              },
+            ],
+          },
+        },
+        {
+          day: 2,
+          date: "2026-09-20",
+          title: "Pariz",
+          morning: "",
+          afternoon: "",
+          evening: "",
+          travelHack: "",
+          transportationTips: "",
+          localWarnings: "",
+          dailyBudgetEur: 80,
+          lat: 48.86,
+          lng: 2.35,
+          focusName: "Paris",
+          city: "Paris",
+          category: "activity",
+          activities: { morning: [], afternoon: [], evening: [] },
+        },
+      ],
+    });
+
+    applyFlightContextToGeminiPlan(
+      plan,
+      {
+        outboundDepart: "06:45",
+        outboundArrive: "08:20",
+        outboundArriveDayOffset: 0,
+        inboundDepart: "06:25",
+        inboundArrive: "07:55",
+      },
+      { originIata: "MUC", language: "sl" },
+    );
+
+    const day1 = plan.days[0]!;
+    const all = [
+      ...(day1.activities?.morning ?? []),
+      ...(day1.activities?.afternoon ?? []),
+      ...(day1.activities?.evening ?? []),
+    ];
+    expect(all.filter((a) => /Prevoz do hotela/i.test(a.name)).length).toBe(1);
+    expect(all.filter((a) => /Prihod v hotel/i.test(a.name)).length).toBe(1);
+    expect(day1.activities?.afternoon ?? []).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ name: expect.stringMatching(/Prevoz do hotela/i) })]),
+    );
+    expect(day1.activities?.evening ?? []).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ name: expect.stringMatching(/Prevoz do hotela/i) })]),
+    );
+  });
+
   it("injects domestic hop when last night city differs from international hub", () => {
     const plan = basePlan({
       destinationName: "Thailand",
