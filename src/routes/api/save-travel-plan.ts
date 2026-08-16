@@ -3,9 +3,11 @@ import type { AiTripPlan } from "@/lib/aiPlan.functions";
 import { requireSupabaseAuthRequest } from "@/lib/supabaseRequestAuth.server";
 import {
   buildTravelPlanRow,
+  isAuthPersistError,
   isPayloadTooLargeError,
   planForDatabase,
   slimPlanForDb,
+  corePlanForDb,
   upsertTravelPlanRow,
   type PersistTravelPlanContext,
 } from "@/lib/persistTravelPlan";
@@ -42,8 +44,16 @@ export const Route = createFileRoute("/api/save-travel-plan")({
         try {
           let row = buildTravelPlanRow(planForDatabase(plan), ctx, userId);
           let result = await upsertTravelPlanRow(supabase, row, userId);
+          if ("error" in result && !isAuthPersistError(result.error)) {
+            row = buildTravelPlanRow(
+              isPayloadTooLargeError(result.error) ? slimPlanForDb(plan) : corePlanForDb(plan),
+              ctx,
+              userId,
+            );
+            result = await upsertTravelPlanRow(supabase, row, userId);
+          }
           if ("error" in result && isPayloadTooLargeError(result.error)) {
-            row = buildTravelPlanRow(slimPlanForDb(plan), ctx, userId);
+            row = buildTravelPlanRow(corePlanForDb(plan), ctx, userId);
             result = await upsertTravelPlanRow(supabase, row, userId);
           }
           if ("id" in result) return Response.json({ id: result.id });

@@ -1276,9 +1276,9 @@ function Landing() {
     async (plan: AiTripPlan, ctx?: Partial<AiPlannerContext> | null) => {
       if (!plan.days?.length) return false;
 
-      const firstDate = plan.days[0]?.date?.slice(0, 10) ?? null;
+      const firstDate = plan.days[0]?.date ?? null;
       const last = plan.days[plan.days.length - 1];
-      const lastDate = (last?.dateEnd ?? last?.date)?.slice(0, 10) ?? null;
+      const lastDate = last?.dateEnd ?? last?.date ?? null;
 
       const persistCtx = {
         departDate: ctx?.departDate || firstDate,
@@ -1296,7 +1296,7 @@ function Landing() {
         const { ensureFreshAuthSession, supabaseAuthHeaders } = await import(
           "@/lib/supabaseAuthHeaders"
         );
-        const { persistTravelPlanViaClient, isAuthPersistError, slimPlanForDb } = await import(
+        const { persistTravelPlanViaClient, isAuthPersistError, corePlanForDb } = await import(
           "@/lib/persistTravelPlan"
         );
 
@@ -1347,7 +1347,7 @@ function Landing() {
             method: "POST",
             headers,
             body: JSON.stringify({
-              plan: slimPlanForDb(plan),
+              plan: corePlanForDb(plan),
               context: persistCtx,
             }),
           });

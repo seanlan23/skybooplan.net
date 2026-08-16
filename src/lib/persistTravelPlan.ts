@@ -27,11 +27,22 @@ export type TravelPlanRow = {
 
 /** Postgres `date` accepts only YYYY-MM-DD — never send human labels. */
 export function toSqlDate(raw: string | null | undefined): string | null {
-  const s = (raw ?? "").trim().slice(0, 10);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
-  const [y, m, d] = s.split("-").map(Number);
-  if (!y || !m || !d || m > 12 || d > 31) return null;
-  return s;
+  const full = (raw ?? "").trim();
+  const iso = full.slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+    const [y, m, d] = iso.split("-").map(Number);
+    if (y && m && d && m <= 12 && d <= 31) return iso;
+  }
+  const eu = /^(\d{1,2})\s*[.\-/]\s*(\d{1,2})\s*[.\-/]\s*(\d{4})/.exec(full);
+  if (eu) {
+    const d = Number(eu[1]);
+    const m = Number(eu[2]);
+    const y = Number(eu[3]);
+    if (y >= 2000 && y <= 2100 && m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+      return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    }
+  }
+  return null;
 }
 
 /** `.maybeSingle()` / `.single()` treat 0 rows as an error — that must not block a first save. */
@@ -51,7 +62,9 @@ export function isNoRowLookupError(
 }
 
 export function isPayloadTooLargeError(message: string): boolean {
-  return /too large|payload|request entity|413|jsonb|could not serialize/i.test(message);
+  return /too large|payload|request entity|413|jsonb|could not serialize|statement too long|bytes/i.test(
+    message,
+  );
 }
 
 export function isAuthPersistError(message: string): boolean {
@@ -70,6 +83,11 @@ function jsonReplacer(_key: string, value: unknown): unknown {
 function stripActivity(a: Activity): Activity {
   const { imageUrl: _img, tripAdvisorStyleDetails: _ta, ...rest } = a;
   return rest;
+}
+
+function clip(s: string | undefined, max: number): string | undefined {
+  if (s == null) return undefined;
+  return s.length > max ? s.slice(0, max) : s;
 }
 
 /** Drop photo blobs / TA essays so jsonb stays under PostgREST body limits. */
@@ -96,25 +114,97 @@ export function slimPlanForDb(plan: AiTripPlan): AiTripPlan {
   };
 }
 
+function slimActivityCore(a: Activity): Activity {
+  return {
+    name: clip(a.name, 180) ?? "",
+    type: a.type,
+    description: clip(a.description, 500),
+    priceLabel: clip(a.priceLabel, 40),
+    estimatedCostEur: a.estimatedCostEur,
+    arrivalTime: a.arrivalTime,
+    departureTime: a.departureTime,
+    lat: a.lat,
+    lng: a.lng,
+    transportType: a.transportType,
+  };
+}
+
+/**
+ * Whitelist-only snapshot — never spread the live React plan (photos, circular bits).
+ * Last-resort payload when slim still 413s or JSON.stringify throws.
+ */
+export function corePlanForDb(plan: AiTripPlan): AiTripPlan {
+  return {
+    destinationName: clip(plan.destinationName, 200) ?? "Trip",
+    summary: clip(plan.summary, 400) ?? "",
+    contentLanguage: plan.contentLanguage,
+    totalBudgetEur: plan.totalBudgetEur,
+    centerLat: plan.centerLat,
+    centerLng: plan.centerLng,
+    originIata: plan.originIata,
+    destinationIata: plan.destinationIata,
+    originPlace: clip(plan.originPlace, 120),
+    destinationPlace: clip(plan.destinationPlace, 120),
+    accommodationMode: plan.accommodationMode,
+    groundTransportMode: plan.groundTransportMode,
+    travelPace: plan.travelPace,
+    weatherWidget: plan.weatherWidget,
+    safetyWarning: plan.safetyWarning ?? undefined,
+    travelRequirements: plan.travelRequirements,
+    groundJourney: plan.groundJourney,
+    days: (plan.days ?? []).map((d): DayPlan => ({
+      day: d.day,
+      date: d.date ?? "",
+      dateEnd: d.dateEnd,
+      city: clip(d.city, 80) ?? "",
+      title: clip(d.title, 160) ?? "",
+      focusName: clip(d.focusName, 80) ?? "",
+      lat: Number.isFinite(d.lat) ? d.lat : 0,
+      lng: Number.isFinite(d.lng) ? d.lng : 0,
+      dailyBudgetEur: Number.isFinite(d.dailyBudgetEur) ? d.dailyBudgetEur : 0,
+      category: d.category ?? "activity",
+      inFlightDay: d.inFlightDay,
+      transportationTips: clip(d.transportationTips, 280) ?? "",
+      travelHack: clip(d.travelHack, 280) ?? "",
+      localWarnings: clip(d.localWarnings, 200) ?? "",
+      morning: "",
+      afternoon: "",
+      evening: "",
+      activities: d.activities
+        ? {
+            morning: d.activities.morning?.map(slimActivityCore) ?? [],
+            afternoon: d.activities.afternoon?.map(slimActivityCore) ?? [],
+            evening: d.activities.evening?.map(slimActivityCore) ?? [],
+          }
+        : undefined,
+    })),
+  };
+}
+
 /** Strip null bytes / non-finite numbers so jsonb insert never 400s. */
 export function serializePlanForDb(plan: AiTripPlan): Json {
   try {
     return JSON.parse(JSON.stringify(plan, jsonReplacer)) as Json;
   } catch {
-    return JSON.parse(JSON.stringify(slimPlanForDb(plan), jsonReplacer)) as Json;
+    try {
+      return JSON.parse(JSON.stringify(slimPlanForDb(plan), jsonReplacer)) as Json;
+    } catch {
+      return JSON.parse(JSON.stringify(corePlanForDb(plan), jsonReplacer)) as Json;
+    }
   }
 }
 
 const MAX_PLAN_JSON_CHARS = 120_000;
 
-/** Keep photos when small; slim 11-day road plans so PostgREST does not 413. */
+/** Never persist the live React plan — photos / extra keys 413 or fail JSON. */
 export function planForDatabase(plan: AiTripPlan): AiTripPlan {
   try {
-    const json = JSON.stringify(plan, jsonReplacer);
-    if (json.length > MAX_PLAN_JSON_CHARS) return slimPlanForDb(plan);
-    return plan;
+    const slim = slimPlanForDb(plan);
+    const json = JSON.stringify(slim, jsonReplacer);
+    if (json.length > MAX_PLAN_JSON_CHARS) return corePlanForDb(plan);
+    return slim;
   } catch {
-    return slimPlanForDb(plan);
+    return corePlanForDb(plan);
   }
 }
 
@@ -239,9 +329,10 @@ export async function persistTravelPlanViaClient(
   const compact = planForDatabase(plan);
   let row = buildTravelPlanRow(compact, ctx, userId);
   let result = await upsertTravelPlanRow(supabase, row, userId);
-  if ("error" in result && isPayloadTooLargeError(result.error)) {
-    row = buildTravelPlanRow(slimPlanForDb(plan), ctx, userId);
-    result = await upsertTravelPlanRow(supabase, row, userId);
-  }
+  if ("id" in result) return result;
+  if (isAuthPersistError(result.error)) return result;
+
+  row = buildTravelPlanRow(corePlanForDb(plan), ctx, userId);
+  result = await upsertTravelPlanRow(supabase, row, userId);
   return result;
 }

@@ -8,6 +8,7 @@ import {
   planForDatabase,
   serializePlanForDb,
   slimPlanForDb,
+  corePlanForDb,
   toSqlDate,
 } from "@/lib/persistTravelPlan";
 
@@ -22,6 +23,11 @@ describe("toSqlDate", () => {
     expect(toSqlDate("avgust 2026")).toBeNull();
     expect(toSqlDate("")).toBeNull();
     expect(toSqlDate(null)).toBeNull();
+  });
+
+  it("accepts EU numeric dates", () => {
+    expect(toSqlDate("17. 9. 2026")).toBe("2026-09-17");
+    expect(toSqlDate("17.09.2026")).toBe("2026-09-17");
   });
 });
 
@@ -42,6 +48,19 @@ describe("serializePlanForDb", () => {
 });
 
 describe("buildTravelPlanRow", () => {
+  it("parses EU numeric dates into Postgres dates", () => {
+    const row = buildTravelPlanRow(
+      {
+        destinationName: "New York",
+        days: [{ day: 1, city: "New York" }],
+      } as AiTripPlan,
+      { departDate: "17. 9. 2026", returnDate: "24.09.2026" },
+      "user-1",
+    );
+    expect(row.start_date).toBe("2026-09-17");
+    expect(row.end_date).toBe("2026-09-24");
+  });
+
   it("falls back destination and nulls bad dates", () => {
     const row = buildTravelPlanRow(
       {
@@ -69,6 +88,33 @@ describe("isNoRowLookupError", () => {
     );
     expect(isNoRowLookupError({ status: 406, message: "Not Acceptable" })).toBe(true);
     expect(isNoRowLookupError({ code: "42501", message: "permission denied" })).toBe(false);
+  });
+});
+
+describe("corePlanForDb", () => {
+  it("keeps days and drops photo / essay fields", () => {
+    const core = corePlanForDb({
+      destinationName: "New York",
+      days: [
+        {
+          day: 1,
+          city: "New York",
+          imageUrl: "https://example.com/huge.jpg",
+          activities: {
+            morning: [
+              {
+                name: "MoMA",
+                imageUrl: "https://example.com/a.jpg",
+                tripAdvisorStyleDetails: { blurb: "x".repeat(8000) } as never,
+              },
+            ],
+          },
+        },
+      ],
+    } as unknown as AiTripPlan);
+    expect(core.days[0]!.imageUrl).toBeUndefined();
+    expect(core.days[0]!.activities?.morning?.[0]?.imageUrl).toBeUndefined();
+    expect(core.days[0]!.activities?.morning?.[0]?.name).toBe("MoMA");
   });
 });
 
@@ -116,12 +162,15 @@ describe("isAuthPersistError", () => {
 });
 
 describe("planForDatabase", () => {
-  it("keeps a small plan intact", () => {
+  it("never persists the live object — drops photos even on a small plan", () => {
     const plan = {
       destinationName: "Balkan",
       days: [{ day: 1, city: "Zadar", imageUrl: "https://example.com/a.jpg" }],
     } as unknown as AiTripPlan;
-    expect(planForDatabase(plan)).toBe(plan);
+    const out = planForDatabase(plan);
+    expect(out).not.toBe(plan);
+    expect(out.days[0]!.imageUrl).toBeUndefined();
+    expect(out.days[0]!.city).toBe("Zadar");
   });
 
   it("slims when serialized JSON is huge", () => {
