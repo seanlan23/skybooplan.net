@@ -138,7 +138,7 @@ ${DISTANCE_TRANSPORT_RULES}
 Rules:
 - Output exactly (generateDays.end - generateDays.start + 1) day objects
 - Prefer an empty morning/afternoon/evening slot over a template. Full day = 1 anchor + 1–2 stops; arrival day = light only after check-in
-- FORBIDDEN activity names/copy worldwide: “Jutranji sprehod”, “kava pred ogledom”, “Check-in, osvežitev”, “brez hitenja”, “če imaš še energijo” (and EN/DE equivalents)
+- FORBIDDEN activity names/copy worldwide: “Jutranji sprehod”, “kava pred ogledom”, “Check-in, osvežitev”, “Check-in in varnostni pregled”, “brez hitenja”, “če imaš še energijo”, “Večerja in koktajli v elegantnem baru”, “Dinner and cocktails in an elegant bar” (and EN/DE equivalents)
 - Inter-city travel days: transport in morning + real afternoon/evening sights in the destination city — or leave evening empty
 - Each activity: name + priceLabel + 2–3 sentence description (unique, practical) — timing in text must match the slot (no sunset label in morning)
 - MANDATORY travelHack per day: unique, location-specific insider tip — NEVER repeat the same hack on two days
@@ -158,7 +158,7 @@ Rules:
 - If writingRule in user JSON: follow strictly
 - All text in languageCode from user message — never mix languages or provide dual translations
 - Never truncate with "..." / "…" / "höchstens…"
-- Food activities MUST name a real venue (e.g. "Dinner: Ichiran", "Abendessen: Kyubey") — FORBIDDEN: "Mittagessen in Asakusa", "Abendessen in Kyoto", "Lokalna večerja", "Lunch near hotel"
+- Food activities MUST name a real venue (e.g. "Dinner: Ichiran", "Abendessen: Kyubey", "Večerja: Café Comptoir Abel") — FORBIDDEN: "Mittagessen in Asakusa", "Abendessen in Kyoto", "Lokalna večerja", "Lunch near hotel", "Večerja in koktajli", "elegant bar", "near the hotel". If you cannot name a real place, omit the evening meal.
 - FORBIDDEN scaffold copy in any language: "Glavni dopoldanski ogled", "Main morning sight", "Hauptbesichtigung am Vormittag"
 - If flightScheduling present: day 1 and last day must match landing/departure times
 - If tripClimate present: mention relevant season/rain/heat in localWarnings or travelHack where useful

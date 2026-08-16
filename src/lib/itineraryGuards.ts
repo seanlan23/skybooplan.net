@@ -7,6 +7,7 @@ import {
   stripTruncatedCopyFromPlan,
 } from "@/lib/textSanitize";
 import { repairImplausibleDriveTimes, stripHomeboundPaidStays } from "@/lib/roadTripLogistics";
+import { alignSummaryTripLength } from "@/lib/planTeaser";
 
 type DaySlots = NonNullable<DayPlan["activities"]>;
 type Slot = keyof DaySlots;
@@ -97,10 +98,18 @@ export function isGenericMealActivity(a: {
       name,
     ) ||
     /^(abendessen|mittagessen|dinner|lunch|večerja|kosilo)\s+in\s+einem\b/i.test(name) ||
-    /^(abendessen und nachtleben|dinner and nightlife|večerja in nočno)/i.test(name) ||
+    /^(abendessen und nachtleben|dinner and nightlife|večerja in nočno|večerja in koktajl)/i.test(
+      name,
+    ) ||
+    /^(dinner and cocktails|cocktails in an elegant|elegantem bar|elegantnem baru)\b/i.test(
+      name,
+    ) ||
     /^(check-in und mittagessen|shopping und mittagessen)\b/i.test(name) ||
     // Name is only a meal label + neighborhood, optionally trailing colon (PDF: "Mittagessen in San Telmo:")
-    /^(abendessen|mittagessen|dinner|lunch|večerja|kosilo)\b[^:]{0,60}:\s*$/i.test(name)
+    /^(abendessen|mittagessen|dinner|lunch|večerja|kosilo)\b[^:]{0,60}:\s*$/i.test(name) ||
+    /elegantn[ea]m baru|elegant bar|v bližini hotela|near the hotel|trendovsk[ei]|trendy (neighbourhood|neighborhood|area)|številnih stilskih|one of the many/i.test(
+      `${name} ${a.description ?? ""}`,
+    )
   );
 }
 
@@ -320,21 +329,158 @@ export function stripPlaceholderActivities(plan: AiTripPlan): number {
   return removed;
 }
 
+type NamedEvening = { name: string; description: string };
+
+const NAMED_EVENINGS: Array<{
+  city: RegExp;
+  sl: NamedEvening;
+  en: NamedEvening;
+  de: NamedEvening;
+}> = [
+  {
+    city: /paris|pariz/i,
+    sl: {
+      name: "Večerja: Le Comptoir du Relais",
+      description:
+        "Majhen bistro v 6. okrožju (Odéon). Rezervacija priporočena; sicer pridi pred 19:00. Po večerji kratek sprehod do Seine.",
+    },
+    en: {
+      name: "Dinner: Le Comptoir du Relais",
+      description:
+        "Small bistro in the 6th (Odéon). Book ahead, or arrive before 19:00. Walk to the Seine after.",
+    },
+    de: {
+      name: "Abendessen: Le Comptoir du Relais",
+      description:
+        "Kleines Bistro im 6. Arrondissement (Odéon). Reservieren oder vor 19:00 da sein. Danach kurz zur Seine.",
+    },
+  },
+  {
+    city: /lyon/i,
+    sl: {
+      name: "Večerja: Café Comptoir Abel",
+      description:
+        "Klasičen bouchon pri Ainay. Quenelle in salade lyonnaise; zvečer je polno, rezerviraj.",
+    },
+    en: {
+      name: "Dinner: Café Comptoir Abel",
+      description:
+        "Classic bouchon near Ainay. Quenelle and salade lyonnaise — book, evenings fill up.",
+    },
+    de: {
+      name: "Abendessen: Café Comptoir Abel",
+      description:
+        "Klassischer Bouchon bei Ainay. Quenelle und Salade lyonnaise — reservieren, abends voll.",
+    },
+  },
+  {
+    city: /rome|rim|roma/i,
+    sl: {
+      name: "Večerja: Da Enzo al 29",
+      description:
+        "Trastevere, via dei Vascellari. Kratka karta, rezervacija nujna. Po večerji sprehod ob Tiberi.",
+    },
+    en: {
+      name: "Dinner: Da Enzo al 29",
+      description:
+        "Trastevere, via dei Vascellari. Short menu, book ahead. Walk the Tiber after.",
+    },
+    de: {
+      name: "Abendessen: Da Enzo al 29",
+      description:
+        "Trastevere, Via dei Vascellari. Kurze Karte, reservieren. Danach am Tiber entlang.",
+    },
+  },
+  {
+    city: /barcelona|barcelon/i,
+    sl: {
+      name: "Večerja: Cal Pep",
+      description:
+        "Barceloneta / Born — tapas pri pultu. Pridi zgodaj ali stoj v vrsti; ni rezervacij za pult.",
+    },
+    en: {
+      name: "Dinner: Cal Pep",
+      description:
+        "Barceloneta / Born — tapas at the counter. Come early or queue; no bar reservations.",
+    },
+    de: {
+      name: "Abendessen: Cal Pep",
+      description:
+        "Barceloneta / Born — Tapas an der Theke. Früh kommen oder anstehen; keine Theken-Reservierung.",
+    },
+  },
+];
+
+function eveningLang(plan: AiTripPlan): "sl" | "en" | "de" {
+  const code = (plan.contentLanguage ?? "en").slice(0, 2).toLowerCase();
+  if (code === "sl" || code === "de") return code;
+  return "en";
+}
+
+function isHomeboundDay(day: DayPlan): boolean {
+  const blob = [
+    day.title,
+    day.category,
+    ...SLOTS.flatMap((s) => (day.activities?.[s] ?? []).map((a) => a.name ?? "")),
+  ].join(" ");
+  return /odhod iz|return flight|mednarodni povratni|hotel check-out|prevoz na letališč|international return/i.test(
+    blob,
+  );
+}
+
+function namedEveningForCity(city: string, lang: "sl" | "en" | "de"): NamedEvening | null {
+  const hit = NAMED_EVENINGS.find((row) => row.city.test(city));
+  return hit ? hit[lang] : null;
+}
+
+/**
+ * After generic evening meals are stripped, put back one real venue when we know the city.
+ * Unknown cities stay empty — better than “cocktails in an elegant bar”.
+ */
+export function fillNamedEveningIfEmpty(
+  plan: AiTripPlan,
+  onlyDays?: Set<DayPlan>,
+): number {
+  let filled = 0;
+  const lang = eveningLang(plan);
+  for (const day of plan.days ?? []) {
+    if (onlyDays && !onlyDays.has(day)) continue;
+    if (!day.activities || isHomeboundDay(day)) continue;
+    const evening = day.activities.evening ?? [];
+    if (evening.some((a) => a.type === "EAT" || /večerja|dinner|abendessen|dîner|cena/i.test(a.name ?? ""))) {
+      continue;
+    }
+    const venue = namedEveningForCity(day.city || day.focusName || "", lang);
+    if (!venue) continue;
+    day.activities.evening = [
+      ...evening,
+      { name: venue.name, type: "EAT", description: venue.description },
+    ];
+    filled += 1;
+  }
+  return filled;
+}
+
 /** Drop venue-less meal fillers worldwide (all languages). */
 export function stripGenericMealActivities(plan: AiTripPlan): number {
   let removed = 0;
+  const eveningsToName = new Set<DayPlan>();
   for (const day of plan.days ?? []) {
     if (!day.activities) continue;
     for (const slot of SLOTS) {
       const list = day.activities[slot] ?? [];
       const next = list.filter((a) => {
         const drop = isGenericMealActivity(a);
-        if (drop) removed += 1;
+        if (drop) {
+          removed += 1;
+          if (slot === "evening") eveningsToName.add(day);
+        }
         return !drop;
       });
       day.activities[slot] = next;
     }
   }
+  if (eveningsToName.size) fillNamedEveningIfEmpty(plan, eveningsToName);
   return removed;
 }
 
@@ -728,6 +874,9 @@ export function applyItineraryGuards(
   const wrongCity = stripWrongCityDayActivities(plan);
   const templateScrub = scrubForbiddenTemplateCopy(plan);
   const genericMeals = stripGenericMealActivities(plan);
+  if (plan.summary && plan.days?.length) {
+    plan.summary = alignSummaryTripLength(plan.summary, plan.days.length);
+  }
   const meals = dedupeSameDayMeals(plan);
   const arrivals = stripPhantomArrivals(plan, opts?.arrivalDay ?? 1);
   const clones = dedupeNearIdenticalConsecutiveDays(plan, {

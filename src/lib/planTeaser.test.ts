@@ -3,6 +3,7 @@ import {
   withPlanTeaser,
   stripPlanTeaser,
   resolvePlanContentLanguage,
+  alignSummaryTripLength,
 } from "@/lib/planTeaser";
 import { translate, translateDictLang } from "@/lib/i18n";
 
@@ -53,6 +54,18 @@ describe("planTeaser", () => {
         days: [],
       }),
     ).toBe("en");
+  });
+
+  it("alignSummaryTripLength matches itinerary day cards", () => {
+    expect(
+      alignSummaryTripLength(
+        "Pripravite se na nepozabno 8-dnevno potovanje po čudovitih mestih Francije.",
+        7,
+      ),
+    ).toBe("Pripravite se na nepozabno 7-dnevno potovanje po čudovitih mestih Francije.");
+    expect(alignSummaryTripLength("An unforgettable 10-day trip through Japan.", 9)).toBe(
+      "An unforgettable 9-day trip through Japan.",
+    );
   });
 
   it("resolvePlanContentLanguage keeps sl/en/de", () => {

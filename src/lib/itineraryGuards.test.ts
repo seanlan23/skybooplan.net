@@ -80,6 +80,39 @@ describe("isGenericMealActivity", () => {
     expect(isGenericMealActivity({ name: "Abendessen: Kyubey", type: "EAT" })).toBe(false);
   });
 
+  it("strips elegant-bar cocktail fillers and names a real Paris venue", () => {
+    expect(
+      isGenericMealActivity({
+        name: "Večerja in koktajli v elegantnem baru",
+        type: "EAT",
+        description: "Uživajte v elegantni večerji v restavraciji v bližini hotela.",
+      }),
+    ).toBe(true);
+    const plan = {
+      destinationName: "France",
+      contentLanguage: "sl",
+      days: [
+        day({
+          day: 2,
+          city: "Paris",
+          activities: {
+            morning: [{ name: "Eiffel Tower", type: "SIGHT" }],
+            afternoon: [],
+            evening: [
+              {
+                name: "Večerja in koktajli v elegantnem baru",
+                type: "EAT",
+                description: "Koktajli v enem izmed številnih stilskih pariških barov.",
+              },
+            ],
+          },
+        }),
+      ],
+    } as AiTripPlan;
+    expect(stripGenericMealActivities(plan)).toBe(1);
+    expect(plan.days[0]!.activities!.evening[0]!.name).toMatch(/Comptoir du Relais/i);
+  });
+
   it("removes generic meals from a Japan-style day", () => {
     const plan = {
       destinationName: "Japan",

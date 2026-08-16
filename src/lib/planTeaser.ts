@@ -89,3 +89,13 @@ export function stripPlanTeaser(summary: string, _lang: Lang = "sl"): string {
 
   return body.replace(/^[.!?\s]+/, "").trim();
 }
+
+/** Gemini often writes "8-dnevno" when the itinerary has 7 day cards. */
+export function alignSummaryTripLength(summary: string, dayCount: number): string {
+  const n = Math.round(dayCount);
+  if (!summary || !Number.isFinite(n) || n < 1) return summary;
+  return summary
+    .replace(/\b\d{1,2}-dnevn[oa]\b/gi, `${n}-dnevno`)
+    .replace(/\b\d{1,2}-day\b/gi, `${n}-day`)
+    .replace(/\b\d{1,2}-tägige[ns]?\b/gi, `${n}-tägige`);
+}

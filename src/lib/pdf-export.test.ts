@@ -209,4 +209,26 @@ describe("normalizePlanForPdf", () => {
     expect(morning?.items[0]?.time).toBeUndefined();
     expect(evening?.items[0]?.time).toBeUndefined();
   });
+
+  it("aligns summary N-day copy with itinerary length", () => {
+    const model = normalizePlanForPdf({
+      title: "VIE → CDG",
+      destination: "Francija",
+      start_date: "2026-09-20",
+      end_date: "2026-09-27",
+      language: "sl",
+      itinerary: {
+        summary: "Pripravite se na nepozabno 8-dnevno potovanje po Franciji.",
+        days: Array.from({ length: 7 }, (_, i) => ({
+          day: i + 1,
+          date: `2026-09-${20 + i}`,
+          title: `Dan ${i + 1}`,
+          city: i < 3 ? "Paris" : "Lyon",
+        })),
+      },
+    });
+    expect(model.summary).toMatch(/7-dnevno/);
+    expect(model.summary).not.toMatch(/8-dnevno/);
+    expect(model.days).toHaveLength(7);
+  });
 });

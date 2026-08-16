@@ -683,7 +683,7 @@ OPISI (STROGI JSON — jasno, ne naporno):
   • Zajtrk skoraj nikoli ne načrtuj kot ločeno aktivnost (razen če je destinacijska ikona, npr. znan café).
   • Vsaka food aktivnost = konkretno ime lokala v title (npr. "Večerja: Ichiran", "Dinner: Afuri", "Abendessen: Kyubey") + 1 priporočilo + po želji 1 alternativa.
   • PREPOVEDANO (vse destinacije): "Lokalna večerja", "Mittagessen in Asakusa", "Abendessen in Kyoto", "Lunch in Harajuku", "Dinner near the hotel", "Kosilo v centru", "Café break" / "Pavza v kavarni" kot filler.
-  • PREPOVEDANO (vse destinacije): "Jutranji sprehod / kava pred ogledom", "Jutranji sprehod do prve znamenitosti", "Check-in, osvežitev in kratek odmor", "če imaš še energijo", "brez hitenja takoj z letališča", "Večernji sprehod in lokalna večerja", "Morning walk & coffee", "if you still have energy".
+  • PREPOVEDANO (vse destinacije): "Jutranji sprehod / kava pred ogledom", "Jutranji sprehod do prve znamenitosti", "Check-in, osvežitev in kratek odmor", "Check-in in varnostni pregled", "če imaš še energijo", "brez hitenja takoj z letališča", "Večernji sprehod in lokalna večerja", "Večerja in koktajli v elegantnem baru", "Morning walk & coffee", "if you still have energy", "Dinner and cocktails in an elegant bar". Večerja MORA imeti ime lokala (npr. "Večerja: Café Comptoir Abel") ali pa slot pusti prazen.
   • MESTO = SAMO TO MESTO: Louvre / Eifflov stolp / Orsay samo na pariških dneh. Lyon = Fourvière, traboule, Vieux Lyon — nikoli Louvre v Lyonu.
   • TEMPO: dan prihoda = samo po hotelu, lahek (brez težkih muzejev). Poln dan = 1 sidro + 1–2 točki. Raje prazen slot kot template.
   • PREPOVEDANO: odrezani stavki z "…" / "höchstens…" in scaffolder "Hauptbesichtigung am Vormittag" / "Glavni dopoldanski ogled".

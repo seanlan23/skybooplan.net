@@ -12,11 +12,11 @@ describe("de plan language consistency", () => {
 
   it("origin departure logistics are German", () => {
     const acts = buildOriginDepartureLogistics("MUC", flights, "de");
-    expect(acts[0]!.name).toMatch(/^Ankunft am Flughafen/);
-    expect(acts[0]!.description).toMatch(/Heimatflughafen|Abflug/);
+    expect(acts[0]!.name).toMatch(/^Am Flughafen/);
+    expect(acts[0]!.description).toMatch(/Abflug|Check-in/);
     expect(acts[0]!.description).not.toMatch(/Home airport|Odhod z|Prevoz/);
-    expect(acts[2]!.name).toMatch(/Internationaler Flug/);
-    expect(acts[2]!.arrivalTime).toBe("20:30");
+    expect(acts[1]!.name).toMatch(/Internationaler Flug/);
+    expect(acts[1]!.arrivalTime).toBe("20:30");
   });
 
   it("arrival logistics are German", () => {

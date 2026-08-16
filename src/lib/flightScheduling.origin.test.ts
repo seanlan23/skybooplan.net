@@ -26,9 +26,10 @@ describe("origin airport departure hints", () => {
       outboundArriveDayOffset: 1,
     });
     expect(acts[0]!.name).toMatch(/MXP|Milan/i);
-    expect(acts[1]!.description).toMatch(/check-in|varnostni/i);
-    expect(acts[1]!.description).toMatch(/2–3 ure pred odletom/i);
-    expect(acts[1]!.description).not.toMatch(/uri pred|2\. 5|3–3/i);
+    expect(acts[0]!.description).toMatch(/check-in|varnost/i);
+    expect(acts[0]!.description).toMatch(/2–3 ure pred odletom/i);
+    expect(acts[0]!.description).not.toMatch(/uri pred|2\. 5|3–3/i);
+    expect(acts).toHaveLength(2);
   });
 
   it("sets structured origin clocks from boarding-pass (not LLM)", () => {
@@ -38,11 +39,11 @@ describe("origin airport departure hints", () => {
       outboundArrive: "23:30",
       outboundArriveDayOffset: 1,
     });
-    expect(acts[0]!.name).toMatch(/arrive at|prihod na letališč/i);
+    expect(acts[0]!.name).toMatch(/at .+ airport|na letališč/i);
     expect(acts[0]!.arrivalTime).toBe("08:30");
-    expect(acts[1]!.arrivalTime).toBe("09:00");
-    expect(acts[2]!.name).toMatch(/international flight|mednarodni let/i);
-    expect(acts[2]!.arrivalTime).toBe("11:00");
+    expect(acts[1]!.name).toMatch(/international flight|mednarodni let/i);
+    expect(acts[1]!.arrivalTime).toBe("11:00");
+    expect(acts.map((a) => a.name).join(" ")).not.toMatch(/Check-in in varnostni pregled/i);
   });
 
   it("prepends origin departure on day 1 of skeleton plan", () => {

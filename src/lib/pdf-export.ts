@@ -4,7 +4,11 @@ import {
   isValidNavCoord,
   resolveDayNavOrigin,
 } from "@/lib/navigationService";
-import { resolvePlanContentLanguage, stripPlanTeaser } from "@/lib/planTeaser";
+import {
+  alignSummaryTripLength,
+  resolvePlanContentLanguage,
+  stripPlanTeaser,
+} from "@/lib/planTeaser";
 import type { AiTripPlan } from "@/lib/aiPlan.functions";
 import { normalizePlanLangCode } from "@/lib/planLanguages";
 import { activityDescriptionBullets } from "@/lib/activityDescription";
@@ -204,7 +208,7 @@ function isPdfClutterActivity(title: string, description?: string): boolean {
 }
 
 function isPdfLogisticsTitle(title: string): boolean {
-  return /^(arrive at .+ airport|prihod na letališče|check-in and security|check-in in varnostni|international flight|mednarodni let|airport arrival|airport check-in)\b/i.test(
+  return /^(arrive at .+ airport|at .+ airport|na letališču|prihod na letališče|am flughafen|check-in and security|check-in in varnostni|international flight|mednarodni let|airport arrival|airport check-in)\b/i.test(
     title.trim(),
   );
 }
@@ -789,7 +793,10 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
     destination,
     startDate: fmtDate(plan.start_date, contentLang),
     endDate: fmtDate(plan.end_date, contentLang),
-    summary: cleanSummary(stripPlanTeaser(textOf(itin.summary), contentLang)),
+    summary: alignSummaryTripLength(
+      cleanSummary(stripPlanTeaser(textOf(itin.summary), contentLang)),
+      days.length,
+    ),
     totalBudgetEur,
     staysApproxEur,
     roadTrip,
@@ -1221,6 +1228,11 @@ async function renderPlanPdf(plan: PlanForPdf): Promise<{
         });
         if (!trimmed.length) continue;
 
+        // Keep slot pill with the first row — don't orphan "POPOLDAN" at a page break.
+        if (y + 55 > pageH - footerH && y > margin + 40) {
+          doc.addPage();
+          y = margin;
+        }
         drawSlotPill(slot.label);
 
         for (const it of trimmed) {

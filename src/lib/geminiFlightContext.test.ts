@@ -429,12 +429,14 @@ describe("applyFlightContextToGeminiPlan", () => {
     expect(day1).toMatch(/12:40/);
     expect(day1).toMatch(/18:15/);
     // Origin depart logistics must not be rewritten to landing time only.
-    const originBlob = (plan.days[0]?.activities?.morning ?? [])
-      .filter((a) => /Odhod|Check-in in varnostni/i.test(a.name))
-      .map((a) => a.description ?? "")
-      .join(" ");
-    expect(originBlob).toContain("12:40");
-    expect(originBlob).not.toMatch(/ob 18:15/);
+    const originMorning = plan.days[0]?.activities?.morning ?? [];
+    const originOwned = originMorning.filter((a) =>
+      /Na letališč|Mednarodni let|Check-in/i.test(a.name),
+    );
+    expect(originOwned.some((a) => a.arrivalTime === "12:40")).toBe(true);
+    expect(originOwned.map((a) => `${a.description ?? ""} ${a.arrivalTime ?? ""}`).join(" ")).not.toMatch(
+      /ob 18:15/,
+    );
   });
 
   it("keeps destination hotel check-in on same-day morning arrival (not sliced off)", () => {
@@ -1532,14 +1534,16 @@ describe("applyFlightContextToGeminiPlan", () => {
     const evening = day1.activities?.evening ?? [];
     // Code-owned origin rows keep MUC boarding-pass clocks — never NYC land time.
     const originOwned = morning.filter((x) =>
-      /arrive at .+ airport|international flight\s*\(muc\)/i.test(x.name),
+      /at .+ airport|arrive at .+ airport|international flight\s*\(muc\)/i.test(x.name),
     );
     expect(originOwned.length).toBeGreaterThanOrEqual(2);
     for (const a of originOwned) {
       expect(a.arrivalTime).not.toBe("17:05");
       expect(`${a.description ?? ""} ${a.arrivalTime ?? ""}`).not.toMatch(/\b17:05\b/);
-      expect(`${a.description ?? ""} ${a.arrivalTime ?? ""}`).toMatch(/14:20/);
     }
+    expect(
+      originOwned.some((a) => /14:20/.test(`${a.description ?? ""} ${a.arrivalTime ?? ""}`)),
+    ).toBe(true);
     const flightRow = originOwned.find((a) => /international flight/i.test(a.name));
     expect(flightRow?.arrivalTime).toBe("14:20");
     const landBlob = JSON.stringify([...afternoon, ...evening]);

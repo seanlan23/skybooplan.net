@@ -162,46 +162,31 @@ export function buildOriginDepartureLogistics(
   const name = hub?.name ?? iata;
   const dep = flights.outboundDepart;
   const leadPhrase = originAirportLeadPhrase(dep, langCode);
-  const hint = buildOriginDepartureHint(originIata, flights, langCode);
-  // Structured clocks from boarding-pass — not LLM. Arrive leadH before depart; security ~30m later.
+  // Structured clocks from boarding-pass — not LLM. Arrive leadH before depart.
   const leadMin = Math.round(originAirportLeadHours(dep) * 60);
   const atAirport = addHmMinutes(dep, -leadMin);
-  const securityAt = addHmMinutes(dep, -(leadMin - 30));
 
   return [
     {
-      // Structured clock = be-at-airport time (not takeoff) — name must say so.
+      // One short airport card — check-in lives in the description, not a second template row.
       name: planLangCopy(langCode, {
-        sl: `Prihod na letališče ${name} (${iata})`,
-        en: `Arrive at ${name} Airport (${iata})`,
-        de: `Ankunft am Flughafen ${name} (${iata})`,
-        it: `Arrivo all'aeroporto di ${name} (${iata})`,
-        es: `Llegada al aeropuerto de ${name} (${iata})`,
-        fr: `Arrivée à l'aéroport de ${name} (${iata})`,
-      }),
-      type: "TRANSPORT",
-      description: hint,
-      arrivalTime: atAirport,
-    },
-    {
-      name: planLangCopy(langCode, {
-        sl: "Check-in in varnostni pregled",
-        en: "Check-in and security",
-        de: "Check-in und Sicherheitskontrolle",
-        it: "Check-in e controlli di sicurezza",
-        es: "Check-in y seguridad",
-        fr: "Enregistrement et contrôle de sécurité",
+        sl: `Na letališču ${name} (${iata})`,
+        en: `At ${name} Airport (${iata})`,
+        de: `Am Flughafen ${name} (${iata})`,
+        it: `All'aeroporto di ${name} (${iata})`,
+        es: `En el aeropuerto de ${name} (${iata})`,
+        fr: `À l'aéroport de ${name} (${iata})`,
       }),
       type: "TRANSPORT",
       description: planLangCopy(langCode, {
-        sl: `Na letališču ${iata} oddaj prtljago (če jo imaš), opravi check-in in varnostni pregled. Za mednarodne lete računaj ${leadPhrase} ob ${dep} — ob konicah in počitniških terminih raje še več rezerve.`,
-        en: `Check in, drop bags if needed, and clear security at ${iata}. Allow ${leadPhrase} before your ${dep} departure — more in peak season.`,
-        de: `Am Flughafen ${iata} Gepäck aufgeben (falls nötig), Check-in und Sicherheitskontrolle. Für internationale Flüge plane ${leadPhrase} vor ${dep} — in Stoßzeiten lieber mehr Puffer.`,
-        it: `All'aeroporto ${iata} consegna i bagagli (se serve), fai check-in e controlli. Per i voli internazionali conta ${leadPhrase} prima delle ${dep} — in alta stagione ancora più margine.`,
-        es: `En ${iata} facture el equipaje si hace falta, haz check-in y seguridad. Para vuelos internacionales calcula ${leadPhrase} antes de las ${dep} — en temporada alta aún más margen.`,
-        fr: `À ${iata}, déposez les bagages si besoin, faites l'enregistrement et la sécurité. Pour les vols internationaux, prévoyez ${leadPhrase} avant ${dep} — davantage en haute saison.`,
+        sl: `Bodi na ${iata} ${leadPhrase} (${dep}) — check-in, prtljaga, varnost.`,
+        en: `Be at ${iata} ${leadPhrase} (${dep}) — check-in, bags, security.`,
+        de: `Sei ${leadPhrase} (${dep}) am Flughafen ${iata} — Check-in, Gepäck, Sicherheit.`,
+        it: `Sii a ${iata} ${leadPhrase} (${dep}) — check-in, bagagli, controlli.`,
+        es: `Estate en ${iata} ${leadPhrase} (${dep}) — check-in, maletas, seguridad.`,
+        fr: `Soyez à ${iata} ${leadPhrase} (${dep}) — enregistrement, bagages, sécurité.`,
       }),
-      arrivalTime: securityAt,
+      arrivalTime: atAirport,
     },
     {
       name: planLangCopy(langCode, {

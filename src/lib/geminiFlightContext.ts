@@ -970,7 +970,7 @@ export function applyFlightContextToGeminiPlan(
         const originActs = buildOriginDepartureLogistics(originIata, flights, lang).map(
           logisticsToActivity,
         );
-        // Keep full origin (3) + destination arrival logistics (3) — never slice off hotel check-in.
+        // Keep full origin (airport + flight) + destination arrival logistics — never slice off hotel check-in.
         activities = {
           ...activities,
           morning: [...originActs, ...(activities.morning ?? [])].slice(0, 8),
