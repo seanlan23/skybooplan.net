@@ -7,7 +7,7 @@ import { SiteFooter } from "@/components/SiteFooter";
 import { AiPlanView } from "@/components/AiPlanView";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { generatePlanPdf } from "@/lib/pdf-export";
+import { generatePlanPdf, offerPdfDownload, openPendingPdfWindow } from "@/lib/pdf-export";
 import type { AiTripPlan } from "@/lib/aiPlan.functions";
 import { formatLocalDate } from "@/lib/dateUtils";
 import { useI18n } from "@/lib/i18n";
@@ -159,8 +159,9 @@ function TripDetailPage() {
         ? crypto.randomUUID()
         : `pdf-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const referrer = typeof document !== "undefined" ? document.referrer || window.location.href : undefined;
+    const pendingWindow = openPendingPdfWindow();
     try {
-      await generatePlanPdf({
+      const pdf = await generatePlanPdf({
         title: plan.title,
         destination: plan.destination,
         start_date: plan.start_date,
@@ -170,6 +171,7 @@ function TripDetailPage() {
         cover_image_url: plan.cover_image_url,
         itinerary: (plan.itinerary ?? {}) as Record<string, unknown>,
       });
+      offerPdfDownload(pdf.buffer, pdf.fileName, pendingWindow);
       if (user) {
         const { logPdfDownload } = await import("@/lib/pdfDownloads.functions");
         await logPdfDownload({
@@ -185,6 +187,11 @@ function TripDetailPage() {
       }
     } catch (e) {
       console.error("PDF export failed", e);
+      try {
+        pendingWindow?.close();
+      } catch {
+        /* ignore */
+      }
       if (user) {
         const { logPdfDownload } = await import("@/lib/pdfDownloads.functions");
         await logPdfDownload({

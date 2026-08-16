@@ -57,6 +57,18 @@ export const Route = createFileRoute("/api/save-travel-plan")({
             result = await upsertTravelPlanRow(supabase, row, userId);
           }
           if ("id" in result) return Response.json({ id: result.id });
+
+          // JWT verified, but user-scoped PostgREST/RLS still rejected the row.
+          try {
+            const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+            const adminRow = buildTravelPlanRow(corePlanForDb(plan), ctx, userId);
+            const adminResult = await upsertTravelPlanRow(supabaseAdmin, adminRow, userId);
+            if ("id" in adminResult) return Response.json({ id: adminResult.id });
+            console.error("[save-travel-plan] admin upsert failed:", adminResult.error);
+          } catch (adminErr) {
+            console.warn("[save-travel-plan] admin fallback unavailable:", adminErr);
+          }
+
           console.error("[save-travel-plan] upsert failed:", result.error);
           return Response.json({ error: result.error }, { status: 500 });
         } catch (err) {

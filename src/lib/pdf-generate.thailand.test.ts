@@ -75,4 +75,33 @@ describe("generatePlanPdf Thailand 16d", () => {
     expect(result.fileName).toMatch(/\.pdf$/i);
     expect(result.buffer.byteLength).toBeGreaterThan(2000);
   });
+
+  it("still builds a PDF when title is empty and a clock label is huge", async () => {
+    const result = await generatePlanPdf({
+      title: "",
+      destination: "",
+      start_date: null,
+      end_date: null,
+      itinerary: {
+        days: [
+          {
+            day: 1,
+            title: "Arrival",
+            city: "Paris",
+            transportation: [{ from: "CDG", to: "hotel" }],
+            activities: {
+              morning: [
+                {
+                  name: "Transfer",
+                  arrivalTime: "x".repeat(400),
+                  description: "Taxi",
+                },
+              ],
+            },
+          },
+        ],
+      },
+    });
+    expect(result.buffer.byteLength).toBeGreaterThan(500);
+  });
 });

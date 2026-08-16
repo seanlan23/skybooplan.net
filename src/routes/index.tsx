@@ -1309,38 +1309,6 @@ function Landing() {
 
         setPlanSaveError(null);
 
-        const clientResult = await persistTravelPlanViaClient(
-          supabase,
-          plan,
-          persistCtx,
-          userId,
-        );
-        if ("id" in clientResult) {
-          setSavedPlanId(clientResult.id);
-          setPlanSaveError(null);
-          return true;
-        }
-        console.warn("Client save failed, trying API:", clientResult.error);
-
-        if (isAuthPersistError(clientResult.error)) {
-          session = await ensureFreshAuthSession();
-          if (!session?.access_token || !session.user?.id) {
-            setPlanSaveError("login_required");
-            return false;
-          }
-          const retry = await persistTravelPlanViaClient(
-            supabase,
-            plan,
-            persistCtx,
-            session.user.id,
-          );
-          if ("id" in retry) {
-            setSavedPlanId(retry.id);
-            setPlanSaveError(null);
-            return true;
-          }
-        }
-
         const headers = await supabaseAuthHeaders({ "Content-Type": "application/json" });
         if (headers.Authorization) {
           const res = await fetch("/api/save-travel-plan", {
@@ -1361,15 +1329,28 @@ function Landing() {
             return true;
           }
           const errMsg = data.error || `http_${res.status}`;
-          console.error("Save plan API failed:", errMsg);
+          console.warn("Save plan API failed, trying client:", errMsg);
           if (res.status === 401 || isAuthPersistError(errMsg)) {
-            setPlanSaveError("login_required");
-            return false;
+            session = await ensureFreshAuthSession();
+            if (!session?.access_token || !session.user?.id) {
+              setPlanSaveError("login_required");
+              return false;
+            }
           }
-          setPlanSaveError(errMsg || clientResult.error || "save_failed");
-          return false;
         }
 
+        const clientResult = await persistTravelPlanViaClient(
+          supabase,
+          corePlanForDb(plan),
+          persistCtx,
+          session?.user?.id ?? userId,
+        );
+        if ("id" in clientResult) {
+          setSavedPlanId(clientResult.id);
+          setPlanSaveError(null);
+          return true;
+        }
+        console.error("Client save failed:", clientResult.error);
         setPlanSaveError(
           isAuthPersistError(clientResult.error) ? "login_required" : clientResult.error || "save_failed",
         );
@@ -1389,50 +1370,58 @@ function Landing() {
         alert(t("trips.pdfError"));
         return;
       }
+      const { generatePlanPdf, offerPdfDownload, openPendingPdfWindow } = await import(
+        "@/lib/pdf-export"
+      );
+      const pendingWindow = openPendingPdfWindow();
       try {
-        const { generatePlanPdf } = await import("@/lib/pdf-export");
         const { buildPdfPlanTitle } = await import("@/lib/pdfPlanTitle");
-        const startDate = aiContext?.departDate ?? planForPdf.days[0]?.date?.slice(0, 10) ?? null;
+        const dayDate = (raw: unknown): string | null =>
+          typeof raw === "string" && raw.trim() ? raw.slice(0, 10) : null;
+        const startDate = aiContext?.departDate ?? dayDate(planForPdf.days[0]?.date);
         const lastDay = planForPdf.days[planForPdf.days.length - 1];
         const endDate =
-          aiContext?.returnDate ??
-          (lastDay?.dateEnd ?? lastDay?.date)?.slice(0, 10) ??
-          null;
+          aiContext?.returnDate ?? dayDate(lastDay?.dateEnd ?? lastDay?.date);
         const paxPdf = Math.max(1, aiContext?.pax ?? 1);
-        const planEurPdf =
-          planForPdf.totalBudgetEur > 0
-            ? planForPdf.totalBudgetEur
-            : computeTripTotalBudgetEur(planForPdf.days, paxPdf);
         const motorhomePdf =
           planForPdf.groundTransportMode === "motorhome" ||
           planForPdf.accommodationMode === "motorhome";
-        const costPdf = buildTripCostSummary({
-          planEur: planEurPdf,
-          flightTotalEur: motorhomePdf ? 0 : aiContext?.flightTotalEur ?? 0,
-          dayCount: planForPdf.days.length,
-          pax: paxPdf,
-          countryCode: resolveDayBudgetCountry({
-            destinationName: planForPdf.destinationName,
-            destinationIata: planForPdf.destinationIata ?? aiContext?.to,
-          }),
-          place: overnightPlaceHint({
-            destinationName: planForPdf.destinationName,
-            destinationPlace: planForPdf.destinationPlace,
-            destinationIata: planForPdf.destinationIata ?? aiContext?.to,
-            dayCities: planForPdf.days.map((d) => d.city),
-          }),
-          iata: planForPdf.destinationIata ?? aiContext?.to,
-          mode: motorhomePdf
-            ? "motorhome"
-            : planForPdf.groundTransportMode === "car"
-              ? "car"
-              : "hotel",
-          unpaidNights:
-            motorhomePdf || planForPdf.groundTransportMode === "car"
-              ? countHomeboundUnpaidNights(planForPdf)
-              : 0,
-        });
-        await generatePlanPdf({
+        let costPdf: { grandTotalEur: number; overnight: { totalEur: number } } | null = null;
+        try {
+          const planEurPdf =
+            planForPdf.totalBudgetEur > 0
+              ? planForPdf.totalBudgetEur
+              : computeTripTotalBudgetEur(planForPdf.days, paxPdf);
+          costPdf = buildTripCostSummary({
+            planEur: planEurPdf,
+            flightTotalEur: motorhomePdf ? 0 : aiContext?.flightTotalEur ?? 0,
+            dayCount: planForPdf.days.length,
+            pax: paxPdf,
+            countryCode: resolveDayBudgetCountry({
+              destinationName: planForPdf.destinationName,
+              destinationIata: planForPdf.destinationIata ?? aiContext?.to,
+            }),
+            place: overnightPlaceHint({
+              destinationName: planForPdf.destinationName,
+              destinationPlace: planForPdf.destinationPlace,
+              destinationIata: planForPdf.destinationIata ?? aiContext?.to,
+              dayCities: planForPdf.days.map((d) => d.city),
+            }),
+            iata: planForPdf.destinationIata ?? aiContext?.to,
+            mode: motorhomePdf
+              ? "motorhome"
+              : planForPdf.groundTransportMode === "car"
+                ? "car"
+                : "hotel",
+            unpaidNights:
+              motorhomePdf || planForPdf.groundTransportMode === "car"
+                ? countHomeboundUnpaidNights(planForPdf)
+                : 0,
+          });
+        } catch (costErr) {
+          console.warn("[pdf] cost summary skipped", costErr);
+        }
+        const pdf = await generatePlanPdf({
           title: buildPdfPlanTitle({
             groundTransportMode:
               planForPdf.groundTransportMode ?? aiContext?.groundTransportMode,
@@ -1452,14 +1441,20 @@ function Landing() {
           end_date: endDate,
           itinerary: {
             ...planForPdf,
-            totalBudgetEur: costPdf.grandTotalEur,
-            staysApproxEur: costPdf.overnight.totalEur,
+            totalBudgetEur: costPdf?.grandTotalEur ?? planForPdf.totalBudgetEur,
+            staysApproxEur: costPdf?.overnight.totalEur,
           } as never,
           language: aiContext?.language,
           pax: paxPdf,
         });
+        offerPdfDownload(pdf.buffer, pdf.fileName, pendingWindow);
       } catch (e) {
         console.error("PDF export failed", e);
+        try {
+          pendingWindow?.close();
+        } catch {
+          /* ignore */
+        }
         alert(t("trips.pdfError"));
         return;
       }

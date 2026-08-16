@@ -80,9 +80,12 @@ function jsonReplacer(_key: string, value: unknown): unknown {
   return value;
 }
 
-function stripActivity(a: Activity): Activity {
-  const { imageUrl: _img, tripAdvisorStyleDetails: _ta, ...rest } = a;
-  return rest;
+function safeJsonClone<T>(value: T): T | undefined {
+  try {
+    return JSON.parse(JSON.stringify(value, jsonReplacer)) as T;
+  } catch {
+    return undefined;
+  }
 }
 
 function clip(s: string | undefined, max: number): string | undefined {
@@ -92,26 +95,8 @@ function clip(s: string | undefined, max: number): string | undefined {
 
 /** Drop photo blobs / TA essays so jsonb stays under PostgREST body limits. */
 export function slimPlanForDb(plan: AiTripPlan): AiTripPlan {
-  return {
-    ...plan,
-    days: (plan.days ?? []).map((d): DayPlan => {
-      const { imageUrl: _img, mapPins, activities, ...rest } = d;
-      return {
-        ...rest,
-        activities: activities
-          ? {
-              morning: activities.morning?.map(stripActivity),
-              afternoon: activities.afternoon?.map(stripActivity),
-              evening: activities.evening?.map(stripActivity),
-            }
-          : undefined,
-        mapPins: mapPins?.map((p) => {
-          const { imageUrl: _pimg, tripAdvisorStyleDetails: _pta, ...pin } = p;
-          return pin;
-        }),
-      };
-    }),
-  };
+  // Whitelist only — never spread the live React plan (photos, circular bits).
+  return corePlanForDb(plan);
 }
 
 function slimActivityCore(a: Activity): Activity {
@@ -148,10 +133,10 @@ export function corePlanForDb(plan: AiTripPlan): AiTripPlan {
     accommodationMode: plan.accommodationMode,
     groundTransportMode: plan.groundTransportMode,
     travelPace: plan.travelPace,
-    weatherWidget: plan.weatherWidget,
-    safetyWarning: plan.safetyWarning ?? undefined,
-    travelRequirements: plan.travelRequirements,
-    groundJourney: plan.groundJourney,
+    weatherWidget: safeJsonClone(plan.weatherWidget),
+    safetyWarning: safeJsonClone(plan.safetyWarning) ?? undefined,
+    travelRequirements: safeJsonClone(plan.travelRequirements),
+    groundJourney: safeJsonClone(plan.groundJourney),
     days: (plan.days ?? []).map((d): DayPlan => ({
       day: d.day,
       date: d.date ?? "",
@@ -183,29 +168,24 @@ export function corePlanForDb(plan: AiTripPlan): AiTripPlan {
 
 /** Strip null bytes / non-finite numbers so jsonb insert never 400s. */
 export function serializePlanForDb(plan: AiTripPlan): Json {
-  try {
-    return JSON.parse(JSON.stringify(plan, jsonReplacer)) as Json;
-  } catch {
-    try {
-      return JSON.parse(JSON.stringify(slimPlanForDb(plan), jsonReplacer)) as Json;
-    } catch {
-      return JSON.parse(JSON.stringify(corePlanForDb(plan), jsonReplacer)) as Json;
-    }
-  }
+  const cloned = safeJsonClone(plan);
+  if (cloned) return cloned as Json;
+  const core = safeJsonClone(corePlanForDb(plan));
+  if (core) return core as Json;
+  return {
+    destinationName: String(plan.destinationName ?? "Trip").slice(0, 200),
+    days: (plan.days ?? []).map((d) => ({
+      day: d.day,
+      date: typeof d.date === "string" ? d.date : "",
+      city: typeof d.city === "string" ? d.city.slice(0, 80) : "",
+      title: typeof d.title === "string" ? d.title.slice(0, 160) : "",
+    })),
+  };
 }
-
-const MAX_PLAN_JSON_CHARS = 120_000;
 
 /** Never persist the live React plan — photos / extra keys 413 or fail JSON. */
 export function planForDatabase(plan: AiTripPlan): AiTripPlan {
-  try {
-    const slim = slimPlanForDb(plan);
-    const json = JSON.stringify(slim, jsonReplacer);
-    if (json.length > MAX_PLAN_JSON_CHARS) return corePlanForDb(plan);
-    return slim;
-  } catch {
-    return corePlanForDb(plan);
-  }
+  return corePlanForDb(plan);
 }
 
 export function buildTravelPlanRow(

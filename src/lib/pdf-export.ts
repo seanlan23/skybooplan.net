@@ -401,7 +401,8 @@ function localizePdfTimeToken(raw: string | undefined, labels: PdfLabels): strin
 }
 
 /** jsPDF custom fonts choke on emoji / some symbols — strip for layout stability. */
-export function sanitizePdfText(input: string): string {
+export function sanitizePdfText(input: unknown): string {
+  if (typeof input !== "string") return "";
   return input
     .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, "")
     .replace(/\u0000/g, "")
@@ -409,6 +410,18 @@ export function sanitizePdfText(input: string): string {
     .replace(/[^\S\n]+/g, " ")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
+}
+
+/** jsPDF throws on width <= 0 (long clock labels can eat the title column). */
+function wrapPdfLines(doc: jsPDF, text: string, maxWidth: number): string[] {
+  const cleaned = text || "";
+  if (!cleaned) return [];
+  const width = Number.isFinite(maxWidth) && maxWidth > 24 ? maxWidth : 24;
+  try {
+    return doc.splitTextToSize(cleaned, width) as string[];
+  } catch {
+    return [cleaned.slice(0, 80)];
+  }
 }
 
 function dateLocaleForPlanLang(lang: string | undefined): string {
@@ -634,7 +647,7 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
     const dayEnd = typeof d.dayEnd === "number" ? d.dayEnd : undefined;
     const transportation = Array.isArray(d.transportation)
       ? (d.transportation as Array<Record<string, unknown>>).map((t) => {
-          const rawType = textOf(t.type) || "transport";
+          const rawType = textOf(t?.type) || "transport";
           const type = roadTrip && rawType.toLowerCase() === "van" ? "car" : rawType;
           return {
             type,
@@ -978,7 +991,7 @@ async function renderPlanPdf(plan: PlanForPdf): Promise<{
     ensureSpace(36);
     y += 10;
     setFont("bold", 10, SKY_DARK);
-    safeText(text.toUpperCase(), margin, y);
+    safeText(String(text ?? "").toUpperCase(), margin, y);
     y += 6;
     doc.setDrawColor(SKY.r, SKY.g, SKY.b);
     doc.setLineWidth(2.5);
@@ -992,7 +1005,7 @@ async function renderPlanPdf(plan: PlanForPdf): Promise<{
     if (!hasUnicodeFont) cleaned = asciiFallback(cleaned);
     if (!cleaned) return;
     setFont("normal", size, color);
-    const lines = doc.splitTextToSize(cleaned, contentW - indent) as string[];
+    const lines = wrapPdfLines(doc, cleaned, contentW - indent);
     for (const line of lines) {
       ensureSpace(size + 5);
       safeText(line, margin + indent, y);
@@ -1016,7 +1029,7 @@ async function renderPlanPdf(plan: PlanForPdf): Promise<{
     doc.setFillColor(PILL_BG.r, PILL_BG.g, PILL_BG.b);
     doc.roundedRect(margin, y - 10, w, h, 7, 7, "F");
     setFont("bold", 8, SKY_DARK);
-    safeText(label.toUpperCase(), margin + padX, y);
+    safeText(String(label ?? "").toUpperCase(), margin + padX, y);
     y += 12;
   };
 
@@ -1024,7 +1037,7 @@ async function renderPlanPdf(plan: PlanForPdf): Promise<{
     const titleRaw = sanitizePdfText(title);
     const titleSafe = hasUnicodeFont ? titleRaw : asciiFallback(titleRaw);
     setFont("bold", 13, INK);
-    const titleLines = doc.splitTextToSize(titleSafe, contentW - 72) as string[];
+    const titleLines = wrapPdfLines(doc, titleSafe, contentW - 72);
     const bandH = 36 + titleLines.length * 15;
     // Prefer starting a day on a fresh page when little room remains.
     if (y + bandH + 90 > pageH - footerH && y > margin + 40) {
@@ -1103,18 +1116,18 @@ async function renderPlanPdf(plan: PlanForPdf): Promise<{
   const heroDest = sanitizePdfText(model.destination || model.title);
   const heroSafe = hasUnicodeFont ? heroDest : asciiFallback(heroDest);
   setFont("bold", 32, WHITE);
-  const heroLines = doc.splitTextToSize(heroSafe, contentW) as string[];
+  const heroLines = wrapPdfLines(doc, heroSafe, contentW);
   let heroY = 118;
   for (let i = 0; i < Math.min(2, heroLines.length); i++) {
     safeText(heroLines[i]!, margin, heroY);
     heroY += 36;
   }
 
-  const routeTitle = sanitizePdfText(model.title.replace(/\s*→\s*/g, " → "));
+  const routeTitle = sanitizePdfText(String(model.title ?? "").replace(/\s*→\s*/g, " → "));
   if (routeTitle && routeTitle.toLowerCase() !== heroDest.toLowerCase()) {
     setFont("normal", 12, { r: 186, g: 230, b: 253 });
     const routeSafe = hasUnicodeFont ? routeTitle : asciiFallback(routeTitle);
-    const routeLines = doc.splitTextToSize(routeSafe, contentW) as string[];
+    const routeLines = wrapPdfLines(doc, routeSafe, contentW);
     safeText(routeLines[0]!, margin, heroY);
     heroY += 20;
   }
@@ -1180,7 +1193,7 @@ async function renderPlanPdf(plan: PlanForPdf): Promise<{
 
       for (const leg of d.transportation) {
         const line = [
-          leg.type.toUpperCase(),
+          String(leg.type || "transport").toUpperCase(),
           leg.from && leg.to ? `${leg.from} → ${leg.to}` : "",
           leg.duration,
           leg.price,
@@ -1219,7 +1232,7 @@ async function renderPlanPdf(plan: PlanForPdf): Promise<{
           setFont("bold", 11, INK);
           const titleRaw = sanitizePdfText(it.title);
           const titleSafe = hasUnicodeFont ? titleRaw : asciiFallback(titleRaw);
-          const titleLines = doc.splitTextToSize(titleSafe, titleMaxW) as string[];
+          const titleLines = wrapPdfLines(doc, titleSafe, titleMaxW);
           const rowTop = y;
           for (const line of titleLines) {
             ensureSpace(13);
@@ -1247,7 +1260,7 @@ async function renderPlanPdf(plan: PlanForPdf): Promise<{
               const cleaned = hasUnicodeFont
                 ? sanitizePdfText(bullet)
                 : asciiFallback(sanitizePdfText(bullet));
-              const wrap = doc.splitTextToSize(cleaned, contentW - 14) as string[];
+              const wrap = wrapPdfLines(doc, cleaned, contentW - 14);
               for (const wline of wrap) {
                 ensureSpace(11);
                 safeText(wline, margin + 8, y);
@@ -1336,11 +1349,47 @@ async function renderPlanPdf(plan: PlanForPdf): Promise<{
 
   const fileName = `${safe}.pdf`;
   const buffer = doc.output("arraybuffer");
-  if (typeof window !== "undefined") {
-    // Blob download first — more reliable than doc.save() in Safari / iOS.
-    try {
-      const blob = new Blob([new Uint8Array(buffer)], { type: "application/pdf" });
-      const url = URL.createObjectURL(blob);
+  return { buffer, fileName, doc };
+}
+
+/** Warm DejaVu so the click-to-download stays inside Safari's user-gesture window. */
+export async function preloadPdfFonts(): Promise<void> {
+  if (fontCache || fontsUnavailable || typeof window === "undefined") return;
+  try {
+    const [regular, bold] = await Promise.all([
+      loadFontBinary(FONT_REGULAR_URL),
+      loadFontBinary(FONT_BOLD_URL),
+    ]);
+    fontCache = { regular, bold };
+  } catch (err) {
+    console.warn("[pdf] font preload failed — Helvetica fallback", err);
+    fontsUnavailable = true;
+  }
+}
+
+/** Open a tab synchronously in the click handler so Safari/iOS still allow the file. */
+export function openPendingPdfWindow(): Window | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.open("about:blank", "_blank");
+  } catch {
+    return null;
+  }
+}
+
+/** Put a rendered PDF on disk / in the pending tab. Never throws. */
+export function offerPdfDownload(
+  buffer: ArrayBuffer,
+  fileName: string,
+  pendingWindow?: Window | null,
+): void {
+  if (typeof window === "undefined") return;
+  const blob = new Blob([new Uint8Array(buffer)], { type: "application/pdf" });
+  const url = URL.createObjectURL(blob);
+  try {
+    if (pendingWindow && !pendingWindow.closed) {
+      pendingWindow.location.href = url;
+    } else {
       const a = document.createElement("a");
       a.href = url;
       a.download = fileName;
@@ -1348,13 +1397,47 @@ async function renderPlanPdf(plan: PlanForPdf): Promise<{
       document.body.appendChild(a);
       a.click();
       a.remove();
-      window.setTimeout(() => URL.revokeObjectURL(url), 2_000);
-    } catch (blobErr) {
-      console.warn("[pdf] blob download failed, trying doc.save", blobErr);
-      doc.save(fileName);
+    }
+  } catch (err) {
+    console.warn("[pdf] download click failed", err);
+    try {
+      window.location.href = url;
+    } catch {
+      pendingWindow?.close();
     }
   }
-  return { buffer, fileName, doc };
+  window.setTimeout(() => URL.revokeObjectURL(url), 8_000);
+}
+
+function renderEmergencyPdf(plan: PlanForPdf): {
+  buffer: ArrayBuffer;
+  fileName: string;
+  doc: jsPDF;
+} {
+  const doc = new jsPDF({ unit: "pt", format: "a4" });
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  const title = asciiFallback(sanitizePdfText(plan.title || plan.destination) || "Skybooplan");
+  doc.text(title.slice(0, 80), 44, 64);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(11);
+  const days = Array.isArray((plan.itinerary as { days?: unknown[] } | undefined)?.days)
+    ? ((plan.itinerary as { days: Array<Record<string, unknown>> }).days ?? [])
+    : [];
+  let y = 92;
+  days.slice(0, 40).forEach((d, i) => {
+    const line = asciiFallback(
+      sanitizePdfText(d?.title) || sanitizePdfText(d?.city) || `Day ${i + 1}`,
+    );
+    if (y > 780) {
+      doc.addPage();
+      y = 64;
+    }
+    doc.text(`${i + 1}. ${line}`.slice(0, 90), 44, y);
+    y += 16;
+  });
+  const fileName = `${asciiFallback(title).replace(/[^a-z0-9-_ ]/gi, "").trim().replace(/\s+/g, "_").slice(0, 60) || "travel_plan"}.pdf`;
+  return { buffer: doc.output("arraybuffer"), fileName, doc };
 }
 
 export async function generatePlanPdf(plan: PlanForPdf): Promise<{
@@ -1367,8 +1450,13 @@ export async function generatePlanPdf(plan: PlanForPdf): Promise<{
   } catch (err) {
     // Custom font / VFS quirks — retry once with Helvetica ASCII fallback.
     console.warn("[pdf] export failed, retrying without DejaVu fonts", err);
-    fontsUnavailable = true;
-    fontCache = null;
+  }
+  fontsUnavailable = true;
+  fontCache = null;
+  try {
     return await renderPlanPdf(plan);
+  } catch (retryErr) {
+    console.warn("[pdf] fallback render failed, using emergency PDF", retryErr);
+    return renderEmergencyPdf(plan);
   }
 }

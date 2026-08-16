@@ -5,6 +5,13 @@ describe("sanitizePdfText", () => {
   it("strips emoji that break jsPDF custom fonts", () => {
     expect(sanitizePdfText("Odhod 🚐 iz Mežice")).toBe("Odhod iz Mežice");
   });
+
+  it("never throws on empty or non-string input", () => {
+    expect(sanitizePdfText(undefined)).toBe("");
+    expect(sanitizePdfText(null)).toBe("");
+    expect(sanitizePdfText(12)).toBe("");
+    expect(sanitizePdfText("")).toBe("");
+  });
 });
 
 describe("normalizePlanForPdf", () => {

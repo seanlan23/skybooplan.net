@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Link } from "@tanstack/react-router";
 import { AiPlanView } from "@/components/AiPlanView";
 import { AiPlanLoader } from "@/components/AiPlanLoader";
@@ -89,6 +90,11 @@ export function HeroAiPlanResults({
     aiSkeleton?.accommodationMode === "motorhome"
       ? ("motorhome" as const)
       : ("flight" as const);
+
+  useEffect(() => {
+    if (!displayPlan?.days?.length) return;
+    void import("@/lib/pdf-export").then((m) => m.preloadPdfFonts()).catch(() => undefined);
+  }, [displayPlan]);
 
   return (
     <section

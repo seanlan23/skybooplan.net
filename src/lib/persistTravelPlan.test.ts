@@ -32,6 +32,18 @@ describe("toSqlDate", () => {
 });
 
 describe("serializePlanForDb", () => {
+  it("never throws on circular live-plan graphs", () => {
+    const plan = {
+      destinationName: "Paris",
+      days: [{ day: 1, city: "Paris", title: "Arrival" }],
+    } as unknown as AiTripPlan;
+    (plan as { self?: AiTripPlan }).self = plan;
+    expect(() => serializePlanForDb(plan)).not.toThrow();
+    const out = serializePlanForDb(plan) as { destinationName?: string; days?: unknown[] };
+    expect(out.destinationName).toBe("Paris");
+    expect(out.days).toHaveLength(1);
+  });
+
   it("strips null bytes and non-finite numbers", () => {
     const plan = {
       destinationName: "Test\u0000City",
