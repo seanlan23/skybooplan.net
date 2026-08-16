@@ -5,6 +5,7 @@ import {
   getServerSupabaseServiceRoleKey,
   getServerSupabaseUrl,
 } from '@/lib/supabaseServerEnv';
+import { bumpPublicPlansGenerated } from '@/lib/planStats.server';
 
 let _supabase: ReturnType<typeof createClient> | null = null;
 let _quotaSkipLogged = false;
@@ -194,12 +195,11 @@ export async function recordPlanGeneration(
     } else if (tier === "monthly" || tier === "annual") {
       await bumpUserDailyUsage(userId);
     }
-    return;
-  }
-  if (request) {
+  } else if (request) {
     const ua = request.headers.get("user-agent") ?? undefined;
     await bumpAnonQuota(extractIp(request.headers), ua);
   }
+  await bumpPublicPlansGenerated();
 }
 
 export type ItineraryQuotaResult =

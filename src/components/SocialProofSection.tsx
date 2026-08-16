@@ -1,8 +1,11 @@
 import { Heart, Plane, Sparkles, type LucideIcon } from "lucide-react";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 import { PARTNER_LOGOS } from "@/components/PartnerLogos";
+import { formatPlansGeneratedLabel } from "@/lib/planStats";
+import { getPublicPlanCount } from "@/lib/planStats.functions";
 
 type SocialFeature = {
   id: string;
@@ -13,6 +16,20 @@ type SocialFeature = {
 
 export function SocialProofSection() {
   const { t, lang } = useI18n();
+  const fetchPlanCount = useServerFn(getPublicPlanCount);
+  const [planCount, setPlanCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetchPlanCount()
+      .then((res) => {
+        if (!cancelled && res.count > 0) setPlanCount(res.count);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchPlanCount]);
 
   const features = useMemo<SocialFeature[]>(
     () => [
@@ -50,6 +67,11 @@ export function SocialProofSection() {
         >
           {t("social.trustedBy" as never)}
         </p>
+        {planCount != null ? (
+          <p className="mt-3 text-center text-sm font-semibold text-foreground sm:text-base">
+            {formatPlansGeneratedLabel(planCount, t("social.plansGenerated" as never), lang)}
+          </p>
+        ) : null}
 
         <ul className="mt-8 grid grid-cols-3 items-center justify-items-center gap-6 sm:flex sm:flex-wrap sm:justify-center sm:gap-x-16 sm:gap-y-8">
           {PARTNER_LOGOS.map(({ id, Logo }) => (
