@@ -97,6 +97,7 @@ export function AiPlanView({
   stayInfo,
   protect = false,
   onDownloadClick,
+  onEmailClick,
   onClearPlan,
   pax = 1,
   plannerWishes,
@@ -116,6 +117,7 @@ export function AiPlanView({
   stayInfo?: StayInfo;
   protect?: boolean;
   onDownloadClick?: () => void;
+  onEmailClick?: () => void;
   /** Clear persisted plan only (keep search / hero context). */
   onClearPlan?: () => void;
   pax?: number;
@@ -757,7 +759,7 @@ export function AiPlanView({
         </>
       )}
 
-      {(onDownloadClick || onClearPlan) && (
+      {(onDownloadClick || onEmailClick || onClearPlan) && (
         <div className="flex flex-col items-end gap-2 relative z-20">
           <div className="flex flex-wrap items-center justify-end gap-2">
             {onClearPlan && !streaming ? (
@@ -767,6 +769,15 @@ export function AiPlanView({
                 className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
               >
                 {t("aiplan.clearPlan" as never)}
+              </button>
+            ) : null}
+            {onEmailClick ? (
+              <button
+                type="button"
+                onClick={onEmailClick}
+                className="inline-flex items-center gap-2 rounded-xl border border-sky-200 bg-white px-4 py-2.5 text-sm font-semibold text-sky-800 shadow-sm transition-colors hover:border-sky-300 hover:bg-sky-50"
+              >
+                {t("plan.emailCta" as never)}
               </button>
             ) : null}
             {onDownloadClick ? (
@@ -779,7 +790,11 @@ export function AiPlanView({
               </button>
             ) : null}
           </div>
-          {onDownloadClick ? (
+          {onEmailClick ? (
+            <p className="text-xs text-slate-500 max-w-sm text-right">
+              {t("plan.emailHint" as never)}
+            </p>
+          ) : onDownloadClick ? (
             <p className="text-xs text-slate-500 max-w-sm text-right">
               {t("aiplan.pdfNotice" as never)}
             </p>

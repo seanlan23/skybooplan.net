@@ -23,12 +23,13 @@ type HeroAiPlanResultsProps = {
   streamExpectedDays: number;
   savedPlanId: string | null;
   planSaveError?: string | null;
-  user: { id: string } | null;
+  user: { id: string; email?: string | null } | null;
   buildWishes: (form: AiPlannerSubmit | null | undefined) => string;
   normalizeLastPlannerForm: (input: unknown) => AiPlannerSubmit | null;
   onExpandFull: () => void;
   onClearPlan?: () => void;
   onRetrySave?: () => void;
+  onEmailPlan?: (plan: AiTripPlan) => void | Promise<void>;
   onDownloadPlan?: (plan: AiTripPlan) => void | Promise<void>;
   lastSearchPax?: { adults?: number; childrenAges?: number[]; rooms?: number };
 };
@@ -54,6 +55,7 @@ export function HeroAiPlanResults({
   onExpandFull,
   onClearPlan,
   onRetrySave,
+  onEmailPlan,
   onDownloadPlan,
   lastSearchPax,
 }: HeroAiPlanResultsProps) {
@@ -123,6 +125,11 @@ export function HeroAiPlanResults({
                   ? () => void onDownloadPlan(aiPlan ?? displayPlan)
                   : undefined
               }
+              onEmailClick={
+                displayPlan && onEmailPlan
+                  ? () => void onEmailPlan(aiPlan ?? displayPlan)
+                  : undefined
+              }
               stayInfo={stayInfo}
               plannerWishes={
                 lastPlannerForm ? buildWishes(lastPlannerForm) || undefined : undefined
@@ -184,15 +191,26 @@ export function HeroAiPlanResults({
           {aiPlan && !savedPlanId && user && planSaveError && planSaveError !== "login_required" ? (
             <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-rose-300 bg-rose-50 px-5 py-3 text-sm text-rose-900">
               <span>{t("plan.saveFailed" as never)}</span>
-              {onRetrySave ? (
-                <button
-                  type="button"
-                  onClick={onRetrySave}
-                  className="font-semibold text-rose-800 underline-offset-2 hover:underline"
-                >
-                  {t("plan.retrySave" as never)}
-                </button>
-              ) : null}
+              <div className="flex flex-wrap items-center gap-3">
+                {onEmailPlan ? (
+                  <button
+                    type="button"
+                    onClick={() => void onEmailPlan(aiPlan)}
+                    className="font-semibold text-rose-900 underline-offset-2 hover:underline"
+                  >
+                    {t("plan.emailCta" as never)}
+                  </button>
+                ) : null}
+                {onRetrySave ? (
+                  <button
+                    type="button"
+                    onClick={onRetrySave}
+                    className="font-semibold text-rose-800 underline-offset-2 hover:underline"
+                  >
+                    {t("plan.retrySave" as never)}
+                  </button>
+                ) : null}
+              </div>
             </div>
           ) : null}
         </div>

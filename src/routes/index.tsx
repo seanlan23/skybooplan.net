@@ -1470,6 +1470,53 @@ function Landing() {
     [aiContext, persistPlanToTrips, t, user],
   );
 
+  const emailPlanToUser = useCallback(
+    async (planForMail: AiTripPlan) => {
+      if (!planForMail?.days?.length) return;
+      const { buildPdfPlanTitle } = await import("@/lib/pdfPlanTitle");
+      const { buildPlanEmail, deliverPlanByEmail } = await import("@/lib/planEmail");
+      const title = buildPdfPlanTitle({
+        groundTransportMode: planForMail.groundTransportMode ?? aiContext?.groundTransportMode,
+        accommodationMode: planForMail.accommodationMode,
+        originPlace: planForMail.originPlace ?? aiContext?.originPlace,
+        destinationPlace: planForMail.destinationPlace ?? aiContext?.destinationPlace,
+        destinationName: planForMail.destinationName,
+        from: aiContext?.from,
+        to: aiContext?.to,
+      });
+      const mail = buildPlanEmail(planForMail, {
+        title,
+        language: aiContext?.language ?? planForMail.contentLanguage,
+      });
+      let pdf: { buffer: ArrayBuffer; fileName: string } | undefined;
+      try {
+        const { generatePlanPdf, offerPdfDownload } = await import("@/lib/pdf-export");
+        const lastDay = planForMail.days[planForMail.days.length - 1];
+        const out = await generatePlanPdf({
+          title,
+          destination: planForMail.destinationName || planForMail.destinationPlace || "",
+          start_date: aiContext?.departDate ?? planForMail.days[0]?.date ?? null,
+          end_date: aiContext?.returnDate ?? lastDay?.dateEnd ?? lastDay?.date ?? null,
+          itinerary: planForMail as never,
+          language: aiContext?.language,
+        });
+        pdf = { buffer: out.buffer, fileName: out.fileName };
+        const mode = await deliverPlanByEmail({
+          to: user?.email,
+          subject: mail.subject,
+          body: mail.body,
+          pdf,
+        });
+        if (mode === "mailto") offerPdfDownload(out.buffer, out.fileName);
+      } catch (err) {
+        console.warn("[email] pdf skipped, mailto only", err);
+        const { openPlanMailto } = await import("@/lib/planEmail");
+        openPlanMailto(user?.email, mail.subject, mail.body);
+      }
+    },
+    [aiContext, user?.email],
+  );
+
   // Generate while logged out → sign in later: persist the in-memory plan once.
   const prevUserIdRef = useRef<string | null>(null);
   useEffect(() => {
@@ -1882,6 +1929,7 @@ function Landing() {
             : undefined
         }
         onDownloadPlan={downloadPlanPdfAndSave}
+        onEmailPlan={emailPlanToUser}
         lastSearchPax={{
           adults: lastSearch?.adults ?? aiContext?.adults,
           childrenAges: lastSearch?.childrenAges ?? aiContext?.childrenAges,
@@ -1974,6 +2022,9 @@ function Landing() {
                     displayPlan
                       ? () => void downloadPlanPdfAndSave(aiPlan ?? displayPlan)
                       : undefined
+                  }
+                  onEmailClick={
+                    displayPlan ? () => void emailPlanToUser(aiPlan ?? displayPlan) : undefined
                   }
                   stayInfo={{
                     adults: lastSearch?.stayAdults ?? lastSearch?.pax ?? 2,
