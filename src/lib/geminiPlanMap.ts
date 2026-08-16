@@ -178,6 +178,13 @@ function isDepartureLogisticsDay(day: DayPlan, totalDays: number): boolean {
 function isGenericTransportTip(tip: string): boolean {
   const t = tip.trim();
   if (!t) return true;
+  if (
+    /če imaš še energijo|if you (?:still )?have (?:the )?energy|brez hitenja takoj z letališča|don't rush straight from the airport|javni prevoz v centru|use public transport in (the )?cent/i.test(
+      t,
+    )
+  ) {
+    return true;
+  }
   // Keep detailed multi-sentence tips (apps, ferries, tuk-tuk warnings, etc.)
   if (t.length >= 60) return false;
   // Drop only ultra-short platitudes with no location context

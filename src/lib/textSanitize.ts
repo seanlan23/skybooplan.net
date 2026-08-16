@@ -114,6 +114,13 @@ export function sanitizeLegacyTemplateLeak(text: string): string {
       "Uber or transit back",
     )
     .replace(/\bno\s+Uber\s+in\s+(Toronto|Vancouver|Montreal|Ottawa|Calgary|Banff)\b/gi, "Uber works here")
+    .replace(/[^.!?\n]*če imaš še energijo[^.!?\n]*[.!?]?/gi, "")
+    .replace(/[^.!?\n]*if you (?:still )?have (?:the )?energy[^.!?\n]*[.!?]?/gi, "")
+    .replace(/[^.!?\n]*brez hitenja takoj z letališča[^.!?\n]*[.!?]?/gi, "")
+    .replace(/[^.!?\n]*don't rush straight from the airport[^.!?\n]*[.!?]?/gi, "")
+    .replace(/[^.!?\n]*osvežitev in kratek odmor[^.!?\n]*[.!?]?/gi, "")
+    .replace(/[^.!?\n]*kava pred ogledom[^.!?\n]*[.!?]?/gi, "")
+    .replace(/[^.!?\n]*coffee before the (?:main )?sight[^.!?\n]*[.!?]?/gi, "")
     .replace(/\s{2,}/g, " ")
     .trim();
 }

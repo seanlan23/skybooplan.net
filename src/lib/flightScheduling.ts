@@ -548,35 +548,29 @@ export function buildArrivalLogistics(
         : hotelTransferDescription(city, locale),
     },
     {
-      name: planLangCopy(lang, {
-        sl: "Check-in, osvežitev in kratek odmor",
-        en: "Check-in, refresh, and short rest",
-        de: "Check-in, frisch machen und kurze Pause",
-      }),
+      name: motorhome
+        ? planLangCopy(lang, {
+            sl: "Prihod v kamp",
+            en: "Arrival at camp",
+            de: "Ankunft auf dem Camp",
+          })
+        : planLangCopy(lang, {
+            sl: "Prihod v hotel",
+            en: "Hotel arrival",
+            de: "Ankunft im Hotel",
+          }),
       type: "STAY",
       arrivalTime: hotelAt,
       description: planLangCopy(lang, {
         sl: late
-          ? motorhome
-            ? `Na avtokampu se namestiš, osvežiš in počakaš 1–2 uri po letu. Zaradi poznega prihoda (${arriveLabel}) danes brez večjih ogledov — le lahek večernji sprehod v bližini kampa, če imaš energijo.`
-            : `V hotelu se namestiš, osvežiš in narediš vsaj 1–2 uri počitka po letu. Zaradi poznega prihoda (${arriveLabel}) danes brez večjih ogledov — le lahek večernji sprehod v bližini, če imaš še energijo.`
-          : motorhome
-            ? `Po prevzemu avtodoma se namestiš na kampu, osvežiš in počakaš 1–2 uri. Šele nato nadaljuješ z lažjimi ogledi — brez hitenja z letališča v center z RV-jem.`
-            : `Po prihodu v hotel se namestiš, osvežiš, napolniš vodo in počakaš 1–2 uri, da se prilagodiš podnebju in časovnemu pasu. Šele nato nadaljuješ z ogledi po načrtu — brez hitenja takoj z letališča na znamenitosti.`,
+          ? `Namestitev okoli ${hotelAt} (pristanek ${arriveLabel}). 1–2 uri počitka — danes brez večjih ogledov.`
+          : `Namestitev okoli ${hotelAt}. 1–2 uri počitka, potem samo lahek program.`,
         en: late
-          ? motorhome
-            ? `Set up at the campsite and rest 1–2 hours. With a late arrival (${arriveLabel}), skip major sights — optional light stroll near camp only.`
-            : `Check in, freshen up, and rest 1–2 hours. With a late arrival (${arriveLabel}), skip major sights today — optional light evening stroll near the hotel only.`
-          : motorhome
-            ? `Check in at the campsite, freshen up, and rest 1–2 hours. Only then continue with lighter sights — don't rush downtown with the RV.`
-            : `Check in, freshen up, hydrate, and rest 1–2 hours after the flight. Only then continue with planned sights — don't rush straight from the airport.`,
+          ? `Check in around ${hotelAt} (landed ${arriveLabel}). Rest 1–2 hours — no major sights today.`
+          : `Check in around ${hotelAt}. Rest 1–2 hours, then only a light programme.`,
         de: late
-          ? motorhome
-            ? `Auf dem Campingplatz einrichten und 1–2 Stunden ruhen. Bei später Ankunft (${arriveLabel}) heute keine großen Sightseeing-Touren — höchstens ein leichter Spaziergang am Camp.`
-            : `Einchecken, frisch machen und 1–2 Stunden ruhen. Bei später Ankunft (${arriveLabel}) heute keine großen Sightseeing-Touren — höchstens ein leichter Abendspaziergang in der Nähe.`
-          : motorhome
-            ? `Nach der Wohnmobil-Übernahme auf dem Camp einrichten, frisch machen und 1–2 Stunden ruhen. Danach erst leichtere Ausflüge — nicht direkt vom Flughafen mit dem RV in die Innenstadt.`
-            : `Nach dem Check-in im Hotel frisch machen, trinken und 1–2 Stunden ruhen, um dich an Klima und Zeitzone zu gewöhnen. Danach erst nach Plan weiter — nicht direkt vom Flughafen zu den Sehenswürdigkeiten.`,
+          ? `Ankunft gegen ${hotelAt} (Landung ${arriveLabel}). 1–2 Stunden Pause — heute keine großen Besichtigungen.`
+          : `Ankunft gegen ${hotelAt}. 1–2 Stunden Pause, danach nur ein leichtes Programm.`,
       }),
     },
   ];

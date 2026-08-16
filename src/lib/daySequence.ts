@@ -83,15 +83,7 @@ function thinPlaceholderDay(
     city,
     category: "activity",
     activities: {
-      morning: [
-        {
-          name: slo ? "Jutranji sprehod / lokalni ritm" : "Morning stroll / local pace",
-          type: "ACTIVITY",
-          description: slo
-            ? `Prosti dan v ${city} — kava, lahek sprehod, brez dolgih transferjev.`
-            : `Free day in ${city} — coffee, easy walk, no long transfers.`,
-        },
-      ],
+      morning: [],
       afternoon: [
         {
           name: slo ? "Popoldanski lokalni ogled" : "Afternoon local sight",

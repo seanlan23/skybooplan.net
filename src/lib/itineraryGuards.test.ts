@@ -14,6 +14,7 @@ import {
   stripGenericMealActivities,
   stripPhantomArrivals,
   stripPlaceholderActivities,
+  stripWrongCityDayActivities,
 } from "@/lib/itineraryGuards";
 import { repairTruncatedCopy } from "@/lib/textSanitize";
 
@@ -105,6 +106,27 @@ describe("isGenericMealActivity", () => {
 });
 
 describe("stripPlaceholderActivities", () => {
+  it("drops check-in refresh and morning-walk-to-first-sight", () => {
+    expect(
+      isEnricherPlaceholderActivity({
+        name: "Check-in, osvežitev in kratek odmor",
+        description: "Če imaš še energijo, sprehod po soseski.",
+      }),
+    ).toBe(true);
+    expect(
+      isEnricherPlaceholderActivity({
+        name: "Jutranji sprehod do prve znamenitosti",
+        description: "Peš ali z javnim prevozom do prve točke dneva.",
+      }),
+    ).toBe(true);
+    expect(
+      isEnricherPlaceholderActivity({
+        name: "Prihod v hotel",
+        description: "Namestitev okoli 16:00. 1–2 uri počitka, potem samo lahek program.",
+      }),
+    ).toBe(false);
+  });
+
   it("removes enricher placeholder mornings", () => {
     const plan = {
       destinationName: "Panama",
@@ -135,6 +157,31 @@ describe("stripPlaceholderActivities", () => {
     expect(stripPlaceholderActivities(plan)).toBe(1);
     expect(plan.days[0]!.activities!.morning).toHaveLength(1);
     expect(plan.days[0]!.activities!.morning[0]!.name).toMatch(/San Blas/i);
+  });
+});
+
+describe("stripWrongCityDayActivities", () => {
+  it("removes Louvre from a Lyon day", () => {
+    const plan = {
+      destinationName: "France",
+      days: [
+        day({
+          day: 5,
+          city: "Lyon",
+          activities: {
+            morning: [
+              { name: "Louvre", type: "SIGHT", description: "Mona Lisa v Parizu." },
+              { name: "Basilique Notre-Dame de Fourvière", type: "SIGHT", description: "Hrib nad Lyonom." },
+            ],
+            afternoon: [],
+            evening: [],
+          },
+        }),
+      ],
+    } as AiTripPlan;
+    expect(stripWrongCityDayActivities(plan)).toBe(1);
+    expect(plan.days[0]!.activities!.morning).toHaveLength(1);
+    expect(plan.days[0]!.activities!.morning[0]!.name).toMatch(/Fourvière/i);
   });
 });
 
@@ -266,7 +313,8 @@ describe("dedupeNearIdenticalConsecutiveDays", () => {
     expect(dedupeNearIdenticalConsecutiveDays(plan)).toBe(1);
     expect(plan.days[0]!.activities!.morning[0]!.name).toMatch(/Casco/i);
     expect(plan.days[1]!.title).toMatch(/prosti|lokalni/i);
-    expect(plan.days[1]!.activities!.morning[0]!.name).not.toMatch(/Casco Vieja/i);
+    expect(plan.days[1]!.activities!.morning ?? []).toHaveLength(0);
+    expect(plan.days[1]!.activities!.afternoon?.[0]?.name).not.toMatch(/Casco Vieja/i);
   });
 });
 

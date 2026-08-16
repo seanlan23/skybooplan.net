@@ -112,20 +112,39 @@ function regionContext(region: TripRegion, country?: string): string {
   return `${region.city} ${country ?? ""}`.toLowerCase();
 }
 
+/** City-only landmarks — Louvre is Paris, not Lyon; Fourvière is Lyon, not Paris. */
+const CITY_LOCKED_POI: Array<{ test: RegExp; cityPattern: RegExp }> = [
+  {
+    test: /louvre|tour eiffel|eiffel tower|montmartre|versailles|champs[-\s]?[eé]lys|arc de triomphe|mus[eé]e d['’]?orsay|orsay museum|sacr[eé][-\s]?c[oe]ur|centre pompidou|sainte[-\s]?chapelle|tuileries|le marais/i,
+    cityPattern: /paris|versailles/i,
+  },
+  {
+    test: /fourvi[eè]re|traboule|vieux lyon|t[eê]te d['’]or|place bellecour|mus[eé]e des confluences|presqu['’]?[iî]le/i,
+    cityPattern: /lyon/i,
+  },
+];
+
+export function isCityLockedPoi(name: string, description: string, city: string): boolean {
+  const blob = `${name} ${description}`;
+  return CITY_LOCKED_POI.some((r) => r.test.test(blob) && !r.cityPattern.test(city));
+}
+
 export function isForeignPoiForRegion(
   name: string,
   region: TripRegion,
   country?: string,
   description = "",
 ): boolean {
+  if (isCityLockedPoi(name, description, region.city ?? "")) return true;
   const ctx = regionContext(region, country).toLowerCase();
   return REGION_LOCKED_POI.some(
     (r) => r.test.test(`${name} ${description}`) && !r.homePattern.test(ctx),
   );
 }
 
-/** POI tied to a different sub-region (e.g. Maya Bay while staying on Koh Lipe). */
+/** POI tied to a different city (Louvre on a Lyon day, Maya Bay on Koh Lipe). */
 export function isWrongCityPoi(name: string, description: string, city: string): boolean {
+  if (isCityLockedPoi(name, description, city)) return true;
   const fakeRegion = { city, startDay: 1, endDay: 1 } as TripRegion;
   return isForeignPoiForRegion(name, fakeRegion, "TH", description);
 }

@@ -132,6 +132,11 @@ describe("isWrongCityPoi", () => {
   it("keeps Maya Bay in Krabi", () => {
     expect(isWrongCityPoi("Maya Bay", "Celodnevni izlet", "Krabi")).toBe(false);
   });
+
+  it("blocks Louvre on a Lyon day and keeps it in Paris", () => {
+    expect(isWrongCityPoi("Louvre", "Mona Lisa", "Lyon")).toBe(true);
+    expect(isWrongCityPoi("Louvre", "Mona Lisa", "Paris")).toBe(false);
+  });
 });
 
 describe("isMorningOnlyPoi", () => {

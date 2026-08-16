@@ -130,9 +130,9 @@ describe("expandPlanDaysToExpected", () => {
 
     expect(plan.days).toHaveLength(3);
     const d1 = plan.days[0]!.activities!.morning[0]!.name;
-    const d2 = plan.days[1]!.activities!.morning[0]!.name;
     expect(d1).toMatch(/Casco/i);
-    expect(d2).not.toEqual(d1);
+    expect(plan.days[1]!.activities!.morning ?? []).toHaveLength(0);
+    expect(plan.days[1]!.activities!.afternoon?.[0]?.name).toMatch(/lokalni ogled/i);
     expect(plan.days[1]!.title).toMatch(/prosti|lokalni|nadaljevanje/i);
   });
 });

@@ -35,6 +35,17 @@ describe("sanitizeLegacyTemplateLeak", () => {
     ).not.toMatch(/Oyster/i);
   });
 
+  it("strips leftover energy / coffee-walk template sentences", () => {
+    expect(
+      sanitizeLegacyTemplateLeak(
+        "Peš do MoMA. Če imaš še energijo, sprehod po parku. Metro nazaj.",
+      ),
+    ).not.toMatch(/energijo/i);
+    expect(
+      sanitizeLegacyTemplateLeak("Kratek sprehod in kava pred ogledom. Potem Met."),
+    ).not.toMatch(/kava pred ogledom/i);
+  });
+
   it("scrubs false no-Uber-in-Canada hallucination", () => {
     expect(
       sanitizeLegacyTemplateLeak("Uber or transit back - no Uber in Canada"),

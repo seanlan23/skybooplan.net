@@ -636,7 +636,7 @@ function classifyArrivalLogisticsActivity(a: Activity): ArrivalLogisticsKind {
 
   if (
     a.type === "STAY" ||
-    /check-in|osvežit|short rest|frisch machen|kurze pause|kratek odmor/i.test(name)
+    /check-in|osvežit|prihod v hotel|prihod v kamp|hotel arrival|arrival at camp|ankunft im hotel|ankunft auf dem camp|short rest|frisch machen|kurze pause|kratek odmor/i.test(name)
   ) {
     return "hotel";
   }
@@ -709,8 +709,9 @@ function patchArrivalActivityClockTimes(
 /** True for code-built logistics rows (boarding-pass clocks allowed in prose). */
 function isCodeLogisticsActivity(a: Activity): boolean {
   if (a.transportType === "flight" || isFlightRangeActivity(a)) return true;
+  if (a.type === "STAY") return true;
   const name = a.name ?? "";
-  return /check-?out|check-?in|airport transfer|prevoz na letališč|prevoz do hotela|transfer to hotel|transfer zum hotel|transfer all'hotel|traslado al hotel|transfert à l'hôtel|prevoz do najema|transfer to rv|flughafentransfer|prihod na letališče|arrive at .+ airport|airport arrival|ankunft am flughafen|arrivo in aeroporto|llegada al aeropuerto|arrivée à l'aéroport|international (return )?flight|mednarodni (povratni )?let|odhod:|departure:|abflug:|partenza:|salida:|security|varnostni|hotel check-out|vrnitev avtodoma|train |vlak |domestic (transfer|flight)|notranji (prevoz|let)|transfert|traslado/i.test(
+  return /check-?out|check-?in|prihod v hotel|prihod v kamp|hotel arrival|arrival at camp|ankunft im hotel|ankunft auf dem camp|airport transfer|prevoz na letališč|prevoz do hotela|transfer to hotel|transfer zum hotel|transfer all'hotel|traslado al hotel|transfert à l'hôtel|prevoz do najema|transfer to rv|flughafentransfer|prihod na letališče|arrive at .+ airport|airport arrival|ankunft am flughafen|arrivo in aeroporto|llegada al aeropuerto|arrivée à l'aéroport|international (return )?flight|mednarodni (povratni )?let|odhod:|departure:|abflug:|partenza:|salida:|security|varnostni|hotel check-out|vrnitev avtodoma|train |vlak |domestic (transfer|flight)|notranji (prevoz|let)|transfert|traslado/i.test(
     name,
   );
 }

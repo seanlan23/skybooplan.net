@@ -456,24 +456,120 @@ export function airportArrivalHint(city: string, locale: TripLocale): string {
 }
 
 export function hotelTransferDescription(city: string, locale: TripLocale): string {
-  const modes = locale.transferLabel;
+  const iata = locale.destinationIata.toUpperCase();
   const price = locale.transferPrice;
-  if (/^(JFK|EWR|LGA)$/.test(locale.destinationIata)) {
+  const hub = HUB_HOTEL_TRANSFER[iata];
+  if (hub) {
     return planLangCopy(locale.langCode, {
-      sl: `Iz ${locale.destinationIata} do hotela v ${city}: AirTrain + metro je najbolj zanesljiv (~€12, 60–90 min). Uber/Lyft/taxi je ${price} in v gneči lahko traja dlje.`,
-      en: `From ${locale.destinationIata} to your hotel in ${city}: AirTrain + subway is the reliable option (~€12, 60–90 min). Uber/Lyft/taxi is about ${price} and can take longer in traffic.`,
-      de: `Von ${locale.destinationIata} zum Hotel in ${city}: AirTrain + U-Bahn ist am zuverlässigsten (~€12, 60–90 Min.). Uber/Lyft/Taxi ca. ${price}, bei Stau oft länger.`,
+      sl: hub.sl(city, iata, price),
+      en: hub.en(city, iata, price),
+      de: hub.de(city, iata, price),
     });
   }
+  const modes = locale.transferLabel;
   return planLangCopy(locale.langCode, {
-    sl: `Iz letališča do hotela v ${city} uporabi ${modes} (orientacijsko ${price}) — v večini mest je na voljo tudi prevozna aplikacija ali uradni taxi. Do centra računaj 20–90 min, odvisno od prometa in razdalje.`,
-    en: `From the airport to your hotel in ${city}, use ${modes} (about ${price}). Allow 20–90 minutes depending on traffic.`,
-    de: `Vom Flughafen zum Hotel in ${city} mit ${modes} (ca. ${price}). Plane 20–90 Minuten je nach Verkehr ein.`,
-    it: `Dall'aeroporto all'hotel a ${city} usa ${modes} (circa ${price}). Conta 20–90 minuti a seconda del traffico.`,
-    es: `Del aeropuerto al hotel en ${city} usa ${modes} (aprox. ${price}). Reserva 20–90 minutos según el tráfico.`,
-    fr: `De l'aéroport à l'hôtel à ${city}, utilisez ${modes} (env. ${price}). Prévoyez 20–90 minutes selon le trafic.`,
+    sl: `Iz ${iata} do hotela v ${city}: ${modes} (okvirno ${price}).`,
+    en: `From ${iata} to your hotel in ${city}: ${modes} (about ${price}).`,
+    de: `Von ${iata} zum Hotel in ${city}: ${modes} (ca. ${price}).`,
+    it: `Da ${iata} all'hotel a ${city}: ${modes} (circa ${price}).`,
+    es: `De ${iata} al hotel en ${city}: ${modes} (aprox. ${price}).`,
+    fr: `De ${iata} à l'hôtel à ${city} : ${modes} (env. ${price}).`,
   });
 }
+
+type HubTransferCopy = {
+  sl: (city: string, iata: string, price: string) => string;
+  en: (city: string, iata: string, price: string) => string;
+  de: (city: string, iata: string, price: string) => string;
+};
+
+const HUB_HOTEL_TRANSFER: Record<string, HubTransferCopy> = {
+  JFK: {
+    sl: (city, iata, price) =>
+      `Iz ${iata} do hotela v ${city}: AirTrain + metro (~€12, 60–90 min). Uber/Lyft je ${price} in v gneči traja dlje.`,
+    en: (city, iata, price) =>
+      `From ${iata} to ${city}: AirTrain + subway (~€12, 60–90 min). Uber/Lyft is about ${price} in traffic.`,
+    de: (city, iata, price) =>
+      `Von ${iata} nach ${city}: AirTrain + U-Bahn (~€12, 60–90 Min.). Uber/Lyft ca. ${price}.`,
+  },
+  EWR: {
+    sl: (city, iata, price) =>
+      `Iz ${iata} do ${city}: AirTrain + NJ Transit/PATH ali Uber (${price}, 45–75 min).`,
+    en: (city, iata, price) =>
+      `From ${iata} to ${city}: AirTrain + NJ Transit/PATH, or Uber (${price}, 45–75 min).`,
+    de: (city, iata, price) =>
+      `Von ${iata} nach ${city}: AirTrain + NJ Transit/PATH oder Uber (${price}, 45–75 Min.).`,
+  },
+  LGA: {
+    sl: (city, iata, price) =>
+      `Iz ${iata} do ${city}: Q70 SBS + metro ali Uber (${price}, 40–70 min). Ni AirTraina.`,
+    en: (city, iata, price) =>
+      `From ${iata} to ${city}: Q70 SBS + subway, or Uber (${price}, 40–70 min). No AirTrain.`,
+    de: (city, iata, price) =>
+      `Von ${iata} nach ${city}: Q70 SBS + U-Bahn oder Uber (${price}, 40–70 Min.).`,
+  },
+  CDG: {
+    sl: (city) => `Iz CDG do ${city}: RER B do centra (~45–60 min) ali Roissybus. Taxi je dražji v gneči.`,
+    en: (city) => `From CDG to ${city}: RER B to the centre (~45–60 min) or Roissybus. Taxi costs more in traffic.`,
+    de: (city) => `Von CDG nach ${city}: RER B ins Zentrum (~45–60 Min.) oder Roissybus.`,
+  },
+  ORY: {
+    sl: (city) => `Iz ORY do ${city}: Orlyval + RER B ali tram T7 + metro (~35–50 min).`,
+    en: (city) => `From ORY to ${city}: Orlyval + RER B, or tram T7 + metro (~35–50 min).`,
+    de: (city) => `Von ORY nach ${city}: Orlyval + RER B oder Tram T7 + Metro (~35–50 Min.).`,
+  },
+  LHR: {
+    sl: (city) => `Iz LHR do ${city}: Elizabeth line (~35–45 min) ali Piccadilly. Heathrow Express je hitrejši in dražji.`,
+    en: (city) => `From LHR to ${city}: Elizabeth line (~35–45 min) or Piccadilly. Heathrow Express is faster and pricier.`,
+    de: (city) => `Von LHR nach ${city}: Elizabeth Line (~35–45 Min.) oder Piccadilly.`,
+  },
+  BKK: {
+    sl: (city, _i, price) =>
+      `Iz BKK do ${city}: Airport Rail Link + BTS (~45–70 min) ali Grab (${price}). Izogibaj se neoznačenim taksijem pred terminalom.`,
+    en: (city, _i, price) =>
+      `From BKK to ${city}: Airport Rail Link + BTS (~45–70 min) or Grab (${price}). Skip unmarked curb taxis.`,
+    de: (city, _i, price) =>
+      `Von BKK nach ${city}: Airport Rail Link + BTS (~45–70 Min.) oder Grab (${price}).`,
+  },
+  NRT: {
+    sl: (city) => `Iz NRT do ${city}: Narita Express ali Keisei Skyliner (~45–60 min). Suica/Pasmo za nadaljevanje z JR/metrojem.`,
+    en: (city) => `From NRT to ${city}: Narita Express or Keisei Skyliner (~45–60 min). Suica/Pasmo for JR/metro after.`,
+    de: (city) => `Von NRT nach ${city}: Narita Express oder Keisei Skyliner (~45–60 Min.).`,
+  },
+  HND: {
+    sl: (city) => `Iz HND do ${city}: Tokyo Monorail ali Keikyu (~20–40 min). Suica/Pasmo na vratih.`,
+    en: (city) => `From HND to ${city}: Tokyo Monorail or Keikyu (~20–40 min). Tap Suica/Pasmo.`,
+    de: (city) => `Von HND nach ${city}: Tokyo Monorail oder Keikyu (~20–40 Min.).`,
+  },
+  FCO: {
+    sl: (city) => `Iz FCO do ${city}: Leonardo Express do Termini (~32 min) ali regionalni vlak. Taxi ima fiksno ceno v center.`,
+    en: (city) => `From FCO to ${city}: Leonardo Express to Termini (~32 min) or a regional train. Taxis use a fixed fare downtown.`,
+    de: (city) => `Von FCO nach ${city}: Leonardo Express nach Termini (~32 Min.) oder Regionalzug.`,
+  },
+  AMS: {
+    sl: (city) => `Iz AMS do ${city}: vlak do Amsterdam Centraal (~15–20 min), OV-chipkaart ali bankovna kartica.`,
+    en: (city) => `From AMS to ${city}: train to Amsterdam Centraal (~15–20 min). OV-chip or contactless.`,
+    de: (city) => `Von AMS nach ${city}: Zug nach Amsterdam Centraal (~15–20 Min.).`,
+  },
+  MUC: {
+    sl: (city) => `Iz MUC do ${city}: S-Bahn S1 ali S8 do Hauptbahnhof (~40 min). MVV vozovnica velja na vlaku.`,
+    en: (city) => `From MUC to ${city}: S-Bahn S1 or S8 to Hauptbahnhof (~40 min). MVV ticket covers the train.`,
+    de: (city) => `Von MUC nach ${city}: S-Bahn S1 oder S8 zum Hauptbahnhof (~40 Min.).`,
+  },
+  SIN: {
+    sl: (city) => `Iz SIN do ${city}: MRT (East-West) ~30–45 min ali taxi. SimplyGo / kartica na vratih.`,
+    en: (city) => `From SIN to ${city}: MRT (East-West) ~30–45 min or a taxi. SimplyGo / contactless at the gates.`,
+    de: (city) => `Von SIN nach ${city}: MRT (East-West) ~30–45 Min. oder Taxi.`,
+  },
+  DXB: {
+    sl: (city, _i, price) =>
+      `Iz DXB do ${city}: Metro Red Line (~45–60 min) ali taxi/Careem (${price}). Terminal 3 ima postajo metra.`,
+    en: (city, _i, price) =>
+      `From DXB to ${city}: Metro Red Line (~45–60 min) or taxi/Careem (${price}). Terminal 3 has a metro station.`,
+    de: (city, _i, price) =>
+      `Von DXB nach ${city}: Metro Red Line (~45–60 Min.) oder Taxi/Careem (${price}).`,
+  },
+};
 
 export function airportTransferDescription(
   city: string,

@@ -38,7 +38,7 @@ export function isPointInTimeActivity(activity: ActivityClockFields): boolean {
   if (/\b(let|flight)\b/.test(blob) && /(→|->|—|–)/.test(name)) return false;
 
   if (activity.type === "STAY") return true;
-  return /prihod na letališč|airport arrival|check-?in|check-?out|osvežit|odhod iz hotela|hotel check-out|varnostni pregled|security screening|prevzem prtljag|collect luggage|orientacija|arrival hall/i.test(
+  return /prihod na letališč|prihod v hotel|prihod v kamp|hotel arrival|arrival at camp|airport arrival|check-?in|check-?out|osvežit|odhod iz hotela|hotel check-out|varnostni pregled|security screening|prevzem prtljag|collect luggage|orientacija|arrival hall/i.test(
     blob,
   );
 }

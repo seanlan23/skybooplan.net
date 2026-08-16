@@ -238,7 +238,7 @@ describe("applyFlightContextToGeminiPlan", () => {
 
     const eveningActs = arrival.activities?.evening ?? [];
     const transfer = eveningActs.find((a) => /prevoz do hotela|transfer to hotel/i.test(a.name));
-    const hotel = eveningActs.find((a) => /check-in|osvežit/i.test(a.name));
+    const hotel = eveningActs.find((a) => /prihod v hotel|check-in|osvežit/i.test(a.name));
     expect(transfer?.arrivalTime).toBe("18:40");
     expect(hotel?.arrivalTime).toBe("19:25");
     expect(transfer?.arrivalTime).not.toBe(prihod?.arrivalTime);
@@ -337,7 +337,7 @@ describe("applyFlightContextToGeminiPlan", () => {
     ];
     const land = acts.find((a) => /airport arrival/i.test(a.name));
     const transfer = acts.find((a) => /transfer to hotel/i.test(a.name));
-    const hotel = acts.find((a) => /check-in/i.test(a.name));
+    const hotel = acts.find((a) => /hotel arrival|check-in/i.test(a.name));
     expect(land?.arrivalTime).toBe("16:50");
     expect(transfer?.arrivalTime).toBe("17:35");
     expect(hotel?.arrivalTime).toBe("18:20");
@@ -523,10 +523,10 @@ describe("applyFlightContextToGeminiPlan", () => {
     const morning = plan.days[0]!.activities?.morning ?? [];
     const names = morning.map((a) => a.name);
     expect(names.some((n) => /Prevoz do hotela/i.test(n))).toBe(true);
-    expect(names.some((n) => /Check-in, osvežitev/i.test(n))).toBe(true);
+    expect(names.some((n) => /Prihod v hotel/i.test(n))).toBe(true);
     const land = morning.find((a) => /^Prihod na letališče$/i.test(a.name));
     const transfer = morning.find((a) => /Prevoz do hotela/i.test(a.name));
-    const hotel = morning.find((a) => /Check-in, osvežitev/i.test(a.name));
+    const hotel = morning.find((a) => /Prihod v hotel/i.test(a.name));
     expect(land?.arrivalTime).toBe("09:40");
     expect(transfer?.arrivalTime).toBe("10:25");
     expect(hotel?.arrivalTime).toBe("11:10");

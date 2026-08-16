@@ -1,6 +1,10 @@
 import type { Activity, AiTripPlan, DayPlan } from "@/lib/aiPlan.functions";
-import { isAiPlaceholderText } from "@/lib/tripContent";
-import { sameDayActivityCoreKey, stripTruncatedCopyFromPlan } from "@/lib/textSanitize";
+import { isAiPlaceholderText, isWrongCityPoi } from "@/lib/tripContent";
+import {
+  sameDayActivityCoreKey,
+  sanitizeLegacyTemplateLeak,
+  stripTruncatedCopyFromPlan,
+} from "@/lib/textSanitize";
 import { repairImplausibleDriveTimes, stripHomeboundPaidStays } from "@/lib/roadTripLogistics";
 
 type DaySlots = NonNullable<DayPlan["activities"]>;
@@ -35,6 +39,19 @@ export function isEnricherPlaceholderActivity(a: {
     /^visita o paseo matutino$/i.test(name) ||
     /^visita o passeggiata mattutina$/i.test(name) ||
     /^pavza v kavarni$/i.test(name) ||
+    /jutranji sprehod\s*\/\s*kava pred ogledom/i.test(name) ||
+    /jutranji sprehod do prve znamenitosti/i.test(name) ||
+    /jutranji sprehod\s*\/\s*lokalni ritm/i.test(name) ||
+    /^jutranji sprehod\b/i.test(name) ||
+    /check-in,?\s*osvežitev(\s+in\s+kratek\s+odmor)?/i.test(name) ||
+    /osvežitev in kratek odmor/i.test(name) ||
+    /če imaš še energijo/i.test(name) ||
+    /if you (?:still )?have (?:the )?energy/i.test(name) ||
+    /^morning walk & coffee$/i.test(name) ||
+    /^morning stroll \/ local pace$/i.test(name) ||
+    /^morning stroll in /i.test(name) ||
+    /^večernji sprehod in lokalna večerja$/i.test(name) ||
+    /^evening stroll & local dinner$/i.test(name) ||
     /^café break$/i.test(name) ||
     /^kaffeepause$/i.test(name) ||
     /^pause café$/i.test(name) ||
@@ -174,18 +191,7 @@ function thinLocalDay(day: DayPlan, lang: string): DayPlan {
     mapPins: [],
     transportation: undefined,
     activities: {
-      morning: [
-        {
-          name: slo ? `Jutranji sprehod po ${city}` : `Morning stroll in ${city}`,
-          type: "ACTIVITY",
-          description: slo
-            ? `Lahek sprehod in kava v ${city} — brez dolgih transferjev.`
-            : `Easy stroll and coffee in ${city} — no long transfers.`,
-          bullets: slo
-            ? [`Sprehod po soseski blizu hotela.`, `Kava v lokalni kavarni.`]
-            : [`Neighborhood walk near the hotel.`, `Coffee at a local café.`],
-        },
-      ],
+      morning: [],
       afternoon: [
         {
           name: slo ? `Lokalni pomembnejši ogled v ${city}` : `Key local sight in ${city}`,
@@ -214,10 +220,91 @@ function thinLocalDay(day: DayPlan, lang: string): DayPlan {
   };
 }
 
+/** Drop Paris sights on Lyon days (and other city-locked landmarks). */
+export function stripWrongCityDayActivities(plan: AiTripPlan): number {
+  let removed = 0;
+  for (const day of plan.days ?? []) {
+    const city = day.city || day.focusName || "";
+    if (day.activities) {
+      for (const slot of SLOTS) {
+        const list = day.activities[slot] ?? [];
+        const next = list.filter((a) => {
+          const drop = isWrongCityPoi(a.name ?? "", a.description ?? "", city);
+          if (drop) removed += 1;
+          return !drop;
+        });
+        day.activities[slot] = next;
+      }
+    }
+    if (day.mapPins?.length) {
+      const nextPins = day.mapPins.filter((p) => {
+        const drop = isWrongCityPoi(p.name ?? "", p.description ?? "", city);
+        if (drop) removed += 1;
+        return !drop;
+      });
+      day.mapPins = nextPins;
+    }
+  }
+  return removed;
+}
+
+/** Strip leftover template sentences from day prose + activity copy. */
+export function scrubForbiddenTemplateCopy(plan: AiTripPlan): number {
+  let fixed = 0;
+  const clean = (raw: string | undefined, assign: (v: string) => void) => {
+    if (typeof raw !== "string" || !raw) return;
+    const next = sanitizeLegacyTemplateLeak(raw);
+    if (next !== raw) {
+      assign(next);
+      fixed += 1;
+    }
+  };
+  for (const day of plan.days ?? []) {
+    clean(day.morning, (v) => {
+      day.morning = v;
+    });
+    clean(day.afternoon, (v) => {
+      day.afternoon = v;
+    });
+    clean(day.evening, (v) => {
+      day.evening = v;
+    });
+    clean(day.travelHack, (v) => {
+      day.travelHack = v;
+    });
+    clean(day.transportationTips, (v) => {
+      day.transportationTips = v;
+    });
+    if (!day.activities) continue;
+    for (const slot of SLOTS) {
+      for (const a of day.activities[slot] ?? []) {
+        clean(a.name, (v) => {
+          a.name = v;
+        });
+        clean(a.description, (v) => {
+          a.description = v;
+        });
+        if (a.bullets) {
+          a.bullets = a.bullets.map((b) => sanitizeLegacyTemplateLeak(b));
+        }
+      }
+    }
+  }
+  return fixed;
+}
+
 /** Drop enricher / prompt placeholder activities from every day. */
 export function stripPlaceholderActivities(plan: AiTripPlan): number {
   let removed = 0;
   for (const day of plan.days ?? []) {
+    if (day.mapPins?.length) {
+      const nextPins = day.mapPins.filter((p) => {
+        const drop = isEnricherPlaceholderActivity(p);
+        if (drop) removed += 1;
+        return !drop;
+      });
+      day.mapPins = nextPins;
+    }
     if (!day.activities) continue;
     for (const slot of SLOTS) {
       const list = day.activities[slot] ?? [];
@@ -632,8 +719,12 @@ export function applyItineraryGuards(
   durationAlign: number;
   driveTimes: number;
   homeStays: number;
+  wrongCity: number;
+  templateScrub: number;
 } {
   const placeholders = stripPlaceholderActivities(plan);
+  const wrongCity = stripWrongCityDayActivities(plan);
+  const templateScrub = scrubForbiddenTemplateCopy(plan);
   const genericMeals = stripGenericMealActivities(plan);
   const meals = dedupeSameDayMeals(plan);
   const arrivals = stripPhantomArrivals(plan, opts?.arrivalDay ?? 1);
@@ -662,5 +753,7 @@ export function applyItineraryGuards(
     durationAlign,
     driveTimes,
     homeStays,
+    wrongCity,
+    templateScrub,
   };
 }

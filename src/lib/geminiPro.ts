@@ -500,7 +500,7 @@ ${flightReturnLine}
 - Za vsako fazo (itinerar[]) generiraj pois[] — ${poisPerPhase} z name, description, lat, lng, unsplashQuery, tripAdvisorStyleDetails (highlights, proTip, bestTimeOfDay, rating, reviewSummary). Samo POI te baze.
 - UNSPLASH ISKANJE SLIK (obvezno): Za vsako fazo (itinerar[]) izpolni unsplashQuery z čistim angleškim izrazom za mesto (npr. "Dubai", ne "Dubaj"). Za vsak POI (pois[]) in vsako aktivnost z ogledom izpolni unsplashQuery z uradnim angleškim imenom znamenitosti (npr. "Burj Khalifa", ne "Burj Kalifa"). Brez slovenskih črk — samo angleščina, kot jo uporablja Unsplash/Google.
 - Vsaka aktivnost z ogledom mora imeti tripAdvisorStyleDetails (razen hotel/airport).
-- Na polnih dneh: smiselno število aktivnosti glede na tempo (miren ≈ 1–2, sproščen ≈ 2, intenziven ≈ 3–4). Na dan prihoda/odhoda/transferja je manj OK — ne izmišljuj fillerja.
+- Na polnih dneh: smiselno število aktivnosti glede na tempo (miren ≈ 1–2, sproščen ≈ 2, intenziven ≈ 3–4). Dan prihoda = lahek program šele po namestitvi. Raje prazen slot kot "jutranji sprehod" / "če imaš energijo".
 
 Opisi aktivnosti: ${motorhome || roadTrip ? "1–2 kratki točki" : "2–4 kratke točke"} v bullets[] (ali "- " vrstice) — nikoli en neformatiran odstavek. Vsaka aktivnost mora imeti estimatedCostEur (realna cifra v ${displayCurrency}). day_name zapisuj s polnimi imeni mesecev (npr. "Sobota, 14. avgust"). season_warning naj bo geografsko natančen za ${params.destination}.
 
@@ -683,6 +683,9 @@ OPISI (STROGI JSON — jasno, ne naporno):
   • Zajtrk skoraj nikoli ne načrtuj kot ločeno aktivnost (razen če je destinacijska ikona, npr. znan café).
   • Vsaka food aktivnost = konkretno ime lokala v title (npr. "Večerja: Ichiran", "Dinner: Afuri", "Abendessen: Kyubey") + 1 priporočilo + po želji 1 alternativa.
   • PREPOVEDANO (vse destinacije): "Lokalna večerja", "Mittagessen in Asakusa", "Abendessen in Kyoto", "Lunch in Harajuku", "Dinner near the hotel", "Kosilo v centru", "Café break" / "Pavza v kavarni" kot filler.
+  • PREPOVEDANO (vse destinacije): "Jutranji sprehod / kava pred ogledom", "Jutranji sprehod do prve znamenitosti", "Check-in, osvežitev in kratek odmor", "če imaš še energijo", "brez hitenja takoj z letališča", "Večernji sprehod in lokalna večerja", "Morning walk & coffee", "if you still have energy".
+  • MESTO = SAMO TO MESTO: Louvre / Eifflov stolp / Orsay samo na pariških dneh. Lyon = Fourvière, traboule, Vieux Lyon — nikoli Louvre v Lyonu.
+  • TEMPO: dan prihoda = samo po hotelu, lahek (brez težkih muzejev). Poln dan = 1 sidro + 1–2 točki. Raje prazen slot kot template.
   • PREPOVEDANO: odrezani stavki z "…" / "höchstens…" in scaffolder "Hauptbesichtigung am Vormittag" / "Glavni dopoldanski ogled".
 - Vsaka aktivnost mora imeti estimatedCostEur z realno cifro v ${displayCurrency} (vstopnine, hrana, gorivo — ne 0, razen res brezplačnih). Polje se imenuje estimatedCostEur, vrednost pa je v ${displayCurrency}.
 - dailyBudget na vsakem dnevu mora biti realna vsota dnevnih stroškov NA OSEBO v ${displayCurrency} — nikoli 0. Skupinske postavke (gorivo, kamp) deli s številom potnikov. Prilagodi rang državi (npr. večerja na Šrilanki ≈ 5–15 ${displayCurrency === "USD" ? "$" : "€"}, ne 40; EU avtodom tipično 45–90 €/osebo/dan).

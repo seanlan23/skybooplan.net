@@ -40,11 +40,12 @@ Rules:
 - regions MUST span coverage.firstDay through coverage.lastDay (equals totalDays), no gaps
 - The last region's endDay MUST equal totalDays from the user message — never stop early
 - For totalDays >= 10: use 3–5 regions, each 2–5 days; follow regionBlueprint if provided, else plan a logical multi-city route for that country
-- MANDATORY: every calendar day needs 2–4 unique named POI highlights — NEVER leave a day empty, generic, or title-only
-- Plan REALISTIC daily density — vary count by visit time (see scheduling in user JSON)
-- Light days: 3 named highlights (morning + afternoon + evening); heavy days: 1 anchor + 2 lighter stops
+- Day 1 (arrival): ONLY after airport transfer + hotel — light programme, never a heavy museum/park the same day. Prefer an empty morning/afternoon slot over a filler
+- Full days: 1 named anchor + 1–2 supporting stops. Prefer an empty slot over a template activity
+- NEVER invent “morning walk / coffee before the sight”, “check-in refresh”, “if you still have energy”, or “without rushing from the airport” — these are forbidden worldwide
 - Major sights (museums, national parks) often fill half-day or full-day — do not pack 4 big sights same day
-- NYC / US cities: ONE museum-scale indoor per day (MoMA or The Met or 9/11 Museum or AMNH — never two). Statue of Liberty + Ellis Island is a half-day (security like an airport) — do not add Wall Street AND Brooklyn Bridge sunset after both islands. One World + 9/11 Memorial are adjacent (OK together) — do NOT also add High Line the same day. Arrival evening after a transatlantic flight = light neighbourhood dinner/stroll only — NEVER a “morning walk / coffee before the sight”. Last day to JFK/EWR: leave Midtown 4.5–5h before an international flight (AirTrain + subway 60–90 min). Pay metro with OMNY / contactless — never Oyster Card (London). Do not repeat St. Patrick’s Cathedral on two days.
+- City transport must be local, never a universal paragraph. Examples: NYC = subway + AirTrain + OMNY (never Oyster); Bangkok = BTS/MRT + Grab; Paris = Metro + RER; Tokyo = Suica/Pasmo + JR; London = contactless/Oyster; Rome = Metro + bus; Amsterdam = GVB/OV-chip; Munich = MVV/S-Bahn; Singapore = MRT; Dubai = Metro + Careem/taxi. If the city is not listed, name THAT city’s real mode — never “use the app or a taxi, 20–90 min”
+- Example (NYC, not a special-case-only rule): ONE museum-scale indoor per day; Statue + Ellis = half day; arrival evening = neighbourhood dinner only; leave Midtown 4.5–5h before JFK/EWR. Apply the same honesty (pace, local transit, no copy-paste) to every destination
 - visitDuration on each highlight (2h, pol dneva, cel dan)
 - description = 2–3 full sentences (120–280 chars): what to see/do, why it matters, one practical tip — unique text per highlight
 - travelTips on each region = unique per region (never copy same tip to every region/day)
@@ -57,6 +58,7 @@ Rules:
 - Last-day highlights: respect flightScheduling.lastDay — early/afternoon flight = no sights; evening flight = max 1 light morning sight, NO afternoon/evening sights
 - Use real sight names — Mapbox geocodes these for the map
 - Linear routing: no mid-trip city revisit; final region may return to hub for flight home only
+- City lock: highlights MUST match that region’s city. Louvre/Eiffel/Orsay only in Paris; Lyon = Fourvière/traboules/Vieux Lyon — never Louvre in Lyon
 - NEVER repeat the same sight/POI name on two different days (Griffith Observatory once; not again as "Griffith Park Observatory")
 - If metroClustering in user JSON: each day MUST stay within maxKmSameDay — cluster by zone (Hollywood one day, Santa Monica another; never cross LA in one day)
 - Tanzania safari: Arusha → Serengeti → Zanzibar linear; Ngorongoro Crater = FULL DAY transit (never same morning as Maasai boma inside Serengeti); safari game drives ≥200 €/person/day ONLY on premium / explicit safari lodge trips; balloon safari ~500 € (premium only)
@@ -135,21 +137,23 @@ ${DISTANCE_TRANSPORT_RULES}
 
 Rules:
 - Output exactly (generateDays.end - generateDays.start + 1) day objects
-- MANDATORY: every day has 2–4 unique activities across morning/afternoon/evening — no blank slots
-- Inter-city travel days: transport in morning + real afternoon/evening sights in the destination city
+- Prefer an empty morning/afternoon/evening slot over a template. Full day = 1 anchor + 1–2 stops; arrival day = light only after check-in
+- FORBIDDEN activity names/copy worldwide: “Jutranji sprehod”, “kava pred ogledom”, “Check-in, osvežitev”, “brez hitenja”, “če imaš še energijo” (and EN/DE equivalents)
+- Inter-city travel days: transport in morning + real afternoon/evening sights in the destination city — or leave evening empty
 - Each activity: name + priceLabel + 2–3 sentence description (unique, practical) — timing in text must match the slot (no sunset label in morning)
 - MANDATORY travelHack per day: unique, location-specific insider tip — NEVER repeat the same hack on two days
-- MANDATORY transportationTips per day: how to get around that city (apps like Grab/Bolt/InDrive where relevant, metro passes, A→B between activities, ferry/speedboat schedules for islands)
-- Do NOT repeat the identical Grab/tuk-tuk/"če imaš še energijo" sentence across days — one concrete local mode per day
+- transportationTips ONLY if concrete for THAT city THAT day (named mode, pass, or A→B). Omit the field rather than a universal “use transit / taxi” paragraph
+- Do NOT repeat the identical Grab/tuk-tuk/"če imaš še energijo" sentence across days
 - Day numbers must be contiguous with no gaps (never skip day 5 after day 4)
 - Do NOT invent HH:MM for international arrival/departure logistics (checkout, airport transfer, return flight) — the app injects boarding-pass clocks. Optional sightseeing may omit clocks; long “(+1 dan od odhoda…)” at most once in a day title
 - MANDATORY transportation[] on inter-city travel days: array of legs with type, from, to, duration, estimatedPrice — UI transport cards require this
 - MANDATORY transport_type + duration on every movement activity (airport/flight/ferry/train/van) — UI activity badges require both fields
 - For Thailand days: rotate tuk-tuk warnings (agree price upfront, temple-closed scams), BTS/Rabbit Card in Bangkok, ferry cancellations in monsoon
-- Activity descriptions MUST include how to reach the next stop (walk/taxi/train/ferry) with rough time and cost
+- Activity descriptions MAY mention how to reach the next stop when it is specific (walk 8 min / BTS one stop). Do NOT append a generic transfer sentence to every activity
 - Dates must match dateRange; day numbers must match generateDays
 - focusName = real POI name (Mapbox geocodes this for the map pin)
 - Linear routing: finish each region before moving on; no mid-trip city revisit
+- City lock: a day’s sights MUST belong to that day’s city. Louvre / Eiffel / Orsay / Montmartre ONLY on Paris days. Lyon days = Fourvière, traboules, Vieux Lyon, Tête d’Or — NEVER Louvre in Lyon
 - Final 1-2 days may return to departure hub for outbound flight only
 - If writingRule in user JSON: follow strictly
 - All text in languageCode from user message — never mix languages or provide dual translations

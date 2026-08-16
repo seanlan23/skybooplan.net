@@ -56,6 +56,8 @@ const EN_TO_DE: Pair[] = [
   [/^International flight$/i, "Internationaler Flug"],
   [/^Still en route\b/i, "Noch unterwegs"],
   [/^Check-in, refresh, and short rest$/i, "Check-in, frisch machen und kurze Pause"],
+  [/^Hotel arrival$/i, "Ankunft im Hotel"],
+  [/^Arrival at camp$/i, "Ankunft auf dem Camp"],
   [/^Transfer to hotel\b(.*)$/i, "Transfer zum Hotel$1"],
   [/^Your flight lands at\b/i, "Dein Flug landet um"],
   [/^Clear immigration, collect luggage\b/i, "Einreise, Gepäck holen"],

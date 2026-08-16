@@ -215,34 +215,8 @@ export function buildArrivalEveningCulture(city: string, locale: TripLocale): Ac
     ];
   }
 
-  const transfer =
-    locale.country === "CA" || locale.country === "US"
-      ? slo
-        ? "peš ali z Uberjem"
-        : "on foot or via Uber"
-      : locale.country === "TH" ||
-          locale.country === "VN" ||
-          locale.country === "PH" ||
-          locale.country === "ID" ||
-          locale.country === "MY" ||
-          locale.country === "SG"
-        ? slo
-          ? "peš ali z Grabom"
-          : "on foot or via Grab"
-        : slo
-          ? "peš ali z lokalnim prevozom"
-          : "on foot or local transit";
-
-  return [
-    {
-      name: slo ? "Večernji sprehod in lokalna večerja" : "Evening stroll & local dinner",
-      type: "EAT",
-      priceLabel: locale.mealPrice,
-      description: slo
-        ? `Po počitku razišči okolico namestitve ${transfer} — prva večerja v lokalni restavraciji. Opazuj ritem mesta brez hitenja.`
-        : `After rest, explore near your stay ${transfer} and have your first local dinner.`,
-    },
-  ];
+  // No city-specific evening — leave empty rather than a worldwide stroll template.
+  return [];
 }
 
 /** Light camp evening — no restaurant meal (motorhome default). */
@@ -1143,139 +1117,9 @@ const CITY_DAY_POOLS: Record<string, PoolEntry[]> = {
   ],
   vietnam: VIETNAM_POOL,
   hoi_an: HOI_AN_POOL,
-  europe: [
-    {
-      slot: "morning",
-      activity: (locale) => ({
-        name: loc(locale, {
-          sl: "Jutranji sprehod do prve znamenitosti",
-          en: "Morning walk to first sight",
-          it: "Passeggiata mattutina verso la prima tappa",
-          es: "Paseo matutino hasta la primera visita",
-          fr: "Promenade matinale vers le premier site",
-          de: "Morgenspaziergang zur ersten Sehenswürdigkeit",
-        }),
-        type: "ACTIVITY",
-        priceLabel: loc(locale, {
-          sl: "brezplačno",
-          en: "free",
-          it: "gratuito",
-          es: "gratis",
-          fr: "gratuit",
-          de: "kostenlos",
-        }),
-        description: loc(locale, {
-          sl: "Peš ali z javnim prevozom do prve točke dneva — mesto je zjutraj mirnejše in bolj fotogenično.",
-          en: "Walk or take transit to your first stop — cities are calmer and photogenic in the morning.",
-          it: "A piedi o con i mezzi pubblici fino alla prima tappa — la città è più tranquilla e fotogenica al mattino.",
-          es: "A pie o en transporte público hasta la primera parada — la ciudad es más tranquila y fotogénica por la mañana.",
-          fr: "À pied ou en transports en commun jusqu'à la première étape — la ville est plus calme et photogénique le matin.",
-          de: "Zu Fuß oder mit öffentlichen Verkehrsmitteln zur ersten Station — Städte sind morgens ruhiger und fotogener.",
-        }),
-      }),
-    },
-    {
-      slot: "afternoon",
-      activity: (locale) => ({
-        name: loc(locale, {
-          sl: "Pavza na trgu / v parku",
-          en: "Square or park break",
-          it: "Pausa in piazza o al parco",
-          es: "Pausa en la plaza o el parque",
-          fr: "Pause sur la place ou au parc",
-          de: "Pause auf dem Platz oder im Park",
-        }),
-        type: "ACTIVITY",
-        priceLabel: loc(locale, {
-          sl: "brezplačno",
-          en: "free",
-          it: "gratuito",
-          es: "gratis",
-          fr: "gratuit",
-          de: "kostenlos",
-        }),
-        description: loc(locale, {
-          sl: "Popoldanski odmor na glavnem trgu ali v mestnem parku — people-watching in počasnejši ritem.",
-          en: "Afternoon pause on a main square or in a city park.",
-          it: "Pausa pomeridiana sulla piazza principale o in un parco cittadino — osservare la gente a ritmo lento.",
-          es: "Descanso vespertino en la plaza principal o en un parque urbano — observar a la gente a ritmo pausado.",
-          fr: "Pause l'après-midi sur la place principale ou dans un parc urbain — observer la vie à rythme lent.",
-          de: "Nachmittagspause auf dem Hauptplatz oder im Stadtpark — Menschen beobachten in gemütlichem Tempo.",
-        }),
-      }),
-    },
-    {
-      slot: "evening",
-      activity: (locale) => ({
-        name: loc(locale, {
-          sl: "Aperitivo / lokalna večerja",
-          en: "Aperitivo / local dinner",
-          it: "Aperitivo / cena locale",
-          es: "Aperitivo / cena local",
-          fr: "Apéritif / dîner local",
-          de: "Aperitivo / lokales Abendessen",
-        }),
-        type: "EAT",
-        priceLabel: locale.mealPrice,
-        description: loc(locale, {
-          sl: "Večerja v bistru ali trattorii, kamor hodijo domačini — rezervacija pri priljubljenih krajih.",
-          en: "Dinner at a bistro or trattoria where locals eat.",
-          it: "Cena in un bistro o trattoria frequentati dai locali — prenotazione consigliata nei posti popolari.",
-          es: "Cena en un bistró o trattoria donde comen los locales — reserva recomendada en los sitios populares.",
-          fr: "Dîner dans un bistro ou une trattoria fréquentés par les locaux — réservation conseillée aux adresses populaires.",
-          de: "Abendessen in einem Bistro oder einer Trattoria, wo Einheimische essen — Reservierung bei beliebten Orten empfohlen.",
-        }),
-      }),
-    },
-  ],
-  americas: [
-    {
-      slot: "morning",
-      activity: (locale) => ({
-        name: loc(locale, {
-          sl: "Jutranji sprehod / kava pred ogledom",
-          en: "Morning walk & coffee",
-          it: "Passeggiata mattutina e caffè",
-          es: "Paseo matutino y café",
-          fr: "Promenade matinale et café",
-          de: "Morgenspaziergang und Kaffee",
-        }),
-        type: "ACTIVITY",
-        priceLabel: locale.mealPrice,
-        description: loc(locale, {
-          sl: "Kratek sprehod po okolici hotela in kava na poti — orientacija pred glavnim ogledom dopoldan.",
-          en: "Short neighbourhood walk and coffee on the way to your main morning sight.",
-          it: "Breve passeggiata nel quartiere e caffè per strada — orientamento prima della visita principale del mattino.",
-          es: "Breve paseo por el barrio y café de camino — orientación antes de la visita principal de la mañana.",
-          fr: "Courte promenade dans le quartier et café en chemin — repérage avant la visite principale du matin.",
-          de: "Kurzer Spaziergang in der Umgebung und Kaffee unterwegs — Orientierung vor der Hauptbesichtigung am Vormittag.",
-        }),
-      }),
-    },
-    {
-      slot: "evening",
-      activity: (locale) => ({
-        name: loc(locale, {
-          sl: "Večerja v soseski",
-          en: "Neighbourhood dinner",
-          it: "Cena di quartiere",
-          es: "Cena de barrio",
-          fr: "Dîner de quartier",
-          de: "Abendessen im Viertel",
-        }),
-        type: "EAT",
-        priceLabel: locale.mealPrice,
-        description: loc(locale, {
-          sl: "Večerja izven glavnih turističnih ulic — boljše cene in vzdušje.",
-          en: "Dinner off the main tourist strips.",
-          it: "Cena lontano dalle strade turistiche principali — prezzi migliori e atmosfera più autentica.",
-          es: "Cena fuera de las calles turísticas principales — mejores precios y ambiente.",
-          fr: "Dîner loin des rues touristiques principales — meilleurs prix et ambiance.",
-          de: "Abendessen abseits der Haupttouristenstraßen — bessere Preise und Atmosphäre.",
-        }),
-      }),
-    },
-  ],
+  // Continent-wide templates made every city sound the same — leave empty.
+  europe: [],
+  americas: [],
   safari: [
     {
       slot: "afternoon",
@@ -1623,84 +1467,8 @@ const CITY_DAY_POOLS: Record<string, PoolEntry[]> = {
       dayIdx: 7,
     },
   ],
-  generic: [
-    {
-      slot: "morning",
-      activity: (locale) => ({
-        name: loc(locale, {
-          sl: "Jutranji ogled / sprehod",
-          en: "Morning sight or stroll",
-          it: "Visita o passeggiata mattutina",
-          es: "Visita o paseo matutino",
-          fr: "Visite ou promenade matinale",
-          de: "Morgendliche Besichtigung oder Spaziergang",
-        }),
-        type: "ACTIVITY",
-        priceLabel: loc(locale, {
-          sl: "brezplačno",
-          en: "free",
-          it: "gratuito",
-          es: "gratis",
-          fr: "gratuit",
-          de: "kostenlos",
-        }),
-        description: loc(locale, {
-          sl: "Glavni dopoldanski ogled — mesto ali znamenitost, ki jo je najbolje obiskati zjutraj.",
-          en: "Main morning sight — visit while it's still quiet.",
-          it: "Principale visita del mattino — luogo o attrazione da vedere al mattino presto.",
-          es: "Visita principal de la mañana — lugar o atracción mejor visitados temprano.",
-          fr: "Visite principale du matin — lieu ou site à voir tôt le matin.",
-          de: "Hauptbesichtigung am Vormittag — Ort oder Sehenswürdigkeit am besten früh morgens besuchen.",
-        }),
-      }),
-    },
-    {
-      slot: "afternoon",
-      activity: (locale) => ({
-        name: loc(locale, {
-          sl: "Pavza v kavarni",
-          en: "Café break",
-          it: "Pausa caffè",
-          es: "Pausa en cafetería",
-          fr: "Pause café",
-          de: "Kaffeepause",
-        }),
-        type: "EAT",
-        priceLabel: locale.mealPrice,
-        description: loc(locale, {
-          sl: "Kratka popoldanska pavza — kava, načrt za večer.",
-          en: "Short afternoon café break.",
-          it: "Breve pausa pomeridiana al caffè.",
-          es: "Breve pausa vespertina en cafetería.",
-          fr: "Courte pause café l'après-midi.",
-          de: "Kurze Nachmittags-Kaffeepause.",
-        }),
-      }),
-    },
-    {
-      slot: "evening",
-      activity: (locale) => ({
-        name: loc(locale, {
-          sl: "Lokalna večerja",
-          en: "Local dinner",
-          it: "Cena locale",
-          es: "Cena local",
-          fr: "Dîner local",
-          de: "Lokales Abendessen",
-        }),
-        type: "EAT",
-        priceLabel: locale.mealPrice,
-        description: loc(locale, {
-          sl: "Večerja v restavraciji, kamor hodijo domačini.",
-          en: "Dinner where locals eat.",
-          it: "Cena in un ristorante frequentato dai locali.",
-          es: "Cena en un restaurante donde comen los locales.",
-          fr: "Dîner dans un restaurant fréquenté par les locaux.",
-          de: "Abendessen in einem Restaurant, wo Einheimische essen.",
-        }),
-      }),
-    },
-  ],
+  // No worldwide pad — empty days stay empty unless a named city pool exists.
+  generic: [],
 };
 
 const EUROPE = new Set(["IT", "FR", "DE", "ES", "PT", "AT", "CH", "SI", "GR", "GB"]);
@@ -2387,7 +2155,7 @@ export function enrichDayActivities(
   const intensive = opts?.paceLabel === "intensive";
   const poolCtx: PoolContext = { phiPhiDone: opts?.phiPhiExcursionDone, intensive };
   const poolKeyName = poolKey(city, locale.country, opts?.destinationIata);
-  const pool = CITY_DAY_POOLS[poolKeyName] ?? CITY_DAY_POOLS.generic;
+  const pool = CITY_DAY_POOLS[poolKeyName] ?? [];
   const plannedSights = opts?.plannedSights ?? 0;
   const hasMainSight = result.morning.some((a) => a.type === "SIGHT") ||
     result.afternoon.some((a) => a.type === "SIGHT" || /universal|studios/i.test(a.name));
@@ -2462,6 +2230,7 @@ export function enrichDayActivities(
   // Generic pool ("Glavni dopoldanski ogled…") is last-resort only — never pad over real sights.
   const skipGenericPoolPad =
     skipGenericVietnamPad ||
+    pool.length === 0 ||
     (poolKeyName === "generic" && (plannedSights >= 1 || hasMainSight || countActivities(result) >= 3));
   const minTotal = skipGenericPoolPad
     ? countActivities(result)
@@ -2471,9 +2240,9 @@ export function enrichDayActivities(
         : 5
       : plannedSights >= 2 || hasMainSight
         ? 3
-        : opts?.isTripDay1
-          ? 5
-          : 4;
+        : opts?.isTripDay1 || opts?.isArrivalDay
+          ? 2
+          : 3;
   const hasMorningSight = slotHasRealSight(result.morning);
   const hasFullDayExcursion = [...result.morning, ...result.afternoon, ...result.evening].some(
     (a) => isFullDayExcursion({ name: a.name, description: a.description ?? "" }),
@@ -2493,7 +2262,7 @@ export function enrichDayActivities(
     }
   }
 
-  for (let pass = 0; pass < 3 && !skipGenericPoolPad && countActivities(result) < minTotal; pass++) {
+  for (let pass = 0; pass < 3 && !skipGenericPoolPad && pool.length > 0 && countActivities(result) < minTotal; pass++) {
     for (const entry of pool) {
       if (result[entry.slot].length === 0) {
         if (entry.slot === "morning" && hasMorningSight) continue;
