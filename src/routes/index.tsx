@@ -66,6 +66,7 @@ import { normalizePlanCurrency } from "@/lib/planCurrency";
 import { applyFlightContextToGeminiPlan } from "@/lib/geminiFlightContext";
 import { flightContextFromLegs } from "@/lib/flightScheduling";
 import { buildTripCostSummary, heroFlightPartyTotalEur } from "@/lib/tripCostSummary";
+import { overnightPlaceHint } from "@/lib/overnightEstimate";
 import { countHomeboundUnpaidNights } from "@/lib/roadTripLogistics";
 import { resolveDayBudgetCountry } from "@/lib/countryDailyBudget";
 import { computeTripTotalBudgetEur } from "@/lib/tripBudget";
@@ -1414,6 +1415,13 @@ function Landing() {
             destinationName: planForPdf.destinationName,
             destinationIata: planForPdf.destinationIata ?? aiContext?.to,
           }),
+          place: overnightPlaceHint({
+            destinationName: planForPdf.destinationName,
+            destinationPlace: planForPdf.destinationPlace,
+            destinationIata: planForPdf.destinationIata ?? aiContext?.to,
+            dayCities: planForPdf.days.map((d) => d.city),
+          }),
+          iata: planForPdf.destinationIata ?? aiContext?.to,
           mode: motorhomePdf
             ? "motorhome"
             : planForPdf.groundTransportMode === "car"

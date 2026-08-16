@@ -447,6 +447,38 @@ export const ARRIVAL_TRANSFER_OFFSET_MIN = 45;
 /** Minutes after wheels-down when hotel/RV check-in starts. */
 export const ARRIVAL_HOTEL_OFFSET_MIN = 90;
 
+/** Hotel → airport travel time for sprawling long-haul hubs (AirTrain/subway). */
+export function departureTransferLeadMin(iata?: string): number {
+  const code = (iata ?? "").trim().toUpperCase();
+  if (
+    /^(JFK|EWR|LGA|LAX|SFO|ORD|MIA|LHR|LGW|STN|CDG|ORY|NRT|HND|SIN|DXB|ICN)$/.test(
+      code,
+    )
+  ) {
+    return 90;
+  }
+  return 30;
+}
+
+/** Minutes before depart: checkout, leave hotel, be at terminal. */
+export function departureLogisticsOffsetsMin(iata?: string): {
+  checkoutMin: number;
+  transferMin: number;
+  airportMin: number;
+  leaveHours: number;
+} {
+  const transferLead = departureTransferLeadMin(iata);
+  const airportMin = 3 * 60;
+  const transferMin = airportMin + transferLead;
+  const checkoutMin = transferMin + 30;
+  return {
+    checkoutMin,
+    transferMin,
+    airportMin,
+    leaveHours: transferMin / 60,
+  };
+}
+
 /** Day 1: airport → transfer → check-in — then sights if time allows. */
 export function buildArrivalLogistics(
   city: string,
@@ -570,8 +602,8 @@ export function buildDepartureLogistics(
   const motorhome = opts?.accommodationMode === "motorhome";
   const dep = flights.inboundDepart ?? "12:00";
   const depMin = parseHm(dep);
-  const leaveHours =
-    depMin <= 9 * 60 ? 2.5 : depMin <= 13 * 60 ? 3 : depMin <= 17 * 60 ? 2.5 : 2;
+  const offsets = departureLogisticsOffsetsMin(locale.destinationIata);
+  const leaveHours = offsets.leaveHours;
 
   const leaveHint =
     depMin <= 9 * 60
@@ -726,9 +758,9 @@ export function buildDepartureLogistics(
     return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
   };
   // Strict increasing sequence before depart (same as patchAirportActivityTimes).
-  const checkoutAt = fmt(4 * 60);
-  const transferAt = fmt(3.5 * 60);
-  const airportAt = fmt(3 * 60);
+  const checkoutAt = fmt(offsets.checkoutMin);
+  const transferAt = fmt(offsets.transferMin);
+  const airportAt = fmt(offsets.airportMin);
 
   return [
     {

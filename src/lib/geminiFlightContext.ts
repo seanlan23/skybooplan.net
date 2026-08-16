@@ -25,6 +25,7 @@ import {
   isRedEyeArrival,
   isTightDeparture,
   isEveningDeparture,
+  departureLogisticsOffsetsMin,
   type LogisticsActivity,
   type TripFlightContext,
 } from "@/lib/flightScheduling";
@@ -70,12 +71,21 @@ function isHeavyArrivalSight(a: Activity): boolean {
   );
 }
 
+/** Morning-only pad — never dump this into arrival evening (NYC 16:40 “kava pred ogledom”). */
+export function isMorningOnlyFiller(a: { name?: string; description?: string }): boolean {
+  const t = `${a.name ?? ""} ${a.description ?? ""}`.toLowerCase();
+  return /jutranji sprehod|kava pred ogledom|morning walk|morning stroll|coffee before|pred glavnim ogledom dopoldan|orientation before (the )?main morning/i.test(
+    t,
+  );
+}
+
 /** Beach breakfast / siesta / pool — nonsense before the plane has landed. */
 function isPreLandingDestinationFiller(a: Activity): boolean {
   const t = `${a.name} ${a.description ?? ""} ${a.type ?? ""}`.toLowerCase();
   if (/letališč|airport|transfer|check-?in|odhod|mednarodn|\blet\b|flight/i.test(t)) {
     return false;
   }
+  if (isMorningOnlyFiller(a)) return true;
   return /zajtrk|breakfast|siesta|tropska\s*pavza|bazen|\bpool\b|beach\s*caf|promenad|plaž|senčnik|brunch/i.test(
     t,
   );
@@ -262,7 +272,12 @@ function mergeArrivalDay(
 ): DayPlan["activities"] {
   const logisticsActs = logistics.map(logisticsToActivity);
   const sights = flattenDayActivities(day)
-    .filter((a) => !isHeavyArrivalSight(a) && !isPreLandingDestinationFiller(a))
+    .filter(
+      (a) =>
+        !isHeavyArrivalSight(a) &&
+        !isPreLandingDestinationFiller(a) &&
+        !isMorningOnlyFiller(a),
+    )
     // Drop Gemini airport/transfer dupes — logistics rows already cover them.
     .filter(
       (a) =>
@@ -368,11 +383,13 @@ function patchAirportActivityTimes(
   activities: NonNullable<DayPlan["activities"]>,
   depart: string,
   arrive?: string,
+  destIata?: string,
 ): NonNullable<DayPlan["activities"]> {
   const depMin = parseHmSafe(depart);
-  const checkoutAt = hmFromMinutes(depMin - 4 * 60);
-  const transferAt = hmFromMinutes(depMin - 3.5 * 60);
-  const airportAt = hmFromMinutes(depMin - 3 * 60);
+  const offsets = departureLogisticsOffsetsMin(destIata);
+  const checkoutAt = hmFromMinutes(depMin - offsets.checkoutMin);
+  const transferAt = hmFromMinutes(depMin - offsets.transferMin);
+  const airportAt = hmFromMinutes(depMin - offsets.airportMin);
   const depNorm = normalizeHmToken(depart);
   const arrNorm = arrive ? normalizeHmToken(arrive) : "";
 
@@ -1159,6 +1176,7 @@ export function applyFlightContextToGeminiPlan(
           merged,
           flights.inboundDepart,
           flights.inboundArrive,
+          plan.destinationIata,
         ),
         [
           flights.outboundDepart,

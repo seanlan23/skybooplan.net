@@ -97,7 +97,7 @@ export function fixSlotTimeMismatch(
 
 /** Strip leaked template phrases from other trip types (Spain motorhome, etc.). */
 export function sanitizeLegacyTemplateLeak(text: string): string {
-  return text
+  return sanitizeTransitCardLeak(text)
     .replace(/\s*\(Barcelona\s*\/\s*Madrid\)/gi, "")
     .replace(/\s*\(barcelona\s*\/\s*madrid\)/gi, "")
     .replace(/\bBarcelona\s*\/\s*Madrid\b/gi, "")
@@ -114,6 +114,22 @@ export function sanitizeLegacyTemplateLeak(text: string): string {
       "Uber or transit back",
     )
     .replace(/\bno\s+Uber\s+in\s+(Toronto|Vancouver|Montreal|Ottawa|Calgary|Banff)\b/gi, "Uber works here")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+/** London transit cards leaked onto NYC (and other non-UK) days. */
+export function sanitizeTransitCardLeak(text: string): string {
+  if (!text) return text;
+  const nyc =
+    /new york|\bnyc\b|manhattan|brooklyn|harlem|times square|\bjfk\b|\bewr\b|\blga\b/i.test(
+      text,
+    );
+  if (!nyc) return text;
+  return text
+    .replace(/\bOyster Cards?\b/gi, "OMNY / contactless")
+    .replace(/\bTravelcards?\b/gi, "OMNY")
+    .replace(/\bOyster\b/gi, "OMNY")
     .replace(/\s{2,}/g, " ")
     .trim();
 }

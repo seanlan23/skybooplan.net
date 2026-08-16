@@ -168,7 +168,10 @@ const TRANSPORT_BY_COUNTRY: Record<
   },
   US: {
     label: { sl: "Uber / Lyft / taxi", en: "Uber / Lyft / taxi" },
-    modes: { sl: "Uber, Lyft, taxi, javni prevoz", en: "Uber, Lyft, taxi, public transit" },
+    modes: {
+      sl: "metro (OMNY), Uber, Lyft, taxi, AirTrain (JFK)",
+      en: "subway (OMNY), Uber, Lyft, taxi, AirTrain (JFK)",
+    },
   },
   CA: {
     label: { sl: "Uber / taxi / javni prevoz", en: "Uber / taxi / transit" },
@@ -321,6 +324,7 @@ function inferCountryFromName(destinationName: string): string | null {
   if (/brazil|brasil|\briode?\s*janeiro\b|\bs[aã]o\s*paulo\b/.test(n)) return "BR";
   if (/argentin|\bbuenos\s*aires\b/.test(n)) return "AR";
   if (/čil|chile|\bsantiago\b/.test(n)) return "CL";
+  if (/new york|\bnyc\b|manhattan|united states|\busa\b/.test(n)) return "US";
   return null;
 }
 
@@ -395,15 +399,17 @@ export function resolveTripLocale(
   const names = COUNTRY_NAMES[country] ?? COUNTRY_NAMES.XX;
   const transport = TRANSPORT_BY_COUNTRY[country] ?? DEFAULT_TRANSPORT;
   const bands = tierPriceBands(country, currency);
+  const iata = destinationIata.toUpperCase();
+  const nycHub = /^(JFK|EWR|LGA)$/.test(iata);
 
   return {
     langCode: code,
     slo,
     country,
     countryName: slo ? names.sl : names.en,
-    destinationIata: destinationIata.toUpperCase(),
+    destinationIata: iata,
     displayCurrency: currency,
-    transferPrice: bands.transfer,
+    transferPrice: nycHub ? formatPlanMoneyRange(45, 75, currency) : bands.transfer,
     mealPrice: bands.meal,
     massagePrice: bands.massage,
     transferLabel: slo ? transport.label.sl : transport.label.en,
@@ -452,6 +458,13 @@ export function airportArrivalHint(city: string, locale: TripLocale): string {
 export function hotelTransferDescription(city: string, locale: TripLocale): string {
   const modes = locale.transferLabel;
   const price = locale.transferPrice;
+  if (/^(JFK|EWR|LGA)$/.test(locale.destinationIata)) {
+    return planLangCopy(locale.langCode, {
+      sl: `Iz ${locale.destinationIata} do hotela v ${city}: AirTrain + metro je najbolj zanesljiv (~€12, 60–90 min). Uber/Lyft/taxi je ${price} in v gneči lahko traja dlje.`,
+      en: `From ${locale.destinationIata} to your hotel in ${city}: AirTrain + subway is the reliable option (~€12, 60–90 min). Uber/Lyft/taxi is about ${price} and can take longer in traffic.`,
+      de: `Von ${locale.destinationIata} zum Hotel in ${city}: AirTrain + U-Bahn ist am zuverlässigsten (~€12, 60–90 Min.). Uber/Lyft/Taxi ca. ${price}, bei Stau oft länger.`,
+    });
+  }
   return planLangCopy(locale.langCode, {
     sl: `Iz letališča do hotela v ${city} uporabi ${modes} (orientacijsko ${price}) — v večini mest je na voljo tudi prevozna aplikacija ali uradni taxi. Do centra računaj 20–90 min, odvisno od prometa in razdalje.`,
     en: `From the airport to your hotel in ${city}, use ${modes} (about ${price}). Allow 20–90 minutes depending on traffic.`,

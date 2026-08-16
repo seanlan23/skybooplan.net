@@ -149,4 +149,38 @@ describe("enforceTravelPace", () => {
     expect(enforceTravelPace(plan, { pace: "intensive" })).toBe(0);
     expect(plan.days[0]!.activities!.afternoon).toHaveLength(2);
   });
+
+  it("relaxed museum day keeps museum + one other stop (drops High Line)", () => {
+    const plan = {
+      destinationName: "New York",
+      travelPace: "relaxed",
+      days: [
+        day({
+          day: 5,
+          city: "New York",
+          activities: {
+            morning: [
+              { name: "One World Observatory", type: "SIGHT", description: "Views." },
+            ],
+            afternoon: [
+              { name: "9/11 Memorial & Museum", type: "SIGHT", description: "Museum." },
+            ],
+            evening: [
+              { name: "High Line Park", type: "ACTIVITY", description: "Elevated walk." },
+              { name: "Dinner", type: "EAT", description: "Chelsea." },
+            ],
+          },
+        }),
+      ],
+    } as AiTripPlan;
+
+    enforceTravelPace(plan, { pace: "relaxed" });
+    const program = ["morning", "afternoon", "evening"].flatMap((s) =>
+      (plan.days[0]!.activities![s as "morning"] ?? []).filter(isPaceProgramActivity),
+    );
+    expect(program).toHaveLength(2);
+    expect(program.some((a) => /9\/11|Museum/i.test(a.name))).toBe(true);
+    expect(program.some((a) => /High Line/i.test(a.name))).toBe(false);
+    expect(plan.days[0]!.activities!.evening!.some((a) => a.type === "EAT")).toBe(true);
+  });
 });

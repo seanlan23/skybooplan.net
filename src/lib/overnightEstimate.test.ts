@@ -3,6 +3,7 @@ import {
   estimateCampNightlyEur,
   estimateHotelRoomNightlyEur,
   estimateOvernightStay,
+  overnightPlaceHint,
   tripOvernightNights,
 } from "@/lib/overnightEstimate";
 
@@ -13,6 +14,40 @@ describe("overnightEstimate", () => {
     expect(estimateHotelRoomNightlyEur("HR")).toBe(100);
     expect(estimateHotelRoomNightlyEur("SI")).toBe(100);
     expect(estimateHotelRoomNightlyEur("AT")).toBe(100);
+  });
+
+  it("prices NYC as a premium city, not generic US", () => {
+    expect(estimateHotelRoomNightlyEur("US")).toBe(140);
+    expect(estimateHotelRoomNightlyEur("US", { place: "New York" })).toBe(270);
+    expect(estimateHotelRoomNightlyEur("US", { iata: "JFK" })).toBe(270);
+    expect(estimateHotelRoomNightlyEur("XX", { place: "Manhattan" })).toBe(270);
+  });
+
+  it("still prices NYC when day 1 city is the origin hub", () => {
+    expect(
+      estimateHotelRoomNightlyEur("XX", {
+        place: overnightPlaceHint({
+          destinationName: "Združene države Amerike",
+          destinationIata: "JFK",
+          dayCities: ["München", "New York"],
+        }),
+        iata: "JFK",
+      }),
+    ).toBe(270);
+  });
+
+  it("NYC 5-day trip for 2 is one mid room × 4 nights", () => {
+    const est = estimateOvernightStay({
+      dayCount: 5,
+      pax: 2,
+      countryCode: "US",
+      place: "New York",
+      iata: "JFK",
+      mode: "hotel",
+    });
+    expect(est.rooms).toBe(1);
+    expect(est.nights).toBe(4);
+    expect(est.totalEur).toBe(270 * 4);
   });
 
   it("nights = days - 1", () => {

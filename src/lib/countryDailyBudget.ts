@@ -193,6 +193,15 @@ export function inferBudgetCountryFromPlace(place?: string): string | null {
   if (/switzerland|švic|zurich|zürich|geneva|bern/.test(n)) return "CH";
   if (/norway|norvešk|oslo|bergen/.test(n)) return "NO";
   if (/iceland|islandij|reykjav/.test(n)) return "IS";
+  if (
+    /united states|\busa\b|new york|\bnyc\b|manhattan|brooklyn|los angeles|san francisco|chicago|miami|boston|seattle|las vegas|washington|\bjfk\b|\bewr\b|\blga\b|\blax\b|\bsfo\b|\bord\b|\bmia\b/.test(
+      n,
+    )
+  ) {
+    return "US";
+  }
+  if (/united kingdom|\buk\b|england|london|manchester|\blhr\b|\blgw\b/.test(n)) return "GB";
+  if (/japan|japonsk|tokyo|osaka|kyoto|\bnrt\b|\bhnd\b/.test(n)) return "JP";
 
   return null;
 }

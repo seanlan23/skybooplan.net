@@ -857,7 +857,7 @@ describe("applyFlightContextToGeminiPlan", () => {
       ...(last.activities?.evening ?? []),
     ];
     const checkout = acts.find((a) => /check-out/i.test(a.name));
-    expect(checkout?.arrivalTime).toBe("12:05");
+    expect(checkout?.arrivalTime).toBe("11:05");
     expect(checkout?.description ?? "").toMatch(/16:05/);
     expect(checkout?.description ?? "").not.toMatch(/flight at 12:05/i);
   });
@@ -1026,8 +1026,8 @@ describe("applyFlightContextToGeminiPlan", () => {
       ...(last.activities?.evening ?? []),
     ].find((a) => /airport transfer/i.test(a.name));
     expect(transfer?.description).toMatch(/08:30/);
-    expect(transfer?.description).not.toMatch(/departs at 05:00/i);
-    expect(transfer?.arrivalTime).toBe("05:00");
+    expect(transfer?.description).not.toMatch(/departs at 04:00/i);
+    expect(transfer?.arrivalTime).toBe("04:00");
   });
 
   it("strips LLM clocks from leftover sights on departure day", () => {
@@ -1454,7 +1454,7 @@ describe("applyFlightContextToGeminiPlan", () => {
     const checkout = lastActs.find((a) => /check-out/i.test(a.name));
     const airport = lastActs.find((a) => /airport check-in/i.test(a.name));
     const transfer = lastActs.find((a) => /airport transfer/i.test(a.name));
-    expect(checkout?.arrivalTime).toBe("17:50");
+    expect(checkout?.arrivalTime).toBe("16:50");
     expect(airport?.arrivalTime).toBe("18:50");
     expect(transfer?.description ?? "").toMatch(/21:50/);
     expect(checkout?.description ?? "").toMatch(/21:50/);
@@ -1557,5 +1557,88 @@ describe("applyFlightContextToGeminiPlan", () => {
     expect(blob).toMatch(/Odhod iz hotela|Prevoz na letališče|Prihod na letališče|Mednarodni povratni let/i);
     expect(blob).not.toMatch(/Hotel check-out|Airport transfer|Airport check-in|International return flight/i);
     expect(last.title).toMatch(/Odhod iz/i);
+  });
+
+  it("does not park a morning-walk filler on afternoon-arrival evening", () => {
+    const plan = basePlan({
+      destinationName: "New York",
+      destinationIata: "JFK",
+      days: [
+        {
+          day: 1,
+          date: "2026-11-16",
+          title: "Prihod",
+          morning: "",
+          afternoon: "",
+          evening: "",
+          travelHack: "",
+          transportationTips: "",
+          localWarnings: "",
+          dailyBudgetEur: 99,
+          lat: 40.71,
+          lng: -74.0,
+          city: "New York",
+          focusName: "New York",
+          category: "city",
+          activities: {
+            morning: [
+              {
+                name: "Jutranji sprehod / kava pred ogledom",
+                type: "ACTIVITY",
+                description: "Kratek sprehod po okolici hotela in kava na poti.",
+              },
+            ],
+            afternoon: [],
+            evening: [],
+          },
+        },
+        {
+          day: 2,
+          date: "2026-11-17",
+          title: "Mesto",
+          morning: "",
+          afternoon: "",
+          evening: "",
+          travelHack: "",
+          transportationTips: "",
+          localWarnings: "",
+          dailyBudgetEur: 150,
+          lat: 40.76,
+          lng: -73.98,
+          city: "New York",
+          focusName: "New York",
+          category: "city",
+          activities: {
+            morning: [{ name: "Times Square", type: "SIGHT", description: "Sprehod" }],
+            afternoon: [],
+            evening: [],
+          },
+        },
+      ],
+    });
+
+    applyFlightContextToGeminiPlan(
+      plan,
+      {
+        outboundDepart: "11:25",
+        outboundArrive: "16:40",
+        outboundArriveDayOffset: 0,
+        inboundDepart: "17:30",
+        inboundArrive: "07:05",
+      },
+      { originIata: "MUC", language: "sl" },
+    );
+
+    const evening = JSON.stringify(plan.days[0]!.activities?.evening ?? []);
+    expect(evening).not.toMatch(/Jutranji sprehod|kava pred ogledom/i);
+    const lastActs = [
+      ...(plan.days[1]!.activities?.morning ?? []),
+      ...(plan.days[1]!.activities?.afternoon ?? []),
+    ];
+    const checkout = lastActs.find((a) => /check-out|odhod iz hotela/i.test(a.name));
+    const transfer = lastActs.find((a) => /prevoz na letališč/i.test(a.name));
+    expect(checkout?.arrivalTime).toBe("12:30");
+    expect(transfer?.arrivalTime).toBe("13:00");
+    expect(transfer?.description ?? "").toMatch(/4[,.]5|4,5|4\.5/);
   });
 });

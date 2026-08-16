@@ -59,6 +59,14 @@ function isProtectedLogistics(a: Activity): boolean {
   );
 }
 
+/** Indoor museum / memorial that needs a half-day — do not stack two on a relaxed day. */
+export function isMuseumScaleActivity(a: Activity): boolean {
+  const t = `${a.name ?? ""} ${a.description ?? ""}`.toLowerCase();
+  return /museum|muzej|moma\b|\bthe met\b|metropolitansk|guggenheim|9\/11|memorial & museum|natural history|naravoslovn|ellis island|kip svobode|statue of liberty|louvre|prado|uffizi|rijksmuseum|hermitage|british museum|acropolis museum/i.test(
+    t,
+  );
+}
+
 /** Sightseeing / beach / nature / generic activity — subject to pace caps. */
 export function isPaceProgramActivity(a: Activity): boolean {
   if (isProtectedLogistics(a)) return false;
@@ -140,8 +148,17 @@ export function enforceTravelPace(
   for (const day of plan.days ?? []) {
     if (!day.activities) continue;
     const light = isPaceLightDay(day, { arrivalDay, totalDays });
-    const maxProgram = maxProgramForDay(pace, light);
+    let maxProgram = maxProgramForDay(pace, light);
     if (!Number.isFinite(maxProgram)) continue;
+    const dayActs = SLOTS.flatMap((s) => day.activities[s] ?? []);
+    // Museum / memorial is a half-day — relaxed days get museum + one other stop, not three.
+    if (
+      pace === "relaxed" &&
+      !light &&
+      dayActs.some((a) => isPaceProgramActivity(a) && isMuseumScaleActivity(a))
+    ) {
+      maxProgram = Math.min(maxProgram, 2);
+    }
 
     type Tagged = { slot: Slot; act: Activity; score: number; order: number };
     const program: Tagged[] = [];

@@ -16,6 +16,7 @@ import { getSeasonalHints } from "@/lib/seasonalHints";
 import { resolveDayBudgetCountry } from "@/lib/countryDailyBudget";
 import { computeTripTotalBudgetEur } from "@/lib/tripBudget";
 import { buildTripCostSummary } from "@/lib/tripCostSummary";
+import { overnightPlaceHint } from "@/lib/overnightEstimate";
 import { countHomeboundUnpaidNights } from "@/lib/roadTripLogistics";
 import { buildWeatherWidgetFallback } from "@/lib/weatherWidgetFallback";
 import { useDestinationContext } from "@/hooks/useDestinationContext";
@@ -247,9 +248,10 @@ export function AiPlanView({
     const motorhome =
       plan.groundTransportMode === "motorhome" || plan.accommodationMode === "motorhome";
     const car = plan.groundTransportMode === "car";
+    const destIata = destinationIata ?? plan.destinationIata;
     const countryCode = resolveDayBudgetCountry({
       destinationName: plan.destinationName,
-      destinationIata: destinationIata ?? plan.destinationIata,
+      destinationIata: destIata,
     });
     return buildTripCostSummary({
       planEur,
@@ -257,6 +259,13 @@ export function AiPlanView({
       dayCount: plan.days.length,
       pax: Math.max(1, pax),
       countryCode,
+      place: overnightPlaceHint({
+        destinationName: plan.destinationName,
+        destinationPlace: plan.destinationPlace,
+        destinationIata: destIata,
+        dayCities: plan.days.map((d) => d.city),
+      }),
+      iata: destIata,
       mode: motorhome ? "motorhome" : car ? "car" : "hotel",
       unpaidNights: car || motorhome ? countHomeboundUnpaidNights(plan) : 0,
     });
@@ -264,6 +273,7 @@ export function AiPlanView({
     plan?.totalBudgetEur,
     plan?.days,
     plan?.destinationName,
+    plan?.destinationPlace,
     plan?.destinationIata,
     plan?.groundTransportMode,
     plan?.accommodationMode,

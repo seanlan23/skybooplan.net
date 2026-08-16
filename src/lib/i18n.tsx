@@ -619,7 +619,7 @@ const en: Dict = {
     "Includes: food, sights, fuel, tolls & campsite share",
   "aiplan.totalExcludesMotorhome":
     "Excludes motorhome rental & international transport",
-  "aiplan.overnightApprox": "+ Stays (approx.): €{n}",
+  "aiplan.overnightApprox": "+ Stays (approx.): €{n} · ~€{night}/night",
   "aiplan.totalForTravelers": "Total for {n} travelers",
   "aiplan.totalForOne": "Estimate for 1 traveler",
   "aiplan.loading": "Building your plan...",
@@ -1822,7 +1822,7 @@ const dicts: Record<DictLang, Dict> = {
     "aiplan.totalExcludesCar": "Brez najema avtomobila · hoteli okvirno spodaj",
     "aiplan.totalExcludesMotorhome":
       "Brez najema avtodoma in mednarodnega prevoza",
-    "aiplan.overnightApprox": "+ Nastanitev (okvirno): €{n}",
+    "aiplan.overnightApprox": "+ Nastanitev (okvirno): €{n} · ~€{night}/noč",
     "aiplan.totalForTravelers": "Skupaj za {n} potnike",
     "aiplan.totalForOne": "Ocena za 1 potnika",
     "aiplan.loading": "Sestavljam tvoj plan...",

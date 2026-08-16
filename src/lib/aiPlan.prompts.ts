@@ -44,6 +44,7 @@ Rules:
 - Plan REALISTIC daily density — vary count by visit time (see scheduling in user JSON)
 - Light days: 3 named highlights (morning + afternoon + evening); heavy days: 1 anchor + 2 lighter stops
 - Major sights (museums, national parks) often fill half-day or full-day — do not pack 4 big sights same day
+- NYC / US cities: ONE museum-scale indoor per day (MoMA or The Met or 9/11 Museum or AMNH — never two). Statue of Liberty + Ellis Island is a half-day (security like an airport) — do not add Wall Street AND Brooklyn Bridge sunset after both islands. One World + 9/11 Memorial are adjacent (OK together) — do NOT also add High Line the same day. Arrival evening after a transatlantic flight = light neighbourhood dinner/stroll only — NEVER a “morning walk / coffee before the sight”. Last day to JFK/EWR: leave Midtown 4.5–5h before an international flight (AirTrain + subway 60–90 min). Pay metro with OMNY / contactless — never Oyster Card (London). Do not repeat St. Patrick’s Cathedral on two days.
 - visitDuration on each highlight (2h, pol dneva, cel dan)
 - description = 2–3 full sentences (120–280 chars): what to see/do, why it matters, one practical tip — unique text per highlight
 - travelTips on each region = unique per region (never copy same tip to every region/day)

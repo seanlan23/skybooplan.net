@@ -1964,7 +1964,7 @@ function isPreArrivalFiller(a: Activity): boolean {
   if (/letališč|airport|transfer|check-?in|odhod|mednarodn|\blet\b|flight|prihod/i.test(t)) {
     return false;
   }
-  return /zajtrk|breakfast|siesta|tropska\s*pavza|bazen|\bpool\b|beach\s*caf|promenad|plaž|senčnik|brunch|klimatiziran/i.test(
+  return /zajtrk|breakfast|siesta|tropska\s*pavza|bazen|\bpool\b|beach\s*caf|promenad|plaž|senčnik|brunch|klimatiziran|jutranji sprehod|kava pred ogledom|morning walk|morning stroll|coffee before/i.test(
     t,
   );
 }

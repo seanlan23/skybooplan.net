@@ -19,6 +19,8 @@ export function buildTripCostSummary(opts: {
   dayCount: number;
   pax: number;
   countryCode?: string;
+  place?: string;
+  iata?: string;
   mode: "hotel" | "car" | "motorhome";
   unpaidNights?: number;
 }): TripCostSummary {
@@ -28,6 +30,8 @@ export function buildTripCostSummary(opts: {
     dayCount: opts.dayCount,
     pax: opts.pax,
     countryCode: opts.countryCode,
+    place: opts.place,
+    iata: opts.iata,
     mode: opts.mode,
     unpaidNights: opts.unpaidNights,
   });

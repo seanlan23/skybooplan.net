@@ -44,10 +44,9 @@ export function TripTotalBreakdown({
       <p>{t(excludesKey as never)}</p>
       {showOvernight ? (
         <p className="pt-0.5 font-medium text-slate-600">
-          {t("aiplan.overnightApprox" as never).replace(
-            "{n}",
-            String(overnight!.totalEur),
-          )}
+          {t("aiplan.overnightApprox" as never)
+            .replace("{n}", String(overnight!.totalEur))
+            .replace("{night}", String(overnight!.nightlyEur))}
         </p>
       ) : null}
       <p className="text-slate-400">

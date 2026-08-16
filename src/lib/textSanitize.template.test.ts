@@ -22,6 +22,19 @@ describe("sanitizeLegacyTemplateLeak", () => {
     expect(sanitizeLegacyTemplateLeak("Take an Uber to JFK")).toMatch(/Uber to JFK/i);
   });
 
+  it("rewrites London Oyster Card on NYC copy to OMNY", () => {
+    expect(
+      sanitizeLegacyTemplateLeak(
+        "Po Brooklynskem mostu uporabi Oyster Card ali brezkontaktno plačilo za metro.",
+      ),
+    ).toMatch(/OMNY/i);
+    expect(
+      sanitizeLegacyTemplateLeak(
+        "Po Brooklynskem mostu uporabi Oyster Card ali brezkontaktno plačilo za metro.",
+      ),
+    ).not.toMatch(/Oyster/i);
+  });
+
   it("scrubs false no-Uber-in-Canada hallucination", () => {
     expect(
       sanitizeLegacyTemplateLeak("Uber or transit back - no Uber in Canada"),

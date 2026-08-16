@@ -52,5 +52,12 @@ describe("countryDailyBudget", () => {
         destinationName: "Albania, AL",
       }),
     ).toBe("AL");
+    expect(inferBudgetCountryFromPlace("New York")).toBe("US");
+    expect(
+      resolveDayBudgetCountry({
+        destinationName: "New York",
+        destinationIata: "JFK",
+      }),
+    ).toBe("US");
   });
 });
