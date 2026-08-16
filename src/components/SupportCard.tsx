@@ -105,6 +105,9 @@ export function SupportCard({ isGenerating }: { isGenerating: boolean }) {
             <p key={paragraph.slice(0, 48)}>{paragraph}</p>
           ))}
         </div>
+        <p className="text-sm font-medium leading-relaxed text-slate-800">
+          {t("support.costLine")}
+        </p>
 
         <div className="grid grid-cols-3 gap-2.5">
           {amountTiers.map(renderTier)}

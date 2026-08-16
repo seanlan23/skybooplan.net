@@ -30,7 +30,7 @@ export function FAQSection() {
           {t("faq.title" as never)}
         </h2>
 
-        <Accordion type="single" collapsible className="mt-8 w-full">
+        <Accordion type="single" collapsible defaultValue="free" className="mt-8 w-full">
           {items.map(({ id, emoji, question, answer }) => (
             <AccordionItem key={id} value={id} className="border-border">
               <AccordionTrigger className="py-4 text-left text-base font-semibold hover:no-underline">

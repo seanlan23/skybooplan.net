@@ -22,7 +22,10 @@ export function SiteFooter() {
         />
         <FooterCol
           title={t("footer.company")}
-          links={[{ label: `${t("footer.about")} & ${t("footer.contact")}`, to: "/about" }]}
+          links={[
+            { label: `${t("footer.about")} & ${t("footer.contact")}`, to: "/about" },
+            { label: t("footer.support"), to: "/about" },
+          ]}
         />
         <FooterCol title={t("footer.legal")} links={[{ label: t("footer.terms"), to: "/terms" }, { label: `${t("footer.privacy")} & ${t("footer.cookies")}`, to: "/privacy" }, { label: t("footer.refunds"), to: "/refunds" }]} />
       </div>

@@ -93,7 +93,13 @@ function ShowcasePlanCard({ plan }: { plan: ShowcasePlan }) {
         "transition-all duration-300 hover:-translate-y-1 hover:shadow-xl",
       )}
     >
-      <div className="relative h-40 overflow-hidden sm:h-44">
+      <a
+        href={plan.href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="relative block h-40 overflow-hidden sm:h-44"
+        aria-label={`${t("showcase.preview" as never)}: ${t(plan.titleKey as never)}`}
+      >
         <img
           src={plan.imageUrl}
           alt=""
@@ -112,7 +118,7 @@ function ShowcasePlanCard({ plan }: { plan: ShowcasePlan }) {
           <h3 className="mt-0.5 text-xl font-bold text-white">{t(plan.titleKey as never)}</h3>
           <p className="mt-1 text-sm text-white/80">{t(plan.metaKey as never)}</p>
         </div>
-      </div>
+      </a>
 
       <div className="flex flex-1 flex-col p-5">
         <p className="flex-1 text-sm leading-relaxed text-muted-foreground">

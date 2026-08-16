@@ -28,8 +28,8 @@ import { HeroAiPlanResults } from "@/components/HeroAiPlanResults";
 import { SocialProofSection } from "@/components/SocialProofSection";
 import { TripInspiration } from "@/components/TripInspiration";
 import { ShowcasePlansSection } from "@/components/ShowcasePlansSection";
-import { TestimonialsSection } from "@/components/TestimonialsSection";
 import { FAQSection } from "@/components/FAQSection";
+import { HowItWorksSection } from "@/components/HowItWorksSection";
 import type { SearchValues } from "@/components/SearchPanel";
 import { FlightResults } from "@/components/FlightResults";
 import { SpotlightOverlay } from "@/components/SpotlightOverlay";
@@ -1887,9 +1887,9 @@ function Landing() {
       />
 
       <SocialProofSection />
+      <HowItWorksSection />
       <TripInspiration onSelectDestination={handleInspirationSelect} />
       <ShowcasePlansSection />
-      <TestimonialsSection />
       <DonationSection />
       <FAQSection />
 
