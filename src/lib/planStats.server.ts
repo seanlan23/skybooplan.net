@@ -3,11 +3,11 @@ import {
   getServerSupabaseServiceRoleKey,
   getServerSupabaseUrl,
 } from "@/lib/supabaseServerEnv";
-import { resolvePublicPlanCount } from "@/lib/planStats";
+import { KNOWN_PLANS_GENERATED_FLOOR, resolvePublicPlanCount } from "@/lib/planStats";
 
 let _db: ReturnType<typeof createClient> | null = null;
 let _cached: { count: number; at: number } | null = null;
-const CACHE_MS = 60_000;
+const CACHE_MS = 8_000;
 
 function svc() {
   const url = getServerSupabaseUrl();
@@ -30,6 +30,45 @@ async function sumColumn(
   }, 0);
 }
 
+async function readStored(
+  db: NonNullable<ReturnType<typeof svc>>,
+): Promise<number> {
+  const rpc = await db.rpc("public_plans_generated");
+  const fromRpc =
+    !rpc.error && rpc.data != null ? Number(rpc.data) : Number.NaN;
+  const { data } = await db
+    .from("site_stats")
+    .select("plans_generated")
+    .eq("id", 1)
+    .maybeSingle();
+  const fromTable = Number((data as { plans_generated?: number } | null)?.plans_generated);
+  return Math.max(
+    0,
+    Number.isFinite(fromRpc) ? fromRpc : 0,
+    Number.isFinite(fromTable) ? fromTable : 0,
+  );
+}
+
+async function persistAtLeast(
+  db: NonNullable<ReturnType<typeof svc>>,
+  target: number,
+): Promise<void> {
+  const stored = await readStored(db);
+  const next = Math.max(stored, target);
+  if (next <= stored) return;
+  const { error } = await db.from("site_stats").upsert(
+    {
+      id: 1,
+      plans_generated: next,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "id" },
+  );
+  if (error) {
+    console.warn("[planStats] could not persist public plan count", error.message);
+  }
+}
+
 async function liveGeneratedTotal(
   db: NonNullable<ReturnType<typeof svc>>,
 ): Promise<number> {
@@ -50,25 +89,10 @@ export async function readPublicPlansGenerated(): Promise<number> {
   const db = svc();
   if (!db) return resolvePublicPlanCount(0);
 
-  const rpc = await db.rpc("public_plans_generated");
-  const stored =
-    !rpc.error && rpc.data != null ? Number(rpc.data) || 0 : 0;
+  const stored = await readStored(db);
   const live = await liveGeneratedTotal(db);
   const count = resolvePublicPlanCount(stored, live);
-
-  if (count > stored) {
-    const heal = await db.from("site_stats").upsert(
-      {
-        id: 1,
-        plans_generated: count,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "id" },
-    );
-    if (heal.error) {
-      console.warn("[planStats] could not persist public plan count", heal.error.message);
-    }
-  }
+  await persistAtLeast(db, count);
 
   _cached = { count, at: Date.now() };
   return count;
@@ -76,18 +100,24 @@ export async function readPublicPlansGenerated(): Promise<number> {
 
 export async function bumpPublicPlansGenerated(): Promise<void> {
   const db = svc();
-  if (!db) return;
-  const { error } = await db.rpc("bump_plans_generated");
-  if (!error) {
-    if (_cached) {
-      _cached = { count: _cached.count + 1, at: Date.now() };
-    }
+  if (!db) {
+    console.warn("[planStats] bump skipped — Supabase service role is not configured");
     return;
   }
-  // RPC missing — keep the in-memory cache honest until the next live read.
-  if (_cached) {
-    _cached = { count: _cached.count + 1, at: Date.now() };
-  } else {
-    _cached = null;
+
+  const rpc = await db.rpc("bump_plans_generated");
+  if (!rpc.error) {
+    const stored = await readStored(db);
+    _cached = {
+      count: Math.max(stored, (_cached?.count ?? KNOWN_PLANS_GENERATED_FLOOR) + 1),
+      at: Date.now(),
+    };
+    return;
   }
+
+  console.warn("[planStats] bump RPC failed, writing site_stats", rpc.error.message);
+  const stored = await readStored(db);
+  const next = Math.max(stored, KNOWN_PLANS_GENERATED_FLOOR) + 1;
+  await persistAtLeast(db, next);
+  _cached = { count: next, at: Date.now() };
 }
