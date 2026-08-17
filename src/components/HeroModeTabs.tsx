@@ -2,8 +2,7 @@ import { useI18n } from "@/lib/i18n";
 import type { HeroChatMode } from "@/lib/heroChatFlow";
 import { cn } from "@/lib/utils";
 
-const MOBILE_MODES: HeroChatMode[] = ["all", "flights", "stays"];
-const DESKTOP_MODES: HeroChatMode[] = ["all", "flights", "stays", "car", "motorhome"];
+const HERO_MODES: HeroChatMode[] = ["all", "flights", "stays", "car", "motorhome"];
 
 const TAB_LABEL_KEYS: Record<HeroChatMode, string> = {
   flights: "heroMode.flights",
@@ -47,7 +46,7 @@ function ModeButton({
       aria-selected={isActive}
       onClick={() => onChange(mode)}
       className={cn(
-        "rounded-full px-3 py-1.5 text-[13px] font-medium leading-none transition sm:px-3.5 sm:text-sm",
+        "rounded-full px-2.5 py-1.5 text-[12px] font-medium leading-none transition sm:px-3.5 sm:text-sm",
         isActive
           ? "bg-white text-slate-900 shadow-sm"
           : "text-white/80 hover:bg-white/10 hover:text-white",
@@ -73,7 +72,7 @@ function ModeRow({
   return (
     <div
       className={cn(
-        "inline-flex flex-wrap items-center justify-center gap-0.5 rounded-full border border-white/20 bg-black/30 p-1 backdrop-blur-md",
+        "inline-flex max-w-full flex-wrap items-center justify-center gap-0.5 rounded-3xl border border-white/20 bg-black/30 p-1 backdrop-blur-md",
         className,
       )}
       role="tablist"
@@ -95,10 +94,9 @@ function ModeRow({
 export function HeroModeTabs({ value, onChange }: HeroModeTabsProps) {
   const { t } = useI18n();
   return (
-    <div className="mx-auto mt-5 flex w-full flex-col items-center">
-      <ModeRow modes={MOBILE_MODES} value={value} onChange={onChange} className="sm:hidden" />
-      <ModeRow modes={DESKTOP_MODES} value={value} onChange={onChange} className="hidden sm:inline-flex" />
-      <p className="mt-2.5 max-w-md text-center text-[13px] leading-snug text-white/65 sm:text-sm">
+    <div className="mx-auto mt-3 flex w-full flex-col items-center sm:mt-5">
+      <ModeRow modes={HERO_MODES} value={value} onChange={onChange} />
+      <p className="mt-2 max-w-md text-center text-[12px] leading-snug text-white/65 sm:mt-2.5 sm:text-sm">
         {t(TAB_HINT_KEYS[value] as never)}
       </p>
     </div>

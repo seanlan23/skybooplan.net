@@ -59,10 +59,15 @@ ALBANIJA / JADRAN Z AVTOM (obvezno):
 - Riviera: Sarandë/Ksamil PLUS vsaj en dan Himarë ali Dhërmi — Vlorë ni edini obalni postanek. Sever (Theth/Valbona) je alternativa rivieri, ne sme ostati samo prestolnica.
 - Mostar→Tirana: 2 meji (BiH→MNE→AL). Konec avgusta 7–8 h, ne 5h 30min. Če nočeš 8h dneva: nočitev v Shkodëru ali Podgorici vmes.
 - PREPOVEDANO: Vlorë→Split (ali Vlorë→Zadar) v ENEM dnevu. To je 9–11 ur čiste vožnje + 3 meje (AL–MNE, MNE–HR). Poletne kolone na Sukobin/Božaj in Debeli Brijeg. Obvezna nočitev v Črni gori (Kotor ali Budva) ALI vsaj Dubrovnik. Split šele naslednji dan. Kosilo v Splitu isti dan odpade.
+- PREPOVEDANO v ENEM dnevu: Berat / Tirana / Vlorë / Sarandë / Gjirokastër / Himarë / Ksamil → Zagreb, Split, Zadar, Ljubljana ali Dunaj. Berat→Zagreb ≈ 800 km, 2 meji, 14–16 ur v avtu. To NI etapa.
+- POVRATEK IZ ALBANIJE (lestvica, vsaka točka = nočitev razen zadnjega dne domov): (1) zadnja noč v Albaniji, (2) noč v Črni gori (Kotor ali Budva), (3) če je Kotor→dom >6 h: noč Split / Zadar / Plitvice, (4) zadnji koledarski dan = samo avtocesta domov (Zagreb→Dunaj ~4 h). PREPOVEDANO Berat kot predzadnja noč. Zadnji 2–3 dnevi so SAMO vožnja nazaj — ne ogledi v Zagrebu.
+- Hotel v Zagrebu na povratku SAMO če si tja prišel prejšnji večer iz Kotora/Splita. PREPOVEDANO isti dan iz Albanije + hotel Zagreb + naslednji dan Dunaj.
+- Tirana muzeji (Bunk'Art 1/2, Narodni muzej): DOPOLDAN ali zgodaj popoldan (do 16:00). PREPOVEDANO večerni slot — zaprejo ~18:00.
 - Kotor→Plitvice: meja Debeli Brijeg avgusta ima večurne kolone. drivingDurationHours ≥ 8h. PREPOVEDANO 6h 30min. Odhod zelo zgodaj.
 - Črna gora obala: NI avtoceste — počasna cesta. drivingDurationHours mora vključiti meje (+2–4 h na vsako poleti), ne samo Google čas.
 - Plitvice: vstopnice kupi SPLETNO vnaprej (np-plitvicka-jezera.hr) za točno uro vstopa — konec sezone razprodano. Vstop zjutraj ob rezerviranem slotu. PREPOVEDANO popoldanski obisk po vožnji Split→Plitvice. Če Split→Zagreb preko Plitvic: nočitev PRI parku prejšnji večer.
 - eSIM: BiH, Črna gora in Albanija NISO v EU roamingu. Regionalni balkanski eSIM pred odhodom ali lokalna kartica na vsaki meji.
+- PRVA NOČ iz Dunaja / Gradca / Ljubljane / Maribora / Győra / Budimpešte proti Albaniji, Črni gori ali “Balkanu”: PREPOVEDANO Zagreb (3–4,5 h avtoceste — kosilo ob poti, NE hotel). PREPOVEDANO drugi dan “raziskovanje Zagreba”. Prva nočitev = Zadar, Split ali Plitvice (~5–6 h isti dan). Največ 1 hrvaška tranzitna noč na poti DOL — ne 2+ noči v Zagrebu.
 - Povratek: Zagreb→Dunaj ≈ 4 h avtoceste. PREPOVEDANO nočitev v Gradcu + naslednji dan “prihod na Dunaj”. Gradec je kvečjemu kosilo ob poti; isti večer spi na Dunaju / doma. Ne mešaj “Vožnja domov” z večerjo v Gradcu.`;
 }
 
@@ -106,9 +111,11 @@ PREVOZ DO DESTINACIJE — AVTODOM (obvezno):
 - Potnik potuje iz "${origin}" do "${dest}" z avtodomom (ne z letalom za ta del poti).
 - Prvi dni morajo pokrivati celotno pot od doma do destinacije z realističnimi postanki (npr. "Postanek v Milanu", "Nočitev v Münchenu").
 - Vsak dan poti: drivingDistanceKm, drivingDurationHours, smiselne postanke ali kratki ogledi ob poti.
+- ENA etapa: cilj 4–6 h, trdo max 7 h. Če je Google >7 h ALI 2+ meji: nočitev vmes. PREPOVEDANO 8h+ kot en dan.
 - Za avtodom: kampiri/RV parki ob poti, ne hoteli v centru mest.
 - Proračun: v dailyBudget vključni DELEŽ cestnin/vinjet, goriva in kampa (deljeno na potnike) — IT/FR avtoceste so drage.
 - Po prihodu na destinacijo nadaljuj z glavnim programom na cilju.
+${westernBalkansRoadTripPrompt(dest)}
 
 POVRATEK DOMOV — AVTODOM (obvezno, zadnji dnevi):
 - Potnik se NE vrača z mednarodnega letala! Celotno potovanje je z avtodomom iz "${origin}" do "${dest}" in nazaj.
@@ -123,8 +130,9 @@ PREVOZ DO DESTINACIJE — AVTO (obvezno):
 - Potnik potuje iz "${origin}" do "${dest}" z avtom (ne z letalom za ta del poti).
 - Prvi dni morajo pokrivati celotno pot od doma do destinacije z realističnimi postanki (npr. "Postanek v Milanu", "Nočitev v Münchenu").
 - Vsak dan poti: drivingDistanceKm, drivingDurationHours, smiselne postanke ali kratki ogledi ob poti.
-- ENA etapa: max ~6 h čiste vožnje + postanki. Če je Google >7 h ALI 2+ mednarodni meji: obvezna nočitev vmes. PREPOVEDANO kosilo/ogled v ciljnem mestu isti dan po 8h+ vožnji.
-- NOČITVE: vsak večer hotel v mestu (Booking-friendly city stay). PREPOVEDANO: kamp, RV park, campground, sosta ali "spanje v avtu" kot namestitev.
+- ENA etapa: cilj 4–6 h čiste vožnje, trdo max 7 h. Če je Google >7 h ALI razdalja >500 km ALI 2+ mednarodni meji: obvezna nočitev vmes. PREPOVEDANO 8h+ (ali 10–16 h z mejami) kot en dan. PREPOVEDANO kosilo/muzej/ogled v ciljnem mestu isti dan po ≥7 h vožnji.
+- NOČITVE: vsak večer hotel v mestu (Booking.com). hotels[] MORA našteti vsako bazo (city + nights) — PDF in UI odpreta Booking. PREPOVEDANO: kamp, RV park, campground, sosta ali "spanje v avtu" kot namestitev.
+- PRVA NOČ: če je cilj še daleč (>500 km, npr. Albanija, Črna gora, Grčija, Španija), PREPOVEDANO hotel v mestu ≤4 h / ≤350 km od "${origin}" (npr. Dunaj→Zagreb na poti v Albanijo). To je kava ob avtocesti, ne nočitev.
 - transportation[] na dneh poti: type "car" (vožnja) — PREPOVEDANO type "flight" ali type "van" za cestne etape.
 - Proračun: v dailyBudget vključni DELEŽ cestnin/vinjet in goriva (deljeno na število potnikov) — IT/FR/ES/HR avtoceste so drage; AT/SI/CH vinjeta. V hotels[] ali estimatedCostEur dodaj okvirno ceno hotela/noč v mestu nočitve.
 - Po prihodu na destinacijo nadaljuj z glavnim programom na cilju.
@@ -133,7 +141,7 @@ ${westernBalkansRoadTripPrompt(dest)}
 POVRATEK DOMOV — AVTO (obvezno, zadnji dnevi):
 - Potnik se NE vrača z mednarodnega letala! Celotno potovanje je z avtom iz "${origin}" do "${dest}" in nazaj.
 - ČAS VOŽNJE mora biti realističen: avtocesta ~80 km/h povprečno (meje, počivališča). Primer: Győr→Zagreb ≈ 320 km / 3h 15min–4h — NIKOLI 1h 45min. Če je etapa >250 km, drivingDurationHours ≥ 3h. Balkanske meje (AL–MNE, MNE–HR) poleti: prištej 2–4 h, ne samo zemljevid.
-- Zadnja PLAČANA hotelska nočitev je tam, od koder je vožnja domov še predolga za isti dan. PREPOVEDANO: hotel v izhodišču "${origin}" in PREPOVEDANO hotel v mestu, ki je ~2–3 h vožnje od doma, na zadnjih 1–2 dneh (npr. Ljubljana, če je dom Maribor; Nürnberg, če je dom München; Gradec, če je dom Dunaj). Če je Zagreb→Dunaj ~4 h: zadnji hotel v Zagrebu, isti dan vožnja domov — NE nočitev v Gradcu + naslednji dan prihod. Zadnji koledarski dan = vožnja domov, spanje doma, estimatedCostEur hotela = 0.
+- Zadnja PLAČANA hotelska nočitev je tam, od koder je vožnja domov še predolga za isti dan. PREPOVEDANO: hotel v izhodišču "${origin}" in PREPOVEDANO hotel v mestu, ki je ~2–3 h vožnje od doma, na zadnjih 1–2 dneh (npr. Ljubljana, če je dom Maribor; Nürnberg, če je dom München; Gradec, če je dom Dunaj). Zagreb hotel na povratku SAMO če si prišel prejšnji večer (Kotor/Split) — NE isti dan iz Berata/Tirane. Če je Zagreb→Dunaj ~4 h in si v Zagrebu že spal: isti dan vožnja domov — NE nočitev v Gradcu. Zadnji koledarski dan = vožnja domov, spanje doma, estimatedCostEur hotela = 0.
 - Zadnji dan (ali zadnja 1–3 dni, glede na razdaljo) mora biti vožnja NAZAJ do izhodišča "${origin}" z realističnimi postanki, drivingDistanceKm in drivingDurationHours.
 - Na zadnjem dnevu NE načrtuj mednarodnega leta, category airport za odlet v EU, prevoza na letališče ali trip_metadata.return_flight_eu.
 - transportation[] zadnjega dne: type "car" proti domu — ne flight. Ne izmišljuj novega turističnega mesta (npr. Rijeka), če ni na najkrajši poti domov.`;
@@ -153,7 +161,7 @@ export function lastDayReturnPromptBlock(params: {
     const vehicle = mode === "motorhome" ? "avtodomom" : "avtom";
     return `ZADNJI DAN — POVRATEK DOMOV (obvezno, ${mode === "motorhome" ? "AVTODOM" : "AVTO"}):
 - Striktno: potnik potuje z ${vehicle} od "${origin}" — zadnji dan je vožnja NAZAJ na "${origin}", NE mednarodni let z letališča!
-- Zadnji dan: check-out v tujini (če je treba), nato vožnja domov z realističnim drivingDistanceKm in drivingDurationHours (avtocesta ~80 km/h, ne izmišljuj 1–2h za 300 km).
+- Zadnji dan: check-out v tujini (če je treba), nato vožnja domov z realističnim drivingDistanceKm in drivingDurationHours (avtocesta ~80 km/h, ne izmišljuj 1–2h za 300 km). PREPOVEDANO zadnji dan iz Berata/Tirane/Sarande — to je 14+ ur.
 - PREPOVEDANO: hotel/nočitev z estimatedCostEur > 0 v "${origin}" ali v mestu ~2–3 h od izhodišča na zadnjih dneh (Gradec, če je dom Dunaj) — spanje je doma. Ne dodajaj turistične nočitve v Gradcu, če je Zagreb→dom ~4 h.
 - Prepovedano na zadnjem dnevu: mednarodni let, aktivnost category airport za odlet v EU, prevoz na letališče za povratek domov.
 - trip_metadata.return_flight_eu NE izpolnjuj — potnik se vrne z ${vehicle}.`;

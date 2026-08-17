@@ -377,11 +377,13 @@ ${roadTrip ? "- Road trip: enosmerna pot vzdolž ceste; večnočni kampi na isti
     ? `
 
 NAČIN POTOVANJA: AVTO / ROAD TRIP Z HOTELI (obvezno)
-- Nočitve = hoteli v mestih vsak večer (Booking-friendly city stays).
+- Nočitve = hoteli v mestih vsak večer (Booking.com).
+- hotels[] MORA vsebovati vsako nočitev: { name: "Hotel v {city}" ali resnično ime, city, nights }. Prazno hotels[] je PREPOVEDANO.
 - PREPOVEDANO kot namestitev: kamp, RV park, campground, sosta, "spanje v avtu", avtodom.
 - itinerar[] = največ ${maxBases} hotelskih baz (mesta) — to NI število dni!
 - KRITIČNO: ${dayObjectsRule}. Več noči v istem mestu = več day{} na isti hotelski bazi.
-- Road trip: enosmerna pot; več noči v istem mestu so OK (ne vsak dan novo mesto).`
+- Road trip: enosmerna pot; več noči v istem mestu so OK (ne vsak dan novo mesto).
+- Ena etapa max ~6–7 h; PREPOVEDANO Berat/Tirana → Zagreb v enem dnevu.`
     : "";
 
   const groundTransportBlock =
@@ -714,7 +716,7 @@ ${motorhomeRules}
 ${
   carTrip
     ? `STROGO PRAVILO — AVTO / ROAD TRIP Z HOTELI:
-- Nočitve = hoteli v mestih vsak večer. hotels[] lahko vsebuje predloge; UI prikaže Booking kartice.
+- Nočitve = hoteli v mestih vsak večer. hotels[] MORA našteti vsako bazo (city + nights) — UI in PDF odpreta Booking.com.
 - PREPOVEDANO kot namestitev: kamp, RV park, campground, sosta, avtodom, "spanje v avtu".
 - Med mesti načrtuj vožnjo z avtom — enosmerna pot z realističnimi etapami.
 `

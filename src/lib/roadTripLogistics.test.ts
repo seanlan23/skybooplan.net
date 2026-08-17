@@ -6,6 +6,7 @@ import {
   parseDriveHours,
   repairImplausibleDriveTimes,
   stripHomeboundPaidStays,
+  stripSightseeingOnBrutalDriveDays,
 } from "@/lib/roadTripLogistics";
 
 function day(partial: Partial<DayPlan> & { day: number; city: string }): DayPlan {
@@ -312,5 +313,40 @@ describe("annotateBalkanRoadTips", () => {
     expect(plan.days[0]!.travelHack).toMatch(/eSIM|roaming/i);
     expect(plan.days[1]!.transportationTips).toMatch(/Debeli Brijeg|Božaj/i);
     expect(plan.days[2]!.localWarnings).toMatch(/np-plitvicka-jezera|vstopnice/i);
+  });
+});
+
+describe("brutal Balkan return stages", () => {
+  it("does not present Berat → Zagreb as an 8h hop and drops city walks", () => {
+    const plan = {
+      originPlace: "Vienna",
+      groundTransportMode: "car",
+      contentLanguage: "sl",
+      days: [
+        day({
+          day: 10,
+          city: "Zagreb",
+          date: "2026-09-02",
+          drivingDistanceKm: 400,
+          drivingDurationHours: "8h",
+          transportation: [
+            { type: "car", from: "Berat", to: "Zagreb", duration: "8h", estimatedPrice: 80 },
+          ],
+          activities: {
+            morning: [{ name: "Vožnja Berat → Zagreb", type: "TRANSPORT", description: "Meje." }],
+            afternoon: [{ name: "Gornji grad", type: "SIGHT", description: "Sprehod." }],
+            evening: [{ name: "Hotel check-in", type: "hotel", description: "Prijava." }],
+          },
+        }),
+      ],
+    } as AiTripPlan;
+
+    expect(repairImplausibleDriveTimes(plan)).toBe(1);
+    const hours = parseDriveHours(plan.days[0]!.drivingDurationHours)!;
+    expect(hours).toBeGreaterThanOrEqual(12);
+    expect(stripSightseeingOnBrutalDriveDays(plan)).toBeGreaterThan(0);
+    expect(plan.days[0]!.activities!.afternoon).toHaveLength(0);
+    expect(plan.days[0]!.activities!.evening[0]!.name).toMatch(/hotel/i);
+    expect(plan.days[0]!.transportationTips).toMatch(/samo vožnja|prijava/i);
   });
 });

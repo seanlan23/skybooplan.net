@@ -16,6 +16,10 @@ import { formatActivityClockLabel } from "@/lib/activityTime";
 import { enrichMotorhomePlanTips } from "@/lib/motorhomePlanTips";
 import { applyItineraryGuards } from "@/lib/itineraryGuards";
 import { fixMotorhomeCopyErrors } from "@/lib/textSanitize";
+import {
+  collectOvernightHotelStays,
+  overnightStayBookingUrl,
+} from "@/lib/overnightHotelStays";
 
 /**
  * Served from /public/fonts so Nitro/Vercel always can fetch them.
@@ -78,6 +82,8 @@ type PdfDay = {
     price?: string;
   }>;
   slots: Array<{ label: string; items: PdfActivity[] }>;
+  /** Booking.com affiliate search for the first night in this city. */
+  bookingUrl?: string;
 };
 
 type NormalizedPdfPlan = {
@@ -92,7 +98,7 @@ type NormalizedPdfPlan = {
   pax: number;
   days: PdfDay[];
   flights: string[];
-  hotels: string[];
+  hotels: Array<{ text: string; url?: string }>;
   packing: string[];
   labels: PdfLabels;
   contentLang: string;
@@ -230,6 +236,24 @@ function roadBudgetCaption(model: NormalizedPdfPlan): string {
   return n <= 1
     ? "Total (meals, fuel, tolls — hotels extra)"
     : `Total for ${n} travelers (meals, fuel, tolls — hotels extra)`;
+}
+
+function nightsPhrase(n: number, lang: string): string {
+  if (lang === "sl") return n === 1 ? "1 noč" : `${n} noči`;
+  if (lang === "de") return n === 1 ? "1 Nacht" : `${n} Nächte`;
+  if (lang === "it") return n === 1 ? "1 notte" : `${n} notti`;
+  if (lang === "es") return n === 1 ? "1 noche" : `${n} noches`;
+  if (lang === "fr") return n === 1 ? "1 nuit" : `${n} nuits`;
+  return n === 1 ? "1 night" : `${n} nights`;
+}
+
+function bookHotelsLabel(lang: string): string {
+  if (lang === "sl") return "Hoteli na Booking.com";
+  if (lang === "de") return "Hotels auf Booking.com";
+  if (lang === "it") return "Hotel su Booking.com";
+  if (lang === "es") return "Hoteles en Booking.com";
+  if (lang === "fr") return "Hôtels sur Booking.com";
+  return "Hotels on Booking.com";
 }
 
 function roadStaysCaption(model: NormalizedPdfPlan): string {
@@ -740,7 +764,7 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
         .filter(Boolean)
     : [];
 
-  const hotels = Array.isArray(itin.hotels)
+  const namedHotels = Array.isArray(itin.hotels)
     ? itin.hotels
         .map((raw) => {
           if (!raw || typeof raw !== "object") return "";
@@ -776,6 +800,58 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
     typeof plan.pax === "number" && Number.isFinite(plan.pax) && plan.pax >= 1
       ? Math.round(plan.pax)
       : 1;
+
+  const originPlace = textOf((itin as { originPlace?: string }).originPlace);
+  const stays = motorhome
+    ? []
+    : collectOvernightHotelStays({
+        days: rawDays.map((raw, idx) => {
+          const d = (raw ?? {}) as Record<string, unknown>;
+          return {
+            day: typeof d.day === "number" ? d.day : idx + 1,
+            date: textOf(d.date) || undefined,
+            city: textOf(d.city) || textOf(d.focusName) || undefined,
+            inFlightDay: d.inFlightDay === true,
+          };
+        }),
+        start_date: plan.start_date,
+        originPlace,
+        groundTransportMode: textOf(
+          (itin as { groundTransportMode?: string }).groundTransportMode,
+        ),
+        accommodationMode: textOf(
+          (itin as { accommodationMode?: string }).accommodationMode,
+        ),
+      });
+
+  const stayByFirstDay = new Map(stays.map((s) => [s.firstDay, s]));
+  for (const d of days) {
+    const stay = stayByFirstDay.get(d.day);
+    if (stay) {
+      d.bookingUrl = overnightStayBookingUrl(stay, {
+        adults: pax,
+        lang: contentLang,
+      });
+    }
+  }
+
+  const stayHotels = stays.map((s) => ({
+    text: [
+      s.city,
+      nightsPhrase(s.nights, contentLang),
+      [fmtDate(s.checkIn, contentLang), fmtDate(s.checkOut, contentLang)]
+        .filter(Boolean)
+        .join(" → "),
+    ]
+      .filter(Boolean)
+      .join("  ·  "),
+    url: overnightStayBookingUrl(s, { adults: pax, lang: contentLang }),
+  }));
+  const hotels = motorhome
+    ? []
+    : stayHotels.length
+      ? stayHotels
+      : namedHotels.map((text) => ({ text }));
 
   const coverImageUrl =
     typeof plan.cover_image_url === "string" && plan.cover_image_url.trim()
@@ -1215,6 +1291,19 @@ async function renderPlanPdf(plan: PlanForPdf): Promise<{
         y += 24;
       }
 
+      if (d.bookingUrl) {
+        ensureSpace(16);
+        setFont("normal", 8.5, SKY);
+        try {
+          doc.textWithLink(bookHotelsLabel(model.contentLang), margin + 8, y, {
+            url: d.bookingUrl,
+          });
+        } catch {
+          safeText(bookHotelsLabel(model.contentLang), margin + 8, y);
+        }
+        y += 16;
+      }
+
       for (const slot of d.slots) {
         const items = slot.items.filter(
           (it) => !isPdfClutterActivity(it.title, it.description),
@@ -1325,7 +1414,19 @@ async function renderPlanPdf(plan: PlanForPdf): Promise<{
 
   if (model.hotels.length) {
     heading(model.labels.stays);
-    for (const h of model.hotels) para(h, 10, INK);
+    for (const h of model.hotels) {
+      para(h.text, 10, INK);
+      if (h.url) {
+        ensureSpace(12);
+        setFont("normal", 8.5, SKY);
+        try {
+          doc.textWithLink(bookHotelsLabel(model.contentLang), margin, y, { url: h.url });
+        } catch {
+          safeText(bookHotelsLabel(model.contentLang), margin, y);
+        }
+        y += 12;
+      }
+    }
     y += 4;
   }
 

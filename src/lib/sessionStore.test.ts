@@ -8,6 +8,7 @@ import {
   purgeLegacySessionCache,
   requestHomeReset,
   saveSession,
+  patchSessionAiPlan,
 } from "@/lib/sessionStore";
 
 const KEY = `skybooplan:lastSession:v${PLAN_SCHEMA_VERSION}`;
@@ -75,6 +76,15 @@ describe("sessionStore cache invalidation", () => {
     const s = loadSession();
     expect(s?.planSchemaVersion).toBe(PLAN_SCHEMA_VERSION);
     expect(s?.aiError).toBe("test");
+  });
+
+  it("patches a streaming preview without dropping the rest of the session", () => {
+    saveSession({ aiError: "keep-me", aiGenStartedAt: 111 });
+    patchSessionAiPlan({ destinationName: "Albania", days: [{ day: 1 }] } as never);
+    const s = loadSession();
+    expect(s?.aiError).toBe("keep-me");
+    expect(s?.aiGenStartedAt).toBe(111);
+    expect(s?.aiPlan).toMatchObject({ destinationName: "Albania" });
   });
 
   it("clearSession removes current and legacy keys", () => {

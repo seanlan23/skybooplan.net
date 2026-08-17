@@ -6,7 +6,7 @@ import {
   sanitizeLegacyTemplateLeak,
   stripTruncatedCopyFromPlan,
 } from "@/lib/textSanitize";
-import { annotateBalkanRoadTips, repairImplausibleDriveTimes, stripHomeboundPaidStays } from "@/lib/roadTripLogistics";
+import { annotateBalkanRoadTips, repairImplausibleDriveTimes, stripHomeboundPaidStays, stripSightseeingOnBrutalDriveDays } from "@/lib/roadTripLogistics";
 import { alignSummaryTripLength } from "@/lib/planTeaser";
 
 type DaySlots = NonNullable<DayPlan["activities"]>;
@@ -848,6 +848,29 @@ export function alignTransportationDurationWithTips(plan: AiTripPlan): number {
   return fixed;
 }
 
+/** Move Tirana museums off the evening slot (they close ~18:00). */
+export function relocateClosedEveningSights(plan: AiTripPlan): number {
+  let n = 0;
+  for (const day of plan.days ?? []) {
+    const city = `${day.city ?? ""} ${day.focusName ?? ""}`;
+    if (!/tirana|tiranë/i.test(city)) continue;
+    const evening = day.activities?.evening ?? [];
+    if (!evening.length) continue;
+    const move = evening.filter((a) =>
+      /bunk.?art|narodni muzej|national museum|galerij|gallery|pyramid|piramid|skanderbeg/i.test(
+        `${a.name ?? ""} ${a.description ?? ""}`,
+      ),
+    );
+    if (!move.length) continue;
+    const keep = evening.filter((a) => !move.includes(a));
+    day.activities = day.activities ?? { morning: [], afternoon: [], evening: [] };
+    day.activities.evening = keep;
+    day.activities.afternoon = [...(day.activities.afternoon ?? []), ...move];
+    n += move.length;
+  }
+  return n;
+}
+
 /** Run all structural guards once (catalog finalize + after flight rewrite). */
 export function applyItineraryGuards(
   plan: AiTripPlan,
@@ -890,6 +913,8 @@ export function applyItineraryGuards(
   const earlyAirport = scrubUnsafeEarlyAirportTips(plan);
   const durationAlign = alignTransportationDurationWithTips(plan);
   const driveTimes = repairImplausibleDriveTimes(plan);
+  stripSightseeingOnBrutalDriveDays(plan);
+  relocateClosedEveningSights(plan);
   const homeStays = stripHomeboundPaidStays(plan);
   const balkanTips = annotateBalkanRoadTips(plan);
   return {

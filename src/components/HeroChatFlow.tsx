@@ -26,7 +26,6 @@ import {
   createChatMessage,
   getDestinationChipDisplay,
   HERO_DESTINATION_CHIPS,
-  HERO_TYPE_SUGGESTIONS,
   HERO_MOTORHOME_END_CHIPS,
   HERO_MOTORHOME_START_CHIPS,
   localizeHeroCollectedForUi,
@@ -383,109 +382,74 @@ function HeroGuidedStart({
   placeSearch?: boolean;
   t: (key: never) => string;
 }) {
-  const [showTypeBox, setShowTypeBox] = useState(false);
+  const typing = textInput.trim().length >= 2;
 
   return (
     <div className="relative z-20 w-full">
-      <div className="hero-sky-enter overflow-visible rounded-2xl border border-white/40 bg-black/50 p-5 shadow-[0_18px_50px_rgba(0,0,0,0.45)] backdrop-blur-xl sm:p-6">
-        <p className="text-center text-lg font-semibold text-white sm:text-xl">
+      <div className="hero-sky-enter overflow-visible rounded-2xl border border-white/40 bg-black/50 p-4 shadow-[0_18px_50px_rgba(0,0,0,0.45)] backdrop-blur-xl sm:p-6">
+        <p className="text-center text-base font-semibold text-white sm:text-xl">
           {t((staysOnly ? "heroChat.guided.staysTitle" : "heroChat.guided.whereTitle") as never)}
         </p>
-        {!showTypeBox ? (
-        <p className="mt-1.5 text-center text-sm text-white/70">
+        <p className="mt-1 text-center text-[13px] text-white/70 sm:mt-1.5 sm:text-sm">
           {t((staysOnly ? "heroChat.guided.staysHint" : "heroChat.guided.whereHint") as never)}
         </p>
-        ) : null}
 
-        <div className={cn(
-          "relative overflow-visible",
-          showTypeBox ? "mt-3 min-h-[4.75rem]" : "mt-5 min-h-[13.5rem]",
-        )}>
-        {!showTypeBox ? (
-          <>
-        <div key="hero-dest-dubai-v2" className="grid grid-cols-3 gap-1.5 sm:gap-2">
-          {HERO_DESTINATION_CHIPS.map((chip) => {
-            const { emoji, name, feel } = getDestinationChipDisplay(chip, t);
-            return (
-              <button
-                key={chip.id}
-                type="button"
-                disabled={inputDisabled || fileProcessing}
-                onClick={() => onPickDestination(chip.destination, `${emoji} ${name}`)}
-                className="flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-2xl border border-white/30 bg-white/15 px-1.5 py-2.5 text-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:bg-white/25 hover:shadow-md active:scale-[0.98] disabled:opacity-50 sm:px-3 sm:py-3.5"
-              >
-                <span className="text-xl sm:text-2xl" aria-hidden>
-                  {emoji}
-                </span>
-                <span className="max-w-full truncate text-center text-[12px] font-semibold leading-tight sm:text-[15px]">
-                  {name}
-                </span>
-                {feel ? (
-                  <span className="max-w-full truncate text-[10px] font-medium tracking-wide text-white/60 sm:text-[11px]">
-                    {feel}
+        <div className="relative z-30 mt-3 overflow-visible sm:mt-4">
+          <HeroDestinationAutocomplete
+            value={textInput}
+            onChange={onTextChange}
+            onPick={onPickDestination}
+            onSubmit={onTypeSubmit}
+            autoFocus={false}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                onTypeSubmit();
+              }
+            }}
+            canSubmit={canSubmit}
+            disabled={inputDisabled || fileProcessing}
+            placeholder={t(
+              (staysOnly
+                ? "heroChat.guided.staysPlaceholder"
+                : "heroChat.guided.typePlaceholder") as never,
+            )}
+            kind={staysOnly || placeSearch ? "place" : "airport"}
+          />
+        </div>
+
+        {!typing ? (
+          <div key="hero-dest-dubai-v2" className="mt-3 grid grid-cols-3 gap-1.5 sm:mt-4 sm:gap-2">
+            {HERO_DESTINATION_CHIPS.map((chip) => {
+              const { emoji, name, feel } = getDestinationChipDisplay(chip, t);
+              return (
+                <button
+                  key={chip.id}
+                  type="button"
+                  disabled={inputDisabled || fileProcessing}
+                  onClick={() => onPickDestination(chip.destination, `${emoji} ${name}`)}
+                  className="flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl border border-white/30 bg-white/15 px-1 py-2 text-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:bg-white/25 hover:shadow-md active:scale-[0.98] disabled:opacity-50 sm:rounded-2xl sm:px-3 sm:py-3.5"
+                >
+                  <span className="text-lg sm:text-2xl" aria-hidden>
+                    {emoji}
                   </span>
-                ) : null}
-              </button>
-            );
-          })}
-        </div>
-          <button
-            type="button"
-            onClick={() => setShowTypeBox(true)}
-            className="mt-4 w-full rounded-xl bg-white px-3 py-3 text-[13px] font-semibold leading-snug text-slate-900 shadow-sm transition hover:bg-white/90 sm:px-4 sm:text-sm"
-          >
-            {t("heroChat.guided.typeOwn" as never)}
-          </button>
-          </>
-        ) : (
-          <div className="relative z-30 space-y-2">
-            <p className="text-sm font-medium text-white/90">
-              {t("heroChat.guided.typeTitle" as never)}
-            </p>
-            <HeroDestinationAutocomplete
-              value={textInput}
-              onChange={onTextChange}
-              onPick={onPickDestination}
-              onSubmit={onTypeSubmit}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  onTypeSubmit();
-                }
-              }}
-              canSubmit={canSubmit}
-              disabled={inputDisabled || fileProcessing}
-              placeholder={t(
-                (staysOnly
-                  ? "heroChat.guided.staysPlaceholder"
-                  : "heroChat.guided.typePlaceholder") as never,
-              )}
-              kind={staysOnly || placeSearch ? "place" : "airport"}
-            />
-            {textInput.trim().length < 2 ? (
-            <div className="grid grid-cols-3 gap-1.5 pt-1">
-              {HERO_TYPE_SUGGESTIONS.map((hint) => {
-                const name = t(hint.nameKey as never);
-                const label = name.startsWith("hero.") ? hint.destination : name;
-                return (
-                  <button
-                    key={hint.id}
-                    type="button"
-                    disabled={inputDisabled || fileProcessing}
-                    onClick={() => onPickDestination(hint.destination, `${hint.emoji} ${label}`)}
-                    className="min-w-0 truncate rounded-full border border-white/30 bg-white/10 px-1.5 py-1.5 text-[11px] font-medium text-white/90 transition hover:bg-white/20 disabled:opacity-50 sm:px-3 sm:text-xs"
-                  >
-                    {hint.emoji} {label}
-                  </button>
-                );
-              })}
-            </div>
-            ) : null}
+                  <span className="max-w-full truncate text-center text-[11px] font-semibold leading-tight sm:text-[15px]">
+                    {name}
+                  </span>
+                  {feel ? (
+                    <span className="hidden max-w-full truncate text-[10px] font-medium tracking-wide text-white/60 sm:inline sm:text-[11px]">
+                      {feel}
+                    </span>
+                  ) : null}
+                </button>
+              );
+            })}
           </div>
-        )}
-        </div>
+        ) : null}
       </div>
-      {!showTypeBox ? <HeroFeatureBadges featureBadges={featureBadges} /> : null}
+      <div className="hidden sm:block">
+        <HeroFeatureBadges featureBadges={featureBadges} />
+      </div>
     </div>
   );
 }
@@ -1225,8 +1189,7 @@ export function HeroChatFlow({
       askPassengers(collected.dates);
       return;
     }
-    appendMessages(createChatMessage("ai", roadT("searching")));
-    setStep("searching");
+    askRoadWishes();
   }
 
   function handleTravelModeSelect(id: string, label: string) {
@@ -1265,8 +1228,7 @@ export function HeroChatFlow({
     }
     if (isStaysOnly || isRoadGroundOnly) {
       if (isRoadGroundOnly) {
-        appendMessages(createChatMessage("ai", roadT("searching")));
-        setStep("searching");
+        askRoadWishes();
         return;
       }
       startStaySearch();
@@ -1288,6 +1250,18 @@ export function HeroChatFlow({
       return;
     }
     goToOriginStep(next);
+  }
+
+  function askRoadWishes() {
+    if (collected.locationWishes?.trim() || pendingLocationWishesRef.current.trim()) {
+      finishWishesAndSearch(
+        collected.locationWishes?.trim() || pendingLocationWishesRef.current,
+      );
+      return;
+    }
+    appendMessages(createChatMessage("ai", t("heroChat.wishes.askRoad" as never)));
+    setStep("wishes");
+    scrollToBottom();
   }
 
   function askPassengers(datesLabel?: string) {
@@ -1585,8 +1559,7 @@ export function HeroChatFlow({
       return;
     }
     if (isRoadGroundOnly) {
-      appendMessages(createChatMessage("ai", roadT("searching")));
-      setStep("searching");
+      askRoadWishes();
       return;
     }
     goToOriginStep(isFlightsOnly ? "searching" : "pace");
@@ -1613,7 +1586,14 @@ export function HeroChatFlow({
       ...(trimmed ? { locationWishes: trimmed } : { locationWishes: undefined }),
       attachment: attachment ?? prev.attachment,
     }));
-    appendMessages(createChatMessage("ai", t("heroChat.step6.loading" as never)));
+    appendMessages(
+      createChatMessage(
+        "ai",
+        isRoadGroundOnly
+          ? roadT("searching")
+          : t("heroChat.step6.loading" as never),
+      ),
+    );
     setStep("searching");
   }
 
@@ -1719,7 +1699,11 @@ export function HeroChatFlow({
 
   const placeholder =
     step === "wishes"
-      ? t("heroChat.wishes.placeholder" as never)
+      ? t(
+          (isRoadGroundOnly
+            ? "heroChat.wishes.placeholderRoad"
+            : "heroChat.wishes.placeholder") as never,
+        )
       : chatPlaceholder(t);
   const canSubmit =
     !inputDisabled &&
@@ -2111,7 +2095,9 @@ export function HeroChatFlow({
             />
           ) : null}
 
-          {showConversationChips && step === "wishes" && !isQuickSearchMode ? (
+          {showConversationChips &&
+          step === "wishes" &&
+          (!isQuickSearchMode || isRoadGroundOnly) ? (
             <div className="space-y-2 pl-0 sm:pl-10">
               <div className="flex items-center gap-2">
                 <input
@@ -2125,8 +2111,16 @@ export function HeroChatFlow({
                     }
                   }}
                   disabled={loading}
-                  placeholder={t("heroChat.wishes.placeholder" as never)}
-                  aria-label={t("heroChat.wishes.placeholder" as never)}
+                  placeholder={t(
+                    (isRoadGroundOnly
+                      ? "heroChat.wishes.placeholderRoad"
+                      : "heroChat.wishes.placeholder") as never,
+                  )}
+                  aria-label={t(
+                    (isRoadGroundOnly
+                      ? "heroChat.wishes.placeholderRoad"
+                      : "heroChat.wishes.placeholder") as never,
+                  )}
                   className="min-w-0 flex-1 rounded-xl border border-white/30 bg-white/15 px-3 py-2.5 text-sm text-white placeholder:text-white/50 outline-none focus:border-white/50"
                 />
                 <button

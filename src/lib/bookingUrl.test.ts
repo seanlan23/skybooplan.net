@@ -8,7 +8,9 @@ import {
   resolveHotelBookingUrl,
   SKYBOOPLAN_CJ_CLICK_URL,
   toBookingClickHref,
+  toAbsoluteBookingClickHref,
   toCjTrackedUrl,
+  SKYBOOPLAN_SITE,
   renderBookingHopHtml,
 } from "@/lib/bookingUrl";
 
@@ -170,6 +172,17 @@ describe("resolveHotelBookingUrl", () => {
       checkOut: "2026-09-27",
     });
     expect(hopDest(href).pathname).toContain("/hotel/us/pod-times-square.html");
+  });
+});
+
+describe("toAbsoluteBookingClickHref", () => {
+  it("prefixes the site-relative hop for PDF / offline clicks", () => {
+    expect(toAbsoluteBookingClickHref("/api/go/booking?u=https%3A%2F%2Fwww.booking.com%2F")).toBe(
+      `${SKYBOOPLAN_SITE}/api/go/booking?u=https%3A%2F%2Fwww.booking.com%2F`,
+    );
+    expect(toAbsoluteBookingClickHref("https://www.booking.com/")).toBe(
+      "https://www.booking.com/",
+    );
   });
 });
 

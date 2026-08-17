@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { AiTripPlan } from "@/lib/aiPlan.functions";
 import {
   hasAcceptablePlanDayCoverage,
@@ -13,6 +13,8 @@ import {
   flushNdjsonBuffer,
   isStreamEvent,
 } from "@/lib/parseStreamNdjson";
+import { patchSessionAiPlan } from "@/lib/sessionStore";
+import { classifyStreamAbort, waitUntilDocumentVisible } from "@/lib/streamAbort";
 
 function sanitizeStreamPlan(
   plan: AiTripPlan,
@@ -24,11 +26,29 @@ function sanitizeStreamPlan(
   return next;
 }
 
+function isAbortError(err: unknown): boolean {
+  if (err instanceof DOMException && err.name === "AbortError") return true;
+  return err instanceof Error && err.name === "AbortError";
+}
+
+function isTransientDisconnect(err: unknown): boolean {
+  if (isAbortError(err)) return true;
+  if (!(err instanceof Error)) return false;
+  const m = err.message.toLowerCase();
+  return (
+    err.name === "TypeError" ||
+    m.includes("failed to fetch") ||
+    m.includes("load failed") ||
+    m.includes("networkerror")
+  );
+}
+
 /**
  * Must exceed Gemini pauses between new days. Server pings every 20s once the
  * stream starts; this is a backstop if the proxy drops keepalive bytes.
  */
 const CLIENT_STREAM_IDLE_MS = 240_000;
+const MAX_CONNECTION_RETRIES = 1;
 
 export type StreamItineraryStatus = "idle" | "streaming" | "done" | "error";
 
@@ -51,6 +71,12 @@ function asStreamEvent(raw: unknown): StreamEvent | null {
   return null;
 }
 
+export type StreamItineraryResult = {
+  plan: AiTripPlan | null;
+  error: string | null;
+  cancelled?: boolean;
+};
+
 /**
  * Read NDJSON itinerary stream.
  *
@@ -58,6 +84,9 @@ function asStreamEvent(raw: unknown): StreamEvent | null {
  * receives complete JSON objects, one per line. We append raw chunks to a buffer
  * and parse only when a full line is present AND structurally complete
  * (`parsePartialJson` — never JSON.parse on a raw chunk).
+ *
+ * Screen lock / iOS Safari abort the fetch. We persist the preview immediately,
+ * wait until the tab is visible, then retry the stream once.
  */
 export function useStreamItinerary() {
   const [previewPlan, setPreviewPlan] = useState<AiTripPlan | null>(null);
@@ -67,34 +96,40 @@ export function useStreamItinerary() {
   const [expectedDays, setExpectedDays] = useState(0);
   const [streamedDayCount, setStreamedDayCount] = useState(0);
   const abortRef = useRef<AbortController | null>(null);
+  const userAbortRef = useRef(false);
+  const generationRef = useRef(0);
+  const previewRef = useRef<AiTripPlan | null>(null);
+  previewRef.current = previewPlan;
 
-  const abort = useCallback(() => {
+  const abort = useCallback((origin: "user" | "replace" = "user") => {
+    if (origin === "user") userAbortRef.current = true;
     abortRef.current?.abort();
     abortRef.current = null;
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const flush = () => {
+      const plan = previewRef.current;
+      if (plan?.days?.length) patchSessionAiPlan(plan);
+    };
+    const onVis = () => {
+      if (document.visibilityState === "hidden") flush();
+    };
+    window.addEventListener("pagehide", flush);
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, []);
+
   const start = useCallback(
-    async (
-      input: GenerateGeminiProTripInput,
-    ): Promise<{ plan: AiTripPlan | null; error: string | null }> => {
-      abort();
-      const controller = new AbortController();
-      abortRef.current = controller;
-      let idleTimedOut = false;
-      let idleTimer: ReturnType<typeof setTimeout> | undefined;
-
-      const clearIdle = () => {
-        if (idleTimer !== undefined) clearTimeout(idleTimer);
-        idleTimer = undefined;
-      };
-
-      const bumpIdle = () => {
-        clearIdle();
-        idleTimer = setTimeout(() => {
-          idleTimedOut = true;
-          controller.abort();
-        }, CLIENT_STREAM_IDLE_MS);
-      };
+    async (input: GenerateGeminiProTripInput): Promise<StreamItineraryResult> => {
+      const generation = ++generationRef.current;
+      const isCurrent = () => generationRef.current === generation;
+      userAbortRef.current = false;
+      abort("replace");
 
       const expectedFromInput = tripDayCount(input.departDate, input.returnDate);
 
@@ -108,8 +143,12 @@ export function useStreamItinerary() {
       let resolvedPlan: AiTripPlan | null = null;
       let lastPartialPlan: AiTripPlan | null = null;
       let streamError: string | null = null;
-      /** Accumulator — only this string is parsed, never individual chunks. */
-      let ndjsonBuffer = "";
+
+      const persistPreview = (plan: AiTripPlan) => {
+        lastPartialPlan = plan;
+        previewRef.current = plan;
+        patchSessionAiPlan(plan);
+      };
 
       const rejectIncomplete = (plan: AiTripPlan, warn: string) => {
         setPreviewPlan(plan);
@@ -144,14 +183,13 @@ export function useStreamItinerary() {
 
       const handleEvent = (event: StreamEvent): "stop" | "continue" => {
         if (event.type === "ping") {
-          // Server keepalive — Gemini still working, just no new day yet.
           setStreamedDayCount(event.dayCount);
           setExpectedDays(event.expectedDays || expectedFromInput);
           return "continue";
         }
         if (event.type === "partial") {
           const plan = sanitizeStreamPlan(event.plan, input);
-          lastPartialPlan = plan;
+          persistPreview(plan);
           setPreviewPlan(plan);
           setStreamedDayCount(event.dayCount);
           setExpectedDays(event.expectedDays || expectedFromInput);
@@ -159,7 +197,7 @@ export function useStreamItinerary() {
         }
         if (event.type === "done") {
           const plan = sanitizeStreamPlan(event.plan, input);
-          lastPartialPlan = plan;
+          persistPreview(plan);
           setPreviewPlan(plan);
           setStreamedDayCount(plan.days.length);
           setExpectedDays(expectedFromInput);
@@ -178,7 +216,6 @@ export function useStreamItinerary() {
           return "continue";
         }
         streamError = event.error;
-        // Incomplete coverage → hard error (do not commit a 1-day plan as finished).
         if (
           lastPartialPlan?.days?.length &&
           !hasAcceptablePlanDayCoverage(lastPartialPlan.days.length, expectedFromInput)
@@ -201,143 +238,212 @@ export function useStreamItinerary() {
         return "stop";
       };
 
-      const drainBuffer = (): "stop" | "continue" => {
-        const { events, remainder } = consumeNdjsonBuffer(ndjsonBuffer);
-        ndjsonBuffer = remainder;
-
-        for (const raw of events) {
-          const event = asStreamEvent(raw);
-          if (!event) continue;
-          if (handleEvent(event) === "stop") return "stop";
+      for (let attempt = 0; attempt <= MAX_CONNECTION_RETRIES; attempt++) {
+        if (!isCurrent() || userAbortRef.current) {
+          if (isCurrent()) setStatus("idle");
+          return { plan: null, error: null, cancelled: true };
         }
-        return "continue";
-      };
 
-      const stopResult = (): { plan: AiTripPlan | null; error: string | null } => {
-        if (resolvedPlan) {
-          setStatus("done");
-          return { plan: resolvedPlan, error: streamError };
-        }
-        if (lastPartialPlan?.days?.length) {
-          return (
-            finishWithPartial(
-              streamError
-                ? `${streamError} — prikazan je delni načrt.`
-                : "Stream se je končal pred končnim načrtom — prikazan je delni načrt.",
-            ) ?? { plan: null, error: streamError }
-          );
-        }
-        setError(streamError);
-        setStatus("error");
-        return { plan: null, error: streamError };
-      };
+        const controller = new AbortController();
+        abortRef.current = controller;
+        let idleTimedOut = false;
+        let idleTimer: ReturnType<typeof setTimeout> | undefined;
+        let ndjsonBuffer = "";
+        resolvedPlan = null;
+        streamError = null;
 
-      try {
-        bumpIdle();
-        const res = await fetch("/api/generate-itinerary", {
-          method: "POST",
-          headers: await supabaseAuthHeaders({ "Content-Type": "application/json" }),
-          body: JSON.stringify(input),
-          signal: controller.signal,
-        });
+        const clearIdle = () => {
+          if (idleTimer !== undefined) clearTimeout(idleTimer);
+          idleTimer = undefined;
+        };
 
-        if (!res.ok) {
-          let message = `Strežnik vrnil ${res.status}`;
-          try {
-            const errBody = (await res.json()) as { error?: string };
-            if (errBody.error) message = errBody.error;
-          } catch {
-            /* ignore non-JSON error body */
+        const bumpIdle = () => {
+          clearIdle();
+          idleTimer = setTimeout(() => {
+            idleTimedOut = true;
+            controller.abort();
+          }, CLIENT_STREAM_IDLE_MS);
+        };
+
+        const drainBuffer = (): "stop" | "continue" => {
+          const { events, remainder } = consumeNdjsonBuffer(ndjsonBuffer);
+          ndjsonBuffer = remainder;
+
+          for (const raw of events) {
+            const event = asStreamEvent(raw);
+            if (!event) continue;
+            if (handleEvent(event) === "stop") return "stop";
           }
-          throw new Error(message);
-        }
+          return "continue";
+        };
 
-        if (!res.body) throw new Error("Prazen odgovor strežnika.");
+        const stopResult = (): StreamItineraryResult => {
+          if (resolvedPlan) {
+            setStatus("done");
+            return { plan: resolvedPlan, error: streamError };
+          }
+          if (lastPartialPlan?.days?.length) {
+            return (
+              finishWithPartial(
+                streamError
+                  ? `${streamError} — prikazan je delni načrt.`
+                  : "Stream se je končal pred končnim načrtom — prikazan je delni načrt.",
+              ) ?? { plan: null, error: streamError }
+            );
+          }
+          setError(streamError);
+          setStatus("error");
+          return { plan: null, error: streamError };
+        };
 
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder();
-
-        while (true) {
+        try {
           bumpIdle();
-          const { done, value } = await reader.read();
-          if (done) break;
+          const res = await fetch("/api/generate-itinerary", {
+            method: "POST",
+            headers: await supabaseAuthHeaders({ "Content-Type": "application/json" }),
+            body: JSON.stringify(input),
+            signal: controller.signal,
+          });
 
-          // Append only — parse happens in drainBuffer after full lines arrive.
-          ndjsonBuffer += decoder.decode(value, { stream: true });
+          if (!res.ok) {
+            let message = `Strežnik vrnil ${res.status}`;
+            try {
+              const errBody = (await res.json()) as { error?: string };
+              if (errBody.error) message = errBody.error;
+            } catch {
+              /* ignore non-JSON error body */
+            }
+            throw new Error(message);
+          }
+
+          if (!res.body) throw new Error("Prazen odgovor strežnika.");
+
+          const reader = res.body.getReader();
+          const decoder = new TextDecoder();
+
+          while (true) {
+            bumpIdle();
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            ndjsonBuffer += decoder.decode(value, { stream: true });
+            if (drainBuffer() === "stop") {
+              return stopResult();
+            }
+          }
+
+          ndjsonBuffer += decoder.decode();
           if (drainBuffer() === "stop") {
             return stopResult();
           }
-        }
 
-        ndjsonBuffer += decoder.decode();
-        if (drainBuffer() === "stop") {
-          return stopResult();
-        }
-
-        const trailing = flushNdjsonBuffer(ndjsonBuffer);
-        ndjsonBuffer = "";
-        if (trailing) {
-          const event = asStreamEvent(trailing);
-          if (event && handleEvent(event) === "stop") {
-            return stopResult();
+          const trailing = flushNdjsonBuffer(ndjsonBuffer);
+          ndjsonBuffer = "";
+          if (trailing) {
+            const event = asStreamEvent(trailing);
+            if (event && handleEvent(event) === "stop") {
+              return stopResult();
+            }
           }
-        }
 
-        if (resolvedPlan) {
-          setStatus("done");
-          return { plan: resolvedPlan, error: null };
-        }
+          if (resolvedPlan) {
+            setStatus("done");
+            return { plan: resolvedPlan, error: null };
+          }
 
-        if (lastPartialPlan?.days?.length) {
-          return (
-            finishWithPartial(
-              "Stream se je končal pred končnim načrtom — prikazan je delni načrt.",
-            ) ?? { plan: null, error: "Stream se je končal brez končnega načrta." }
-          );
-        }
+          if (lastPartialPlan?.days?.length) {
+            return (
+              finishWithPartial(
+                "Stream se je končal pred končnim načrtom — prikazan je delni načrt.",
+              ) ?? { plan: null, error: "Stream se je končal brez končnega načrta." }
+            );
+          }
 
-        const fallbackError = streamError ?? "Stream se je končal brez končnega načrta.";
-        setError(fallbackError);
-        setStatus("error");
-        return { plan: null, error: fallbackError };
-      } catch (err) {
-        if (controller.signal.aborted) {
-          if (idleTimedOut) {
-            const warn =
-              "error.planTimeout";
+          const fallbackError = streamError ?? "Stream se je končal brez končnega načrta.";
+          setError(fallbackError);
+          setStatus("error");
+          return { plan: null, error: fallbackError };
+        } catch (err) {
+          if (!isCurrent()) {
+            return { plan: null, error: null, cancelled: true };
+          }
+
+          const aborted = controller.signal.aborted || isAbortError(err);
+          const kind = classifyStreamAbort({
+            aborted,
+            userAborted: userAbortRef.current,
+            idleTimedOut,
+          });
+
+          if (kind === "user") {
+            if (isCurrent()) setStatus("idle");
+            return { plan: null, error: null, cancelled: true };
+          }
+
+          if (kind === "idle") {
+            const warn = "error.planTimeout";
             const partial = finishWithPartial(`${warn} — prikazan je delni načrt.`);
             if (partial) return partial;
             setError(warn);
             setStatus("error");
             return { plan: null, error: warn };
           }
-          setStatus("idle");
-          return { plan: null, error: null };
-        }
 
-        if (lastPartialPlan?.days?.length) {
-          const warn =
-            err instanceof Error
-              ? `Povezava prekinjena (${err.message}) — prikazan je delni načrt.`
-              : "Povezava prekinjena — prikazan je delni načrt.";
-          return finishWithPartial(warn) ?? { plan: null, error: warn };
-        }
+          const canRetry =
+            isCurrent() &&
+            attempt < MAX_CONNECTION_RETRIES &&
+            !userAbortRef.current &&
+            (kind === "connection" || isTransientDisconnect(err));
 
-        const message =
-          err instanceof Error ? err.message : "Napaka pri stream generiranju načrta.";
-        setError(message);
-        setStatus("error");
-        return { plan: null, error: message };
-      } finally {
-        clearIdle();
-        if (abortRef.current === controller) abortRef.current = null;
+          if (canRetry) {
+            const waitController = new AbortController();
+            abortRef.current = waitController;
+            try {
+              await waitUntilDocumentVisible(waitController.signal);
+            } catch {
+              if (isCurrent()) setStatus("idle");
+              return { plan: null, error: null, cancelled: true };
+            }
+            if (userAbortRef.current || !isCurrent()) {
+              if (isCurrent()) setStatus("idle");
+              return { plan: null, error: null, cancelled: true };
+            }
+            continue;
+          }
+
+          if (lastPartialPlan?.days?.length) {
+            const warn =
+              err instanceof Error
+                ? `Povezava prekinjena (${err.message}) — prikazan je delni načrt.`
+                : "Povezava prekinjena — prikazan je delni načrt.";
+            return finishWithPartial(warn) ?? { plan: null, error: warn };
+          }
+
+          const message =
+            kind === "connection" || isTransientDisconnect(err)
+              ? "error.planInterrupted"
+              : err instanceof Error
+                ? err.message
+                : "Napaka pri stream generiranju načrta.";
+          setError(message);
+          setStatus("error");
+          return { plan: null, error: message };
+        } finally {
+          clearIdle();
+          if (abortRef.current === controller) abortRef.current = null;
+        }
       }
+
+      setError("error.planInterrupted");
+      setStatus("error");
+      return { plan: null, error: "error.planInterrupted" };
     },
     [abort],
   );
 
   const reset = useCallback(() => {
-    abort();
+    generationRef.current += 1;
+    abort("user");
     setPreviewPlan(null);
     setFinalPlan(null);
     setStatus("idle");

@@ -140,6 +140,16 @@ export function saveSession(partial: Partial<SavedSession>) {
   }
 }
 
+/** Flush a streaming preview immediately — React effects may not run before iOS sleeps. */
+export function patchSessionAiPlan(aiPlan: AiTripPlan | null) {
+  if (typeof window === "undefined") return;
+  const prev = loadSession();
+  saveSession({
+    aiPlan,
+    aiGenStartedAt: prev?.aiGenStartedAt ?? Date.now(),
+  });
+}
+
 export function clearSession() {
   if (typeof window === "undefined") return;
   try {

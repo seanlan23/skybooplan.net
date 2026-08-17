@@ -3,6 +3,7 @@ import type { AiTripPlan, DayPlan } from "@/lib/aiPlan.functions";
 import {
   alignTransportationDurationWithTips,
   applyItineraryGuards,
+  relocateClosedEveningSights,
   dedupeLastDayReturnFlights,
   dedupeNearIdenticalConsecutiveDays,
   dedupeSameDayMeals,
@@ -445,6 +446,29 @@ describe("applyItineraryGuards", () => {
     expect(stats.clones).toBeGreaterThanOrEqual(1);
     expect(plan.days[1]!.activities!.afternoon).toHaveLength(0);
     expect(plan.days[4]!.activities!.evening).toHaveLength(1);
+  });
+});
+
+describe("relocateClosedEveningSights", () => {
+  it("moves Tirana Bunk'Art off the evening slot", () => {
+    const plan = {
+      destinationName: "Albania",
+      contentLanguage: "sl",
+      days: [
+        day({
+          day: 8,
+          city: "Tirana",
+          activities: {
+            morning: [],
+            afternoon: [{ name: "Sprehod po Blloku", type: "SIGHT", description: "Kava." }],
+            evening: [{ name: "Bunk'Art 2", type: "SIGHT", description: "Muzej." }],
+          },
+        }),
+      ],
+    } as AiTripPlan;
+    expect(relocateClosedEveningSights(plan)).toBe(1);
+    expect(plan.days[0]!.activities!.evening).toHaveLength(0);
+    expect(plan.days[0]!.activities!.afternoon.map((a) => a.name)).toContain("Bunk'Art 2");
   });
 });
 

@@ -25,7 +25,8 @@ export const plannerExtrasByLang: Record<"es" | "fr" | "it" | "de", Dict> = {
     "skeleton.expandFull": "Ampliar plan día a día",
     "skeleton.expanding": "Generando itinerario diario…",
     "skeleton.daysCount": "{n} días",
-    "skeleton.genInterrupted": "La generación se interrumpió (p. ej. recarga). Inténtalo de nuevo.",
+    "skeleton.genInterrupted":
+      "La generación se interrumpió (recarga o pantalla apagada). Deja la pantalla encendida e inténtalo de nuevo.",
     "skeleton.retry": "Reintentar",
     "skeleton.localTransport": "Cómo moverse",
     "skeleton.insiderTips": "Consejos locales",
@@ -73,7 +74,8 @@ export const plannerExtrasByLang: Record<"es" | "fr" | "it" | "de", Dict> = {
     "skeleton.expandFull": "Développer le plan jour par jour",
     "skeleton.expanding": "Génération de l'itinéraire quotidien…",
     "skeleton.daysCount": "{n} jours",
-    "skeleton.genInterrupted": "Génération interrompue (ex. rechargement). Réessayez.",
+    "skeleton.genInterrupted":
+      "Génération interrompue (rechargement ou écran éteint). Gardez l'écran allumé et réessayez.",
     "skeleton.retry": "Réessayer",
     "skeleton.localTransport": "Se déplacer",
     "skeleton.insiderTips": "Conseils locaux",
@@ -121,7 +123,8 @@ export const plannerExtrasByLang: Record<"es" | "fr" | "it" | "de", Dict> = {
     "skeleton.expandFull": "Espandi piano giorno per giorno",
     "skeleton.expanding": "Generazione itinerario giornaliero…",
     "skeleton.daysCount": "{n} giorni",
-    "skeleton.genInterrupted": "Generazione interrotta (es. ricarica pagina). Riprova.",
+    "skeleton.genInterrupted":
+      "Generazione interrotta (ricarica o schermo spento). Tieni lo schermo acceso e riprova.",
     "skeleton.retry": "Riprova",
     "skeleton.localTransport": "Come spostarsi",
     "skeleton.insiderTips": "Consigli locali",
@@ -169,7 +172,8 @@ export const plannerExtrasByLang: Record<"es" | "fr" | "it" | "de", Dict> = {
     "skeleton.expandFull": "Vollen Tagesplan öffnen",
     "skeleton.expanding": "Tagesplan wird erzeugt…",
     "skeleton.daysCount": "{n} Tage",
-    "skeleton.genInterrupted": "Erzeugung unterbrochen (z. B. Neuladen). Bitte erneut versuchen.",
+    "skeleton.genInterrupted":
+      "Erzeugung unterbrochen (Neuladen oder Bildschirm aus). Bildschirm an lassen und erneut versuchen.",
     "skeleton.retry": "Erneut versuchen",
     "skeleton.localTransport": "Vor Ort unterwegs",
     "skeleton.insiderTips": "Insider-Tipps",

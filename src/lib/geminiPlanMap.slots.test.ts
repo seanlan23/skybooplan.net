@@ -225,3 +225,77 @@ describe("parseRouteFromTitle", () => {
     expect(parseRouteFromTitle("Paris → Lyon")).toEqual({ from: "Paris", to: "Lyon" });
   });
 });
+
+describe("car road trip inFlightDay", () => {
+  it("does not treat Odhod z Dunaja as an airport day", () => {
+    const data: TripPlanResponse = {
+      trip_metadata: {
+        destination: "Albania",
+        season_warning: "Late summer Balkans driving.",
+        currency: "EUR",
+        visa_required: false,
+      },
+      itinerar: [
+        {
+          phase: "Zagreb",
+          city: "Zagreb",
+          unsplashQuery: "Zagreb",
+          lat: 45.815,
+          lng: 15.982,
+          pois: [],
+          days: [
+            {
+              day_number: 1,
+              date: "2026-08-24",
+              day_name: "Ponedeljek",
+              title: "Odhod z Dunaja",
+              dailyBudget: 80,
+              drivingDistanceKm: 380,
+              drivingDurationHours: "4h",
+              transportation: [{ type: "car", from: "Vienna", to: "Zagreb", duration: "4h" }],
+              activities: [
+                {
+                  title: "Vožnja Dunaj → Zagreb",
+                  description: "Avtocesta.",
+                  category: "transport",
+                  timeSlot: "dopoldan",
+                },
+              ],
+            },
+            {
+              day_number: 2,
+              date: "2026-08-25",
+              day_name: "Torek",
+              title: "Zagreb",
+              dailyBudget: 80,
+              drivingDistanceKm: 0,
+              drivingDurationHours: "0h",
+              activities: [
+                {
+                  title: "Gornji grad",
+                  description: "Sprehod.",
+                  category: "culture",
+                  timeSlot: "dopoldan",
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      logistics_and_tips: {
+        transport: { flights: "n/a", ferries: "n/a", city_transport: "n/a" },
+        finance: "EUR",
+        internet: "eSIM",
+      },
+      hotels: [],
+    };
+
+    const plan = tripPlanResponseToAiTripPlan(data, {
+      groundTransportMode: "car",
+      originPlace: "Vienna",
+      destinationPlace: "Albania",
+    });
+    expect(plan.days[0]?.inFlightDay).toBeFalsy();
+    expect(plan.accommodationMode).toBe("hotel");
+  });
+});

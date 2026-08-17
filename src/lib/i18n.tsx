@@ -97,7 +97,7 @@ const en: Dict = {
   "pwa.installAndroidStep1": "1. Tap the ⋮ menu in Chrome",
   "pwa.installAndroidStep2": "2. Choose “Add to Home screen” or “Install app”",
   "hero.chatHeadline": "Where will your next trip take you?",
-  "hero.chatSubtitle": "Tap a destination — we’ll ask the rest, one step at a time.",
+  "hero.chatSubtitle": "Type any city or country — we’ll ask the rest, one step at a time.",
   "heroMode.label": "Planning mode",
   "heroMode.flights": "Flights",
   "heroMode.stays": "Stays",
@@ -243,9 +243,9 @@ const en: Dict = {
   "heroChat.suggest.budget": "💸 Budget escape",
   "heroChat.startPlanningCta": "Start planning →",
   "heroChat.guided.whereTitle": "Where do you want to go?",
-  "heroChat.guided.whereHint": "Tap a destination. Next we’ll ask when and from where.",
+  "heroChat.guided.whereHint": "Type a city or country, or tap a suggestion.",
   "heroChat.guided.staysTitle": "Where do you want to stay?",
-  "heroChat.guided.staysHint": "Tap a city. Next we’ll ask dates and how many guests — no airport.",
+  "heroChat.guided.staysHint": "Type a city, or tap a suggestion — then dates and guests.",
   "heroChat.guided.typeOwn": "Find any destination",
   "heroChat.guided.typeTitle": "City or country",
   "heroChat.guided.typePlaceholder": "e.g. Portugal, Japan, Iceland…",
@@ -295,7 +295,7 @@ const en: Dict = {
   "heroChat.passengers.tripReadyStays":
     "Perfect — {{dates}}. Set guests and rooms and I’ll search stays.",
   "heroChat.passengers.tripReadyRoad":
-    "Perfect — {{dates}}. Set travelers and I’ll build the road trip.",
+    "Perfect — {{dates}}. Set travelers, then you can add wishes for the route.",
   "heroChat.passengers.adults": "Adults",
   "heroChat.passengers.adultsHint": "Age 16+",
   "heroChat.passengers.children": "Children",
@@ -309,8 +309,12 @@ const en: Dict = {
     "What's your rough budget per person for the whole trip (including flights)?",
   "heroChat.wishes.ask":
     "Any wishes for the trip? For example specific cities or places in the destination country. Or skip.",
+  "heroChat.wishes.askRoad":
+    "Anything you want on the route? Places friends recommended, specific towns or sights. Or skip.",
   "heroChat.wishes.skip": "Skip",
   "heroChat.wishes.placeholder": "e.g. Chiang Mai, islands in the south…",
+  "heroChat.wishes.placeholderRoad":
+    "e.g. Hallstatt, friends said I must see Salzburg…",
   "heroChat.stepDates.exact": "Perfect! Travel dates: {{dates}}.",
   "heroChat.stepDates.vague": "Got it — roughly {{period}}.",
   "heroChat.stepDates.ask": "When would you like to travel?",
@@ -396,6 +400,8 @@ const en: Dict = {
     "Generating the plan took too long without a response. Please try again.",
   "error.planTimeoutPartial":
     "Generation stopped after day {day} (no further response). Try again or a shorter trip.",
+  "error.planInterrupted":
+    "The connection dropped (for example the screen went off). Open the app again and tap Try again.",
   "flightCard.departure": "Outbound",
   "flightCard.return": "Return",
   "flightCard.stops": "Stops",
@@ -631,6 +637,8 @@ const en: Dict = {
   "aiplan.loadingHint": "This can take up to 60 seconds — it's worth the wait.",
   "aiplan.loadingEta": "About {sec} seconds left — worth the wait.",
   "aiplan.loadingAlmost": "Almost done…",
+  "aiplan.keepScreenOn":
+    "Keep the screen on until the plan is ready — locking the phone can stop generation.",
   "aiplan.statHotels": "stays",
   "aiplan.statAttractions": "attractions",
   "aiplan.statRestaurants": "restaurants",
@@ -944,7 +952,8 @@ const en: Dict = {
   "skeleton.expandFull": "Expand full day-by-day plan",
   "skeleton.expanding": "Generating daily itinerary…",
   "skeleton.daysCount": "{n} days",
-  "skeleton.genInterrupted": "Generation was interrupted (e.g. page refresh). Try again.",
+  "skeleton.genInterrupted":
+    "Generation was interrupted (refresh or the screen went off). Keep the screen on and try again.",
   "skeleton.retry": "Try again",
   "skeleton.localTransport": "Getting around",
   "skeleton.insiderTips": "Insider tips",
@@ -1304,7 +1313,7 @@ const dicts: Record<DictLang, Dict> = {
     "pwa.installAndroidStep1": "1. Tapni meni ⋮ v Chromu",
     "pwa.installAndroidStep2": "2. Izberi »Dodaj na začetni zaslon« ali »Namesti aplikacijo«",
     "hero.chatHeadline": "Kam te bo popeljalo naslednje potovanje?",
-    "hero.chatSubtitle": "Tapni destinacijo — ostalo vprašamo korak za korakom.",
+    "hero.chatSubtitle": "Vpiši mesto ali državo — ostalo vprašamo korak za korakom.",
     "heroMode.label": "Način načrtovanja",
     "heroMode.flights": "Leti",
     "heroMode.stays": "Nastanitve",
@@ -1451,9 +1460,9 @@ const dicts: Record<DictLang, Dict> = {
     "heroChat.suggest.budget": "💸 Poceni pobeg",
     "heroChat.startPlanningCta": "Začni načrtovati →",
     "heroChat.guided.whereTitle": "Kam želiš?",
-    "heroChat.guided.whereHint": "Tapni destinacijo. Potem vprašamo kdaj in odkod.",
+    "heroChat.guided.whereHint": "Vpiši mesto ali državo, ali tapni predlog.",
     "heroChat.guided.staysTitle": "Kje želiš prenočiti?",
-    "heroChat.guided.staysHint": "Tapni mesto. Potem vprašamo datume in goste — brez letališča.",
+    "heroChat.guided.staysHint": "Vpiši mesto ali tapni predlog — potem datumi in gostje.",
     "heroChat.guided.typeOwn": "Poišči katerokoli destinacijo",
     "heroChat.guided.typeTitle": "Mesto ali država",
     "heroChat.guided.typePlaceholder": "npr. Portugalska, Japonska, Islandija…",
@@ -1504,7 +1513,7 @@ const dicts: Record<DictLang, Dict> = {
     "heroChat.passengers.tripReadyStays":
       "Super — {{dates}}. Nastavi goste in sobe, pa poiščem nastanitve.",
     "heroChat.passengers.tripReadyRoad":
-      "Super — {{dates}}. Nastavi potnike, pa sestavim pot z avtom.",
+      "Super — {{dates}}. Nastavi potnike, potem lahko dodaš še želje na poti.",
     "heroChat.passengers.adults": "Odrasli",
     "heroChat.passengers.adultsHint": "16+",
     "heroChat.passengers.children": "Otroci",
@@ -1518,8 +1527,12 @@ const dicts: Record<DictLang, Dict> = {
       "Kakšen okvirni proračun imaš na osebo za celotno potovanje (vključno z letom)?",
     "heroChat.wishes.ask":
       "Imaš kakšne želje za potovanje? Npr. točna mesta ali lokacije v ciljni državi. Lahko tudi preskočiš.",
+    "heroChat.wishes.askRoad":
+      "Želiš kaj vključiti na pot? Npr. kaj so ti prijatelji predlagali, točna mesta ali znamenitosti. Lahko tudi preskočiš.",
     "heroChat.wishes.skip": "Preskoči",
     "heroChat.wishes.placeholder": "npr. Chiang Mai, otoki na jugu…",
+    "heroChat.wishes.placeholderRoad":
+      "npr. Hallstatt, prijatelji so rekli obvezno Salzburg…",
     "heroChat.stepDates.exact": "Super! Termin potovanja: {{dates}}.",
     "heroChat.stepDates.vague": "Razumem — približno {{period}}.",
     "heroChat.stepDates.ask": "Kdaj načrtuješ potovanje?",
@@ -1605,6 +1618,8 @@ const dicts: Record<DictLang, Dict> = {
       "Generiranje načrta je predolgo trajalo brez odgovora. Poskusi znova.",
     "error.planTimeoutPartial":
       "Generiranje se je ustavilo po {day}. dnevu. Poskusi znova ali krajši izlet.",
+    "error.planInterrupted":
+      "Povezava se je prekinila (npr. zaslon se je ugasnil). Odpri aplikacijo in pritisni Poskusi znova.",
     "flightCard.departure": "Odhod",
     "flightCard.return": "Povratek",
     "flightCard.stops": "Postanki",
@@ -1840,6 +1855,8 @@ const dicts: Record<DictLang, Dict> = {
     "aiplan.loadingHint": "Postopek lahko traja do 60 sekund — vredno je počakati.",
     "aiplan.loadingEta": "Še približno {sec} sekund — vredno je počakati.",
     "aiplan.loadingAlmost": "Skoraj končano…",
+    "aiplan.keepScreenOn":
+      "Pusti zaslon vklopljen, dokler načrt ni pripravljen — zaklenjen telefon lahko prekine generiranje.",
     "aiplan.statHotels": "nastanitev",
     "aiplan.statAttractions": "znamenitosti",
     "aiplan.statRestaurants": "restavracij",
@@ -2155,7 +2172,8 @@ const dicts: Record<DictLang, Dict> = {
     "skeleton.expandFull": "Razširi polni dnevni načrt",
     "skeleton.expanding": "Generiram dnevni itinerar…",
     "skeleton.daysCount": "{n} dni",
-    "skeleton.genInterrupted": "Generiranje je bilo prekinjeno (npr. osvežitev strani). Poskusi znova.",
+    "skeleton.genInterrupted":
+      "Generiranje je bilo prekinjeno (osvežitev ali ugasnjen zaslon). Pusti zaslon vklopljen in poskusi znova.",
     "skeleton.retry": "Poskusi znova",
     "skeleton.localTransport": "Prevoz na lokaciji",
     "skeleton.insiderTips": "Lokalni nasveti",
@@ -2499,6 +2517,8 @@ const dicts: Record<DictLang, Dict> = {
     "aiplan.loadingHeader": "Estamos creando tu plan",
     "aiplan.loadingEta": "Quedan unos {sec} segundos — vale la pena.",
     "aiplan.loadingAlmost": "Casi listo…",
+    "aiplan.keepScreenOn":
+      "Deja la pantalla encendida hasta que el plan esté listo — bloquear el teléfono puede detener la generación.",
     "aiplan.phase1": "Buscando alojamientos …",
     "aiplan.phase2": "Analizando atracciones y actividades …",
     "aiplan.phase3": "Construyendo la mejor ruta de ciudad a ciudad …",
@@ -2703,6 +2723,8 @@ const dicts: Record<DictLang, Dict> = {
     "aiplan.loadingHeader": "Nous préparons votre plan",
     "aiplan.loadingEta": "Encore environ {sec} secondes — ça vaut le coup.",
     "aiplan.loadingAlmost": "Presque terminé…",
+    "aiplan.keepScreenOn":
+      "Gardez l'écran allumé jusqu'à ce que le plan soit prêt — verrouiller le téléphone peut interrompre la génération.",
     "aiplan.phase1": "Recherche d'hébergements …",
     "aiplan.phase2": "Analyse des attractions et activités …",
     "aiplan.phase3": "Construction du meilleur itinéraire ville par ville …",
@@ -2792,6 +2814,8 @@ const dicts: Record<DictLang, Dict> = {
     "aiplan.loadingHeader": "Wir erstellen deinen Plan",
     "aiplan.loadingEta": "Noch etwa {sec} Sekunden — es lohnt sich.",
     "aiplan.loadingAlmost": "Gleich fertig…",
+    "aiplan.keepScreenOn":
+      "Bildschirm an lassen, bis der Plan fertig ist — ein gesperrtes Handy kann die Erstellung abbrechen.",
     "aiplan.phase1": "Unterkünfte werden gesucht …",
     "aiplan.phase2": "Sehenswürdigkeiten und Aktivitäten werden analysiert …",
     "aiplan.phase3": "Beste Route von Stadt zu Stadt wird gebaut …",
@@ -2805,9 +2829,9 @@ const dicts: Record<DictLang, Dict> = {
     "heroChat.dreamPlaceholder": "Wohin möchtest du? Beschreibe deine Traumreise…",
     "heroChat.startPlanningCta": "Planung starten →",
     "heroChat.guided.whereTitle": "Wohin möchtest du?",
-    "heroChat.guided.whereHint": "Tippe ein Ziel. Als Nächstes fragen wir wann und von wo.",
+    "heroChat.guided.whereHint": "Stadt oder Land eingeben — oder einen Vorschlag tippen.",
     "heroChat.guided.staysTitle": "Wo möchtest du übernachten?",
-    "heroChat.guided.staysHint": "Tippe eine Stadt. Als Nächstes fragen wir Daten und Gäste — kein Flughafen.",
+    "heroChat.guided.staysHint": "Stadt eingeben oder Vorschlag tippen — dann Daten und Gäste.",
     "heroChat.guided.typeOwn": "Beliebiges Ziel suchen",
     "heroChat.guided.typeTitle": "Stadt oder Land",
     "heroChat.guided.typePlaceholder": "z. B. Portugal, Japan, Island…",
@@ -2874,6 +2898,8 @@ const dicts: Record<DictLang, Dict> = {
       "Die Planerstellung hat zu lange ohne Antwort gedauert. Bitte erneut versuchen.",
     "error.planTimeoutPartial":
       "Die Generierung stoppte nach Tag {day}. Bitte erneut versuchen oder eine kürzere Reise wählen.",
+    "error.planInterrupted":
+      "Die Verbindung ist abgebrochen (z. B. Bildschirm aus). App wieder öffnen und erneut versuchen.",
     "heroChat.flightResultsIntro":
       "Hier sind die besten Flüge. Tippe auf „Für Plan wählen“, um weiterzumachen:",
     "heroChat.flightResultsIntroFrom":
@@ -3125,6 +3151,8 @@ const dicts: Record<DictLang, Dict> = {
     "aiplan.loadingHeader": "Stiamo creando il tuo piano",
     "aiplan.loadingEta": "Ancora circa {sec} secondi — ne vale la pena.",
     "aiplan.loadingAlmost": "Quasi fatto…",
+    "aiplan.keepScreenOn":
+      "Tieni lo schermo acceso finché il piano non è pronto — bloccare il telefono può interrompere la generazione.",
     "aiplan.phase1": "Cerchiamo alloggi …",
     "aiplan.phase2": "Analizziamo attrazioni e attività …",
     "aiplan.phase3": "Costruiamo il percorso migliore città per città …",

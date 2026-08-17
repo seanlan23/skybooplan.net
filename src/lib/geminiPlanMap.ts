@@ -175,6 +175,23 @@ function isDepartureLogisticsDay(day: DayPlan, totalDays: number): boolean {
   );
 }
 
+function isRoadGroundMode(mode?: GroundTransportMode): boolean {
+  return mode === "car" || mode === "motorhome" || mode === "train";
+}
+
+function markDepartureLogisticsDay(
+  day: DayPlan,
+  totalDays: number,
+  groundTransportMode?: GroundTransportMode,
+) {
+  if (!isDepartureLogisticsDay(day, totalDays)) return;
+  // Car titles like "Odhod z Dunaja" are drive days, not airport days.
+  // Tagging them inFlightDay hid HotelsSection / Booking on every city change.
+  if (isRoadGroundMode(groundTransportMode) && day.day !== totalDays) return;
+  day.inFlightDay = true;
+  day.category = "transport";
+}
+
 function isGenericTransportTip(tip: string): boolean {
   const t = tip.trim();
   if (!t) return true;
@@ -692,10 +709,7 @@ export function tripPlanResponseToAiTripPlan(
 
   const totalDays = planCalendarDayCount(days);
   for (const day of days) {
-    if (isDepartureLogisticsDay(day, totalDays)) {
-      day.inFlightDay = true;
-      day.category = "transport";
-    }
+    markDepartureLogisticsDay(day, totalDays, opts?.groundTransportMode);
   }
 
   const logisticsSummary = [
@@ -973,8 +987,7 @@ export function enrichGeminiCatalogPlan(
     const finalDay = plan.days[i]!;
 
     if (isDeparture) {
-      finalDay.inFlightDay = true;
-      finalDay.category = "transport";
+      markDepartureLogisticsDay(finalDay, totalDays, plan.groundTransportMode);
     }
 
     const kind = classifyDayBudgetKind(finalDay.activities, {

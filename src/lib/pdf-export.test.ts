@@ -231,4 +231,56 @@ describe("normalizePlanForPdf", () => {
     expect(model.summary).not.toMatch(/8-dnevno/);
     expect(model.days).toHaveLength(7);
   });
+
+  it("adds Booking.com stay links when Gemini left hotels[] empty", () => {
+    const model = normalizePlanForPdf({
+      title: "Albanija in Balkan",
+      destination: "Albanija",
+      start_date: "2026-08-24",
+      end_date: "2026-09-03",
+      language: "sl",
+      pax: 2,
+      itinerary: {
+        originPlace: "Vienna",
+        groundTransportMode: "car",
+        hotels: [],
+        days: [
+          { day: 1, date: "2026-08-24", city: "Zagreb", title: "Dunaj → Zagreb" },
+          { day: 2, date: "2026-08-25", city: "Zagreb", title: "Zagreb" },
+          { day: 3, date: "2026-08-26", city: "Split", title: "Split" },
+          { day: 4, date: "2026-08-27", city: "Split", title: "Split" },
+          { day: 11, date: "2026-09-03", city: "Vienna", title: "Vožnja domov" },
+        ],
+      },
+    });
+
+    expect(model.hotels.map((h) => h.text)).toEqual([
+      expect.stringMatching(/Zagreb.*2 noči/),
+      expect.stringMatching(/Split.*2 noči/),
+    ]);
+    expect(model.hotels.every((h) => h.url?.includes("/api/go/booking"))).toBe(true);
+    expect(model.days[0]?.bookingUrl).toMatch(/skybooplan\.com\/api\/go\/booking/);
+    expect(model.days[2]?.bookingUrl).toMatch(/ss=Split|Split/);
+    expect(model.days[4]?.bookingUrl).toBeUndefined();
+  });
+
+  it("does not invent Booking hotel links for motorhome plans", () => {
+    const model = normalizePlanForPdf({
+      title: "Italija",
+      destination: "Italija",
+      start_date: "2026-08-01",
+      end_date: "2026-08-05",
+      language: "sl",
+      itinerary: {
+        accommodationMode: "motorhome",
+        groundTransportMode: "motorhome",
+        days: [
+          { day: 1, date: "2026-08-01", city: "Venice", title: "Kamp" },
+          { day: 2, date: "2026-08-02", city: "Venice", title: "Ogled" },
+        ],
+      },
+    });
+    expect(model.hotels).toEqual([]);
+    expect(model.days.every((d) => !d.bookingUrl)).toBe(true);
+  });
 });

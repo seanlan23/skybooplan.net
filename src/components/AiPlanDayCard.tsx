@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import type { Activity, ActivityTransportType, DayPlan, Suggestion } from "@/lib/aiPlan.functions";
 import { HotelsSection, type StayInfo } from "@/components/HotelsSection";
+import { shouldShowDayHotels } from "@/lib/overnightHotelStays";
 import { TransportCard } from "@/components/TransportCard";
 import { IslandAccessTransferCard } from "@/components/IslandAccessTransferCard";
 import { useI18n } from "@/lib/i18n";
@@ -599,6 +600,7 @@ export function AiPlanDayCard({
   regionFallback,
   pax = 1,
   accommodationMode = "hotel",
+  groundTransportMode,
   hotelRestEveryNDays,
   totalTripDays,
   plannerWishes,
@@ -618,6 +620,7 @@ export function AiPlanDayCard({
   /** Travelers — daily budget is shown per person. */
   pax?: number;
   accommodationMode?: "hotel" | "motorhome";
+  groundTransportMode?: "car" | "motorhome" | "train";
   hotelRestEveryNDays?: number;
   totalTripDays?: number;
   /** Fallback when skeleton/plan omits hotelRestEveryNDays (e.g. old session). */
@@ -630,7 +633,7 @@ export function AiPlanDayCard({
   const { t, formatMoney } = useI18n();
   const slo = lang === "sl" || lang?.startsWith("sl");
   const tripAcc = resolveTripAccommodation({
-    accommodationMode,
+    accommodationMode: groundTransportMode === "car" ? "hotel" : accommodationMode,
     hotelRestEveryNDays,
     wishes: plannerWishes,
   });
@@ -638,6 +641,17 @@ export function AiPlanDayCard({
     tripAcc.accommodationMode === "motorhome" &&
     tripAcc.hotelRestEveryNDays != null &&
     isHotelRestDay(day.day, tripAcc.hotelRestEveryNDays, { totalDays: totalTripDays });
+  const hotelCity = (day.city || day.focusName || "").trim();
+  const showHotels = shouldShowDayHotels({
+    city: hotelCity,
+    isFirstInCity,
+    isHotelRestNight,
+    accommodationMode: tripAcc.accommodationMode,
+    groundTransportMode,
+    inFlightDay: day.inFlightDay,
+    dayNumber: day.day,
+    totalTripDays,
+  });
 
   const hotelCheckOut = useMemo(() => {
     if (!isHotelRestNight) return checkOut;
@@ -881,23 +895,23 @@ export function AiPlanDayCard({
           </p>
         )}
 
-        {isFirstInCity && day.city && tripAcc.accommodationMode === "motorhome" && !isHotelRestNight && (
+        {isFirstInCity && hotelCity && tripAcc.accommodationMode === "motorhome" && !isHotelRestNight && (
           <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50/80 px-4 py-3">
             <div className="flex items-center gap-2 text-sm font-semibold text-emerald-900">
               <Tent className="h-4 w-4 shrink-0" />
-              {t("aiplan.campingNear" as never)} {day.city}
+              {t("aiplan.campingNear" as never)} {hotelCity}
             </div>
             <p className="mt-1.5 text-xs text-emerald-800/90 leading-relaxed">
-              {t("aiplan.campingHint" as never).replace("{city}", day.city)}
+              {t("aiplan.campingHint" as never).replace("{city}", hotelCity)}
             </p>
           </div>
         )}
 
-        {isHotelRestNight && day.city && (
+        {isHotelRestNight && hotelCity && (
           <div className="mt-4 rounded-xl border border-sky-200 bg-sky-50/90 px-4 py-3">
             <div className="flex items-center gap-2 text-sm font-semibold text-sky-900">
               <Hotel className="h-4 w-4 shrink-0" />
-              {t("aiplan.hotelRestNight" as never)} · {day.city}
+              {t("aiplan.hotelRestNight" as never)} · {hotelCity}
             </div>
             <p className="mt-1.5 text-xs text-sky-800/90 leading-relaxed">
               {t("aiplan.hotelRestDay" as never)}
@@ -905,15 +919,14 @@ export function AiPlanDayCard({
           </div>
         )}
 
-        {day.city &&
-          !day.inFlightDay &&
-          ((tripAcc.accommodationMode !== "motorhome" && isFirstInCity) || isHotelRestNight) && (
+        {showHotels && hotelCity && (
           <HotelsSection
-            city={day.city}
+            city={hotelCity}
             checkIn={day.date}
             checkOut={hotelCheckOut}
             stayInfo={stayInfo}
             regionFallback={regionFallback}
+            bookingFirst={groundTransportMode === "car"}
           />
         )}
 

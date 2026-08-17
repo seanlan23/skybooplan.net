@@ -957,6 +957,11 @@ export function AiPlanView({
                   .replace("{total}", String(totalExpectedDays))}
               </p>
             )}
+            {streaming ? (
+              <p className="mt-2 max-w-xl text-xs leading-relaxed text-amber-800/90">
+                {t("aiplan.keepScreenOn")}
+              </p>
+            ) : null}
           </div>
           <div className="sm:text-right shrink-0">
             <div className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">
@@ -1023,6 +1028,7 @@ export function AiPlanView({
                   pax={Math.max(1, pax)}
                   stayInfo={stayInfo}
                   accommodationMode={plan.accommodationMode}
+                  groundTransportMode={plan.groundTransportMode}
                   hotelRestEveryNDays={plan.hotelRestEveryNDays}
                   plannerWishes={plannerWishes}
                   totalTripDays={plan.days.length}

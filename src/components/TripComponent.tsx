@@ -232,6 +232,7 @@ export default function TripComponent({
                   pax={Math.max(1, pax)}
                   stayInfo={stayInfo}
                   accommodationMode="hotel"
+                  groundTransportMode={mapPlan.groundTransportMode}
                   plannerWishes={plannerWishes}
                   totalTripDays={mapPlan.days.length}
                   checkOut={checkOut}

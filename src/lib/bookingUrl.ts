@@ -178,8 +178,18 @@ export const SKYBOOPLAN_CJ_CLICK_URL =
 /** First-party hop so Safari/adblock cannot skip the CJ tracker in the <a href>. */
 export const BOOKING_CLICK_HOP_PATH = "/api/go/booking";
 
+export const SKYBOOPLAN_SITE = "https://www.skybooplan.com";
+
 export function bookingClickHopHref(bookingDest: string): string {
   return `${BOOKING_CLICK_HOP_PATH}?u=${encodeURIComponent(bookingDest)}`;
+}
+
+/** PDF / offline links cannot use a site-relative hop. */
+export function toAbsoluteBookingClickHref(href: string): string {
+  const trimmed = href.trim();
+  if (!trimmed) return trimmed;
+  if (trimmed.startsWith("/")) return `${SKYBOOPLAN_SITE}${trimmed}`;
+  return trimmed;
 }
 
 export function isSkybooplanBookingHop(href: string): boolean {

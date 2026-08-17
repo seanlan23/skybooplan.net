@@ -46,6 +46,7 @@ import {
   type TripSkeleton,
 } from "@/lib/aiPlan.functions";
 import { useStreamItinerary } from "@/hooks/useStreamItinerary";
+import { useScreenWakeLock } from "@/hooks/useScreenWakeLock";
 import { usePlanPhotoEnrichment } from "@/hooks/usePlanPhotoEnrichment";
 import { mergePlanPhotos } from "@/lib/unsplashPhotos";
 import type { GenerateGeminiProTripInput } from "@/lib/geminiPro.functions";
@@ -355,6 +356,7 @@ function Landing() {
   const planFn = useServerFn(generateAiPlan);
   const skeletonFn = useServerFn(generateAiPlanSkeleton);
   const streamItinerary = useStreamItinerary();
+  useScreenWakeLock(aiLoading || streamItinerary.isStreaming);
   const { location: userLocation } = useUserLocation();
 
   // Keep planner context language in sync with the UI picker (mid-generation / mid-chat).
@@ -372,6 +374,7 @@ function Landing() {
   aiOriginRef.current = aiContext?.from;
   const aiLangRef = useRef(aiContext?.language || lang);
   aiLangRef.current = aiContext?.language || lang;
+  const planJobRef = useRef(0);
 
   const commitAiPlan = useCallback((plan: AiTripPlan) => {
     const photos = previewPhotoPlanRef.current;
@@ -1547,6 +1550,7 @@ function Landing() {
     setSavedPlanId(null);
     setPlanSaveError(null);
     clearPlanFromSession();
+    const planJob = ++planJobRef.current;
     streamItinerary.reset();
     setGenInterrupted(false);
     setAiGenStartedAt(Date.now());
@@ -1613,7 +1617,9 @@ function Landing() {
           flightContext: ctx.flights,
         };
 
-        const { plan, error: streamError } = await streamItinerary.start(streamInput);
+        const { plan, error: streamError, cancelled } = await streamItinerary.start(streamInput);
+        if (planJob !== planJobRef.current) return;
+        if (cancelled) return;
         setAiLoading(false);
 
         console.log(
@@ -1628,6 +1634,7 @@ function Landing() {
         }
         if (streamError) {
           setAiError(streamError);
+          if (streamError === "error.planInterrupted") setGenInterrupted(true);
           return;
         }
         if (!plan?.days?.length) {
@@ -1715,8 +1722,10 @@ function Landing() {
       console.error(e);
       setAiError(t("error.planGenerationFailed"));
     } finally {
-      setAiLoading(false);
-      setAiGenStartedAt(null);
+      if (planJob === planJobRef.current) {
+        setAiLoading(false);
+        setAiGenStartedAt(null);
+      }
     }
   }
 

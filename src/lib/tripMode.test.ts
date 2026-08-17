@@ -20,6 +20,19 @@ describe("detectAccommodationMode", () => {
   it("defaults to hotel", () => {
     expect(detectAccommodationMode("Barcelona in Madrid")).toBe("hotel");
   });
+
+  it("does not treat car prompts that forbid motorhome as RV trips", () => {
+    expect(
+      detectAccommodationMode(
+        "Car road trip — not by plane, not by motorhome. Overnights = hotels. FORBIDDEN: camps.",
+      ),
+    ).toBe("hotel");
+    expect(
+      detectAccommodationMode(
+        "Potovanje z AVTOM (road trip) — ne z letalom, ne z avtodomom.",
+      ),
+    ).toBe("hotel");
+  });
 });
 
 describe("motorhomeTransportBetween", () => {

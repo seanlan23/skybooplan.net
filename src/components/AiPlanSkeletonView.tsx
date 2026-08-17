@@ -274,6 +274,7 @@ export function AiPlanSkeletonView({
                 pax={Math.max(1, pax)}
                 stayInfo={stayInfo}
                 accommodationMode={skeleton.accommodationMode}
+                groundTransportMode={plannerForm?.groundTransportMode}
                 hotelRestEveryNDays={skeleton.hotelRestEveryNDays}
                 plannerWishes={plannerWishes}
                 totalTripDays={dayPlans.length}

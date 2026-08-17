@@ -60,9 +60,14 @@ export function resolveTripAccommodation(opts: {
 
 export function detectAccommodationMode(wishes?: string, customPrompt?: string): AccommodationMode {
   const text = `${wishes ?? ""} ${customPrompt ?? ""}`.toLowerCase();
+  // Car prompts say "not by motorhome" / "ne z avtodomom" — that is hotel, not RV.
+  const stripped = text
+    .replace(/not by motorhome/gi, " ")
+    .replace(/ne z avtodomom/gi, " ")
+    .replace(/ne z avtodom/gi, " ");
   if (
     /avtodom|motorhome|campervan|camper van|\bcamper\b|wohnmobil|autocaravana|rv rental|najem avtodoma|najeli bi avtodom|najela bi avtodom|najel[a]?\s+bova?\s+avtodom|bova\s+najel|imeli bi avtodom|majhen avtodom|route\s*66/i.test(
-      text,
+      stripped,
     )
   ) {
     return "motorhome";

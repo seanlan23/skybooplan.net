@@ -8,6 +8,10 @@ const ROAD_KM_FACTOR = 1.2;
 const FAST_KMH = 95;
 /** Realistic mixed motorway average for the card. */
 const TYPICAL_KMH = 80;
+/** Albania / Montenegro: no motorway, coastal/mountain. */
+const BALKAN_SLOW_KMH = 62;
+/** After this, strip sightseeing — you only drive and check in. */
+export const BRUTAL_DRIVE_HOURS = 8;
 const MIN_REPAIR_ROAD_KM = 60;
 /** Last calendar days: skip a hotel if home is an easy same-day drive. */
 const HOMEBOUND_TAIL_DAYS = 3;
@@ -266,6 +270,45 @@ function balkansBorderPenaltyHours(
   return peak ? 2 : 1;
 }
 
+function cruiseKmh(fromCc: string | null, toCc: string | null): number {
+  if (fromCc === "AL" || toCc === "AL" || fromCc === "ME" || toCc === "ME") {
+    return BALKAN_SLOW_KMH;
+  }
+  return TYPICAL_KMH;
+}
+
+function stageEndpoints(plan: AiTripPlan, day: DayPlan, prev?: DayPlan) {
+  const leg = primaryCarLeg(day);
+  const from = (leg?.from || prev?.city || plan.originPlace || "").trim();
+  const to = (leg?.to || day.city || "").trim();
+  return { from, to, leg };
+}
+
+export function estimateRoadStageHours(
+  from: string,
+  to: string,
+  opts?: { date?: string; statedKm?: number; fromDay?: { lat?: number; lng?: number }; toDay?: { lat?: number; lng?: number } },
+): { roadKm: number; hours: number; borderH: number } | null {
+  if (!from || !to || placesMatch(from, to)) return null;
+  const fromC = coordsForPlace(from, opts?.fromDay);
+  const toC = coordsForPlace(to, opts?.toDay);
+  let roadKm = Math.max(0, opts?.statedKm ?? 0);
+  if (fromC && toC) {
+    const hv = haversineKm([fromC.lng, fromC.lat], [toC.lng, toC.lat]);
+    if (hv >= 40) {
+      const est = Math.round(hv * ROAD_KM_FACTOR);
+      if (roadKm < est * 0.75) roadKm = est;
+    }
+  }
+  if (roadKm < MIN_REPAIR_ROAD_KM) return null;
+  const fromCc = countryFromPlaceLabel(from) ?? CITY_COUNTRY[cityKey(from)] ?? null;
+  const toCc = countryFromPlaceLabel(to) ?? CITY_COUNTRY[cityKey(to)] ?? null;
+  const peak = isPeakBalkanBorderSeason(opts?.date);
+  const borderH = balkansBorderPenaltyHours(fromCc, toCc, peak);
+  const hours = roadKm / cruiseKmh(fromCc, toCc) + borderH;
+  return { roadKm, hours, borderH };
+}
+
 function applyDurationToDay(day: DayPlan, hoursLabel: string, roadKm: number) {
   day.drivingDistanceKm = roadKm;
   day.drivingDurationHours = hoursLabel;
@@ -313,31 +356,16 @@ export function repairImplausibleDriveTimes(plan: AiTripPlan): number {
   for (let i = 0; i < days.length; i++) {
     const day = days[i]!;
     const prev = days[i - 1];
-    const leg = primaryCarLeg(day);
-    const from = (leg?.from || prev?.city || plan.originPlace || "").trim();
-    const to = (leg?.to || day.city || "").trim();
-    if (!from || !to || placesMatch(from, to)) continue;
+    const { from, to } = stageEndpoints(plan, day, prev);
+    const est = estimateRoadStageHours(from, to, {
+      date: day.date,
+      statedKm: day.drivingDistanceKm,
+      fromDay: prev,
+      toDay: day,
+    });
+    if (!est) continue;
 
-    const fromC = coordsForPlace(from, prev);
-    const toC = coordsForPlace(to, day);
-    let roadKm = Math.max(0, day.drivingDistanceKm ?? 0);
-    if (fromC && toC) {
-      const hv = haversineKm([fromC.lng, fromC.lat], [toC.lng, toC.lat]);
-      if (hv >= 40) {
-        const est = Math.round(hv * ROAD_KM_FACTOR);
-        if (roadKm < est * 0.75) roadKm = est;
-      }
-    }
-    if (roadKm < MIN_REPAIR_ROAD_KM) continue;
-
-    const typical = roadKm / TYPICAL_KMH;
-    const peak = isPeakBalkanBorderSeason(day.date);
-    const borderH = balkansBorderPenaltyHours(
-      countryFromPlaceLabel(from) ?? CITY_COUNTRY[cityKey(from)] ?? null,
-      countryFromPlaceLabel(to) ?? CITY_COUNTRY[cityKey(to)] ?? null,
-      peak,
-    );
-    const realistic = typical + borderH;
+    const { roadKm, hours: realistic, borderH } = est;
     const minOk = roadKm / FAST_KMH + borderH * 0.6;
     const stated = statedHoursForDay(day);
     const alreadyHonest =
@@ -347,7 +375,7 @@ export function repairImplausibleDriveTimes(plan: AiTripPlan): number {
 
     applyDurationToDay(day, formatDriveHours(realistic), roadKm);
     if (day.transportationTips) {
-      const label = formatDriveHours(typical);
+      const label = formatDriveHours(roadKm / TYPICAL_KMH);
       day.transportationTips = day.transportationTips
         .replace(/\d+(?:[.,]\d+)?\s*ur[ae]?(?:\s+in\s+\d+\s*min(?:ut[ae]?)?)?/gi, label)
         .replace(/\d+(?:[.,]\d+)?\s*h(?:\s*\d+\s*m(?:in)?)?/gi, label);
@@ -355,6 +383,52 @@ export function repairImplausibleDriveTimes(plan: AiTripPlan): number {
     fixed += 1;
   }
   return fixed;
+}
+
+function isKeepOnBrutalDriveDay(a: Activity): boolean {
+  const type = (a.type ?? "").toLowerCase();
+  if (type === "eat" || type === "hotel" || type === "stay" || type === "transport") return true;
+  const blob = `${a.name ?? ""} ${a.description ?? ""}`;
+  return /hotel|check-?in|prijava|nočitev|vožnj|drive|transfer|meja|border|gorivo|fuel/i.test(blob);
+}
+
+/**
+ * 8h+ stages are drive days — drop museums/walks that make the day look like a city visit.
+ */
+export function stripSightseeingOnBrutalDriveDays(plan: AiTripPlan): number {
+  if (!isRoadLoop(plan)) return 0;
+  const sl = !(plan.contentLanguage && !plan.contentLanguage.startsWith("sl"));
+  const note = sl
+    ? "Ta dan je samo vožnja in prijava v hotel — ni časa za muzeje ali sprehode."
+    : "This day is driving and hotel check-in only — no museums or city walks.";
+  let n = 0;
+  const days = [...(plan.days ?? [])].sort((a, b) => a.day - b.day);
+  for (let i = 0; i < days.length; i++) {
+    const day = days[i]!;
+    const prev = days[i - 1];
+    const { from, to } = stageEndpoints(plan, day, prev);
+    const est = estimateRoadStageHours(from, to, {
+      date: day.date,
+      statedKm: day.drivingDistanceKm,
+      fromDay: prev,
+      toDay: day,
+    });
+    const hours = est?.hours ?? parseDriveHours(day.drivingDurationHours) ?? 0;
+    if (hours < BRUTAL_DRIVE_HOURS) continue;
+    if (!day.activities) continue;
+    for (const slot of ["afternoon", "evening"] as const) {
+      const list = day.activities[slot] ?? [];
+      const next = list.filter(isKeepOnBrutalDriveDay);
+      if (next.length !== list.length) {
+        day.activities[slot] = next;
+        n += 1;
+      }
+    }
+    const before = day.transportationTips ?? "";
+    day.transportationTips = appendUniqueNote(day.transportationTips, note);
+    if (day.transportationTips !== before) n += 1;
+  }
+  return n;
 }
 
 /**
