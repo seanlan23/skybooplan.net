@@ -124,13 +124,41 @@ type HeroChatFlowProps = {
   onClearSearch?: () => void;
 };
 
-function SkyAvatar() {
+function travelAvatarIcon(mode: "flight" | "car" | "motorhome" | null): string {
+  if (mode === "car") return "🚗";
+  if (mode === "motorhome") return "🚐";
+  return "✈️";
+}
+
+function tripReadyMessageKey(staysOnly: boolean, roadOnly: boolean): string {
+  if (staysOnly) return "heroChat.passengers.tripReadyStays";
+  if (roadOnly) return "heroChat.passengers.tripReadyRoad";
+  return "heroChat.passengers.tripReady";
+}
+
+/** Scroll chips into the visual viewport without yanking the whole page. */
+function ensureInVisualViewport(el: HTMLElement) {
+  const vv = window.visualViewport;
+  const viewTop = vv?.offsetTop ?? 0;
+  const viewBottom = viewTop + (vv?.height ?? window.innerHeight);
+  const rect = el.getBoundingClientRect();
+  const header = 72;
+  const pad = 16;
+  if (rect.top >= viewTop + header && rect.bottom <= viewBottom - pad) return;
+  const delta =
+    rect.bottom > viewBottom - pad
+      ? rect.bottom - (viewBottom - pad)
+      : rect.top - (viewTop + header);
+  window.scrollBy({ top: delta, behavior: "auto" });
+}
+
+function SkyAvatar({ icon }: { icon: string }) {
   return (
     <div
       className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-sm shadow-md ring-1 ring-black/5"
       aria-hidden
     >
-      ✈️
+      {icon}
     </div>
   );
 }
@@ -139,21 +167,23 @@ function SkyMessage({
   message,
   showHeader,
   agentName,
+  avatarIcon,
 }: {
   message: HeroChatMessage;
   showHeader: boolean;
   agentName: string;
+  avatarIcon: string;
 }) {
   return (
     <div className="hero-sky-enter flex max-w-[88%] flex-col items-start gap-1.5">
       {showHeader ? (
         <div className="flex items-center gap-2">
-          <SkyAvatar />
+          <SkyAvatar icon={avatarIcon} />
           <span className="text-xs font-semibold tracking-wide text-white/90">{agentName}</span>
         </div>
       ) : null}
       <div className="flex items-end gap-2">
-        {!showHeader ? <SkyAvatar /> : null}
+        {!showHeader ? <SkyAvatar icon={avatarIcon} /> : null}
         <div className="rounded-2xl rounded-tl-sm bg-white px-4 py-2.5 text-sm leading-relaxed text-gray-800 shadow-md sm:text-[15px] whitespace-pre-line">
           {message.text}
         </div>
@@ -219,18 +249,20 @@ function QuickReplyChips({
   options: ChipOption[];
   onSelect: (id: string, label: string) => void;
   disabled?: boolean;
-  /** `grid` = 2 columns (better for longer date labels). */
-  layout?: "wrap" | "grid";
+  /** `grid` = 2 columns (better for longer date labels). `stack` = 1 column, no wrap overlap. */
+  layout?: "wrap" | "grid" | "stack";
   footer?: ReactNode;
 }) {
   return (
-    <div className="hero-chips-enter pl-0 pr-1 sm:pl-10">
+    <div className="hero-chips-enter relative z-10 pl-0 pr-1 sm:pl-10">
       <div
         className={cn(
           "gap-2 pb-1",
-          layout === "grid"
-            ? "grid grid-cols-1 min-[380px]:grid-cols-2"
-            : "flex flex-wrap",
+          layout === "stack"
+            ? "grid grid-cols-1"
+            : layout === "grid"
+              ? "grid grid-cols-1 min-[380px]:grid-cols-2"
+              : "flex flex-wrap",
         )}
       >
         {options.map(({ id, label }) => (
@@ -241,7 +273,7 @@ function QuickReplyChips({
             onClick={() => onSelect(id, label)}
             className={cn(
               "inline-flex items-center justify-center rounded-full border border-white/40 bg-white px-3.5 py-2 text-sm font-medium text-gray-800 shadow-sm transition-colors hover:bg-white/90 disabled:opacity-50",
-              layout === "grid" ? "w-full text-center" : "shrink-0",
+              layout === "grid" || layout === "stack" ? "w-full text-center" : "shrink-0",
             )}
           >
             <span className="whitespace-normal text-balance leading-snug">{label}</span>
@@ -364,6 +396,8 @@ function HeroGuidedStart({
           {t((staysOnly ? "heroChat.guided.staysHint" : "heroChat.guided.whereHint") as never)}
         </p>
 
+        {!showTypeBox ? (
+          <>
         <div key="hero-dest-dubai-v2" className="hero-chips-enter mt-5 grid grid-cols-3 gap-1.5 sm:gap-2">
           {HERO_DESTINATION_CHIPS.map((chip) => {
             const { emoji, name, feel } = getDestinationChipDisplay(chip, t);
@@ -390,8 +424,6 @@ function HeroGuidedStart({
             );
           })}
         </div>
-
-        {!showTypeBox ? (
           <button
             type="button"
             onClick={() => setShowTypeBox(true)}
@@ -399,6 +431,7 @@ function HeroGuidedStart({
           >
             {t("heroChat.guided.typeOwn" as never)}
           </button>
+          </>
         ) : (
           <div className="relative z-30 mt-4 space-y-2">
             <p className="text-sm font-medium text-white/90">
@@ -424,6 +457,7 @@ function HeroGuidedStart({
               )}
               kind={staysOnly ? "place" : "airport"}
             />
+            {textInput.trim().length < 2 ? (
             <div className="grid grid-cols-3 gap-1.5 pt-1">
               {HERO_TYPE_SUGGESTIONS.map((hint) => {
                 const name = t(hint.nameKey as never);
@@ -441,6 +475,7 @@ function HeroGuidedStart({
                 );
               })}
             </div>
+            ) : null}
           </div>
         )}
       </div>
@@ -649,58 +684,48 @@ export function HeroChatFlow({
         ? Boolean(loading)
         : flights.length === 0);
   const inputDisabled = isSearching;
-  const showTripChecklist = conversationStarted && isFullPlan && !isRoadGroundOnly;
+  // Wait until travel mode is flight — showing the panel during "Kako potuješ?"
+  // overlaps the third chip, then vanishing on car/motorhome yanks the layout.
+  const showTripChecklist = conversationStarted && isFullPlan && planTravel === "flight";
+  const avatarIcon = travelAvatarIcon(effectiveRoadMode ?? planTravel);
 
   const firstSkyMessageId = useMemo(
     () => messages.find((m) => m.role === "ai")?.id,
     [messages],
   );
 
-  const scrollActiveStepIntoView = useCallback(() => {
+  const revealActiveStep = useCallback(() => {
     if (showSearchLoader || staySearch) return;
     window.requestAnimationFrame(() => {
+      const scroller = scrollRef.current;
+      if (scroller) scroller.scrollTop = scroller.scrollHeight;
       const target =
         showDatePicker && datePickerRef.current
           ? datePickerRef.current
           : activeControlsRef.current;
-      target?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
-      scrollRef.current?.scrollTo({
-        top: scrollRef.current.scrollHeight,
-        behavior: "smooth",
-      });
+      if (target) ensureInVisualViewport(target);
     });
   }, [showSearchLoader, showDatePicker, staySearch]);
 
-  const scrollToBottom = useCallback(() => {
-    // While the search loader is up, freeze auto-scroll so the spinner stays in view.
-    if (showSearchLoader || staySearch) return;
-    window.requestAnimationFrame(() => {
-      scrollRef.current?.scrollTo({
-        top: scrollRef.current.scrollHeight,
-        behavior: "smooth",
-      });
-      // Also bring the active chips/calendar into the phone viewport (not only the inner scroller).
-      const target =
-        showDatePicker && datePickerRef.current
-          ? datePickerRef.current
-          : activeControlsRef.current;
-      target?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
-    });
-  }, [showSearchLoader, showDatePicker, staySearch]);
+  const scrollToBottom = revealActiveStep;
 
   useEffect(() => {
-    if (!conversationStarted || isSearching) return;
-    const timer = window.setTimeout(() => scrollActiveStepIntoView(), 80);
+    if (!conversationStarted || isSearching || showSearchLoader) return;
+    const timer = window.setTimeout(() => revealActiveStep(), 50);
     return () => window.clearTimeout(timer);
-  }, [step, showDatePicker, conversationStarted, isSearching, scrollActiveStepIntoView]);
+  }, [
+    step,
+    messages.length,
+    showDatePicker,
+    conversationStarted,
+    isSearching,
+    showSearchLoader,
+    revealActiveStep,
+  ]);
 
-  const appendMessages = useCallback(
-    (...next: HeroChatMessage[]) => {
-      setMessages((prev) => [...prev, ...next]);
-      scrollToBottom();
-    },
-    [scrollToBottom],
-  );
+  const appendMessages = useCallback((...next: HeroChatMessage[]) => {
+    setMessages((prev) => [...prev, ...next]);
+  }, []);
 
   const chipLabel = useCallback(
     (prefix: string, id: string) => t(`${prefix}.${id}` as never),
@@ -828,11 +853,7 @@ export function HeroChatFlow({
           createChatMessage(
             "ai",
             skyMessageWithVars(
-              t(
-                (isStaysOnly
-                  ? "heroChat.passengers.tripReadyStays"
-                  : "heroChat.passengers.tripReady") as never,
-              ),
+              t(tripReadyMessageKey(isStaysOnly, isRoadGroundOnly) as never),
               {
                 dates: boot.dates.label,
               },
@@ -996,11 +1017,6 @@ export function HeroChatFlow({
     startFlow(seedDestination.trim());
     onSeedConsumed?.();
   }, [seedDestination, step, conversationStarted, startFlow, onSeedConsumed]);
-
-  useEffect(() => {
-    if (!conversationStarted || showSearchLoader) return;
-    scrollToBottom();
-  }, [step, messages, showDatePicker, conversationStarted, showSearchLoader, scrollToBottom]);
 
   // Pin the loader into view once when search starts, then freeze scrolling.
   useEffect(() => {
@@ -1267,11 +1283,7 @@ export function HeroChatFlow({
         "ai",
         dates
           ? skyMessageWithVars(
-              t(
-                (isStaysOnly
-                  ? "heroChat.passengers.tripReadyStays"
-                  : "heroChat.passengers.tripReady") as never,
-              ),
+              t(tripReadyMessageKey(isStaysOnly, isRoadGroundOnly) as never),
               { dates },
             )
           : t("heroChat.passengers.browserTitle" as never),
@@ -1540,13 +1552,7 @@ export function HeroChatFlow({
       if (next) clearDatePickerOffers();
       return next;
     });
-    window.setTimeout(() => {
-      datePickerRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-        inline: "nearest",
-      });
-    }, 100);
+    window.setTimeout(() => revealActiveStep(), 80);
   }
 
   function handleDateSelect(_id: string, label: string) {
@@ -1722,7 +1728,7 @@ export function HeroChatFlow({
     >
       <div
         className={cn(
-          showTripChecklist && "grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(240px,0.8fr)] lg:items-start",
+          showTripChecklist && "grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(240px,0.8fr)] lg:items-start",
         )}
       >
       <div className="min-w-0">
@@ -1815,6 +1821,7 @@ export function HeroChatFlow({
                   message={message}
                   showHeader={message.id === firstSkyMessageId}
                   agentName={agentName}
+                  avatarIcon={avatarIcon}
                 />
               ) : (
                 <UserMessage message={message} />
@@ -1927,7 +1934,7 @@ export function HeroChatFlow({
             </div>
           ) : null}
 
-          <div ref={activeControlsRef}>
+          <div ref={activeControlsRef} className="relative z-10">
           {showConversationChips && step === "passengers" ? (
             <HeroPassengerBrowser
               disabled={loading}
@@ -1951,7 +1958,7 @@ export function HeroChatFlow({
 
           {showConversationChips && step === "travelMode" ? (
             <QuickReplyChips
-              layout="grid"
+              layout="stack"
               disabled={loading}
               options={[
                 { id: "flight", label: t("heroChat.travelMode.flight" as never) },
@@ -2001,7 +2008,7 @@ export function HeroChatFlow({
           ) : null}
 
           {showConversationChips && step === "dates" && !showDatePicker ? (
-            <div className="space-y-2">
+            <div className="space-y-3">
               <QuickReplyChips
                 layout="grid"
                 disabled={loading}
@@ -2095,7 +2102,7 @@ export function HeroChatFlow({
 
         {/* Car / motorhome / flights / stays: checklist is "all"-only — always offer clear here. */}
         {!showTripChecklist ? (
-          <div className="mt-3 flex justify-center sm:justify-start sm:pl-2">
+          <div className="relative z-10 mt-4 mb-2 flex justify-center sm:justify-start sm:pl-2">
             <button
               type="button"
               onClick={clearSearch}
@@ -2110,7 +2117,7 @@ export function HeroChatFlow({
         {showDatePicker && step === "dates" ? (
           <div
             ref={datePickerRef}
-            className="hero-chips-enter mt-3 space-y-2 pl-0 sm:pl-2"
+            className="hero-chips-enter mt-4 space-y-4 pl-0 sm:pl-2"
           >
             <HeroDateRangeCalendar
               lang={lang}
@@ -2147,12 +2154,12 @@ export function HeroChatFlow({
 
       <style>{`
         @keyframes heroSkyEnter {
-          from { opacity: 0; transform: translateY(8px); }
-          to { opacity: 1; transform: translateY(0); }
+          from { opacity: 0; }
+          to { opacity: 1; }
         }
         @keyframes heroChipsEnter {
-          from { opacity: 0; transform: translateY(12px); }
-          to { opacity: 1; transform: translateY(0); }
+          from { opacity: 0; }
+          to { opacity: 1; }
         }
         .hero-sky-enter {
           animation: heroSkyEnter 0.3s ease-out both;

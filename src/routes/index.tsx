@@ -2043,7 +2043,9 @@ function Landing() {
                   loaderOrbit={
                     aiContext?.groundTransportMode === "motorhome"
                       ? "motorhome"
-                      : "flight"
+                      : aiContext?.groundTransportMode === "car"
+                        ? "car"
+                        : "flight"
                   }
                 />
                 ) : aiLoading || aiExpandingFull ? (
@@ -2065,7 +2067,9 @@ function Landing() {
                   orbit={
                     aiContext?.groundTransportMode === "motorhome"
                       ? "motorhome"
-                      : "flight"
+                      : aiContext?.groundTransportMode === "car"
+                        ? "car"
+                        : "flight"
                   }
                 />
                 ) : (

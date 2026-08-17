@@ -133,7 +133,7 @@ export function HeroTripChecklist({
           <p className="text-xs font-semibold uppercase tracking-wider text-white/70">
             {t("heroChat.checklist.title" as never)}
           </p>
-          <p className="mt-0.5 text-sm font-medium text-white">
+          <p className="sr-only">
             {t("heroChat.checklist.progress" as never)
               .replace("{done}", String(doneCount))
               .replace("{total}", String(items.length))}

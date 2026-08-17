@@ -794,36 +794,71 @@ function philippinesPack(lang: LangCode): CuratedTravelPack {
 }
 
 function malaysiaSingaporePack(country: "MY" | "SG", lang: LangCode): CuratedTravelPack {
-  const name = country === "MY" ? "Malaysia" : "Singapore";
   const L = lang2(lang);
-  const days = country === "MY" ? "90" : "90";
+  if (country === "SG") {
+    if (L === "sl") {
+      return {
+        visaRequirement:
+          "Državljani EU/Schengen lahko v Singapur vstopijo brez vize za kratki turizem (običajno do 90 dni). Potni list naj velja še med bivanjem.",
+        howToApply:
+          "Ni vize vnaprej. Ob vstopu potni list; upoštevaj digitalna/SGAC navodila, če so aktivna.",
+        vaccinations:
+          "Priporočeno: hepatitis A; rutinska cepljenja. Rumena mrzlica le ob prihodu iz endemične države.",
+        estimatedCosts: "Viza: 0 €. Cepljenja: 0–80 € glede na status rutinskih cepljenj.",
+      };
+    }
+    if (L === "de") {
+      return {
+        visaRequirement:
+          "EU-/Schengen-Bürger können visumfrei für kurzen Tourismus nach Singapur einreisen (meist bis 90 Tage).",
+        howToApply:
+          "Kein Visum im Voraus. Reisepass bei Einreise; digitale Ankunftsformalitäten (SGAC) beachten, falls aktiv.",
+        vaccinations:
+          "Empfohlen: Hepatitis A; Routineimpfungen. Gelbfieber nur bei Anreise aus Endemiegebiet.",
+        estimatedCosts: "Visum: 0 €. Impfungen: 0–80 €.",
+      };
+    }
+    return {
+      visaRequirement:
+        "EU/Schengen citizens can enter Singapore visa-free for short tourism (typically up to 90 days). Passport should remain valid for the stay.",
+      howToApply:
+        "No visa in advance. Present passport on arrival; follow Singapore digital arrival instructions if active.",
+      vaccinations:
+        "Recommended: hepatitis A; routine vaccines. Yellow fever only if arriving from an endemic country.",
+      estimatedCosts: "Visa: €0. Vaccines: €0–80 depending on routine status.",
+    };
+  }
+
   if (L === "sl") {
     return {
-      visaRequirement: `Državljani EU lahko v ${name} vstopijo brez vize za kratki turizem (običajno do ${days} dni). Potni list naj velja še med bivanjem.`,
+      visaRequirement:
+        "Državljani EU/Schengen za turistični obisk Malezije ne potrebujejo vize vnaprej — običajno do 90 dni. Potni list naj velja še med bivanjem (priporočeno vsaj 6 mesecev ob vstopu).",
       howToApply:
-        "Ni vize vnaprej. Ob vstopu potni list; v Singapurju sledi digitalnim/SGAC navodilom, če so aktivna.",
+        "Pred prihodom (okno 3 dni) izpolni brezplačni MDAC (Malaysia Digital Arrival Card) na uradni strani imigresen-online.imi.gov.my — ne na zasebnih straneh. Ob vstopu pokažeš potni list in MDAC.",
       vaccinations:
-        "Priporočeno: hepatitis A; rutinska cepljenja. Rumena mrličča le ob prihodu iz endemične države.",
-      estimatedCosts: "Viza: 0 €. Cepljenja: 0–80 € glede na status rutinskih cepljenj.",
+        "Priporočeno: hepatitis A; rutinska cepljenja. Rumena mrzlica le ob prihodu iz endemične države. Repelent za komarje.",
+      estimatedCosts: "Viza: 0 €. MDAC je brezplačen. Cepljenja: 0–80 €.",
     };
   }
   if (L === "de") {
     return {
-      visaRequirement: `EU-Bürger können visumfrei für kurzen Tourismus nach ${name} einreisen (meist bis ${days} Tage).`,
+      visaRequirement:
+        "EU-/Schengen-Bürger brauchen für touristische Aufenthalte in Malaysia kein Visum im Voraus (meist bis 90 Tage). Reisepass sollte bei Einreise noch gültig sein (empfohlen 6 Monate).",
       howToApply:
-        "Kein Visum im Voraus. Reisepass bei Einreise; in Singapur ggf. digitale Ankunftsformalitäten beachten.",
+        "Vor der Ankunft (3-Tage-Fenster) die kostenlose MDAC (Malaysia Digital Arrival Card) auf der offiziellen Seite imigresen-online.imi.gov.my ausfüllen — nicht auf privaten Seiten. Bei Einreise Reisepass und MDAC vorzeigen.",
       vaccinations:
-        "Empfohlen: Hepatitis A; Routineimpfungen. Gelbfieber nur bei Anreise aus Endemiegebiet.",
-      estimatedCosts: "Visum: 0 €. Impfungen: 0–80 €.",
+        "Empfohlen: Hepatitis A; Routineimpfungen. Gelbfieber nur bei Anreise aus Endemiegebiet. Mückenschutz.",
+      estimatedCosts: "Visum: 0 €. MDAC ist kostenlos. Impfungen: 0–80 €.",
     };
   }
   return {
-    visaRequirement: `EU citizens can enter ${name} visa-free for short tourism (typically up to ${days} days). Passport should remain valid for the stay.`,
+    visaRequirement:
+      "EU/Schengen citizens do not need a visa in advance for tourism in Malaysia (typically up to 90 days). Passport should remain valid for the stay (6 months on arrival recommended).",
     howToApply:
-      "No visa in advance. Present passport on arrival; follow Singapore digital arrival instructions if active.",
+      "Within 3 days before arrival, complete the free MDAC (Malaysia Digital Arrival Card) on the official site imigresen-online.imi.gov.my — not on third-party pages. Show passport and MDAC at entry.",
     vaccinations:
-      "Recommended: hepatitis A; routine vaccines. Yellow fever only if arriving from an endemic country.",
-    estimatedCosts: "Visa: €0. Vaccines: €0–80 depending on routine status.",
+      "Recommended: hepatitis A; routine vaccines. Yellow fever only if arriving from an endemic country. Pack mosquito repellent.",
+    estimatedCosts: "Visa: €0. MDAC is free. Vaccines: €0–80.",
   };
 }
 
@@ -904,7 +939,7 @@ export function looksGenericTravelCopy(text: string): boolean {
 
 /** True when copy states a concrete rule (visa-free, ESTA, days, fees…). */
 export function looksConcreteTravelCopy(text: string): boolean {
-  return /\b(visa-free|brezvizum|visumfrei|e-?visa|e-viza|ESTA|ETA|K-ETA|NZeTA|TDAC|VOA|free movement|prosti pretok|Personenfreizügigkeit|90 days|90 dni|30 days|30 dni|60 days|6 mesecev|6 months|\d+\s*(€|USD|GBP|THB))\b/i.test(
+  return /\b(visa-free|brezvizum|visumfrei|e-?visa|e-viza|ESTA|ETA|K-ETA|NZeTA|TDAC|MDAC|VOA|free movement|prosti pretok|Personenfreizügigkeit|90 days|90 dni|30 days|30 dni|60 days|6 mesecev|6 months|\d+\s*(€|USD|GBP|THB))\b/i.test(
     text,
   );
 }

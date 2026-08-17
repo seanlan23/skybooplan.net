@@ -91,7 +91,10 @@ export function HeroAiPlanResults({
     displayPlan?.accommodationMode === "motorhome" ||
     aiSkeleton?.accommodationMode === "motorhome"
       ? ("motorhome" as const)
-      : ("flight" as const);
+      : aiContext?.groundTransportMode === "car" ||
+          displayPlan?.groundTransportMode === "car"
+        ? ("car" as const)
+        : ("flight" as const);
 
   useEffect(() => {
     if (!displayPlan?.days?.length) return;

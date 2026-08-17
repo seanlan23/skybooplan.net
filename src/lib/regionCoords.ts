@@ -72,6 +72,10 @@ const REGION_COORDS: Record<string, { lat: number; lng: number }> = {
   gjirokaster: { lat: 40.076, lng: 20.139 },
   "gjirokastër": { lat: 40.076, lng: 20.139 },
   ksamil: { lat: 39.774, lng: 19.999 },
+  vlore: { lat: 40.466, lng: 19.491 },
+  vlora: { lat: 40.466, lng: 19.491 },
+  "dhermi": { lat: 40.15, lng: 19.64 },
+  "dhërmi": { lat: 40.15, lng: 19.64 },
   /** Motorhome Alpine / SI–AT–DE corridor starts */
   "slovenj gradec": { lat: 46.509, lng: 15.08 },
   mezica: { lat: 46.521, lng: 14.854 },

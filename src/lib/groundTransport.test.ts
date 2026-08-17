@@ -112,6 +112,21 @@ describe("car road trip hotels", () => {
     expect(last).toMatch(/spanje je doma/i);
   });
 
+  it("Albania car trip gets coast/border/Plitvice/Graz rules (not only multi-country Balkan)", () => {
+    const block = groundTransportPromptBlock("car", "Vienna", "Albania, AL");
+    expect(block).toMatch(/Vlorë→Split|Vlore→Split|Kotor/i);
+    expect(block).toMatch(/Tirana/i);
+    expect(block).toMatch(/Plitvice/i);
+    expect(block).toMatch(/Gradc|Graz/i);
+    expect(block).toMatch(/Dhërmi|Himar/i);
+  });
+
+  it("Croatia-only car trip does not steal nights into Bosnia/Albania", () => {
+    const block = groundTransportPromptBlock("car", "Vienna", "Croatia");
+    expect(block).not.toMatch(/Večina NOČITEV mora biti v državah/);
+    expect(block).not.toMatch(/Vlorë→Split/);
+  });
+
   it("motorhome prompt still asks for camps", () => {
     const block = groundTransportPromptBlock("motorhome", "Ljubljana", "Barcelona");
     expect(block).toMatch(/kampiri\/RV/);

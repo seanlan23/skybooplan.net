@@ -72,6 +72,7 @@ export function HeroDestinationAutocomplete({
   const [loading, setLoading] = useState(false);
   const [highlight, setHighlight] = useState(0);
   const [focused, setFocused] = useState(false);
+  const [listMax, setListMax] = useState(220);
   const justPickedRef = useRef(false);
   const boxRef = useRef<HTMLDivElement>(null);
   const placesFn = useServerFn(searchPlaces);
@@ -136,6 +137,24 @@ export function HeroDestinationAutocomplete({
     return () => document.removeEventListener("mousedown", onDoc);
   }, []);
 
+  useEffect(() => {
+    if (!focused) return;
+    const update = () => {
+      const vv = window.visualViewport;
+      if (!vv || !boxRef.current) return;
+      const rect = boxRef.current.getBoundingClientRect();
+      const space = vv.height - (rect.bottom - vv.offsetTop) - 12;
+      setListMax(Math.max(88, Math.min(220, Math.floor(space))));
+    };
+    update();
+    window.visualViewport?.addEventListener("resize", update);
+    window.visualViewport?.addEventListener("scroll", update);
+    return () => {
+      window.visualViewport?.removeEventListener("resize", update);
+      window.visualViewport?.removeEventListener("scroll", update);
+    };
+  }, [focused]);
+
   function pick(s: PlaceSuggestion) {
     const { value: dest, label } = isPlace
       ? formatStayPlacePick(s)
@@ -192,6 +211,10 @@ export function HeroDestinationAutocomplete({
           onBlur={() => setFocused(false)}
           disabled={disabled}
           autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="words"
+          spellCheck={false}
+          enterKeyHint="search"
           autoFocus
           placeholder={placeholder}
           aria-label={placeholder}
@@ -212,7 +235,10 @@ export function HeroDestinationAutocomplete({
       </div>
 
       {showList ? (
-        <div className="absolute left-0 right-0 z-50 mt-2 overflow-hidden rounded-xl border border-white/25 bg-slate-950/95 shadow-2xl backdrop-blur-md">
+        <div
+          className="relative z-50 mt-2 overflow-hidden rounded-xl border border-white/25 bg-slate-950/95 shadow-2xl backdrop-blur-md sm:absolute sm:left-0 sm:right-0"
+          style={{ maxHeight: listMax }}
+        >
           {loading && suggestions.length === 0 ? (
             <div className="flex items-center gap-2 px-4 py-3 text-sm text-white/70">
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -223,7 +249,7 @@ export function HeroDestinationAutocomplete({
               {t("autocomplete.noResults" as never).replace("{query}", value.trim())}
             </p>
           ) : (
-            <ul className="max-h-64 overflow-y-auto py-1">
+            <ul className="overflow-y-auto py-1" style={{ maxHeight: Math.max(72, listMax - 8) }}>
               {suggestions.map((s, i) => {
                 const city =
                   s.city && s.city !== s.name

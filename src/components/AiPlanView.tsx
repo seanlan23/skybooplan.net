@@ -134,7 +134,7 @@ export function AiPlanView({
   /** Selected flight party total (EUR) — added into main TOTAL. */
   flightTotalEur?: number | null;
   /** Orbit vehicle while waiting for first day (motorhome = RV + exhaust). */
-  loaderOrbit?: "flight" | "motorhome";
+  loaderOrbit?: "flight" | "motorhome" | "car";
 }) {
   const { t, lang, formatMoney } = useI18n();
   const [, setMotorhomeTipsTick] = useState(0);
@@ -653,15 +653,10 @@ export function AiPlanView({
   }, [plan, plan?.days.length]);
 
   if (loading && !plan) {
-    const orbit =
-      loaderOrbit ??
-      (plan?.groundTransportMode === "motorhome" || plan?.accommodationMode === "motorhome"
-        ? "motorhome"
-        : "flight");
     return (
       <AiPlanLoader
-        destination={destinationIata ?? plan?.destinationName}
-        orbit={orbit}
+        destination={destinationIata}
+        orbit={loaderOrbit ?? "flight"}
       />
     );
   }

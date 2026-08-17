@@ -31,6 +31,9 @@ const CITY_COUNTRY: Record<string, string> = {
   rijeka: "HR",
   split: "HR",
   zadar: "HR",
+  dubrovnik: "HR",
+  plitvice: "HR",
+  "plitvicka jezera": "HR",
   vienna: "AT",
   wien: "AT",
   dunaj: "AT",
@@ -38,6 +41,24 @@ const CITY_COUNTRY: Record<string, string> = {
   klagenfurt: "AT",
   salzburg: "AT",
   linz: "AT",
+  tirana: "AL",
+  berat: "AL",
+  saranda: "AL",
+  "sarande": "AL",
+  gjirokaster: "AL",
+  vlore: "AL",
+  vlora: "AL",
+  ksamil: "AL",
+  shkoder: "AL",
+  skadar: "AL",
+  himare: "AL",
+  himara: "AL",
+  dhermi: "AL",
+  kotor: "ME",
+  budva: "ME",
+  podgorica: "ME",
+  mostar: "BA",
+  sarajevo: "BA",
   gyor: "HU",
   "győr": "HU",
   budapest: "HU",
@@ -82,6 +103,9 @@ function countryFromPlaceLabel(place: string): string | null {
   if (/madžar|magyar|hungary/i.test(t)) return "HU";
   if (/slovašk|slovakia/i.test(t)) return "SK";
   if (/hrvašk|croatia/i.test(t)) return "HR";
+  if (/albanij|albania/i.test(t)) return "AL";
+  if (/črn[ae]?\s*gor|crn[ae]?\s*gor|montenegro/i.test(t)) return "ME";
+  if (/bosn|hercegovin/i.test(t)) return "BA";
   return CITY_COUNTRY[cityKey(t)] ?? null;
 }
 
@@ -211,6 +235,15 @@ function zeroStay(a: Activity, copy: { name: string; description: string }): Act
   };
 }
 
+function balkansBorderPenaltyHours(fromCc: string | null, toCc: string | null): number {
+  if (!fromCc || !toCc || fromCc === toCc) return 0;
+  const balkans = new Set(["AL", "ME", "HR", "BA"]);
+  if (!balkans.has(fromCc) || !balkans.has(toCc)) return 0;
+  // AL→HR (via Montenegro) = two summer borders, no coastal motorway in ME.
+  if ((fromCc === "AL" && toCc === "HR") || (fromCc === "HR" && toCc === "AL")) return 4;
+  return 2;
+}
+
 function applyDurationToDay(day: DayPlan, hoursLabel: string, roadKm: number) {
   day.drivingDistanceKm = roadKm;
   day.drivingDurationHours = hoursLabel;
@@ -276,11 +309,16 @@ export function repairImplausibleDriveTimes(plan: AiTripPlan): number {
     if (roadKm < MIN_REPAIR_ROAD_KM) continue;
 
     const typical = roadKm / TYPICAL_KMH;
-    const minOk = roadKm / FAST_KMH;
+    const borderH = balkansBorderPenaltyHours(
+      countryFromPlaceLabel(from) ?? CITY_COUNTRY[cityKey(from)] ?? null,
+      countryFromPlaceLabel(to) ?? CITY_COUNTRY[cityKey(to)] ?? null,
+    );
+    const realistic = typical + borderH;
+    const minOk = roadKm / FAST_KMH + borderH * 0.6;
     const stated = statedHoursForDay(day);
     if (stated != null && stated >= minOk * 0.9) continue;
 
-    applyDurationToDay(day, formatDriveHours(typical), roadKm);
+    applyDurationToDay(day, formatDriveHours(realistic), roadKm);
     if (day.transportationTips) {
       const label = formatDriveHours(typical);
       day.transportationTips = day.transportationTips

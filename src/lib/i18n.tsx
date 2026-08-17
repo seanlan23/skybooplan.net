@@ -294,6 +294,8 @@ const en: Dict = {
     "Perfect — {{dates}}. Just set travelers and I’ll search flights.",
   "heroChat.passengers.tripReadyStays":
     "Perfect — {{dates}}. Set guests and rooms and I’ll search stays.",
+  "heroChat.passengers.tripReadyRoad":
+    "Perfect — {{dates}}. Set travelers and I’ll build the road trip.",
   "heroChat.passengers.adults": "Adults",
   "heroChat.passengers.adultsHint": "Age 16+",
   "heroChat.passengers.children": "Children",
@@ -403,7 +405,7 @@ const en: Dict = {
   "hero.photoCredit": "Photo: {name} / Unsplash",
   "hero.searchSectionTitle": "Flights & stays",
   "hero.searchSectionHint": "Search flights, hotels or set airports and dates manually.",
-  "social.trustedBy": "Flight data & integrations",
+  "social.trustedBy": "Travel data & partners",
   "social.plansGenerated": "{n} travel plans generated",
   "social.feat.ai.title": "Itinerary in minutes",
   "social.feat.ai.desc": "Describe your dream trip — get a day-by-day plan with map and tips.",
@@ -1499,6 +1501,8 @@ const dicts: Record<DictLang, Dict> = {
       "Super — {{dates}}. Nastavi potnike, pa poiščem lete.",
     "heroChat.passengers.tripReadyStays":
       "Super — {{dates}}. Nastavi goste in sobe, pa poiščem nastanitve.",
+    "heroChat.passengers.tripReadyRoad":
+      "Super — {{dates}}. Nastavi potnike, pa sestavim pot z avtom.",
     "heroChat.passengers.adults": "Odrasli",
     "heroChat.passengers.adultsHint": "16+",
     "heroChat.passengers.children": "Otroci",
@@ -1608,7 +1612,7 @@ const dicts: Record<DictLang, Dict> = {
     "hero.photoCredit": "Foto: {name} / Unsplash",
     "hero.searchSectionTitle": "Leti in nastanitve",
     "hero.searchSectionHint": "Iskanje letov, hotelov ali ročno nastavi letališča in datume.",
-    "social.trustedBy": "Flight data & integrations",
+    "social.trustedBy": "Potovalni podatki in partnerji",
     "social.plansGenerated": "{n} načrtov ustvarjenih",
     "social.feat.ai.title": "Itinerar v minutah",
     "social.feat.ai.desc": "Opiši sanjsko potovanje — dobiš dnevni načrt z zemljevidom in nasveti.",
@@ -2835,6 +2839,8 @@ const dicts: Record<DictLang, Dict> = {
       "Super — {{dates}}. Reisende festlegen, dann suche ich Flüge.",
     "heroChat.passengers.tripReadyStays":
       "Super — {{dates}}. Gäste und Zimmer festlegen, dann suche ich Unterkünfte.",
+    "heroChat.passengers.tripReadyRoad":
+      "Super — {{dates}}. Reisende festlegen, dann baue ich die Autoreise.",
     "heroChat.passengers.browserTitle": "Wer reist mit?",
     "heroChat.passengers.adults": "Erwachsene",
     "heroChat.passengers.adultsHint": "Ab 16",

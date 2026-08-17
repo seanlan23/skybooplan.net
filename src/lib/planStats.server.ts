@@ -3,6 +3,7 @@ import {
   getServerSupabaseServiceRoleKey,
   getServerSupabaseUrl,
 } from "@/lib/supabaseServerEnv";
+import { resolvePublicPlanCount } from "@/lib/planStats";
 
 let _db: ReturnType<typeof createClient> | null = null;
 let _cached: { count: number; at: number } | null = null;
@@ -16,32 +17,57 @@ function svc() {
   return _db;
 }
 
-async function sumExistingPlanRows(
+async function sumColumn(
+  db: NonNullable<ReturnType<typeof svc>>,
+  table: string,
+  column: string,
+): Promise<number> {
+  const { data, error } = await db.from(table).select(column).limit(20_000);
+  if (error || !Array.isArray(data)) return 0;
+  return data.reduce((sum, row) => {
+    const value = Number((row as Record<string, unknown>)[column]);
+    return sum + (Number.isFinite(value) ? value : 0);
+  }, 0);
+}
+
+async function liveGeneratedTotal(
   db: NonNullable<ReturnType<typeof svc>>,
 ): Promise<number> {
-  const [anon, saved] = await Promise.all([
-    db.from("anonymous_plan_attempts").select("plan_count").limit(10_000),
-    db.from("travel_plans").select("id", { count: "exact", head: true }),
+  const liveRpc = await db.rpc("live_plans_generated_sum");
+  if (!liveRpc.error && liveRpc.data != null) {
+    const n = Number(liveRpc.data);
+    if (Number.isFinite(n) && n >= 0) return n;
+  }
+  const [anon, daily] = await Promise.all([
+    sumColumn(db, "anonymous_plan_attempts", "plan_count"),
+    sumColumn(db, "daily_plan_usage", "plans_generated"),
   ]);
-  const anonSum = (anon.data ?? []).reduce(
-    (sum, row) => sum + (Number((row as { plan_count?: number }).plan_count) || 0),
-    0,
-  );
-  const savedCount = saved.count ?? 0;
-  return anonSum + savedCount;
+  return anon + daily;
 }
 
 export async function readPublicPlansGenerated(): Promise<number> {
   if (_cached && Date.now() - _cached.at < CACHE_MS) return _cached.count;
   const db = svc();
-  if (!db) return 0;
+  if (!db) return resolvePublicPlanCount(0);
 
   const rpc = await db.rpc("public_plans_generated");
-  let count = 0;
-  if (!rpc.error && rpc.data != null) {
-    count = Number(rpc.data) || 0;
-  } else {
-    count = await sumExistingPlanRows(db);
+  const stored =
+    !rpc.error && rpc.data != null ? Number(rpc.data) || 0 : 0;
+  const live = await liveGeneratedTotal(db);
+  const count = resolvePublicPlanCount(stored, live);
+
+  if (count > stored) {
+    const heal = await db.from("site_stats").upsert(
+      {
+        id: 1,
+        plans_generated: count,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "id" },
+    );
+    if (heal.error) {
+      console.warn("[planStats] could not persist public plan count", heal.error.message);
+    }
   }
 
   _cached = { count, at: Date.now() };
@@ -53,8 +79,15 @@ export async function bumpPublicPlansGenerated(): Promise<void> {
   if (!db) return;
   const { error } = await db.rpc("bump_plans_generated");
   if (!error) {
-    _cached = null;
+    if (_cached) {
+      _cached = { count: _cached.count + 1, at: Date.now() };
+    }
     return;
   }
-  // Migration not applied yet — next read still sums live tables.
+  // RPC missing — keep the in-memory cache honest until the next live read.
+  if (_cached) {
+    _cached = { count: _cached.count + 1, at: Date.now() };
+  } else {
+    _cached = null;
+  }
 }

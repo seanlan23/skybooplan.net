@@ -188,7 +188,10 @@ export async function recordPlanGeneration(
     const db = svc();
     if (db) {
       const { data: authUser } = await db.auth.admin.getUserById(userId);
-      if (hasUnlimitedAccess(authUser?.user?.email)) return;
+      if (hasUnlimitedAccess(authUser?.user?.email)) {
+        await bumpPublicPlansGenerated();
+        return;
+      }
     }
     if (tier === "one_time") {
       await decrementOneTimePlan(userId);

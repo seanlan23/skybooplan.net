@@ -65,6 +65,28 @@ describe("repairImplausibleDriveTimes", () => {
     expect(parseDriveHours(plan.days[0]!.transportation![0]!.duration)!).toBeGreaterThanOrEqual(3);
   });
 
+  it("adds Balkan border time so Vlorë → Split is not a 5h hop", () => {
+    const plan = {
+      originPlace: "Vienna",
+      groundTransportMode: "car",
+      days: [
+        day({
+          day: 12,
+          city: "Split",
+          drivingDistanceKm: 200,
+          drivingDurationHours: "4h",
+          transportation: [
+            { type: "car", from: "Vlorë", to: "Split", duration: "4h", estimatedPrice: 40 },
+          ],
+        }),
+      ],
+    } as AiTripPlan;
+
+    expect(repairImplausibleDriveTimes(plan)).toBe(1);
+    const hours = parseDriveHours(plan.days[0]!.drivingDurationHours)!;
+    expect(hours).toBeGreaterThanOrEqual(8);
+  });
+
   it("leaves a realistic 3h 30min stage alone", () => {
     const plan = {
       originPlace: "Maribor, SI",

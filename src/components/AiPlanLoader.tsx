@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Caravan, Plane, Sparkles, Lightbulb } from "lucide-react";
+import { Car, Caravan, Plane, Sparkles, Lightbulb } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { shuffleTipOrder, tipKeysForDestination } from "@/lib/aiPlanTips";
 import { cn } from "@/lib/utils";
@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 /** Bundled Earth texture (local) — looks like the real planet, not green blobs. */
 const EARTH_TEXTURE = "/earth-blue-marble.jpg";
 
-export type AiPlanLoaderOrbit = "flight" | "motorhome";
+export type AiPlanLoaderOrbit = "flight" | "motorhome" | "car";
 
 /**
  * Loader while the AI itinerary is generating.
@@ -29,6 +29,7 @@ export function AiPlanLoader({
 } = {}) {
   const { t, lang } = useI18n();
   const isMotorhome = orbit === "motorhome";
+  const isCar = orbit === "car";
 
   const phases = useMemo(
     () => [
@@ -69,7 +70,7 @@ export function AiPlanLoader({
   const [elapsedSec, setElapsedSec] = useState(0);
   const [earthOk, setEarthOk] = useState(true);
 
-  const estimateSec = Math.min(120, Math.max(35, 25 + tripDays * 2.5));
+  const estimateSec = Math.round(Math.min(120, Math.max(35, 25 + tripDays * 2.5)));
 
   useEffect(() => {
     const id = setInterval(
@@ -101,7 +102,7 @@ export function AiPlanLoader({
     return () => cancelAnimationFrame(raf);
   }, [estimateSec, startedAt]);
 
-  const remainingSec = Math.max(0, estimateSec - elapsedSec);
+  const remainingSec = Math.max(0, Math.round(estimateSec - elapsedSec));
 
   // Progress ring geometry
   const size = 176;
@@ -179,7 +180,7 @@ export function AiPlanLoader({
             <div
               className={cn(
                 "relative flex h-9 w-9 items-center justify-center rounded-full border bg-white shadow-md",
-                isMotorhome ? "border-amber-200" : "border-sky-200",
+                isMotorhome ? "border-amber-200" : isCar ? "border-emerald-200" : "border-sky-200",
               )}
             >
               {isMotorhome ? (
@@ -189,6 +190,8 @@ export function AiPlanLoader({
                   <span className="sky-exhaust sky-exhaust--3" />
                   <Caravan className="relative z-[1] h-4 w-4 text-amber-700" strokeWidth={2.25} />
                 </>
+              ) : isCar ? (
+                <Car className="h-4 w-4 text-emerald-700" strokeWidth={2.25} />
               ) : (
                 <Plane className="h-4 w-4 text-sky-600 rotate-45" />
               )}

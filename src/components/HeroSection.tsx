@@ -50,11 +50,7 @@ export function HeroSection({
 
   return (
     <section
-      className={
-        staySearch
-          ? "relative isolate -mb-px flex min-h-screen w-full flex-col items-center justify-start overflow-x-clip pb-16"
-          : "relative isolate -mb-px flex min-h-screen w-full flex-col items-center justify-center overflow-x-clip overscroll-y-none pb-10"
-      }
+      className="relative isolate -mb-px flex min-h-[100svh] w-full flex-col items-center justify-start overflow-x-clip overscroll-y-none pb-10 [overflow-anchor:none]"
       aria-label={t("hero.sectionLabel" as never)}
     >
       <HeroRotatingBackground />
@@ -66,7 +62,7 @@ export function HeroSection({
       />
 
       <div
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-56 bg-gradient-to-t from-background from-35% via-background/85 to-transparent"
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-background from-20% via-background/75 to-transparent sm:h-40"
         aria-hidden
       />
       {/* Solid bridge into the next section (kills Safari 1px seam) */}
@@ -79,7 +75,7 @@ export function HeroSection({
         className={
           staySearch
             ? "relative z-10 mx-auto w-full min-w-0 max-w-5xl px-5 pb-8 pt-[calc(6rem+env(safe-area-inset-top))] text-center sm:px-6 sm:pt-[calc(7rem+env(safe-area-inset-top))]"
-            : "relative z-10 mx-auto w-full min-w-0 max-w-5xl px-5 pb-24 pt-[calc(6rem+env(safe-area-inset-top))] text-center sm:px-6 sm:pb-28 sm:pt-[calc(7rem+env(safe-area-inset-top))]"
+            : "relative z-10 mx-auto w-full min-w-0 max-w-5xl px-5 pb-16 pt-[calc(6rem+env(safe-area-inset-top))] text-center sm:px-6 sm:pb-20 sm:pt-[calc(7rem+env(safe-area-inset-top))]"
         }
       >
         <h1 className="text-4xl font-black leading-[1.08] tracking-tight text-white sm:text-5xl md:text-6xl lg:text-7xl">

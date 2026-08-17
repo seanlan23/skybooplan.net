@@ -1,0 +1,130 @@
+{
+  "days": [
+    {
+      "n": 1,
+      "date": "ponedeljek, 17. avgust 2026",
+      "theme": "Potni list",
+      "graphic": "Potni list.\n\nPogledaš ga 11-krat\npred odhodom.\n\nJe v istem žepu.\nOd začetka.",
+      "cta": "skybooplan.com",
+      "caption": "Potni list. Pogledaš ga 11-krat. Je v istem žepu.",
+      "story": ["Potni list.", "Pogledaš ga 11-krat.", "Je v istem žepu."]
+    },
+    {
+      "n": 2,
+      "date": "torek, 18. avgust 2026",
+      "theme": "Tehtnica",
+      "graphic": "Doma na tehtnici: 19,8 kg.\n“Imamo rezervo.”\n\nNa letališču: 23,4 kg.\n\nKovček je čez noč\njedel kamenje.\nAli pa si notri\npozabil čevlje.",
+      "cta": "skybooplan.com",
+      "caption": "Doma 19,8 kg. Na letališču 23,4 kg. Kovček je jedel kamenje.",
+      "story": ["Doma: 19,8 kg.", "Letališče: 23,4 kg.", "Kamenje. Ali čevlji."]
+    },
+    {
+      "n": 3,
+      "date": "sreda, 19. avgust 2026",
+      "theme": "Pisk na varnosti",
+      "graphic": "Pisk.\nPas.\nPisk.\nČevlji.\nPisk.\n\nKovanec v žepu,\nki ga nisi čutil 11 let.\n\nVrsta te sovraži.\nTi sebe tudi.",
+      "cta": "skybooplan.com",
+      "caption": "Pisk. Pas. Pisk. Čevlji. Pisk. Kovanec iz leta 2014.",
+      "story": ["Pisk. Pas. Pisk.", "Kovanec v žepu.", "Vrsta te sovraži."]
+    },
+    {
+      "n": 4,
+      "date": "četrtek, 20. avgust 2026",
+      "theme": "Sendvič 14 €",
+      "graphic": "Sendvič na letališču: 14 €.\n\n“Saj smo na počitnicah.”\n\nPočitnice se začnejo\nčez 3 ure.\nSendvič je žalosten že zdaj.",
+      "cta": "skybooplan.com",
+      "caption": "Sendvič na letališču: 14 €. Saj smo na počitnicah.",
+      "story": ["Sendvič: 14 €.", "“Saj smo na počitnicah.”", "Čez 3 ure."]
+    },
+    {
+      "n": 5,
+      "date": "petek, 21. avgust 2026",
+      "theme": "400 fotk hrane",
+      "graphic": "Tvoj album:\n\n400 fotk hrane.\n2 fotki razgleda.\n80 fotk tal,\nker si hotel narediti story.",
+      "cta": "skybooplan.com",
+      "caption": "400 fotk hrane. 2 fotki razgleda. 80 fotk tal.",
+      "story": ["400 fotk hrane.", "2 fotki razgleda.", "80 fotk tal."]
+    },
+    {
+      "n": 6,
+      "date": "sobota, 22. avgust 2026",
+      "theme": "Sedež ob oknu",
+      "graphic": "Doplačal si okno.\nZa razgled.\n\n3 ure gledaš krilo.\nIsto krilo.\nIsto zakrilce.\n\nRazgled je:\n“airbus, levo, siva.”",
+      "cta": "skybooplan.com",
+      "caption": "Doplačal si okno za razgled. 3 ure gledaš krilo.",
+      "story": ["Doplačal si okno.", "3 ure: krilo.", "Airbus, levo, siva."]
+    },
+    {
+      "n": 7,
+      "date": "nedelja, 23. avgust 2026",
+      "theme": "Hotel na sliki",
+      "graphic": "Hotel na Bookingu:\nbazen, razgled, sončni zahod.\n\nTvoja soba:\nokno v parking.\nKlima nad glavo.\nIn sosed, ki se ob 6:15\npogovarja, kot da je sam.\n\nIsta zvezdica.\nDruga soba.",
+      "cta": "skybooplan.com",
+      "caption": "Na Bookingu bazen in razgled. Tvoja soba: okno v parking.",
+      "story": ["Na Bookingu: bazen.", "Tvoja soba: parking.", "Ista zvezdica."]
+    },
+    {
+      "n": 8,
+      "date": "ponedeljek, 24. avgust 2026",
+      "theme": "A je pekoče",
+      "graphic": "“A je pekoče?”\n“No, no. Mild.”\n\nMild.\nJočeš.\nNos teče.\nNatakar je ponosen.\n\n“Mild,” ponovi.\nKot da ti ni verjel.",
+      "cta": "skybooplan.com",
+      "caption": "“A je pekoče?” “Mild.” Jočeš. Natakar je ponosen.",
+      "story": ["“A je pekoče?”", "“Mild.”", "Jočeš. Natakar: 👍"]
+    },
+    {
+      "n": 9,
+      "date": "torek, 25. avgust 2026",
+      "theme": "Lepa srajca",
+      "graphic": "Spakiral si lepo srajco.\nZa “eno lepo večerjo”.\n\n6 dni ista majica.\nSrajca ostane zložena.\nKot da čaka na boljše življenje.\n\nNi ga bilo.",
+      "cta": "skybooplan.com",
+      "caption": "Lepa srajca za eno večerjo. 6 dni ista majica.",
+      "story": ["Lepa srajca.", "6 dni ista majica.", "Srajca čaka."]
+    },
+    {
+      "n": 10,
+      "date": "sreda, 26. avgust 2026",
+      "theme": "Boarding group 4",
+      "graphic": "Boarding group 4.\n\nVstaneš pri 1.\nSedeš.\nVstaneš pri 2.\nSedeš.\n\nPri 4 vstaneš\nkot da se prvič dogaja.",
+      "cta": "skybooplan.com",
+      "caption": "Group 4. Vstaneš pri 1. Sedeš. Pri 2 spet. Življenje.",
+      "story": ["Group 4.", "Vstaneš pri 1. Sedeš.", "Pri 4: kot prvič."]
+    },
+    {
+      "n": 11,
+      "date": "četrtek, 27. avgust 2026",
+      "theme": "Najeto avto",
+      "graphic": "Najeto avto.\nHodiš okoli\nkot na kraju zločina.\n\n40 fotk prask.\nTista, ki te skrbi,\nje že na papirju.\n\nVseeno jo slikaš.\nDvakrat.",
+      "cta": "skybooplan.com",
+      "caption": "Najeto avto. 40 fotk prask. Tista, ki te skrbi, je že na papirju.",
+      "story": ["Najeto avto.", "40 fotk prask.", "Že na papirju. Dvakrat."]
+    },
+    {
+      "n": 12,
+      "date": "petek, 28. avgust 2026",
+      "theme": "Bližnjica",
+      "graphic": "“Poznam bližnjico.”\n\n25 minut kasneje\nste spet pri istem vodnjaku.\n\nOn je prepričan,\nda je vodnjak nov.\n\nNi.",
+      "cta": "skybooplan.com",
+      "caption": "“Poznam bližnjico.” 25 min kasneje: isti vodnjak.",
+      "story": ["“Poznam bližnjico.”", "25 min. Isti vodnjak.", "On: to je nov."]
+    },
+    {
+      "n": 13,
+      "date": "sobota, 29. avgust 2026",
+      "theme": "Wifi na letalu",
+      "graphic": "Wifi na letalu: 18 €.\n\nOdpreš Instagram.\nNe naloži se.\nOdpreš mail.\nNe naloži se.\n\n18 € si plačal\nza ikono, ki se vrti.",
+      "cta": "skybooplan.com",
+      "caption": "Wifi na letalu 18 €. Instagram se ne naloži. Ikona se vrti.",
+      "story": ["Wifi: 18 €.", "Instagram se ne naloži.", "Ikona se vrti."]
+    },
+    {
+      "n": 14,
+      "date": "nedelja, 30. avgust 2026",
+      "theme": "Nisem lačen",
+      "graphic": "“Jaz nisem lačen.”\n\nPotem poje\npol tvoje pice,\nves pomfrit\nin vpraša,\nče bo še sladica.\n\nNi bil lačen.\nBil je taktičen.",
+      "cta": "skybooplan.com",
+      "caption": "“Jaz nisem lačen.” Potem poje pol pice in vpraša za sladico.",
+      "story": ["“Jaz nisem lačen.”", "Pol pice. Ves pomfrit.", "Sladica?"]
+    }
+  ]
+}

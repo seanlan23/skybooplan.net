@@ -188,6 +188,82 @@ function destinationCountry(
   return fromPlace || fromIata;
 }
 
+/** All countries the itinerary actually visits — not only the arrival hub. */
+const VISIT_COUNTRY_PATTERNS: [string, RegExp][] = [
+  ["TH", /thailand|tajska|bangkok|phuket|krabi|chiang|patong|ao\s*nang|phi\s*phi|\bhkt\b|\bbkk\b/i],
+  ["MY", /malaysia|malezij|kuala|lumpur|penang|langkawi|\bkul\b/i],
+  ["SG", /singapore|singapur|changi/i],
+  ["VN", /vietnam|hanoi|saigon|ho\s*chi|da\s*nang|hoi\s*an/i],
+  ["ID", /indonesia|indonezij|\bbali\b|ubud|jakarta/i],
+  ["KH", /cambodia|kambodž|siem\s*reap|phnom/i],
+  ["JP", /japan|japonsk|tokyo|osaka|kyoto/i],
+  ["PH", /philippines|filipin|manila|boracay|el\s*nido|cebu/i],
+];
+
+function visitedCountryCodes(
+  destinationIata: string | undefined | null,
+  placeHint?: string | null,
+): string[] {
+  const codes: string[] = [];
+  const add = (cc: string | null | undefined) => {
+    const n = (cc ?? "").trim().toUpperCase();
+    if (n && !codes.includes(n)) codes.push(n);
+  };
+  add(destinationCountry(destinationIata, null));
+  const iata = normalizeIata(destinationIata ?? "");
+  if (iata) add(DESTINATION_BY_IATA[iata]?.country);
+  const hint = placeHint ?? "";
+  for (const [cc, re] of VISIT_COUNTRY_PATTERNS) {
+    if (re.test(hint)) add(cc);
+  }
+  return codes;
+}
+
+function destVisaLabel(cc: string, lang: LangCode): string {
+  const L = lang.toLowerCase().slice(0, 2);
+  const names: Record<string, { sl: string; de: string; en: string }> = {
+    TH: { sl: "Tajska", de: "Thailand", en: "Thailand" },
+    MY: { sl: "Malezija", de: "Malaysia", en: "Malaysia" },
+    SG: { sl: "Singapur", de: "Singapur", en: "Singapore" },
+    VN: { sl: "Vietnam", de: "Vietnam", en: "Vietnam" },
+    ID: { sl: "Indonezija", de: "Indonesien", en: "Indonesia" },
+    KH: { sl: "Kambodža", de: "Kambodscha", en: "Cambodia" },
+    JP: { sl: "Japonska", de: "Japan", en: "Japan" },
+    PH: { sl: "Filipini", de: "Philippinen", en: "the Philippines" },
+  };
+  const row = names[cc];
+  if (!row) return cc;
+  if (L === "sl") return row.sl;
+  if (L === "de") return row.de;
+  return row.en;
+}
+
+function visaTextCoversCountry(text: string, cc: string): boolean {
+  if (cc === "MY") return /malaysia|malezij|kuala|mdac/i.test(text);
+  if (cc === "TH") return /thailand|tajsk|phuket|bangkok|tdac/i.test(text);
+  if (cc === "SG") return /singapore|singapur|sgac/i.test(text);
+  if (cc === "VN") return /vietnam|hanoi|saigon/i.test(text);
+  if (cc === "ID") return /indonesia|indonezij|\bbali\b/i.test(text);
+  if (cc === "JP") return /japan|japonsk|tokyo|k-?eta/i.test(text);
+  return new RegExp(`\\b${cc}\\b`, "i").test(text);
+}
+
+function packForCountry(
+  cc: string,
+  lang: LangCode,
+): { visaRequirement: string; howToApply: string; vaccinations: string; estimatedCosts: string } | null {
+  if (cc === "TH") {
+    const th = thailandFallback(lang);
+    return {
+      visaRequirement: th.visaRequirement,
+      howToApply: th.howToApply,
+      vaccinations: th.vaccinations,
+      estimatedCosts: th.estimatedCosts,
+    };
+  }
+  return curatedTravelPackForCountry(cc, lang);
+}
+
 function visaCopyMismatchesDestination(
   sample: string,
   destHint: string,
@@ -272,6 +348,7 @@ export function buildFallbackTravelRequirements(
   const destCountry = destinationCountry(destinationIata, hint);
   const destLabel = destinationLabelForRequirements(destinationIata, lang, hint);
   const langCode = lang.toLowerCase().slice(0, 2);
+  const visited = visitedCountryCodes(destinationIata, hint);
 
   if (isBalkanRoadHint(hint)) {
     const curated = balkanRoadPack(lang);
@@ -287,6 +364,31 @@ export function buildFallbackTravelRequirements(
       vaccinations: curated.vaccinations,
       estimatedCosts: curated.estimatedCosts,
     };
+  }
+
+  if (visited.length > 1) {
+    const visaInfo: TravelVisaInfo[] = [];
+    const vax: string[] = [];
+    const costs: string[] = [];
+    for (const cc of visited) {
+      const pack = packForCountry(cc, lang);
+      if (!pack) continue;
+      visaInfo.push({
+        country: destVisaLabel(cc, lang),
+        requirement: pack.visaRequirement,
+        howToApply: pack.howToApply,
+      });
+      if (pack.vaccinations.trim()) vax.push(pack.vaccinations.trim());
+      if (pack.estimatedCosts.trim()) costs.push(pack.estimatedCosts.trim());
+    }
+    if (visaInfo.length > 1) {
+      return {
+        targetResidents,
+        visaInfo,
+        vaccinations: [...new Set(vax)].join(" "),
+        estimatedCosts: [...new Set(costs)].join(" "),
+      };
+    }
   }
 
   if (destCountry === "TH") {
@@ -425,6 +527,14 @@ export function resolveTravelRequirements(
       return fb;
     }
 
+    const extraVisa = (fb?.visaInfo ?? []).filter((card) => {
+      const blob = `${card.country} ${card.requirement} ${card.howToApply}`;
+      return visitedCountryCodes(destinationIata, destinationHint).some(
+        (cc) =>
+          visaTextCoversCountry(blob, cc) && !visaTextCoversCountry(sample, cc),
+      );
+    });
+
     return {
       targetResidents: collapseResidentLabels(
         fromPlan.targetResidents.length
@@ -433,7 +543,7 @@ export function resolveTravelRequirements(
             ? targetResidentsForOrigin(originIata)
             : fb?.targetResidents ?? [],
       ),
-      visaInfo: groupVisaInfoEntries(fromPlan.visaInfo, lang),
+      visaInfo: groupVisaInfoEntries([...fromPlan.visaInfo, ...extraVisa], lang),
       vaccinations: fromPlan.vaccinations?.trim() || fb?.vaccinations || "",
       estimatedCosts: fromPlan.estimatedCosts?.trim() || fb?.estimatedCosts || "",
     };
@@ -499,6 +609,8 @@ SMART TRAVEL REQUIREMENTS (travel_requirements — required in JSON):
 - NEVER write visa rules for Italy/Rome/FCO unless the destination is actually Italy.
 - Western Balkans road trip (Croatia + Bosnia + Montenegro + Albania, or “Balkan”): Croatia is Schengen; BA/ME/AL visa-free 90 days in 180 for EU; mention car green card / borders. This is NOT an Italy trip.
 - THAILAND 2026: visa-free for EU/Schengen is 30 days (temporary 60-day scheme ended May 2026), max 2 entries/year — do NOT write 60 days visa-free.
+- If the itinerary visits MORE THAN ONE country (e.g. Thailand + Kuala Lumpur/Malaysia), visa_info MUST have a separate entry for EACH country. Never cover only the arrival hub.
+- MALAYSIA 2026: EU/Schengen visa-free typically 90 days; complete free MDAC (Malaysia Digital Arrival Card) on imigresen-online.imi.gov.my within 3 days before arrival.
 - vaccinations / estimated_costs: destination-specific and practical (fees in €/USD where known).
 - ${langLine}`;
 }

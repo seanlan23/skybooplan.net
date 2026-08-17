@@ -2011,6 +2011,12 @@ export const generateAiPlan = createServerFn({ method: "POST" })
             pace: data.pace,
           });
           trace(`complete: ${plan.days.length} days via LLM (attempt ${attempt + 1})`);
+          try {
+            const { bumpPublicPlansGenerated } = await import("@/lib/planStats.server");
+            await bumpPublicPlansGenerated();
+          } catch (err) {
+            console.warn("[AiPlan] public plan counter bump failed", err);
+          }
           return withDebug({ plan, error: null, violations: violations.length ? violations : undefined });
         }
 

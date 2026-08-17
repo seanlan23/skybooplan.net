@@ -161,3 +161,42 @@ describe("Balkan road trip travel requirements", () => {
     expect(resolved?.visaInfo[0]!.requirement).toMatch(/Italy/i);
   });
 });
+
+describe("Thailand + Malaysia itinerary", () => {
+  const klHint = "Tajska in Kuala Lumpur Phuket Ao Nang Patong";
+
+  it("adds a Malaysia visa card next to Thailand", () => {
+    const req = buildFallbackTravelRequirements("MUC", "HKT", "sl", klHint);
+    expect(req?.visaInfo.length).toBeGreaterThanOrEqual(2);
+    const blob = req!.visaInfo.map((v) => `${v.country} ${v.requirement} ${v.howToApply}`).join("\n");
+    expect(blob).toMatch(/Tajsk|TDAC/i);
+    expect(blob).toMatch(/Malezij|MDAC/i);
+  });
+
+  it("keeps Thailand AI copy and appends Malaysia when KL is in the route", async () => {
+    const { resolveTravelRequirements } = await import("@/lib/travelRequirements");
+    const resolved = resolveTravelRequirements(
+      {
+        targetResidents: ["EU"],
+        visaInfo: [
+          {
+            country: "EU / Schengen",
+            requirement:
+              "Državljani EU/Schengen za turistični obisk Tajske ne potrebujejo vize vnaprej. Od maja 2026 velja 30 dni. TDAC je obvezen.",
+            howToApply: "Izpolni TDAC na Thai Immigration.",
+          },
+        ],
+        vaccinations: "Hepatitis A.",
+        estimatedCosts: "Viza 0 €. TDAC brezplačen.",
+      },
+      "MUC",
+      "HKT",
+      "sl",
+      klHint,
+    );
+    expect(resolved?.visaInfo.length).toBeGreaterThanOrEqual(2);
+    const blob = resolved!.visaInfo.map((v) => `${v.country} ${v.requirement}`).join("\n");
+    expect(blob).toMatch(/Tajsk|TDAC/i);
+    expect(blob).toMatch(/Malezij|MDAC/i);
+  });
+});
