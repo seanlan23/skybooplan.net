@@ -926,7 +926,6 @@ export function AiPlanDayCard({
             checkOut={hotelCheckOut}
             stayInfo={stayInfo}
             regionFallback={regionFallback}
-            bookingFirst={groundTransportMode === "car"}
           />
         )}
 

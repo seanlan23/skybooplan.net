@@ -21,7 +21,6 @@ import {
   perNightPrice,
   priceExtent,
   priceHistogram,
-  reviewBand,
   sortHotels,
   stayNights,
   type HotelResultSort,
@@ -130,7 +129,6 @@ export function HotelsSection({
   const adults = stayInfo?.adults ?? 2;
   const rooms = stayInfo?.rooms ?? 1;
   const childrenAges = stayInfo?.childrenAges ?? [];
-  const guests = adults + childrenAges.length;
   const nights = stayNights(checkIn, checkOut);
 
   const bookingBase = useMemo(
@@ -303,15 +301,6 @@ export function HotelsSection({
   const fmtDate = (iso: string) => formatLocalDate(iso, undefined, { day: "numeric", month: "short" });
   const dateLabel = checkOut ? `${fmtDate(checkIn)} – ${fmtDate(checkOut)}` : fmtDate(checkIn);
 
-  function reviewLabel(rating: number, apiWord?: string) {
-    const band = reviewBand(rating);
-    if (band === 9) return t("aiplan.reviewWord9" as never);
-    if (band === 8) return t("aiplan.reviewWord8" as never);
-    if (band === 7) return t("aiplan.reviewWord7" as never);
-    if (band === 6) return t("aiplan.reviewWord6" as never);
-    return apiWord || t("aiplan.reviewWordOk" as never);
-  }
-
   function toggleStar(n: number) {
     setStarFilter((prev) => (prev.includes(n) ? prev.filter((s) => s !== n) : [...prev, n]));
   }
@@ -461,7 +450,7 @@ export function HotelsSection({
         </>
       ) : (
         <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
-          <aside className="h-fit space-y-4 rounded-lg border border-slate-200 bg-white p-3 lg:sticky lg:top-4">
+          <aside className="hidden h-fit space-y-4 rounded-lg border border-slate-200 bg-white p-3 lg:sticky lg:top-4 lg:block">
             <BookingLink
               href={bookingHref}
               className="relative block overflow-hidden rounded-md border border-slate-200"
@@ -637,85 +626,65 @@ export function HotelsSection({
                 {t("aiplan.hotelsFilterEmpty" as never)}
               </p>
             ) : (
-              <div className="space-y-3">
-                {filtered.map((h) => {
-                  const bookUrl = resolveHotelBookingUrl(h.bookingUrl, {
-                    ...bookingBase,
-                    destination: hotelSearchQueryAlias(sourceCity),
-                    hotelName: h.name,
-                    destId: dest?.destId,
-                    destType: dest?.destType,
-                    nflt,
-                    lang,
-                  });
-                  const nightly = perNightPrice(h.price, nights);
-                  return (
-                    <BookingLink
-                      key={h.id}
-                      href={bookUrl}
-                      className="flex flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm transition hover:border-[#0071c2]/40 sm:flex-row"
-                    >
-                      <div className="relative h-40 w-full shrink-0 bg-slate-100 sm:h-auto sm:w-[200px]">
-                        <img src={h.image} alt={h.name} loading="lazy" className="h-full w-full object-cover" />
-                      </div>
-                      <div className="flex min-w-0 flex-1 flex-col gap-2 p-3 sm:flex-row sm:justify-between">
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <h3 className="text-base font-bold text-[#003b95]">{h.name}</h3>
-                            {h.stars ? <Stars count={h.stars} /> : null}
-                          </div>
-                          {h.neighborhood ? (
-                            <p className="mt-0.5 flex items-center gap-1 text-xs text-[#0071c2]">
-                              <MapPin className="h-3 w-3" />
-                              {h.neighborhood}
-                            </p>
-                          ) : null}
-                          <p className="mt-2 text-xs text-slate-500">
-                            {interpolate(t("aiplan.nightsGuests" as never), {
-                              nights: String(nights),
-                              guests: String(guests),
-                            })}
-                          </p>
-                        </div>
-                        <div className="flex shrink-0 flex-col items-end justify-between gap-2 sm:min-w-[9.5rem]">
+              <div className="-mx-1 snap-x snap-mandatory overflow-x-auto pb-2">
+                <div className="flex gap-3 px-1">
+                  {filtered.map((h) => {
+                    const bookUrl = resolveHotelBookingUrl(h.bookingUrl, {
+                      ...bookingBase,
+                      destination: hotelSearchQueryAlias(sourceCity),
+                      hotelName: h.name,
+                      destId: dest?.destId,
+                      destType: dest?.destType,
+                      nflt,
+                      lang,
+                    });
+                    const nightly = perNightPrice(h.price, nights);
+                    return (
+                      <BookingLink
+                        key={h.id}
+                        href={bookUrl}
+                        className="block w-[260px] shrink-0 snap-start overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:border-sky-200 hover:shadow-md"
+                      >
+                        <div className="relative h-36 w-full bg-slate-100">
+                          <img src={h.image} alt={h.name} loading="lazy" className="h-full w-full object-cover" />
                           {h.rating > 0 ? (
-                            <div className="flex items-center gap-2">
-                              <div className="text-right">
-                                <div className="text-sm font-bold text-slate-900">{reviewLabel(h.rating, h.reviewWord)}</div>
-                                {h.reviews > 0 ? (
-                                  <div className="text-[11px] text-slate-500">
-                                    {h.reviews} {t("aiplan.reviews" as never)}
-                                  </div>
-                                ) : null}
-                              </div>
-                              <div className="rounded-md rounded-bl-none bg-[#003b95] px-2 py-1 text-sm font-bold text-white">
-                                {h.rating.toFixed(1)}
-                              </div>
+                            <div className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-md bg-[#0071c2] px-2 py-0.5 text-xs font-bold text-white shadow">
+                              {h.rating.toFixed(1)}
                             </div>
                           ) : null}
-                          <div className="text-right">
-                            {h.originalPrice && h.originalPrice > h.price ? (
-                              <div className="text-xs text-red-600 line-through">€{h.originalPrice}</div>
-                            ) : null}
-                            <div className="text-lg font-extrabold text-slate-900">
-                              {h.price > 0 ? `€${h.price}` : "—"}
-                            </div>
-                            {nightly > 0 && nights > 1 ? (
-                              <div className="text-[11px] text-slate-500">
-                                €{nightly}
-                                {t("aiplan.perNight" as never)}
-                              </div>
-                            ) : null}
-                          </div>
-                          <span className="inline-flex items-center gap-1 rounded-md bg-[#0071c2] px-3 py-2 text-xs font-semibold text-white">
-                            {t("aiplan.seeAvailability" as never)}
-                            <ExternalLink className="h-3 w-3" />
-                          </span>
                         </div>
-                      </div>
-                    </BookingLink>
-                  );
-                })}
+                        <div className="p-3">
+                          <div className="line-clamp-2 min-h-[2.5rem] text-sm font-semibold leading-tight text-slate-900">
+                            {h.name}
+                          </div>
+                          {h.stars ? (
+                            <div className="mt-1">
+                              <Stars count={h.stars} />
+                            </div>
+                          ) : null}
+                          <div className="mt-1 text-[11px] text-slate-500">
+                            {fmtDate(checkIn)}
+                            {checkOut ? ` – ${fmtDate(checkOut)}` : ""}
+                          </div>
+                          <div className="mt-2 flex items-end justify-between gap-2">
+                            <div className="text-base font-bold text-slate-900">
+                              {h.price > 0 ? `€${h.price}` : "—"}
+                              <span className="text-xs font-normal text-slate-500">
+                                {nightly > 0 && nights > 1
+                                  ? ` · €${nightly}${t("aiplan.perNight" as never)}`
+                                  : t("aiplan.perNight" as never)}
+                              </span>
+                            </div>
+                            <span className="inline-flex items-center gap-1 rounded-md bg-[#0071c2] px-2.5 py-1.5 text-xs font-semibold text-white">
+                              {t("aiplan.book" as never)}
+                              <ExternalLink className="h-3 w-3" />
+                            </span>
+                          </div>
+                        </div>
+                      </BookingLink>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>
