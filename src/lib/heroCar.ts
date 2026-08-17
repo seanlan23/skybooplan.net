@@ -10,6 +10,7 @@ import {
   parsePlannerInterestKeys,
 } from "@/lib/plannerInterests";
 import { sanitizeGroundDestinationPlace } from "@/lib/groundTransport";
+import { roadPlaceFromDestination } from "@/lib/namedPlaces";
 
 export type HeroCarPlannerPayload = {
   ctx: AiPlannerContext & { language?: string; currency?: "EUR" | "USD" };
@@ -125,7 +126,9 @@ export function carPlannerFromCollected(
 
   const originPlace = (collected.origin ?? "").trim() || baseCtx.originPlace || "Vienna";
   const destinationPlace = sanitizeGroundDestinationPlace(
-    (collected.destination ?? "").trim() || baseCtx.destinationPlace || "Amsterdam",
+    roadPlaceFromDestination(
+      (collected.destination ?? "").trim() || baseCtx.destinationPlace || "Amsterdam",
+    ),
   );
 
   const from = resolveOriginIata(originPlace) || baseCtx.from || "";

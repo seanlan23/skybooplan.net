@@ -135,12 +135,12 @@ export function HeroDateRangeCalendar({
     month: cn("w-full min-w-0 max-w-[15.5rem]", twoMonths ? "flex-1" : ""),
     month_caption: "hidden",
     nav: "hidden",
-    month_grid: "h-[13.5rem] w-full table-fixed border-collapse",
+    month_grid: "h-auto w-full table-fixed border-collapse",
     weekdays: "",
     weekday:
-      "h-6 w-[14.2857%] p-0 text-center text-[10px] font-medium uppercase tracking-wide text-white/45",
+      "h-5 w-[14.2857%] p-0 text-center text-[10px] font-medium uppercase tracking-wide text-white/45",
     week: "",
-    day: "h-8 w-[14.2857%] p-0 text-center align-middle",
+    day: "h-7 w-[14.2857%] p-0 text-center align-middle",
     day_button: cn(
       "mx-auto flex h-7 w-7 items-center justify-center rounded-full text-[13px] font-medium text-white transition-colors",
       "hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40",
@@ -159,11 +159,11 @@ export function HeroDateRangeCalendar({
   return (
     <div
       className={cn(
-        "hero-chips-enter w-full max-w-full rounded-2xl border border-white/20 bg-black/45 p-3 shadow-lg backdrop-blur-md sm:p-4",
+        "flex w-full max-w-full min-h-0 flex-col overflow-hidden rounded-2xl border border-white/20 bg-black/45 p-2.5 shadow-lg backdrop-blur-md sm:p-4",
         className,
       )}
     >
-      <div className="mb-3 flex items-center gap-1 sm:gap-2">
+      <div className="mb-2 flex shrink-0 items-center gap-1 sm:gap-2">
         <button
           type="button"
           disabled={disabled || !canGoBack}
@@ -201,6 +201,7 @@ export function HeroDateRangeCalendar({
         </button>
       </div>
 
+      <div className="min-h-0 flex-1 overflow-hidden">
       {mode === "single" ? (
         <DayPicker
           mode="single"
@@ -254,17 +255,18 @@ export function HeroDateRangeCalendar({
               return weekdayLabels[idx] ?? "";
             },
           }}
-          className="w-full text-white [--rdp-day_button-height:1.75rem] [--rdp-day_button-width:1.75rem] [--rdp-day-height:2rem] [--rdp-day-width:2rem]"
+          className="w-full text-white [--rdp-day_button-height:1.75rem] [--rdp-day_button-width:1.75rem] [--rdp-day-height:1.75rem] [--rdp-day-width:1.75rem]"
         />
       )}
+      </div>
 
-      <div className="mt-3 flex flex-col items-stretch gap-2 border-t border-white/15 pt-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="min-h-[1.1rem] text-sm text-white/80">{rangeLabel || hint}</p>
+      <div className="mt-2 flex shrink-0 flex-col items-stretch gap-2 border-t border-white/15 pt-2">
+        <p className="min-h-[1.1rem] text-center text-sm text-white/80 sm:text-left">{rangeLabel || hint}</p>
         <button
           type="button"
           disabled={disabled || !canConfirm}
           onClick={handleConfirm}
-          className="inline-flex shrink-0 items-center justify-center rounded-full bg-blue-600 px-5 py-2 text-sm font-semibold text-white shadow-md transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
+          className="inline-flex w-full shrink-0 items-center justify-center rounded-full bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {confirmLabel}
         </button>

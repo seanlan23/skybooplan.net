@@ -16,6 +16,7 @@ export type PlaceSuggestion = {
 const QuerySchema = z.object({
   query: z.string().min(2).max(60),
   kind: z.enum(["airport", "place"]).default("airport"),
+  language: z.string().min(2).max(5).optional(),
 });
 
 type DuffelPlace = {
@@ -53,7 +54,8 @@ export const searchPlaces = createServerFn({ method: "POST" })
       try {
         const url = new URL(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(data.query)}.json`);
         url.searchParams.set("types", "place,locality,region,country");
-        url.searchParams.set("language", "en");
+        const lang = (data.language ?? "en").slice(0, 2).toLowerCase();
+        url.searchParams.set("language", lang === "sl" || lang === "de" ? lang : "en");
         url.searchParams.set("autocomplete", "true");
         url.searchParams.set("limit", "8");
         url.searchParams.set("access_token", token);

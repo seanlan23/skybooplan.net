@@ -47,6 +47,7 @@ import {
   resolveHeroChatBootstrap,
 } from "@/lib/heroChatExtract";
 import type { HeroStaySearchParams } from "@/lib/heroStaySearch";
+import { roadPlaceFromDestination } from "@/lib/namedPlaces";
 import { HOME_RESET_EVENT } from "@/lib/sessionStore";
 import { FlightCard } from "@/components/FlightCard";
 import { HotelsSection } from "@/components/HotelsSection";
@@ -366,6 +367,7 @@ function HeroGuidedStart({
   fileProcessing,
   featureBadges,
   staysOnly = false,
+  placeSearch = false,
   t,
 }: {
   onPickDestination: (destination: string, label: string) => void;
@@ -377,6 +379,8 @@ function HeroGuidedStart({
   fileProcessing: boolean;
   featureBadges: string[];
   staysOnly?: boolean;
+  /** Full plan / stays: cities and countries. Flights: airports. */
+  placeSearch?: boolean;
   t: (key: never) => string;
 }) {
   const [showTypeBox, setShowTypeBox] = useState(false);
@@ -387,11 +391,16 @@ function HeroGuidedStart({
         <p className="text-center text-lg font-semibold text-white sm:text-xl">
           {t((staysOnly ? "heroChat.guided.staysTitle" : "heroChat.guided.whereTitle") as never)}
         </p>
+        {!showTypeBox ? (
         <p className="mt-1.5 text-center text-sm text-white/70">
           {t((staysOnly ? "heroChat.guided.staysHint" : "heroChat.guided.whereHint") as never)}
         </p>
+        ) : null}
 
-        <div className="relative mt-5 min-h-[13.5rem] overflow-visible">
+        <div className={cn(
+          "relative overflow-visible",
+          showTypeBox ? "mt-3 min-h-[4.75rem]" : "mt-5 min-h-[13.5rem]",
+        )}>
         {!showTypeBox ? (
           <>
         <div key="hero-dest-dubai-v2" className="grid grid-cols-3 gap-1.5 sm:gap-2">
@@ -451,7 +460,7 @@ function HeroGuidedStart({
                   ? "heroChat.guided.staysPlaceholder"
                   : "heroChat.guided.typePlaceholder") as never,
               )}
-              kind={staysOnly ? "place" : "airport"}
+              kind={staysOnly || placeSearch ? "place" : "airport"}
             />
             {textInput.trim().length < 2 ? (
             <div className="grid grid-cols-3 gap-1.5 pt-1">
@@ -476,7 +485,7 @@ function HeroGuidedStart({
         )}
         </div>
       </div>
-      <HeroFeatureBadges featureBadges={featureBadges} />
+      {!showTypeBox ? <HeroFeatureBadges featureBadges={featureBadges} /> : null}
     </div>
   );
 }
@@ -1207,6 +1216,7 @@ export function HeroChatFlow({
     if (!trimmed) return;
     setCollected((prev) => ({ ...prev, origin: trimmed }));
     appendMessages(createChatMessage("user", label.trim() || trimmed));
+    setTextInput("");
     if (!collected.dates?.trim()) {
       goAskDates();
       return;
@@ -1223,6 +1233,10 @@ export function HeroChatFlow({
     appendMessages(createChatMessage("user", label));
     if (id === "car" || id === "motorhome") {
       setPlanTravel(id);
+      setCollected((prev) => ({
+        ...prev,
+        destination: roadPlaceFromDestination(prev.destination ?? ""),
+      }));
       appendMessages(createChatMessage("ai", t("heroChat.travelMode.askOrigin" as never)));
       setStep("origin");
       return;
@@ -1756,6 +1770,7 @@ export function HeroChatFlow({
               fileProcessing={fileProcessing}
               featureBadges={featureBadges}
               staysOnly={isStaysOnly}
+              placeSearch={!isFlightsOnly}
               t={t}
             />
           )}
@@ -1800,6 +1815,30 @@ export function HeroChatFlow({
 
       {conversationStarted ? (
         <>
+        {showDatePicker && step === "dates" ? (
+          <div
+            ref={datePickerRef}
+            className="mt-6 flex h-[min(24rem,52svh)] max-h-[min(24rem,52svh)] flex-col overflow-hidden"
+          >
+            <HeroDateRangeCalendar
+              className="flex min-h-0 flex-1 flex-col"
+              lang={lang}
+              mode={
+                normalizeHeroTripType(collected.tripType) === "oneway" ? "single" : "range"
+              }
+              confirmLabel={t("heroChat.confirm" as never)}
+              disabled={loading}
+              onConfirm={handleDateRangeConfirm}
+            />
+            <div className="mt-2 shrink-0">
+              <PickExactDatesButton
+                label={t("heroChat.closeExactDates" as never)}
+                disabled={loading}
+                onClick={handleToggleDatePicker}
+              />
+            </div>
+          </div>
+        ) : (
         <div
           ref={scrollRef}
           className={cn(
@@ -1966,6 +2005,7 @@ export function HeroChatFlow({
           ) : null}
 
           {showConversationChips && step === "origin" && isRoadGroundOnly ? (
+            <div className="space-y-3">
             <QuickReplyChips
               layout="grid"
               disabled={loading}
@@ -1979,6 +2019,24 @@ export function HeroChatFlow({
                 handleRoadOriginPick(chip?.place ?? label, label);
               }}
             />
+            <div className="pl-0 sm:pl-10">
+              <HeroDestinationAutocomplete
+                value={textInput}
+                onChange={setTextInput}
+                onPick={(place, label) => handleRoadOriginPick(place, label)}
+                onSubmit={() => {
+                  const trimmed = textInput.trim();
+                  if (!trimmed || loading) return;
+                  handleRoadOriginPick(trimmed, trimmed);
+                }}
+                canSubmit={Boolean(textInput.trim())}
+                disabled={loading}
+                placeholder={t("heroChat.origin.roadPlaceholder" as never)}
+                kind="place"
+                autoFocus={false}
+              />
+            </div>
+            </div>
           ) : null}
 
           {showConversationChips && step === "tripType" ? (
@@ -2093,27 +2151,9 @@ export function HeroChatFlow({
               />
             </div>
           ) : null}
-
-          {showDatePicker && step === "dates" ? (
-            <div ref={datePickerRef} className="space-y-3 pl-0 sm:pl-2">
-              <HeroDateRangeCalendar
-                lang={lang}
-                mode={
-                  normalizeHeroTripType(collected.tripType) === "oneway" ? "single" : "range"
-                }
-                confirmLabel={t("heroChat.confirm" as never)}
-                disabled={loading}
-                onConfirm={handleDateRangeConfirm}
-              />
-              <PickExactDatesButton
-                label={t("heroChat.closeExactDates" as never)}
-                disabled={loading}
-                onClick={handleToggleDatePicker}
-              />
-            </div>
-          ) : null}
           </div>
         </div>
+        )}
 
         {/* Car / motorhome / flights / stays: checklist is "all"-only — always offer clear here. */}
         {!showTripChecklist ? (

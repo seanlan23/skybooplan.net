@@ -14,7 +14,8 @@ import {
   formatDestinationAirportPick,
   searchDestinationAirports,
 } from "@/lib/popularDestinationAirports";
-import { formatStayPlacePick, mergeStaySuggestions } from "@/lib/stayPlaces";
+import { formatStayPlacePick } from "@/lib/stayPlaces";
+import { mergePlaceSuggestions } from "@/lib/namedPlaces";
 import { cn } from "@/lib/utils";
 
 function mergeAirportSuggestions(
@@ -48,8 +49,10 @@ type Props = {
   canSubmit: boolean;
   disabled?: boolean;
   placeholder: string;
-  /** Stays search places (Mapbox). Flights keep airport IATA. */
+  /** Stays / full-plan / car: cities and countries. Flights keep airport IATA. */
   kind?: "airport" | "place";
+  /** When false, do not steal focus (e.g. car origin field under chips). */
+  autoFocus?: boolean;
 };
 
 /** Destination typeahead for hero “Želim drugam”. */
@@ -64,8 +67,9 @@ export function HeroDestinationAutocomplete({
   disabled,
   placeholder,
   kind = "airport",
+  autoFocus = true,
 }: Props) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const isPlace = kind === "place";
   const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
   const [open, setOpen] = useState(false);
@@ -95,7 +99,7 @@ export function HeroDestinationAutocomplete({
       return;
     }
 
-    setSuggestions(isPlace ? mergeStaySuggestions(q, []) : mergeAirportSuggestions(q, []));
+    setSuggestions(isPlace ? mergePlaceSuggestions(q, []) : mergeAirportSuggestions(q, []));
     setOpen(true);
     setHighlight(0);
     setLoading(true);
@@ -104,12 +108,16 @@ export function HeroDestinationAutocomplete({
     const timer = setTimeout(async () => {
       try {
         const res = await placesFnRef.current({
-          data: { query: q, kind: isPlace ? "place" : "airport" },
+          data: {
+            query: q,
+            kind: isPlace ? "place" : "airport",
+            language: lang,
+          },
         });
         if (cancelled) return;
         setSuggestions(
           isPlace
-            ? mergeStaySuggestions(q, res.suggestions)
+            ? mergePlaceSuggestions(q, res.suggestions)
             : mergeAirportSuggestions(q, res.suggestions),
         );
         setOpen(true);
@@ -117,7 +125,7 @@ export function HeroDestinationAutocomplete({
       } catch (err) {
         if (!cancelled) {
           console.error("Hero destination places:", err);
-          setSuggestions(isPlace ? mergeStaySuggestions(q, []) : mergeAirportSuggestions(q, []));
+          setSuggestions(isPlace ? mergePlaceSuggestions(q, []) : mergeAirportSuggestions(q, []));
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -128,11 +136,21 @@ export function HeroDestinationAutocomplete({
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [value, focused, isPlace]);
+  }, [value, focused, isPlace, lang]);
 
   useEffect(() => {
-    localInputRef.current?.focus({ preventScroll: true });
-  }, []);
+    if (!autoFocus) return;
+    const node = localInputRef.current;
+    if (!node) return;
+    node.focus({ preventScroll: true });
+    const vv = window.visualViewport;
+    const rect = node.getBoundingClientRect();
+    const viewTop = vv?.offsetTop ?? 0;
+    const delta = rect.top - (viewTop + 88);
+    if (Math.abs(delta) > 20) {
+      window.scrollBy({ top: delta, behavior: "smooth" });
+    }
+  }, [autoFocus]);
 
   useEffect(() => {
     function onDoc(e: MouseEvent) {
@@ -266,7 +284,7 @@ export function HeroDestinationAutocomplete({
                     : s.name.replace(/ Airport$/i, "");
                 const title = isPlace ? s.name : city;
                 const subtitle = isPlace
-                  ? [t("autocomplete.type.place" as never), s.country].filter(Boolean).join(" · ")
+                  ? s.country || t("autocomplete.type.place" as never)
                   : `${t("autocomplete.type.airport" as never)}${s.country ? ` · ${s.country}` : ""}`;
                 return (
                   <li key={`${s.iata}-${i}`}>
