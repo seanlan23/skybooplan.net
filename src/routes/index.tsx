@@ -67,6 +67,7 @@ import { applyFlightContextToGeminiPlan } from "@/lib/geminiFlightContext";
 import { flightContextFromLegs } from "@/lib/flightScheduling";
 import { buildTripCostSummary, heroFlightPartyTotalEur } from "@/lib/tripCostSummary";
 import { overnightPlaceHint } from "@/lib/overnightEstimate";
+import { nudgeIntoView } from "@/lib/utils";
 import { countHomeboundUnpaidNights } from "@/lib/roadTripLogistics";
 import { resolveDayBudgetCountry } from "@/lib/countryDailyBudget";
 import { computeTripTotalBudgetEur } from "@/lib/tripBudget";
@@ -617,7 +618,7 @@ function Landing() {
   function handleInspirationSelect(destination: string) {
     setHeroChatSeed(destination);
     window.setTimeout(() => {
-      document.getElementById("hero-chat-window")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      nudgeIntoView(document.getElementById("hero-chat-window"), "nearest");
     }, 80);
   }
 
@@ -759,10 +760,7 @@ function Landing() {
         });
         setPlannerMode("stays");
         window.setTimeout(() => {
-          document.getElementById("hero-chat-window")?.scrollIntoView({
-            behavior: "smooth",
-            block: "center",
-          });
+          nudgeIntoView(document.getElementById("hero-chat-window"), "nearest");
         }, 120);
       } catch (err) {
         console.error("Stays search setup failed", err);
@@ -914,10 +912,7 @@ function Landing() {
     // picks a flight ("Za AI načrt"), not automatically in "Vse skupaj" mode.
     if (flightSearchOk || resolvedFlights.length > 0) {
       window.setTimeout(() => {
-        document.getElementById("hero-chat-window")?.scrollIntoView({
-          behavior: "smooth",
-          block: "center",
-        });
+        nudgeIntoView(document.getElementById("hero-chat-window"), "nearest");
       }, 120);
     }
   }
@@ -955,7 +950,7 @@ function Landing() {
       setAiContext(ctx);
       setPlannerMode("stays");
       setTimeout(() => {
-        document.getElementById("ai-planner")?.scrollIntoView({ behavior: "smooth", block: "start" });
+        nudgeIntoView(document.getElementById("ai-planner"));
       }, 100);
       return;
     }
@@ -1000,7 +995,7 @@ function Landing() {
       });
       setPlannerMode("trip");
       setTimeout(() => {
-        document.getElementById("ai-planner")?.scrollIntoView({ behavior: "smooth", block: "start" });
+        nudgeIntoView(document.getElementById("ai-planner"));
       }, 100);
       return;
     }
@@ -1202,10 +1197,7 @@ function Landing() {
     });
 
     window.setTimeout(() => {
-      document.getElementById("hero-ai-planner")?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
+      nudgeIntoView(document.getElementById("hero-ai-planner"));
     }, 120);
   }
 
@@ -1236,7 +1228,7 @@ function Landing() {
       flightTotalEur: Math.round(f.price),
     });
     setTimeout(() => {
-      document.getElementById("ai-planner")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      nudgeIntoView(document.getElementById("ai-planner"));
     }, 100);
   }
 
@@ -1565,7 +1557,7 @@ function Landing() {
         document.getElementById(scrollAnchorId) ||
         document.getElementById("hero-trip-plan") ||
         document.getElementById("ai-plan-anchor");
-      el?.scrollIntoView({ behavior: "smooth", block: "start" });
+      nudgeIntoView(el);
     }, 100);
     try {
       const lang = ctx.language || "en";
@@ -1814,9 +1806,10 @@ function Landing() {
       ? mergePlanPhotos(streamPreviewPlan, previewPhotoPlan)
       : streamPreviewPlan;
   // While streaming, show live preview over the previous committed plan.
+  // After the stream ends, never fall back to a 2/16 stub — only a committed plan.
   const displayPlan = streamItinerary.isStreaming
     ? previewWithPhotos ?? aiPlan
-    : aiPlan ?? previewWithPhotos;
+    : aiPlan;
   const isGeminiStreaming = streamItinerary.isStreaming;
 
   const showHeroPlannerForm =

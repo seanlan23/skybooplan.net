@@ -75,6 +75,7 @@ export function HeroDestinationAutocomplete({
   const [listMax, setListMax] = useState(220);
   const justPickedRef = useRef(false);
   const boxRef = useRef<HTMLDivElement>(null);
+  const localInputRef = useRef<HTMLInputElement>(null);
   const placesFn = useServerFn(searchPlaces);
   const placesFnRef = useRef(placesFn);
   placesFnRef.current = placesFn;
@@ -128,6 +129,10 @@ export function HeroDestinationAutocomplete({
       clearTimeout(timer);
     };
   }, [value, focused, isPlace]);
+
+  useEffect(() => {
+    localInputRef.current?.focus({ preventScroll: true });
+  }, []);
 
   useEffect(() => {
     function onDoc(e: MouseEvent) {
@@ -199,7 +204,12 @@ export function HeroDestinationAutocomplete({
       <div className="flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3 py-2">
         <Icon className="h-4 w-4 shrink-0 text-sky-300" aria-hidden />
         <input
-          ref={inputRef}
+          ref={(el) => {
+            localInputRef.current = el;
+            if (inputRef) {
+              (inputRef as { current: HTMLInputElement | null }).current = el;
+            }
+          }}
           type="text"
           value={value}
           onChange={(e) => onChange(e.target.value)}
@@ -215,7 +225,6 @@ export function HeroDestinationAutocomplete({
           autoCapitalize="words"
           spellCheck={false}
           enterKeyHint="search"
-          autoFocus
           placeholder={placeholder}
           aria-label={placeholder}
           aria-autocomplete="list"
@@ -236,7 +245,7 @@ export function HeroDestinationAutocomplete({
 
       {showList ? (
         <div
-          className="relative z-50 mt-2 overflow-hidden rounded-xl border border-white/25 bg-slate-950/95 shadow-2xl backdrop-blur-md sm:absolute sm:left-0 sm:right-0"
+          className="absolute left-0 right-0 z-50 mt-1 overflow-hidden rounded-xl border border-white/25 bg-slate-950/95 shadow-2xl backdrop-blur-md"
           style={{ maxHeight: listMax }}
         >
           {loading && suggestions.length === 0 ? (

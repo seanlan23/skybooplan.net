@@ -110,6 +110,7 @@ describe("Balkan road trip travel requirements", () => {
     const req = buildFallbackTravelRequirements("", "FCO", "en", hint);
     expect(req?.visaInfo[0]!.requirement).toMatch(/Croatia|Bosnia|Montenegro|Albania/i);
     expect(req?.visaInfo[0]!.requirement).not.toMatch(/Italy/i);
+    expect(req?.visaInfo[0]!.howToApply).toMatch(/roaming|eSIM/i);
   });
 
   it("replaces concrete Italy visa copy on a Balkan itinerary", async () => {

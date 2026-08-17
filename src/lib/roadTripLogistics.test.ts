@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { AiTripPlan, DayPlan } from "@/lib/aiPlan.functions";
 import {
+  annotateBalkanRoadTips,
   countHomeboundUnpaidNights,
   parseDriveHours,
   repairImplausibleDriveTimes,
@@ -77,6 +78,54 @@ describe("repairImplausibleDriveTimes", () => {
           drivingDurationHours: "4h",
           transportation: [
             { type: "car", from: "Vlorë", to: "Split", duration: "4h", estimatedPrice: 40 },
+          ],
+        }),
+      ],
+    } as AiTripPlan;
+
+    expect(repairImplausibleDriveTimes(plan)).toBe(1);
+    const hours = parseDriveHours(plan.days[0]!.drivingDurationHours)!;
+    expect(hours).toBeGreaterThanOrEqual(8);
+  });
+
+  it("rewrites Mostar → Tirana 5h 30min to 7–8h with two August borders", () => {
+    const plan = {
+      originPlace: "Vienna",
+      groundTransportMode: "car",
+      contentLanguage: "sl",
+      days: [
+        day({
+          day: 5,
+          city: "Tirana",
+          date: "2026-08-28",
+          drivingDistanceKm: 200,
+          drivingDurationHours: "5h 30min",
+          transportation: [
+            { type: "car", from: "Mostar", to: "Tirana", duration: "5h 30min", estimatedPrice: 50 },
+          ],
+        }),
+      ],
+    } as AiTripPlan;
+
+    expect(repairImplausibleDriveTimes(plan)).toBe(1);
+    const hours = parseDriveHours(plan.days[0]!.drivingDurationHours)!;
+    expect(hours).toBeGreaterThanOrEqual(7);
+  });
+
+  it("rewrites Kotor → Plitvice 6h 30min for Debeli Brijeg August queues", () => {
+    const plan = {
+      originPlace: "Vienna",
+      groundTransportMode: "car",
+      contentLanguage: "sl",
+      days: [
+        day({
+          day: 10,
+          city: "Plitvice",
+          date: "2026-09-02",
+          drivingDistanceKm: 250,
+          drivingDurationHours: "6h 30min",
+          transportation: [
+            { type: "car", from: "Kotor", to: "Plitvice", duration: "6h 30min", estimatedPrice: 40 },
           ],
         }),
       ],
@@ -221,5 +270,47 @@ describe("stripHomeboundPaidStays", () => {
     expect(plan.days[0]!.activities!.evening[0]!.estimatedCostEur).toBe(110);
     expect(plan.days[1]!.activities!.evening[0]!.estimatedCostEur).toBe(0);
     expect(plan.days[2]!.activities!.evening[0]!.estimatedCostEur).toBe(0);
+  });
+});
+
+describe("annotateBalkanRoadTips", () => {
+  it("adds Plitvice timed tickets, eSIM, and border-queue notes", () => {
+    const plan = {
+      originPlace: "Vienna",
+      groundTransportMode: "car",
+      contentLanguage: "sl",
+      days: [
+        day({
+          day: 4,
+          city: "Mostar",
+          date: "2026-08-27",
+          travelHack: "",
+          transportationTips: "",
+          localWarnings: "",
+        }),
+        day({
+          day: 5,
+          city: "Tirana",
+          date: "2026-08-28",
+          transportation: [
+            { type: "car", from: "Mostar", to: "Tirana", duration: "8h", estimatedPrice: 50 },
+          ],
+        }),
+        day({
+          day: 10,
+          city: "Plitvice",
+          date: "2026-09-02",
+          localWarnings: "",
+          transportation: [
+            { type: "car", from: "Kotor", to: "Plitvice", duration: "8h", estimatedPrice: 40 },
+          ],
+        }),
+      ],
+    } as AiTripPlan;
+
+    expect(annotateBalkanRoadTips(plan)).toBeGreaterThan(0);
+    expect(plan.days[0]!.travelHack).toMatch(/eSIM|roaming/i);
+    expect(plan.days[1]!.transportationTips).toMatch(/Debeli Brijeg|Božaj/i);
+    expect(plan.days[2]!.localWarnings).toMatch(/np-plitvicka-jezera|vstopnice/i);
   });
 });

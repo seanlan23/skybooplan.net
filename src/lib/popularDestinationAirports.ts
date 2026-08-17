@@ -109,6 +109,10 @@ const COUNTRY_TO_HUBS: Array<{ aliases: string[]; iatas: string[] }> = [
     iatas: ["VIE", "SZG"],
   },
   {
+    aliases: ["albania", "albanija", "albanien", "albanie"],
+    iatas: ["TIA"],
+  },
+  {
     aliases: ["switzerland", "svica", "schweiz", "suisse", "svizzera"],
     iatas: ["ZRH", "GVA"],
   },
@@ -368,6 +372,13 @@ const POPULAR_DESTINATION_AIRPORTS: AirportHub[] = [
     name: "Dubrovnik Airport",
     country: "HR",
     aliases: ["dubrovnik", "dbv", "croatia", "hrvaska"],
+  },
+  {
+    iata: "TIA",
+    city: "Tirana",
+    name: "Tirana International",
+    country: "AL",
+    aliases: ["tirana", "tia", "albania", "albanija", "albanien"],
   },
   {
     iata: "JFK",

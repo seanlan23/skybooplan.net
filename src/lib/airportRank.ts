@@ -103,12 +103,31 @@ const PREFERRED_BY_QUERY: Record<string, PlaceSuggestion[]> = {
       type: "airport",
     },
   ],
+  albania: [
+    {
+      iata: "TIA",
+      name: "Tirana International",
+      city: "Tirana",
+      country: "AL",
+      type: "airport",
+    },
+  ],
+  albanija: [
+    {
+      iata: "TIA",
+      name: "Tirana International",
+      city: "Tirana",
+      country: "AL",
+      type: "airport",
+    },
+  ],
 };
 
 /** Regional traps — demote when query clearly targets a major city. */
 const HOMONYM_DEMOTE: Array<{ query: RegExp; iata: string }> = [
   { query: /sydn?ey/i, iata: "SDY" },
   { query: /sydn?ey/i, iata: "SWZ" },
+  { query: /albanij|albania/i, iata: "ALB" },
 ];
 
 function scoreSuggestion(s: PlaceSuggestion, query: string): number {
@@ -143,6 +162,7 @@ function injectedForQuery(query: string): PlaceSuggestion[] {
   if (/^astan/.test(q) || /^nur[-\s]?sultan/.test(q)) return PREFERRED_BY_QUERY.astana;
   if (/^kazahstan|^kazakhstan|^kasachstan/.test(q)) return PREFERRED_BY_QUERY.kazahstan;
   if (/^almaty|^alma\s*ata/.test(q)) return PREFERRED_BY_QUERY.almaty;
+  if (/^albanij|^albania|^albanien/.test(q)) return PREFERRED_BY_QUERY.albania;
   return [];
 }
 
@@ -200,8 +220,29 @@ export function airportConfusionHint(
   if (to === "SDY") {
     return "error.sydneyNotSidney";
   }
+  if (to === "ALB") {
+    return "error.albaniaNotAlbany";
+  }
   if (to === "STN" && origin === "VIE") {
     return null;
   }
   return null;
+}
+
+/**
+ * Albany NY (ALB) is a homonym of Albania. On EU car trips, rewrite to Tirana.
+ */
+export function remapConfusedDestinationIata(
+  iata: string,
+  opts?: { hint?: string; originIata?: string; groundTransportMode?: string },
+): string {
+  const code = iata.trim().toUpperCase();
+  const hint = opts?.hint ?? "";
+  if (code !== "ALB") return code;
+  if (/\balbany\b/i.test(hint) && !/albanij|albania/i.test(hint)) return "ALB";
+  if (/albanij|albania/i.test(hint)) return "TIA";
+  if (opts?.groundTransportMode === "car" || opts?.groundTransportMode === "motorhome") {
+    return "TIA";
+  }
+  return code;
 }

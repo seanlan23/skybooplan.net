@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { tripPlanControlRules, tripPlanSystemPrompt } from "@/lib/geminiPro";
+import { tripPlanControlRules, tripPlanSystemPrompt, dayRangePromptBlock } from "@/lib/geminiPro";
 import type { GenerateTripPlanParams } from "@/lib/geminiPro.shared";
 
 function baseParams(
@@ -63,5 +63,30 @@ describe("tripPlanControlRules", () => {
     expect(system).not.toMatch(/category airport z natančno uro/i);
     expect(system).toMatch(/bullets/);
     expect(system).toMatch(/wall of text|neformatiran odstavek/i);
+  });
+
+  it("continuation batches ask only for remaining day_numbers and leftover destinations", () => {
+    const block = dayRangePromptBlock(
+      baseParams({
+        dayRange: {
+          start: 7,
+          end: 12,
+          lastCity: "Phuket",
+          visitedCities: ["Phuket", "Khao Sok"],
+        },
+      }),
+    );
+    expect(block).toMatch(/day_number 7 do 12/);
+    expect(block).toMatch(/natanko 6 day/);
+    expect(block).toMatch(/Phuket/);
+    expect(block).toMatch(/NISO med že obiskanimi/);
+
+    const system = tripPlanSystemPrompt(
+      baseParams({
+        dayRange: { start: 7, end: 12, lastCity: "Phuket", visitedCities: ["Phuket"] },
+      }),
+    );
+    expect(system).toMatch(/RAZPON DNI ZA TA JSON/);
+    expect(system).not.toMatch(/PRIHODOVNO LETALIŠČE \(OBVEZNO/);
   });
 });

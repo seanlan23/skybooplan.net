@@ -34,6 +34,7 @@ const CITY_COUNTRY: Record<string, string> = {
   dubrovnik: "HR",
   plitvice: "HR",
   "plitvicka jezera": "HR",
+  "plitvice lakes": "HR",
   vienna: "AT",
   wien: "AT",
   dunaj: "AT",
@@ -106,6 +107,7 @@ function countryFromPlaceLabel(place: string): string | null {
   if (/albanij|albania/i.test(t)) return "AL";
   if (/črn[ae]?\s*gor|crn[ae]?\s*gor|montenegro/i.test(t)) return "ME";
   if (/bosn|hercegovin/i.test(t)) return "BA";
+  if (/plitvic/i.test(t)) return "HR";
   return CITY_COUNTRY[cityKey(t)] ?? null;
 }
 
@@ -235,13 +237,33 @@ function zeroStay(a: Activity, copy: { name: string; description: string }): Act
   };
 }
 
-function balkansBorderPenaltyHours(fromCc: string | null, toCc: string | null): number {
+function isPeakBalkanBorderSeason(isoDate?: string): boolean {
+  if (!isoDate) return true;
+  const m = Number(isoDate.slice(5, 7));
+  const d = Number(isoDate.slice(8, 10));
+  if (!Number.isFinite(m)) return true;
+  if (m === 7 || m === 8) return true;
+  if (m === 6 && d >= 15) return true;
+  if (m === 9 && d <= 15) return true;
+  return false;
+}
+
+function balkansBorderPenaltyHours(
+  fromCc: string | null,
+  toCc: string | null,
+  peak: boolean,
+): number {
   if (!fromCc || !toCc || fromCc === toCc) return 0;
   const balkans = new Set(["AL", "ME", "HR", "BA"]);
   if (!balkans.has(fromCc) || !balkans.has(toCc)) return 0;
-  // AL→HR (via Montenegro) = two summer borders, no coastal motorway in ME.
-  if ((fromCc === "AL" && toCc === "HR") || (fromCc === "HR" && toCc === "AL")) return 4;
-  return 2;
+  const pair = `${fromCc}-${toCc}`;
+  // Two non-Schengen borders in one day (via Montenegro).
+  if (pair === "AL-HR" || pair === "HR-AL" || pair === "BA-AL" || pair === "AL-BA") {
+    return peak ? 4 : 3;
+  }
+  // Debeli Brijeg (ME→HR) — multi-hour August queues.
+  if (pair === "ME-HR" || pair === "HR-ME") return peak ? 3 : 1.5;
+  return peak ? 2 : 1;
 }
 
 function applyDurationToDay(day: DayPlan, hoursLabel: string, roadKm: number) {
@@ -309,14 +331,19 @@ export function repairImplausibleDriveTimes(plan: AiTripPlan): number {
     if (roadKm < MIN_REPAIR_ROAD_KM) continue;
 
     const typical = roadKm / TYPICAL_KMH;
+    const peak = isPeakBalkanBorderSeason(day.date);
     const borderH = balkansBorderPenaltyHours(
       countryFromPlaceLabel(from) ?? CITY_COUNTRY[cityKey(from)] ?? null,
       countryFromPlaceLabel(to) ?? CITY_COUNTRY[cityKey(to)] ?? null,
+      peak,
     );
     const realistic = typical + borderH;
     const minOk = roadKm / FAST_KMH + borderH * 0.6;
     const stated = statedHoursForDay(day);
-    if (stated != null && stated >= minOk * 0.9) continue;
+    const alreadyHonest =
+      stated != null &&
+      (stated >= realistic * 0.95 || (borderH === 0 && stated >= minOk));
+    if (alreadyHonest) continue;
 
     applyDurationToDay(day, formatDriveHours(realistic), roadKm);
     if (day.transportationTips) {
@@ -361,3 +388,76 @@ export function stripHomeboundPaidStays(plan: AiTripPlan): number {
   }
   return fixed;
 }
+
+function isPlitviceDay(day: DayPlan): boolean {
+  return /plitvic/i.test(
+    `${day.city ?? ""} ${day.title ?? ""} ${day.morning ?? ""} ${day.afternoon ?? ""}`,
+  );
+}
+
+function isNonEuBalkanDay(day: DayPlan): boolean {
+  const cc =
+    countryFromPlaceLabel(day.city ?? "") ?? CITY_COUNTRY[cityKey(day.city ?? "")] ?? null;
+  return cc === "AL" || cc === "ME" || cc === "BA";
+}
+
+function appendUniqueNote(existing: string | undefined, note: string): string {
+  const prev = (existing ?? "").trim();
+  if (!note.trim()) return prev;
+  if (prev && prev.toLowerCase().includes(note.slice(0, 28).toLowerCase())) return prev;
+  return prev ? `${prev} ${note}` : note;
+}
+
+const PLITVICE_TICKET_NOTE_SL =
+  "Vstopnice za Plitvice kupi spletno vnaprej (np-plitvicka-jezera.hr) za točno uro vstopa — konec sezone so termini pogosto razprodani.";
+const PLITVICE_TICKET_NOTE_EN =
+  "Buy Plitvice tickets online in advance (np-plitvicka-jezera.hr) for a timed entry — late-season slots sell out.";
+const BALKAN_ESIM_NOTE_SL =
+  "BiH, Črna gora in Albanija niso v EU roamingu — pred odhodom naloži balkanski eSIM ali kupi lokalno kartico na vsaki meji.";
+const BALKAN_ESIM_NOTE_EN =
+  "Bosnia, Montenegro and Albania are outside EU roaming — install a Balkans eSIM before you leave, or buy a local SIM at each border.";
+const BORDER_QUEUE_NOTE_SL =
+  "Poletne kolone na mejah (Debeli Brijeg, Sukobin/Božaj): računaj +2–4 h nad Google časom.";
+const BORDER_QUEUE_NOTE_EN =
+  "Summer border queues (Debeli Brijeg, Sukobin/Božaj): add 2–4 h on top of Google Maps.";
+
+/** Plitvice timed tickets, Balkan eSIM, and August border queues. */
+export function annotateBalkanRoadTips(plan: AiTripPlan): number {
+  if (!isRoadLoop(plan)) return 0;
+  const sl = !(plan.contentLanguage && !plan.contentLanguage.startsWith("sl"));
+  let n = 0;
+  let esimDone = false;
+  const days = plan.days ?? [];
+  for (let i = 0; i < days.length; i++) {
+    const day = days[i]!;
+    const prev = days[i - 1];
+    if (isPlitviceDay(day)) {
+      const note = sl ? PLITVICE_TICKET_NOTE_SL : PLITVICE_TICKET_NOTE_EN;
+      const before = day.localWarnings ?? "";
+      day.localWarnings = appendUniqueNote(day.localWarnings, note);
+      if (day.localWarnings !== before) n += 1;
+    }
+    if (!esimDone && isNonEuBalkanDay(day)) {
+      const note = sl ? BALKAN_ESIM_NOTE_SL : BALKAN_ESIM_NOTE_EN;
+      const before = day.travelHack ?? "";
+      day.travelHack = appendUniqueNote(day.travelHack, note);
+      if (day.travelHack !== before) n += 1;
+      esimDone = true;
+    }
+    const from = (primaryCarLeg(day)?.from || prev?.city || "").trim();
+    const to = (primaryCarLeg(day)?.to || day.city || "").trim();
+    const borderH = balkansBorderPenaltyHours(
+      countryFromPlaceLabel(from) ?? CITY_COUNTRY[cityKey(from)] ?? null,
+      countryFromPlaceLabel(to) ?? CITY_COUNTRY[cityKey(to)] ?? null,
+      isPeakBalkanBorderSeason(day.date),
+    );
+    if (borderH >= 2) {
+      const note = sl ? BORDER_QUEUE_NOTE_SL : BORDER_QUEUE_NOTE_EN;
+      const before = day.transportationTips ?? "";
+      day.transportationTips = appendUniqueNote(day.transportationTips, note);
+      if (day.transportationTips !== before) n += 1;
+    }
+  }
+  return n;
+}
+

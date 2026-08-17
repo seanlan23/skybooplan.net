@@ -9,6 +9,7 @@ import {
 } from "@/lib/asyncTimeout";
 import {
   parseCoercedTripPlan,
+  thisResponseDaySpan,
   tripPlanSchema,
   type GenerateTripPlanParams,
   type TripPlanPax,
@@ -284,6 +285,27 @@ export function motorhomeRoadTripMaxBases(days: number): number {
   return Math.min(days, Math.max(3, Math.ceil(days / 2)));
 }
 
+/** Force Gemini to emit only one day_number window — used when streaming long trips in batches. */
+export function dayRangePromptBlock(params: GenerateTripPlanParams): string {
+  const span = thisResponseDaySpan(params);
+  if (!span.isPartial) return "";
+  const visited = params.dayRange?.visitedCities?.filter(Boolean) ?? [];
+  const lastCity = params.dayRange?.lastCity?.trim();
+  const continuation =
+    span.start > 1
+      ? `- NADALJEVANJE: dnevi 1–${span.start - 1} so ŽE zgenerirani${lastCity ? ` (zadnji dan: ${lastCity})` : ""}${visited.length ? `. Že obiskana mesta: ${visited.join(", ")}` : ""}.
+- NE generiraj day_number 1–${span.start - 1}. Ne začenjaj poti znova na letališču prihoda.
+- Destinacije iz želja, ki še NISO med že obiskanimi (npr. drugo mesto/država), MORAŠ vključiti v tem razponu.`
+      : `- To je SAMO prvi del ${span.total}-dnevne poti. Generiraj začetek; kasnejši dnevi pridejo v naslednjem klicu. Ne stisni cele poti v ${span.count} dni.`;
+  return `
+RAZPON DNI ZA TA JSON (STROGO — prebije vsa druga pravila o številu dni):
+- Generiraj SAMO day_number ${span.start} do ${span.end} — natanko ${span.count} day{} objektov.
+- Celotna pot ima ${span.total} koledarskih dni.
+${continuation}
+- PREPOVEDANO vrniti manj kot ${span.count} day{} ali day_number zunaj ${span.start}–${span.end}.
+`;
+}
+
 function buildTripPlanPrompt(params: GenerateTripPlanParams): string {
   const wishes =
     params.wishTags.length > 0
@@ -320,6 +342,11 @@ function buildTripPlanPrompt(params: GenerateTripPlanParams): string {
             ? 4
             : 4;
 
+  const span = thisResponseDaySpan(params);
+  const dayObjectsRule = span.isPartial
+    ? `vsota itinerar[].days[] = NATANKO ${span.count} day{} z day_number ${span.start}–${span.end} (celotna pot = ${span.total} dni — ostalih dni NE generiraj)`
+    : `vsota vseh itinerar[].days[] = NATANKO ${span.total} ločenih dnevnih objektov`;
+
   const tvojeZeljeBlock = customWishes
     ? `
 
@@ -342,7 +369,7 @@ NAČIN POTOVANJA: AVTODOM / RV / CAMPERVAN (obvezno)
 - Med mesti načrtuj vožnjo z avtodomom — ne notranjih letov. ZDA: 400–800 km = cel dan vožnje.
 - Parkiraj RV izven mestnega jedra; v center z javnim prevozom ali P+R.
 - itinerar[] = največ ${maxBases} baz/kampov (to NI število dni!).
-- KRITIČNO: vsota vseh itinerar[].days[] = NATANKO ${params.days} ločenih dnevnih objektov. Primer: ${params.days} dni z ${maxBases} kampi = več day{} na istem kampu — NIKOLI samo ${maxBases} day{} objektov.
+- KRITIČNO: ${dayObjectsRule}. Primer: ${span.count} day{} z ${maxBases} kampi = več day{} na istem kampu — NIKOLI samo ${maxBases} day{} objektov.
 ${roadTrip ? "- Road trip: enosmerna pot vzdolž ceste; večnočni kampi na isti postaji so OK (ne vsak dan nova baza)." : ""}`
     : "";
 
@@ -353,7 +380,7 @@ NAČIN POTOVANJA: AVTO / ROAD TRIP Z HOTELI (obvezno)
 - Nočitve = hoteli v mestih vsak večer (Booking-friendly city stays).
 - PREPOVEDANO kot namestitev: kamp, RV park, campground, sosta, "spanje v avtu", avtodom.
 - itinerar[] = največ ${maxBases} hotelskih baz (mesta) — to NI število dni!
-- KRITIČNO: vsota vseh itinerar[].days[] = NATANKO ${params.days} ločenih dnevnih objektov. Več noči v istem mestu = več day{} na isti hotelski bazi.
+- KRITIČNO: ${dayObjectsRule}. Več noči v istem mestu = več day{} na isti hotelski bazi.
 - Road trip: enosmerna pot; več noči v istem mestu so OK (ne vsak dan novo mesto).`
     : "";
 
@@ -366,25 +393,32 @@ NAČIN POTOVANJA: AVTO / ROAD TRIP Z HOTELI (obvezno)
         )
       : "";
 
-  const lastDayBlock = lastDayReturnPromptBlock({
-    groundTransportMode: params.groundTransportMode,
-    originPlace: params.originPlace,
-    returnFromIata: params.returnFromIata,
-    destinationIata: params.destinationIata,
-  });
+  const lastDayBlock = span.includesDeparture
+    ? lastDayReturnPromptBlock({
+        groundTransportMode: params.groundTransportMode,
+        originPlace: params.originPlace,
+        returnFromIata: params.returnFromIata,
+        destinationIata: params.destinationIata,
+      })
+    : "";
 
-  const flightReturnLine = params.groundTransportMode
-    ? "- Povratek domov mora ustrezati izbranemu prevozu (avto/vlak/avtodom) — glej pravila spodaj, NE let z letališča."
-    : `- Zadnji dan: samo lahki ogledi PRED odhodom (brez ur); check-out/transfer/let vstavi aplikacija za ${params.returnFromIata ?? params.destinationIata}.`;
+  const flightReturnLine = !span.includesDeparture
+    ? `- Ta del se konča z dnevom ${span.end} — NE generiraj mednarodnega odhoda/povratka (to pride v zadnjem delu).`
+    : params.groundTransportMode
+      ? "- Povratek domov mora ustrezati izbranemu prevozu (avto/vlak/avtodom) — glej pravila spodaj, NE let z letališča."
+      : `- Zadnji dan: samo lahki ogledi PRED odhodom (brez ur); check-out/transfer/let vstavi aplikacija za ${params.returnFromIata ?? params.destinationIata}.`;
 
-  const flightReturnClosing = params.groundTransportMode
-    ? ""
-    : params.flightContext?.inboundDepart
-      ? "\n\nZadnji dan: NE generiraj category airport / check-out / transfer vrstic z urami — aplikacija jih vstavi iz IZBRANI LET. trip_metadata.return_flight_eu = natanko te ure."
-      : "\n\nZadnji dan: NE generiraj airport/check-out/transfer z izmišljenimi urami — aplikacija vstavi logistiko. trip_metadata.return_flight_eu izpolni samo če imaš zanesljive ure.";
+  const flightReturnClosing =
+    !span.includesDeparture || params.groundTransportMode
+      ? ""
+      : params.flightContext?.inboundDepart
+        ? "\n\nZadnji dan: NE generiraj category airport / check-out / transfer vrstic z urami — aplikacija jih vstavi iz IZBRANI LET. trip_metadata.return_flight_eu = natanko te ure."
+        : "\n\nZadnji dan: NE generiraj airport/check-out/transfer z izmišljenimi urami — aplikacija vstavi logistiko. trip_metadata.return_flight_eu izpolni samo če imaš zanesljive ure.";
 
   const selectedFlightBlock =
-    !params.groundTransportMode && params.flightContext
+    (span.includesArrival || span.includesDeparture) &&
+    !params.groundTransportMode &&
+    params.flightContext
       ? flightContextPromptBlock(params.flightContext, params.days, {
           originIata: params.originIata,
           destinationIata: params.destinationIata,
@@ -445,19 +479,26 @@ Takoj za tem nadaljuj s kratkim narativnim uvodom o poti (največ 1–2 stavka �
     arrivalDay: arrivalDayNum,
     groundTransport: Boolean(params.groundTransportMode),
   });
-  const arrivalDayRule = params.groundTransportMode
-    ? ""
-    : arrivalDayNum > 1
-      ? `- Dan prihoda na destinacijo = dan ${arrivalDayNum} v ${arrivalCityName} (${params.destinationIata}). Dnevi pred tem = samo let — brez destinacijskih aktivnosti. Prepovedan notranji let stran z letališča prihoda na dan prihoda.`
-      : `- Dan 1 = ${arrivalCityName} (prihod na ${params.destinationIata}). Prepovedan notranji let stran z letališča prihoda na dan 1.`;
+  const arrivalDayRule = !span.includesArrival
+    ? `- Dan prihoda je že zgeneriran. Začni z dnevom ${span.start} v nadaljevanju poti — ne ponavljaj letališča prihoda.`
+    : params.groundTransportMode
+      ? ""
+      : arrivalDayNum > 1
+        ? `- Dan prihoda na destinacijo = dan ${arrivalDayNum} v ${arrivalCityName} (${params.destinationIata}). Dnevi pred tem = samo let — brez destinacijskih aktivnosti. Prepovedan notranji let stran z letališča prihoda na dan prihoda.`
+        : `- Dan 1 = ${arrivalCityName} (prihod na ${params.destinationIata}). Prepovedan notranji let stran z letališča prihoda na dan 1.`;
 
   const poisPerPhase =
     motorhome || roadTrip
       ? "2–3 znamenitosti (ne več — krajši JSON)"
       : lightPacePoisHint(params.pace);
 
-  return `Ustvari ${params.days}-dnevni načrt potovanja za lokacijo: ${params.destination} v mesecu ${params.month}.
-${teaserBlock}
+  const titleLine = span.isPartial
+    ? `Ustvari dneve ${span.start}–${span.end} (od skupno ${span.total}) načrta potovanja za lokacijo: ${params.destination} v mesecu ${params.month}.`
+    : `Ustvari ${params.days}-dnevni načrt potovanja za lokacijo: ${params.destination} v mesecu ${params.month}.`;
+
+  return `${titleLine}
+${dayRangePromptBlock(params)}
+${span.includesArrival ? teaserBlock : ""}
 ${travelReqBlock}
 ${controlRules}
 ${userStayPlanBlock ?? ""}
@@ -479,9 +520,9 @@ Obvezna logistična pravila za ta načrt:
     explicitStayPlan
       ? `Število in vrstni red baz = NATANKO po UPORABNIKOVEM RAZPOREDU zgoraj (ne skrči na tipičnih ${Math.min(4, params.days)} baz).`
       : motorhome
-        ? `Načrtuj največ ${maxBases} baz/kampov vzdolž enosmerne poti; vsota itinerar[].days[] mora biti NATANKO ${params.days} day{} (več noči na isti bazi = več day{} — NE samo ${maxBases} day{}).`
+        ? `Načrtuj največ ${maxBases} baz/kampov vzdolž enosmerne poti; ${dayObjectsRule} (več noči na isti bazi = več day{} — NE samo ${maxBases} day{}).`
         : carTrip || roadTrip
-          ? `Načrtuj največ ${maxBases} hotelskih baz (mesta) vzdolž enosmerne poti; vsota itinerar[].days[] mora biti NATANKO ${params.days} day{} (več noči v istem mestu = več day{} — NE samo ${maxBases} day{}). PREPOVEDANO: kamp/RV/sosta kot nočitev.`
+          ? `Načrtuj največ ${maxBases} hotelskih baz (mesta) vzdolž enosmerne poti; ${dayObjectsRule} (več noči v istem mestu = več day{} — NE samo ${maxBases} day{}). PREPOVEDANO: kamp/RV/sosta kot nočitev.`
         : `Največ ${maxBases} glavne baze (mesta/regije) za ${params.days} dni — brez skakanja sem in tja po državi.`
   }
 - ${explicitStayPlan ? "Sledi uporabnikovemu vrstnemu redu mest (lahko se vrneš na Phuket/Patong za odhod, če je to v razporedu)." : "Enosmerna geografska pot (en jasen lok); brez vračanja v že obiskana mesta."}
@@ -520,8 +561,8 @@ function lightPacePoisHint(pace?: GenerateTripPlanParams["pace"]): string {
 export const GEMINI_TRIP_PLAN_MODEL =
   process.env.GEMINI_TRIP_PLAN_MODEL?.trim() || "gemini-2.5-flash";
 
-/** Enough headroom for multi-day catalog JSON — prevents truncated streams. */
-export const GEMINI_TRIP_PLAN_MAX_OUTPUT_TOKENS = 16_384;
+/** Headroom per stream batch (long trips are split). 16k truncated 16-day catalog JSON at ~2 days. */
+export const GEMINI_TRIP_PLAN_MAX_OUTPUT_TOKENS = 32_768;
 
 const google = createGoogleGenerativeAI({
   apiKey: geminiApiKey() ?? undefined,
@@ -537,17 +578,20 @@ const tripPlanGenerationConfig = {
 } as const;
 
 export function tripPlanSystemPrompt(params: GenerateTripPlanParams): string {
+  const span = thisResponseDaySpan(params);
   const motorhome = isMotorhomeTrip(params);
   const carTrip = isCarRoadTrip(params);
   const roadTrip = isRoadTripRequest(params) || carTrip;
   const explicitStayPlan = hasExplicitStayPlan(wishesBlob(params));
   const motorhomeRules = motorhome ? motorhomePromptRules(true) : "";
-  const lastDayBlock = lastDayReturnPromptBlock({
-    groundTransportMode: params.groundTransportMode,
-    originPlace: params.originPlace,
-    returnFromIata: params.returnFromIata,
-    destinationIata: params.destinationIata,
-  });
+  const lastDayBlock = span.includesDeparture
+    ? lastDayReturnPromptBlock({
+        groundTransportMode: params.groundTransportMode,
+        originPlace: params.originPlace,
+        returnFromIata: params.returnFromIata,
+        destinationIata: params.destinationIata,
+      })
+    : "";
   const flightReturnEuRule = params.groundTransportMode
     ? `- Če je prevoz avto/vlak/avtodom: trip_metadata.return_flight_eu NE izpolnjuj — potnik se vrne z istim prevozom na izhodišče (${params.originPlace ?? "domov"}), ne z letalom.`
     : params.flightContext?.inboundDepart
@@ -561,14 +605,19 @@ export function tripPlanSystemPrompt(params: GenerateTripPlanParams): string {
       : `- Na zadnjem dnevu logistike obvezno generiraj točno uro mednarodnega leta nazaj v Evropo (EU) in izpolni trip_metadata.return_flight_eu. NE trdi "direct"/"direktni", če nisi 100% prepričan (HKT–MUC / BKK–MUC skoraj nikoli ni direkt).`;
 
   const selectedFlightSystemBlock =
-    !params.groundTransportMode && params.flightContext
+    (span.includesArrival || span.includesDeparture) &&
+    !params.groundTransportMode &&
+    params.flightContext
       ? flightContextPromptBlock(params.flightContext, params.days, {
           originIata: params.originIata,
           destinationIata: params.destinationIata,
           language: params.language,
         })
       : "";
-  const povratekEuBlock = params.groundTransportMode
+  const povratekEuBlock =
+    !span.includesDeparture
+      ? ""
+      : params.groundTransportMode
     ? `POVRATEK DOMOV (obvezno — ${params.groundTransportMode === "train" ? "VLAK" : "AVTO/AVTODOM"}):
 - Zadnji dan: vožnja/vlak nazaj na izhodiščno lokacijo — NE mednarodni let z letališča.
 - trip_metadata.return_flight_eu NE izpolnjuj.`
@@ -621,8 +670,9 @@ export function tripPlanSystemPrompt(params: GenerateTripPlanParams): string {
     groundTransport: Boolean(params.groundTransportMode),
   });
 
-  const arrivalAirportBlock = params.groundTransportMode
-    ? ""
+  const arrivalAirportBlock =
+    params.groundTransportMode || !span.includesArrival
+      ? ""
     : `
 PRIHODOVNO LETALIŠČE (OBVEZNO — prednost pred vsemi primeri poti):
 - Mednarodni let potnika pristane na ${params.destinationIata} (${arrivalCity}).
@@ -641,6 +691,8 @@ PRIHODOVNO LETALIŠČE (OBVEZNO — prednost pred vsemi primeri poti):
 `;
 
   return `Si strokovni potovalni agent za aplikacijo skybooplan. Striktno sledi zahtevani JSON shemi.
+
+${dayRangePromptBlock(params)}
 
 ${STRICT_LLM_LANGUAGE_RULE}
 

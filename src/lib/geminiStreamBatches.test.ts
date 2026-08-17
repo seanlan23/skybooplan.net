@@ -1,0 +1,112 @@
+import { describe, expect, it } from "vitest";
+import type { AiTripPlan, DayPlan } from "@/lib/aiPlan.functions";
+import {
+  nextIncompleteDayRange,
+  streamBatchSize,
+} from "@/lib/geminiPro.functions";
+import {
+  alignBatchDays,
+  mergeStreamedTripPlans,
+  planVisitedCities,
+} from "@/lib/geminiStreamBatches";
+import { thisResponseDaySpan } from "@/lib/geminiPro.shared";
+
+function day(partial: Partial<DayPlan> & { day: number }): DayPlan {
+  return {
+    title: `Day ${partial.day}`,
+    city: partial.city ?? "Phuket",
+    lat: partial.lat ?? 7.88,
+    lng: partial.lng ?? 98.39,
+    morning: "",
+    afternoon: "",
+    evening: "",
+    travelHack: "",
+    transportationTips: "",
+    localWarnings: "",
+    dailyBudgetEur: 55,
+    ...partial,
+  } as DayPlan;
+}
+
+function plan(days: DayPlan[], name = "Phuket"): AiTripPlan {
+  return {
+    destinationName: name,
+    summary: name,
+    totalBudgetEur: days.reduce((s, d) => s + (d.dailyBudgetEur ?? 0), 0),
+    centerLat: 7.88,
+    centerLng: 98.39,
+    days,
+  };
+}
+
+describe("stream day batches", () => {
+  it("keeps 8-day trips in one Gemini call", () => {
+    expect(streamBatchSize(8)).toBe(8);
+    expect(nextIncompleteDayRange(0, 8)).toEqual({ start: 1, end: 8 });
+    expect(nextIncompleteDayRange(8, 8)).toBeNull();
+  });
+
+  it("splits a 16-day trip into 6-day windows so catalog JSON is not truncated", () => {
+    expect(streamBatchSize(16)).toBe(6);
+    expect(nextIncompleteDayRange(0, 16)).toEqual({ start: 1, end: 6 });
+    expect(nextIncompleteDayRange(6, 16)).toEqual({ start: 7, end: 12 });
+    expect(nextIncompleteDayRange(12, 16)).toEqual({ start: 13, end: 16 });
+    expect(nextIncompleteDayRange(16, 16)).toBeNull();
+  });
+
+  it("continues from a 2-day stub instead of shipping 2/16", () => {
+    expect(nextIncompleteDayRange(2, 16)).toEqual({ start: 3, end: 8 });
+  });
+});
+
+describe("alignBatchDays", () => {
+  it("keeps day_numbers already in the requested window", () => {
+    const aligned = alignBatchDays(
+      plan([day({ day: 7, city: "Khao Sok" }), day({ day: 8, city: "Ao Nang" })]),
+      { start: 7, end: 12 },
+    );
+    expect(aligned.days.map((d) => d.day)).toEqual([7, 8]);
+  });
+
+  it("shifts a restarted 1-based batch onto the continuation window", () => {
+    const aligned = alignBatchDays(
+      plan([day({ day: 1, city: "Kuala Lumpur" }), day({ day: 2, city: "Kuala Lumpur" })]),
+      { start: 9, end: 14 },
+    );
+    expect(aligned.days.map((d) => ({ day: d.day, city: d.city }))).toEqual([
+      { day: 9, city: "Kuala Lumpur" },
+      { day: 10, city: "Kuala Lumpur" },
+    ]);
+  });
+});
+
+describe("mergeStreamedTripPlans", () => {
+  it("unions Phuket days with later Kuala Lumpur days", () => {
+    const first = plan([day({ day: 1 }), day({ day: 2 })], "Phuket");
+    const second = plan(
+      [day({ day: 9, city: "Kuala Lumpur" }), day({ day: 10, city: "Kuala Lumpur" })],
+      "Tajska in Kuala Lumpur",
+    );
+    const merged = mergeStreamedTripPlans(first, second, 3);
+    expect(merged.days.map((d) => d.city)).toEqual([
+      "Phuket",
+      "Phuket",
+      "Kuala Lumpur",
+      "Kuala Lumpur",
+    ]);
+    expect(merged.destinationName).toBe("Tajska in Kuala Lumpur");
+    expect(planVisitedCities(merged)).toEqual(["Phuket", "Kuala Lumpur"]);
+  });
+});
+
+describe("thisResponseDaySpan", () => {
+  it("marks a mid-trip window as continuation without arrival or departure", () => {
+    const span = thisResponseDaySpan({ days: 16, dayRange: { start: 7, end: 12 } });
+    expect(span).toMatchObject({
+      count: 6,
+      isPartial: true,
+      includesArrival: false,
+      includesDeparture: false,
+    });
+  });
+});

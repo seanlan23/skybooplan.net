@@ -41,6 +41,13 @@ describe("searchDestinationAirports", () => {
     expect(hits.map((h) => h.iata)).toEqual(["HKT"]);
   });
 
+  it("resolves Albania to Tirana (TIA), not Albany NY (ALB)", () => {
+    const hits = searchDestinationAirports("Albanija");
+    expect(hits[0]?.iata).toBe("TIA");
+    expect(hits.map((h) => h.iata)).not.toContain("ALB");
+    expect(searchDestinationAirports("Albania")[0]?.iata).toBe("TIA");
+  });
+
   it("formats pick with IATA for Make/AI resolution", () => {
     expect(
       formatDestinationAirportPick({

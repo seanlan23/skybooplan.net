@@ -6,7 +6,7 @@ import {
   sanitizeLegacyTemplateLeak,
   stripTruncatedCopyFromPlan,
 } from "@/lib/textSanitize";
-import { repairImplausibleDriveTimes, stripHomeboundPaidStays } from "@/lib/roadTripLogistics";
+import { annotateBalkanRoadTips, repairImplausibleDriveTimes, stripHomeboundPaidStays } from "@/lib/roadTripLogistics";
 import { alignSummaryTripLength } from "@/lib/planTeaser";
 
 type DaySlots = NonNullable<DayPlan["activities"]>;
@@ -866,6 +866,7 @@ export function applyItineraryGuards(
   durationAlign: number;
   driveTimes: number;
   homeStays: number;
+  balkanTips: number;
   wrongCity: number;
   templateScrub: number;
 } {
@@ -890,6 +891,7 @@ export function applyItineraryGuards(
   const durationAlign = alignTransportationDurationWithTips(plan);
   const driveTimes = repairImplausibleDriveTimes(plan);
   const homeStays = stripHomeboundPaidStays(plan);
+  const balkanTips = annotateBalkanRoadTips(plan);
   return {
     placeholders,
     genericMeals,
@@ -904,6 +906,7 @@ export function applyItineraryGuards(
     durationAlign,
     driveTimes,
     homeStays,
+    balkanTips,
     wrongCity,
     templateScrub,
   };

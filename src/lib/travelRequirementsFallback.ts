@@ -130,7 +130,7 @@ export function balkanRoadPack(lang: LangCode): CuratedTravelPack {
       visaRequirement:
         "Državljani EU/Schengen: Hrvaška je v schengenskem območju (osebna izkaznica ali potni list). Bosna in Hercegovina, Črna gora in Albanija so brezvizumske do 90 dni v 180-dnevnem obdobju. Na vsaki meji imej pripravljen osebni dokument; za avto zeleno karto / zavarovanje.",
       howToApply:
-        "Ni vize vnaprej. Na mejah pokažeš osebni dokument. Pri avtu: prometno, zavarovanje (zelena karta kjer je potrebna), vinjete/cestnine po državah.",
+        "Ni vize vnaprej. Na mejah pokažeš osebni dokument. Pri avtu: prometno, zavarovanje (zelena karta kjer je potrebna), vinjete/cestnine po državah. BiH, Črna gora in Albanija NISO v EU roamingu — pred odhodom naloži balkanski eSIM ali kupi lokalno kartico na vsaki meji.",
       vaccinations:
         "Posebna potovalna cepljenja niso obvezna. Posodobi rutinska (tetanus, MMR). Hepatitis A je smiseln pri daljšem potovanju. Poleti: sončna zaščita in repelent.",
       estimatedCosts:
@@ -153,7 +153,7 @@ export function balkanRoadPack(lang: LangCode): CuratedTravelPack {
     visaRequirement:
       "EU/Schengen citizens: Croatia is in the Schengen Area (ID card or passport). Bosnia and Herzegovina, Montenegro and Albania are visa-free for up to 90 days in 180. Carry ID at each border; for the car, green-card insurance where required.",
     howToApply:
-      "No visa in advance. Show ID at borders. For the car: registration, insurance (green card where needed), vignettes/tolls by country.",
+      "No visa in advance. Show ID at borders. For the car: registration, insurance (green card where needed), vignettes/tolls by country. Bosnia, Montenegro and Albania are outside EU roaming — install a Balkans eSIM before you leave or buy a local SIM at each border.",
     vaccinations:
       "No special travel vaccines required. Keep routine shots (tetanus, MMR) current. Hepatitis A is sensible on a longer trip. In summer: sun protection and mosquito repellent.",
     estimatedCosts:
@@ -168,7 +168,7 @@ function albaniaPack(lang: LangCode): CuratedTravelPack {
       visaRequirement:
         "Državljani EU/Schengen lahko v Albanijo vstopijo brez vize do 90 dni v 180-dnevnem obdobju. Potni list ali osebna izkaznica (preveri, ali tvoja država dovoljuje vstop z osebno). Potni list naj velja še med bivanjem.",
       howToApply:
-        "Ni vize vnaprej. Na meji pokažeš osebni dokument. Pri avtodomu: zelena karta / zavarovanje, prometno dovoljenje; cestnine so nizke, gotovina (ALL/EUR) je koristna.",
+        "Ni vize vnaprej. Na meji pokažeš osebni dokument. Pri avtodomu: zelena karta / zavarovanje, prometno dovoljenje; cestnine so nizke, gotovina (ALL/EUR) je koristna. Albanija ni v EU roamingu — balkanski eSIM pred odhodom ali lokalna kartica na meji.",
       vaccinations:
         "Priporočeno: posodobljena rutinska cepljenja; hepatitis A je smiseln pri daljšem potovanju ali kampiranju. Malarija v turističnih območjih ni tipična; imej repelent poleti.",
       estimatedCosts:

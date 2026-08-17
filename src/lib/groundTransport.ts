@@ -54,11 +54,15 @@ function albaniaCarRoadTripPrompt(dest: string): string {
   if (!isAlbaniaRoadTripDestination(dest) && !/\bbalkan/.test(dest.toLowerCase())) return "";
   return `
 ALBANIJA / JADRAN Z AVTOM (obvezno):
+- Če je cilj Albanija: vsaj 3 nočitve V Albaniji, od tega ≥2 IZVEN Tirane (Himarë / Dhërmi / Sarandë / Ksamil ALI Shkodër / Theth / Valbona). PREPOVEDANO: samo Tirana + dnevni izlet v Berat. Berat = nočitev tam, ne round-trip iz Tirane.
 - Tirana: NAJVEČ 1 poln ogledni dan (Bunk'Art, Skanderbeg, Blloku). PREPOVEDANO 2–3 dnevi galerij/jezera v Tirani. Extra nočitev daj Shkodër / Skadarsko jezero na poti DOL ali plaže Dhërmi / Himarë na rivieri.
-- Riviera: Sarandë/Ksamil PLUS vsaj en dan Himarë ali Dhërmi — Vlorë ni edini obalni postanek.
+- Riviera: Sarandë/Ksamil PLUS vsaj en dan Himarë ali Dhërmi — Vlorë ni edini obalni postanek. Sever (Theth/Valbona) je alternativa rivieri, ne sme ostati samo prestolnica.
+- Mostar→Tirana: 2 meji (BiH→MNE→AL). Konec avgusta 7–8 h, ne 5h 30min. Če nočeš 8h dneva: nočitev v Shkodëru ali Podgorici vmes.
 - PREPOVEDANO: Vlorë→Split (ali Vlorë→Zadar) v ENEM dnevu. To je 9–11 ur čiste vožnje + 3 meje (AL–MNE, MNE–HR). Poletne kolone na Sukobin/Božaj in Debeli Brijeg. Obvezna nočitev v Črni gori (Kotor ali Budva) ALI vsaj Dubrovnik. Split šele naslednji dan. Kosilo v Splitu isti dan odpade.
+- Kotor→Plitvice: meja Debeli Brijeg avgusta ima večurne kolone. drivingDurationHours ≥ 8h. PREPOVEDANO 6h 30min. Odhod zelo zgodaj.
 - Črna gora obala: NI avtoceste — počasna cesta. drivingDurationHours mora vključiti meje (+2–4 h na vsako poleti), ne samo Google čas.
-- Plitvice: vstop zjutraj ob odprtju (~8:00). PREPOVEDANO popoldanski obisk po vožnji Split→Plitvice (2,5 h + gneča + vročina). Če Split→Zagreb preko Plitvic: nočitev PRI parku prejšnji večer ALI odhod iz Splita ob zori in park ob 8:00.
+- Plitvice: vstopnice kupi SPLETNO vnaprej (np-plitvicka-jezera.hr) za točno uro vstopa — konec sezone razprodano. Vstop zjutraj ob rezerviranem slotu. PREPOVEDANO popoldanski obisk po vožnji Split→Plitvice. Če Split→Zagreb preko Plitvic: nočitev PRI parku prejšnji večer.
+- eSIM: BiH, Črna gora in Albanija NISO v EU roamingu. Regionalni balkanski eSIM pred odhodom ali lokalna kartica na vsaki meji.
 - Povratek: Zagreb→Dunaj ≈ 4 h avtoceste. PREPOVEDANO nočitev v Gradcu + naslednji dan “prihod na Dunaj”. Gradec je kvečjemu kosilo ob poti; isti večer spi na Dunaju / doma. Ne mešaj “Vožnja domov” z večerjo v Gradcu.`;
 }
 

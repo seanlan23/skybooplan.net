@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { airportConfusionHint, rankAirportSuggestions } from "@/lib/airportRank";
+import { airportConfusionHint, rankAirportSuggestions, remapConfusedDestinationIata } from "@/lib/airportRank";
 import type { PlaceSuggestion } from "@/lib/places.functions";
 
 const sdy: PlaceSuggestion = {
@@ -39,7 +39,32 @@ describe("airportConfusionHint", () => {
     expect(airportConfusionHint("VIE", "SDY")).toBe("error.sydneyNotSidney");
   });
 
+  it("warns when destination is Albany instead of Albania", () => {
+    expect(airportConfusionHint("VIE", "ALB")).toBe("error.albaniaNotAlbany");
+  });
+
   it("returns null for SYD", () => {
     expect(airportConfusionHint("VIE", "SYD")).toBeNull();
+  });
+});
+
+describe("remapConfusedDestinationIata", () => {
+  it("rewrites ALB to TIA on a European car trip to Albania", () => {
+    expect(
+      remapConfusedDestinationIata("ALB", {
+        hint: "Albanija",
+        originIata: "VIE",
+        groundTransportMode: "car",
+      }),
+    ).toBe("TIA");
+  });
+
+  it("keeps Albany NY when the user actually asked for Albany", () => {
+    expect(
+      remapConfusedDestinationIata("ALB", {
+        hint: "Albany New York",
+        originIata: "JFK",
+      }),
+    ).toBe("ALB");
   });
 });

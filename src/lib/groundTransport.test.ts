@@ -119,6 +119,10 @@ describe("car road trip hotels", () => {
     expect(block).toMatch(/Plitvice/i);
     expect(block).toMatch(/Gradc|Graz/i);
     expect(block).toMatch(/Dhërmi|Himar/i);
+    expect(block).toMatch(/Berat = nočitev|Theth|Valbona/i);
+    expect(block).toMatch(/Debeli Brijeg/i);
+    expect(block).toMatch(/eSIM/i);
+    expect(block).toMatch(/np-plitvicka-jezera/i);
   });
 
   it("Croatia-only car trip does not steal nights into Bosnia/Albania", () => {

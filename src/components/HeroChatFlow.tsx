@@ -136,20 +136,15 @@ function tripReadyMessageKey(staysOnly: boolean, roadOnly: boolean): string {
   return "heroChat.passengers.tripReady";
 }
 
-/** Scroll chips into the visual viewport without yanking the whole page. */
-function ensureInVisualViewport(el: HTMLElement) {
-  const vv = window.visualViewport;
-  const viewTop = vv?.offsetTop ?? 0;
-  const viewBottom = viewTop + (vv?.height ?? window.innerHeight);
-  const rect = el.getBoundingClientRect();
-  const header = 72;
-  const pad = 16;
-  if (rect.top >= viewTop + header && rect.bottom <= viewBottom - pad) return;
+/** Scroll chips inside the transcript — never move the page. */
+function scrollChildIntoScroller(scroller: HTMLElement, el: HTMLElement) {
+  const s = scroller.getBoundingClientRect();
+  const r = el.getBoundingClientRect();
+  const pad = 8;
+  if (r.top >= s.top + pad && r.bottom <= s.bottom - pad) return;
   const delta =
-    rect.bottom > viewBottom - pad
-      ? rect.bottom - (viewBottom - pad)
-      : rect.top - (viewTop + header);
-  window.scrollBy({ top: delta, behavior: "auto" });
+    r.bottom > s.bottom - pad ? r.bottom - (s.bottom - pad) : r.top - (s.top + pad);
+  scroller.scrollTop += delta;
 }
 
 function SkyAvatar({ icon }: { icon: string }) {
@@ -388,7 +383,7 @@ function HeroGuidedStart({
 
   return (
     <div className="relative z-20 w-full">
-      <div className="hero-sky-enter rounded-2xl border border-white/40 bg-black/50 p-5 shadow-[0_18px_50px_rgba(0,0,0,0.45)] backdrop-blur-xl sm:p-6">
+      <div className="hero-sky-enter overflow-visible rounded-2xl border border-white/40 bg-black/50 p-5 shadow-[0_18px_50px_rgba(0,0,0,0.45)] backdrop-blur-xl sm:p-6">
         <p className="text-center text-lg font-semibold text-white sm:text-xl">
           {t((staysOnly ? "heroChat.guided.staysTitle" : "heroChat.guided.whereTitle") as never)}
         </p>
@@ -396,9 +391,10 @@ function HeroGuidedStart({
           {t((staysOnly ? "heroChat.guided.staysHint" : "heroChat.guided.whereHint") as never)}
         </p>
 
+        <div className="relative mt-5 min-h-[13.5rem] overflow-visible">
         {!showTypeBox ? (
           <>
-        <div key="hero-dest-dubai-v2" className="hero-chips-enter mt-5 grid grid-cols-3 gap-1.5 sm:gap-2">
+        <div key="hero-dest-dubai-v2" className="grid grid-cols-3 gap-1.5 sm:gap-2">
           {HERO_DESTINATION_CHIPS.map((chip) => {
             const { emoji, name, feel } = getDestinationChipDisplay(chip, t);
             return (
@@ -433,7 +429,7 @@ function HeroGuidedStart({
           </button>
           </>
         ) : (
-          <div className="relative z-30 mt-4 space-y-2">
+          <div className="relative z-30 space-y-2">
             <p className="text-sm font-medium text-white/90">
               {t("heroChat.guided.typeTitle" as never)}
             </p>
@@ -478,9 +474,9 @@ function HeroGuidedStart({
             ) : null}
           </div>
         )}
+        </div>
       </div>
-      {/* Hide badges while typing — they sat on top of the airport dropdown. */}
-      {!showTypeBox ? <HeroFeatureBadges featureBadges={featureBadges} /> : null}
+      <HeroFeatureBadges featureBadges={featureBadges} />
     </div>
   );
 }
@@ -698,12 +694,16 @@ export function HeroChatFlow({
     if (showSearchLoader || staySearch) return;
     window.requestAnimationFrame(() => {
       const scroller = scrollRef.current;
-      if (scroller) scroller.scrollTop = scroller.scrollHeight;
+      if (!scroller) return;
       const target =
         showDatePicker && datePickerRef.current
           ? datePickerRef.current
           : activeControlsRef.current;
-      if (target) ensureInVisualViewport(target);
+      if (target && scroller.contains(target)) {
+        scrollChildIntoScroller(scroller, target);
+        return;
+      }
+      scroller.scrollTop = scroller.scrollHeight;
     });
   }, [showSearchLoader, showDatePicker, staySearch]);
 
@@ -1803,15 +1803,11 @@ export function HeroChatFlow({
         <div
           ref={scrollRef}
           className={cn(
-            "mt-6 space-y-3 px-1 py-1",
-            // When the calendar is open, collapse the chat transcript so the picker fits.
-            showDatePicker && step === "dates"
-              ? "max-h-28 overflow-x-clip overflow-y-auto overscroll-y-contain sm:max-h-36"
-              : showSearchLoader
-                ? "max-h-[min(420px,50vh)] overflow-x-clip overflow-y-hidden"
-                : staySearch
-                  ? "max-h-none overflow-visible"
-                  : "max-h-[min(420px,50vh)] overflow-x-clip overflow-y-auto overscroll-y-contain",
+            "mt-6 space-y-3 px-1 py-1 [overflow-anchor:none]",
+            staySearch
+              ? "max-h-none overflow-visible"
+              : "h-[min(22rem,48svh)] max-h-[min(22rem,48svh)] overflow-x-clip overflow-y-auto overscroll-y-contain",
+            showSearchLoader && !staySearch && "overflow-y-hidden",
           )}
         >
           {messages.map((message) => (
@@ -1934,7 +1930,7 @@ export function HeroChatFlow({
             </div>
           ) : null}
 
-          <div ref={activeControlsRef} className="relative z-10">
+          <div ref={activeControlsRef} className="relative z-10 min-h-[10.5rem]">
           {showConversationChips && step === "passengers" ? (
             <HeroPassengerBrowser
               disabled={loading}
@@ -2097,6 +2093,25 @@ export function HeroChatFlow({
               />
             </div>
           ) : null}
+
+          {showDatePicker && step === "dates" ? (
+            <div ref={datePickerRef} className="space-y-3 pl-0 sm:pl-2">
+              <HeroDateRangeCalendar
+                lang={lang}
+                mode={
+                  normalizeHeroTripType(collected.tripType) === "oneway" ? "single" : "range"
+                }
+                confirmLabel={t("heroChat.confirm" as never)}
+                disabled={loading}
+                onConfirm={handleDateRangeConfirm}
+              />
+              <PickExactDatesButton
+                label={t("heroChat.closeExactDates" as never)}
+                disabled={loading}
+                onClick={handleToggleDatePicker}
+              />
+            </div>
+          ) : null}
           </div>
         </div>
 
@@ -2111,28 +2126,6 @@ export function HeroChatFlow({
               <Trash2 className="h-3.5 w-3.5" aria-hidden />
               {t("search.clearNew" as never)}
             </button>
-          </div>
-        ) : null}
-
-        {showDatePicker && step === "dates" ? (
-          <div
-            ref={datePickerRef}
-            className="hero-chips-enter mt-4 space-y-4 pl-0 sm:pl-2"
-          >
-            <HeroDateRangeCalendar
-              lang={lang}
-              mode={
-                normalizeHeroTripType(collected.tripType) === "oneway" ? "single" : "range"
-              }
-              confirmLabel={t("heroChat.confirm" as never)}
-              disabled={loading}
-              onConfirm={handleDateRangeConfirm}
-            />
-            <PickExactDatesButton
-              label={t("heroChat.closeExactDates" as never)}
-              disabled={loading}
-              onClick={handleToggleDatePicker}
-            />
           </div>
         ) : null}
         </>
@@ -2157,15 +2150,8 @@ export function HeroChatFlow({
           from { opacity: 0; }
           to { opacity: 1; }
         }
-        @keyframes heroChipsEnter {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
         .hero-sky-enter {
-          animation: heroSkyEnter 0.3s ease-out both;
-        }
-        .hero-chips-enter {
-          animation: heroChipsEnter 0.35s ease-out 0.15s both;
+          animation: heroSkyEnter 0.22s ease-out both;
         }
       `}</style>
     </div>

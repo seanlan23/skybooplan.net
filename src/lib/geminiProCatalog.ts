@@ -17,6 +17,7 @@ import { normalizePlanLangCode } from "@/lib/planLanguages";
 export function buildCatalogPlanFromResponse(
   raw: TripPlanResponse,
   data: GenerateGeminiProTripInput,
+  opts?: { expandToExpectedDays?: boolean },
 ): { plan: AiTripPlan | null; error: string | null } {
   const parsed = parseCoercedTripPlan(raw);
   if (!parsed.success) {
@@ -49,6 +50,7 @@ export function buildCatalogPlanFromResponse(
     return { plan: null, error: "Načrtu manjkajo angleška imena mest za hotel iskanje." };
   }
 
+  const tripDays = tripDayCount(data.departDate, data.returnDate);
   enrichGeminiCatalogPlan(catalogPlan, {
     budget: data.budget,
     pax: data.pax.adults + data.pax.childrenAges.length,
@@ -56,7 +58,8 @@ export function buildCatalogPlanFromResponse(
     language: data.language,
     departDate: data.departDate,
     returnDate: data.returnDate,
-    expectedDays: tripDayCount(data.departDate, data.returnDate),
+    // Stream batches must not clone-pad to the full trip — remaining days are generated next.
+    expectedDays: opts?.expandToExpectedDays === false ? catalogPlan.days.length : tripDays,
     pace: data.pace,
   });
 
@@ -69,6 +72,39 @@ export function buildCatalogPlanFromResponse(
   applyFlightContextIfPresent(catalogPlan, data);
 
   return { plan: catalogPlan, error: null };
+}
+
+/** Enrich a merged multi-batch stream plan without cloning missing calendar days. */
+export function finalizeMergedStreamPlan(
+  plan: AiTripPlan,
+  data: GenerateGeminiProTripInput,
+): AiTripPlan {
+  const next = structuredClone(plan);
+  const wishesText = [
+    data.customWishes?.trim(),
+    data.wishTags.join(" "),
+    data.priorities?.join(" "),
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  enrichGeminiCatalogPlan(next, {
+    budget: data.budget,
+    pax: data.pax.adults + data.pax.childrenAges.length,
+    wishesText,
+    language: data.language,
+    departDate: data.departDate,
+    returnDate: data.returnDate,
+    expectedDays: next.days.length,
+    pace: data.pace,
+  });
+  enrichGroundTransportPlan(next, {
+    mode: data.groundTransportMode,
+    originPlace: data.originPlace,
+    destinationPlace: data.destinationPlace,
+  });
+  applyFlightContextIfPresent(next, data);
+  return next;
 }
 
 /** Shared by final catalog + live stream partials — boarding-pass times always win. */

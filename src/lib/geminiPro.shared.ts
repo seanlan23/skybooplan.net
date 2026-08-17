@@ -221,6 +221,39 @@ export type TripPlanPax = {
 
 export type TripBudgetTier = "budget" | "standard" | "premium";
 
+/** One Gemini streamObject call — long trips are split so JSON is not truncated. */
+export type TripPlanDayRange = {
+  start: number;
+  end: number;
+  visitedCities?: string[];
+  lastCity?: string;
+};
+
+export function thisResponseDaySpan(
+  params: Pick<{ days: number; dayRange?: TripPlanDayRange }, "days" | "dayRange">,
+): {
+  start: number;
+  end: number;
+  count: number;
+  total: number;
+  isPartial: boolean;
+  includesArrival: boolean;
+  includesDeparture: boolean;
+} {
+  const total = Math.max(1, params.days);
+  const start = Math.max(1, params.dayRange?.start ?? 1);
+  const end = Math.min(total, Math.max(start, params.dayRange?.end ?? total));
+  return {
+    start,
+    end,
+    count: end - start + 1,
+    total,
+    isPartial: start > 1 || end < total,
+    includesArrival: start === 1,
+    includesDeparture: end >= total,
+  };
+}
+
 export type GenerateTripPlanParams = {
   originIata: string;
   destinationIata: string;
@@ -229,6 +262,8 @@ export type GenerateTripPlanParams = {
   returnDate?: string;
   destination: string;
   days: number;
+  /** When set, Gemini must emit only this day_number window (stream continuation). */
+  dayRange?: TripPlanDayRange;
   month: string;
   pax: TripPlanPax;
   budget: TripBudgetTier;

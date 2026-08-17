@@ -17,6 +17,7 @@ import {
 import type { AiTripPlan } from "@/lib/aiPlan.functions";
 import { DESTINATION_BY_IATA } from "@/lib/destinationCoords";
 import { sanitizeGroundDestinationPlace } from "@/lib/groundTransport";
+import { remapConfusedDestinationIata } from "@/lib/airportRank";
 
 const SL_MONTHS = [
   "januar",
@@ -230,6 +231,29 @@ export function incompletePlanDayCoverageMessage(
   return `Načrt je nepopoln (${gotDays}/${expectedDays} dni). Poskusi znova.`;
 }
 
+/** Catalog JSON is too rich for 16 days in one Gemini call — split longer trips. */
+export const GEMINI_STREAM_DAYS_PER_BATCH = 6;
+export const GEMINI_STREAM_MAX_BATCHES = 4;
+
+export function streamBatchSize(expectedDays: number): number {
+  if (expectedDays <= 8) return Math.max(1, expectedDays);
+  return GEMINI_STREAM_DAYS_PER_BATCH;
+}
+
+/** Next day_number window to request, or null when coverage is already acceptable. */
+export function nextIncompleteDayRange(
+  gotDays: number,
+  expectedDays: number,
+  batchSize = streamBatchSize(expectedDays),
+): { start: number; end: number } | null {
+  if (expectedDays <= 0) return null;
+  if (hasAcceptablePlanDayCoverage(gotDays, expectedDays)) return null;
+  const start = Math.max(1, gotDays + 1);
+  if (start > expectedDays) return null;
+  const size = Math.max(1, batchSize);
+  return { start, end: Math.min(expectedDays, start + size - 1) };
+}
+
 export function monthNameSl(isoDate: string): string {
   try {
     const d = new Date(`${isoDate}T12:00:00`);
@@ -259,13 +283,25 @@ export function resolveDestinationLabel(
 }
 
 export function buildGeminiTripPlanParams(data: GenerateGeminiProTripInput, days: number) {
+  const destinationIata = remapConfusedDestinationIata(data.destinationIata, {
+    hint: [data.destinationPlace, data.customWishes, data.originPlace].filter(Boolean).join(" "),
+    originIata: data.originIata,
+    groundTransportMode: data.groundTransportMode,
+  });
+  const destinationPlace = (() => {
+    const raw = data.destinationPlace?.trim();
+    if (destinationIata === "TIA" && raw && /albany/i.test(raw) && !/new york|\bny\b|\busa\b/i.test(raw)) {
+      return "Albania";
+    }
+    return data.destinationPlace;
+  })();
   return {
     originIata: data.originIata,
-    destinationIata: data.destinationIata,
+    destinationIata,
     returnFromIata: data.returnFromIata,
     departDate: data.departDate,
     returnDate: data.returnDate,
-    destination: resolveDestinationLabel(data.destinationIata, data.destinationPlace),
+    destination: resolveDestinationLabel(destinationIata, destinationPlace),
     days,
     month: monthNameSl(data.departDate),
     pax: data.pax,
@@ -276,7 +312,7 @@ export function buildGeminiTripPlanParams(data: GenerateGeminiProTripInput, days
     priorities: data.priorities,
     groundTransportMode: data.groundTransportMode,
     originPlace: data.originPlace,
-    destinationPlace: data.destinationPlace,
+    destinationPlace,
     language: data.language ?? "sl",
     flightContext: data.flightContext,
   };
