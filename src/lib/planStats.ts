@@ -9,8 +9,8 @@ function slPlansPhrase(count: number, n: string): string {
   return `${n} načrtov ustvarjenih`;
 }
 
-/** Known completed itineraries before the public counter was wired to generateAiPlan. */
-export const KNOWN_PLANS_GENERATED_FLOOR = 177;
+/** Known completed itineraries — keep the public counter from dropping below this. */
+export const KNOWN_PLANS_GENERATED_FLOOR = 204;
 
 export function resolvePublicPlanCount(
   stored: number,

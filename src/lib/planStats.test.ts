@@ -36,10 +36,10 @@ describe("formatPlansGeneratedLabel", () => {
   });
 
   it("never reports below the known generated floor", () => {
-    expect(resolvePublicPlanCount(1, 0)).toBe(177);
-    expect(resolvePublicPlanCount(12, 200)).toBe(200);
-    expect(resolvePublicPlanCount(190, 12)).toBe(190);
-    expect(resolvePublicPlanCount(177, 10)).toBe(177);
-    expect(resolvePublicPlanCount(187, 10)).toBe(187);
+    expect(resolvePublicPlanCount(1, 0)).toBe(204);
+    expect(resolvePublicPlanCount(12, 200)).toBe(204);
+    expect(resolvePublicPlanCount(12, 250)).toBe(250);
+    expect(resolvePublicPlanCount(210, 12)).toBe(210);
+    expect(resolvePublicPlanCount(204, 10)).toBe(204);
   });
 });
