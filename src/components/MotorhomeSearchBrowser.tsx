@@ -328,7 +328,7 @@ export function MotorhomeSearchBrowser({
             maxLength={800}
             placeholder={t("mh.browser.wishesPh" as never)}
             aria-label={t("mh.browser.wishes" as never)}
-            className="mt-2 w-full resize-y rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 shadow-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100 disabled:opacity-50"
+            className="mt-2 w-full resize-y rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-base text-slate-800 placeholder:text-slate-400 shadow-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100 disabled:opacity-50"
           />
         </div>
 

@@ -326,7 +326,7 @@ function MotorhomeTypeEndField({
         }}
         disabled={disabled}
         placeholder={typeEndPlaceholder}
-        className="min-w-0 flex-1 rounded-xl border border-white/30 bg-white/15 px-3 py-2.5 text-sm text-white placeholder:text-white/50 outline-none focus:border-white/50"
+        className="min-w-0 flex-1 rounded-xl border border-white/30 bg-white/15 px-3 py-2.5 text-base text-white placeholder:text-white/50 outline-none focus:border-white/50"
       />
       <button
         type="button"
@@ -525,7 +525,7 @@ function HeroMotorhomeGuidedStart({
               }}
               disabled={inputDisabled}
               placeholder="Vienna, Munich…"
-              className="min-w-0 flex-1 rounded-xl border border-white/30 bg-white/15 px-3 py-2.5 text-sm text-white placeholder:text-white/50 outline-none focus:border-white/50"
+              className="min-w-0 flex-1 rounded-xl border border-white/30 bg-white/15 px-3 py-2.5 text-base text-white placeholder:text-white/50 outline-none focus:border-white/50"
             />
             <button
               type="button"
@@ -1782,7 +1782,7 @@ export function HeroChatFlow({
               rows={1}
               placeholder={placeholder}
               aria-label={placeholder}
-              className="max-h-24 min-h-[2.5rem] w-full resize-none border-0 bg-transparent py-1.5 text-sm leading-relaxed text-white placeholder:text-white/60 focus:outline-none focus:ring-0 disabled:cursor-not-allowed disabled:opacity-60 sm:text-[15px]"
+              className="max-h-24 min-h-[2.5rem] w-full resize-none border-0 bg-transparent py-1.5 text-base leading-relaxed text-white placeholder:text-white/60 focus:outline-none focus:ring-0 disabled:cursor-not-allowed disabled:opacity-60"
               style={{ color: "#fff", WebkitTextFillColor: "#fff" }}
             />
             <button
@@ -2121,7 +2121,7 @@ export function HeroChatFlow({
                       ? "heroChat.wishes.placeholderRoad"
                       : "heroChat.wishes.placeholder") as never,
                   )}
-                  className="min-w-0 flex-1 rounded-xl border border-white/30 bg-white/15 px-3 py-2.5 text-sm text-white placeholder:text-white/50 outline-none focus:border-white/50"
+                  className="min-w-0 flex-1 rounded-xl border border-white/30 bg-white/15 px-3 py-2.5 text-base text-white placeholder:text-white/50 outline-none focus:border-white/50"
                 />
                 <button
                   type="button"

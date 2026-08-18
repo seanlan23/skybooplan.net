@@ -247,7 +247,7 @@ export function HeroDestinationAutocomplete({
           aria-label={placeholder}
           aria-autocomplete="list"
           aria-expanded={showList}
-          className="max-h-20 min-h-[2.5rem] w-full border-0 bg-transparent text-sm text-white placeholder:text-white/50 focus:outline-none focus:ring-0 sm:text-[15px]"
+          className="max-h-20 min-h-[2.5rem] w-full border-0 bg-transparent text-base text-white placeholder:text-white/50 focus:outline-none focus:ring-0"
           style={{ color: "#fff", WebkitTextFillColor: "#fff" }}
         />
         <button

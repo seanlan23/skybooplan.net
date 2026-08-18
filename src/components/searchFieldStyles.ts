@@ -51,7 +51,7 @@ export const FIELD_ICON_SLOT =
 export const FIELD_ICON = "h-4 w-4 shrink-0 text-muted-foreground";
 
 export const FIELD_INPUT =
-  "min-w-0 flex-1 bg-transparent text-[15px] font-medium leading-snug text-foreground placeholder:text-muted-foreground/60 focus:outline-none";
+  "min-w-0 flex-1 bg-transparent text-base font-medium leading-snug text-foreground placeholder:text-muted-foreground/60 focus:outline-none";
 
 export const FIELD_TEXT =
   "min-w-0 flex-1 truncate text-[15px] font-medium leading-snug text-foreground";

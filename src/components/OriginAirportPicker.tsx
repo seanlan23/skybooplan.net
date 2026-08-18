@@ -345,7 +345,7 @@ export function OriginAirportPicker({
               placeholder={t("heroChat.origin.searchPlaceholder" as never)}
               autoComplete="off"
               autoFocus
-              className="w-full rounded-xl border border-white/20 bg-white/10 py-3 pl-9 pr-9 text-sm text-white placeholder:text-white/45 focus:border-white/40 focus:outline-none focus:ring-2 focus:ring-sky-400/40"
+              className="w-full rounded-xl border border-white/20 bg-white/10 py-3 pl-9 pr-9 text-base text-white placeholder:text-white/45 focus:border-white/40 focus:outline-none focus:ring-2 focus:ring-sky-400/40"
             />
             {query ? (
               <button
