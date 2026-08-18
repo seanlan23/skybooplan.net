@@ -1,0 +1,373 @@
+/**
+ * Destination-agnostic planner quality rules.
+ * Slow borders are a lookup table — not a “Balkans product mode”.
+ */
+
+import type { AiTripPlan } from "@/lib/aiPlan.functions";
+
+export const TARGET_DRIVE_HOURS = 5;
+export const HARD_DRIVE_HOURS = 7;
+/** Strip museums/walks when a road stage is still over this. */
+export const STRIP_SIGHTS_DRIVE_HOURS = 6;
+export const TWO_NIGHT_MIN_TRIP_DAYS = 7;
+
+export type SlowLandBorder = {
+  a: string;
+  b: string;
+  offPeakH: number;
+  peakH: number;
+  noteSl: string;
+  noteEn: string;
+};
+
+/** Known slow land borders. Unlisted pairs (incl. internal Schengen) = 0 extra hours. */
+export const SLOW_LAND_BORDERS: SlowLandBorder[] = [
+  {
+    a: "HR",
+    b: "BA",
+    offPeakH: 1,
+    peakH: 2,
+    noteSl: "Meja HR–BA: poleti +2 h nad Google časom.",
+    noteEn: "HR–BA border: add ~2 h in summer on top of Google Maps.",
+  },
+  {
+    a: "BA",
+    b: "ME",
+    offPeakH: 1,
+    peakH: 2,
+    noteSl: "Meja BA–ME: poleti +2 h nad Google časom.",
+    noteEn: "BA–ME border: add ~2 h in summer on top of Google Maps.",
+  },
+  {
+    a: "ME",
+    b: "AL",
+    offPeakH: 1,
+    peakH: 2.5,
+    noteSl: "Meja ME–AL (Sukobin/Božaj): poleti +2–3 h nad Google časom.",
+    noteEn: "ME–AL border (Sukobin/Božaj): add 2–3 h in summer.",
+  },
+  {
+    a: "HR",
+    b: "ME",
+    offPeakH: 1.5,
+    peakH: 3,
+    noteSl: "Meja HR–ME (Debeli Brijeg): poleti večurne kolone, +3 h.",
+    noteEn: "HR–ME (Debeli Brijeg): summer queues, add ~3 h.",
+  },
+  {
+    a: "AL",
+    b: "HR",
+    offPeakH: 3,
+    peakH: 4,
+    noteSl: "AL→HR v enem dnevu = dve meji. To ni etapa — nočitev vmes.",
+    noteEn: "AL→HR in one day = two borders. Split with an overnight.",
+  },
+  {
+    a: "BA",
+    b: "AL",
+    offPeakH: 3,
+    peakH: 4,
+    noteSl: "BA→AL v enem dnevu = dve meji. Nočitev v Črni gori.",
+    noteEn: "BA→AL in one day = two borders. Overnight in Montenegro.",
+  },
+  {
+    a: "US",
+    b: "MX",
+    offPeakH: 1,
+    peakH: 2.5,
+    noteSl: "Meja US–MX: v špicah +2–3 h (ne samo Google).",
+    noteEn: "US–MX land border: add 2–3 h at peak times.",
+  },
+  {
+    a: "TH",
+    b: "KH",
+    offPeakH: 1,
+    peakH: 2,
+    noteSl: "Kopenska meja TH–KH: računaj +1–2 h (kontrola, čakalne vrste).",
+    noteEn: "TH–KH land border: add 1–2 h for checks and queues.",
+  },
+  {
+    a: "TH",
+    b: "LA",
+    offPeakH: 1,
+    peakH: 2,
+    noteSl: "Kopenska meja TH–LA: računaj +1–2 h.",
+    noteEn: "TH–LA land border: add 1–2 h.",
+  },
+  {
+    a: "TH",
+    b: "MY",
+    offPeakH: 0.5,
+    peakH: 1.5,
+    noteSl: "Meja TH–MY: v špicah +1–2 h.",
+    noteEn: "TH–MY border: add 1–2 h at peak times.",
+  },
+];
+
+/** Cities that should get 2 nights on trips of 7+ days (not hit-and-run). */
+const TWO_NIGHT_CITY_KEYS = new Set(
+  [
+    "mostar",
+    "kotor",
+    "berat",
+    "gjirokaster",
+    "gjirokastër",
+    "split",
+    "dubrovnik",
+    "sarajevo",
+    "shkoder",
+    "shkodër",
+    "paris",
+    "rome",
+    "roma",
+    "barcelona",
+    "lisbon",
+    "lisboa",
+    "prague",
+    "praha",
+    "budapest",
+    "vienna",
+    "wien",
+    "dunaj",
+    "krakow",
+    "kraków",
+    "tokyo",
+    "kyoto",
+    "osaka",
+    "bangkok",
+    "chiang mai",
+    "hanoi",
+    "ho chi minh",
+    "saigon",
+    "marrakech",
+    "fes",
+    "cape town",
+    "new york",
+    "nyc",
+    "london",
+    "amsterdam",
+    "berlin",
+    "munich",
+    "münchen",
+    "florence",
+    "firenze",
+    "venice",
+    "venezia",
+    "seville",
+    "sevilla",
+    "granada",
+    "porto",
+    "edinburgh",
+    "istanbul",
+    "cairo",
+    "cusco",
+    "cartagena",
+    "kyoto",
+    "seoul",
+    "taipei",
+    "manila",
+    "cebu",
+    "ubud",
+    "siem reap",
+  ].map((k) => k.normalize("NFD").replace(/\p{M}/gu, "")),
+);
+
+function cityKey(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .replace(/\([^)]*\)/g, "")
+    .split(",")[0]
+    ?.trim()
+    .replace(/\s+/g, " ") ?? "";
+}
+
+export function isPeakSlowBorderSeason(isoDate?: string, fromCc?: string | null, toCc?: string | null): boolean {
+  if (!isoDate) return true;
+  const m = Number(isoDate.slice(5, 7));
+  const d = Number(isoDate.slice(8, 10));
+  if (!Number.isFinite(m)) return true;
+  const pair = new Set([fromCc ?? "", toCc ?? ""]);
+  if (pair.has("US") && pair.has("MX")) {
+    if (m === 12 && d >= 20) return true;
+    if (m === 1 && d <= 5) return true;
+    return m === 7 || m === 8;
+  }
+  if (m === 7 || m === 8) return true;
+  if (m === 6 && d >= 15) return true;
+  if (m === 9 && d <= 15) return true;
+  return false;
+}
+
+function lookupSlowBorder(fromCc: string, toCc: string): SlowLandBorder | null {
+  return (
+    SLOW_LAND_BORDERS.find(
+      (row) =>
+        (row.a === fromCc && row.b === toCc) || (row.a === toCc && row.b === fromCc),
+    ) ?? null
+  );
+}
+
+export function borderPenaltyHours(
+  fromCc: string | null,
+  toCc: string | null,
+  isoDate?: string,
+): number {
+  if (!fromCc || !toCc || fromCc === toCc) return 0;
+  const row = lookupSlowBorder(fromCc, toCc);
+  if (!row) return 0;
+  const peak = isPeakSlowBorderSeason(isoDate, fromCc, toCc);
+  return peak ? row.peakH : row.offPeakH;
+}
+
+export function slowBorderNote(
+  fromCc: string | null,
+  toCc: string | null,
+  sl: boolean,
+): string | null {
+  if (!fromCc || !toCc || fromCc === toCc) return null;
+  const row = lookupSlowBorder(fromCc, toCc);
+  if (!row) return null;
+  return sl ? row.noteSl : row.noteEn;
+}
+
+export function prefersTwoNights(city: string, totalDays: number): boolean {
+  if (totalDays < TWO_NIGHT_MIN_TRIP_DAYS) return false;
+  const key = cityKey(city);
+  if (!key) return false;
+  if (TWO_NIGHT_CITY_KEYS.has(key)) return true;
+  for (const stay of TWO_NIGHT_CITY_KEYS) {
+    if (key.includes(stay) || stay.includes(key)) return true;
+  }
+  return false;
+}
+
+function appendUnique(existing: string | undefined, note: string): string {
+  const prev = (existing ?? "").trim();
+  if (!note.trim()) return prev;
+  if (prev.toLowerCase().includes(note.slice(0, 32).toLowerCase())) return prev;
+  return prev ? `${prev} ${note}` : note;
+}
+
+function consecutiveNightsByCity(plan: AiTripPlan): Map<string, number> {
+  const counts = new Map<string, number>();
+  const days = [...(plan.days ?? [])].sort((a, b) => a.day - b.day);
+  let runKey = "";
+  let run = 0;
+  const flush = () => {
+    if (!runKey || run <= 0) return;
+    counts.set(runKey, Math.max(counts.get(runKey) ?? 0, run));
+  };
+  for (const day of days) {
+    if (day.inFlightDay) continue;
+    const key = cityKey(day.city ?? day.focusName ?? "");
+    if (!key) continue;
+    if (key === runKey) run += 1;
+    else {
+      flush();
+      runKey = key;
+      run = 1;
+    }
+  }
+  flush();
+  return counts;
+}
+
+/** Note 1-night stays in major cities on long trips (does not rewrite the calendar). */
+export function annotateHitAndRunStays(plan: AiTripPlan): number {
+  const total = plan.days?.length ?? 0;
+  if (total < TWO_NIGHT_MIN_TRIP_DAYS) return 0;
+  const sl = !(plan.contentLanguage && !plan.contentLanguage.startsWith("sl"));
+  const nights = consecutiveNightsByCity(plan);
+  let n = 0;
+  for (const day of plan.days ?? []) {
+    const city = (day.city ?? day.focusName ?? "").trim();
+    if (!prefersTwoNights(city, total)) continue;
+    if ((nights.get(cityKey(city)) ?? 0) !== 1) continue;
+    if ((day.drivingDistanceKm ?? 0) > 280) continue;
+    const note = sl
+      ? `Raje 2 noči v ${city} — 1 noč je premalo za ogled (razen čistega tranzita).`
+      : `Prefer 2 nights in ${city} — one night is a hit-and-run unless this is pure transit.`;
+    const before = day.travelHack ?? "";
+    day.travelHack = appendUnique(day.travelHack, note);
+    if (day.travelHack !== before) n += 1;
+  }
+  return n;
+}
+
+/** Flag road stages over the 5h target so the PDF does not look like a sightseeing day. */
+export function annotateOverlongDriveStages(plan: AiTripPlan): number {
+  if (plan.groundTransportMode !== "car" && plan.groundTransportMode !== "motorhome") {
+    return 0;
+  }
+  const sl = !(plan.contentLanguage && !plan.contentLanguage.startsWith("sl"));
+  let n = 0;
+  for (const day of plan.days ?? []) {
+    const hours = Number(
+      String(day.drivingDurationHours ?? day.transport?.duration ?? "")
+        .replace(",", ".")
+        .match(/(\d+(?:\.\d+)?)/)?.[1] ?? 0,
+    );
+    if (hours < TARGET_DRIVE_HOURS + 0.25) continue;
+    const note = sl
+      ? `Ta etapa je ~${hours.toFixed(1)} h vožnje (cilj ≤${TARGET_DRIVE_HOURS} h). Naslednjič razdeli z nočitvijo vmes.`
+      : `This stage is ~${hours.toFixed(1)} h driving (target ≤${TARGET_DRIVE_HOURS} h). Split with an overnight next time.`;
+    const before = day.transportationTips ?? "";
+    day.transportationTips = appendUnique(day.transportationTips, note);
+    if (day.transportationTips !== before) n += 1;
+  }
+  return n;
+}
+
+export function plannerQualityPromptBlock(opts: {
+  road: boolean;
+  totalDays: number;
+}): string {
+  const twoNight =
+    opts.totalDays >= TWO_NIGHT_MIN_TRIP_DAYS
+      ? `- NOČITVE: v pomembnejših mestih (Paris, Rim, Kyoto, Split, Kotor, Berat, Cape Town, NYC…) preferiraj 2 noči. PREPOVEDANO “hit and run” (1 noč + samo sprehod) na ${opts.totalDays}-dnevni poti, razen če je mesto čisti tranzit na vožnji.`
+      : `- NOČITVE: na kratki poti je 1 noč v mestu OK — ne siliti 2 noči na račun cilja.`;
+
+  const roadBlock = opts.road
+    ? `
+VOŽNJE (samo avto/avtodom — NE velja za mednarodni let):
+- ENA dnevna etapa ≤ ${TARGET_DRIVE_HOURS} h čiste vožnje. Trdo max ${HARD_DRIVE_HOURS} h.
+- Če bi Google (ali razdalja) presegli ${TARGET_DRIVE_HOURS} h: samodejno vmesna nočitev — ne “naredi v enem dnevu”.
+- Počasne kopenske meje (tabela, velja povsod): HR–BA, BA–ME, ME–AL, HR–ME, AL–HR, US–MX, TH–KH/LA/MY. Junij–september (in US–MX prazniki): prištej extra ure. Notranji Schengen = 0.
+- PREPOVEDANO muzej/sprehod/kosilo v ciljnem mestu isti dan po ≥${STRIP_SIGHTS_DRIVE_HOURS} h vožnje — samo prijava.`
+    : `
+PREVOZI (leti/trajekti/vlaki):
+- Dnevni “5 h vožnje” cap NE velja za mednarodni let.
+- Medmesti: najprej zapiši hop (let/trajekt/vlak), šele nato oglede v novem mestu.
+- Zadnji dan = samo pravi odhod — ne žigosi vmesnega vračanja na hub kot mednarodni let.`;
+
+  return `
+=== KAKOVOST NAČRTA (vse destinacije — obvezno) ===
+DVE FAZI:
+1) Najprej visoka raven: mesta + število nočitev + prevozi med njimi.
+2) Šele nato podrobnosti po dnevih (ure, hrana, nasveti). Ne začenjaj z restavracijami, če skelet mest še ni smiseln.
+
+${twoNight}
+
+${roadBlock}
+
+NASTANITVE:
+- PREPOVEDANO izmišljati imena hotelov/kampov (“Hotel Splendid”, “Camping X”).
+- hotels[] = samo mesto + število noči. UI/PDF odpre Booking.com z 2+ živimi opcijami.
+- V travelHack smeš napisati KRATEK RAZLOG za filter (center / parking / zajtrk / cena) — ne naziv hotela.
+
+HRANA:
+- Food aktivnost = konkretno ime lokala. Če ne veš realnega imena, izpusti slot.
+
+PRAKTIČNO (vsak dan kjer sodi):
+- Parking, odpiralni čas, sezona, varnost — konkretno za TO mesto, ne generičen odstavek.
+
+STIL:
+- Piši kot izkušen lokalni planner: manj leporečja, več uporabnih informacij.
+
+SAMOPREGLED PRED JSON:
+- Predolge vožnje? Premalo časa v mestu? Manjkajoči nasveti? Nerealističen tempo? Popravi v ISTEM odgovoru.
+===`.trim();
+}

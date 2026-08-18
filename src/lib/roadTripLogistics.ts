@@ -1,6 +1,11 @@
 import type { Activity, AiTripPlan, DayPlan, DayTransportLeg } from "@/lib/aiPlan.functions";
 import { haversineKm } from "@/lib/geoMath";
 import { lookupRegionCoords } from "@/lib/regionCoords";
+import {
+  STRIP_SIGHTS_DRIVE_HOURS,
+  borderPenaltyHours,
+  slowBorderNote,
+} from "@/lib/plannerQuality";
 
 /** Typical EU motorway km ≈ 1.2× great-circle. */
 const ROAD_KM_FACTOR = 1.2;
@@ -11,7 +16,7 @@ const TYPICAL_KMH = 80;
 /** Albania / Montenegro: no motorway, coastal/mountain. */
 const BALKAN_SLOW_KMH = 62;
 /** After this, strip sightseeing — you only drive and check in. */
-export const BRUTAL_DRIVE_HOURS = 8;
+export const BRUTAL_DRIVE_HOURS = STRIP_SIGHTS_DRIVE_HOURS;
 const MIN_REPAIR_ROAD_KM = 60;
 /** Last calendar days: skip a hotel if home is an easy same-day drive. */
 const HOMEBOUND_TAIL_DAYS = 3;
@@ -241,35 +246,6 @@ function zeroStay(a: Activity, copy: { name: string; description: string }): Act
   };
 }
 
-function isPeakBalkanBorderSeason(isoDate?: string): boolean {
-  if (!isoDate) return true;
-  const m = Number(isoDate.slice(5, 7));
-  const d = Number(isoDate.slice(8, 10));
-  if (!Number.isFinite(m)) return true;
-  if (m === 7 || m === 8) return true;
-  if (m === 6 && d >= 15) return true;
-  if (m === 9 && d <= 15) return true;
-  return false;
-}
-
-function balkansBorderPenaltyHours(
-  fromCc: string | null,
-  toCc: string | null,
-  peak: boolean,
-): number {
-  if (!fromCc || !toCc || fromCc === toCc) return 0;
-  const balkans = new Set(["AL", "ME", "HR", "BA"]);
-  if (!balkans.has(fromCc) || !balkans.has(toCc)) return 0;
-  const pair = `${fromCc}-${toCc}`;
-  // Two non-Schengen borders in one day (via Montenegro).
-  if (pair === "AL-HR" || pair === "HR-AL" || pair === "BA-AL" || pair === "AL-BA") {
-    return peak ? 4 : 3;
-  }
-  // Debeli Brijeg (ME→HR) — multi-hour August queues.
-  if (pair === "ME-HR" || pair === "HR-ME") return peak ? 3 : 1.5;
-  return peak ? 2 : 1;
-}
-
 function cruiseKmh(fromCc: string | null, toCc: string | null): number {
   if (fromCc === "AL" || toCc === "AL" || fromCc === "ME" || toCc === "ME") {
     return BALKAN_SLOW_KMH;
@@ -303,8 +279,7 @@ export function estimateRoadStageHours(
   if (roadKm < MIN_REPAIR_ROAD_KM) return null;
   const fromCc = countryFromPlaceLabel(from) ?? CITY_COUNTRY[cityKey(from)] ?? null;
   const toCc = countryFromPlaceLabel(to) ?? CITY_COUNTRY[cityKey(to)] ?? null;
-  const peak = isPeakBalkanBorderSeason(opts?.date);
-  const borderH = balkansBorderPenaltyHours(fromCc, toCc, peak);
+  const borderH = borderPenaltyHours(fromCc, toCc, opts?.date);
   const hours = roadKm / cruiseKmh(fromCc, toCc) + borderH;
   return { roadKm, hours, borderH };
 }
@@ -520,13 +495,13 @@ export function annotateBalkanRoadTips(plan: AiTripPlan): number {
     }
     const from = (primaryCarLeg(day)?.from || prev?.city || "").trim();
     const to = (primaryCarLeg(day)?.to || day.city || "").trim();
-    const borderH = balkansBorderPenaltyHours(
-      countryFromPlaceLabel(from) ?? CITY_COUNTRY[cityKey(from)] ?? null,
-      countryFromPlaceLabel(to) ?? CITY_COUNTRY[cityKey(to)] ?? null,
-      isPeakBalkanBorderSeason(day.date),
-    );
+    const fromCc = countryFromPlaceLabel(from) ?? CITY_COUNTRY[cityKey(from)] ?? null;
+    const toCc = countryFromPlaceLabel(to) ?? CITY_COUNTRY[cityKey(to)] ?? null;
+    const borderH = borderPenaltyHours(fromCc, toCc, day.date);
     if (borderH >= 2) {
-      const note = sl ? BORDER_QUEUE_NOTE_SL : BORDER_QUEUE_NOTE_EN;
+      const note =
+        slowBorderNote(fromCc, toCc, sl) ??
+        (sl ? BORDER_QUEUE_NOTE_SL : BORDER_QUEUE_NOTE_EN);
       const before = day.transportationTips ?? "";
       day.transportationTips = appendUniqueNote(day.transportationTips, note);
       if (day.transportationTips !== before) n += 1;

@@ -55,6 +55,8 @@ describe("tripPlanControlRules", () => {
   it("system prompt no longer forces every slot filled", () => {
     const system = tripPlanSystemPrompt(baseParams());
     expect(system).toMatch(/HIERARHIJA PRAVIL/);
+    expect(system).toMatch(/KAKOVOST NAČRTA/);
+    expect(system).toMatch(/vse destinacije/);
     expect(system).toMatch(/prazni timeSlot-i PRED\/ZA letom so OBVEZNI/);
     expect(system).not.toMatch(/Noben del dneva ne sme ostati prazen/);
     expect(system).not.toMatch(/OBVEZNA ČASOVNA STRUKTURA DNEVA \(brez izjeme\)/);

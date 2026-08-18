@@ -311,7 +311,8 @@ describe("annotateBalkanRoadTips", () => {
 
     expect(annotateBalkanRoadTips(plan)).toBeGreaterThan(0);
     expect(plan.days[0]!.travelHack).toMatch(/eSIM|roaming/i);
-    expect(plan.days[1]!.transportationTips).toMatch(/Debeli Brijeg|Božaj/i);
+    expect(plan.days[1]!.transportationTips).toMatch(/meji|Črni gori|Debeli Brijeg|Božaj/i);
+    expect(plan.days[2]!.transportationTips).toMatch(/Debeli Brijeg|Božaj|kolone/i);
     expect(plan.days[2]!.localWarnings).toMatch(/np-plitvicka-jezera|vstopnice/i);
   });
 });

@@ -6,6 +6,7 @@ import {
   sanitizeLegacyTemplateLeak,
   stripTruncatedCopyFromPlan,
 } from "@/lib/textSanitize";
+import { annotateHitAndRunStays, annotateOverlongDriveStages } from "@/lib/plannerQuality";
 import { annotateBalkanRoadTips, repairImplausibleDriveTimes, stripHomeboundPaidStays, stripSightseeingOnBrutalDriveDays } from "@/lib/roadTripLogistics";
 import { alignSummaryTripLength } from "@/lib/planTeaser";
 
@@ -890,6 +891,8 @@ export function applyItineraryGuards(
   driveTimes: number;
   homeStays: number;
   balkanTips: number;
+  overlongDrives: number;
+  hitAndRun: number;
   wrongCity: number;
   templateScrub: number;
 } {
@@ -914,6 +917,8 @@ export function applyItineraryGuards(
   const durationAlign = alignTransportationDurationWithTips(plan);
   const driveTimes = repairImplausibleDriveTimes(plan);
   stripSightseeingOnBrutalDriveDays(plan);
+  const overlongDrives = annotateOverlongDriveStages(plan);
+  const hitAndRun = annotateHitAndRunStays(plan);
   relocateClosedEveningSights(plan);
   const homeStays = stripHomeboundPaidStays(plan);
   const balkanTips = annotateBalkanRoadTips(plan);
@@ -932,6 +937,8 @@ export function applyItineraryGuards(
     driveTimes,
     homeStays,
     balkanTips,
+    overlongDrives,
+    hitAndRun,
     wrongCity,
     templateScrub,
   };

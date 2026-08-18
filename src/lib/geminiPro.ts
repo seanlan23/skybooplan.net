@@ -41,6 +41,7 @@ import {
 import { flightContextPromptBlock } from "@/lib/geminiFlightContext";
 import { lookupDestination } from "@/lib/destinationCoords";
 import { DISTANCE_TRANSPORT_RULES } from "@/lib/transportPromptRules";
+import { plannerQualityPromptBlock } from "@/lib/plannerQuality";
 import { normalizeAppLang } from "@/lib/i18n";
 
 export type {
@@ -378,12 +379,12 @@ ${roadTrip ? "- Road trip: enosmerna pot vzdolž ceste; večnočni kampi na isti
 
 NAČIN POTOVANJA: AVTO / ROAD TRIP Z HOTELI (obvezno)
 - Nočitve = hoteli v mestih vsak večer (Booking.com).
-- hotels[] MORA vsebovati vsako nočitev: { name: "Hotel v {city}" ali resnično ime, city, nights }. Prazno hotels[] je PREPOVEDANO.
+- hotels[] = { city, nights } — PREPOVEDANO izmišljati konkretna imena hotelov. UI odpre žive Booking opcije.
 - PREPOVEDANO kot namestitev: kamp, RV park, campground, sosta, "spanje v avtu", avtodom.
 - itinerar[] = največ ${maxBases} hotelskih baz (mesta) — to NI število dni!
 - KRITIČNO: ${dayObjectsRule}. Več noči v istem mestu = več day{} na isti hotelski bazi.
 - Road trip: enosmerna pot; več noči v istem mestu so OK (ne vsak dan novo mesto).
-- Ena etapa max ~6–7 h; PREPOVEDANO Berat/Tirana → Zagreb v enem dnevu.`
+- Ena etapa ≤5 h čiste vožnje (trdo max 7 h); PREPOVEDANO Berat/Tirana → Zagreb v enem dnevu.`
     : "";
 
   const groundTransportBlock =
@@ -503,6 +504,10 @@ ${dayRangePromptBlock(params)}
 ${span.includesArrival ? teaserBlock : ""}
 ${travelReqBlock}
 ${controlRules}
+${plannerQualityPromptBlock({
+  road: Boolean(params.groundTransportMode === "car" || params.groundTransportMode === "motorhome" || roadTrip || carTrip),
+  totalDays: params.days,
+})}
 ${userStayPlanBlock ?? ""}
 ${curatedRouteBlock ?? ""}
 ${bangkokDayTripBlock}
@@ -708,6 +713,11 @@ ${moneyRule}
 
 ${controlRules}
 
+${plannerQualityPromptBlock({
+  road: Boolean(params.groundTransportMode === "car" || params.groundTransportMode === "motorhome" || roadTrip || carTrip),
+  totalDays: params.days,
+})}
+
 ${travelReqBlock}
 ${arrivalAirportBlock}
 ${selectedFlightSystemBlock}
@@ -716,7 +726,7 @@ ${motorhomeRules}
 ${
   carTrip
     ? `STROGO PRAVILO — AVTO / ROAD TRIP Z HOTELI:
-- Nočitve = hoteli v mestih vsak večer. hotels[] MORA našteti vsako bazo (city + nights) — UI in PDF odpreta Booking.com.
+- hotels[] = samo city + nights — UI/PDF odpreta Booking.com. PREPOVEDANO izmišljati imena hotelov.
 - PREPOVEDANO kot namestitev: kamp, RV park, campground, sosta, avtodom, "spanje v avtu".
 - Med mesti načrtuj vožnjo z avtom — enosmerna pot z realističnimi etapami.
 `

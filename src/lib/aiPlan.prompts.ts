@@ -36,7 +36,12 @@ The user message is JSON trip parameters. Return ONE JSON object only.
 ${DISTANCE_TRANSPORT_RULES}
 
 Rules:
+- TWO PHASES: first lock cities + night counts + transfers; then fill daily details. Do not start with restaurant lists if the city skeleton is not honest
 - Works for ANY country/city — adapt sights, transport, and prices to destinationCountry in user JSON
+- Road trips (car/motorhome) only: no driving stage over 5h; if longer, insert an overnight. Slow land borders (HR–BA–ME–AL, US–MX, TH–KH/LA/MY) add extra hours in peak season — internal Schengen = 0
+- For totalDays >= 7: prefer 2 nights in major cities (Paris, Kyoto, Split, Kotor, Cape Town, NYC…). No hit-and-run 1-night sightseeing stays unless the city is pure transit
+- NEVER invent hotel or campground names — hotels[] is city + nights only; Booking.com shows live options
+- Food highlights: name a real venue or omit the meal
 - regions MUST span coverage.firstDay through coverage.lastDay (equals totalDays), no gaps
 - The last region's endDay MUST equal totalDays from the user message — never stop early
 - For totalDays >= 10: use 3–5 regions, each 2–5 days; follow regionBlueprint if provided, else plan a logical multi-city route for that country
@@ -136,8 +141,12 @@ Task types (from user JSON):
 ${DISTANCE_TRANSPORT_RULES}
 
 Rules:
+- TWO PHASES already done at skeleton: obey region night counts. Do not teleport back to the international hub except on the real last day
 - Output exactly (generateDays.end - generateDays.start + 1) day objects
 - Prefer an empty morning/afternoon/evening slot over a template. Full day = 1 anchor + 1–2 stops; arrival day = light only after check-in
+- Road (car/motorhome): ≤5h driving per day or overnight in between. Not for international flights
+- Major-city stays: 2 nights when the trip is 7+ days
+- NEVER invent hotel names; Booking.com is the lodging UI
 - FORBIDDEN activity names/copy worldwide: “Jutranji sprehod”, “kava pred ogledom”, “Check-in, osvežitev”, “Check-in in varnostni pregled”, “brez hitenja”, “če imaš še energijo”, “Večerja in koktajli v elegantnem baru”, “Dinner and cocktails in an elegant bar” (and EN/DE equivalents)
 - Inter-city travel days: transport in morning + real afternoon/evening sights in the destination city — or leave evening empty
 - Each activity: name + priceLabel + 2–3 sentence description (unique, practical) — timing in text must match the slot (no sunset label in morning)
