@@ -61,7 +61,7 @@ import {
   parseMakeSearchOriginAirports,
   type MakeSearchFlight,
 } from "@/lib/makeSearch";
-import { cn } from "@/lib/utils";
+import { cn, nudgeIntoView } from "@/lib/utils";
 
 const DATE_CHIP_IDS = ["endOctober", "startNovember", "octNov", "flexible"] as const;
 const TRIP_TYPE_IDS = ["return", "oneway", "openjaw"] as const;
@@ -122,6 +122,7 @@ type HeroChatFlowProps = {
   staySearch?: HeroStaySearchParams | null;
   /** Clear parent hero search results (flights, stays, selection). */
   onClearSearch?: () => void;
+  onConversationActive?: (active: boolean) => void;
 };
 
 function travelAvatarIcon(mode: "flight" | "car" | "motorhome" | null): string {
@@ -170,7 +171,7 @@ function SkyMessage({
   avatarIcon: string;
 }) {
   return (
-    <div className="hero-sky-enter flex max-w-[88%] flex-col items-start gap-1.5">
+    <div className="hero-sky-enter flex min-w-0 max-w-[min(88%,100%)] flex-col items-start gap-1.5">
       {showHeader ? (
         <div className="flex items-center gap-2">
           <SkyAvatar icon={avatarIcon} />
@@ -179,7 +180,7 @@ function SkyMessage({
       ) : null}
       <div className="flex items-end gap-2">
         {!showHeader ? <SkyAvatar icon={avatarIcon} /> : null}
-        <div className="rounded-2xl rounded-tl-sm bg-white px-4 py-2.5 text-sm leading-relaxed text-gray-800 shadow-md sm:text-[15px] whitespace-pre-line">
+        <div className="min-w-0 rounded-2xl rounded-tl-sm bg-white px-4 py-2.5 text-sm leading-relaxed text-gray-800 shadow-md break-words [overflow-wrap:anywhere] sm:text-[15px] whitespace-pre-line">
           {message.text}
         </div>
       </div>
@@ -189,8 +190,8 @@ function SkyMessage({
 
 function UserMessage({ message }: { message: HeroChatMessage }) {
   return (
-    <div className="ml-auto flex max-w-[88%] justify-end">
-      <div className="rounded-2xl rounded-tr-sm bg-blue-600 px-4 py-2.5 text-sm leading-relaxed text-white shadow-md sm:text-[15px]">
+    <div className="ml-auto flex min-w-0 max-w-[min(88%,100%)] justify-end">
+      <div className="min-w-0 rounded-2xl rounded-tr-sm bg-blue-600 px-4 py-2.5 text-sm leading-relaxed text-white shadow-md break-words [overflow-wrap:anywhere] sm:text-[15px]">
         {message.text}
       </div>
     </div>
@@ -249,7 +250,7 @@ function QuickReplyChips({
   footer?: ReactNode;
 }) {
   return (
-    <div className="hero-chips-enter relative z-10 pl-0 pr-1 sm:pl-10">
+    <div className="hero-chips-enter relative z-10 min-w-0 max-w-full pl-0 pr-1 sm:pl-10">
       <div
         className={cn(
           "gap-2 pb-1",
@@ -268,7 +269,7 @@ function QuickReplyChips({
             onClick={() => onSelect(id, label)}
             className={cn(
               "inline-flex items-center justify-center rounded-full border border-white/40 bg-white px-3.5 py-2 text-sm font-medium text-gray-800 shadow-sm transition-colors hover:bg-white/90 disabled:opacity-50",
-              layout === "grid" || layout === "stack" ? "w-full text-center" : "shrink-0",
+              layout === "grid" || layout === "stack" ? "w-full text-center" : "max-w-full min-w-0",
             )}
           >
             <span className="whitespace-normal text-balance leading-snug">{label}</span>
@@ -596,6 +597,7 @@ export function HeroChatFlow({
   flightAdults = 1,
   staySearch = null,
   onClearSearch,
+  onConversationActive,
 }: HeroChatFlowProps) {
   const { t, lang } = useI18n();
   const [planTravel, setPlanTravel] = useState<"flight" | "car" | "motorhome" | null>(null);
@@ -658,6 +660,11 @@ export function HeroChatFlow({
   const showTripChecklist = conversationStarted && isFullPlan && planTravel === "flight";
   const avatarIcon = travelAvatarIcon(effectiveRoadMode ?? planTravel);
 
+  useEffect(() => {
+    onConversationActive?.(conversationStarted);
+    return () => onConversationActive?.(false);
+  }, [conversationStarted, onConversationActive]);
+
   const firstSkyMessageId = useMemo(
     () => messages.find((m) => m.role === "ai")?.id,
     [messages],
@@ -666,17 +673,24 @@ export function HeroChatFlow({
   const revealActiveStep = useCallback(() => {
     if (showSearchLoader || staySearch) return;
     window.requestAnimationFrame(() => {
-      const scroller = scrollRef.current;
-      if (!scroller) return;
       const target =
         showDatePicker && datePickerRef.current
           ? datePickerRef.current
           : activeControlsRef.current;
-      if (target && scroller.contains(target)) {
+      const scroller = scrollRef.current;
+      const innerScroll =
+        Boolean(scroller) &&
+        window.matchMedia("(min-width: 1024px)").matches &&
+        !staySearch;
+      if (innerScroll && scroller && target && scroller.contains(target)) {
         scrollChildIntoScroller(scroller, target);
         return;
       }
-      scroller.scrollTop = scroller.scrollHeight;
+      if (innerScroll && scroller) {
+        scroller.scrollTop = scroller.scrollHeight;
+        return;
+      }
+      nudgeIntoView(target, "nearest");
     });
   }, [showSearchLoader, showDatePicker, staySearch]);
 
@@ -1697,6 +1711,22 @@ export function HeroChatFlow({
 
   const showConversationChips = conversationStarted && !isSearching;
 
+  const chipDrivenStep =
+    step === "origin" ||
+    step === "tripType" ||
+    step === "returnFrom" ||
+    step === "dates" ||
+    step === "nights" ||
+    step === "passengers" ||
+    step === "pace" ||
+    step === "budget" ||
+    step === "travelMode" ||
+    step === "destination" ||
+    step === "wishes" ||
+    step === "searching";
+  const showTopComposer =
+    conversationStarted && !showDatePicker && !chipDrivenStep;
+
   const placeholder =
     step === "wishes"
       ? t(
@@ -1718,7 +1748,7 @@ export function HeroChatFlow({
     <div
       id="hero-chat-window"
       className={cn(
-        "relative z-20 mx-auto mt-10 w-full min-w-0 text-left pointer-events-auto",
+        "relative z-20 mx-auto mt-4 w-full min-w-0 max-w-full overflow-x-clip text-left pointer-events-auto sm:mt-10",
         showTripChecklist || staySearch
           ? "max-w-4xl sm:max-w-5xl"
           : "max-w-2xl sm:max-w-3xl",
@@ -1726,10 +1756,11 @@ export function HeroChatFlow({
     >
       <div
         className={cn(
-          showTripChecklist && "grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(240px,0.8fr)] lg:items-start",
+          showTripChecklist &&
+            "flex flex-col gap-3 lg:grid lg:grid-cols-[minmax(0,1.2fr)_minmax(240px,0.8fr)] lg:items-start lg:gap-6",
         )}
       >
-      <div className="min-w-0">
+      <div className="min-w-0 max-w-full max-lg:order-2 lg:order-1">
       {!conversationStarted ? (
         <>
           {fileError ? (
@@ -1759,7 +1790,9 @@ export function HeroChatFlow({
             />
           )}
         </>
-      ) : (
+      ) : null}
+
+      {showTopComposer ? (
         <form
           onSubmit={handleTextSubmit}
           className="flex w-full flex-col rounded-2xl border border-white/25 bg-white/10 px-4 py-2.5 shadow-lg backdrop-blur-md"
@@ -1795,7 +1828,7 @@ export function HeroChatFlow({
             </button>
           </div>
         </form>
-      )}
+      ) : null}
 
       {conversationStarted ? (
         <>
@@ -1829,8 +1862,8 @@ export function HeroChatFlow({
             "mt-6 space-y-3 px-1 py-1 [overflow-anchor:none]",
             staySearch
               ? "max-h-none overflow-visible"
-              : "h-[min(22rem,48svh)] max-h-[min(22rem,48svh)] overflow-x-clip overflow-y-auto overscroll-y-contain",
-            showSearchLoader && !staySearch && "overflow-y-hidden",
+              : "max-lg:overflow-visible lg:h-[min(22rem,48svh)] lg:max-h-[min(22rem,48svh)] lg:overflow-x-clip lg:overflow-y-auto lg:overscroll-y-contain",
+            showSearchLoader && !staySearch && "lg:overflow-y-hidden",
           )}
         >
           {messages.map((message) => (
@@ -1953,7 +1986,7 @@ export function HeroChatFlow({
             </div>
           ) : null}
 
-          <div ref={activeControlsRef} className="relative z-10 min-h-[10.5rem]">
+          <div ref={activeControlsRef} className="relative z-10 min-h-0">
           {showConversationChips && step === "passengers" ? (
             <HeroPassengerBrowser
               disabled={loading}
@@ -2076,7 +2109,7 @@ export function HeroChatFlow({
           ) : null}
 
           {showConversationChips && step === "origin" && !isRoadGroundOnly ? (
-            <div className="hero-chips-enter pl-0 sm:pl-10">
+            <div className="hero-chips-enter min-w-0 max-w-full pl-0 sm:pl-10">
               <OriginAirportPicker
                 excludeIata={parseMakeSearchDestination(collected.destination ?? "")}
                 onConfirm={handleOriginPickerConfirm}
@@ -2171,7 +2204,7 @@ export function HeroChatFlow({
           collected={collected}
           onClear={clearSearch}
           className={cn(
-            "lg:sticky lg:top-4",
+            "max-lg:order-1 lg:order-2 lg:sticky lg:top-4",
             // On mobile, hide the tall checklist while the calendar is open so the picker fits.
             showDatePicker && step === "dates" && "hidden lg:block",
           )}

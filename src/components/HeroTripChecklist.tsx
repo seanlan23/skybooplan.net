@@ -120,14 +120,47 @@ export function HeroTripChecklist({
   const items = buildItems(collected, t, lang);
   const doneCount = items.filter((i) => i.done).length;
 
+  const donePreview = items
+    .filter((item) => item.done && item.value)
+    .map((item) => item.value)
+    .join(" · ");
+
   return (
     <aside
       className={cn(
-        "rounded-2xl border border-white/20 bg-white/10 p-4 text-left shadow-lg backdrop-blur-md",
+        "rounded-2xl border border-white/20 bg-white/10 p-3 text-left shadow-lg backdrop-blur-md sm:p-4",
         className,
       )}
       aria-label={t("heroChat.checklist.title" as never)}
     >
+      <div className="flex items-center gap-3 lg:hidden">
+        <div
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 text-xs font-bold text-white"
+          aria-hidden
+        >
+          {doneCount}/{items.length}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-white/70">
+            {t("heroChat.checklist.title" as never)}
+          </p>
+          <p className="truncate text-xs text-white/85">
+            {donePreview || t("heroChat.checklist.whereToHint" as never)}
+          </p>
+        </div>
+        {onClear ? (
+          <button
+            type="button"
+            onClick={onClear}
+            aria-label={t("heroChat.checklist.clear" as never)}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/5 text-white/85"
+          >
+            <Trash2 className="h-3.5 w-3.5" aria-hidden />
+          </button>
+        ) : null}
+      </div>
+
+      <div className="hidden lg:block">
       <div className="mb-3 flex items-center justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-white/70">
@@ -184,6 +217,7 @@ export function HeroTripChecklist({
           {t("heroChat.checklist.clear" as never)}
         </button>
       ) : null}
+      </div>
     </aside>
   );
 }

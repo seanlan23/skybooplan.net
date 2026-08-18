@@ -42,9 +42,11 @@ export function HeroSection({
 }) {
   const { t } = useI18n();
   const [mode, setMode] = useState<HeroChatMode>("all");
+  const [chatActive, setChatActive] = useState(false);
 
   function handleModeChange(next: HeroChatMode) {
     setMode(next);
+    setChatActive(false);
     onModeChange?.(next);
   }
 
@@ -78,7 +80,13 @@ export function HeroSection({
             : "relative z-10 mx-auto w-full min-w-0 max-w-5xl px-5 pb-16 pt-[calc(5.25rem+env(safe-area-inset-top))] text-center sm:px-6 sm:pb-20 sm:pt-[calc(7rem+env(safe-area-inset-top))]"
         }
       >
-        <h1 className="text-[1.65rem] font-black leading-[1.12] tracking-tight text-white sm:text-5xl md:text-6xl lg:text-7xl">
+        <h1
+          className={
+            chatActive
+              ? "hidden text-[1.65rem] font-black leading-[1.12] tracking-tight text-white sm:block sm:text-5xl md:text-6xl lg:text-7xl"
+              : "text-[1.65rem] font-black leading-[1.12] tracking-tight text-white sm:text-5xl md:text-6xl lg:text-7xl"
+          }
+        >
           {t("hero.chatHeadline" as never)}
         </h1>
 
@@ -86,7 +94,13 @@ export function HeroSection({
           {t("hero.chatSubtitle" as never)}
         </p>
 
-        <p className="mx-auto mt-2 text-xs font-medium tracking-wide text-white/80 sm:mt-3 sm:text-sm">
+        <p
+          className={
+            chatActive
+              ? "mx-auto mt-2 hidden text-xs font-medium tracking-wide text-white/80 sm:mt-3 sm:block sm:text-sm"
+              : "mx-auto mt-2 text-xs font-medium tracking-wide text-white/80 sm:mt-3 sm:text-sm"
+          }
+        >
           {t("hero.trust" as never)}
         </p>
 
@@ -95,6 +109,7 @@ export function HeroSection({
         <HeroChatFlow
           key={mode}
           mode={mode}
+          onConversationActive={setChatActive}
           onSearch={onSearch}
           loading={loading}
           flights={flights}

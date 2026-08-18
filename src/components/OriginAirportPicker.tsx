@@ -257,7 +257,7 @@ export function OriginAirportPicker({
   return (
     <div
       className={cn(
-        "hero-sky-enter w-full max-w-md rounded-2xl border border-white/25 bg-white/12 p-4 shadow-lg backdrop-blur-md sm:p-5",
+        "hero-sky-enter w-full min-w-0 max-w-md rounded-2xl border border-white/25 bg-white/12 p-4 shadow-lg backdrop-blur-md sm:p-5",
         className,
       )}
     >

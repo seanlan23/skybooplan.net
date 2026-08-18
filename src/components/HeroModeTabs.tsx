@@ -94,7 +94,7 @@ function ModeRow({
 export function HeroModeTabs({ value, onChange }: HeroModeTabsProps) {
   const { t } = useI18n();
   return (
-    <div className="mx-auto mt-3 flex w-full flex-col items-center sm:mt-5">
+    <div className="mx-auto mt-3 flex w-full min-w-0 max-w-full flex-col items-center overflow-x-clip sm:mt-5">
       <ModeRow modes={HERO_MODES} value={value} onChange={onChange} />
       <p className="mt-2 max-w-md text-center text-[12px] leading-snug text-white/65 sm:mt-2.5 sm:text-sm">
         {t(TAB_HINT_KEYS[value] as never)}
