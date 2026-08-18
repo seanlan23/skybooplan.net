@@ -39,7 +39,7 @@ describe("formatPlansGeneratedLabel", () => {
     expect(resolvePublicPlanCount(1, 0)).toBe(286);
     expect(resolvePublicPlanCount(12, 200)).toBe(286);
     expect(resolvePublicPlanCount(12, 300)).toBe(300);
-    expect(resolvePublicPlanCount(290, 12)).toBe(290);
+    expect(resolvePublicPlanCount(300, 12)).toBe(300);
     expect(resolvePublicPlanCount(286, 10)).toBe(286);
   });
 });
