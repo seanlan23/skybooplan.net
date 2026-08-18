@@ -1215,8 +1215,17 @@ function Landing() {
     });
 
     window.setTimeout(() => {
-      nudgeIntoView(document.getElementById("hero-ai-planner"));
-    }, 120);
+      const el = document.getElementById("hero-ai-planner");
+      if (el) {
+        nudgeIntoView(el, "start", { force: true });
+        return;
+      }
+      window.setTimeout(() => {
+        nudgeIntoView(document.getElementById("hero-ai-planner"), "start", {
+          force: true,
+        });
+      }, 220);
+    }, 80);
   }
 
   async function handleConfirm() {
@@ -1908,7 +1917,7 @@ function Landing() {
       </div>
 
       {showHeroPlannerForm ? (
-        <div id="hero-ai-planner" className="relative z-10 -mt-px border-b border-border/60 bg-background">
+        <div id="hero-ai-planner" className="relative z-10 -mt-px scroll-mt-24 border-b border-border/60 bg-background">
           <AiPlannerPreview
             context={aiContext}
             initialWishes={heroDreamPrompt}
