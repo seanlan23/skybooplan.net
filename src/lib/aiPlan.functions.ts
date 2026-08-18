@@ -376,7 +376,7 @@ export type ReturnFlightEu = {
   summary: string;
 };
 
-export type { TravelRequirements, TravelVisaInfo } from "@/lib/travelRequirements";
+export type { TravelRequirements, TravelVisaInfo, TravelInsuranceInfo } from "@/lib/travelRequirements";
 
 export type WeatherSummary = {
   currentCondition: string;

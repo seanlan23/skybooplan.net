@@ -20,6 +20,7 @@ import {
   collectOvernightHotelStays,
   overnightStayBookingUrl,
 } from "@/lib/overnightHotelStays";
+import { resolveTravelRequirements, type TravelRequirements } from "@/lib/travelRequirements";
 
 /**
  * Served from /public/fonts so Nitro/Vercel always can fetch them.
@@ -92,6 +93,7 @@ type NormalizedPdfPlan = {
   startDate: string;
   endDate: string;
   summary: string;
+  insurance?: { title: string; body: string; insurers: string };
   totalBudgetEur?: number;
   staysApproxEur?: number;
   roadTrip: boolean;
@@ -120,6 +122,7 @@ type PdfLabels = {
   flights: string;
   stays: string;
   packing: string;
+  insurance: string;
   navigate: string;
   pageOf: (page: number, total: number) => string;
   day: (n: number, end?: number) => string;
@@ -287,6 +290,7 @@ function labelsFor(lang: PlanForPdf["language"], sampleText: string): PdfLabels 
       flights: "Leti",
       stays: "Namestitve",
       packing: "Seznam za pakiranje",
+      insurance: "Turistično zavarovanje",
       navigate: "Navigiraj (Google Maps)",
       pageOf: (page, total) => `${page} / ${total}`,
       day: (n, end) => (end && end !== n ? `Dan ${n}–${end}` : `Dan ${n}`),
@@ -311,6 +315,7 @@ function labelsFor(lang: PlanForPdf["language"], sampleText: string): PdfLabels 
       flights: "Voli",
       stays: "Alloggi",
       packing: "Lista bagaglio",
+      insurance: "Assicurazione di viaggio",
       navigate: "Naviga (Google Maps)",
       pageOf: (page, total) => `${page} / ${total}`,
       day: (n, end) => (end && end !== n ? `Giorno ${n}–${end}` : `Giorno ${n}`),
@@ -335,6 +340,7 @@ function labelsFor(lang: PlanForPdf["language"], sampleText: string): PdfLabels 
       flights: "Flüge",
       stays: "Unterkünfte",
       packing: "Packliste",
+      insurance: "Reiseversicherung",
       navigate: "Navigieren (Google Maps)",
       pageOf: (page, total) => `${page} / ${total}`,
       day: (n, end) => (end && end !== n ? `Tag ${n}–${end}` : `Tag ${n}`),
@@ -359,6 +365,7 @@ function labelsFor(lang: PlanForPdf["language"], sampleText: string): PdfLabels 
       flights: "Vuelos",
       stays: "Alojamientos",
       packing: "Lista de equipaje",
+      insurance: "Seguro de viaje",
       navigate: "Navegar (Google Maps)",
       pageOf: (page, total) => `${page} / ${total}`,
       day: (n, end) => (end && end !== n ? `Día ${n}–${end}` : `Día ${n}`),
@@ -383,6 +390,7 @@ function labelsFor(lang: PlanForPdf["language"], sampleText: string): PdfLabels 
       flights: "Vols",
       stays: "Hébergements",
       packing: "Liste de bagages",
+      insurance: "Assurance voyage",
       navigate: "Naviguer (Google Maps)",
       pageOf: (page, total) => `${page} / ${total}`,
       day: (n, end) => (end && end !== n ? `Jour ${n}–${end}` : `Jour ${n}`),
@@ -406,6 +414,7 @@ function labelsFor(lang: PlanForPdf["language"], sampleText: string): PdfLabels 
     flights: "Flights",
     stays: "Stays",
     packing: "Packing list",
+    insurance: "Travel insurance",
     navigate: "Navigate (Google Maps)",
     pageOf: (page, total) => `${page} / ${total}`,
     day: (n, end) => (end && end !== n ? `Day ${n}–${end}` : `Day ${n}`),
@@ -864,6 +873,28 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
       ? (itin as { staysApproxEur: number }).staysApproxEur
       : undefined;
 
+  const travelReq = resolveTravelRequirements(
+    (itin as { travelRequirements?: TravelRequirements }).travelRequirements,
+    textOf((itin as { originIata?: unknown }).originIata) || undefined,
+    textOf((itin as { destinationIata?: unknown }).destinationIata) || undefined,
+    contentLang,
+    [
+      textOf((itin as { destinationPlace?: unknown }).destinationPlace),
+      textOf((itin as { destinationName?: unknown }).destinationName),
+      destination,
+    ]
+      .filter(Boolean)
+      .join(" "),
+  );
+  const ins = travelReq?.insurance;
+  const insurance = ins
+    ? {
+        title: ins.title,
+        body: `${ins.body} ${ins.howTo}`.trim(),
+        insurers: ins.insurers.join(" · "),
+      }
+    : undefined;
+
   return {
     title: plan.title || destination || "Skybooplan",
     destination,
@@ -873,6 +904,7 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
       cleanSummary(stripPlanTeaser(textOf(itin.summary), contentLang)),
       days.length,
     ),
+    insurance,
     totalBudgetEur,
     staysApproxEur,
     roadTrip,
@@ -1238,6 +1270,15 @@ async function renderPlanPdf(plan: PlanForPdf): Promise<{
   if (model.summary) {
     heading(model.labels.overview);
     para(model.summary, 10.5, MUTED);
+    y += 8;
+  }
+
+  if (model.insurance) {
+    heading(model.labels.insurance);
+    para(`${model.insurance.title} — ${model.insurance.body}`, 10, MUTED);
+    if (model.insurance.insurers) {
+      para(model.insurance.insurers, 9, MUTED, 2);
+    }
     y += 8;
   }
 

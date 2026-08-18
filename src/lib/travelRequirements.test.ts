@@ -201,3 +201,70 @@ describe("Thailand + Malaysia itinerary", () => {
     expect(blob).toMatch(/Malezij|MDAC/i);
   });
 });
+
+describe("travel insurance (code, not Gemini)", () => {
+  it("requires extra cover for EU residents leaving the EU and names SI insurers", () => {
+    const req = buildFallbackTravelRequirements("LJU", "BKK", "sl");
+    expect(req?.insurance?.required).toBe(true);
+    expect(req?.insurance?.insurers).toEqual(["Coris", "Vita", "Triglav"]);
+    expect(req?.insurance?.body).toMatch(/EKZZ/);
+    expect(req?.insurance?.body).toMatch(/ne velja/);
+    expect(req?.insurance?.body).not.toMatch(/Medicare/i);
+  });
+
+  it("still requires extra cover for EU residents inside Schengen (EHIC is not enough)", () => {
+    const req = buildFallbackTravelRequirements("LJU", "MAD", "sl");
+    expect(req?.insurance?.required).toBe(true);
+    expect(req?.insurance?.insurers).toEqual(["Coris", "Vita", "Triglav"]);
+    expect(req?.insurance?.body).toMatch(/znotraj EU|ni turistično zavarovanje/i);
+  });
+
+  it("uses US medical-abroad copy for JFK, not EHIC or Coris", () => {
+    const req = buildFallbackTravelRequirements("JFK", "CDG", "en");
+    expect(req?.insurance?.required).toBe(true);
+    expect(req?.insurance?.insurers).toEqual(
+      expect.arrayContaining(["Allianz Travel", "AIG Travel Guard", "World Nomads"]),
+    );
+    expect(req?.insurance?.insurers).not.toContain("Coris");
+    expect(req?.insurance?.body).toMatch(/Medicare/i);
+    expect(req?.insurance?.body).not.toMatch(/EHIC/);
+  });
+
+  it("recommends ADAC for Munich departures", () => {
+    const req = buildFallbackTravelRequirements("MUC", "BKK", "de");
+    expect(req?.insurance?.insurers).toEqual(
+      expect.arrayContaining(["ADAC", "HanseMerkur", "ERV"]),
+    );
+    expect(req?.insurance?.body).toMatch(/EHIC|Reiseversicherung/i);
+  });
+
+  it("mentions GHIC for UK hubs", () => {
+    const req = buildFallbackTravelRequirements("LHR", "BKK", "en");
+    expect(req?.insurance?.insurers).toEqual(expect.arrayContaining(["Aviva", "AXA", "Staysure"]));
+    expect(req?.insurance?.body).toMatch(/GHIC/);
+  });
+
+  it("injects insurance even when AI visa copy is kept", async () => {
+    const { resolveTravelRequirements } = await import("@/lib/travelRequirements");
+    const resolved = resolveTravelRequirements(
+      {
+        targetResidents: ["EU"],
+        visaInfo: [
+          {
+            country: "EU / Schengen",
+            requirement:
+              "EU/Schengen citizens do not need a visa in advance for tourism in Thailand. From May 2026, visa-free stays are 30 days per entry. Passport must be valid at least 6 months. Complete TDAC before arrival.",
+            howToApply: "Thai Immigration TDAC portal before you fly.",
+          },
+        ],
+        vaccinations: "Hepatitis A recommended for Thailand; update routine vaccines.",
+        estimatedCosts: "Tourist visa usually €0. TDAC is free. Hepatitis A vaccine about €40–80.",
+      },
+      "LJU",
+      "BKK",
+      "sl",
+    );
+    expect(resolved?.insurance?.insurers).toEqual(["Coris", "Vita", "Triglav"]);
+    expect(resolved?.insurance?.required).toBe(true);
+  });
+});

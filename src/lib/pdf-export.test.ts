@@ -311,4 +311,24 @@ describe("normalizePlanForPdf", () => {
     expect(model.hotels).toEqual([]);
     expect(model.days.every((d) => !d.bookingUrl)).toBe(true);
   });
+
+  it("puts curated travel insurance on the PDF after the overview", () => {
+    const model = normalizePlanForPdf({
+      title: "LJU → BKK",
+      destination: "Bangkok",
+      start_date: "2026-10-01",
+      end_date: "2026-10-14",
+      language: "sl",
+      itinerary: {
+        originIata: "LJU",
+        destinationIata: "BKK",
+        summary: "Dva tedna v Bangkoku in na otokih.",
+        days: [{ day: 1, date: "2026-10-01", city: "Bangkok", title: "Prihod" }],
+      },
+    });
+    expect(model.labels.insurance).toBe("Turistično zavarovanje");
+    expect(model.insurance?.body).toMatch(/EKZZ/);
+    expect(model.insurance?.insurers).toMatch(/Coris/);
+    expect(model.insurance?.insurers).toMatch(/Triglav/);
+  });
 });

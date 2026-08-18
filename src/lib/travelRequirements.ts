@@ -9,6 +9,12 @@ import {
   looksConcreteTravelCopy,
   looksGenericTravelCopy,
 } from "@/lib/travelRequirementsFallback";
+import {
+  buildTravelInsurance,
+  type TravelInsuranceInfo,
+} from "@/lib/travelInsurance";
+
+export type { TravelInsuranceInfo } from "@/lib/travelInsurance";
 
 export type TravelVisaInfo = {
   /** Display label — "EU" when Schengen/EU rules match, else country names. */
@@ -22,6 +28,8 @@ export type TravelRequirements = {
   visaInfo: TravelVisaInfo[];
   vaccinations: string;
   estimatedCosts: string;
+  /** Curated in code — never from Gemini. */
+  insurance?: TravelInsuranceInfo;
 };
 
 export type TravelRequirementsJson = {
@@ -330,8 +338,47 @@ function thailandFallback(lang: LangCode): Omit<TravelRequirements, "targetResid
   };
 }
 
+function attachTravelInsurance(
+  req: TravelRequirements | null,
+  originIata: string | undefined | null,
+  destinationIata: string | undefined | null,
+  lang: LangCode,
+  destinationHint?: string | null,
+): TravelRequirements | null {
+  if (!req) return null;
+  return {
+    ...req,
+    insurance: buildTravelInsurance({
+      originIata,
+      destinationIata,
+      destinationHint,
+      lang,
+    }),
+  };
+}
+
 /** Curated visa/health copy when Gemini omits travel_requirements (common on 2.5 Flash). */
 export function buildFallbackTravelRequirements(
+  originIata: string | undefined | null,
+  destinationIata: string | undefined | null,
+  lang: LangCode = "en",
+  destinationHint?: string | null,
+): TravelRequirements | null {
+  return attachTravelInsurance(
+    buildFallbackTravelRequirementsCore(
+      originIata,
+      destinationIata,
+      lang,
+      destinationHint,
+    ),
+    originIata,
+    destinationIata,
+    lang,
+    destinationHint,
+  );
+}
+
+function buildFallbackTravelRequirementsCore(
   originIata: string | undefined | null,
   destinationIata: string | undefined | null,
   lang: LangCode = "en",
@@ -497,7 +544,29 @@ export function resolveTravelRequirements(
   lang: LangCode = "en",
   destinationHint?: string | null,
 ): TravelRequirements | null {
-  const fb = buildFallbackTravelRequirements(
+  return attachTravelInsurance(
+    resolveTravelRequirementsCore(
+      fromPlan,
+      originIata,
+      destinationIata,
+      lang,
+      destinationHint,
+    ),
+    originIata,
+    destinationIata,
+    lang,
+    destinationHint,
+  );
+}
+
+function resolveTravelRequirementsCore(
+  fromPlan: TravelRequirements | undefined | null,
+  originIata: string | undefined | null,
+  destinationIata: string | undefined | null,
+  lang: LangCode = "en",
+  destinationHint?: string | null,
+): TravelRequirements | null {
+  const fb = buildFallbackTravelRequirementsCore(
     originIata,
     destinationIata,
     lang,
@@ -612,5 +681,6 @@ SMART TRAVEL REQUIREMENTS (travel_requirements — required in JSON):
 - If the itinerary visits MORE THAN ONE country (e.g. Thailand + Kuala Lumpur/Malaysia), visa_info MUST have a separate entry for EACH country. Never cover only the arrival hub.
 - MALAYSIA 2026: EU/Schengen visa-free typically 90 days; complete free MDAC (Malaysia Digital Arrival Card) on imigresen-online.imi.gov.my within 3 days before arrival.
 - vaccinations / estimated_costs: destination-specific and practical (fees in €/USD where known).
+- Do NOT write travel insurance, EHIC, or named insurers — the app injects a curated insurance block in code.
 - ${langLine}`;
 }

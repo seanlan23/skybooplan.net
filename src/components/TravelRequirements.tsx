@@ -1,4 +1,4 @@
-import { FileText, Globe2, Pill, Smartphone, Wallet } from "lucide-react";
+import { FileText, Globe2, Pill, Shield, Smartphone, Wallet } from "lucide-react";
 import type { TravelRequirements } from "@/lib/travelRequirements";
 import { resolveTravelRequirements } from "@/lib/travelRequirements";
 import { useI18n } from "@/lib/i18n";
@@ -33,6 +33,7 @@ export function TravelRequirements({
   if (!resolved?.targetResidents.length) return null;
 
   const visaCards = resolved.visaInfo ?? [];
+  const insurance = resolved.insurance;
   const hasVaccinations = Boolean(resolved.vaccinations?.trim());
   const hasCosts = Boolean(resolved.estimatedCosts?.trim());
   const subtitleKey = groundTransportMode
@@ -62,6 +63,29 @@ export function TravelRequirements({
           </span>
         ))}
       </div>
+
+      {insurance ? (
+        <article className="rounded-lg border border-amber-200/90 bg-white/95 p-4 shadow-sm">
+          <div className="flex flex-wrap items-center gap-1.5 text-sm font-bold text-slate-800 mb-2">
+            <Shield className="h-4 w-4 text-amber-700 shrink-0" />
+            <span>{insurance.title}</span>
+            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-900">
+              {t("travelReq.insuranceRequired")}
+            </span>
+          </div>
+          <p className="text-sm text-slate-700 leading-relaxed">{insurance.body}</p>
+          {insurance.insurers.length > 0 ? (
+            <p className="mt-2.5 text-sm text-slate-700 leading-relaxed">
+              <span className="font-semibold text-slate-800">{t("travelReq.insurers")}: </span>
+              {insurance.insurers.join(" · ")}
+            </p>
+          ) : null}
+          <p className="mt-2.5 text-sm text-slate-600 leading-relaxed">
+            <span className="font-semibold text-slate-800">{t("travelReq.howToApply")}: </span>
+            {insurance.howTo}
+          </p>
+        </article>
+      ) : null}
 
       {visaCards.length > 0 && (
         <div className="space-y-3">
