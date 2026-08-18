@@ -83,6 +83,17 @@ function cityButtonLabel(hub: AirportHub, lang: string): string {
   return localizedAirportCity(hub, lang);
 }
 
+function compareCitiesLabel(
+  lang: string,
+  count: number,
+  template: string,
+): string {
+  const filled = template.replace("{count}", String(count));
+  if (lang !== "sl") return filled;
+  const noun = count === 1 ? "mesto" : count === 2 ? "mesti" : "mesta";
+  return `Primerjaj ${count} ${noun} →`;
+}
+
 export function OriginAirportPicker({
   onConfirm,
   excludeIata = null,
@@ -257,7 +268,7 @@ export function OriginAirportPicker({
   return (
     <div
       className={cn(
-        "hero-sky-enter w-full min-w-0 max-w-md rounded-2xl border border-white/25 bg-white/12 p-4 shadow-lg backdrop-blur-md sm:p-5",
+        "hero-sky-enter w-full min-w-0 max-w-md overflow-visible rounded-2xl border border-white/25 bg-white/12 p-4 shadow-lg backdrop-blur-md sm:p-5",
         className,
       )}
     >
@@ -449,17 +460,35 @@ export function OriginAirportPicker({
 
           <button
             type="button"
-            onClick={confirmJustHome}
+            onClick={extra.length > 0 ? confirmWithNearby : confirmJustHome}
             className="mt-4 w-full rounded-2xl bg-sky-500 px-4 py-3.5 text-[15px] font-semibold text-white shadow-md hover:bg-sky-400"
           >
-            {t("heroChat.origin.justThis" as never).replace(
-              "{city}",
-              cityLabelForIata(home),
-            )}
+            {extra.length > 0
+              ? compareCitiesLabel(
+                  lang,
+                  1 + extra.length,
+                  t("heroChat.origin.compareSelected" as never),
+                )
+              : t("heroChat.origin.justThis" as never).replace(
+                  "{city}",
+                  cityLabelForIata(home),
+                )}
           </button>
+          {extra.length > 0 ? (
+            <button
+              type="button"
+              onClick={confirmJustHome}
+              className="mt-2 w-full py-1.5 text-sm font-medium text-white/75 hover:text-white"
+            >
+              {t("heroChat.origin.justThis" as never).replace(
+                "{city}",
+                cityLabelForIata(home),
+              )}
+            </button>
+          ) : null}
 
           {nearbyHubs.length > 0 ? (
-            <div className="mt-4 rounded-2xl border border-white/15 bg-black/15 p-3">
+            <div className="mt-4 rounded-2xl border border-white/15 bg-black/15 p-3 pb-3.5">
               <p className="text-sm font-medium text-white/90">
                 {t("heroChat.origin.alsoNearby" as never)}
               </p>
@@ -484,18 +513,6 @@ export function OriginAirportPicker({
                   );
                 })}
               </div>
-              {extra.length > 0 ? (
-                <button
-                  type="button"
-                  onClick={confirmWithNearby}
-                  className="mt-3 w-full rounded-xl bg-white/20 py-2.5 text-sm font-semibold text-white hover:bg-white/30"
-                >
-                  {t("heroChat.origin.compareSelected" as never).replace(
-                    "{count}",
-                    String(1 + extra.length),
-                  )}
-                </button>
-              ) : null}
             </div>
           ) : (
             <p className="mt-3 text-center text-xs text-white/45">

@@ -681,7 +681,8 @@ export function HeroChatFlow({
       const innerScroll =
         Boolean(scroller) &&
         window.matchMedia("(min-width: 1024px)").matches &&
-        !staySearch;
+        !staySearch &&
+        step !== "origin";
       if (innerScroll && scroller && target && scroller.contains(target)) {
         scrollChildIntoScroller(scroller, target);
         return;
@@ -692,7 +693,7 @@ export function HeroChatFlow({
       }
       nudgeIntoView(target, "nearest");
     });
-  }, [showSearchLoader, showDatePicker, staySearch]);
+  }, [showSearchLoader, showDatePicker, staySearch, step]);
 
   const scrollToBottom = revealActiveStep;
 
@@ -1860,7 +1861,7 @@ export function HeroChatFlow({
           ref={scrollRef}
           className={cn(
             "mt-6 space-y-3 px-1 py-1 [overflow-anchor:none]",
-            staySearch
+            staySearch || step === "origin"
               ? "max-h-none overflow-visible"
               : "max-lg:overflow-visible lg:h-[min(22rem,48svh)] lg:max-h-[min(22rem,48svh)] lg:overflow-x-clip lg:overflow-y-auto lg:overscroll-y-contain",
             showSearchLoader && !staySearch && "lg:overflow-y-hidden",
