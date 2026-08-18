@@ -1848,4 +1848,278 @@ describe("applyFlightContextToGeminiPlan", () => {
     expect(last.title).toMatch(/odhod|mednarodni let/i);
     expect(JSON.stringify(last.activities)).toMatch(/15:20/);
   });
+
+  it("injects Hiroshima→Tokyo air hop before a morning NRT departure (not Shinkansen + 10:50)", () => {
+    const empty = {
+      morning: "",
+      afternoon: "",
+      evening: "",
+      travelHack: "",
+      transportationTips: "",
+      localWarnings: "",
+      dailyBudgetEur: 90,
+      category: "city" as const,
+    };
+    const plan = basePlan({
+      destinationName: "Japonska",
+      destinationIata: "NRT",
+      originIata: "FRA",
+      centerLat: 35.68,
+      centerLng: 139.65,
+      days: [
+        {
+          day: 1,
+          date: "2026-11-02",
+          title: "Let",
+          ...empty,
+          lat: 50.11,
+          lng: 8.68,
+          city: "Frankfurt",
+          focusName: "Frankfurt",
+          inFlightDay: true,
+          activities: { morning: [], afternoon: [], evening: [] },
+        },
+        {
+          day: 2,
+          date: "2026-11-03",
+          title: "Tokio",
+          ...empty,
+          lat: 35.68,
+          lng: 139.65,
+          city: "Tokyo",
+          focusName: "Tokyo",
+          activities: {
+            morning: [{ name: "Shibuya", type: "SIGHT", description: "Crossing" }],
+            afternoon: [],
+            evening: [],
+          },
+        },
+        {
+          day: 3,
+          date: "2026-11-12",
+          title: "Hirošima",
+          ...empty,
+          lat: 34.39,
+          lng: 132.46,
+          city: "Hiroshima",
+          focusName: "Hiroshima",
+          activities: {
+            morning: [{ name: "Peace Park", type: "SIGHT", description: "Park" }],
+            afternoon: [],
+            evening: [],
+          },
+        },
+        {
+          day: 4,
+          date: "2026-11-13",
+          title: "Odhod iz Hiroshima / mednarodni let",
+          ...empty,
+          lat: 34.39,
+          lng: 132.46,
+          city: "Hiroshima",
+          focusName: "Hiroshima",
+          drivingDurationHours: "140h",
+          activities: {
+            morning: [
+              {
+                name: "Notranji prevoz Hiroshima → Tokyo",
+                type: "TRANSPORT",
+                description: "Vlak",
+              },
+            ],
+            afternoon: [],
+            evening: [],
+          },
+        },
+      ],
+    });
+
+    applyFlightContextToGeminiPlan(
+      plan,
+      {
+        outboundDepart: "13:25",
+        outboundArrive: "08:40",
+        outboundArriveDayOffset: 1,
+        inboundDepart: "10:50",
+        inboundArrive: "16:20",
+      },
+      { originIata: "FRA", language: "sl", expectedDays: 4 },
+    );
+
+    const last = plan.days.find((d) => d.day === 4)!;
+    expect(last.city).toMatch(/tokyo/i);
+    expect(last.title).toMatch(/notranji let|tokyo|mednarodni/i);
+    const blob = JSON.stringify(last.activities);
+    expect(blob).toMatch(/10:50/);
+    expect(blob).toMatch(/Hiroshima.*Tokyo|Notranji let/i);
+    expect(blob).not.toMatch(/Narita Express/);
+  });
+
+  it("drops leftover island-to-hub prevoz on last day when already in Manila", () => {
+    const empty = {
+      morning: "",
+      afternoon: "",
+      evening: "",
+      travelHack: "",
+      transportationTips: "",
+      localWarnings: "",
+      dailyBudgetEur: 70,
+      category: "city" as const,
+      lat: 14.6,
+      lng: 121.0,
+    };
+    const plan = basePlan({
+      destinationName: "Filipini / Manila",
+      destinationIata: "MNL",
+      originIata: "MUC",
+      days: [
+        {
+          day: 1,
+          date: "2026-10-03",
+          title: "Let",
+          ...empty,
+          city: "Munich",
+          focusName: "Munich",
+          inFlightDay: true,
+          activities: { morning: [], afternoon: [], evening: [] },
+        },
+        {
+          day: 2,
+          date: "2026-10-15",
+          title: "Boracay → Manila",
+          ...empty,
+          city: "Manila",
+          focusName: "Manila",
+          activities: {
+            morning: [
+              {
+                name: "Notranji let Caticlan → Manila",
+                type: "TRANSPORT",
+                transportType: "flight",
+                description: "Hop",
+              },
+            ],
+            afternoon: [],
+            evening: [],
+          },
+        },
+        {
+          day: 3,
+          date: "2026-10-16",
+          title: "Prevoz v Manila in mednarodni odhod",
+          ...empty,
+          city: "Manila",
+          focusName: "Manila",
+          drivingDurationHours: "152h 45min",
+          activities: {
+            morning: [
+              {
+                name: "Notranji prevoz Boracay → Manila",
+                type: "TRANSPORT",
+                description: "Pred mednarodnim odhodom se vrneš v Manila",
+              },
+              { name: "Intramuros", type: "SIGHT", description: "Ogled" },
+            ],
+            afternoon: [],
+            evening: [],
+          },
+        },
+      ],
+    });
+
+    applyFlightContextToGeminiPlan(
+      plan,
+      {
+        outboundDepart: "21:10",
+        outboundArrive: "18:35",
+        outboundArriveDayOffset: 1,
+        inboundDepart: "21:15",
+        inboundArrive: "06:40",
+      },
+      { originIata: "MUC", language: "sl", expectedDays: 3 },
+    );
+
+    const last = plan.days.find((d) => d.day === 3)!;
+    const blob = JSON.stringify(last.activities);
+    expect(blob).not.toMatch(/Boracay → Manila/i);
+    expect(blob).toMatch(/21:15/);
+    const day1 = plan.days.find((d) => d.day === 1)!;
+    expect(day1.drivingDurationHours).toBe("0h");
+  });
+
+  it("uses Marrakech as last-day hub even if the return-to-hub day was tagged inFlightDay", () => {
+    const empty = {
+      morning: "",
+      afternoon: "",
+      evening: "",
+      travelHack: "",
+      transportationTips: "",
+      localWarnings: "",
+      dailyBudgetEur: 80,
+      category: "city" as const,
+    };
+    const plan = basePlan({
+      destinationName: "Maroko",
+      destinationIata: "RAK",
+      originIata: "ZRH",
+      days: [
+        {
+          day: 1,
+          date: "2026-11-08",
+          title: "Prihod",
+          ...empty,
+          lat: 31.63,
+          lng: -7.98,
+          city: "Marrakech",
+          focusName: "Marrakech",
+          activities: { morning: [], afternoon: [], evening: [] },
+        },
+        {
+          day: 2,
+          date: "2026-11-17",
+          title: "Nazaj v Marrakech in poslovilna večerja",
+          ...empty,
+          lat: 31.63,
+          lng: -7.98,
+          city: "Marrakech",
+          focusName: "Marrakech",
+          inFlightDay: true,
+          activities: {
+            morning: [{ name: "Vožnja iz Ouarzazate", type: "TRANSPORT", description: "Transfer" }],
+            afternoon: [],
+            evening: [{ name: "Večerja", type: "EAT", description: "Le Jardin" }],
+          },
+        },
+        {
+          day: 3,
+          date: "2026-11-18",
+          title: "Odhod iz Ouarzazate / mednarodni let",
+          ...empty,
+          lat: 30.92,
+          lng: -6.89,
+          city: "Ouarzazate",
+          focusName: "Ouarzazate",
+          inFlightDay: true,
+          activities: { morning: [], afternoon: [], evening: [] },
+        },
+      ],
+    });
+
+    applyFlightContextToGeminiPlan(
+      plan,
+      {
+        outboundDepart: "08:15",
+        outboundArrive: "11:05",
+        outboundArriveDayOffset: 0,
+        inboundDepart: "18:40",
+        inboundArrive: "21:35",
+      },
+      { originIata: "ZRH", language: "sl", expectedDays: 3 },
+    );
+
+    const last = plan.days.find((d) => d.day === 3)!;
+    expect(last.city).toMatch(/marrakech/i);
+    expect(last.title).not.toMatch(/Ouarzazate/i);
+    expect(JSON.stringify(last.activities)).toMatch(/18:40/);
+  });
 });

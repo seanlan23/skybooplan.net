@@ -39,6 +39,8 @@ describe("plannerQualityPromptBlock", () => {
     expect(road).toMatch(/US–MX|TH–KH/);
     expect(road).toMatch(/PREPOVEDANO izmišljati imena hotelov/);
     expect(road).toMatch(/2 noči/);
+    expect(road).toMatch(/človeški planner/i);
+    expect(road).toMatch(/Uživajte/);
   });
 
   it("does not apply the 5h road cap to flights", () => {
@@ -61,6 +63,7 @@ describe("annotateHitAndRunStays", () => {
       })),
     };
     expect(annotateHitAndRunStays(plan as never)).toBeGreaterThan(0);
-    expect(plan.days[4]!.travelHack).toMatch(/2 nights/i);
+    expect(plan.days[4]!.localWarnings).toMatch(/2 nights/i);
+    expect(plan.days[4]!.travelHack).not.toMatch(/2 nights/i);
   });
 });

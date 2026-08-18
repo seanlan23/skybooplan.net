@@ -47,6 +47,9 @@ import { stripArrivalLabelSpam } from "@/lib/textSanitize";
 
 /** Same-day ground/rail return to ticket hub (Lyon→Paris). Never LA→NY “budget transfer”. */
 const MAX_SAME_DAY_GROUND_HUB_HOP_KM = 750;
+/** Morning international boards leave no time for a 4h Shinkansen + NRT check-in. */
+const MAX_MORNING_GROUND_HUB_HOP_KM = 220;
+const MORNING_INBOUND_HOUR = 14;
 
 function logisticsToActivity(a: LogisticsActivity): Activity {
   const isIntlFlight =
@@ -153,7 +156,7 @@ function resolveCityBeforeDeparture(
   hubName: string,
 ): { stayCity: string; alreadyAtHub: boolean } {
   const prev = [...plan.days]
-    .filter((d) => d.day < totalDays && !d.inFlightDay)
+    .filter((d) => d.day < totalDays)
     .sort((a, b) => b.day - a.day)[0];
   if (!prev) return { stayCity: "", alreadyAtHub: false };
 
@@ -221,18 +224,34 @@ function groundHubHopKm(fromCity: string, hubName: string): number | null {
   return haversineKm([from.lng, from.lat], [to.lng, to.lat]);
 }
 
+function inboundHour(inboundDepart?: string): number | null {
+  const m = inboundDepart?.trim().match(/^(\d{1,2}):(\d{2})$/);
+  if (!m) return null;
+  return Number(m[1]);
+}
+
+function maxSameDayGroundHubHopKm(inboundDepart?: string): number {
+  const hour = inboundHour(inboundDepart);
+  if (hour != null && hour < MORNING_INBOUND_HOUR) return MAX_MORNING_GROUND_HUB_HOP_KM;
+  return MAX_SAME_DAY_GROUND_HUB_HOP_KM;
+}
+
 /**
  * Same-day return to the international hub is only for short ground/rail hops.
  * Cross-country US (LA→NY) or other teleports must NOT invent a “budget transfer”.
+ * Morning boards (e.g. 10:50 NRT) cannot include Hiroshima→Tokyo Shinkansen the same day.
  */
 function isFeasibleSameDayGroundHubHop(
   fromCity: string,
   hubName: string,
   destinationIata?: string,
+  inboundDepart?: string,
 ): boolean {
+  const maxKm = maxSameDayGroundHubHopKm(inboundDepart);
   const km = groundHubHopKm(fromCity, hubName);
-  if (km != null) return km <= MAX_SAME_DAY_GROUND_HUB_HOP_KM;
-  // Unknown coords: allow only classic EU rail corridors.
+  if (km != null) return km <= maxKm;
+  // Unknown coords: allow only classic EU rail corridors, and never before a morning board.
+  if (maxKm <= MAX_MORNING_GROUND_HUB_HOP_KM) return false;
   return preferRailHubHop(fromCity, hubName, destinationIata);
 }
 
@@ -244,14 +263,16 @@ function shouldInjectDomesticAirHubHop(
   fromCity: string,
   hubName: string,
   destinationIata?: string,
+  inboundDepart?: string,
 ): boolean {
   const hub = lookupDestination(destinationIata ?? "");
   const country = hub?.country?.toUpperCase() ?? "";
   // Gateway-return countries (linear coast-to-coast / multi-city). Skip US open-jaw.
   if (!["CA", "TH", "AU", "BR", "IN", "JP", "CN"].includes(country)) return false;
+  const maxKm = maxSameDayGroundHubHopKm(inboundDepart);
   const km = groundHubHopKm(fromCity, hubName);
-  if (km == null) return false;
-  if (km <= MAX_SAME_DAY_GROUND_HUB_HOP_KM) return false;
+  if (km == null) return true;
+  if (km <= maxKm) return false;
   if (km > 5500) return false;
   return true;
 }
@@ -939,6 +960,8 @@ export function applyFlightContextToGeminiPlan(
       day.evening = "";
       day.mapPins = [];
       day.transportation = undefined;
+      day.drivingDurationHours = "0h";
+      day.drivingDistanceKm = 0;
       day.title = planLangCopy(lang, {
         sl: `Odhod${originIata ? ` iz ${originIata}` : ""} / mednarodni let`,
         en: `Departure${originIata ? ` from ${originIata}` : ""} / international flight`,
@@ -1023,6 +1046,13 @@ export function applyFlightContextToGeminiPlan(
         return !/zajtrk|breakfast|siesta|tropska|bazen|promenad/i.test(blob);
       });
       day.inFlightDay = false;
+      const arrivalDriveH = Number(
+        String(day.drivingDurationHours ?? "").replace(",", ".").match(/(\d+(?:\.\d+)?)/)?.[1] ?? 0,
+      );
+      if (arrivalDriveH > 18) {
+        day.drivingDurationHours = "0h";
+        day.drivingDistanceKm = 0;
+      }
       continue;
     }
 
@@ -1047,11 +1077,22 @@ export function applyFlightContextToGeminiPlan(
           !cityNamesMatch(prevCity, plan.destinationName ?? ""),
       );
       const needsHubHop =
-        hopWanted && isFeasibleSameDayGroundHubHop(prevCity, hubName, plan.destinationIata);
+        hopWanted &&
+        isFeasibleSameDayGroundHubHop(
+          prevCity,
+          hubName,
+          plan.destinationIata,
+          flights.inboundDepart,
+        );
       const needsAirHubHop =
         hopWanted &&
         !needsHubHop &&
-        shouldInjectDomesticAirHubHop(prevCity, hubName, plan.destinationIata);
+        shouldInjectDomesticAirHubHop(
+          prevCity,
+          hubName,
+          plan.destinationIata,
+          flights.inboundDepart,
+        );
       // Ticket hub may be JFK while the trip ends in LA — depart from last stay city.
       // Canada YVR→YYZ (and similar): fly back to gateway, then international.
       const departCity =
@@ -1125,7 +1166,7 @@ export function applyFlightContextToGeminiPlan(
             cityNamesMatch(hubName, a.name);
           const isAir =
             a.transportType === "flight" ||
-            /\b(flight|let|flug|volo|vuelo|vol)\b/i.test(blob);
+            /\b(flight|let|flug|volo|vuelo|vol|prevoz|transfer|notranji)\b/i.test(blob);
           return !(toHub && isAir);
         });
       merged.morning = stripPhantomHubFlight(merged.morning);

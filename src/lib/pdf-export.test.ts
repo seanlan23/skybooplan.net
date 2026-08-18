@@ -264,6 +264,34 @@ describe("normalizePlanForPdf", () => {
     expect(model.days[4]?.bookingUrl).toBeUndefined();
   });
 
+  it("counts Philippines island hotel nights, not 1 night per hop", () => {
+    const model = normalizePlanForPdf({
+      title: "Filipini",
+      destination: "Filipini / Manila",
+      start_date: "2026-10-03",
+      end_date: "2026-10-16",
+      language: "sl",
+      pax: 2,
+      itinerary: {
+        originPlace: "München",
+        hotels: [],
+        days: [
+          { day: 1, date: "2026-10-03", city: "Munich", title: "Odhod iz MUC", inFlightDay: true },
+          { day: 2, date: "2026-10-04", city: "Manila", title: "Prihod" },
+          { day: 3, date: "2026-10-05", city: "Manila", title: "Intramuros", inFlightDay: true },
+          { day: 4, date: "2026-10-06", city: "El Nido", title: "Let v El Nido", inFlightDay: true },
+          { day: 5, date: "2026-10-07", city: "El Nido", title: "Tour A" },
+          { day: 6, date: "2026-10-08", city: "El Nido", title: "Tour C", inFlightDay: true },
+          { day: 14, date: "2026-10-16", city: "Manila", title: "Odhod", inFlightDay: true },
+        ],
+      },
+    });
+    expect(model.hotels.map((h) => h.text)).toEqual([
+      expect.stringMatching(/Manila.*2 noči/),
+      expect.stringMatching(/El Nido.*3 noči/),
+    ]);
+  });
+
   it("does not invent Booking hotel links for motorhome plans", () => {
     const model = normalizePlanForPdf({
       title: "Italija",

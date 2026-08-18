@@ -287,12 +287,13 @@ export function annotateHitAndRunStays(plan: AiTripPlan): number {
     if (!prefersTwoNights(city, total)) continue;
     if ((nights.get(cityKey(city)) ?? 0) !== 1) continue;
     if ((day.drivingDistanceKm ?? 0) > 280) continue;
+    if (day.inFlightDay || day.day === total) continue;
     const note = sl
       ? `Raje 2 noči v ${city} — 1 noč je premalo za ogled (razen čistega tranzita).`
       : `Prefer 2 nights in ${city} — one night is a hit-and-run unless this is pure transit.`;
-    const before = day.travelHack ?? "";
-    day.travelHack = appendUnique(day.travelHack, note);
-    if (day.travelHack !== before) n += 1;
+    const before = day.localWarnings ?? "";
+    day.localWarnings = appendUnique(day.localWarnings, note);
+    if (day.localWarnings !== before) n += 1;
   }
   return n;
 }
@@ -362,12 +363,16 @@ HRANA:
 - Food aktivnost = konkretno ime lokala. Če ne veš realnega imena, izpusti slot.
 
 PRAKTIČNO (vsak dan kjer sodi):
-- Parking, odpiralni čas, sezona, varnost — konkretno za TO mesto, ne generičen odstavek.
+- Parking, odpiralni čas, sezona, varnost, kje kupiti karto, kateri izhod metroja — konkretno za TO mesto TA dan.
+- travelHack = 1 insider nasvet (cena, ura, prevara, bližnjica). transportationTips samo če je konkreten A→B.
 
-STIL:
-- Piši kot izkušen lokalni planner: manj leporečja, več uporabnih informacij.
+STIL (človeški planner, ne turistična brošura):
+- Piši kot izkušen lokalni kolega: kratko, konkretno, uporabno. Drugačen nasvet vsak dan.
+- PREPOVEDANO brošurno: "Uživajte v…", "čudovit razgled", "kulturni/zgodovinski dragulj", "avtentična kuhinja", "fine dining izkušnja", "spoznavanje s prvim okoljem", "lahkoten sprehod v okolici namestitve".
+- PREPOVEDANO Wikipedia: "zgrajeno v letu…, znana po…, ki služi kot…". Namesto tega: kaj narediš + 1 praktičen detajl (ura, kako priti, kaj vzeti, kaj stane).
+- PREPOVEDANO v travelHack echo-ati ta pravila ("Raje 2 noči…", "PREPOVEDANO", "hit and run", "cilj ≤5 h").
 
 SAMOPREGLED PRED JSON:
-- Predolge vožnje? Premalo časa v mestu? Manjkajoči nasveti? Nerealističen tempo? Popravi v ISTEM odgovoru.
+- Predolge vožnje? Premalo časa v mestu? Generični stavki? Manjkajoči nasveti? Nerealističen tempo? Popravi v ISTEM odgovoru.
 ===`.trim();
 }

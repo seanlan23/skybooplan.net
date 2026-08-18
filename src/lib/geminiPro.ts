@@ -739,10 +739,12 @@ ${
 - Če uporabnik omeni periodične hotel nočitve ("vsak 5 dan hotel"), hotels[] ostane [], hotel omeni le kot izjemo v activities tistega dne.
 `
 }
-OPISI (STROGI JSON — jasno, ne naporno):
+OPISI (STROGI JSON — človeško, ne brošura):
 - Preferiraj bullets: ["…", "…"] (2–4 kratke točke, vsaka ≤ ~120 znakov) ALI description z vrsticami "- točka".
 - PREPOVEDANO: en dolg neformatiran odstavek (wall of text) za večerjo/ogled — aplikacija razbije esej, a raje oddaj že strukturirano.
-- description/bullets: konkretno (kaj, kje, 1 tip), ne 150–300 besed na aktivnost.
+- description/bullets: kaj narediš + 1 praktičen detajl (odpiralni čas, kako priti, karta, kaj vzeti). Ne 150–300 besed, ne Wikipedia.
+- PREPOVEDANO brošurno: "Uživajte v…", "čudovit razgled", "kulturni dragulj", "avtentična kuhinja", "fine dining izkušnja", "lahkoten sprehod v okolici namestitve", "spoznavanje s prvim okoljem".
+- travelHack vsak dan = unikaten insider nasvet. NIKOLI ne ponovi istega stavka in NIKOLI ne prepisi pravil iz tega prompta v nasvet.
 - HRANA (vse destinacije / vsi jeziki): NE piši generičnega "pojdi na večerjo / lokalna večerja / Abendessen in Kyoto".
   • Zajtrk skoraj nikoli ne načrtuj kot ločeno aktivnost (razen če je destinacijska ikona, npr. znan café).
   • Vsaka food aktivnost = konkretno ime lokala v title (npr. "Večerja: Ichiran", "Dinner: Afuri", "Abendessen: Kyubey") + 1 priporočilo + po želji 1 alternativa.

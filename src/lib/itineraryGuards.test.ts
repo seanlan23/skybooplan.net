@@ -57,6 +57,15 @@ describe("isEnricherPlaceholderActivity", () => {
     ).toBe(true);
   });
 
+  it("flags hotel-grounds stroll filler", () => {
+    expect(
+      isEnricherPlaceholderActivity({
+        name: "Sprehod okoli hotela",
+        description: "Lahkoten sprehod v okolici vaše namestitve za spoznavanje s prvim okoljem.",
+      }),
+    ).toBe(true);
+  });
+
   it("keeps real Casco Viejo sightseeing", () => {
     expect(
       isEnricherPlaceholderActivity({

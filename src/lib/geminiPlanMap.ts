@@ -164,10 +164,11 @@ export function dedupePlanDaysByNumber(days: DayPlan[]): DayPlan[] {
 }
 
 function isDepartureLogisticsDay(day: DayPlan, totalDays: number): boolean {
-  // Last calendar day is always treated as departure logistics — never pad with
-  // generic "main morning sight" enricher fillers (DE Abflug, FR départ, etc.).
-  if (day.day === totalDays) return true;
-  const blob = `${day.title} ${day.city} ${day.morning} ${day.afternoon}`.toLowerCase();
+  // Do NOT treat “last day in this JSON fragment” as the trip departure.
+  // Stream batches / partials are 3–6 days; tagging day 3/6 as inFlightDay
+  // made resolveCityBeforeDeparture skip the real last hotel (Marrakech D10).
+  void totalDays;
+  const blob = `${day.title} ${day.city}`.toLowerCase();
   return (
     /logistika|odhod|departure|abflug|rückflug|retour|départ|partida|partenza|letališč|letališče|airport|suvarnabhumi|domov|international(er)?\s*(rück)?flug|volo internazionale|vuelo internacional/i.test(
       blob,

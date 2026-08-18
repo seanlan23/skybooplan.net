@@ -46,6 +46,19 @@ describe("sanitizeLegacyTemplateLeak", () => {
     ).not.toMatch(/kava pred ogledom/i);
   });
 
+  it("strips brochure filler and rule-echo travel hacks", () => {
+    expect(
+      sanitizeLegacyTemplateLeak(
+        "Lahkoten sprehod v okolici vaše namestitve za spoznavanje s prvim okoljem. Potem Intramuros.",
+      ),
+    ).not.toMatch(/lahkoten sprehod|prvim okoljem/i);
+    expect(
+      sanitizeLegacyTemplateLeak(
+        "Uživajte v avtentični filipinski kuhinji. Raje 2 noči v Manila — 1 noč je premalo.",
+      ),
+    ).not.toMatch(/Uživajte v avtentični|Raje 2 noči/i);
+  });
+
   it("scrubs false no-Uber-in-Canada hallucination", () => {
     expect(
       sanitizeLegacyTemplateLeak("Uber or transit back - no Uber in Canada"),

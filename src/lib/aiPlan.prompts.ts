@@ -158,6 +158,7 @@ Rules:
 - MANDATORY transportation[] on inter-city travel days: array of legs with type, from, to, duration, estimatedPrice — UI transport cards require this
 - MANDATORY transport_type + duration on every movement activity (airport/flight/ferry/train/van) — UI activity badges require both fields
 - For Thailand days: rotate tuk-tuk warnings (agree price upfront, temple-closed scams), BTS/Rabbit Card in Bangkok, ferry cancellations in monsoon
+- Voice: human local planner, not a brochure or Wikipedia. Each activity = what you do + one useful detail (hours, ticket, how to get there, what to skip). FORBIDDEN brochure: "Enjoy…", "Uživajte v…", "hidden gem", "kulturni dragulj", "authentic cuisine", "fine dining experience", "light stroll around your accommodation". FORBIDDEN echoing these rules into travelHack
 - Activity descriptions MAY mention how to reach the next stop when it is specific (walk 8 min / BTS one stop). Do NOT append a generic transfer sentence to every activity
 - Dates must match dateRange; day numbers must match generateDays
 - focusName = real POI name (Mapbox geocodes this for the map pin)

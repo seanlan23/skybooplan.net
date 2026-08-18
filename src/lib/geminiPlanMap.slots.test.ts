@@ -298,4 +298,75 @@ describe("car road trip inFlightDay", () => {
     expect(plan.days[0]?.inFlightDay).toBeFalsy();
     expect(plan.accommodationMode).toBe("hotel");
   });
+
+  it("does not tag a mid-trip sightseeing day as inFlightDay just because it is last in the JSON fragment", () => {
+    const data: TripPlanResponse = {
+      trip_metadata: {
+        destination: "Morocco",
+        season_warning: "Autumn.",
+        currency: "EUR",
+        visa_required: false,
+      },
+      itinerar: [
+        {
+          phase: "Marrakech",
+          city: "Marrakech",
+          unsplashQuery: "Marrakech medina",
+          lat: 31.63,
+          lng: -7.98,
+          pois: [],
+          days: [
+            {
+              day_number: 1,
+              date: "2026-11-08",
+              day_name: "Nedelja",
+              title: "Prihod v Marakeš",
+              dailyBudget: 90,
+              drivingDistanceKm: 0,
+              drivingDurationHours: "0h",
+              activities: [
+                {
+                  title: "Medina",
+                  description: "Sprehod.",
+                  category: "culture",
+                  timeSlot: "popoldan",
+                },
+              ],
+            },
+            {
+              day_number: 3,
+              date: "2026-11-10",
+              day_name: "Torek",
+              title: "Vrtovi in umetnost Marakeša",
+              dailyBudget: 90,
+              drivingDistanceKm: 0,
+              drivingDurationHours: "0h",
+              activities: [
+                {
+                  title: "Jardin Majorelle",
+                  description: "Vrtovi.",
+                  category: "culture",
+                  timeSlot: "dopoldan",
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      logistics_and_tips: {
+        transport: { flights: "n/a", ferries: "n/a", city_transport: "n/a" },
+        finance: "EUR",
+        internet: "eSIM",
+      },
+      hotels: [],
+    };
+
+    const plan = tripPlanResponseToAiTripPlan(data, {
+      originIata: "ZRH",
+      destinationIata: "RAK",
+    });
+    const d3 = plan.days.find((d) => d.day === 3);
+    expect(d3?.inFlightDay).toBeFalsy();
+    expect(d3?.title).toMatch(/vrtovi/i);
+  });
 });

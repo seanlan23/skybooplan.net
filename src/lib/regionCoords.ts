@@ -204,6 +204,18 @@ const REGION_COORDS: Record<string, { lat: number; lng: number }> = {
   poprad: { lat: 49.052, lng: 20.298 },
   kyoto: { lat: 35.012, lng: 135.768 },
   osaka: { lat: 34.694, lng: 135.502 },
+  /** City centers — not IATA runways (KIX/ITM/HIJ). */
+  hiroshima: { lat: 34.385, lng: 132.455 },
+  nara: { lat: 34.685, lng: 135.833 },
+  nagoya: { lat: 35.181, lng: 136.906 },
+  fukuoka: { lat: 33.59, lng: 130.402 },
+  kanazawa: { lat: 36.561, lng: 136.656 },
+  sapporo: { lat: 43.062, lng: 141.354 },
+  lyon: { lat: 45.764, lng: 4.836 },
+  avignon: { lat: 43.949, lng: 4.806 },
+  thessaloniki: { lat: 40.64, lng: 22.945 },
+  ioannina: { lat: 39.665, lng: 20.852 },
+  meteora: { lat: 39.714, lng: 21.631 },
 };
 
 export function lookupRegionCoords(city: string): { lat: number; lng: number } | null {

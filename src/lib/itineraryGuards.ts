@@ -46,6 +46,9 @@ export function isEnricherPlaceholderActivity(a: {
     /jutranji sprehod do prve znamenitosti/i.test(name) ||
     /jutranji sprehod\s*\/\s*lokalni ritm/i.test(name) ||
     /^jutranji sprehod\b/i.test(name) ||
+    /lahkoten sprehod v okolici (vaše )?namestitve/i.test(blob) ||
+    /spoznavanje s prvim okoljem/i.test(blob) ||
+    /light stroll around (your |the )?accommodation/i.test(blob) ||
     /check-in,?\s*osvežitev(\s+in\s+kratek\s+odmor)?/i.test(name) ||
     /osvežitev in kratek odmor/i.test(name) ||
     /če imaš še energijo/i.test(name) ||

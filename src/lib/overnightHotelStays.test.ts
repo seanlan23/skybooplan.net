@@ -78,6 +78,55 @@ describe("collectOvernightHotelStays", () => {
     });
     expect(stays.map((s) => `${s.city}:${s.nights}`)).toEqual(["Zagreb:2", "Split:1"]);
   });
+
+  it("counts island nights even when domestic hops were tagged inFlightDay", () => {
+    const stays = collectOvernightHotelStays({
+      originPlace: "München",
+      start_date: "2026-10-03",
+      days: [
+        { day: 1, date: "2026-10-03", city: "Munich", inFlightDay: true },
+        { day: 2, date: "2026-10-04", city: "Manila" },
+        { day: 3, date: "2026-10-05", city: "Manila", inFlightDay: true },
+        { day: 4, date: "2026-10-06", city: "El Nido", inFlightDay: true },
+        { day: 5, date: "2026-10-07", city: "El Nido" },
+        { day: 6, date: "2026-10-08", city: "El Nido", inFlightDay: true },
+        { day: 7, date: "2026-10-09", city: "Bohol", inFlightDay: true },
+        { day: 8, date: "2026-10-10", city: "Bohol" },
+        { day: 9, date: "2026-10-11", city: "Bohol", inFlightDay: true },
+        { day: 10, date: "2026-10-12", city: "Boracay", inFlightDay: true },
+        { day: 11, date: "2026-10-13", city: "Boracay" },
+        { day: 12, date: "2026-10-14", city: "Boracay", inFlightDay: true },
+        { day: 13, date: "2026-10-15", city: "Manila", inFlightDay: true },
+        { day: 14, date: "2026-10-16", city: "Manila", inFlightDay: true },
+      ],
+    });
+    expect(stays.map((s) => `${s.city}:${s.nights}:${s.checkIn}:${s.checkOut}`)).toEqual([
+      "Manila:2:2026-10-04:2026-10-06",
+      "El Nido:3:2026-10-06:2026-10-09",
+      "Bohol:3:2026-10-09:2026-10-12",
+      "Boracay:3:2026-10-12:2026-10-15",
+      "Manila:1:2026-10-15:2026-10-16",
+    ]);
+  });
+
+  it("fixes the live Manila QA JSON (3 nights El Nido, not 1)", async () => {
+    const { existsSync, readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
+    const p = resolve(process.cwd(), ".tmp-plan-mixed-15-2026-08-18/FL-01-Manila.json");
+    if (!existsSync(p)) return;
+    const plan = JSON.parse(readFileSync(p, "utf8")) as {
+      originPlace?: string;
+      days: Array<{ date?: string; city?: string; inFlightDay?: boolean; day?: number }>;
+    };
+    const stays = collectOvernightHotelStays({
+      originPlace: plan.originPlace ?? "München",
+      start_date: plan.days[0]?.date,
+      days: plan.days,
+    });
+    expect(stays.find((s) => /el nido/i.test(s.city))?.nights).toBe(3);
+    expect(stays.find((s) => /bohol/i.test(s.city))?.nights).toBe(3);
+    expect(stays.find((s) => /boracay/i.test(s.city))?.nights).toBe(3);
+  });
 });
 
 describe("shouldShowDayHotels", () => {
@@ -114,6 +163,15 @@ describe("shouldShowDayHotels", () => {
         totalTripDays: 12,
       }),
     ).toBe(false);
+    expect(
+      shouldShowDayHotels({
+        city: "El Nido",
+        isFirstInCity: true,
+        inFlightDay: true,
+        dayNumber: 4,
+        totalTripDays: 14,
+      }),
+    ).toBe(true);
   });
 });
 

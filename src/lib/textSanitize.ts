@@ -121,6 +121,12 @@ export function sanitizeLegacyTemplateLeak(text: string): string {
     .replace(/[^.!?\n]*osvežitev in kratek odmor[^.!?\n]*[.!?]?/gi, "")
     .replace(/[^.!?\n]*kava pred ogledom[^.!?\n]*[.!?]?/gi, "")
     .replace(/[^.!?\n]*coffee before the (?:main )?sight[^.!?\n]*[.!?]?/gi, "")
+    .replace(/[^.!?\n]*lahkoten sprehod v okolici (vaše )?namestitve[^.!?\n]*[.!?]?/gi, "")
+    .replace(/[^.!?\n]*spoznavanje s prvim okoljem[^.!?\n]*[.!?]?/gi, "")
+    .replace(/[^.!?\n]*uživajte v (avtentični|fine dining|prijetni|čudoviti)[^.!?\n]*[.!?]?/gi, "")
+    .replace(/[^.!?\n]*kulturni in zgodovinski dragulj[^.!?\n]*[.!?]?/gi, "")
+    .replace(/[^.!?\n]*raje 2 noči v [^.!?\n]*[.!?]?/gi, "")
+    .replace(/[^.!?\n]*prefer 2 nights in [^.!?\n]*[.!?]?/gi, "")
     .replace(/\s{2,}/g, " ")
     .trim();
 }

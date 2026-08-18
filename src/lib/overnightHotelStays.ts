@@ -45,6 +45,17 @@ export function isoAddDays(iso: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+/** True only for sleeping on the plane (EU hub day 1), not Manila→El Nido hops. */
+function isAirborneOriginNight(
+  day: OvernightDay,
+  dayNum: number,
+  origin: string,
+): boolean {
+  if (dayNum === 1) return true;
+  const city = (day.city ?? day.focusName ?? "").trim();
+  return Boolean(origin && city && overnightPlacesMatch(city, origin));
+}
+
 function dayDate(day: OvernightDay, startDate: string | undefined, index: number): string {
   const raw = typeof day.date === "string" ? day.date.trim() : "";
   const match = raw.match(/^(\d{4}-\d{2}-\d{2})/);
@@ -93,11 +104,14 @@ export function collectOvernightHotelStays(plan: {
 
   for (let i = 0; i < rawDays.length; i++) {
     const d = rawDays[i]!;
-    // Car "Odhod z Dunaja" days are often mis-tagged inFlightDay — still a hotel night.
-    if (d.inFlightDay && !road) continue;
     const city = (d.city ?? d.focusName ?? "").trim();
-    if (!city) continue;
     const dayNum = typeof d.day === "number" ? d.day : i + 1;
+    // Skip only the outbound airborne night (day 1 / origin city). Domestic hops
+    // and stale inFlightDay on sightseeing days still need a hotel.
+    if (!road && d.inFlightDay && isAirborneOriginNight(d, dayNum, origin)) {
+      continue;
+    }
+    if (!city) continue;
     const date = dayDate(d, startDate, i);
     if (!date) continue;
 
@@ -160,7 +174,8 @@ export function shouldShowDayHotels(input: {
   if (input.totalTripDays != null && input.dayNumber >= input.totalTripDays) return false;
   const road =
     input.groundTransportMode === "car" || input.groundTransportMode === "train";
-  if (!road && input.inFlightDay) return false;
+  // Hide Booking only on the outbound airborne day — not on island hops tagged inFlightDay.
+  if (!road && input.inFlightDay && input.dayNumber === 1) return false;
   return input.isFirstInCity;
 }
 
