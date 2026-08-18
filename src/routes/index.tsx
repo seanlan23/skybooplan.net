@@ -49,7 +49,10 @@ import { useStreamItinerary } from "@/hooks/useStreamItinerary";
 import { useScreenWakeLock } from "@/hooks/useScreenWakeLock";
 import { usePlanPhotoEnrichment } from "@/hooks/usePlanPhotoEnrichment";
 import { mergePlanPhotos } from "@/lib/unsplashPhotos";
-import type { GenerateGeminiProTripInput } from "@/lib/geminiPro.functions";
+import {
+  tripDayCount,
+  type GenerateGeminiProTripInput,
+} from "@/lib/geminiPro.functions";
 import {
   normalizeIata,
   normalizeTripPlanPax,
@@ -374,6 +377,14 @@ function Landing() {
   aiOriginRef.current = aiContext?.from;
   const aiLangRef = useRef(aiContext?.language || lang);
   aiLangRef.current = aiContext?.language || lang;
+  const aiDatesRef = useRef({
+    departDate: aiContext?.departDate ?? "",
+    returnDate: aiContext?.returnDate ?? "",
+  });
+  aiDatesRef.current = {
+    departDate: aiContext?.departDate ?? "",
+    returnDate: aiContext?.returnDate ?? "",
+  };
   const planJobRef = useRef(0);
 
   const commitAiPlan = useCallback((plan: AiTripPlan) => {
@@ -387,6 +398,10 @@ function Landing() {
         originIata: aiOriginRef.current,
         // Prefer locked plan language over live UI picker.
         language: next.contentLanguage ?? aiLangRef.current,
+        expectedDays: tripDayCount(
+          aiDatesRef.current.departDate,
+          aiDatesRef.current.returnDate,
+        ),
       });
       setAiPlan(next);
       return;

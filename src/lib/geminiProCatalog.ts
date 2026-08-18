@@ -112,13 +112,19 @@ export function applyFlightContextIfPresent(
   plan: AiTripPlan,
   data: Pick<
     GenerateGeminiProTripInput,
-    "flightContext" | "groundTransportMode" | "originIata" | "language"
+    | "flightContext"
+    | "groundTransportMode"
+    | "originIata"
+    | "language"
+    | "departDate"
+    | "returnDate"
   >,
 ): void {
   if (!data.flightContext || data.groundTransportMode) return;
   applyFlightContextToGeminiPlan(plan, data.flightContext, {
     originIata: data.originIata,
     language: plan.contentLanguage ?? data.language ?? "sl",
+    expectedDays: tripDayCount(data.departDate, data.returnDate),
   });
 }
 

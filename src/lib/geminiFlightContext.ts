@@ -847,15 +847,21 @@ function parseHmSafe(hm: string): number {
 export function applyFlightContextToGeminiPlan(
   plan: AiTripPlan,
   flights: TripFlightContext,
-  opts?: { originIata?: string; language?: string },
+  opts?: { originIata?: string; language?: string; expectedDays?: number },
 ): void {
   // Locked plan language wins over live UI lang (prevents rewriting logistics on lang switch).
   const lang = normalizePlanLangCode(plan.contentLanguage ?? opts?.language ?? "sl");
   plan.contentLanguage = lang;
   plan.days = dedupePlanDaysByNumber(plan.days);
   repairPlanDaySequence(plan, { language: lang });
-  const totalDays = planCalendarDayCount(plan.days);
-  if (!totalDays) return;
+  const calendarDays = planCalendarDayCount(plan.days);
+  if (!calendarDays) return;
+  // Stream batches are 6 days. Stamping "international departure" on whatever
+  // is last in the partial plan poisons Manila→islands→Manila hops (day 6 / 12).
+  const expectedDays =
+    opts?.expectedDays && opts.expectedDays > 0 ? opts.expectedDays : calendarDays;
+  const totalDays = expectedDays;
+  const planComplete = calendarDays >= expectedDays;
 
   const locale = resolveTripLocale(
     plan.destinationIata ?? "",
@@ -1020,7 +1026,7 @@ export function applyFlightContextToGeminiPlan(
       continue;
     }
 
-    if (day.day === totalDays && flights.inboundDepart) {
+    if (planComplete && day.day === totalDays && flights.inboundDepart) {
       if (isOvernightDeparture(flights)) {
         day.inFlightDay = true;
         day.category = "transport";

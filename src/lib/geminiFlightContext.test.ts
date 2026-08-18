@@ -1750,4 +1750,102 @@ describe("applyFlightContextToGeminiPlan", () => {
     expect(transfer?.arrivalTime).toBe("13:00");
     expect(transfer?.description ?? "").toMatch(/4[,.]5|4,5|4\.5/);
   });
+
+  it("does not stamp the 15:20 homebound flight onto a 6-day stream batch of a 16-day trip", () => {
+    const sightseeing = {
+      morning: [{ name: "Plaža Alona", type: "ACTIVITY" as const, description: "Kopanje" }],
+      afternoon: [],
+      evening: [],
+    };
+    const plan = basePlan({
+      destinationName: "Manila",
+      destinationIata: "MNL",
+      originIata: "LJU",
+      days: Array.from({ length: 6 }, (_, i) => ({
+        day: i + 1,
+        date: new Date(Date.UTC(2026, 9, 26 + i)).toISOString().slice(0, 10),
+        title: i === 5 ? "Trajekt na Siquijor" : "Dan v Manili",
+        morning: "",
+        afternoon: "",
+        evening: "",
+        travelHack: "",
+        transportationTips: "",
+        localWarnings: "",
+        dailyBudgetEur: 45,
+        lat: 14.6,
+        lng: 121.0,
+        city: i >= 2 ? "Panglao" : "Manila",
+        focusName: i >= 2 ? "Panglao" : "Manila",
+        category: "activity" as const,
+        activities: sightseeing,
+      })),
+    });
+
+    applyFlightContextToGeminiPlan(
+      plan,
+      {
+        outboundDepart: "19:40",
+        outboundArrive: "21:20",
+        outboundArriveDayOffset: 1,
+        inboundDepart: "15:20",
+        inboundArrive: "18:45",
+      },
+      { originIata: "LJU", language: "sl", expectedDays: 16 },
+    );
+
+    const day6 = plan.days.find((d) => d.day === 6)!;
+    expect(day6.title).not.toMatch(/mednarodni odhod/i);
+    expect(JSON.stringify(day6.activities)).not.toMatch(/15:20/);
+    expect(JSON.stringify(day6.activities)).not.toMatch(/check-out|mednarodni odhod/i);
+  });
+
+  it("stamps international departure only on the real last day of a 16-day trip", () => {
+    const sightseeing = {
+      morning: [{ name: "Ogled", type: "ACTIVITY" as const, description: "Mesto" }],
+      afternoon: [],
+      evening: [],
+    };
+    const plan = basePlan({
+      destinationName: "Manila",
+      destinationIata: "MNL",
+      originIata: "LJU",
+      days: Array.from({ length: 16 }, (_, i) => ({
+        day: i + 1,
+        date: new Date(Date.UTC(2026, 9, 26 + i)).toISOString().slice(0, 10),
+        title: i === 5 ? "Siquijor" : i === 11 ? "Boracay" : "Dan",
+        morning: "",
+        afternoon: "",
+        evening: "",
+        travelHack: "",
+        transportationTips: "",
+        localWarnings: "",
+        dailyBudgetEur: 45,
+        lat: 14.6,
+        lng: 121.0,
+        city: "Manila",
+        focusName: "Manila",
+        category: "activity" as const,
+        activities: sightseeing,
+      })),
+    });
+
+    applyFlightContextToGeminiPlan(
+      plan,
+      {
+        outboundDepart: "19:40",
+        outboundArrive: "21:20",
+        outboundArriveDayOffset: 1,
+        inboundDepart: "15:20",
+        inboundArrive: "18:45",
+      },
+      { originIata: "LJU", language: "sl", expectedDays: 16 },
+    );
+
+    const day6 = plan.days.find((d) => d.day === 6)!;
+    const last = plan.days.find((d) => d.day === 16)!;
+    expect(day6.title).not.toMatch(/mednarodni odhod/i);
+    expect(JSON.stringify(day6.activities)).not.toMatch(/15:20/);
+    expect(last.title).toMatch(/odhod|mednarodni let/i);
+    expect(JSON.stringify(last.activities)).toMatch(/15:20/);
+  });
 });
