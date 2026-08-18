@@ -130,7 +130,7 @@ export function HeroDateRangeCalendar({
   const dayPickerClassNames = {
     months: cn(
       "flex w-full",
-      twoMonths ? "flex-row items-start justify-center gap-5" : "flex-col items-center",
+      twoMonths ? "flex-row items-stretch justify-center gap-5" : "flex-col items-center",
     ),
     month: cn("w-full min-w-0 max-w-[15.5rem]", twoMonths ? "flex-1" : ""),
     month_caption: "hidden",
@@ -139,8 +139,8 @@ export function HeroDateRangeCalendar({
     weekdays: "",
     weekday:
       "h-5 w-[14.2857%] p-0 text-center text-[10px] font-medium uppercase tracking-wide text-white/45",
-    week: "",
-    day: "h-7 w-[14.2857%] p-0 text-center align-middle",
+    week: "h-8",
+    day: "h-8 w-[14.2857%] p-0 text-center align-middle",
     day_button: cn(
       "mx-auto flex h-7 w-7 items-center justify-center rounded-full text-[13px] font-medium text-white transition-colors",
       "hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40",
@@ -159,7 +159,7 @@ export function HeroDateRangeCalendar({
   return (
     <div
       className={cn(
-        "flex w-full max-w-full min-h-0 flex-col overflow-hidden rounded-2xl border border-white/20 bg-black/45 p-2.5 shadow-lg backdrop-blur-md sm:p-4",
+        "flex w-full max-w-full flex-col overflow-visible rounded-2xl border border-white/20 bg-black/45 p-2.5 shadow-lg backdrop-blur-md sm:p-4",
         className,
       )}
     >
@@ -201,7 +201,7 @@ export function HeroDateRangeCalendar({
         </button>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-hidden">
+      <div className="overflow-visible">
       {mode === "single" ? (
         <DayPicker
           mode="single"
@@ -255,7 +255,7 @@ export function HeroDateRangeCalendar({
               return weekdayLabels[idx] ?? "";
             },
           }}
-          className="w-full text-white [--rdp-day_button-height:1.75rem] [--rdp-day_button-width:1.75rem] [--rdp-day-height:1.75rem] [--rdp-day-width:1.75rem]"
+          className="w-full text-white [--rdp-day_button-height:1.75rem] [--rdp-day_button-width:1.75rem] [--rdp-day-height:2rem] [--rdp-day-width:2rem]"
         />
       )}
       </div>

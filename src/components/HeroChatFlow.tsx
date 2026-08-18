@@ -1836,10 +1836,10 @@ export function HeroChatFlow({
         {showDatePicker && step === "dates" ? (
           <div
             ref={datePickerRef}
-            className="mt-6 flex h-[min(24rem,52svh)] max-h-[min(24rem,52svh)] flex-col overflow-hidden"
+            className="mt-6 flex min-h-0 w-full flex-col overflow-visible"
           >
             <HeroDateRangeCalendar
-              className="flex min-h-0 flex-1 flex-col"
+              className="flex w-full flex-col"
               lang={lang}
               mode={
                 normalizeHeroTripType(collected.tripType) === "oneway" ? "single" : "range"
