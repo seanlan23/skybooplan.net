@@ -766,7 +766,7 @@ export function AiPlanView({
                 {t("aiplan.clearPlan" as never)}
               </button>
             ) : null}
-            {onEmailClick ? (
+            {onEmailClick && !streaming ? (
               <button
                 type="button"
                 onClick={onEmailClick}
@@ -775,7 +775,7 @@ export function AiPlanView({
                 {t("plan.emailCta" as never)}
               </button>
             ) : null}
-            {onDownloadClick ? (
+            {onDownloadClick && !streaming ? (
               <button
                 type="button"
                 onClick={onDownloadClick}
@@ -785,11 +785,11 @@ export function AiPlanView({
               </button>
             ) : null}
           </div>
-          {onEmailClick ? (
+          {onEmailClick && !streaming ? (
             <p className="text-xs text-slate-500 max-w-sm text-right">
               {t("plan.emailHint" as never)}
             </p>
-          ) : onDownloadClick ? (
+          ) : onDownloadClick && !streaming ? (
             <p className="text-xs text-slate-500 max-w-sm text-right">
               {t("aiplan.pdfNotice" as never)}
             </p>

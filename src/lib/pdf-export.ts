@@ -14,7 +14,6 @@ import { normalizePlanLangCode } from "@/lib/planLanguages";
 import { activityDescriptionBullets } from "@/lib/activityDescription";
 import { formatActivityClockLabel } from "@/lib/activityTime";
 import { enrichMotorhomePlanTips } from "@/lib/motorhomePlanTips";
-import { applyItineraryGuards } from "@/lib/itineraryGuards";
 import { resyncPlanDayDates } from "@/lib/daySequence";
 import { fixMotorhomeCopyErrors } from "@/lib/textSanitize";
 import {
@@ -653,14 +652,8 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
       if (plan.start_date) {
         resyncPlanDayDates(itin as unknown as AiTripPlan, plan.start_date);
       }
-      // Clean FRA→EZE-class LLM leftovers even on older saved plans.
-      applyItineraryGuards(itin as unknown as AiTripPlan, {
-        arrivalDay: 1,
-        language:
-          (itin as { contentLanguage?: string }).contentLanguage || plan.language || "sl",
-      });
     } catch (err) {
-      console.warn("[pdf] itinerary guards skipped", err);
+      console.warn("[pdf] date resync skipped", err);
     }
   }
   if (motorhome && Array.isArray(itin.days)) {
