@@ -171,6 +171,30 @@ export function ensureBangkokMustSee(
   return result;
 }
 
+/** Drop Siam Paragon / BACC when the Bangkok day is actually the island-exit transfer. */
+export function scrubBangkokSightsOnIslandTransferDays(plan: {
+  days?: Array<{
+    city?: string;
+    title?: string;
+    activities?: DaySlots;
+  }>;
+}): number {
+  let n = 0;
+  for (const day of plan.days ?? []) {
+    if (!/bangkok/i.test(day.city ?? "") || !day.activities) continue;
+    if (!isIslandTransferSlots(day.activities)) continue;
+    const next = stripBufferSights(day.activities);
+    if (
+      next.morning.length !== day.activities.morning.length ||
+      next.afternoon.length !== day.activities.afternoon.length
+    ) {
+      day.activities = next;
+      n += 1;
+    }
+  }
+  return n;
+}
+
 const BANGKOK_CORE_TEMPLE =
   /grand palace|velika palača|wat phra kaew|wat pho|ležeči buda|wat arun|temple of dawn/i;
 
@@ -179,6 +203,31 @@ export function stripRepeatBangkokMustSee(
   highlights: SkeletonHighlight[],
 ): SkeletonHighlight[] {
   return highlights.filter((h) => !BANGKOK_CORE_TEMPLE.test(`${h.name} ${h.description}`));
+}
+
+function isIslandTransferSlots(slots: DaySlots): boolean {
+  const t = slotText(slots);
+  return (
+    /koh lipe|pak bara|hat yai|\bhdy\b|klong jilad/i.test(t) &&
+    /prevoz|transfer|let |flight|ferry|trajekt|van|kombi|speedboat/i.test(t)
+  );
+}
+
+const BANGKOK_BUFFER_SIGHT =
+  /siam paragon|centralworld|siam center|chatuchak|jj market|bangkok art|bacc\b|culture centre|culture center|grand palace|wat pho|wat arun|mbk\b/i;
+
+function stripBufferSights(slots: DaySlots): DaySlots {
+  const keep = (a: Activity) =>
+    a.type === "TRANSPORT" ||
+    a.type === "EAT" ||
+    a.type === "HOTEL" ||
+    a.type === "STAY" ||
+    !BANGKOK_BUFFER_SIGHT.test(`${a.name} ${a.description}`);
+  return {
+    morning: slots.morning.filter(keep),
+    afternoon: slots.afternoon.filter(keep),
+    evening: slots.evening.filter(keep),
+  };
 }
 
 /** Modern buffer-day sights for the second Bangkok stay (no repeat temples). */
@@ -194,6 +243,11 @@ function fillBangkokReturnBlock(
     ),
     evening: slots.evening.filter((a) => !BANGKOK_CORE_TEMPLE.test(`${a.name} ${a.description}`)),
   };
+
+  // Lipe → HDY → BKK eats the morning; Siam Paragon does not belong on that day.
+  if (isIslandTransferSlots(result)) {
+    return stripBufferSights(result);
+  }
 
   const present = bangkokIconsPresent(`${priorText} ${slotText(result)}`);
 

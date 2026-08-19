@@ -96,6 +96,36 @@ describe("ensureBangkokMustSee", () => {
     expect(out.morning.some((a) => /siam paragon|centralworld/i.test(a.name))).toBe(true);
   });
 
+  it("does not put Siam Paragon on a Koh Lipe → Bangkok transfer morning", () => {
+    const out = ensureBangkokMustSee(
+      {
+        morning: [
+          {
+            name: "Prevoz iz Koh Lipeja v Bangkok",
+            type: "TRANSPORT",
+            description: "Čoln Pak Bara, kombi Hat Yai, let HDY → BKK.",
+          },
+        ],
+        afternoon: [
+          {
+            name: "Siam Paragon / CentralWorld",
+            type: "SIGHT",
+            description: "Dopoldanski obisk, klimatizirano. BTS Siam.",
+          },
+        ],
+        evening: [{ name: "Večerja", type: "EAT", description: "Lokalna." }],
+      },
+      locale,
+      {
+        priorScheduledText: "Grand Palace Wat Pho Wat Arun sončni zahod dan 3",
+        dayInRegion: 2,
+      },
+    );
+    expect(out.morning.some((a) => /siam paragon|centralworld/i.test(a.name))).toBe(false);
+    expect(out.afternoon.some((a) => /siam paragon|bacc/i.test(a.name))).toBe(false);
+    expect(out.morning.some((a) => /Koh Lipe/i.test(a.name))).toBe(true);
+  });
+
   it("does not re-inject Siam Paragon when already scheduled earlier", () => {
     const out = ensureBangkokMustSee(
       {

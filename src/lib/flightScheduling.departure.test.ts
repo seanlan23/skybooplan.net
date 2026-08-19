@@ -45,4 +45,23 @@ describe("buildDepartureLogistics hotel clocks", () => {
     expect(flight?.arrivalTime).toBe("08:30");
     expect(flight?.departureTime).toBe("10:00");
   });
+
+  it("does not say 'Zjutraj' for a 23:30 departure checkout", () => {
+    const locale = resolveTripLocale("BKK", "Bangkok", "sl");
+    const acts = buildDepartureLogistics(
+      "Bangkok",
+      {
+        outboundDepart: "15:15",
+        outboundArrive: "10:45",
+        outboundArriveDayOffset: 1,
+        inboundDepart: "23:30",
+        inboundArrive: "10:05",
+      },
+      locale,
+      { accommodationMode: "hotel" },
+    );
+    const checkout = acts.find((a) => /check-out/i.test(a.name));
+    expect(checkout?.description).not.toMatch(/Zjutraj/i);
+    expect(checkout?.description).toMatch(/Check-out pred odhodom/i);
+  });
 });

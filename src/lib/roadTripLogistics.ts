@@ -383,6 +383,9 @@ export function stripDriveStatsOnAirDays(plan: AiTripPlan): number {
     if (km <= 0 && hours <= 0.2) continue;
     day.drivingDistanceKm = 0;
     day.drivingDurationHours = "0h";
+    if (day.transport?.description && /\d+\s*km/i.test(day.transport.description)) {
+      day.transport = undefined;
+    }
     n += 1;
   }
   return n;

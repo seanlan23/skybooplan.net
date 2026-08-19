@@ -54,4 +54,44 @@ describe("scrubImpossibleIslandDayTrips", () => {
     expect(act.description).toMatch(/non è raggiungibile|not reachable/i);
     expect(act.name).toMatch(/Boracay/i);
   });
+
+  it("rewrites a second consecutive Maya Bay day from Ao Nang to Hong Island", () => {
+    const plan = {
+      destinationName: "Thailand",
+      contentLanguage: "sl",
+      days: [
+        {
+          day: 12,
+          city: "Krabi",
+          title: "Phi Phi in Maya Bay",
+          activities: {
+            morning: [
+              { name: "Celodnevni izlet na Phi Phi otoke in Maya Bay", type: "ACTIVITY", description: "The Beach." },
+            ],
+            afternoon: [],
+            evening: [],
+          },
+        },
+        {
+          day: 13,
+          city: "Krabi",
+          title: "Celodnevni izlet na Koh Phi Phi in Maya Bay",
+          activities: {
+            morning: [
+              { name: "Odhod s hitrim čolnom na Koh Phi Phi", type: "ACTIVITY", description: "Speedboat." },
+            ],
+            afternoon: [
+              { name: "Ogled Maya Bay in potapljanje z masko", type: "ACTIVITY", description: "The Beach." },
+            ],
+            evening: [{ name: "Seafood v Ao Nang", type: "EAT", description: "Večerja." }],
+          },
+        },
+      ],
+    } as AiTripPlan;
+    scrubImpossibleIslandDayTrips(plan, "sl");
+    expect(plan.days[0]!.activities!.morning[0]!.name).toMatch(/Maya Bay|Phi Phi/i);
+    expect(plan.days[1]!.activities!.morning[0]!.name).toMatch(/Hong Island/i);
+    expect(plan.days[1]!.activities!.afternoon[0]!.name).toMatch(/Hong Island/i);
+    expect(plan.days[1]!.activities!.evening[0]!.name).toMatch(/Seafood/i);
+  });
 });

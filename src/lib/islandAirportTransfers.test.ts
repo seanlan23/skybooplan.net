@@ -89,11 +89,49 @@ describe("islandAirportTransfers", () => {
     enrichIslandAirportTransfers(plan, { destinationIata: "HKT" });
 
     const lipe = plan.days[0]!;
-    expect(lipe.transportation).toHaveLength(3);
-    expect(lipe.transportation!.map((l) => l.type)).toEqual(["ferry", "van", "flight"]);
-    expect(lipe.transportation![0]!.to).toMatch(/Pak Bara/i);
-    expect(lipe.transportation![1]!.to).toMatch(/Hat Yai|HDY/i);
-    expect(lipe.transportation![2]!.to).toMatch(/Phuket/i);
-    expect(lipe.islandAccessRoute).toEqual({ defId: "koh-lipe", direction: "departure" });
+    const phuket = plan.days[1]!;
+    expect(lipe.transportation ?? []).toHaveLength(0);
+    expect(phuket.transportation).toHaveLength(3);
+    expect(phuket.transportation!.map((l) => l.type)).toEqual(["ferry", "van", "flight"]);
+    expect(phuket.transportation![0]!.to).toMatch(/Pak Bara/i);
+    expect(phuket.transportation![1]!.to).toMatch(/Hat Yai|HDY/i);
+    expect(phuket.transportation![2]!.to).toMatch(/Phuket/i);
+    expect(phuket.islandAccessRoute).toEqual({ defId: "koh-lipe", direction: "departure" });
+    expect(phuket.transportationTips).toMatch(/Phuket/i);
+    expect(phuket.transportationTips).not.toMatch(/HKT/i);
+  });
+
+  it("rewrites Krabi Klong Jilad ferry copy to Hat Yai + Pak Bara", () => {
+    const plan: AiTripPlan = {
+      destinationName: "Thailand",
+      destinationIata: "HKT",
+      contentLanguage: "sl",
+      days: [
+        day({ day: 13, city: "Krabi", lat: 8.08, lng: 98.91 }),
+        day({
+          day: 14,
+          city: "Koh Lipe",
+          lat: 6.48,
+          lng: 99.31,
+          activities: {
+            morning: [
+              {
+                name: "Prevoz iz Krabija do Koh Lipe",
+                type: "TRANSPORT",
+                description:
+                  "Kombi do pristanišča Klong Jilad (Krabi), od tam trajekt do Koh Lipe.",
+              },
+            ],
+            afternoon: [],
+            evening: [],
+          },
+        }),
+      ],
+    } as AiTripPlan;
+    enrichIslandAirportTransfers(plan, { destinationIata: "HKT", language: "sl" });
+    const act = plan.days[1]!.activities!.morning[0]!;
+    expect(act.name).toMatch(/Hat Yai|HDY|Pak Bara/i);
+    expect(act.description).toMatch(/Pak Bara/i);
+    expect(act.description).toMatch(/ni direktnega trajekta|no useful direct ferry/i);
   });
 });

@@ -685,12 +685,12 @@ export function buildDepartureLogistics(
           fr: `Le matin, faites le check-out et allez à l'aéroport — ${leaveHint}.`,
         })
       : planLangCopy(lang, {
-          sl: `Zjutraj zaključi check-out, prtljago shrani na recepciji (če imaš še kratek ogled) ali vzemi s seboj. ${leaveHint}.`,
-          en: `Complete check-out in the morning. Store bags at reception if you have a short final stop, or take them with you. ${leaveHint}.`,
-          de: `Morgens auschecken. Gepäck an der Rezeption lassen (bei kurzem Stopp) oder mitnehmen. ${leaveHint}.`,
-          it: `La mattina fai il check-out; lascia i bagagli in reception se hai una breve visita, oppure portali con te. ${leaveHint}.`,
-          es: `Por la mañana haz el check-out; deja el equipaje en recepción si tienes una parada corta, o llévatelo. ${leaveHint}.`,
-          fr: `Le matin, faites le check-out; laissez les bagages à la réception pour une courte visite, ou emportez-les. ${leaveHint}.`,
+          sl: `Check-out pred odhodom na letališče — ${leaveHint}. Prtljago vzemi s seboj ali shrani na recepciji do transferja.`,
+          en: `Check out before the airport transfer — ${leaveHint}. Take bags with you or store them at reception until you leave.`,
+          de: `Check-out vor dem Transfer zum Flughafen — ${leaveHint}. Gepäck mitnehmen oder bis zum Transfer an der Rezeption lassen.`,
+          it: `Check-out prima del transfer in aeroporto — ${leaveHint}. Porta i bagagli o lasciali in reception fino alla partenza.`,
+          es: `Check-out antes del traslado al aeropuerto — ${leaveHint}. Lleva el equipaje o déjalo en recepción hasta salir.`,
+          fr: `Check-out avant le transfert aéroport — ${leaveHint}. Prenez les bagages ou laissez-les à la réception jusqu'au départ.`,
         });
 
   const airportDesc =
