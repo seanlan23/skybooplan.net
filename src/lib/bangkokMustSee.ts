@@ -76,15 +76,6 @@ function slotText(slots: DaySlots): string {
     .join(" ");
 }
 
-function slotsLookLikeHeavyTravel(slots: DaySlots): boolean {
-  const t = slotText(slots);
-  const modes =
-    Number(/flight|let |flug/i.test(t)) +
-    Number(/van|kombi|minivan/i.test(t)) +
-    Number(/ferry|trajekt|speedboat|čoln/i.test(t));
-  return modes >= 2 && /prevoz|transfer|odhod|departure/i.test(t);
-}
-
 function iconSatisfiedInContext(icon: BangkokIcon, text: string): boolean {
   if (!icon.test.test(text)) return false;
   if (icon.id === "wat-pho") {
@@ -124,10 +115,6 @@ export function ensureBangkokMustSee(
     afternoon: [...slots.afternoon],
     evening: [...slots.evening],
   };
-
-  if (slotsLookLikeHeavyTravel(result)) {
-    return stripBufferSights(result);
-  }
 
   const scheduledBeforeToday = opts?.priorScheduledText ?? opts?.tripWideText ?? "";
   const allText = `${scheduledBeforeToday} ${slotText(result)}`;
@@ -184,7 +171,7 @@ export function ensureBangkokMustSee(
   return result;
 }
 
-/** Drop destination-city sights when the Bangkok day is actually a long transfer. */
+/** Drop Siam Paragon / BACC when the Bangkok day is actually the island-exit transfer. */
 export function scrubBangkokSightsOnIslandTransferDays(plan: {
   days?: Array<{
     city?: string;
@@ -195,7 +182,7 @@ export function scrubBangkokSightsOnIslandTransferDays(plan: {
   let n = 0;
   for (const day of plan.days ?? []) {
     if (!/bangkok/i.test(day.city ?? "") || !day.activities) continue;
-    if (!slotsLookLikeHeavyTravel(day.activities)) continue;
+    if (!isIslandTransferSlots(day.activities)) continue;
     const next = stripBufferSights(day.activities);
     if (
       next.morning.length !== day.activities.morning.length ||
@@ -216,6 +203,14 @@ export function stripRepeatBangkokMustSee(
   highlights: SkeletonHighlight[],
 ): SkeletonHighlight[] {
   return highlights.filter((h) => !BANGKOK_CORE_TEMPLE.test(`${h.name} ${h.description}`));
+}
+
+function isIslandTransferSlots(slots: DaySlots): boolean {
+  const t = slotText(slots);
+  return (
+    /koh lipe|pak bara|hat yai|\bhdy\b|klong jilad/i.test(t) &&
+    /prevoz|transfer|let |flight|ferry|trajekt|van|kombi|speedboat/i.test(t)
+  );
 }
 
 const BANGKOK_BUFFER_SIGHT =
@@ -249,8 +244,8 @@ function fillBangkokReturnBlock(
     evening: slots.evening.filter((a) => !BANGKOK_CORE_TEMPLE.test(`${a.name} ${a.description}`)),
   };
 
-  // Heavy transfer day — no shopping-mall morning in the destination city.
-  if (slotsLookLikeHeavyTravel(result)) {
+  // Lipe → HDY → BKK eats the morning; Siam Paragon does not belong on that day.
+  if (isIslandTransferSlots(result)) {
     return stripBufferSights(result);
   }
 

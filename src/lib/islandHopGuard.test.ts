@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AiTripPlan } from "@/lib/aiPlan.functions";
 import { scrubImpossibleIslandDayTrips } from "@/lib/islandHopGuard";
-import { dropDuplicateConsecutiveOutings } from "@/lib/itineraryFacts";
 
 function phPlan(): AiTripPlan {
   return {
@@ -89,7 +88,7 @@ describe("scrubImpossibleIslandDayTrips", () => {
         },
       ],
     } as AiTripPlan;
-    dropDuplicateConsecutiveOutings(plan, "sl");
+    scrubImpossibleIslandDayTrips(plan, "sl");
     expect(plan.days[0]!.activities!.morning[0]!.name).toMatch(/Maya Bay|Phi Phi/i);
     expect(plan.days[1]!.activities!.morning[0]!.name).toMatch(/Hong Island/i);
     expect(plan.days[1]!.activities!.afternoon[0]!.name).toMatch(/Hong Island/i);

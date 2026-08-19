@@ -18,8 +18,8 @@ import {
 } from "@/lib/roadTripLogistics";
 import { applyIslandHopLogistics } from "@/lib/islandHopLogistics";
 import { enrichIslandAirportTransfers } from "@/lib/islandAirportTransfers";
-import { applyItineraryFacts } from "@/lib/itineraryFacts";
 import { scrubImpossibleIslandDayTrips } from "@/lib/islandHopGuard";
+import { scrubBangkokSightsOnIslandTransferDays } from "@/lib/bangkokMustSee";
 import { alignSummaryTripLength } from "@/lib/planTeaser";
 
 type DaySlots = NonNullable<DayPlan["activities"]>;
@@ -919,8 +919,8 @@ export function applyItineraryGuards(
     destinationIata: plan.destinationIata,
     language: opts?.language ?? plan.contentLanguage,
   });
-  applyItineraryFacts(plan, opts?.language ?? plan.contentLanguage);
   scrubImpossibleIslandDayTrips(plan, opts?.language ?? plan.contentLanguage);
+  scrubBangkokSightsOnIslandTransferDays(plan);
   const placeholders = stripPlaceholderActivities(plan);
   dedupeSameDayActivities(plan);
   const wrongCity = stripWrongCityDayActivities(plan);

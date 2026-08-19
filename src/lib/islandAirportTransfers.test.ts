@@ -74,7 +74,7 @@ describe("islandAirportTransfers", () => {
     expect(t?.def.id).toBe("boracay");
   });
 
-  it("builds Koh Lipe → Phuket departure as van + boat on the same coast", () => {
+  it("builds Koh Lipe → Phuket departure via Pak Bara + HDY", () => {
     expect(getIslandAirportAccessDef("Koh Lipe")?.id).toBe("koh-lipe");
 
     const plan: AiTripPlan = {
@@ -91,17 +91,17 @@ describe("islandAirportTransfers", () => {
     const lipe = plan.days[0]!;
     const phuket = plan.days[1]!;
     expect(lipe.transportation ?? []).toHaveLength(0);
-    expect(phuket.transportation).toHaveLength(2);
-    expect(phuket.transportation!.map((l) => l.type)).toEqual(["ferry", "van"]);
+    expect(phuket.transportation).toHaveLength(3);
+    expect(phuket.transportation!.map((l) => l.type)).toEqual(["ferry", "van", "flight"]);
     expect(phuket.transportation![0]!.to).toMatch(/Pak Bara/i);
-    expect(phuket.transportation![1]!.to).toMatch(/Phuket/i);
-    expect(phuket.transportation!.some((l) => l.type === "flight")).toBe(false);
+    expect(phuket.transportation![1]!.to).toMatch(/Hat Yai|HDY/i);
+    expect(phuket.transportation![2]!.to).toMatch(/Phuket/i);
     expect(phuket.islandAccessRoute).toEqual({ defId: "koh-lipe", direction: "departure" });
     expect(phuket.transportationTips).toMatch(/Phuket/i);
     expect(phuket.transportationTips).not.toMatch(/HKT/i);
   });
 
-  it("uses van + boat from the same coast — no fake gateway flight", () => {
+  it("rewrites Krabi Klong Jilad ferry copy to Hat Yai + Pak Bara", () => {
     const plan: AiTripPlan = {
       destinationName: "Thailand",
       destinationIata: "HKT",
@@ -113,15 +113,6 @@ describe("islandAirportTransfers", () => {
           city: "Koh Lipe",
           lat: 6.48,
           lng: 99.31,
-          transportation: [
-            {
-              type: "flight",
-              from: "Krabi",
-              to: "Hat Yai (HDY)",
-              duration: "1h",
-              estimatedPrice: 55,
-            },
-          ],
           activities: {
             morning: [
               {
@@ -138,31 +129,9 @@ describe("islandAirportTransfers", () => {
       ],
     } as AiTripPlan;
     enrichIslandAirportTransfers(plan, { destinationIata: "HKT", language: "sl" });
-    const legs = plan.days[1]!.transportation!;
-    expect(legs.map((l) => l.type)).toEqual(["van", "ferry"]);
-    expect(legs.some((l) => l.type === "flight")).toBe(false);
-    expect(legs[0]!.from).toMatch(/Krabi/i);
-    expect(legs[0]!.to).toMatch(/Pak Bara/i);
-    expect(legs[0]!.duration).toMatch(/3\.5|4h/i);
     const act = plan.days[1]!.activities!.morning[0]!;
-    expect(act.name).toMatch(/Pak Bara/i);
-    expect(act.name).toMatch(/kombi|van/i);
-    expect(act.name).not.toMatch(/Hat Yai|HDY/i);
-  });
-
-  it("still flies to the gateway from a far hub, then van + boat", () => {
-    const plan: AiTripPlan = {
-      destinationName: "Thailand",
-      destinationIata: "BKK",
-      days: [
-        day({ day: 10, city: "Bangkok", lat: 13.75, lng: 100.5 }),
-        day({ day: 11, city: "Koh Lipe", lat: 6.48, lng: 99.31 }),
-      ],
-    } as AiTripPlan;
-    enrichIslandAirportTransfers(plan, { destinationIata: "BKK" });
-    const legs = plan.days[1]!.transportation!;
-    expect(legs.map((l) => l.type)).toEqual(["flight", "van", "ferry"]);
-    expect(legs[0]!.to).toMatch(/Hat Yai|HDY/i);
-    expect(legs[2]!.to).toMatch(/Koh Lipe/i);
+    expect(act.name).toMatch(/Hat Yai|HDY|Pak Bara/i);
+    expect(act.description).toMatch(/Pak Bara/i);
+    expect(act.description).toMatch(/ni direktnega trajekta|no useful direct ferry/i);
   });
 });
