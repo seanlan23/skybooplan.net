@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isPdfDaypartToken, normalizePlanForPdf, sanitizePdfText } from "@/lib/pdf-export";
+import { isPdfDaypartToken, normalizePlanForPdf, sanitizePdfText, buildPdfDownloadFileName } from "@/lib/pdf-export";
 
 describe("sanitizePdfText", () => {
   it("strips emoji that break jsPDF custom fonts", () => {
@@ -364,5 +364,17 @@ describe("normalizePlanForPdf", () => {
       },
     });
     expect(germanIp.insurance?.insurers).toMatch(/ADAC/);
+  });
+});
+
+describe("buildPdfDownloadFileName", () => {
+  it("names a flight plan from route and destination, not Unknown", () => {
+    expect(buildPdfDownloadFileName("MUC → MNL", "Manila, Filipini")).toBe(
+      "Skybooplan_MUC-MNL_Manila_Filipini.pdf",
+    );
+  });
+
+  it("falls back to travel_plan instead of an empty name", () => {
+    expect(buildPdfDownloadFileName("", "")).toBe("Skybooplan_travel_plan.pdf");
   });
 });

@@ -1054,6 +1054,28 @@ function asciiFallback(text: string): string {
     .replace(/€/g, "EUR ");
 }
 
+/** Filesystem-safe PDF name. Never empty — blob tabs otherwise save as Unknown.pdf. */
+export function buildPdfDownloadFileName(
+  title?: string | null,
+  destination?: string | null,
+): string {
+  const slug = (raw: string) =>
+    asciiFallback(raw)
+      .replace(/->/g, "-")
+      .replace(/\s*-\s*/g, "-")
+      .replace(/[^a-z0-9-_]+/gi, "_")
+      .replace(/_+/g, "_")
+      .replace(/^_|_$/g, "")
+      .slice(0, 48);
+  const route = slug(title ?? "");
+  const dest = slug(destination ?? "");
+  const core =
+    route && dest && dest.toLowerCase() !== route.toLowerCase()
+      ? `${route}_${dest}`
+      : route || dest || "travel_plan";
+  return `Skybooplan_${core.slice(0, 72)}.pdf`;
+}
+
 async function renderPlanPdf(plan: PlanForPdf): Promise<{
   buffer: ArrayBuffer;
   fileName: string;
@@ -1501,14 +1523,7 @@ async function renderPlanPdf(plan: PlanForPdf): Promise<{
     });
   }
 
-  const safe =
-    asciiFallback(model.title)
-      .replace(/[^a-z0-9-_ ]/gi, "")
-      .trim()
-      .replace(/\s+/g, "_")
-      .slice(0, 80) || "travel_plan";
-
-  const fileName = `${safe}.pdf`;
+  const fileName = buildPdfDownloadFileName(model.title, model.destination);
   const buffer = doc.output("arraybuffer");
   return { buffer, fileName, doc };
 }
@@ -1547,17 +1562,36 @@ export function offerPdfDownload(
   if (typeof window === "undefined") return;
   const blob = new Blob([new Uint8Array(buffer)], { type: "application/pdf" });
   const url = URL.createObjectURL(blob);
+  const cleaned = fileName.replace(/[/\\?%*:|"<>]/g, "_").trim();
+  const named = /\.pdf$/i.test(cleaned)
+    ? cleaned
+    : `${cleaned || "Skybooplan_travel_plan"}.pdf`;
+  const isiOS = /iP(hone|ad|od)/i.test(navigator.userAgent);
+
+  const clickNamed = (doc: Document) => {
+    const a = doc.createElement("a");
+    a.href = url;
+    a.download = named;
+    a.rel = "noopener";
+    doc.body.appendChild(a);
+    a.click();
+    a.remove();
+  };
+
   try {
-    if (pendingWindow && !pendingWindow.closed) {
-      pendingWindow.location.href = url;
+    if (isiOS && pendingWindow && !pendingWindow.closed) {
+      try {
+        clickNamed(pendingWindow.document);
+      } catch {
+        pendingWindow.location.href = url;
+      }
     } else {
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = fileName;
-      a.rel = "noopener";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
+      try {
+        pendingWindow?.close();
+      } catch {
+        /* ignore */
+      }
+      clickNamed(document);
     }
   } catch (err) {
     console.warn("[pdf] download click failed", err);
@@ -1597,7 +1631,7 @@ function renderEmergencyPdf(plan: PlanForPdf): {
     doc.text(`${i + 1}. ${line}`.slice(0, 90), 44, y);
     y += 16;
   });
-  const fileName = `${asciiFallback(title).replace(/[^a-z0-9-_ ]/gi, "").trim().replace(/\s+/g, "_").slice(0, 60) || "travel_plan"}.pdf`;
+  const fileName = buildPdfDownloadFileName(title, plan.destination);
   return { buffer: doc.output("arraybuffer"), fileName, doc };
 }
 
