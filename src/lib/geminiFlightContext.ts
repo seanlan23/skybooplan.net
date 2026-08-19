@@ -380,7 +380,6 @@ function mergeDepartureDay(
   const sights = flattenDayActivities(day)
     .filter((a) => {
       const blob = `${a.name} ${a.description ?? ""}`;
-      if (/večerja|dinner|abendessen|\bcena\b|dîner|\bdiner\b/i.test(blob)) return false;
       // Drop Gemini logistics leftovers (often one unformatted morning wall of text).
       // Include DE/FR/ES/IT return-flight labels (FRA→EZE: "Internationaler Rückflug" leaked into morning/afternoon).
       if (

@@ -324,15 +324,7 @@ function primaryCarLeg(day: DayPlan): DayTransportLeg | undefined {
 
 function dayHasFlightLeg(day: DayPlan): boolean {
   if (day.inFlightDay) return true;
-  if ((day.transportation ?? []).some((l) => l.type === "flight")) return true;
-  const blob = ["morning", "afternoon", "evening"]
-    .flatMap((s) => day.activities?.[s as "morning" | "afternoon" | "evening"] ?? [])
-    .map((a) => `${a.name} ${a.description ?? ""}`)
-    .join(" ");
-  return (
-    /(?:notranji let|mednarodni let|let iz |let proti |inlandsflug|\bflight\b)/i.test(blob) &&
-    /prevoz|transfer|hat yai|\bhdy\b|pak bara|caticlan|letališč|airport/i.test(blob)
-  );
+  return (day.transportation ?? []).some((l) => l.type === "flight");
 }
 
 /**

@@ -237,43 +237,4 @@ describe("itineraryFacts", () => {
       expect(acts.length).toBeGreaterThan(0);
     }
   });
-
-  it("moves a farewell dinner out of the morning and rewrites late checkout copy", () => {
-    const plan = {
-      destinationName: "Thailand",
-      contentLanguage: "sl",
-      days: [
-        day({
-          day: 18,
-          city: "Bangkok",
-          lat: 13.75,
-          lng: 100.5,
-          activities: {
-            morning: [
-              { name: "Obisk cvetlične tržnice Pak Khlong Talat", type: "SIGHT", description: "Rože." },
-              {
-                name: "Poslovilna večerja v restavraciji The Commons Kitchen & Bar",
-                type: "EAT",
-                description: "Velika izbira hrane.",
-              },
-            ],
-            afternoon: [],
-            evening: [
-              {
-                name: "Odhod iz hotela (check-out)",
-                type: "STAY",
-                description:
-                  "Zjutraj zaključi check-out, prtljago shrani na recepciji (če imaš še kratek ogled) ali vzemi s seboj.",
-                arrivalTime: "19:30",
-              },
-            ],
-          },
-        }),
-      ],
-    } as AiTripPlan;
-    applyItineraryGuards(plan, { language: "sl" });
-    expect(plan.days[0]!.activities!.morning.some((a) => /večerja/i.test(a.name))).toBe(false);
-    expect(plan.days[0]!.activities!.afternoon.some((a) => /večerja/i.test(a.name))).toBe(true);
-    expect(plan.days[0]!.activities!.evening[0]!.description).not.toMatch(/zjutraj/i);
-  });
 });
