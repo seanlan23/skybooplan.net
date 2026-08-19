@@ -637,7 +637,7 @@ export function AiPlanDayCard({
   /** `${day}:${activityName}` — highlights clicked map/plan POI */
   focusedActivityKey?: string | null;
 }) {
-  const { t, formatMoney, lang } = useI18n();
+  const { t, formatMoney } = useI18n();
   const slo = lang === "sl" || String(lang).startsWith("sl");
   const kwaiDay = isBangkokKwaiDayTripDay(day);
   const travelHackText = kwaiDay
