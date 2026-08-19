@@ -387,7 +387,7 @@ function HeroGuidedStart({
 
   return (
     <div className="relative z-20 w-full">
-      <div className="hero-sky-enter overflow-visible rounded-2xl border border-white/40 bg-black/50 p-4 shadow-[0_18px_50px_rgba(0,0,0,0.45)] backdrop-blur-xl sm:p-6">
+      <div className="hero-sky-enter relative z-10 overflow-visible rounded-2xl border border-white/40 bg-black/50 p-4 shadow-[0_18px_50px_rgba(0,0,0,0.45)] backdrop-blur-xl sm:p-6">
         <p className="text-center text-base font-semibold text-white sm:text-xl">
           {t((staysOnly ? "heroChat.guided.staysTitle" : "heroChat.guided.whereTitle") as never)}
         </p>
@@ -448,9 +448,11 @@ function HeroGuidedStart({
           </div>
         ) : null}
       </div>
-      <div className="hidden sm:block">
-        <HeroFeatureBadges featureBadges={featureBadges} />
-      </div>
+      {!typing ? (
+        <div className="hidden sm:block">
+          <HeroFeatureBadges featureBadges={featureBadges} />
+        </div>
+      ) : null}
     </div>
   );
 }
