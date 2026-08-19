@@ -210,7 +210,6 @@ export function dayHasOriginDepartureLogistics(day: DayPlan): boolean {
     return (
       /^(odhod|departure|abflug|partenza|salida)\s*:/i.test(name) ||
       /^départ\s*:/i.test(name) ||
-      /^(prihod na letališče|arrive at .+ airport|ankunft am flughafen)/i.test(name) ||
       /\b(international flight|mednarodni let)\s*\([A-Z]{3}\)/i.test(name) ||
       /check-in (in varnostni|and security|und sicherheits|e controlli|y seguridad)/i.test(name)
     );
@@ -538,9 +537,12 @@ export function buildMapDay(plan: AiTripPlan, activeDay: number): MapDay | null 
   // Motorhome day 1: camera on originPlace (SG), not first overnight (Salzburg).
   const roadOrigin =
     roadTrip && activeDay === 1 ? resolveTripOriginCenter(plan) : null;
-  const flightOrigin = dayHasOriginDepartureLogistics(day)
-    ? resolveOriginDepartureCenter(plan)
-    : null;
+  // Origin-airport camera is day-1 outbound only. "Prihod na letališče MNL"
+  // on day 2 must not yank the camera back to Munich.
+  const flightOrigin =
+    activeDay === 1 && dayHasOriginDepartureLogistics(day)
+      ? resolveOriginDepartureCenter(plan)
+      : null;
   const originDep = roadOrigin ?? flightOrigin;
   // Same-day arrival lists MUC first while day.city is already Toronto — camera
   // must match the home-airport cards the user is reading (city center, not runway).

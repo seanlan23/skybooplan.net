@@ -69,6 +69,36 @@ describe("repairImplausibleDriveTimes", () => {
     expect(parseDriveHours(plan.days[0]!.transportation![0]!.duration)!).toBeGreaterThanOrEqual(3);
   });
 
+  it("does not rewrite a Manila→El Nido flight into a 6h road stage", () => {
+    const plan = {
+      destinationName: "Philippines",
+      originPlace: "Munich",
+      contentLanguage: "sl",
+      days: [
+        day({
+          day: 4,
+          city: "El Nido",
+          inFlightDay: true,
+          drivingDistanceKm: 80,
+          drivingDurationHours: "1h 20min",
+          transportation: [
+            {
+              type: "flight",
+              from: "Manila",
+              to: "El Nido",
+              duration: "1h 20min",
+              estimatedPrice: 90,
+            },
+          ],
+        }),
+      ],
+    } as AiTripPlan;
+
+    expect(repairImplausibleDriveTimes(plan)).toBe(0);
+    expect(plan.days[0]!.drivingDistanceKm).toBe(80);
+    expect(parseDriveHours(plan.days[0]!.drivingDurationHours)).toBeCloseTo(1.33, 1);
+  });
+
   it("adds Balkan border time so Vlorë → Split is not a 5h hop", () => {
     const plan = {
       originPlace: "Vienna",

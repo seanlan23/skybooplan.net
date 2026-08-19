@@ -12,9 +12,11 @@ import {
   forceLastRoadDayHome,
   repairImplausibleDriveTimes,
   splitOverlongDriveStages,
+  stripDriveStatsOnAirDays,
   stripHomeboundPaidStays,
   stripSightseeingOnBrutalDriveDays,
 } from "@/lib/roadTripLogistics";
+import { applyIslandHopLogistics } from "@/lib/islandHopLogistics";
 import { alignSummaryTripLength } from "@/lib/planTeaser";
 
 type DaySlots = NonNullable<DayPlan["activities"]>;
@@ -140,7 +142,7 @@ export function isAirportArrivalLogistics(a: {
   }
   // Departure / return logistics are never "phantom arrivals".
   if (
-    /check-?out|rückflug|return flight|flight home|povratek|odhod iz hotela|hotel check-out|airport transfer|flughafentransfer|prevoz na letališč|transfer to (the )?airport|abflug|mednarodni\s*(povratni\s*)?let|international\s*(return\s*)?flight|internationaler\s*(rück)?flug|airport check-in|check-in am flughafen/i.test(
+    /check-?out|rückflug|return flight|flight home|povratek|odhod iz hotela|hotel check-out|airport transfer|flughafentransfer|prevoz na letališč|transfer to (the )?airport|abflug|mednarodni\s*(povratni\s*)?let|international\s*(return\s*)?flight|internationaler\s*(rück)?flug|airport check-in|check-in am flughafen|bodi na letališč|1 uro pred odletom|1 hour before departure/i.test(
       t,
     )
   ) {
@@ -909,6 +911,7 @@ export function applyItineraryGuards(
   wrongCity: number;
   templateScrub: number;
 } {
+  applyIslandHopLogistics(plan, opts?.language ?? plan.contentLanguage);
   const placeholders = stripPlaceholderActivities(plan);
   dedupeSameDayActivities(plan);
   const wrongCity = stripWrongCityDayActivities(plan);
@@ -929,6 +932,7 @@ export function applyItineraryGuards(
   const earlyAirport = scrubUnsafeEarlyAirportTips(plan);
   const durationAlign = alignTransportationDurationWithTips(plan);
   const driveTimes = repairImplausibleDriveTimes(plan);
+  stripDriveStatsOnAirDays(plan);
   const lastDayHome = forceLastRoadDayHome(plan);
   const splitDrives = splitOverlongDriveStages(plan);
   const stealNights = stealNightForHitAndRun(plan);

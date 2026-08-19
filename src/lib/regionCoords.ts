@@ -39,6 +39,8 @@ const REGION_COORDS: Record<string, { lat: number; lng: number }> = {
   "port barton": { lat: 10.55, lng: 119.32 },
   banaue: { lat: 16.917, lng: 121.06 },
   bohol: { lat: 9.85, lng: 124.143 },
+  tagbilaran: { lat: 9.647, lng: 123.856 },
+  cebu: { lat: 10.316, lng: 123.886 },
   panglao: { lat: 9.578, lng: 123.753 },
   "koh samui": { lat: 9.512, lng: 100.013 },
   "koh phangan": { lat: 9.731, lng: 100.013 },

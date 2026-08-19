@@ -319,20 +319,25 @@ function statedHoursForDay(day: DayPlan): number | null {
 }
 
 function primaryCarLeg(day: DayPlan): DayTransportLeg | undefined {
-  return (day.transportation ?? []).find((l) => l.type === "car") ?? day.transportation?.[0];
+  return (day.transportation ?? []).find((l) => l.type === "car" || l.type === "van");
+}
+
+function dayHasFlightLeg(day: DayPlan): boolean {
+  if (day.inFlightDay) return true;
+  return (day.transportation ?? []).some((l) => l.type === "flight");
 }
 
 /**
  * Replace impossible short drive times (e.g. Győr→Zagreb as 1h 45min).
  */
 export function repairImplausibleDriveTimes(plan: AiTripPlan): number {
-  if (!isRoadLoop(plan) && plan.groundTransportMode !== "train") {
-    // Still repair car legs on mixed plans.
-  }
+  const roadOrTrain = isRoadLoop(plan) || plan.groundTransportMode === "train";
   let fixed = 0;
   const days = [...(plan.days ?? [])].sort((a, b) => a.day - b.day);
   for (let i = 0; i < days.length; i++) {
     const day = days[i]!;
+    if (!roadOrTrain && !primaryCarLeg(day)) continue;
+    if (dayHasFlightLeg(day) && !primaryCarLeg(day)) continue;
     const prev = days[i - 1];
     const { from, to } = stageEndpoints(plan, day, prev);
     const est = estimateRoadStageHours(from, to, {
@@ -362,6 +367,25 @@ export function repairImplausibleDriveTimes(plan: AiTripPlan): number {
     fixed += 1;
   }
   return fixed;
+}
+
+/** Flight hops must not show as 6h / 498 km road stages (Manila→El Nido). */
+export function stripDriveStatsOnAirDays(plan: AiTripPlan): number {
+  if (isRoadLoop(plan)) return 0;
+  let n = 0;
+  for (const day of plan.days ?? []) {
+    if (!dayHasFlightLeg(day)) continue;
+    const van = primaryCarLeg(day);
+    const vanH = van ? parseDriveHours(van.duration) : null;
+    if (vanH != null && vanH >= 2.5) continue;
+    const km = day.drivingDistanceKm ?? 0;
+    const hours = parseDriveHours(day.drivingDurationHours) ?? 0;
+    if (km <= 0 && hours <= 0.2) continue;
+    day.drivingDistanceKm = 0;
+    day.drivingDurationHours = "0h";
+    n += 1;
+  }
+  return n;
 }
 
 function isKeepOnBrutalDriveDay(a: Activity): boolean {

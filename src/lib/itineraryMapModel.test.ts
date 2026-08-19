@@ -336,6 +336,49 @@ describe("itineraryMapModel", () => {
     expect(view?.legIn?.to.lat).toBeCloseTo(43.65, 0);
   });
 
+  it("buildMapDay cameras on destination city for day-2 arrival, not origin", () => {
+    const p = {
+      ...plan([
+        day({
+          day: 1,
+          city: "Munich",
+          title: "Odhod",
+          lat: 48.137,
+          lng: 11.575,
+          inFlightDay: true,
+        }),
+        day({
+          day: 2,
+          city: "Manila",
+          title: "Prihod v Manilo",
+          lat: 14.599,
+          lng: 120.984,
+          inFlightDay: true,
+          activities: {
+            morning: [],
+            afternoon: [
+              {
+                name: "Prihod na letališče MNL",
+                type: "TRANSPORT",
+                description: "Pristanek na Ninoy Aquino (MNL).",
+              },
+            ],
+            evening: [],
+          },
+        }),
+      ]),
+      originIata: "MUC",
+      destinationIata: "MNL",
+      destinationName: "Manila",
+    } as AiTripPlan;
+
+    const view = buildMapDay(p, 2);
+    expect(view?.cityLabel).toMatch(/Manila/i);
+    expect(view?.center.lat).toBeCloseTo(14.599, 1);
+    expect(view?.center.lng).toBeCloseTo(120.984, 1);
+    expect(view?.center.lat).not.toBeCloseTo(48.137, 0);
+  });
+
   it("buildMapDay uses ferry leg for Ao Nang → Phi Phi (no sea highway)", () => {
     const p = plan([
       day({
