@@ -1,7 +1,6 @@
 import { inferBudgetCountryFromPlace } from "@/lib/countryDailyBudget";
 import { DESTINATION_BY_IATA } from "@/lib/destinationCoords";
 import { normalizeIata } from "@/lib/geminiPro.shared";
-import { targetResidentsForOrigin } from "@/lib/originResidents";
 import { planLangCopy } from "@/lib/planLangCopy";
 
 /** EU/EEA/CH + UK (GHIC/EHIC public-care zone — not travel insurance). */
@@ -117,23 +116,56 @@ const EU_HOMES = new Set([
   "EU",
 ]);
 
-function homeCountryForOrigin(
-  originIata: string | undefined | null,
-  lang?: string,
-): string {
-  const residents = targetResidentsForOrigin(originIata);
-  const fromHub = residents[0];
-  // UI language is the traveler's home market. Slovenians often fly MUC/VIE/ZRH;
-  // ADAC/HanseMerkur are German-resident products, not Triglav.
-  if ((lang ?? "").toLowerCase().startsWith("sl")) {
-    if (!fromHub || EU_HOMES.has(fromHub) || fromHub === "EU") return "Slovenia";
-  }
-  if (fromHub) return fromHub;
-  // Ground trips without a hub IATA — Skybooplan default is Slovenia-first EU.
-  return "Slovenia";
+const HOME_BY_IP_ISO: Record<string, string> = {
+  SI: "Slovenia",
+  AT: "Austria",
+  DE: "Germany",
+  IT: "Italy",
+  HR: "Croatia",
+  FR: "France",
+  NL: "Netherlands",
+  BE: "Belgium",
+  ES: "Spain",
+  PT: "Portugal",
+  CZ: "Czech Republic",
+  SK: "Slovakia",
+  HU: "Hungary",
+  PL: "Poland",
+  GR: "Greece",
+  DK: "Denmark",
+  SE: "Sweden",
+  FI: "Finland",
+  IE: "Ireland",
+  RO: "Romania",
+  BG: "Bulgaria",
+  LU: "Luxembourg",
+  CH: "Switzerland",
+  NO: "Norway",
+  GB: "United Kingdom",
+  UK: "United Kingdom",
+  US: "United States",
+  CA: "Canada",
+  AU: "Australia",
+  AE: "United Arab Emirates",
+  TR: "Türkiye",
+  IN: "India",
+  MX: "Mexico",
+  UA: "Ukraine",
+};
+
+/** Home market for policies = visitor IP country, never departure airport. */
+export function homeCountryFromIp(ipCountry?: string | null): string {
+  const iso = (ipCountry ?? "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z]/g, "")
+    .slice(0, 2);
+  if (!iso) return "Slovenia";
+  return HOME_BY_IP_ISO[iso] ?? "";
 }
 
 function insurersForHome(home: string): string[] {
+  if (!home) return ["Allianz", "ERV", "Europ Assistance"];
   return INSURERS_BY_HOME[home] ?? ["Allianz", "ERV", "Europ Assistance"];
 }
 
@@ -274,9 +306,11 @@ export function buildTravelInsurance(opts: {
   destinationIata?: string | null;
   destinationHint?: string | null;
   lang?: string;
+  /** ISO 3166-1 alpha-2 from Vercel/Cloudflare IP geo. */
+  ipCountry?: string | null;
 }): TravelInsuranceInfo {
   const lang = (opts.lang ?? "en").toLowerCase().slice(0, 2);
-  const home = homeCountryForOrigin(opts.originIata, lang);
+  const home = homeCountryFromIp(opts.ipCountry);
   const leavesEhic = tripLeavesEhicArea(opts.destinationIata, opts.destinationHint);
   const insurers = insurersForHome(home);
   return {

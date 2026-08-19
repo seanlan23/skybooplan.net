@@ -353,7 +353,7 @@ function Landing() {
   }
   const [plannerMode, setPlannerMode] = useState<"trip" | "stays">("trip");
   const { user } = useAuth();
-  const { t, lang, currency: uiCurrency } = useI18n();
+  const { t, lang, currency: uiCurrency, ipCountry } = useI18n();
   const queryClient = useQueryClient();
   const searchFn = useServerFn(searchFlights);
   const planFn = useServerFn(generateAiPlan);
@@ -1466,6 +1466,7 @@ function Landing() {
           } as never,
           language: aiContext?.language,
           pax: paxPdf,
+          ipCountry,
         });
         offerPdfDownload(pdf.buffer, pdf.fileName, pendingWindow);
       } catch (e) {
@@ -1487,7 +1488,7 @@ function Landing() {
         }
       }
     },
-    [aiContext, persistPlanToTrips, t, user],
+    [aiContext, ipCountry, persistPlanToTrips, t, user],
   );
 
   const emailPlanToUser = useCallback(
@@ -1519,6 +1520,7 @@ function Landing() {
           end_date: aiContext?.returnDate ?? lastDay?.dateEnd ?? lastDay?.date ?? null,
           itinerary: planForMail as never,
           language: aiContext?.language,
+          ipCountry,
         });
         pdf = { buffer: out.buffer, fileName: out.fileName };
         const mode = await deliverPlanByEmail({
@@ -1534,7 +1536,7 @@ function Landing() {
         openPlanMailto(user?.email, mail.subject, mail.body);
       }
     },
-    [aiContext, user?.email],
+    [aiContext, ipCountry, user?.email],
   );
 
   // Generate while logged out → sign in later: persist the in-memory plan once.

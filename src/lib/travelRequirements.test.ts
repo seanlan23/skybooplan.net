@@ -204,7 +204,7 @@ describe("Thailand + Malaysia itinerary", () => {
 
 describe("travel insurance (code, not Gemini)", () => {
   it("requires extra cover for EU residents leaving the EU and names SI insurers", () => {
-    const req = buildFallbackTravelRequirements("LJU", "BKK", "sl");
+    const req = buildFallbackTravelRequirements("LJU", "BKK", "sl", null, "SI");
     expect(req?.insurance?.required).toBe(true);
     expect(req?.insurance?.insurers).toEqual(["Coris", "Vita", "Triglav"]);
     expect(req?.insurance?.body).toMatch(/EKZZ/);
@@ -213,14 +213,14 @@ describe("travel insurance (code, not Gemini)", () => {
   });
 
   it("still requires extra cover for EU residents inside Schengen (EHIC is not enough)", () => {
-    const req = buildFallbackTravelRequirements("LJU", "MAD", "sl");
+    const req = buildFallbackTravelRequirements("LJU", "MAD", "sl", null, "SI");
     expect(req?.insurance?.required).toBe(true);
     expect(req?.insurance?.insurers).toEqual(["Coris", "Vita", "Triglav"]);
     expect(req?.insurance?.body).toMatch(/znotraj EU|ni turistično zavarovanje/i);
   });
 
-  it("uses US medical-abroad copy for JFK, not EHIC or Coris", () => {
-    const req = buildFallbackTravelRequirements("JFK", "CDG", "en");
+  it("uses US medical-abroad copy for US IP, not airport JFK", () => {
+    const req = buildFallbackTravelRequirements("JFK", "CDG", "en", null, "US");
     expect(req?.insurance?.required).toBe(true);
     expect(req?.insurance?.insurers).toEqual(
       expect.arrayContaining(["Allianz Travel", "AIG Travel Guard", "World Nomads"]),
@@ -230,23 +230,29 @@ describe("travel insurance (code, not Gemini)", () => {
     expect(req?.insurance?.body).not.toMatch(/EHIC/);
   });
 
-  it("recommends ADAC for Munich departures", () => {
-    const req = buildFallbackTravelRequirements("MUC", "BKK", "de");
+  it("recommends ADAC for German IP, even when flying LJU", () => {
+    const req = buildFallbackTravelRequirements("LJU", "BKK", "en", null, "DE");
     expect(req?.insurance?.insurers).toEqual(
       expect.arrayContaining(["ADAC", "HanseMerkur", "ERV"]),
     );
     expect(req?.insurance?.body).toMatch(/EHIC|Reiseversicherung/i);
   });
 
-  it("uses Slovenian insurers when the plan language is sl, even from MUC", () => {
-    const req = buildFallbackTravelRequirements("MUC", "BKK", "sl");
+  it("uses Slovenian insurers for SI IP even from MUC, ignoring UI language", () => {
+    const req = buildFallbackTravelRequirements("MUC", "BKK", "de", null, "SI");
     expect(req?.insurance?.insurers).toEqual(["Coris", "Vita", "Triglav"]);
-    expect(req?.insurance?.body).toMatch(/EKZZ/);
+    expect(req?.insurance?.body).toMatch(/EKZZ|EHIC|Reiseversicherung/i);
     expect(req?.insurance?.insurers).not.toContain("ADAC");
   });
 
-  it("mentions GHIC for UK hubs", () => {
-    const req = buildFallbackTravelRequirements("LHR", "BKK", "en");
+  it("does not pick ADAC from Munich airport or German UI when IP is missing", () => {
+    const req = buildFallbackTravelRequirements("MUC", "BKK", "de");
+    expect(req?.insurance?.insurers).toEqual(["Coris", "Vita", "Triglav"]);
+    expect(req?.insurance?.insurers).not.toContain("ADAC");
+  });
+
+  it("mentions GHIC for UK IP, not LHR airport", () => {
+    const req = buildFallbackTravelRequirements("LHR", "BKK", "en", null, "GB");
     expect(req?.insurance?.insurers).toEqual(expect.arrayContaining(["Aviva", "AXA", "Staysure"]));
     expect(req?.insurance?.body).toMatch(/GHIC/);
   });
@@ -267,9 +273,11 @@ describe("travel insurance (code, not Gemini)", () => {
         vaccinations: "Hepatitis A recommended for Thailand; update routine vaccines.",
         estimatedCosts: "Tourist visa usually €0. TDAC is free. Hepatitis A vaccine about €40–80.",
       },
-      "LJU",
+      "MUC",
       "BKK",
-      "sl",
+      "de",
+      null,
+      "SI",
     );
     expect(resolved?.insurance?.insurers).toEqual(["Coris", "Vita", "Triglav"]);
     expect(resolved?.insurance?.required).toBe(true);

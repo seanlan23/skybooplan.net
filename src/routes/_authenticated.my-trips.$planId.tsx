@@ -92,7 +92,7 @@ function logPlanLoadResult(
 
 function TripDetailPage() {
   const { planId } = Route.useParams();
-  const { t } = useI18n();
+  const { t, ipCountry } = useI18n();
   const { user, loading: authLoading } = useAuth();
   const [plan, setPlan] = useState<TravelPlanRow | null>(null);
   const [loading, setLoading] = useState(true);
@@ -170,6 +170,7 @@ function TripDetailPage() {
         wishes: plan.wishes,
         cover_image_url: plan.cover_image_url,
         itinerary: (plan.itinerary ?? {}) as Record<string, unknown>,
+        ipCountry,
       });
       offerPdfDownload(pdf.buffer, pdf.fileName, pendingWindow);
       if (user) {

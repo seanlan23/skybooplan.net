@@ -21,7 +21,7 @@ export function TravelRequirements({
   destinationPlace,
   groundTransportMode,
 }: TravelRequirementsProps) {
-  const { t, lang } = useI18n();
+  const { t, lang, ipCountry } = useI18n();
 
   const resolved = resolveTravelRequirements(
     requirements,
@@ -29,6 +29,7 @@ export function TravelRequirements({
     destinationIata,
     lang,
     destinationPlace,
+    ipCountry,
   );
   if (!resolved?.targetResidents.length) return null;
 

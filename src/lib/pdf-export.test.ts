@@ -319,6 +319,7 @@ describe("normalizePlanForPdf", () => {
       start_date: "2026-10-01",
       end_date: "2026-10-14",
       language: "sl",
+      ipCountry: "SI",
       itinerary: {
         originIata: "LJU",
         destinationIata: "BKK",
@@ -330,5 +331,38 @@ describe("normalizePlanForPdf", () => {
     expect(model.insurance?.body).toMatch(/EKZZ/);
     expect(model.insurance?.insurers).toMatch(/Coris/);
     expect(model.insurance?.insurers).toMatch(/Triglav/);
+  });
+
+  it("picks PDF insurers from IP country, not the departure airport", () => {
+    const fromMunich = normalizePlanForPdf({
+      title: "MUC → BKK",
+      destination: "Bangkok",
+      start_date: "2026-10-01",
+      end_date: "2026-10-14",
+      language: "de",
+      ipCountry: "SI",
+      itinerary: {
+        originIata: "MUC",
+        destinationIata: "BKK",
+        days: [{ day: 1, date: "2026-10-01", city: "Bangkok", title: "Prihod" }],
+      },
+    });
+    expect(fromMunich.insurance?.insurers).toMatch(/Coris/);
+    expect(fromMunich.insurance?.insurers).not.toMatch(/ADAC/);
+
+    const germanIp = normalizePlanForPdf({
+      title: "LJU → BKK",
+      destination: "Bangkok",
+      start_date: "2026-10-01",
+      end_date: "2026-10-14",
+      language: "en",
+      ipCountry: "DE",
+      itinerary: {
+        originIata: "LJU",
+        destinationIata: "BKK",
+        days: [{ day: 1, date: "2026-10-01", city: "Bangkok", title: "Arrival" }],
+      },
+    });
+    expect(germanIp.insurance?.insurers).toMatch(/ADAC/);
   });
 });

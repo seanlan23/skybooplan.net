@@ -344,6 +344,7 @@ function attachTravelInsurance(
   destinationIata: string | undefined | null,
   lang: LangCode,
   destinationHint?: string | null,
+  ipCountry?: string | null,
 ): TravelRequirements | null {
   if (!req) return null;
   return {
@@ -353,6 +354,7 @@ function attachTravelInsurance(
       destinationIata,
       destinationHint,
       lang,
+      ipCountry,
     }),
   };
 }
@@ -363,6 +365,7 @@ export function buildFallbackTravelRequirements(
   destinationIata: string | undefined | null,
   lang: LangCode = "en",
   destinationHint?: string | null,
+  ipCountry?: string | null,
 ): TravelRequirements | null {
   return attachTravelInsurance(
     buildFallbackTravelRequirementsCore(
@@ -375,6 +378,7 @@ export function buildFallbackTravelRequirements(
     destinationIata,
     lang,
     destinationHint,
+    ipCountry,
   );
 }
 
@@ -543,6 +547,7 @@ export function resolveTravelRequirements(
   destinationIata: string | undefined | null,
   lang: LangCode = "en",
   destinationHint?: string | null,
+  ipCountry?: string | null,
 ): TravelRequirements | null {
   return attachTravelInsurance(
     resolveTravelRequirementsCore(
@@ -556,6 +561,7 @@ export function resolveTravelRequirements(
     destinationIata,
     lang,
     destinationHint,
+    ipCountry,
   );
 }
 

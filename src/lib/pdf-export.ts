@@ -54,6 +54,8 @@ export type PlanForPdf = {
   language?: string | null;
   /** Travelers — total budget is daily × pax; label it so €6k isn't read as solo. */
   pax?: number | null;
+  /** Visitor IP ISO2 — insurance home market, never departure airport. */
+  ipCountry?: string | null;
 };
 
 type PdfActivity = {
@@ -889,6 +891,7 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
     ]
       .filter(Boolean)
       .join(" "),
+    plan.ipCountry,
   );
   const ins = travelReq?.insurance;
   const insurance = ins

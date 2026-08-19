@@ -3235,6 +3235,8 @@ type I18nCtx = {
   currencySymbol: string;
   t: (key: keyof typeof en) => string;
   dir: "ltr" | "rtl";
+  /** ISO 3166-1 alpha-2 from Vercel/Cloudflare IP geo. Null until fetched / local. */
+  ipCountry: string | null;
 };
 
 const Ctx = createContext<I18nCtx | null>(null);
@@ -3345,6 +3347,7 @@ export function isSoftQuotaError(code: string | null | undefined): boolean {
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState<Lang>(readStoredLang);
   const [currency, setCurrencyState] = useState<PlanCurrency>(readStoredCurrency);
+  const [ipCountry, setIpCountry] = useState<string | null>(null);
   const suggestUiLangFn = useServerFn(suggestUiLang);
 
   useEffect(() => {
@@ -3354,21 +3357,23 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     }
   }, [lang]);
 
-  // First visit only: suggest UI lang from IP country (SI→sl, DE/AT/CH→de, else en).
+  // Always read IP country (insurance home market). UI lang only on first visit.
   useEffect(() => {
-    if (hasStoredLang()) return;
     let cancelled = false;
     void (async () => {
       try {
-        const { lang: suggested } = await suggestUiLangFn();
-        if (cancelled || hasStoredLang()) return;
+        const { country, lang: suggested } = await suggestUiLangFn();
+        if (cancelled) return;
+        const iso = (country ?? "").trim().toUpperCase().slice(0, 2);
+        setIpCountry(iso || null);
+        if (hasStoredLang()) return;
         const normalized = normalizeAppLang(suggested);
         setLangState(normalized);
         try {
           localStorage.setItem(STORAGE_KEY, normalized);
         } catch {}
       } catch {
-        // Offline / no geo headers — keep current default (en).
+        // Offline / no geo headers — keep lang default; insurance falls back to SI.
       }
     })();
     return () => {
@@ -3394,8 +3399,9 @@ export function I18nProvider({ children }: { children: ReactNode }) {
       currencySymbol: currencySymbol(currency),
       t: (key) => lookupTranslation(lang, key),
       dir: RTL.includes(lang) ? "rtl" : "ltr",
+      ipCountry,
     };
-  }, [lang, currency]);
+  }, [lang, currency, ipCountry]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
@@ -3414,6 +3420,7 @@ export function useI18n(): I18nCtx {
       currencySymbol: currencySymbol(fallbackCurrency),
       t: (key) => lookupTranslation(readStoredLang(), key),
       dir: "ltr",
+      ipCountry: null,
     };
   }
   return c;
