@@ -215,7 +215,7 @@ export function AiPlanLoader({
             ? t("aiplan.loadingEta").replace("{sec}", String(remainingSec))
             : t("aiplan.loadingAlmost")}
         </div>
-        <p className="mx-auto mt-3 max-w-md text-center text-xs leading-relaxed text-amber-800/90">
+        <p className="mx-auto mt-3 max-w-md text-center text-xs leading-relaxed text-amber-800/90 md:hidden">
           {t("aiplan.keepScreenOn")}
         </p>
       </div>

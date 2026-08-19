@@ -958,7 +958,7 @@ export function AiPlanView({
               </p>
             )}
             {streaming ? (
-              <p className="mt-2 max-w-xl text-xs leading-relaxed text-amber-800/90">
+              <p className="mt-2 max-w-xl text-xs leading-relaxed text-amber-800/90 md:hidden">
                 {t("aiplan.keepScreenOn")}
               </p>
             ) : null}
