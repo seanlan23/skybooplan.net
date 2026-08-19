@@ -951,6 +951,9 @@ export function applyItineraryGuards(
   relocateClosedEveningSights(plan);
   const homeStays = stripHomeboundPaidStays(plan);
   const balkanTips = annotateBalkanRoadTips(plan);
+  // Facts last — enrichers / steal-night / flight rewrite must not re-open duplicate
+  // outings, travel-day sights, or satellite stays.
+  applyItineraryFacts(plan, opts?.language ?? plan.contentLanguage);
   return {
     placeholders,
     genericMeals,

@@ -165,4 +165,57 @@ describe("islandAirportTransfers", () => {
     expect(legs[0]!.to).toMatch(/Hat Yai|HDY/i);
     expect(legs[2]!.to).toMatch(/Koh Lipe/i);
   });
+
+  it("does not keep a day-trip boat outing as a FERRY banner on a beach day", () => {
+    const plan: AiTripPlan = {
+      destinationName: "Thailand",
+      destinationIata: "BKK",
+      days: [
+        day({ day: 14, city: "Koh Lipe", lat: 6.48, lng: 99.31 }),
+        day({
+          day: 15,
+          city: "Koh Lipe",
+          lat: 6.48,
+          lng: 99.31,
+          transportation: [
+            {
+              type: "ferry",
+              from: "Izlet z dolgorepim čolnom okoli otokov",
+              to: "Koh Lipe",
+              duration: "1h",
+              estimatedPrice: 35,
+            },
+          ],
+        }),
+        day({ day: 16, city: "Koh Lipe", lat: 6.48, lng: 99.31 }),
+        day({ day: 17, city: "Bangkok", lat: 13.75, lng: 100.5 }),
+      ],
+    } as AiTripPlan;
+    enrichIslandAirportTransfers(plan, { destinationIata: "BKK" });
+    expect(plan.days[1]!.transportation ?? []).toHaveLength(0);
+  });
+
+  it("moves island-exit legs off the last beach overnight onto the hub day", () => {
+    const plan: AiTripPlan = {
+      destinationName: "Thailand",
+      destinationIata: "BKK",
+      days: [
+        day({
+          day: 16,
+          city: "Koh Lipe",
+          lat: 6.48,
+          lng: 99.31,
+          transportation: [
+            { type: "ferry", from: "Koh Lipe", to: "Pak Bara Pier", duration: "1.5–2h", estimatedPrice: 30 },
+            { type: "van", from: "Pak Bara Pier", to: "Hat Yai (HDY)", duration: "1.5–2h", estimatedPrice: 12 },
+            { type: "flight", from: "Hat Yai (HDY)", to: "Bangkok", duration: "1h–1h 20m", estimatedPrice: 55 },
+          ],
+        }),
+        day({ day: 17, city: "Bangkok", lat: 13.75, lng: 100.5 }),
+      ],
+    } as AiTripPlan;
+    enrichIslandAirportTransfers(plan, { destinationIata: "BKK" });
+    expect(plan.days[0]!.transportation ?? []).toHaveLength(0);
+    expect(plan.days[1]!.transportation!.map((l) => l.type)).toEqual(["ferry", "van", "flight"]);
+  });
 });

@@ -365,6 +365,33 @@ describe("normalizePlanForPdf", () => {
     });
     expect(germanIp.insurance?.insurers).toMatch(/ADAC/);
   });
+
+  it("does not print a bare km drive card as transport tips", () => {
+    const model = normalizePlanForPdf({
+      title: "LJU → BKK",
+      destination: "Tajska",
+      start_date: "2026-10-26",
+      end_date: "2026-11-12",
+      language: "sl",
+      itinerary: {
+        days: [
+          {
+            day: 17,
+            date: "2026-11-11",
+            city: "Bangkok",
+            title: "Potovanje v Bangkok",
+            transport: { description: "35 km" },
+            activities: {
+              morning: [{ name: "Prevoz iz Koh Lipeja v Bangkok", type: "TRANSPORT", description: "Čoln." }],
+              afternoon: [],
+              evening: [],
+            },
+          },
+        ],
+      },
+    });
+    expect(model.days[0]!.transportTips).toBeUndefined();
+  });
 });
 
 describe("buildPdfDownloadFileName", () => {

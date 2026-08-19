@@ -109,6 +109,25 @@ function hasCompleteAirAccessLegs(legs: DayTransportLeg[]): boolean {
   return types.includes("flight") && types.includes("van") && types.includes("ferry");
 }
 
+function isOutingTransportLeg(leg: DayTransportLeg): boolean {
+  const blob = `${leg.from} ${leg.to}`;
+  if (/pak bara|hat yai|\bhdy\b|caticlan|\bmph\b|airport|letališč/i.test(blob)) return false;
+  return /izlet|excursion|snorkel|adang|rawi|okoli otokov|island hop|maya bay|phi phi|railay/i.test(
+    blob,
+  );
+}
+
+function isIslandExitLeg(leg: DayTransportLeg, def: IslandAirportAccessDef): boolean {
+  const blob = `${leg.from} ${leg.to}`;
+  if (def.matchIsland.test(leg.from) && (leg.type === "ferry" || leg.type === "flight" || leg.type === "van")) {
+    return true;
+  }
+  if (def.gatewayIata && new RegExp(`\\b${def.gatewayIata}\\b`, "i").test(blob)) return true;
+  const portKey = def.port.label.split(" ")[0] ?? "";
+  if (portKey.length >= 3 && new RegExp(portKey, "i").test(blob)) return true;
+  return false;
+}
+
 function singleFlightToIsland(legs: DayTransportLeg[], def: IslandAirportAccessDef): boolean {
   if (legs.length !== 1 || legs[0]?.type !== "flight") return false;
   const to = legs[0].to.toLowerCase();
@@ -331,8 +350,9 @@ export function enrichIslandAirportTransfers(
   plan: AiTripPlan,
   opts: { destinationIata?: string; language?: string } = {},
 ): void {
-  const days = plan.days;
-  if (!days.length) return;
+  if (!plan.days?.length) return;
+  const days = [...plan.days].sort((a, b) => a.day - b.day);
+  plan.days = days;
   const lang = opts.language ?? plan.contentLanguage ?? "en";
 
   for (let i = 0; i < days.length; i++) {
@@ -374,9 +394,7 @@ export function enrichIslandAirportTransfers(
     const nextCity = (next?.city ?? "").trim();
     const isLastIslandOvernight = Boolean(nextCity && !isIslandCity(nextCity, def));
     if (isLastIslandOvernight && !isArrivalDay) {
-      const outbound =
-        day.transportation?.some((l) => l.type === "ferry" && def.matchIsland.test(l.from)) ??
-        false;
+      const outbound = day.transportation?.some((l) => isIslandExitLeg(l, def)) ?? false;
       if (outbound) {
         day.transportation = undefined;
         if (day.islandAccessRoute?.direction === "departure") {
@@ -413,5 +431,13 @@ export function enrichIslandAirportTransfers(
     day.islandAccessRoute = { defId: prevDef.id, direction: "departure" };
     day.transportationTips = departureTransportTip(prevDef, lang, hubCity, coastal);
     rewriteAccessActivitiesFromLegs(day, lang);
+  }
+
+  for (const day of days) {
+    if (!day.transportation?.length) continue;
+    const next = day.transportation.filter((leg) => !isOutingTransportLeg(leg));
+    if (next.length !== day.transportation.length) {
+      day.transportation = next.length ? next : undefined;
+    }
   }
 }

@@ -746,7 +746,9 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
           textOf(d.transportationTips) ||
           textOf((d.transport as { description?: string } | undefined)?.description) ||
           "";
-        return tips ? fix(tips) : undefined;
+        if (!tips) return undefined;
+        if (/^\d+([.,]\d+)?\s*km$/i.test(tips.trim())) return undefined;
+        return fix(tips);
       })(),
       transportation,
       slots: fixedSlots,
@@ -767,7 +769,7 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
             textOf(f.price),
           ]
             .filter(Boolean)
-            .join("  ·  ");
+            .join(" | ");
         })
         .filter(Boolean)
     : [];
@@ -784,7 +786,7 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
             textOf(h.price) || textOf(h.note),
           ]
             .filter(Boolean)
-            .join("  ·  ");
+            .join(" | ");
         })
         .filter(Boolean)
     : [];
@@ -1044,6 +1046,9 @@ function asciiFallback(text: string): string {
     .replace(/[ÚÙÛÜ]/g, "U")
     .replace(/[úùûü]/g, "u")
     .replace(/→/g, "->")
+    .replace(/[–—]/g, "-")
+    .replace(/[·•]/g, "|")
+    .replace(/×/g, "x")
     .replace(/€/g, "EUR ");
 }
 
@@ -1269,7 +1274,7 @@ async function renderPlanPdf(plan: PlanForPdf): Promise<{
     heroY += 20;
   }
 
-  const meta = [model.startDate, model.endDate].filter(Boolean).join("  –  ");
+  const meta = [model.startDate, model.endDate].filter(Boolean).join(" - ");
   const dayCountLabel =
     model.days.length > 0
       ? model.contentLang === "sl"
@@ -1279,9 +1284,9 @@ async function renderPlanPdf(plan: PlanForPdf): Promise<{
           : `${model.days.length} days`
       : "";
   // Meta chips under hero
-  const chips = [meta, dayCountLabel, model.pax > 1 ? `${model.pax}×` : ""]
+  const chips = [meta, dayCountLabel, model.pax > 1 ? `${model.pax}x` : ""]
     .filter(Boolean)
-    .join("   ·   ");
+    .join(" | ");
   if (chips) {
     setFont("normal", 10, { r: 226, g: 232, b: 240 });
     safeText(chips, margin, Math.min(heroY + 8, COVER_H - 22));
@@ -1332,8 +1337,8 @@ async function renderPlanPdf(plan: PlanForPdf): Promise<{
         d.dateEnd ? fmtDate(d.dateEnd, model.contentLang) : "",
       ]
         .filter(Boolean)
-        .join(" – ");
-      const metaLine = [dateLabel, d.city].filter(Boolean).join("  ·  ");
+        .join(" - ");
+      const metaLine = [dateLabel, d.city].filter(Boolean).join(" | ");
 
       drawDayBand(d.day, metaLine || model.labels.day(d.day, d.dayEnd), d.title);
 
@@ -1345,12 +1350,12 @@ async function renderPlanPdf(plan: PlanForPdf): Promise<{
           leg.price,
         ]
           .filter(Boolean)
-          .join("  ·  ");
+          .join(" | ");
         ensureSpace(20);
         doc.setFillColor(SKY_DARK.r, SKY_DARK.g, SKY_DARK.b);
         doc.roundedRect(margin, y - 10, contentW, 18, 6, 6, "F");
         setFont("bold", 8.5, WHITE);
-        safeText(`▸  ${line}`, margin + 10, y + 2);
+        safeText(`>  ${line}`, margin + 10, y + 2);
         y += 24;
       }
 
