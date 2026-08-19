@@ -6,8 +6,15 @@ import {
   sanitizeLegacyTemplateLeak,
   stripTruncatedCopyFromPlan,
 } from "@/lib/textSanitize";
-import { annotateHitAndRunStays, annotateOverlongDriveStages } from "@/lib/plannerQuality";
-import { annotateBalkanRoadTips, repairImplausibleDriveTimes, stripHomeboundPaidStays, stripSightseeingOnBrutalDriveDays } from "@/lib/roadTripLogistics";
+import { annotateHitAndRunStays, annotateOverlongDriveStages, stealNightForHitAndRun } from "@/lib/plannerQuality";
+import {
+  annotateBalkanRoadTips,
+  forceLastRoadDayHome,
+  repairImplausibleDriveTimes,
+  splitOverlongDriveStages,
+  stripHomeboundPaidStays,
+  stripSightseeingOnBrutalDriveDays,
+} from "@/lib/roadTripLogistics";
 import { alignSummaryTripLength } from "@/lib/planTeaser";
 
 type DaySlots = NonNullable<DayPlan["activities"]>;
@@ -896,6 +903,9 @@ export function applyItineraryGuards(
   balkanTips: number;
   overlongDrives: number;
   hitAndRun: number;
+  splitDrives: number;
+  lastDayHome: number;
+  stealNights: number;
   wrongCity: number;
   templateScrub: number;
 } {
@@ -919,6 +929,9 @@ export function applyItineraryGuards(
   const earlyAirport = scrubUnsafeEarlyAirportTips(plan);
   const durationAlign = alignTransportationDurationWithTips(plan);
   const driveTimes = repairImplausibleDriveTimes(plan);
+  const lastDayHome = forceLastRoadDayHome(plan);
+  const splitDrives = splitOverlongDriveStages(plan);
+  const stealNights = stealNightForHitAndRun(plan);
   stripSightseeingOnBrutalDriveDays(plan);
   const overlongDrives = annotateOverlongDriveStages(plan);
   const hitAndRun = annotateHitAndRunStays(plan);
@@ -942,6 +955,9 @@ export function applyItineraryGuards(
     balkanTips,
     overlongDrives,
     hitAndRun,
+    splitDrives,
+    lastDayHome,
+    stealNights,
     wrongCity,
     templateScrub,
   };

@@ -119,7 +119,7 @@ ${westernBalkansRoadTripPrompt(dest)}
 
 POVRATEK DOMOV — AVTODOM (obvezno, zadnji dnevi):
 - Potnik se NE vrača z mednarodnega letala! Celotno potovanje je z avtodomom iz "${origin}" do "${dest}" in nazaj.
-- Zadnji dan (ali zadnja 1–3 dni, glede na razdaljo) mora biti vožnja NAZAJ do izhodišča "${origin}" z realističnimi postanki, drivingDistanceKm in drivingDurationHours.
+- Zadnji dan (ali zadnja 1–3 dni, glede na razdaljo) mora biti vožnja NAZAJ do izhodišča "${origin}" z realističnimi postanki, drivingDistanceKm in drivingDurationHours. day.city zadnjega dne = "${origin}". Če etapa ≥7 h: nočitev vmes (ne 12 h / 900 km).
 - Na zadnjem dnevu NE načrtuj mednarodnega leta, category airport za odlet v EU, prevoza na letališče ali trip_metadata.return_flight_eu.
 - transportation[] zadnjega dne: vožnja z avtodomom proti domu — ne flight.`;
   }
@@ -141,8 +141,8 @@ ${westernBalkansRoadTripPrompt(dest)}
 POVRATEK DOMOV — AVTO (obvezno, zadnji dnevi):
 - Potnik se NE vrača z mednarodnega letala! Celotno potovanje je z avtom iz "${origin}" do "${dest}" in nazaj.
 - ČAS VOŽNJE mora biti realističen: avtocesta ~80 km/h povprečno (meje, počivališča). Primer: Győr→Zagreb ≈ 320 km / 3h 15min–4h — NIKOLI 1h 45min. Če je etapa >250 km, drivingDurationHours ≥ 3h. Počasne kopenske meje (HR–ME, ME–AL, US–MX, TH–KH…): prištej extra ure iz tabele, ne samo zemljevid.
-- Zadnja PLAČANA hotelska nočitev je tam, od koder je vožnja domov še predolga za isti dan. PREPOVEDANO: hotel v izhodišču "${origin}" in PREPOVEDANO hotel v mestu, ki je ~2–3 h vožnje od doma, na zadnjih 1–2 dneh (npr. Ljubljana, če je dom Maribor; Nürnberg, če je dom München; Gradec, če je dom Dunaj). Zagreb hotel na povratku SAMO če si prišel prejšnji večer (Kotor/Split) — NE isti dan iz Berata/Tirane. Če je Zagreb→Dunaj ~4 h in si v Zagrebu že spal: isti dan vožnja domov — NE nočitev v Gradcu. Zadnji koledarski dan = vožnja domov, spanje doma, estimatedCostEur hotela = 0.
-- Zadnji dan (ali zadnja 1–3 dni, glede na razdaljo) mora biti vožnja NAZAJ do izhodišča "${origin}" z realističnimi postanki, drivingDistanceKm in drivingDurationHours.
+- Zadnja PLAČANA hotelska nočitev je tam, od koder je vožnja domov še predolga za isti dan. PREPOVEDANO: hotel v izhodišču "${origin}" in PREPOVEDANO hotel v mestu, ki je ~2–3 h vožnje od doma, na zadnjih 1–2 dneh (npr. Ljubljana, če je dom Maribor; Nürnberg, če je dom München; Gradec, če je dom Dunaj). Zagreb hotel na povratku SAMO če si prišel prejšnji večer (Kotor/Split) — NE isti dan iz Berata/Tirane. Če je Zagreb→Dunaj ~4 h in si v Zagrebu že spal: isti dan vožnja domov — NE nočitev v Gradcu. Zadnji koledarski dan = vožnja domov, spanje doma, estimatedCostEur hotela = 0. day.city zadnjega dne = "${origin}" — ne Munich/Zagreb/Nîmes z naslovom povratka.
+- Zadnji dan (ali zadnja 1–3 dni, glede na razdaljo) mora biti vožnja NAZAJ do izhodišča "${origin}" z realističnimi postanki, drivingDistanceKm in drivingDurationHours. Če etapa domov ≥7 h: nočitev vmes, ne 10–12 h JSON dan.
 - Na zadnjem dnevu NE načrtuj mednarodnega leta, category airport za odlet v EU, prevoza na letališče ali trip_metadata.return_flight_eu.
 - transportation[] zadnjega dne: type "car" proti domu — ne flight. Ne izmišljuj novega turističnega mesta (npr. Rijeka), če ni na najkrajši poti domov.`;
 }
@@ -161,6 +161,8 @@ export function lastDayReturnPromptBlock(params: {
     const vehicle = mode === "motorhome" ? "avtodomom" : "avtom";
     return `ZADNJI DAN — POVRATEK DOMOV (obvezno, ${mode === "motorhome" ? "AVTODOM" : "AVTO"}):
 - Striktno: potnik potuje z ${vehicle} od "${origin}" — zadnji dan je vožnja NAZAJ na "${origin}", NE mednarodni let z letališča!
+- Zadnji dan JSON: day.city MORA biti "${origin}" (ne Munich/Zagreb/Nîmes/Barcelona z naslovom „vožnja domov“).
+- Če bi vožnja do "${origin}" ≥7 h: nočitev vmes na predzadnjem dnevu — PREPOVEDANO 10–12 h zadnji dan.
 - Zadnji dan: check-out v tujini (če je treba), nato vožnja domov z realističnim drivingDistanceKm in drivingDurationHours (avtocesta ~80 km/h, ne izmišljuj 1–2h za 300 km). PREPOVEDANO zadnji dan iz Berata/Tirane/Sarande — to je 14+ ur.
 - PREPOVEDANO: hotel/nočitev z estimatedCostEur > 0 v "${origin}" ali v mestu ~2–3 h od izhodišča na zadnjih dneh (Gradec, če je dom Dunaj) — spanje je doma. Ne dodajaj turistične nočitve v Gradcu, če je Zagreb→dom ~4 h.
 - Prepovedano na zadnjem dnevu: mednarodni let, aktivnost category airport za odlet v EU, prevoz na letališče za povratek domov.

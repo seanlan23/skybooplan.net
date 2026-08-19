@@ -110,6 +110,7 @@ describe("car road trip hotels", () => {
       originPlace: "Maribor, SI",
     });
     expect(last).toMatch(/spanje je doma/i);
+    expect(last).toMatch(/day\.city MORA biti "Maribor, SI"/);
   });
 
   it("Albania car trip gets coast/border/Plitvice/Graz rules (not only multi-country Balkan)", () => {

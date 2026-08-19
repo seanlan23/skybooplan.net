@@ -35,7 +35,7 @@ import {
   dedupePlanDaysByNumber,
   planCalendarDayCount,
 } from "@/lib/geminiPlanMap";
-import { repairPlanDaySequence } from "@/lib/daySequence";
+import { repairPlanDaySequence, resyncPlanDayDates } from "@/lib/daySequence";
 import { scrubImpossibleIslandDayTrips } from "@/lib/islandHopGuard";
 import { normalizePlanLangCode } from "@/lib/planLanguages";
 import { planLangCopy } from "@/lib/planLangCopy";
@@ -868,13 +868,17 @@ function parseHmSafe(hm: string): number {
 export function applyFlightContextToGeminiPlan(
   plan: AiTripPlan,
   flights: TripFlightContext,
-  opts?: { originIata?: string; language?: string; expectedDays?: number },
+  opts?: { originIata?: string; language?: string; expectedDays?: number; departDate?: string },
 ): void {
   // Locked plan language wins over live UI lang (prevents rewriting logistics on lang switch).
   const lang = normalizePlanLangCode(plan.contentLanguage ?? opts?.language ?? "sl");
   plan.contentLanguage = lang;
   plan.days = dedupePlanDaysByNumber(plan.days);
-  repairPlanDaySequence(plan, { language: lang });
+  repairPlanDaySequence(plan, { language: lang, departDate: opts?.departDate });
+  resyncPlanDayDates(
+    plan,
+    opts?.departDate ?? plan.days.find((d) => d.day === 1)?.date,
+  );
   const calendarDays = planCalendarDayCount(plan.days);
   if (!calendarDays) return;
   // Stream batches are 6 days. Stamping "international departure" on whatever

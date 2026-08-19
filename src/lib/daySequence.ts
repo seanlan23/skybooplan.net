@@ -27,7 +27,7 @@ function dedupeDays(days: DayPlan[]): DayPlan[] {
   return [...byDay.values()].sort((a, b) => a.day - b.day);
 }
 
-function isoPlusDays(iso: string | undefined, add: number): string | undefined {
+export function isoPlusDays(iso: string | undefined, add: number): string | undefined {
   if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return undefined;
   const d = new Date(`${iso}T12:00:00Z`);
   if (Number.isNaN(d.getTime())) return undefined;
@@ -247,7 +247,27 @@ export function repairPlanDaySequence(
   }
 
   plan.days = [...byDay.values()].sort((a, b) => a.day - b.day);
+  if (opts?.departDate) resyncPlanDayDates(plan, opts.departDate);
   return { inserted };
+}
+
+/**
+ * Authoritative calendar: day N is always departDate + (N-1).
+ * Gemini ISO stamps are ignored once we know the trip start (fixes duplicate 31 Oct / skipped 6 Nov).
+ */
+export function resyncPlanDayDates(plan: AiTripPlan, departDate?: string): number {
+  const base =
+    (departDate ?? plan.days?.find((d) => d.day === 1)?.date)?.match(/^(\d{4}-\d{2}-\d{2})/)?.[1];
+  if (!base) return 0;
+  let n = 0;
+  for (const day of plan.days ?? []) {
+    if (typeof day.day !== "number" || day.day < 1) continue;
+    const next = isoPlusDays(base, day.day - 1);
+    if (!next || day.date === next) continue;
+    day.date = next;
+    n += 1;
+  }
+  return n;
 }
 
 /** True when every integer from 1…max(day) exists (island dayEnd spans still count as their start day). */

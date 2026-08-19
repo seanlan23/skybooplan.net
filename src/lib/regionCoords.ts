@@ -116,6 +116,31 @@ const REGION_COORDS: Record<string, { lat: number; lng: number }> = {
   "las vegas": { lat: 36.169, lng: -115.142 },
   barcelona: { lat: 41.387, lng: 2.168 },
   madrid: { lat: 40.416, lng: -3.703 },
+  zaragoza: { lat: 41.649, lng: -0.889 },
+  nice: { lat: 43.71, lng: 7.262 },
+  marseille: { lat: 43.296, lng: 5.37 },
+  "aix-en-provence": { lat: 43.529, lng: 5.447 },
+  beaune: { lat: 47.026, lng: 4.84 },
+  nimes: { lat: 43.837, lng: 4.36 },
+  nîmes: { lat: 43.837, lng: 4.36 },
+  montpellier: { lat: 43.611, lng: 3.877 },
+  genoa: { lat: 44.405, lng: 8.946 },
+  genova: { lat: 44.405, lng: 8.946 },
+  trieste: { lat: 45.649, lng: 13.776 },
+  savona: { lat: 44.309, lng: 8.481 },
+  lloret: { lat: 41.7, lng: 2.846 },
+  "lloret de mar": { lat: 41.7, lng: 2.846 },
+  kamnik: { lat: 46.226, lng: 14.609 },
+  celje: { lat: 46.231, lng: 15.26 },
+  koper: { lat: 45.548, lng: 13.73 },
+  "nova gorica": { lat: 45.956, lng: 13.649 },
+  belgrade: { lat: 44.787, lng: 20.449 },
+  beograd: { lat: 44.787, lng: 20.449 },
+  nis: { lat: 43.321, lng: 21.896 },
+  niš: { lat: 43.321, lng: 21.896 },
+  podgorica: { lat: 42.441, lng: 19.263 },
+  athens: { lat: 37.984, lng: 23.728 },
+  atene: { lat: 37.984, lng: 23.728 },
   gibraltar: { lat: 36.14, lng: -5.353 },
   seville: { lat: 37.389, lng: -5.984 },
   valencia: { lat: 39.47, lng: -0.376 },
@@ -147,7 +172,6 @@ const REGION_COORDS: Record<string, { lat: number; lng: number }> = {
   "reykjavík": { lat: 64.147, lng: -21.943 },
   giza: { lat: 29.977, lng: 31.132 },
   luxor: { lat: 25.687, lng: 32.64 },
-  athens: { lat: 37.984, lng: 23.728 },
   istanbul: { lat: 41.008, lng: 28.978 },
   sydney: { lat: -33.868, lng: 151.209 },
   melbourne: { lat: -37.813, lng: 144.963 },
@@ -239,4 +263,8 @@ export function lookupRegionCoords(city: string): { lat: number; lng: number } |
     if (key.includes(k) || k.includes(key)) return REGION_COORDS[k]!;
   }
   return null;
+}
+
+export function allRegionCityCoords(): Array<{ city: string; lat: number; lng: number }> {
+  return Object.entries(REGION_COORDS).map(([city, c]) => ({ city, lat: c.lat, lng: c.lng }));
 }

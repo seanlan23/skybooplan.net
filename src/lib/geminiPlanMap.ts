@@ -92,10 +92,10 @@ export type GeminiPlanMapOpts = {
 };
 
 function resolveIsoDayDate(raw: string, departDate: string | undefined, dayNumber: number): string {
-  const fromRaw = raw?.match(/^(\d{4}-\d{2}-\d{2})/)?.[1];
-  if (fromRaw) return fromRaw;
   const base = departDate?.match(/^(\d{4}-\d{2}-\d{2})/)?.[1];
   if (base) return addDays(base, dayNumber - 1);
+  const fromRaw = raw?.match(/^(\d{4}-\d{2}-\d{2})/)?.[1];
+  if (fromRaw) return fromRaw;
   return raw;
 }
 

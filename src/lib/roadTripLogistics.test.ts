@@ -3,8 +3,10 @@ import type { AiTripPlan, DayPlan } from "@/lib/aiPlan.functions";
 import {
   annotateBalkanRoadTips,
   countHomeboundUnpaidNights,
+  forceLastRoadDayHome,
   parseDriveHours,
   repairImplausibleDriveTimes,
+  splitOverlongDriveStages,
   stripHomeboundPaidStays,
   stripSightseeingOnBrutalDriveDays,
 } from "@/lib/roadTripLogistics";
@@ -349,5 +351,93 @@ describe("brutal Balkan return stages", () => {
     expect(plan.days[0]!.activities!.afternoon).toHaveLength(0);
     expect(plan.days[0]!.activities!.evening[0]!.name).toMatch(/hotel/i);
     expect(plan.days[0]!.transportationTips).toMatch(/samo vožnja|prijava/i);
+  });
+});
+
+describe("splitOverlongDriveStages", () => {
+  it("rewrites Nice → Beaune (~6h+) to an overnight in Lyon", () => {
+    const plan = {
+      originPlace: "Nice",
+      groundTransportMode: "car",
+      contentLanguage: "sl",
+      days: [
+        day({ day: 1, city: "Nice", lat: 43.71, lng: 7.262 }),
+        day({
+          day: 2,
+          city: "Beaune",
+          lat: 47.026,
+          lng: 4.84,
+          drivingDistanceKm: 500,
+          drivingDurationHours: "6h 30min",
+          transportation: [{ type: "car", from: "Nice", to: "Beaune", duration: "6h 30min" }],
+          activities: {
+            morning: [],
+            afternoon: [{ name: "Wine walk", type: "SIGHT", description: "Cellar." }],
+            evening: [],
+          },
+        }),
+        day({ day: 3, city: "Beaune", lat: 47.026, lng: 4.84 }),
+      ],
+    } as AiTripPlan;
+
+    expect(splitOverlongDriveStages(plan)).toBe(1);
+    expect(plan.days[1]!.city).toMatch(/Lyon/i);
+    expect(plan.days[1]!.activities!.afternoon).toHaveLength(0);
+    expect(plan.days[2]!.city).toBe("Beaune");
+  });
+
+  it("does not invent a midpoint when Avignon → Nice km are Gemini fiction", () => {
+    const plan = {
+      originPlace: "Avignon",
+      groundTransportMode: "car",
+      contentLanguage: "sl",
+      days: [
+        day({ day: 1, city: "Avignon", lat: 43.949, lng: 4.806 }),
+        day({
+          day: 2,
+          city: "Nice",
+          lat: 43.71,
+          lng: 7.262,
+          drivingDistanceKm: 739,
+          drivingDurationHours: "9h",
+          transportation: [{ type: "car", from: "Avignon", to: "Nice", duration: "9h" }],
+        }),
+        day({ day: 3, city: "Nice", lat: 43.71, lng: 7.262 }),
+      ],
+    } as AiTripPlan;
+
+    expect(repairImplausibleDriveTimes(plan)).toBe(1);
+    const hours = parseDriveHours(plan.days[1]!.drivingDurationHours)!;
+    expect(hours).toBeLessThan(5);
+    expect(splitOverlongDriveStages(plan)).toBe(0);
+    expect(plan.days[1]!.city).toMatch(/Nice/i);
+  });
+});
+
+describe("forceLastRoadDayHome", () => {
+  it("sets last day city to origin, not Munich titled drive-home", () => {
+    const plan = {
+      originPlace: "Ljubljana",
+      groundTransportMode: "car",
+      contentLanguage: "sl",
+      days: [
+        day({ day: 1, city: "Lyon", lat: 45.764, lng: 4.836 }),
+        day({ day: 2, city: "Beaune", lat: 47.026, lng: 4.84 }),
+        day({
+          day: 3,
+          city: "Munich",
+          title: "Vožnja domov v Ljubljano",
+          lat: 48.137,
+          lng: 11.575,
+          drivingDistanceKm: 821,
+          drivingDurationHours: "10h",
+          transportation: [{ type: "car", from: "Beaune", to: "Munich", duration: "10h" }],
+        }),
+      ],
+    } as AiTripPlan;
+
+    expect(forceLastRoadDayHome(plan)).toBe(1);
+    expect(plan.days[2]!.city).toMatch(/Ljubljana/i);
+    expect(plan.days[2]!.title).toMatch(/Ljubljan/i);
   });
 });

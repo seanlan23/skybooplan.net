@@ -96,8 +96,21 @@ export function fixSlotTimeMismatch(
 }
 
 /** Strip leaked template phrases from other trip types (Spain motorhome, etc.). */
+export function stripRawGoogleMapsDirUrls(text: string): string {
+  if (!text) return text;
+  return text
+    .replace(/https?:\/\/(?:www\.)?google\.[^\s<>"]+\/maps\/dir\/[^\s<>"]+/gi, "")
+    .replace(/\s*[—–-]\s*Začetek in konec sta označena kot[^.!?\n]*[.!?]?/gi, "")
+    .replace(/\s*[—–-]\s*Start and end are labeled[^.!?\n]*[.!?]?/gi, "")
+    .replace(/\bYour%20hotel\b/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .replace(/\s+[—–-]\s*$/g, "")
+    .trim();
+}
+
 export function sanitizeLegacyTemplateLeak(text: string): string {
-  return sanitizeTransitCardLeak(text)
+  return stripRawGoogleMapsDirUrls(
+    sanitizeTransitCardLeak(text)
     .replace(/\s*\(Barcelona\s*\/\s*Madrid\)/gi, "")
     .replace(/\s*\(barcelona\s*\/\s*madrid\)/gi, "")
     .replace(/\bBarcelona\s*\/\s*Madrid\b/gi, "")
@@ -128,7 +141,8 @@ export function sanitizeLegacyTemplateLeak(text: string): string {
     .replace(/[^.!?\n]*raje 2 noči v [^.!?\n]*[.!?]?/gi, "")
     .replace(/[^.!?\n]*prefer 2 nights in [^.!?\n]*[.!?]?/gi, "")
     .replace(/\s{2,}/g, " ")
-    .trim();
+    .trim(),
+  );
 }
 
 /** London transit cards leaked onto NYC (and other non-UK) days. */

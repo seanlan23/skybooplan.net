@@ -117,9 +117,17 @@ const TWO_NIGHT_CITY_KEYS = new Set(
     "sarajevo",
     "shkoder",
     "shkodër",
+    "nice",
+    "lyon",
+    "avignon",
+    "athens",
+    "atene",
+    "madrid",
+    "meteora",
     "paris",
     "rome",
     "roma",
+    "rim",
     "barcelona",
     "lisbon",
     "lisboa",
@@ -275,6 +283,63 @@ function consecutiveNightsByCity(plan: AiTripPlan): Map<string, number> {
   return counts;
 }
 
+function keepStayOrEat(a: { type?: string; name?: string; description?: string }): boolean {
+  const type = (a.type ?? "").toLowerCase();
+  if (type === "eat" || type === "hotel" || type === "stay") return true;
+  const blob = `${a.name ?? ""} ${a.description ?? ""}`;
+  return /hotel|check-?in|prijava|nočitev|večerja|dinner|lunch|kosilo/i.test(blob);
+}
+
+/**
+ * 1-night famous city on a 7+ day trip: steal the last night of a 3+ night neighbour.
+ * Does not add calendar days.
+ */
+export function stealNightForHitAndRun(plan: AiTripPlan): number {
+  const total = plan.days?.length ?? 0;
+  if (total < TWO_NIGHT_MIN_TRIP_DAYS) return 0;
+  const days = [...(plan.days ?? [])].sort((a, b) => a.day - b.day);
+  const nights = consecutiveNightsByCity(plan);
+  let n = 0;
+  for (let i = 1; i < days.length; i++) {
+    const day = days[i]!;
+    if (day.inFlightDay || day.day === total) continue;
+    const city = (day.city ?? day.focusName ?? "").trim();
+    if (!prefersTwoNights(city, total)) continue;
+    const hitKey = cityKey(city);
+    if ((nights.get(hitKey) ?? 0) !== 1) continue;
+    if ((day.drivingDistanceKm ?? 0) > 400) continue;
+    const stealFrom = (donor: (typeof days)[number], donorKey: string) => {
+      donor.city = day.city;
+      if (day.focusName) donor.focusName = day.focusName;
+      if (Number.isFinite(day.lat)) donor.lat = day.lat;
+      if (Number.isFinite(day.lng)) donor.lng = day.lng;
+      donor.title = city;
+      if (donor.activities) {
+        for (const slot of ["morning", "afternoon", "evening"] as const) {
+          donor.activities[slot] = (donor.activities[slot] ?? []).filter(keepStayOrEat);
+        }
+      }
+      nights.set(donorKey, (nights.get(donorKey) ?? 1) - 1);
+      nights.set(hitKey, 2);
+    };
+    const prev = days[i - 1]!;
+    const prevKey = cityKey(prev.city ?? prev.focusName ?? "");
+    if (prevKey && prevKey !== hitKey && (nights.get(prevKey) ?? 0) >= 3) {
+      stealFrom(prev, prevKey);
+      n += 1;
+      continue;
+    }
+    const next = days[i + 1];
+    if (!next || next.inFlightDay || next.day === total) continue;
+    const nextKey = cityKey(next.city ?? next.focusName ?? "");
+    if (!nextKey || nextKey === hitKey) continue;
+    if ((nights.get(nextKey) ?? 0) < 3) continue;
+    stealFrom(next, nextKey);
+    n += 1;
+  }
+  return n;
+}
+
 /** Note 1-night stays in major cities on long trips (does not rewrite the calendar). */
 export function annotateHitAndRunStays(plan: AiTripPlan): number {
   const total = plan.days?.length ?? 0;
@@ -286,7 +351,7 @@ export function annotateHitAndRunStays(plan: AiTripPlan): number {
     const city = (day.city ?? day.focusName ?? "").trim();
     if (!prefersTwoNights(city, total)) continue;
     if ((nights.get(cityKey(city)) ?? 0) !== 1) continue;
-    if ((day.drivingDistanceKm ?? 0) > 280) continue;
+    if ((day.drivingDistanceKm ?? 0) > 400) continue;
     if (day.inFlightDay || day.day === total) continue;
     const note = sl
       ? `Raje 2 noči v ${city} — 1 noč je premalo za ogled (razen čistega tranzita).`
@@ -328,14 +393,15 @@ export function plannerQualityPromptBlock(opts: {
 }): string {
   const twoNight =
     opts.totalDays >= TWO_NIGHT_MIN_TRIP_DAYS
-      ? `- NOČITVE: v pomembnejših mestih (Paris, Rim, Kyoto, Split, Kotor, Berat, Cape Town, NYC…) preferiraj 2 noči. PREPOVEDANO “hit and run” (1 noč + samo sprehod) na ${opts.totalDays}-dnevni poti, razen če je mesto čisti tranzit na vožnji.`
+      ? `- NOČITVE: v pomembnejših mestih (Paris, Rim, Kyoto, Split, Kotor, Berat, Cape Town, NYC…) 2 noči ALI izpusti mesto. PREPOVEDANO 1 noč + sprehod na ${opts.totalDays}-dnevni poti (Rim, Kotor, Pariz…). Aplikacija ukrade noč sosedu z 3+ nočitvami — ti raje že v skeletu daj 2 noči.`
       : `- NOČITVE: na kratki poti je 1 noč v mestu OK — ne siliti 2 noči na račun cilja.`;
 
   const roadBlock = opts.road
     ? `
 VOŽNJE (samo avto/avtodom — NE velja za mednarodni let):
 - ENA dnevna etapa ≤ ${TARGET_DRIVE_HOURS} h čiste vožnje. Trdo max ${HARD_DRIVE_HOURS} h.
-- Če bi Google (ali razdalja) presegli ${TARGET_DRIVE_HOURS} h: samodejno vmesna nočitev — ne “naredi v enem dnevu”.
+- PREPOVEDANO JSON dan z 8–12 h vožnje (Avignon→Nice, Nice→Beaune, Tirana→Dubrovnik, Barcelona→Madrid, zadnji dan 10 h). Če etapa ≥${HARD_DRIVE_HOURS} h: nočitev v vmesnem mestu ŽE V SKELETU — koda bo day.city prestavila (npr. Marseille, Lyon, Zaragoza, Shkodër), ne samo pripisala opozorilo.
+- Zadnji dan: day.city = izhodišče potnika. PREPOVEDANO Munich/Zagreb/Nîmes z naslovom „vožnja domov“.
 - Počasne kopenske meje (tabela, velja povsod): HR–BA, BA–ME, ME–AL, HR–ME, AL–HR, US–MX, TH–KH/LA/MY. Junij–september (in US–MX prazniki): prištej extra ure. Notranji Schengen = 0.
 - PREPOVEDANO muzej/sprehod/kosilo v ciljnem mestu isti dan po ≥${STRIP_SIGHTS_DRIVE_HOURS} h vožnje — samo prijava.`
     : `

@@ -7,6 +7,7 @@ import {
   rewriteActivityCityLeak,
   rewriteCountryFoodLeak,
   sanitizeForLang,
+  sanitizeLegacyTemplateLeak,
   sanitizeSlText,
   scrubInappropriatePoiCopy,
 } from "@/lib/textSanitize";
@@ -19,6 +20,15 @@ describe("sanitizeSlText", () => {
   it("preserves activity bullet newlines", () => {
     const input = "- Prva točka\n- Druga točka\n- Tretja točka";
     expect(sanitizeSlText(input)).toBe(input);
+  });
+});
+
+describe("sanitizeLegacyTemplateLeak", () => {
+  it("strips raw Google Maps dir URLs so tips are not %20 garbage", () => {
+    const raw =
+      "Google Maps celotna pot: https://www.google.com/maps/dir/Your%20hotel%2C%20Bangkok/Mae%20Klong — Začetek in konec sta označena kot „Your hotel“.";
+    expect(sanitizeLegacyTemplateLeak(raw)).not.toMatch(/maps\/dir|Your%20hotel|%20hotel/i);
+    expect(sanitizeLegacyTemplateLeak(raw)).toMatch(/Google Maps celotna pot/i);
   });
 });
 

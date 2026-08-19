@@ -13,6 +13,7 @@ import {
   Ship,
   Bus,
   TrainFront,
+  Navigation,
 } from "lucide-react";
 import type { Activity, ActivityTransportType, DayPlan, Suggestion } from "@/lib/aiPlan.functions";
 import { HotelsSection, type StayInfo } from "@/components/HotelsSection";
@@ -40,6 +41,12 @@ import {
   shouldOfferActivityNavigation,
 } from "@/lib/mapPoiResolver";
 import { resolveDayNavOrigin } from "@/lib/navigationService";
+import {
+  bangkokKwaiDayTripBookingTip,
+  bangkokKwaiDayTripMapsNote,
+  buildBangkokKwaiDayTripMapsUrl,
+  isBangkokKwaiDayTripDay,
+} from "@/lib/bangkokKwaiDayTrip";
 
 export function activityFocusKey(day: number, name: string): string {
   return `${day}:${name.trim().toLowerCase()}`;
@@ -630,8 +637,24 @@ export function AiPlanDayCard({
   /** `${day}:${activityName}` — highlights clicked map/plan POI */
   focusedActivityKey?: string | null;
 }) {
-  const { t, formatMoney } = useI18n();
-  const slo = lang === "sl" || lang?.startsWith("sl");
+  const { t, formatMoney, lang } = useI18n();
+  const slo = lang === "sl" || String(lang).startsWith("sl");
+  const kwaiDay = isBangkokKwaiDayTripDay(day);
+  const travelHackText = kwaiDay
+    ? bangkokKwaiDayTripMapsNote(slo)
+    : day.travelHack
+      ? sanitizeLegacyTemplateLeak(day.travelHack)
+      : "";
+  const transportTipsText = kwaiDay
+    ? ""
+    : day.transportationTips
+      ? sanitizeLegacyTemplateLeak(day.transportationTips)
+      : "";
+  const localWarningsText = kwaiDay
+    ? bangkokKwaiDayTripBookingTip(slo)
+    : day.localWarnings
+      ? sanitizeLegacyTemplateLeak(day.localWarnings)
+      : "";
   const tripAcc = resolveTripAccommodation({
     accommodationMode: groundTransportMode === "car" ? "hotel" : accommodationMode,
     hotelRestEveryNDays,
@@ -841,34 +864,46 @@ export function AiPlanDayCard({
           </div>
         )}
 
-        {day.travelHack && (
+        {travelHackText && (
           <div className="flex items-start gap-3 rounded-r-lg border-l-4 border-sky-500 bg-sky-50 px-4 py-3">
             <span aria-hidden className="text-lg leading-none">💡</span>
             <p className="text-sm text-sky-900">
               <span className="font-bold">{t("aiplan.travelHack" as never)}:</span>{" "}
-              {sanitizeLegacyTemplateLeak(day.travelHack)}
+              {travelHackText}
             </p>
           </div>
         )}
 
-        {day.transportationTips && (
+        {transportTipsText && (
           <div className="flex items-start gap-3 rounded-r-lg border-l-4 border-sky-500 bg-sky-50 px-4 py-3">
             <span aria-hidden className="text-lg leading-none">🚇</span>
             <p className="text-sm text-sky-900">
               <span className="font-bold">{t("aiplan.transportationTips" as never)}:</span>{" "}
-              {sanitizeLegacyTemplateLeak(day.transportationTips)}
+              {transportTipsText}
             </p>
           </div>
         )}
 
-        {day.localWarnings && (
+        {localWarningsText && (
           <div className="flex items-start gap-3 rounded-r-lg border-l-4 border-rose-500 bg-rose-50 px-4 py-3">
             <span aria-hidden className="text-lg leading-none">⚠️</span>
             <p className="text-sm text-rose-900">
               <span className="font-bold">{t("aiplan.localWarnings" as never)}:</span>{" "}
-              {day.localWarnings}
+              {localWarningsText}
             </p>
           </div>
+        )}
+
+        {kwaiDay && (
+          <a
+            href={buildBangkokKwaiDayTripMapsUrl()}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex w-full min-w-0 items-center justify-center gap-2 rounded-xl bg-sky-600 px-3 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-sky-700 sm:px-4 sm:text-sm"
+          >
+            <Navigation className="h-4 w-4" aria-hidden="true" />
+            {t("heroChat.motorhome.openGoogleMaps" as never)}
+          </a>
         )}
 
         {typeof day.dailyBudgetEur === "number" && day.dailyBudgetEur > 0 && (

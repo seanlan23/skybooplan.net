@@ -1,7 +1,8 @@
 import type { Activity, AiTripPlan, DayPlan, DayTransportLeg } from "@/lib/aiPlan.functions";
 import { haversineKm } from "@/lib/geoMath";
-import { lookupRegionCoords } from "@/lib/regionCoords";
+import { lookupRegionCoords, allRegionCityCoords } from "@/lib/regionCoords";
 import {
+  HARD_DRIVE_HOURS,
   STRIP_SIGHTS_DRIVE_HOURS,
   borderPenaltyHours,
   slowBorderNote,
@@ -274,6 +275,8 @@ export function estimateRoadStageHours(
     if (hv >= 40) {
       const est = Math.round(hv * ROAD_KM_FACTOR);
       if (roadKm < est * 0.75) roadKm = est;
+      // Gemini often invents 700–900 km for a 250 km hop — trust geography.
+      else if (roadKm > est * 1.45) roadKm = est;
     }
   }
   if (roadKm < MIN_REPAIR_ROAD_KM) return null;
@@ -343,10 +346,11 @@ export function repairImplausibleDriveTimes(plan: AiTripPlan): number {
     const { roadKm, hours: realistic, borderH } = est;
     const minOk = roadKm / FAST_KMH + borderH * 0.6;
     const stated = statedHoursForDay(day);
-    const alreadyHonest =
+    const notTooLong = stated == null || stated <= realistic * 1.18 + 0.4;
+    const notTooShort =
       stated != null &&
       (stated >= realistic * 0.95 || (borderH === 0 && stated >= minOk));
-    if (alreadyHonest) continue;
+    if (notTooShort && notTooLong) continue;
 
     applyDurationToDay(day, formatDriveHours(realistic), roadKm);
     if (day.transportationTips) {
@@ -436,6 +440,217 @@ export function stripHomeboundPaidStays(plan: AiTripPlan): number {
     }
   }
   return fixed;
+}
+
+const OVERNIGHT_WAYPOINTS: Array<[string, string, string]> = [
+  ["avignon", "nice", "Marseille"],
+  ["nice", "beaune", "Lyon"],
+  ["tirana", "dubrovnik", "Shkodër"],
+  ["nis", "celje", "Zagreb"],
+  ["barcelona", "madrid", "Zaragoza"],
+  ["lloret", "savona", "Genoa"],
+  ["lloret de mar", "savona", "Genoa"],
+  ["savona", "kamnik", "Venice"],
+  ["split", "podgorica", "Dubrovnik"],
+  ["podgorica", "berat", "Shkodër"],
+  ["beaune", "nova gorica", "Milan"],
+  ["nice", "nova gorica", "Milan"],
+  ["nimes", "kranj", "Milan"],
+  ["barcelona", "nimes", "Montpellier"],
+  ["tirana", "zagreb", "Shkodër"],
+  ["beaune", "ljubljana", "Milan"],
+  ["munich", "ljubljana", "Salzburg"],
+];
+
+function displayCityName(key: string): string {
+  if (key === "shkoder" || key === "shkodër") return "Shkodër";
+  if (key === "aix-en-provence") return "Aix-en-Provence";
+  if (key === "nova gorica") return "Nova Gorica";
+  if (key === "lloret de mar") return "Lloret de Mar";
+  return key.replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+export function findOvernightWaypoint(
+  from: string,
+  to: string,
+): { city: string; lat: number; lng: number } | null {
+  const a = cityKey(from);
+  const b = cityKey(to);
+  if (!a || !b || a === b) return null;
+  for (const [x, y, name] of OVERNIGHT_WAYPOINTS) {
+    const xk = cityKey(x);
+    const yk = cityKey(y);
+    if ((a === xk && b === yk) || (a === yk && b === xk)) {
+      const c = coordsForPlace(name);
+      if (c) return { city: name, lat: c.lat, lng: c.lng };
+    }
+  }
+  const fromC = coordsForPlace(from);
+  const toC = coordsForPlace(to);
+  if (!fromC || !toC) return null;
+  const direct = haversineKm([fromC.lng, fromC.lat], [toC.lng, toC.lat]);
+  if (direct < 380) return null;
+  const midLat = (fromC.lat + toC.lat) / 2;
+  const midLng = (fromC.lng + toC.lng) / 2;
+  let best: { city: string; lat: number; lng: number; score: number } | null = null;
+  for (const row of allRegionCityCoords()) {
+    const k = cityKey(row.city);
+    if (k === a || k === b || k.length < 4) continue;
+    const dFrom = haversineKm([fromC.lng, fromC.lat], [row.lng, row.lat]);
+    const dTo = haversineKm([row.lng, row.lat], [toC.lng, toC.lat]);
+    if (dFrom < 80 || dTo < 80) continue;
+    if (dFrom + dTo > direct * 1.22) continue;
+    const toMid = haversineKm([midLng, midLat], [row.lng, row.lat]);
+    const score = toMid + Math.abs(dFrom - dTo) * 0.15;
+    if (!best || score < best.score) {
+      best = { city: displayCityName(row.city), lat: row.lat, lng: row.lng, score };
+    }
+  }
+  return best ? { city: best.city, lat: best.lat, lng: best.lng } : null;
+}
+
+function stripDayToDriveOnly(day: DayPlan) {
+  if (!day.activities) return;
+  for (const slot of ["morning", "afternoon", "evening"] as const) {
+    day.activities[slot] = (day.activities[slot] ?? []).filter(isKeepOnBrutalDriveDay);
+  }
+}
+
+/** Rewrite a ≥6 h road day to a midpoint overnight — does not add calendar days. */
+export function splitOverlongDriveStages(plan: AiTripPlan): number {
+  if (!isRoadLoop(plan)) return 0;
+  const sl = !(plan.contentLanguage && !plan.contentLanguage.startsWith("sl"));
+  const days = [...(plan.days ?? [])].sort((a, b) => a.day - b.day);
+  let n = 0;
+  for (let i = 0; i < days.length; i++) {
+    const day = days[i]!;
+    const prev = days[i - 1];
+    const { from, to } = stageEndpoints(plan, day, prev);
+    const est = estimateRoadStageHours(from, to, {
+      date: day.date,
+      statedKm: day.drivingDistanceKm,
+      fromDay: prev,
+      toDay: day,
+    });
+    if (i === days.length - 1) continue;
+    const hours = est?.hours ?? statedHoursForDay(day) ?? 0;
+    // 6h+ is already a drive-only day; rewrite the overnight instead of annotating.
+    if (hours < STRIP_SIGHTS_DRIVE_HOURS) continue;
+    const wp = findOvernightWaypoint(from, to);
+    if (!wp) continue;
+    if (cityKey(wp.city) === cityKey(to) || cityKey(wp.city) === cityKey(from)) continue;
+    const originalTo = to;
+    day.city = wp.city;
+    day.lat = wp.lat;
+    day.lng = wp.lng;
+    day.title = sl ? `Nočitev v ${wp.city}` : `Overnight in ${wp.city}`;
+    const hop = estimateRoadStageHours(from, wp.city, {
+      date: day.date,
+      fromDay: prev,
+      toDay: { lat: wp.lat, lng: wp.lng },
+    });
+    if (hop) applyDurationToDay(day, formatDriveHours(hop.hours), hop.roadKm);
+    day.transportation = [
+      {
+        type: "car",
+        from,
+        to: wp.city,
+        duration: day.drivingDurationHours,
+      },
+    ];
+    stripDayToDriveOnly(day);
+    const next = days[i + 1];
+    if (next && cityKey(next.city ?? "") === cityKey(originalTo)) {
+      const rest = estimateRoadStageHours(wp.city, originalTo, {
+        date: next.date,
+        fromDay: { lat: wp.lat, lng: wp.lng },
+        toDay: next,
+      });
+      if (rest) {
+        applyDurationToDay(next, formatDriveHours(rest.hours), rest.roadKm);
+        const legs = next.transportation ?? [];
+        next.transportation = [
+          {
+            type: "car",
+            from: wp.city,
+            to: originalTo,
+            duration: next.drivingDurationHours,
+          },
+          ...legs.filter((l) => l.type !== "car"),
+        ];
+      }
+    }
+    n += 1;
+  }
+  return n;
+}
+
+/** Last road day city = origin (not Munich/Zagreb/Nîmes titled “drive home”). */
+export function forceLastRoadDayHome(plan: AiTripPlan): number {
+  if (!isRoadLoop(plan)) return 0;
+  const origin = originCity(plan);
+  if (!origin) return 0;
+  const days = plan.days ?? [];
+  if (days.length < 2) return 0;
+  const last = days[days.length - 1]!;
+  const city = (last.city ?? last.focusName ?? "").trim();
+  if (city && placesMatch(city, origin)) return 0;
+  const sl = !(plan.contentLanguage && !plan.contentLanguage.startsWith("sl"));
+  const oc = coordsForPlace(origin) ?? lookupRegionCoords(origin);
+  last.city = origin;
+  if (oc) {
+    last.lat = oc.lat;
+    last.lng = oc.lng;
+  }
+  last.title = sl ? `Povratek v ${origin}` : `Return to ${origin}`;
+  last.inFlightDay = false;
+  stripDayToDriveOnly(last);
+  const prev = days[days.length - 2];
+  const from = (prev?.city ?? "").trim();
+  if (from && !placesMatch(from, origin)) {
+    const hop = estimateRoadStageHours(from, origin, {
+      date: last.date,
+      fromDay: prev,
+      toDay: last,
+    });
+    if (hop) {
+      applyDurationToDay(last, formatDriveHours(hop.hours), hop.roadKm);
+      last.transportation = [
+        { type: "car", from, to: origin, duration: last.drivingDurationHours },
+      ];
+      if (hop.hours >= HARD_DRIVE_HOURS && prev) {
+        const wp = findOvernightWaypoint(from, origin);
+        if (wp && cityKey(prev.city ?? "") !== cityKey(wp.city) && !placesMatch(prev.city ?? "", origin)) {
+          prev.city = wp.city;
+          prev.lat = wp.lat;
+          prev.lng = wp.lng;
+          prev.title = sl ? `Nočitev v ${wp.city}` : `Overnight in ${wp.city}`;
+          stripDayToDriveOnly(prev);
+          const a = estimateRoadStageHours(from, wp.city, {
+            fromDay: days[days.length - 3],
+            toDay: prev,
+          });
+          if (a) applyDurationToDay(prev, formatDriveHours(a.hours), a.roadKm);
+          const b = estimateRoadStageHours(wp.city, origin, {
+            fromDay: prev,
+            toDay: last,
+          });
+          if (b) {
+            applyDurationToDay(last, formatDriveHours(b.hours), b.roadKm);
+            last.transportation = [
+              {
+                type: "car",
+                from: wp.city,
+                to: origin,
+                duration: last.drivingDurationHours,
+              },
+            ];
+          }
+        }
+      }
+    }
+  }
+  return 1;
 }
 
 function isPlitviceDay(day: DayPlan): boolean {

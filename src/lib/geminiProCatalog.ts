@@ -125,6 +125,7 @@ export function applyFlightContextIfPresent(
     originIata: data.originIata,
     language: plan.contentLanguage ?? data.language ?? "sl",
     expectedDays: tripDayCount(data.departDate, data.returnDate),
+    departDate: data.departDate,
   });
 }
 

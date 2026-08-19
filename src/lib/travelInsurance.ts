@@ -117,9 +117,18 @@ const EU_HOMES = new Set([
   "EU",
 ]);
 
-function homeCountryForOrigin(originIata: string | undefined | null): string {
+function homeCountryForOrigin(
+  originIata: string | undefined | null,
+  lang?: string,
+): string {
   const residents = targetResidentsForOrigin(originIata);
-  if (residents[0]) return residents[0];
+  const fromHub = residents[0];
+  // UI language is the traveler's home market. Slovenians often fly MUC/VIE/ZRH;
+  // ADAC/HanseMerkur are German-resident products, not Triglav.
+  if ((lang ?? "").toLowerCase().startsWith("sl")) {
+    if (!fromHub || EU_HOMES.has(fromHub) || fromHub === "EU") return "Slovenia";
+  }
+  if (fromHub) return fromHub;
   // Ground trips without a hub IATA — Skybooplan default is Slovenia-first EU.
   return "Slovenia";
 }
@@ -267,7 +276,7 @@ export function buildTravelInsurance(opts: {
   lang?: string;
 }): TravelInsuranceInfo {
   const lang = (opts.lang ?? "en").toLowerCase().slice(0, 2);
-  const home = homeCountryForOrigin(opts.originIata);
+  const home = homeCountryForOrigin(opts.originIata, lang);
   const leavesEhic = tripLeavesEhicArea(opts.destinationIata, opts.destinationHint);
   const insurers = insurersForHome(home);
   return {

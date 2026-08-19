@@ -402,6 +402,7 @@ function Landing() {
           aiDatesRef.current.departDate,
           aiDatesRef.current.returnDate,
         ),
+        departDate: aiDatesRef.current.departDate,
       });
       setAiPlan(next);
       return;

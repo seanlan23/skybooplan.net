@@ -384,7 +384,8 @@ NAČIN POTOVANJA: AVTO / ROAD TRIP Z HOTELI (obvezno)
 - itinerar[] = največ ${maxBases} hotelskih baz (mesta) — to NI število dni!
 - KRITIČNO: ${dayObjectsRule}. Več noči v istem mestu = več day{} na isti hotelski bazi.
 - Road trip: enosmerna pot; več noči v istem mestu so OK (ne vsak dan novo mesto).
-- Ena etapa ≤5 h čiste vožnje (trdo max 7 h); PREPOVEDANO Berat/Tirana → Zagreb v enem dnevu.`
+- Ena etapa ≤5 h čiste vožnje (trdo max 7 h). PREPOVEDANO 8–12 h kot en JSON dan. PREPOVEDANO Berat/Tirana → Zagreb v enem dnevu.
+- Zadnji dan day.city = izhodišče. 2 noči v Rimu/Kotorju/Parizu ali izpusti mesto.`
     : "";
 
   const groundTransportBlock =
@@ -627,6 +628,8 @@ export function tripPlanSystemPrompt(params: GenerateTripPlanParams): string {
       : params.groundTransportMode
     ? `POVRATEK DOMOV (obvezno — ${params.groundTransportMode === "train" ? "VLAK" : "AVTO/AVTODOM"}):
 - Zadnji dan: vožnja/vlak nazaj na izhodiščno lokacijo — NE mednarodni let z letališča.
+- Zadnji dan day.city = izhodišče (${params.originPlace ?? "domov"}) — ne Munich/Zagreb/Nîmes z naslovom „vožnja domov“.
+- PREPOVEDANO 8–12 h JSON dan; če je etapa ≥7 h, nočitev vmes.
 - trip_metadata.return_flight_eu NE izpolnjuj.`
     : `POVRATEK V EU (obvezno — STROGI JSON):
 - Zadnji dan activities[] = samo lahki ogledi/hrana (brez HH:MM, brez category airport / check-out / transfer).

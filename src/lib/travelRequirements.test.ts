@@ -238,6 +238,13 @@ describe("travel insurance (code, not Gemini)", () => {
     expect(req?.insurance?.body).toMatch(/EHIC|Reiseversicherung/i);
   });
 
+  it("uses Slovenian insurers when the plan language is sl, even from MUC", () => {
+    const req = buildFallbackTravelRequirements("MUC", "BKK", "sl");
+    expect(req?.insurance?.insurers).toEqual(["Coris", "Vita", "Triglav"]);
+    expect(req?.insurance?.body).toMatch(/EKZZ/);
+    expect(req?.insurance?.insurers).not.toContain("ADAC");
+  });
+
   it("mentions GHIC for UK hubs", () => {
     const req = buildFallbackTravelRequirements("LHR", "BKK", "en");
     expect(req?.insurance?.insurers).toEqual(expect.arrayContaining(["Aviva", "AXA", "Staysure"]));

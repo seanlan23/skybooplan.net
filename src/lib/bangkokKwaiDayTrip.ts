@@ -5,32 +5,48 @@ type DaySlots = { morning: Activity[]; afternoon: Activity[]; evening: Activity[
 
 /**
  * Classic Bangkok full-day loop (Maeklong → Damnoen → Kwai → Death Railway → Sai Yok).
- * Start/end are placeholders — users replace with their own lodging in Google Maps.
- * Place names match the curated Maps route (never a concrete hotel brand).
+ * Maps start/end = Bangkok (user sets their hotel in Maps). Never a hotel brand.
  * This day is exclusive (~06:30–21:00): no city shopping / museum fillers.
  */
 export const BANGKOK_KWAI_DAY_TRIP_STOPS = [
-  "Your hotel, Bangkok, Thailand",
+  "Bangkok, Thailand",
   "Maeklong Railway Market (Rom Hup Market), Mae Klong, Samut Songkhram, Thailand",
   "Damnoen Saduak Floating Market, Damnoen Saduak District, Ratchaburi, Thailand",
   "Kanchanaburi War Cemetery (Don Rak), Sangchuto Rd, Kanchanaburi, Thailand",
   "River Kwai Bridge, River Kwai Rd, Kanchanaburi, Thailand",
   "Tham Krasae Death Railway Bridge, Lum Sum, Sai Yok District, Kanchanaburi, Thailand",
   "Suan Sai Yok, Lum Sum, Sai Yok District, Kanchanaburi, Thailand",
-  "Your hotel, Bangkok, Thailand",
+  "Bangkok, Thailand",
 ] as const;
 
 export function buildBangkokKwaiDayTripMapsUrl(): string {
   return `https://www.google.com/maps/dir/${BANGKOK_KWAI_DAY_TRIP_STOPS.map(encodeURIComponent).join("/")}`;
 }
 
-/** Note: Maps start/end are placeholders — swap in your own lodging. */
+/** Short copy only — never dump the Maps URL into tip text (it clips into %20 garbage). */
 export function bangkokKwaiDayTripMapsNote(slo: boolean): string {
-  const mapsUrl = buildBangkokKwaiDayTripMapsUrl();
   if (slo) {
-    return `Google Maps celotna pot (odpri in navigiraj): ${mapsUrl} — Začetek in konec sta označena kot „Your hotel“: v Maps ju zamenjaj s svojo namestitvijo (hotel / Airbnb) v Bangkoku. Srednji postanki ostanejo enaki.`;
+    return "Celotna zanka: hotel → Mae Klong (Rom Hup) → Damnoen → Don Rak → most Kwai → Tham Krasae → Sai Yok → hotel. V Google Maps začetek in konec nastavi na svojo namestitev v Bangkoku.";
   }
-  return `Full Google Maps route (open to navigate): ${mapsUrl} — Start and end are labeled “Your hotel”: in Maps replace both with your own Bangkok lodging (hotel / Airbnb). Keep the middle stops as-is.`;
+  return "Full loop: hotel → Mae Klong (Rom Hup) → Damnoen → Don Rak → Kwai Bridge → Tham Krasae → Sai Yok → hotel. In Google Maps set start and end to your Bangkok lodging.";
+}
+
+export function bangkokKwaiDayTripBookingTip(slo: boolean): string {
+  if (slo) {
+    return "Kombi z voznikom rezerviraj zvečer prej (recepcija, Klook ali GetYourGuide). Odhod 6:30 izpred namestitve; šofer čaka pri Tham Krasae. Skupinski tour ~40–70 €/osebo, privatni van za 2 ~3.500–6.000 THB. Grab za 14 ur / 300+ km ni realen.";
+  }
+  return "Book a van with driver the evening before (hotel desk, Klook, or GetYourGuide). Leave 6:30 from your lodging; driver waits at Tham Krasae. Shared tour ~€40–70/person; private van for 2 ~3,500–6,000 THB. Grab is not realistic for 14 hours / 300+ km.";
+}
+
+export function isBangkokKwaiDayTripDay(day: {
+  title?: string;
+  focusName?: string;
+  travelHack?: string;
+  localWarnings?: string;
+}): boolean {
+  const blob = `${day.title ?? ""} ${day.focusName ?? ""} ${day.travelHack ?? ""} ${day.localWarnings ?? ""}`;
+  if (/maps\/dir/i.test(blob) && /kwai|mae klong|maeklong|kanchanaburi/i.test(blob)) return true;
+  return /mae klong|maeklong/i.test(blob) && /kwai|death railway|tham krasae|železnic/i.test(blob);
 }
 
 const KWAI_DAY_CUE_RE =
@@ -108,7 +124,6 @@ export function bangkokKwaiDayTripTitle(slo: boolean): string {
 
 export function buildBangkokKwaiDayTripSlots(locale: TripLocale): DaySlots {
   const slo = locale.slo;
-  const mapsNote = bangkokKwaiDayTripMapsNote(slo);
 
   const morning: Activity[] = [
     {
@@ -118,8 +133,8 @@ export function buildBangkokKwaiDayTripSlots(locale: TripLocale): DaySlots {
       type: "ACTIVITY",
       priceLabel: slo ? "privatni van / skupinski izlet" : "private van / shared tour",
       description: slo
-        ? `TA DAN JE SAMO TA IZLET (~14–15 ur) — brez nakupovanja, muzejev ali templjev v Bangkoku. Odhod izpred svoje namestitve točno ob 6:30. Mae Klong Railway Market (Rom Hub): vlaki skozi tržnico tipično okoli 08:30, 11:10, 14:30, 17:40 (prihodi); odhodi proti Ban Laem okoli 06:20, 09:00, 11:30, 15:30 — ure preveri na dan. Ciljaj na 08:30; če zamudiš, še 11:10. ${mapsNote}`
-        : `THIS DAY IS ONLY THIS TRIP (~14–15 hours) — no Bangkok shopping, museums, or temples. Leave your lodging at exactly 6:30. Mae Klong Railway Market (Rom Hub): trains through the market typically ~08:30, 11:10, 14:30, 17:40 (arrivals); departures toward Ban Laem ~06:20, 09:00, 11:30, 15:30 — verify on the day. Aim for 08:30; if missed, 11:10 still works. ${mapsNote}`,
+        ? "TA DAN JE SAMO TA IZLET (~14–15 ur) — brez nakupovanja, muzejev ali templjev v Bangkoku. Odhod izpred svoje namestitve točno ob 6:30. Mae Klong Railway Market (Rom Hub): vlaki skozi tržnico tipično okoli 08:30, 11:10, 14:30, 17:40 (prihodi); odhodi proti Ban Laem okoli 06:20, 09:00, 11:30, 15:30 — ure preveri na dan. Ciljaj na 08:30; če zamudiš, še 11:10."
+        : "THIS DAY IS ONLY THIS TRIP (~14–15 hours) — no Bangkok shopping, museums, or temples. Leave your lodging at exactly 6:30. Mae Klong Railway Market (Rom Hub): trains through the market typically ~08:30, 11:10, 14:30, 17:40 (arrivals); departures toward Ban Laem ~06:20, 09:00, 11:30, 15:30 — verify on the day. Aim for 08:30; if missed, 11:10 still works.",
       lat: 13.4074,
       lng: 99.9985,
     },
@@ -158,8 +173,8 @@ export function buildBangkokKwaiDayTripSlots(locale: TripLocale): DaySlots {
       type: "ACTIVITY",
       priceLabel: slo ? "vlak poceni + pijača / zipline po želji" : "cheap train + drinks / optional zipline",
       description: slo
-        ? `Death Railway (Kanchanaburi ↔ Nam Tok): vlak 257 skozi Tham Krasae (Saphan Tham Krasae) tipično okoli 11:38 proti Nam Tok; vlak 259 okoli 17:46. Vračanje Nam Tok → Kanchanaburi: npr. ~13:00 / ~15:30 (preveri urnik SRT na dan). Smer vožnje za razgled: zahod → vzhod. Šofer naj te počaka; sledi Google Maps poti do Tham Krasae, nato Suan Sai Yok. Vrnitev v Bangkok zvečer (~21:00) — končni Maps postanek zamenjaj s svojo namestitvijo.`
-        : `Death Railway (Kanchanaburi ↔ Nam Tok): train 257 typically passes Tham Krasae (Saphan Tham Krasae) ~11:38 toward Nam Tok; train 259 ~17:46. Return Nam Tok → Kanchanaburi often ~13:00 / ~15:30 (verify SRT on the day). Scenic direction west → east. Driver waits; follow the Google Maps route to Tham Krasae, then Suan Sai Yok. Return to Bangkok evening (~21:00) — replace the final Maps stop with your own lodging.`,
+        ? `Death Railway (Kanchanaburi ↔ Nam Tok): vlak 257 skozi Tham Krasae (Saphan Tham Krasae) tipično okoli 11:38 proti Nam Tok; vlak 259 okoli 17:46. Vračanje Nam Tok → Kanchanaburi: npr. ~13:00 / ~15:30 (preveri urnik SRT na dan). Smer vožnje za razgled: zahod → vzhod. Šofer naj te počaka. Vrnitev v Bangkok zvečer (~21:00).`
+        : `Death Railway (Kanchanaburi ↔ Nam Tok): train 257 typically passes Tham Krasae (Saphan Tham Krasae) ~11:38 toward Nam Tok; train 259 ~17:46. Return Nam Tok → Kanchanaburi often ~13:00 / ~15:30 (verify SRT on the day). Scenic direction west → east. Driver waits. Return to Bangkok evening (~21:00).`,
       lat: 14.1045,
       lng: 99.1671,
     },
@@ -206,7 +221,6 @@ export function ensureBangkokKwaiDayTrip(
 
 /** Prompt block for Gemini — BKK / Thailand hub stays. */
 export function bangkokKwaiDayTripPromptBlock(slo: boolean): string {
-  const mapsNote = bangkokKwaiDayTripMapsNote(slo);
   if (slo) {
     return `
 OBVEZEN CELODNEVNI IZLET IZ BANGKOKA (vsaj 1 dan, ko je baza Bangkok) — EKSKLUZIVEN DAN:
@@ -216,8 +230,8 @@ OBVEZEN CELODNEVNI IZLET IZ BANGKOKA (vsaj 1 dan, ko je baza Bangkok) — EKSKLU
 - Odhod 6:30. Mae Klong vlaki skozi tržnico tipično 08:30, 11:10, 14:30, 17:40 (prihodi); odhodi 06:20, 09:00, 11:30, 15:30 — preveri na dan; ciljaj 08:30.
 - Death Railway (Tham Krasae): vlak 257 ~11:38, vlak 259 ~17:46 proti Nam Tok; vračanje pogosto ~13:00 / ~15:30 — preveri SRT. Smer zahod → vzhod.
 - Most na reki Kwai: ogled peš / kratek postanek (ni ločenega fiksnega „vlaka na mostu“ za turiste).
-- V opis dneva VKLJUČI to opombo + povezavo: ${mapsNote}
-- PREPOVEDANO: ime konkretnega hotela (npr. Tinidee) — vedno „tvoja namestitev“ / „Your hotel“.`;
+- PREVOZ: kombi z voznikom rezerviraj zvečer prej (recepcija / Klook / GetYourGuide). PREPOVEDANO v besedilo dneva lepiti surov Google Maps URL.
+- PREPOVEDANO: ime konkretnega hotela (npr. Tinidee) — vedno „tvoja namestitev“.`;
   }
   return `
 MANDATORY BANGKOK FULL-DAY TRIP (at least one Bangkok base day) — EXCLUSIVE DAY:
@@ -227,8 +241,8 @@ MANDATORY BANGKOK FULL-DAY TRIP (at least one Bangkok base day) — EXCLUSIVE DA
 - Leave 6:30. Mae Klong trains through the market typically 08:30, 11:10, 14:30, 17:40 (arrivals); departures 06:20, 09:00, 11:30, 15:30 — verify on the day; aim for 08:30.
 - Death Railway (Tham Krasae): train 257 ~11:38, train 259 ~17:46 toward Nam Tok; returns often ~13:00 / ~15:30 — verify SRT. Direction west → east.
 - River Kwai Bridge: walk / short stop (no separate fixed tourist “bridge train”).
-- INCLUDE this note + link in the day copy: ${mapsNote}
-- FORBIDDEN: concrete hotel brands (e.g. Tinidee) — always “your lodging” / “Your hotel”.`;
+- TRANSPORT: book a van with driver the evening before (hotel desk / Klook / GetYourGuide). FORBIDDEN: paste a raw Google Maps URL into day copy.
+- FORBIDDEN: concrete hotel brands (e.g. Tinidee) — always “your lodging”.`;
 }
 
 type PlanDayLike = {
@@ -300,9 +314,7 @@ export function applyBangkokKwaiDayTripToPlan<T extends PlanDayLike>(
       drivingDistanceKm: undefined,
       drivingDurationHours: undefined,
       travelHack: mapsNote,
-      localWarnings: locale.slo
-        ? `Celodnevni izlet ~06:30–21:00 — brez dodatnega mestnega programa; po vrnitvi samo lahka večerja pri hotelu. ${mapsNote}`
-        : `Full-day trip ~06:30–21:00 — no extra city program; after return only a light dinner near the hotel. ${mapsNote}`,
+      localWarnings: bangkokKwaiDayTripBookingTip(locale.slo),
       activities: fixed,
       mapPins: [
         ...fixed.morning,

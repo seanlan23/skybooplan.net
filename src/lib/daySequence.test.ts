@@ -4,6 +4,7 @@ import {
   expandPlanDaysToExpected,
   hasContiguousDayNumbers,
   repairPlanDaySequence,
+  resyncPlanDayDates,
 } from "@/lib/daySequence";
 
 function day(partial: Partial<DayPlan> & { day: number }): DayPlan {
@@ -151,5 +152,26 @@ describe("hasContiguousDayNumbers", () => {
 
   it("detects a bare gap", () => {
     expect(hasContiguousDayNumbers([{ day: 1 }, { day: 2 }, { day: 4 }])).toBe(false);
+  });
+});
+
+describe("resyncPlanDayDates", () => {
+  it("stamps consecutive ISO dates from departDate even when Gemini duplicated a day", () => {
+    const plan = {
+      destinationName: "Thailand",
+      days: [
+        day({ day: 1, city: "Bangkok", date: "2026-10-26" }),
+        day({ day: 6, city: "Ayutthaya", date: "2026-10-31" }),
+        day({ day: 7, city: "Chiang Mai", date: "2026-10-31" }),
+        day({ day: 12, city: "Krabi", date: "2026-11-05" }),
+        day({ day: 13, city: "Koh Lipe", date: "2026-11-07" }),
+      ],
+    } as AiTripPlan;
+
+    expect(resyncPlanDayDates(plan, "2026-10-26")).toBeGreaterThan(0);
+    expect(plan.days.find((d) => d.day === 6)?.date).toBe("2026-10-31");
+    expect(plan.days.find((d) => d.day === 7)?.date).toBe("2026-11-01");
+    expect(plan.days.find((d) => d.day === 12)?.date).toBe("2026-11-06");
+    expect(plan.days.find((d) => d.day === 13)?.date).toBe("2026-11-07");
   });
 });

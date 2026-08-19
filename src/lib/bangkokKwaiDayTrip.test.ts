@@ -13,25 +13,26 @@ import { resolveTripLocale } from "@/lib/tripLocale";
 const locale = resolveTripLocale("BKK", "Tajska", "sl");
 
 describe("bangkokKwaiDayTrip", () => {
-  it("builds Maps URL with generic hotel, never Tinidee", () => {
+  it("builds Maps URL with Bangkok hub, never Tinidee or Your hotel", () => {
     const url = buildBangkokKwaiDayTripMapsUrl();
     expect(url).toContain("google.com/maps/dir/");
-    expect(url).toMatch(/Your%20hotel|Your hotel/i);
+    expect(url).toMatch(/Bangkok/i);
     expect(url).toMatch(/Rom%20Hup|Maeklong/i);
     expect(url).toMatch(/Tham%20Krasae|Death%20Railway/i);
     expect(url).not.toMatch(/Tinidee/i);
-    expect(BANGKOK_KWAI_DAY_TRIP_STOPS[0]).toMatch(/Your hotel/i);
-    expect(BANGKOK_KWAI_DAY_TRIP_STOPS.at(-1)).toMatch(/Your hotel/i);
+    expect(url).not.toMatch(/Your%20hotel|Your hotel/i);
+    expect(BANGKOK_KWAI_DAY_TRIP_STOPS[0]).toMatch(/Bangkok/i);
+    expect(BANGKOK_KWAI_DAY_TRIP_STOPS.at(-1)).toMatch(/Bangkok/i);
   });
 
-  it("maps note tells users to replace start/end with their lodging", () => {
+  it("maps note is human copy without a raw Maps URL", () => {
     const note = bangkokKwaiDayTripMapsNote(true);
-    expect(note).toContain("google.com/maps/dir/");
-    expect(note).toMatch(/zamenjaj s svojo namestitvijo/i);
-    expect(note).not.toMatch(/Tinidee/i);
+    expect(note).not.toContain("google.com/maps/dir/");
+    expect(note).not.toMatch(/Your%20hotel|%20/i);
+    expect(note).toMatch(/namestitev|hotel/i);
     const slots = buildBangkokKwaiDayTripSlots(locale);
-    expect(slots.morning[0]?.description).toContain("google.com/maps/dir/");
-    expect(slots.morning[0]?.description).toMatch(/svojo namestitvijo/i);
+    expect(slots.morning[0]?.description).not.toContain("google.com/maps/dir/");
+    expect(slots.morning[0]?.description).toMatch(/6:30/);
   });
 
   it("injects on Bangkok day 3 when stay ≥ 3", () => {
@@ -223,6 +224,9 @@ describe("bangkokKwaiDayTrip", () => {
     ).toBe(true);
     const sai = day4.activities?.evening.find((a) => /Tham Krasae|Suan Sai Yok/i.test(a.name));
     expect(sai?.lng).toBeLessThan(100);
+    expect(day4.travelHack).not.toContain("google.com/maps/dir/");
+    expect(day4.localWarnings).toMatch(/Klook|kombi|van/i);
+    expect(day4.localWarnings).not.toContain("google.com/maps/dir/");
     expect(out[1]?.activities?.morning[0]?.name).toMatch(/Wat Pho/i);
   });
 });

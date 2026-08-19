@@ -6,6 +6,7 @@ import {
   plannerQualityPromptBlock,
   prefersTwoNights,
   slowBorderNote,
+  stealNightForHitAndRun,
 } from "@/lib/plannerQuality";
 
 describe("borderPenaltyHours", () => {
@@ -39,7 +40,7 @@ describe("plannerQualityPromptBlock", () => {
     expect(road).toMatch(/US–MX|TH–KH/);
     expect(road).toMatch(/PREPOVEDANO izmišljati imena hotelov/);
     expect(road).toMatch(/2 noči/);
-    expect(road).toMatch(/človeški planner/i);
+    expect(road).toMatch(/8–12 h|day\.city = izhodišče/i);
     expect(road).toMatch(/Uživajte/);
   });
 
@@ -47,6 +48,28 @@ describe("plannerQualityPromptBlock", () => {
     const air = plannerQualityPromptBlock({ road: false, totalDays: 16 });
     expect(air).toMatch(/NE velja za mednarodni let/);
     expect(air).toMatch(/zadnji dan/i);
+  });
+});
+
+describe("stealNightForHitAndRun", () => {
+  it("gives Rome a second night by taking Florence's last of three", () => {
+    const plan = {
+      contentLanguage: "sl",
+      days: [
+        { day: 1, city: "Venice" },
+        { day: 2, city: "Florence" },
+        { day: 3, city: "Florence" },
+        { day: 4, city: "Florence", activities: { morning: [{ name: "Uffizi", type: "SIGHT" }], afternoon: [], evening: [] } },
+        { day: 5, city: "Rome", drivingDistanceKm: 270, activities: { morning: [], afternoon: [], evening: [{ name: "Večerja", type: "EAT" }] } },
+        { day: 6, city: "Naples" },
+        { day: 7, city: "Naples" },
+        { day: 8, city: "Mežica" },
+      ],
+    };
+    expect(stealNightForHitAndRun(plan as never)).toBe(1);
+    expect(plan.days[3]!.city).toBe("Rome");
+    expect(plan.days[3]!.activities!.morning).toHaveLength(0);
+    expect(plan.days[4]!.city).toBe("Rome");
   });
 });
 
