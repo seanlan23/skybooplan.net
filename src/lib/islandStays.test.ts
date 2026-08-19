@@ -54,6 +54,8 @@ describe("isSmallIsland", () => {
     expect(isSmallIsland("Boracay")).toBe(true);
     expect(isSmallIsland("Koh Phi Phi")).toBe(true);
     expect(isSmallIsland("Bangkok")).toBe(false);
+    expect(isSmallIsland("Krabi")).toBe(false);
+    expect(isSmallIsland("Ao Nang")).toBe(false);
   });
 
   it("detects Caribbean and Mediterranean islands", () => {

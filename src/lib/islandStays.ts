@@ -18,7 +18,8 @@ export type IslandStayBlock = {
 
 // Island catalogs: src/lib/islandStayCatalogs.ts (SEA, Caribbean, Med, Pacific + fallbacks).
 export function isSmallIsland(city: string): boolean {
-  return findIslandDef(city) != null;
+  const def = findIslandDef(city);
+  return def != null && def.stayKind !== "mainland_base";
 }
 
 export function getIslandStayCatalog(city: string, lang: string): Activity[] {

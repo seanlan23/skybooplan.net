@@ -72,58 +72,6 @@ function rewriteImpossibleHop(
   };
 }
 
-export function dropDuplicatePhiPhiDayTrips(plan: AiTripPlan, language?: string): number {
-  const lang = normalizePlanLangCode(language ?? plan.contentLanguage ?? "en");
-  const maya = /maya bay|koh phi phi|phi phi otok|phi phi island|phi phi don|phi phi leh/i;
-  const krabiBase = /krabi|ao nang|railay/i;
-  const replacement = {
-    sl: "Hong Island / 4 otoki (ne spet Maya Bay)",
-    en: "Hong Island / 4 Islands (not Maya Bay again)",
-    de: "Hong Island / 4 Inseln (nicht nochmal Maya Bay)",
-    it: "Hong Island / 4 isole (non di nuovo Maya Bay)",
-    es: "Hong Island / 4 islas (no Maya Bay otra vez)",
-    fr: "Hong Island / 4 îles (pas Maya Bay encore)",
-  };
-  const replacementDesc = {
-    sl: "Maya Bay si že naredil včeraj. Danes Hong Island ali 4 Islands iz Ao Nanga — drugačne lagune, manj gneče. Ne plačuj istega Phi Phi izleta dvakrat.",
-    en: "You already did Maya Bay yesterday. Today Hong Island or the 4 Islands from Ao Nang — different lagoons, fewer crowds. Don't pay for the same Phi Phi trip twice.",
-    de: "Maya Bay war gestern. Heute Hong Island oder 4 Islands ab Ao Nang — andere Lagunen, weniger Andrang.",
-    it: "Maya Bay l'hai già fatta ieri. Oggi Hong Island o 4 Islands da Ao Nang.",
-    es: "Maya Bay ya lo hiciste ayer. Hoy Hong Island o 4 Islands desde Ao Nang.",
-    fr: "Maya Bay, c'était hier. Aujourd'hui Hong Island ou 4 Islands depuis Ao Nang.",
-  };
-  let n = 0;
-  let sawMaya = false;
-  const days = [...(plan.days ?? [])].sort((a, b) => a.day - b.day);
-  for (const day of days) {
-    const city = `${day.city ?? ""} ${day.focusName ?? ""} ${day.title ?? ""}`;
-    const blob = `${city} ${JSON.stringify(day.activities ?? {})}`;
-    const here = krabiBase.test(city) && maya.test(blob);
-    if (here && sawMaya) {
-      if (maya.test(day.title ?? "")) {
-        day.title = planLangCopy(lang, replacement);
-      }
-      if (day.activities) {
-        for (const slot of ["morning", "afternoon", "evening"] as const) {
-          day.activities[slot] = (day.activities[slot] ?? []).map((a) => {
-            if (!maya.test(`${a.name} ${a.description ?? ""}`)) return a;
-            n += 1;
-            return {
-              ...a,
-              name: planLangCopy(lang, replacement),
-              description: planLangCopy(lang, replacementDesc),
-              type: a.type || "ACTIVITY",
-            };
-          });
-        }
-      }
-      continue;
-    }
-    if (here) sawMaya = true;
-  }
-  return n;
-}
-
 /** Drop / rewrite same-day hops that are geographically impossible. */
 export function scrubImpossibleIslandDayTrips(
   plan: AiTripPlan,
@@ -158,5 +106,4 @@ export function scrubImpossibleIslandDayTrips(
       });
     }
   }
-  dropDuplicatePhiPhiDayTrips(plan, language);
 }

@@ -3,7 +3,7 @@ import type { Activity } from "@/lib/aiPlan.functions";
 export type IslandCatalogFactory = (slo: boolean) => Activity[];
 
 /** island = beach/island days; bay_cruise = overnight boat in a large bay (Ha Long). */
-export type IslandStayKind = "island" | "bay_cruise";
+export type IslandStayKind = "island" | "bay_cruise" | "mainland_base";
 
 export type IslandDef = {
   match: RegExp;
@@ -128,6 +128,26 @@ export const SMALL_ISLAND_DEFS: IslandDef[] = [
       act(slo, { sl: "Kayak ob obali", en: "Coastal kayaking" }, "ACTIVITY", { sl: "10–20 €", en: "€10–20" }, {
         sl: "Najem kajaka ob Sunrise Beach — mirna voda, lasten tempo.",
         en: "Kayak rental at Sunrise Beach — calm water at your pace.",
+      }),
+    ],
+  },
+  {
+    match: /krabi|ao nang|railay/i,
+    stayKind: "mainland_base",
+    activities: (slo) => [
+      act(
+        slo,
+        { sl: "Hong Island / 4 otoki (Phra Nang, Poda, Chicken, Tup)", en: "Hong Island / 4 Islands (Phra Nang, Poda, Chicken, Tup)" },
+        "ACTIVITY",
+        { sl: "30–55 €", en: "€30–55" },
+        {
+          sl: "Drugačen čoln kot Phi Phi — lagune Hong Island ali 4 Islands iz Ao Nanga.",
+          en: "A different boat from Phi Phi — Hong Island lagoons or the 4 Islands from Ao Nang.",
+        },
+      ),
+      act(slo, { sl: "Railay / Phra Nang Beach", en: "Railay / Phra Nang Beach" }, "ACTIVITY", { sl: "5–15 € (čoln)", en: "€5–15 (boat)" }, {
+        sl: "Kratek longtail iz Ao Nanga — pečine in Phra Nang jama, ne celodnevni Phi Phi.",
+        en: "Short longtail from Ao Nang — cliffs and Phra Nang cave, not a full-day Phi Phi trip.",
       }),
     ],
   },
