@@ -22,7 +22,11 @@ describe("plan day coverage", () => {
 
   it("requires full coverage for trips of 5+ days", () => {
     expect(hasAcceptablePlanDayCoverage(7, 8)).toBe(false);
+    expect(hasAcceptablePlanDayCoverage(7, 16)).toBe(false);
     expect(hasAcceptablePlanDayCoverage(8, 8)).toBe(true);
+    expect(incompletePlanDayCoverageMessage(7, 16)).toBe(
+      "Načrt je nepopoln (7/16 dni). Poskusi znova.",
+    );
   });
 
   it("requires both days for a 2-day trip", () => {

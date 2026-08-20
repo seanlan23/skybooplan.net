@@ -16,7 +16,7 @@ import {
   generateTripInputSchema,
   GEMINI_STREAM_MAX_BATCHES,
   nextIncompleteDayRange,
-  streamBatchSize,
+  streamBatchSizeWithTimeLeft,
   type GenerateGeminiProTripInput,
 } from "@/lib/geminiPro.functions";
 import { createTripPlanStream } from "@/lib/geminiPro";
@@ -30,6 +30,7 @@ import {
 import {
   alignBatchDays,
   mergeStreamedTripPlans,
+  maxPlanDayNumber,
   planLastCity,
   planVisitedCities,
 } from "@/lib/geminiStreamBatches";
@@ -47,8 +48,8 @@ type StreamEvent =
 
 /** Keep client idle watchdog alive while Gemini refines the same day (no new dayCount). */
 const PING_EVERY_MS = 20_000;
-/** Don't start another Gemini batch if the hard cap would cut it off mid-call. */
-const MIN_MS_FOR_NEXT_BATCH = 55_000;
+/** Don't start another Gemini batch if the hard cap is already gone. */
+const MIN_MS_FOR_NEXT_BATCH = 20_000;
 
 function ndjson(event: StreamEvent): Uint8Array {
   return new TextEncoder().encode(`${JSON.stringify(event)}\n`);
@@ -135,14 +136,17 @@ export const Route = createFileRoute("/api/generate-itinerary")({
               }
 
               const pax = data.pax.adults + data.pax.childrenAges.length;
-              const batchSize = streamBatchSize(expectedDays);
               let accumulated: AiTripPlan | null = null;
               const loopStarted = Date.now();
+              let noProgressStreak = 0;
 
-              const mergePush = (incoming: AiTripPlan | null | undefined) => {
+              const mergePush = (
+                incoming: AiTripPlan | null | undefined,
+                stampFlights: boolean,
+              ) => {
                 if (!incoming?.days.length) return;
                 const merged = mergeStreamedTripPlans(accumulated, incoming, pax);
-                applyFlightContextIfPresent(merged, data);
+                if (stampFlights) applyFlightContextIfPresent(merged, data);
                 accumulated = merged;
                 const dayCount = merged.days.length;
                 if (dayCount > lastDayCount) {
@@ -165,14 +169,19 @@ export const Route = createFileRoute("/api/generate-itinerary")({
                   break;
                 }
 
-                const range = nextIncompleteDayRange(
-                  accumulated?.days.length ?? 0,
+                const elapsed = Date.now() - loopStarted;
+                const size = streamBatchSizeWithTimeLeft(
                   expectedDays,
-                  batchSize,
+                  elapsed,
+                  GEMINI_STREAM_HARD_MS,
+                );
+                const range = nextIncompleteDayRange(
+                  maxPlanDayNumber(accumulated?.days) || accumulated?.days.length || 0,
+                  expectedDays,
+                  size,
                 );
                 if (!range) break;
 
-                const elapsed = Date.now() - loopStarted;
                 if (batch > 0 && elapsed > GEMINI_STREAM_HARD_MS - MIN_MS_FOR_NEXT_BATCH) {
                   pipelineLog(
                     "stream:generate-itinerary SKIP_BATCH",
@@ -215,7 +224,7 @@ export const Route = createFileRoute("/api/generate-itinerary")({
                       enrich: false,
                     });
                     if (!preview?.days.length) continue;
-                    mergePush(alignBatchDays(preview, range));
+                    mergePush(alignBatchDays(preview, range), false);
                   }
 
                   if (abortSignal.aborted) break;
@@ -225,7 +234,7 @@ export const Route = createFileRoute("/api/generate-itinerary")({
                     const built = buildCatalogPlanFromResponse(finalObject, data, {
                       expandToExpectedDays: false,
                     });
-                    if (built.plan) mergePush(alignBatchDays(built.plan, range));
+                    if (built.plan) mergePush(alignBatchDays(built.plan, range), true);
                   } catch (objectErr) {
                     pipelineLog(
                       "stream:generate-itinerary BATCH_OBJECT",
@@ -242,9 +251,12 @@ export const Route = createFileRoute("/api/generate-itinerary")({
 
                 const daysAfter = accumulated?.days.length ?? 0;
                 if (daysAfter <= daysBefore) {
+                  noProgressStreak += 1;
                   pipelineLog("stream:generate-itinerary NO_PROGRESS", `${daysAfter} days`);
-                  break;
+                  if (noProgressStreak >= 2) break;
+                  continue;
                 }
+                noProgressStreak = 0;
               }
 
               if (
@@ -272,6 +284,7 @@ export const Route = createFileRoute("/api/generate-itinerary")({
               }
 
               const got = accumulated?.days.length ?? 0;
+              if (accumulated) applyFlightContextIfPresent(accumulated, data);
               const msg = incompletePlanDayCoverageMessage(got, expectedDays);
               pipelineLog("stream:generate-itinerary INCOMPLETE", msg);
               push({ type: "error", error: msg });

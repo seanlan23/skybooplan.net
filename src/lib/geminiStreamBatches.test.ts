@@ -3,6 +3,7 @@ import type { AiTripPlan, DayPlan } from "@/lib/aiPlan.functions";
 import {
   nextIncompleteDayRange,
   streamBatchSize,
+  streamBatchSizeWithTimeLeft,
 } from "@/lib/geminiPro.functions";
 import {
   alignBatchDays,
@@ -46,16 +47,23 @@ describe("stream day batches", () => {
     expect(nextIncompleteDayRange(8, 8)).toBeNull();
   });
 
-  it("splits a 16-day trip into 6-day windows so catalog JSON is not truncated", () => {
-    expect(streamBatchSize(16)).toBe(6);
-    expect(nextIncompleteDayRange(0, 16)).toEqual({ start: 1, end: 6 });
-    expect(nextIncompleteDayRange(6, 16)).toEqual({ start: 7, end: 12 });
-    expect(nextIncompleteDayRange(12, 16)).toEqual({ start: 13, end: 16 });
+  it("splits a 16-day trip into 5-day windows so catalog JSON is not truncated", () => {
+    expect(streamBatchSize(16)).toBe(5);
+    expect(nextIncompleteDayRange(0, 16)).toEqual({ start: 1, end: 5 });
+    expect(nextIncompleteDayRange(5, 16)).toEqual({ start: 6, end: 10 });
+    expect(nextIncompleteDayRange(10, 16)).toEqual({ start: 11, end: 15 });
+    expect(nextIncompleteDayRange(15, 16)).toEqual({ start: 16, end: 16 });
     expect(nextIncompleteDayRange(16, 16)).toBeNull();
   });
 
   it("continues from a 2-day stub instead of shipping 2/16", () => {
-    expect(nextIncompleteDayRange(2, 16)).toEqual({ start: 3, end: 8 });
+    expect(nextIncompleteDayRange(2, 16)).toEqual({ start: 3, end: 7 });
+  });
+
+  it("shrinks the window when the hard cap would otherwise skip the rest", () => {
+    expect(streamBatchSizeWithTimeLeft(16, 0, 280_000)).toBe(5);
+    expect(streamBatchSizeWithTimeLeft(16, 200_000, 280_000)).toBe(3);
+    expect(streamBatchSizeWithTimeLeft(8, 200_000, 280_000)).toBe(3);
   });
 });
 

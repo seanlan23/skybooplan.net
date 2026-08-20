@@ -232,12 +232,25 @@ export function incompletePlanDayCoverageMessage(
 }
 
 /** Catalog JSON is too rich for 16 days in one Gemini call — split longer trips. */
-export const GEMINI_STREAM_DAYS_PER_BATCH = 6;
-export const GEMINI_STREAM_MAX_BATCHES = 4;
+export const GEMINI_STREAM_DAYS_PER_BATCH = 5;
+export const GEMINI_STREAM_MAX_BATCHES = 5;
 
 export function streamBatchSize(expectedDays: number): number {
   if (expectedDays <= 8) return Math.max(1, expectedDays);
+  if (expectedDays <= 12) return 6;
   return GEMINI_STREAM_DAYS_PER_BATCH;
+}
+
+/** Shrink the window when the Vercel/hard cap would otherwise skip the rest (7/16). */
+export function streamBatchSizeWithTimeLeft(
+  expectedDays: number,
+  elapsedMs: number,
+  hardMs: number,
+): number {
+  const left = hardMs - elapsedMs;
+  const base = streamBatchSize(expectedDays);
+  if (left < 90_000) return Math.min(3, base);
+  return base;
 }
 
 /** Next day_number window to request, or null when coverage is already acceptable. */
