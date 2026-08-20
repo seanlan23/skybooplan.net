@@ -337,6 +337,210 @@ describe("applyFlightContextToGeminiPlan", () => {
     expect(dinner?.description).toContain("19:00");
   });
 
+  it("moves the last small-island night to the hub before a morning international flight", () => {
+    const empty = {
+      morning: "",
+      afternoon: "",
+      evening: "",
+      travelHack: "",
+      transportationTips: "",
+      localWarnings: "",
+      dailyBudgetEur: 65,
+    };
+    const plan = basePlan({
+      destinationName: "Mexico",
+      destinationIata: "CUN",
+      originIata: "MUC",
+      centerLat: 21.16,
+      centerLng: -86.85,
+      days: [
+        {
+          day: 1,
+          date: "2026-10-26",
+          title: "Cancun",
+          ...empty,
+          lat: 21.16,
+          lng: -86.85,
+          city: "Cancun",
+          focusName: "Cancun",
+          category: "city",
+          activities: { morning: [], afternoon: [], evening: [] },
+        },
+        {
+          day: 2,
+          date: "2026-10-27",
+          title: "Tulum",
+          ...empty,
+          lat: 20.21,
+          lng: -87.46,
+          city: "Tulum",
+          focusName: "Tulum",
+          category: "city",
+          activities: {
+            morning: [{ name: "Ruševine Tulum", type: "SIGHT", description: "Obala." }],
+            afternoon: [],
+            evening: [],
+          },
+        },
+        {
+          day: 3,
+          date: "2026-10-28",
+          title: "Holbox beach",
+          ...empty,
+          lat: 21.52,
+          lng: -87.38,
+          city: "Isla Holbox",
+          focusName: "Isla Holbox",
+          category: "beach",
+          transportation: [
+            { type: "van", from: "Tulum", to: "Chiquila", duration: "2h", estimatedPrice: 25 },
+            {
+              type: "ferry",
+              from: "Chiquila",
+              to: "Isla Holbox",
+              duration: "25min",
+              estimatedPrice: 10,
+            },
+          ],
+          activities: {
+            morning: [{ name: "Plaža Holbox", type: "SIGHT", description: "Pesek." }],
+            afternoon: [],
+            evening: [
+              {
+                name: "Poslovilna večerja: La Miranda de Rulo",
+                type: "EAT",
+                description: "Na otoku.",
+              },
+            ],
+          },
+        },
+        {
+          day: 4,
+          date: "2026-10-29",
+          title: "Odhod iz Isla Holbox",
+          ...empty,
+          lat: 21.52,
+          lng: -87.38,
+          city: "Isla Holbox",
+          focusName: "Isla Holbox",
+          category: "transport",
+          activities: {
+            morning: [
+              {
+                name: "Prevoz na letališče (Uber / taxi)",
+                type: "TRANSPORT",
+                description: "Uber z otoka.",
+                arrivalTime: "08:05",
+              },
+            ],
+            afternoon: [],
+            evening: [],
+          },
+        },
+      ],
+    });
+
+    applyFlightContextToGeminiPlan(
+      plan,
+      {
+        outboundDepart: "11:50",
+        outboundArrive: "22:30",
+        outboundArriveDayOffset: 0,
+        inboundDepart: "11:35",
+        inboundArrive: "10:00",
+      },
+      { originIata: "MUC", language: "sl", expectedDays: 4 },
+    );
+
+    const overnight = plan.days.find((d) => d.day === 3)!;
+    expect(overnight.city).toMatch(/Cancún|Cancun/i);
+    const overnightBlob = JSON.stringify(overnight.activities);
+    expect(overnightBlob).toMatch(/trajekt|ferry|prevoz/i);
+    expect(overnightBlob).toMatch(/Chiquila/i);
+    expect(overnight.activities?.morning?.length).toBeGreaterThan(0);
+    expect(overnight.activities?.afternoon?.length).toBeGreaterThan(0);
+
+    const last = plan.days.find((d) => d.day === 4)!;
+    expect(last.city).toMatch(/Cancún|Cancun/i);
+    const lastBlob = JSON.stringify(last.activities);
+    expect(lastBlob).toMatch(/11:35/);
+    expect(lastBlob).not.toMatch(/Uber z otoka/i);
+    expect(last.city).not.toMatch(/Holbox/i);
+  });
+
+  it("keeps the last island night when the international flight is in the evening", () => {
+    const empty = {
+      morning: "",
+      afternoon: "",
+      evening: "",
+      travelHack: "",
+      transportationTips: "",
+      localWarnings: "",
+      dailyBudgetEur: 65,
+    };
+    const plan = basePlan({
+      destinationName: "Mexico",
+      destinationIata: "CUN",
+      originIata: "MUC",
+      days: [
+        {
+          day: 1,
+          date: "2026-10-26",
+          title: "Cancun",
+          ...empty,
+          lat: 21.16,
+          lng: -86.85,
+          city: "Cancun",
+          focusName: "Cancun",
+          category: "city",
+          activities: { morning: [], afternoon: [], evening: [] },
+        },
+        {
+          day: 2,
+          date: "2026-10-27",
+          title: "Holbox",
+          ...empty,
+          lat: 21.52,
+          lng: -87.38,
+          city: "Isla Holbox",
+          focusName: "Isla Holbox",
+          category: "beach",
+          activities: {
+            morning: [{ name: "Plaža Holbox", type: "SIGHT", description: "Pesek." }],
+            afternoon: [],
+            evening: [],
+          },
+        },
+        {
+          day: 3,
+          date: "2026-10-28",
+          title: "Odhod",
+          ...empty,
+          lat: 21.52,
+          lng: -87.38,
+          city: "Isla Holbox",
+          focusName: "Isla Holbox",
+          category: "transport",
+          activities: { morning: [], afternoon: [], evening: [] },
+        },
+      ],
+    });
+
+    applyFlightContextToGeminiPlan(
+      plan,
+      {
+        outboundDepart: "11:50",
+        outboundArrive: "22:30",
+        outboundArriveDayOffset: 0,
+        inboundDepart: "19:40",
+        inboundArrive: "14:00",
+      },
+      { originIata: "MUC", language: "sl", expectedDays: 3 },
+    );
+
+    expect(plan.days.find((d) => d.day === 2)?.city).toMatch(/Holbox/i);
+  });
+
   it("clears breakfast/siesta and stamps 17:55 when landing late afternoon (+1d)", () => {
     const plan = basePlan();
     plan.days[1]!.activities = {

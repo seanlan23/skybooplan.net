@@ -1,4 +1,5 @@
-import type { Activity, AiTripPlan, DayPlan } from "@/lib/aiPlan.functions";
+import type { Activity, AiTripPlan, DayPlan, DayTransportLeg } from "@/lib/aiPlan.functions";
+import { isSmallIsland } from "@/lib/islandStays";
 import {
   clearActivityStructuredClocks,
   isFlightRangeActivity,
@@ -276,6 +277,148 @@ function shouldInjectDomesticAirHubHop(
   if (km <= maxKm) return false;
   if (km > 5500) return false;
   return true;
+}
+
+function reverseIslandAccessLegs(
+  plan: AiTripPlan,
+  islandCity: string,
+  hubName: string,
+): DayTransportLeg[] {
+  const islandTok = normalizeCityToken(islandCity);
+  if (!islandTok) return [];
+  const inbound: DayTransportLeg[] = [];
+  for (const day of plan.days) {
+    for (const leg of day.transportation ?? []) {
+      const toTok = normalizeCityToken(leg.to);
+      if (!toTok) continue;
+      if (toTok.includes(islandTok) || islandTok.includes(toTok)) inbound.push({ ...leg });
+    }
+  }
+  if (!inbound.length) return [];
+  return [...inbound].reverse().map((leg) => {
+    if (leg.type === "ferry") {
+      return { ...leg, from: islandCity, to: leg.from };
+    }
+    return { ...leg, from: leg.to, to: hubName };
+  });
+}
+
+function islandExitActivities(
+  islandCity: string,
+  hubName: string,
+  legs: DayTransportLeg[],
+  lang: string,
+): Activity[] {
+  if (legs.length) {
+    return legs.map((leg) => {
+      const isFerry = leg.type === "ferry";
+      return {
+        name: isFerry
+          ? planLangCopy(lang, {
+              sl: `Trajekt ${leg.from} → ${leg.to}`,
+              en: `Ferry ${leg.from} → ${leg.to}`,
+              de: `Fähre ${leg.from} → ${leg.to}`,
+              it: `Traghetto ${leg.from} → ${leg.to}`,
+              es: `Ferry ${leg.from} → ${leg.to}`,
+              fr: `Ferry ${leg.from} → ${leg.to}`,
+            })
+          : planLangCopy(lang, {
+              sl: `Prevoz ${leg.from} → ${leg.to}`,
+              en: `Transfer ${leg.from} → ${leg.to}`,
+              de: `Transfer ${leg.from} → ${leg.to}`,
+              it: `Transfer ${leg.from} → ${leg.to}`,
+              es: `Traslado ${leg.from} → ${leg.to}`,
+              fr: `Transfert ${leg.from} → ${leg.to}`,
+            }),
+        type: "TRANSPORT" as const,
+        description: planLangCopy(lang, {
+          sl: `Izhod z otoka pred nočitvijo v ${hubName}. ${leg.duration ? `Trajanje ${leg.duration}.` : ""}`.trim(),
+          en: `Leave the island before overnighting in ${hubName}. ${leg.duration ? `About ${leg.duration}.` : ""}`.trim(),
+          de: `Insel verlassen vor der Übernachtung in ${hubName}. ${leg.duration ? `Dauer ${leg.duration}.` : ""}`.trim(),
+        }),
+      };
+    });
+  }
+  return [
+    {
+      name: planLangCopy(lang, {
+        sl: `Prevoz z otoka do ${hubName}`,
+        en: `Transfer from the island to ${hubName}`,
+        de: `Transfer von der Insel nach ${hubName}`,
+        it: `Transfer dall'isola a ${hubName}`,
+        es: `Traslado de la isla a ${hubName}`,
+        fr: `Transfert de l'île vers ${hubName}`,
+      }),
+      type: "TRANSPORT",
+      description: planLangCopy(lang, {
+        sl: `Trajekt na celino, nato kopni prevoz do ${hubName}. Zgodnji mednarodni let naslednji dan z otoka ni izvedljiv.`,
+        en: `Ferry to the mainland, then ground transfer to ${hubName}. An early international flight next day from the island is not feasible.`,
+        de: `Fähre zum Festland, dann Transfer nach ${hubName}. Ein früher internationaler Flug am nächsten Tag von der Insel ist nicht machbar.`,
+      }),
+    },
+  ];
+}
+
+/**
+ * Morning/midday international boards cannot start on a small island (ferry + van + 3h airport).
+ * Move the last overnight to the ticket hub; keep the day full with the real exit legs.
+ */
+function relocateLastIslandOvernightToHub(
+  plan: AiTripPlan,
+  opts: {
+    islandCity: string;
+    hubName: string;
+    hubLat?: number;
+    hubLng?: number;
+    totalDays: number;
+    language: string;
+  },
+): void {
+  const overnight = plan.days.find((d) => d.day === opts.totalDays - 1);
+  if (!overnight || overnight.inFlightDay) return;
+  const legs = reverseIslandAccessLegs(plan, opts.islandCity, opts.hubName);
+  overnight.city = opts.hubName;
+  overnight.focusName = opts.hubName;
+  overnight.category = "transport";
+  overnight.title = planLangCopy(opts.language, {
+    sl: `Prevoz z ${opts.islandCity} v ${opts.hubName}`,
+    en: `Transfer from ${opts.islandCity} to ${opts.hubName}`,
+    de: `Transfer von ${opts.islandCity} nach ${opts.hubName}`,
+    it: `Transfer da ${opts.islandCity} a ${opts.hubName}`,
+    es: `Traslado de ${opts.islandCity} a ${opts.hubName}`,
+    fr: `Transfert de ${opts.islandCity} vers ${opts.hubName}`,
+  });
+  if (opts.hubLat != null && opts.hubLng != null) {
+    overnight.lat = opts.hubLat;
+    overnight.lng = opts.hubLng;
+  }
+  overnight.transportation = legs.length ? legs : undefined;
+  overnight.mapPins = [];
+  overnight.morning = "";
+  overnight.afternoon = "";
+  overnight.evening = "";
+  overnight.activities = {
+    morning: islandExitActivities(opts.islandCity, opts.hubName, legs, opts.language),
+    afternoon: [
+      {
+        name: planLangCopy(opts.language, {
+          sl: `Check-in v ${opts.hubName}`,
+          en: `Check-in in ${opts.hubName}`,
+          de: `Check-in in ${opts.hubName}`,
+          it: `Check-in a ${opts.hubName}`,
+          es: `Check-in en ${opts.hubName}`,
+          fr: `Check-in à ${opts.hubName}`,
+        }),
+        type: "STAY",
+        description: planLangCopy(opts.language, {
+          sl: `Nočitev v ${opts.hubName} pred jutrišnjim mednarodnim letom. Z otoka zjutraj ne gre.`,
+          en: `Overnight in ${opts.hubName} before tomorrow’s international flight. Leaving the island in the morning will not make it.`,
+          de: `Übernachtung in ${opts.hubName} vor dem internationalen Flug morgen. Morgens von der Insel schafft man das nicht.`,
+        }),
+      },
+    ],
+    evening: [],
+  };
 }
 
 /** Sights on flight days: no LLM clocks — code owns the schedule. */
@@ -1208,9 +1351,28 @@ export function applyFlightContextToGeminiPlan(
         ? lookupDestination(plan.destinationIata)
         : undefined;
       const hubName = destHub?.name?.trim() || (plan.destinationName ?? "").trim();
-      const { stayCity: prevCity, alreadyAtHub } = hubName
+      let { stayCity: prevCity, alreadyAtHub } = hubName
         ? resolveCityBeforeDeparture(plan, totalDays, hubName)
         : { stayCity: "", alreadyAtHub: false };
+      if (
+        hubName &&
+        prevCity &&
+        !alreadyAtHub &&
+        isSmallIsland(prevCity) &&
+        isTightDeparture(flights)
+      ) {
+        relocateLastIslandOvernightToHub(plan, {
+          islandCity: prevCity,
+          hubName,
+          hubLat: destHub?.lat,
+          hubLng: destHub?.lng,
+          totalDays,
+          language: lang,
+        });
+        const again = resolveCityBeforeDeparture(plan, totalDays, hubName);
+        prevCity = again.stayCity;
+        alreadyAtHub = again.alreadyAtHub;
+      }
       const hopWanted = Boolean(
         hubName &&
           prevCity &&

@@ -484,6 +484,50 @@ describe("dropDuplicatePoisAcrossPlan", () => {
     expect(plan.days[1]!.activities!.afternoon).toEqual([]);
     expect(plan.days[1]!.activities!.evening[0]!.name).toMatch(/Shibuya/i);
   });
+
+  it("drops a later mangrove kayak when the first visit used a different inflection", () => {
+    const plan = {
+      destinationName: "Mexico",
+      contentLanguage: "sl",
+      days: [
+        day({
+          day: 12,
+          city: "Isla Holbox",
+          activities: {
+            morning: [
+              {
+                name: "Kajakiranje skozi mangrove",
+                type: "ACTIVITY",
+                description: "Prvi izhod.",
+              },
+            ],
+            afternoon: [{ name: "Plaža Punta Cocos", type: "SIGHT", description: "Zahod." }],
+            evening: [],
+          },
+        }),
+        day({
+          day: 13,
+          city: "Isla Holbox",
+          activities: {
+            morning: [
+              {
+                name: "Vožnja s kajakom skozi mangrove",
+                type: "ACTIVITY",
+                description: "Ista stvar.",
+              },
+            ],
+            afternoon: [{ name: "Yalahau laguna", type: "SIGHT", description: "Izvir." }],
+            evening: [],
+          },
+        }),
+      ],
+    } as AiTripPlan;
+
+    expect(dropDuplicatePoisAcrossPlan(plan)).toBe(1);
+    expect(plan.days[0]!.activities!.morning[0]!.name).toMatch(/Kajakiranje/i);
+    expect(plan.days[1]!.activities!.morning).toEqual([]);
+    expect(plan.days[1]!.activities!.afternoon[0]!.name).toMatch(/Yalahau/i);
+  });
 });
 
 describe("dedupeNearIdenticalConsecutiveDays", () => {

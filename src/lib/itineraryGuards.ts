@@ -723,9 +723,20 @@ function poiKeyTokens(key: string): string[] {
   return key.split(/\s+/).filter((t) => t.length >= 4);
 }
 
+function poiCommonPrefixLen(a: string, b: string): number {
+  const n = Math.min(a.length, b.length);
+  let i = 0;
+  while (i < n && a[i] === b[i]) i += 1;
+  return i;
+}
+
 function poiTokensAlign(a: string, b: string): boolean {
   if (a === b) return true;
-  return a.length >= 4 && b.length >= 4 && (a.startsWith(b) || b.startsWith(a));
+  if (a.length >= 4 && b.length >= 4 && (a.startsWith(b) || b.startsWith(a))) {
+    return true;
+  }
+  // Inflected same word: kajakiranje / kajakom, mangroves / mangrovah.
+  return poiCommonPrefixLen(a, b) >= 5;
 }
 
 function poiKeysMatch(a: string, b: string, cityKey: string): boolean {
