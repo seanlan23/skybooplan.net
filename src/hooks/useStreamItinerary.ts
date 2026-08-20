@@ -188,9 +188,8 @@ export function useStreamItinerary() {
           return "continue";
         }
         if (event.type === "partial") {
-          const plan = sanitizeStreamPlan(event.plan, input);
-          persistPreview(plan);
-          setPreviewPlan(plan);
+          persistPreview(event.plan);
+          setPreviewPlan(event.plan);
           setStreamedDayCount(event.dayCount);
           setExpectedDays(event.expectedDays || expectedFromInput);
           return "continue";

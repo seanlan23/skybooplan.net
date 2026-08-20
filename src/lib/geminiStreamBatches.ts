@@ -81,3 +81,34 @@ export function maxPlanDayNumber(days: DayPlan[] | undefined): number {
   if (!days?.length) return 0;
   return days.reduce((max, d) => Math.max(max, d.day), 0);
 }
+
+function dayHasStreamBody(day: DayPlan): boolean {
+  const acts = day.activities;
+  const n =
+    (acts?.morning?.length ?? 0) +
+    (acts?.afternoon?.length ?? 0) +
+    (acts?.evening?.length ?? 0);
+  if (n > 0) return true;
+  return Boolean(day.morning?.trim() || day.afternoon?.trim() || day.evening?.trim());
+}
+
+/** True when this Gemini window already has every requested day with usable copy. */
+export function streamBatchWindowReady(
+  days: DayPlan[] | undefined,
+  range: { start: number; end: number },
+): boolean {
+  if (!days?.length) return false;
+  for (let n = range.start; n <= range.end; n++) {
+    const match = days.find((d) => d.day === n);
+    if (!match || !dayHasStreamBody(match)) return false;
+  }
+  return true;
+}
+
+/** Gemini finished itinerar[] and is now writing hotels/logistics we do not need for the next batch. */
+export function streamPartialPastItinerary(partial: unknown): boolean {
+  if (!partial || typeof partial !== "object") return false;
+  const o = partial as { hotels?: unknown; logistics_and_tips?: unknown };
+  if (o.logistics_and_tips != null) return true;
+  return Array.isArray(o.hotels) && o.hotels.length > 0;
+}

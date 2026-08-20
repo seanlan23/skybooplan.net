@@ -33,6 +33,8 @@ import {
   maxPlanDayNumber,
   planLastCity,
   planVisitedCities,
+  streamBatchWindowReady,
+  streamPartialPastItinerary,
 } from "@/lib/geminiStreamBatches";
 import type { AiTripPlan } from "@/lib/aiPlan.functions";
 import { optionalSupabaseAuthRequest } from "@/lib/supabaseRequestAuth.server";
@@ -143,14 +145,15 @@ export const Route = createFileRoute("/api/generate-itinerary")({
               const mergePush = (
                 incoming: AiTripPlan | null | undefined,
                 stampFlights: boolean,
+                force = false,
               ) => {
                 if (!incoming?.days.length) return;
                 const merged = mergeStreamedTripPlans(accumulated, incoming, pax);
                 if (stampFlights) applyFlightContextIfPresent(merged, data);
                 accumulated = merged;
                 const dayCount = merged.days.length;
-                if (dayCount > lastDayCount) {
-                  lastDayCount = dayCount;
+                if (force || dayCount > lastDayCount) {
+                  lastDayCount = Math.max(lastDayCount, dayCount);
                   push({
                     type: "partial",
                     plan: merged,
@@ -159,6 +162,16 @@ export const Route = createFileRoute("/api/generate-itinerary")({
                   });
                 }
               };
+
+              stallWatchdog.clear();
+              const baseParams = await buildGeminiTripPlanParamsWithAttachment(
+                data,
+                expectedDays,
+              );
+              if (abortSignal.aborted) {
+                push({ type: "error", error: "error.planTimeout" });
+                return;
+              }
 
               for (let batch = 0; batch < GEMINI_STREAM_MAX_BATCHES; batch++) {
                 if (abortSignal.aborted) break;
@@ -191,10 +204,6 @@ export const Route = createFileRoute("/api/generate-itinerary")({
                 }
 
                 stallWatchdog.clear();
-                const baseParams = await buildGeminiTripPlanParamsWithAttachment(
-                  data,
-                  expectedDays,
-                );
                 if (abortSignal.aborted) break;
                 const planParams = {
                   ...baseParams,
@@ -214,7 +223,10 @@ export const Route = createFileRoute("/api/generate-itinerary")({
                 const daysBefore = accumulated?.days.length ?? 0;
 
                 try {
-                  const result = createTripPlanStream(planParams, { abortSignal });
+                  const batchAbort = new AbortController();
+                  const batchSignal = mergeAbortSignals(abortSignal, batchAbort.signal);
+                  const result = createTripPlanStream(planParams, { abortSignal: batchSignal });
+                  let windowReady = false;
 
                   for await (const partial of result.partialObjectStream) {
                     if (abortSignal.aborted) break;
@@ -225,27 +237,53 @@ export const Route = createFileRoute("/api/generate-itinerary")({
                     });
                     if (!preview?.days.length) continue;
                     mergePush(alignBatchDays(preview, range), false);
+                    const gotMax = maxPlanDayNumber(accumulated?.days);
+                    if (
+                      streamBatchWindowReady(accumulated?.days, range) ||
+                      maxPlanDayNumber(preview.days) > range.end ||
+                      (gotMax >= range.end && streamPartialPastItinerary(partial))
+                    ) {
+                      windowReady = true;
+                      if (accumulated) {
+                        applyFlightContextIfPresent(accumulated, data);
+                        mergePush(accumulated, false, true);
+                      }
+                      batchAbort.abort();
+                      break;
+                    }
                   }
 
                   if (abortSignal.aborted) break;
 
-                  try {
-                    const finalObject = await result.object;
-                    const built = buildCatalogPlanFromResponse(finalObject, data, {
-                      expandToExpectedDays: false,
-                    });
-                    if (built.plan) mergePush(alignBatchDays(built.plan, range), true);
-                  } catch (objectErr) {
+                  if (!windowReady) {
+                    try {
+                      const finalObject = await result.object;
+                      const built = buildCatalogPlanFromResponse(finalObject, data, {
+                        expandToExpectedDays: false,
+                      });
+                      if (built.plan) mergePush(alignBatchDays(built.plan, range), true);
+                    } catch (objectErr) {
+                      pipelineLog(
+                        "stream:generate-itinerary BATCH_OBJECT",
+                        objectErr instanceof Error ? objectErr.message : "truncated",
+                      );
+                    }
+                  } else {
                     pipelineLog(
-                      "stream:generate-itinerary BATCH_OBJECT",
-                      objectErr instanceof Error ? objectErr.message : "truncated",
+                      "stream:generate-itinerary BATCH_CUT",
+                      `days ${range.start}-${range.end} ready — skip leftover JSON`,
                     );
                   }
                 } catch (batchErr) {
-                  pipelineLog(
-                    "stream:generate-itinerary BATCH_FAIL",
-                    batchErr instanceof Error ? batchErr.message : "error",
-                  );
+                  const cutEarly =
+                    batchErr instanceof Error &&
+                    (batchErr.name === "AbortError" || /abort/i.test(batchErr.message));
+                  if (!cutEarly) {
+                    pipelineLog(
+                      "stream:generate-itinerary BATCH_FAIL",
+                      batchErr instanceof Error ? batchErr.message : "error",
+                    );
+                  }
                   if (abortSignal.aborted) break;
                 }
 

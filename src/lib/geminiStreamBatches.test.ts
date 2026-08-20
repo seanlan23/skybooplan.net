@@ -9,6 +9,8 @@ import {
   alignBatchDays,
   mergeStreamedTripPlans,
   planVisitedCities,
+  streamBatchWindowReady,
+  streamPartialPastItinerary,
 } from "@/lib/geminiStreamBatches";
 import { thisResponseDaySpan } from "@/lib/geminiPro.shared";
 
@@ -64,6 +66,34 @@ describe("stream day batches", () => {
     expect(streamBatchSizeWithTimeLeft(16, 0, 280_000)).toBe(5);
     expect(streamBatchSizeWithTimeLeft(16, 200_000, 280_000)).toBe(3);
     expect(streamBatchSizeWithTimeLeft(8, 200_000, 280_000)).toBe(3);
+  });
+});
+
+describe("streamBatchWindowReady", () => {
+  it("waits until the last day in the window has body, then is ready", () => {
+    const range = { start: 1, end: 6 };
+    expect(
+      streamBatchWindowReady(
+        [1, 2, 3, 4, 5, 6].map((n) => day({ day: n })),
+        range,
+      ),
+    ).toBe(false);
+    expect(
+      streamBatchWindowReady(
+        [1, 2, 3, 4, 5, 6].map((n) =>
+          day({ day: n, morning: n === 6 ? "Mercado" : "Sprehod" }),
+        ),
+        range,
+      ),
+    ).toBe(true);
+  });
+
+  it("treats hotels/logistics as the leftover mill after days are done", () => {
+    expect(streamPartialPastItinerary({ itinerar: [] })).toBe(false);
+    expect(streamPartialPastItinerary({ logistics_and_tips: { finance: "x" } })).toBe(
+      true,
+    );
+    expect(streamPartialPastItinerary({ hotels: [{ name: "X" }] })).toBe(true);
   });
 });
 
