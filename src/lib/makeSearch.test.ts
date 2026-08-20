@@ -158,6 +158,17 @@ describe("elapsedMinutesBetween / timezone", () => {
     ).toBe(14 * 60 + 45);
   });
 
+  it("uses UTC elapsed when both timestamps have offsets", () => {
+    expect(
+      elapsedMinutesBetween(
+        "2026-11-10T09:15:00+09:00",
+        "2026-11-10T16:55:00+01:00",
+        "NRT",
+        "VIE",
+      ),
+    ).toBe(15 * 60 + 40);
+  });
+
   it("keeps naive gap when IATAs are missing", () => {
     expect(
       elapsedMinutesBetween("2026-10-26T21:10:00", "2026-10-27T17:55:00"),
@@ -970,10 +981,8 @@ describe("pickTravelDurationRaw / long-haul", () => {
       ],
     });
 
-    // Prefer first→last segment elapsed (incl. layover), not a short wall-clock / bad slice claim.
-    expect(result[0]?.outbound_duration).toBe("16h 35m");
+    expect(result[0]?.outbound_duration).toBe("14h 35m");
     expect(result[0]?.outbound_arrive_day_offset).toBe(1);
-    expect(parseDurationMinutes(result[0]?.outbound_duration ?? "")).toBeGreaterThan(12 * 60);
   });
 
   it("does not show naive NRT→VIE wall as inbound duration", () => {

@@ -38,7 +38,6 @@ import {
   planCalendarDayCount,
 } from "@/lib/geminiPlanMap";
 import { repairPlanDaySequence, resyncPlanDayDates } from "@/lib/daySequence";
-import { scrubImpossibleIslandDayTrips } from "@/lib/islandHopGuard";
 import { normalizePlanLangCode } from "@/lib/planLanguages";
 import { planLangCopy } from "@/lib/planLangCopy";
 import { lookupRegionCoords } from "@/lib/regionCoords";
@@ -1618,9 +1617,8 @@ export function applyFlightContextToGeminiPlan(
     normalizeDayActivityClocks(day);
   }
 
-  // After flight rewrite: strip phantom Tocumen/airport re-arrivals on non-arrival days.
+  // After flight rewrite: one structural pass, then Duffel clocks.
   applyItineraryGuards(plan, { arrivalDay, language: lang });
-  scrubImpossibleIslandDayTrips(plan, lang);
   overwriteGeminiFlightClocksWithDuffel(plan, flights, {
     arrivalDay,
     totalDays,

@@ -3,10 +3,8 @@ import { useI18n } from "@/lib/i18n";
 import {
   estimateArriveLocal,
   formatDurationMinutes,
-  formatTravelDuration,
   inferArriveDayOffset,
   parseDurationMinutes,
-  pickTravelDurationRaw,
   skyscannerUrlForMakeFlight,
   travelDurationMinutes,
   type MakeSearchFlight,
@@ -133,57 +131,21 @@ function resolveDurationLabel(params: {
   arriveDayOffset?: number;
   fromIata?: string;
   toIata?: string;
-  hasStops?: boolean;
 }): string | undefined {
-  const {
-    stored,
-    departIso,
-    arriveIso,
-    departHm,
-    arriveHm,
-    departDate,
-    arriveDayOffset,
-    fromIata,
-    toIata,
-    hasStops = false,
-  } = params;
+  const storedMins = parseDurationMinutes(params.stored ?? "");
+  if (storedMins > 0) return formatDurationMinutes(storedMins);
 
   const tzMins = travelDurationMinutes({
-    departIso,
-    arriveIso,
-    departHm,
-    arriveHm,
-    departDate: departDate || departIso,
-    arriveDayOffset,
-    fromIata,
-    toIata,
-    storedLabel: stored,
+    departIso: params.departIso,
+    arriveIso: params.arriveIso,
+    departHm: params.departHm,
+    arriveHm: params.arriveHm,
+    departDate: params.departDate || params.departIso,
+    arriveDayOffset: params.arriveDayOffset,
+    fromIata: params.fromIata,
+    toIata: params.toIata,
   });
-  if (tzMins > 0) {
-    return formatDurationMinutes(tzMins);
-  }
-
-  // Have local times + airports but no TZ result — don't show naive Make duration.
-  if (
-    departHm &&
-    arriveHm &&
-    fromIata &&
-    toIata &&
-    /^[A-Z]{3}$/i.test(fromIata) &&
-    /^[A-Z]{3}$/i.test(toIata)
-  ) {
-    return undefined;
-  }
-
-  const best = pickTravelDurationRaw(stored);
-  const bestMins = parseDurationMinutes(best);
-
-  // With stops, reject absurdly short claims left over from wall-clock math.
-  if (hasStops && bestMins > 0 && bestMins < 8 * 60) {
-    return undefined;
-  }
-
-  return best ? formatTravelDuration(best) || best : undefined;
+  return tzMins > 0 ? formatDurationMinutes(tzMins) : undefined;
 }
 
 /** Prefer provider arrival times; estimate only when arrival is missing. */
@@ -393,8 +355,6 @@ export function FlightCard({
   const inDepart = displayTime(flight.inbound_depart, flight.povratek);
   const outDate = displayDate(flight.depart_date, flight.odhod, lang);
   const inDate = displayDate(flight.return_date, flight.povratek ?? "", lang);
-  const outHasStops = !/^0(?:\||$)/.test(outStopsRaw.trim()) && outStopsRaw.trim() !== "0";
-  const inHasStops = Boolean(inStopsRaw) && !/^0(?:\||$)/.test(inStopsRaw.trim());
   const outArriveHm = flight.outbound_arrive || "";
   const inArriveHm = flight.inbound_arrive || "";
   const outDepartDate =
@@ -421,7 +381,6 @@ export function FlightCard({
     arriveDayOffset: outDayOffset,
     fromIata: from,
     toIata: to,
-    hasStops: outHasStops,
   });
   const inDuration = resolveDurationLabel({
     stored: flight.inbound_duration,
@@ -433,7 +392,6 @@ export function FlightCard({
     arriveDayOffset: inDayOffset,
     fromIata: returnFrom,
     toIata: returnTo,
-    hasStops: inHasStops,
   });
   const outArriveResolved = resolveArriveDisplay({
     arrivePreferred: flight.outbound_arrive,

@@ -7,6 +7,7 @@ import {
   estimateLocalArrival,
   isoHasExplicitOffset,
 } from "@/lib/airportTimeZones";
+import { duffelSliceDurationMin } from "@/lib/flightSliceDuration";
 
 export type MakeSearchFlight = {
   id: string;
@@ -198,50 +199,28 @@ function parseDuffelOfferAsMakeFlight(item: unknown, index: number): MakeSearchF
       ? `${formatStopsWithLayovers(outboundStops, outLayovers)}/${formatStopsWithLayovers(returnStops, inLayovers)}`
       : formatStopsWithLayovers(outboundStops, outLayovers);
 
-  // Slice.duration is Duffel's official total; merge with TZ via travelDurationMinutes
-  // so westbound local-clock gaps don't inflate past the airline total.
-  const outStored = formatTravelDuration(
-    pickTravelDurationRaw(
-      readString(firstSlice, "duration"),
-      durationFromSegments(segments),
-    ),
-  );
-  const inStored = formatTravelDuration(
-    pickTravelDurationRaw(
-      readString(returnSlice ?? {}, "duration"),
-      durationFromSegments(returnSegments),
-    ),
-  );
-  const outMins = travelDurationMinutes({
-    departIso: departing || undefined,
-    arriveIso: arriving || undefined,
-    departHm: departing ? timeHmFromIso(departing) : undefined,
-    arriveHm: arriving ? timeHmFromIso(arriving) : undefined,
-    departDate: departing ? isoDatePart(departing) : undefined,
-    arriveDayOffset:
-      departing && arriving ? calendarDayOffset(departing, arriving) : undefined,
-    fromIata: origin,
-    toIata: destination,
-    storedLabel: outStored,
+  const outMins = duffelSliceDurationMin({
+    duration: readString(firstSlice, "duration") || undefined,
+    segments: segments as Array<{
+      duration?: string;
+      departing_at?: string;
+      arriving_at?: string;
+      origin?: { iata_code?: string };
+      destination?: { iata_code?: string };
+    }>,
   });
-  const inFrom = inboundOrigin || destination;
-  const inTo = inboundDestination || origin;
-  const inMins = travelDurationMinutes({
-    departIso: returning || undefined,
-    arriveIso: returnArriving || undefined,
-    departHm: returning ? timeHmFromIso(returning) : undefined,
-    arriveHm: returnArriving ? timeHmFromIso(returnArriving) : undefined,
-    departDate: returning ? isoDatePart(returning) : undefined,
-    arriveDayOffset:
-      returning && returnArriving
-        ? calendarDayOffset(returning, returnArriving)
-        : undefined,
-    fromIata: inFrom,
-    toIata: inTo,
-    storedLabel: inStored,
+  const inMins = duffelSliceDurationMin({
+    duration: readString(returnSlice ?? {}, "duration") || undefined,
+    segments: returnSegments as Array<{
+      duration?: string;
+      departing_at?: string;
+      arriving_at?: string;
+      origin?: { iata_code?: string };
+      destination?: { iata_code?: string };
+    }>,
   });
-  const outbound_duration = formatDurationMinutes(outMins) || outStored;
-  const inbound_duration = formatDurationMinutes(inMins) || inStored;
+  const outbound_duration = formatDurationMinutes(outMins);
+  const inbound_duration = formatDurationMinutes(inMins);
   const duration_minutes =
     outMins > 0 || inMins > 0 ? outMins + inMins : undefined;
 
@@ -513,22 +492,15 @@ export function elapsedMinutesBetween(
   fromIata?: string,
   toIata?: string,
 ): number {
-  if (
-    fromIata &&
-    toIata &&
-    !isoHasExplicitOffset(departIso) &&
-    !isoHasExplicitOffset(arriveIso)
-  ) {
-    const zoned = elapsedMinutesBetweenAirportLocals(
-      departIso,
-      arriveIso,
-      fromIata,
-      toIata,
-    );
-    if (zoned != null) return zoned;
+  // Duffel offsets are UTC truth — do not re-interpret local parts in airport TZ.
+  if (isoHasExplicitOffset(departIso) && isoHasExplicitOffset(arriveIso)) {
+    const a = Date.parse(departIso);
+    const b = Date.parse(arriveIso);
+    if (Number.isFinite(a) && Number.isFinite(b) && b > a) {
+      return Math.round((b - a) / 60_000);
+    }
   }
 
-  // One side has offset / other doesn't — still prefer airport locals when IATAs known.
   if (fromIata && toIata) {
     const zoned = elapsedMinutesBetweenAirportLocals(
       departIso,
@@ -756,22 +728,6 @@ export function formatDurationMinutes(mins: number): string {
   return `${m}m`;
 }
 
-/** Build ISO-8601 duration from two timestamps. */
-function isoDurationBetween(
-  departIso: string,
-  arriveIso: string,
-  fromIata?: string,
-  toIata?: string,
-): string {
-  const mins = elapsedMinutesBetween(departIso, arriveIso, fromIata, toIata);
-  if (mins <= 0) return "";
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  if (h > 0 && m > 0) return `PT${h}H${m}M`;
-  if (h > 0) return `PT${h}H`;
-  return `PT${m}M`;
-}
-
 /**
  * Pick the most trustworthy duration. Naive local-clock math (no TZ) underestimates
  * long-haul (e.g. MXP 10:30 → HKT 17:50 = "7h20m" F-35). Prefer the longer of
@@ -789,18 +745,6 @@ export function pickTravelDurationRaw(...candidates: Array<string | undefined | 
     }
   }
   return bestRaw;
-}
-
-/** Connection + flight time across segments when slice.duration is missing. */
-function durationFromSegments(segments: unknown[]): string {
-  if (segments.length === 0) return "";
-  const first = asRecord(segments[0]);
-  const last = asRecord(segments[segments.length - 1]) ?? first;
-  const depart = readString(first ?? {}, "departing_at");
-  const arrive = readString(last ?? {}, "arriving_at");
-  const from = readNestedIata(first?.origin);
-  const to = readNestedIata(last?.destination);
-  return isoDurationBetween(depart, arrive, from || undefined, to || undefined);
 }
 
 /** Parse PT14H30M or "14h 30m" → minutes. */

@@ -6,6 +6,7 @@ import {
   isMultiCitySearch,
   type FlightSearchInput,
 } from "@/lib/flightSearch";
+import { duffelSliceDurationMin } from "@/lib/flightSliceDuration";
 
 /** Max offers pulled from Duffel per search (sorted by price server-side). */
 export const DUFFEL_MAX_OFFERS = 20;
@@ -207,22 +208,7 @@ type DuffelSlice = {
 };
 
 function resolveSliceDurationMin(slice: DuffelSlice): number {
-  const fromApi = durationIsoToMin(slice.duration);
-  if (fromApi > 0) return fromApi;
-
-  const first = slice.segments[0];
-  const last = slice.segments[slice.segments.length - 1];
-  const dep = new Date(first.departing_at).getTime();
-  const arr = new Date(last.arriving_at).getTime();
-  if (Number.isFinite(dep) && Number.isFinite(arr) && arr > dep) {
-    return Math.round((arr - dep) / 60_000);
-  }
-
-  let segmentSum = 0;
-  for (const seg of slice.segments) {
-    if (seg.duration) segmentSum += durationIsoToMin(seg.duration);
-  }
-  return segmentSum;
+  return duffelSliceDurationMin(slice);
 }
 
 type DuffelOffer = {

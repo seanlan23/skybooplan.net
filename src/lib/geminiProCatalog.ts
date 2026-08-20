@@ -8,6 +8,7 @@ import {
   tripPlanResponseToAiTripPlan,
 } from "@/lib/geminiPlanMap";
 import { applyFlightContextToGeminiPlan } from "@/lib/geminiFlightContext";
+import { applyItineraryGuards } from "@/lib/itineraryGuards";
 import {
   tripDayCount,
   type GenerateGeminiProTripInput,
@@ -120,12 +121,18 @@ export function applyFlightContextIfPresent(
     | "returnDate"
   >,
 ): void {
-  if (!data.flightContext || data.groundTransportMode) return;
-  applyFlightContextToGeminiPlan(plan, data.flightContext, {
-    originIata: data.originIata,
+  if (data.flightContext && !data.groundTransportMode) {
+    applyFlightContextToGeminiPlan(plan, data.flightContext, {
+      originIata: data.originIata,
+      language: plan.contentLanguage ?? data.language ?? "sl",
+      expectedDays: tripDayCount(data.departDate, data.returnDate),
+      departDate: data.departDate,
+    });
+    return;
+  }
+  applyItineraryGuards(plan, {
+    arrivalDay: 1,
     language: plan.contentLanguage ?? data.language ?? "sl",
-    expectedDays: tripDayCount(data.departDate, data.returnDate),
-    departDate: data.departDate,
   });
 }
 

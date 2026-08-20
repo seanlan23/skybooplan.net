@@ -1994,10 +1994,6 @@ export const generateAiPlan = createServerFn({ method: "POST" })
 
         if (blocking.length === 0) {
           if (violations.length) console.warn("AI plan soft warnings:", violations);
-          applyItineraryGuards(plan, {
-            arrivalDay: 1,
-            language: langCode,
-          });
           // Same country/value budget ceils as the streaming catalog path (was skipped here).
           const { enrichGeminiCatalogPlan } = await import("@/lib/geminiPlanMap");
           enrichGeminiCatalogPlan(plan, {
@@ -2009,6 +2005,10 @@ export const generateAiPlan = createServerFn({ method: "POST" })
             returnDate: data.returnDate || undefined,
             expectedDays: nDays,
             pace: data.pace,
+          });
+          applyItineraryGuards(plan, {
+            arrivalDay: 1,
+            language: langCode,
           });
           trace(`complete: ${plan.days.length} days via LLM (attempt ${attempt + 1})`);
           try {

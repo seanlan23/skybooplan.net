@@ -19,7 +19,6 @@ import {
 } from "@/lib/mapPoiCategory";
 import { expandPlanDaysToExpected } from "@/lib/daySequence";
 import { finalizeItineraryMapCoords } from "@/lib/itineraryMapModel";
-import { applyItineraryGuards } from "@/lib/itineraryGuards";
 import { enforceTravelPace } from "@/lib/paceGuard";
 import { dedupeCrossDayBoilerplate, dedupeSameDayActivities } from "@/lib/textSanitize";
 import { attachActivityCoordinates } from "@/lib/mapPoiResolver";
@@ -62,7 +61,6 @@ import {
 } from "@/lib/tripMode";
 import type { Lang } from "@/lib/i18n";
 import type { GroundTransportMode } from "@/lib/aiPlan.functions";
-import { enrichIslandAirportTransfers } from "@/lib/islandAirportTransfers";
 import { repairTransportLegs } from "@/lib/transportLegRepair";
 import { sanitizeReturnFlightSummary } from "@/lib/returnFlightSummary";
 import { enrichMotorhomePlanTips } from "@/lib/motorhomePlanTips";
@@ -1174,14 +1172,8 @@ export function enrichGeminiCatalogPlan(
     }),
   });
   plan.totalBudgetEur = computeTripTotalBudgetEur(plan.days, travelers);
-  enrichIslandAirportTransfers(plan, {
-    destinationIata: plan.destinationIata,
-    language: planLang,
-  });
   dedupeCrossDayBoilerplate(plan);
   dedupeSameDayActivities(plan);
-  // Structural guards: no enricher placeholders, max one dinner/day, no cloned consecutive days.
-  applyItineraryGuards(plan, { arrivalDay: 1, language: planLang });
   // Final pace trim after enrichers (calm/relaxed caps). Intensive / missing pace = no-op.
   enforceTravelPace(plan, {
     pace: plan.travelPace ?? opts.pace,
