@@ -4,7 +4,6 @@ import {
   ARRIVAL_TRANSFER_OFFSET_MIN,
   arrivalDaySlot,
   arrivalTripDay,
-  applyLongHaulArrivalOffset,
   buildArrivalLogistics,
   isInFlightTripDay,
   isLateArrival,
@@ -113,29 +112,5 @@ describe("arrival logistics clock stagger (MUC–SYD)", () => {
     expect(rows[1]!.departureTime).toBeUndefined();
     expect(rows[2]!.arrivalTime).toBe("18:20");
     expect(new Set(rows.map((r) => r.arrivalTime)).size).toBe(3);
-  });
-});
-
-describe("applyLongHaulArrivalOffset", () => {
-  it("treats LJU 06:40 → BKK 08:55 as next-day landing", () => {
-    const flights = {
-      outboundDepart: "06:40",
-      outboundArrive: "08:55",
-      outboundArriveDayOffset: 0,
-    };
-    applyLongHaulArrivalOffset(flights, "LJU", "BKK");
-    expect(flights.outboundArriveDayOffset).toBe(1);
-    expect(arrivalTripDay(flights)).toBe(2);
-    expect(isInFlightTripDay(1, flights)).toBe(true);
-  });
-
-  it("does not bump a same-day westbound MUC → JFK clock", () => {
-    const flights = {
-      outboundDepart: "11:00",
-      outboundArrive: "14:00",
-      outboundArriveDayOffset: 0,
-    };
-    applyLongHaulArrivalOffset(flights, "MUC", "JFK");
-    expect(flights.outboundArriveDayOffset).toBe(0);
   });
 });

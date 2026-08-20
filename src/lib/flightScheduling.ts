@@ -1,5 +1,4 @@
 import { lookupDestination } from "@/lib/destinationCoords";
-import { haversineKm } from "@/lib/geoMath";
 import { planLangCopy } from "@/lib/planLangCopy";
 import {
   airportArrivalHint,
@@ -300,30 +299,6 @@ export function flightContextFromLegs(
 /** Calendar trip day when the inbound flight actually lands (day 1 + offset). */
 export function arrivalTripDay(flights?: TripFlightContext): number {
   return 1 + (flights?.outboundArriveDayOffset ?? 0);
-}
-
-/**
- * Eastbound long-haul cannot land 2h after takeoff. 06:40 LJU → 08:55 “BKK” is a
- * connection clock, not destination arrival — sleep on the plane, land next day.
- */
-export function applyLongHaulArrivalOffset(
-  flights: TripFlightContext,
-  originIata?: string,
-  destIata?: string,
-): void {
-  if (flights.outboundArriveDayOffset > 0) return;
-  const origin = lookupDestination((originIata ?? "").trim().toUpperCase());
-  const dest = lookupDestination((destIata ?? "").trim().toUpperCase());
-  if (!origin || !dest) return;
-  const km = haversineKm([origin.lng, origin.lat], [dest.lng, dest.lat]);
-  if (km < 5000) return;
-  if (dest.lng <= origin.lng) return;
-  const dep = parseHm(flights.outboundDepart);
-  const arr = parseHm(flights.outboundArrive);
-  const naive = arr - dep;
-  if (naive > 0 && naive < 8 * 60) {
-    flights.outboundArriveDayOffset = 1;
-  }
 }
 
 /** True for days before the plane lands — no destination activities yet. */
