@@ -359,9 +359,43 @@ function islandExitActivities(
   ];
 }
 
+/** Gemini already wrote the island → hub exit (ferry/van). Sleep is at the hub. */
+function dayAlreadyExitsIslandToHub(
+  day: DayPlan,
+  islandCity: string,
+  hubName: string,
+): boolean {
+  for (const leg of day.transportation ?? []) {
+    if (leg.type === "flight") continue;
+    const leavesIsland = cityNamesMatch(leg.from, islandCity);
+    const reachesHub = cityNamesMatch(leg.to, hubName);
+    if (leavesIsland || reachesHub) return true;
+  }
+  const blob = dayBlob(day);
+  const hubTok = normalizeCityToken(hubName);
+  if (!hubTok || !normalizeCityToken(blob).includes(hubTok)) return false;
+  return /check-?in|namestitev|trajekt|ferry|feribot/i.test(blob);
+}
+
+function stampOvernightCityToHub(
+  overnight: DayPlan,
+  hubName: string,
+  hubLat?: number,
+  hubLng?: number,
+): void {
+  overnight.city = hubName;
+  overnight.focusName = hubName;
+  if (hubLat != null && hubLng != null) {
+    overnight.lat = hubLat;
+    overnight.lng = hubLng;
+  }
+  overnight.mapPins = [];
+}
+
 /**
  * Morning/midday international boards cannot start on a small island (ferry + van + 3h airport).
- * Move the last overnight to the ticket hub; keep the day full with the real exit legs.
+ * Sleep at the ticket hub. If Gemini already wrote the exit, keep that day — only stamp the city
+ * so hotel nights follow. Otherwise rebuild the day from the inbound ferry/van.
  */
 function relocateLastIslandOvernightToHub(
   plan: AiTripPlan,
@@ -376,9 +410,14 @@ function relocateLastIslandOvernightToHub(
 ): void {
   const overnight = plan.days.find((d) => d.day === opts.totalDays - 1);
   if (!overnight || overnight.inFlightDay) return;
+  const alreadyExits = dayAlreadyExitsIslandToHub(
+    overnight,
+    opts.islandCity,
+    opts.hubName,
+  );
+  stampOvernightCityToHub(overnight, opts.hubName, opts.hubLat, opts.hubLng);
+  if (alreadyExits) return;
   const legs = reverseIslandAccessLegs(plan, opts.islandCity, opts.hubName);
-  overnight.city = opts.hubName;
-  overnight.focusName = opts.hubName;
   overnight.category = "transport";
   overnight.title = planLangCopy(opts.language, {
     sl: `Prevoz z ${opts.islandCity} v ${opts.hubName}`,
@@ -388,12 +427,7 @@ function relocateLastIslandOvernightToHub(
     es: `Traslado de ${opts.islandCity} a ${opts.hubName}`,
     fr: `Transfert de ${opts.islandCity} vers ${opts.hubName}`,
   });
-  if (opts.hubLat != null && opts.hubLng != null) {
-    overnight.lat = opts.hubLat;
-    overnight.lng = opts.hubLng;
-  }
   overnight.transportation = legs.length ? legs : undefined;
-  overnight.mapPins = [];
   overnight.morning = "";
   overnight.afternoon = "";
   overnight.evening = "";

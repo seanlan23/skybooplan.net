@@ -4,6 +4,7 @@ import {
   applyFlightContextToGeminiPlan,
   flightContextPromptBlock,
 } from "@/lib/geminiFlightContext";
+import { collectOvernightHotelStays } from "@/lib/overnightHotelStays";
 
 function basePlan(overrides?: Partial<AiTripPlan>): AiTripPlan {
   return {
@@ -539,6 +540,143 @@ describe("applyFlightContextToGeminiPlan", () => {
     );
 
     expect(plan.days.find((d) => d.day === 2)?.city).toMatch(/Holbox/i);
+  });
+
+  it("stamps the hub city on an island exit day without wiping Gemini’s hub evening", () => {
+    const empty = {
+      morning: "",
+      afternoon: "",
+      evening: "",
+      travelHack: "",
+      transportationTips: "",
+      localWarnings: "",
+      dailyBudgetEur: 65,
+    };
+    const plan = basePlan({
+      destinationName: "Mexico",
+      destinationIata: "CUN",
+      originIata: "MUC",
+      days: [
+        {
+          day: 1,
+          date: "2026-11-06",
+          title: "Cancun",
+          ...empty,
+          lat: 21.16,
+          lng: -86.85,
+          city: "Cancun",
+          focusName: "Cancun",
+          category: "city",
+          activities: { morning: [], afternoon: [], evening: [] },
+        },
+        {
+          day: 2,
+          date: "2026-11-07",
+          title: "Holbox",
+          ...empty,
+          lat: 21.52,
+          lng: -87.38,
+          city: "Isla Holbox",
+          focusName: "Isla Holbox",
+          category: "beach",
+          activities: {
+            morning: [{ name: "Punta Mosquito", type: "SIGHT", description: "Sever." }],
+            afternoon: [],
+            evening: [],
+          },
+        },
+        {
+          day: 3,
+          date: "2026-11-08",
+          title: "Nazaj v Cancún: Nakupovanje in zadnja večerja",
+          ...empty,
+          lat: 21.52,
+          lng: -87.38,
+          city: "Isla Holbox",
+          focusName: "Isla Holbox",
+          category: "transport",
+          transportation: [
+            {
+              type: "ferry",
+              from: "Isla Holbox",
+              to: "Chiquila",
+              duration: "30min",
+              estimatedPrice: 15,
+            },
+            { type: "van", from: "Chiquila", to: "Cancun", duration: "2h", estimatedPrice: 25 },
+          ],
+          activities: {
+            morning: [],
+            afternoon: [
+              {
+                name: "Check-in v hotel in kosilo v Cancúnu",
+                type: "STAY",
+                description: "Namestitev v Cancúnu.",
+              },
+              {
+                name: "Nakupovanje spominkov in obisk Mercado 28",
+                type: "SIGHT",
+                description: "Stojnice.",
+              },
+            ],
+            evening: [
+              {
+                name: "Večerja: Lorenzillo's",
+                type: "EAT",
+                description: "Morski sadeži.",
+              },
+            ],
+          },
+        },
+        {
+          day: 4,
+          date: "2026-11-09",
+          title: "Odhod",
+          ...empty,
+          lat: 21.52,
+          lng: -87.38,
+          city: "Isla Holbox",
+          focusName: "Isla Holbox",
+          category: "transport",
+          activities: { morning: [], afternoon: [], evening: [] },
+        },
+      ],
+    });
+
+    applyFlightContextToGeminiPlan(
+      plan,
+      {
+        outboundDepart: "11:50",
+        outboundArrive: "22:30",
+        outboundArriveDayOffset: 0,
+        inboundDepart: "11:35",
+        inboundArrive: "10:00",
+      },
+      { originIata: "MUC", language: "sl", expectedDays: 4 },
+    );
+
+    const overnight = plan.days.find((d) => d.day === 3)!;
+    expect(overnight.city).toMatch(/Cancún|Cancun/i);
+    expect(overnight.city).not.toMatch(/Holbox/i);
+    expect(overnight.title).toMatch(/Nazaj v Cancún/i);
+    expect(JSON.stringify(overnight.activities)).toMatch(/Lorenzillo/i);
+    expect(JSON.stringify(overnight.activities)).toMatch(/Mercado 28/i);
+
+    const stays = collectOvernightHotelStays({
+      days: plan.days.map((d) => ({
+        day: d.day,
+        date: d.date,
+        city: d.city,
+        inFlightDay: d.inFlightDay,
+      })),
+    });
+    const holbox = stays.find((s) => /Holbox/i.test(s.city));
+    const lastCancun = stays.filter((s) => /Cancún|Cancun/i.test(s.city)).at(-1);
+    expect(holbox?.nights).toBe(1);
+    expect(holbox?.checkOut).toBe("2026-11-08");
+    expect(lastCancun?.nights).toBe(1);
+    expect(lastCancun?.checkIn).toBe("2026-11-08");
+    expect(lastCancun?.checkOut).toBe("2026-11-09");
   });
 
   it("clears breakfast/siesta and stamps 17:55 when landing late afternoon (+1d)", () => {
