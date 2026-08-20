@@ -101,7 +101,7 @@ describe("islandAirportTransfers", () => {
     expect(phuket.transportationTips).not.toMatch(/HKT/i);
   });
 
-  it("rewrites Krabi Klong Jilad ferry copy to Hat Yai + Pak Bara", () => {
+  it("rewrites Krabi Klong Jilad ferry copy to van + Pak Bara, not a Hat Yai flight", () => {
     const plan: AiTripPlan = {
       destinationName: "Thailand",
       destinationIata: "HKT",
@@ -130,8 +130,11 @@ describe("islandAirportTransfers", () => {
     } as AiTripPlan;
     enrichIslandAirportTransfers(plan, { destinationIata: "HKT", language: "sl" });
     const act = plan.days[1]!.activities!.morning[0]!;
-    expect(act.name).toMatch(/Hat Yai|HDY|Pak Bara/i);
+    expect(act.name).toMatch(/Kombi|Van|Pak Bara/i);
+    expect(act.name).not.toMatch(/Hat Yai|\bHDY\b|Let /i);
     expect(act.description).toMatch(/Pak Bara/i);
-    expect(act.description).toMatch(/ni direktnega trajekta|no useful direct ferry/i);
+    expect(act.description).toMatch(/ne obstaja|no Krabi/i);
+    expect(plan.days[1]!.transportation!.map((l) => l.type)).toEqual(["van", "ferry"]);
+    expect(plan.days[1]!.transportation![0]!.from).toMatch(/Krabi/i);
   });
 });

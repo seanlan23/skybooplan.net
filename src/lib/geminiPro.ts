@@ -237,7 +237,7 @@ TRANSPORT IN PREMIKANJE (obvezno — več plasti):
   "transportation": [{ "type": "flight", "from": "Bangkok BKK", "to": "Chiang Mai CNX", "duration": "1h 10min", "estimatedPrice": 45 }]
 - Za otoke: navedi urnike trajektov in hitrih čolnov (speedboat), sezonske odpovedi (Andaman dež), rezervacijo vnaprej, pristanišča (jetty) in transfer letališče → pristanišče.
 - Otok z letališčem na celini: 3 koraki (flight → van → ferry) — glej pravilo spodaj.
-- Koh Lipe: NI neposrednega leta z otoka. Odhod = ferry/speedboat → Pak Bara → kombi Hat Yai (HDY) → let HDY → HKT/Phuket (ali BKK). Prihod obratno. PREPOVEDANO: "letališče → letališče z letalom" na Lipe ali Lipe→Phuket kot en sam flight.
+- Koh Lipe: NI neposrednega leta z otoka. Če si že v Krabiju / Ao Nangu / Phuketu: SAMO kombi do Pak Bara (~3,5 h) + speedboat — PREPOVEDANO let KBV→HDY (ta povezava ne obstaja). Če prihajaš iz BKK/CNX: let HDY → kombi Pak Bara → čoln. Odhod z otoka = čoln → Pak Bara → HDY → BKK/HKT. PREPOVEDANO: "letališče → letališče z letalom" na Lipe.
 
 TAJSKA — POSEBNA OPOZORILA (obvezno ko je destinacija Tajska ali faza v Tajske):
 - V transportTip ali localWarnings na vsakem dnevu v Tajske vključi vsaj eno specifično opozorilo, rotirano po dneh (ne isto vsak dan):

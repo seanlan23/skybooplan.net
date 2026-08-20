@@ -28,6 +28,7 @@ import {
   isEveningDeparture,
   departureLogisticsOffsetsMin,
   originAirportLeadHours,
+  applyLongHaulArrivalOffset,
   type LogisticsActivity,
   type TripFlightContext,
 } from "@/lib/flightScheduling";
@@ -1208,8 +1209,9 @@ export function applyFlightContextToGeminiPlan(
     plan.destinationName,
     lang,
   );
-  const arrivalDay = arrivalTripDay(flights);
   const originIata = opts?.originIata ?? plan.originIata;
+  applyLongHaulArrivalOffset(flights, originIata, plan.destinationIata);
+  const arrivalDay = arrivalTripDay(flights);
 
   if (flights.inboundDepart && flights.inboundArrive) {
     const fromAirport = (plan.destinationIata ?? "DEST").toUpperCase();

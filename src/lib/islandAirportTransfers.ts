@@ -16,6 +16,10 @@ export type IslandAirportAccessDef = {
   flightPrice?: number;
   vanPrice?: number;
   ferryPrice?: number;
+  /** Already on this coast → van to the pier, no short-hop to the gateway airport. */
+  coastHubMatch?: RegExp;
+  coastVanDuration?: string;
+  coastVanPrice?: number;
 };
 
 export type { IslandAccessRoute };
@@ -72,6 +76,9 @@ const ISLAND_AIRPORT_ACCESS: IslandAirportAccessDef[] = [
     flightPrice: 55,
     vanPrice: 12,
     ferryPrice: 30,
+    coastHubMatch: /krabi|ao nang|aonang|phuket|railay|koh lanta|\blanta\b|khao lak|\bkbv\b|\bhkt\b/i,
+    coastVanDuration: "3.5h",
+    coastVanPrice: 20,
   },
 ];
 
@@ -113,7 +120,37 @@ function singleFlightToIsland(legs: DayTransportLeg[], def: IslandAirportAccessD
   return def.matchIsland.test(to) || new RegExp(def.gatewayIata ?? "____", "i").test(to);
 }
 
+function islandAccessFromCoast(hubCity: string, def: IslandAirportAccessDef): boolean {
+  return Boolean(def.coastHubMatch?.test(hubCity.trim()));
+}
+
+function hasCompleteCoastalAccessLegs(legs: DayTransportLeg[]): boolean {
+  if (legs.some((l) => l.type === "flight")) return false;
+  const types = legs.map((l) => l.type);
+  return types.includes("van") && types.includes("ferry");
+}
+
+function buildCoastalArrivalLegs(def: IslandAirportAccessDef, hubCity: string): DayTransportLeg[] {
+  return [
+    {
+      type: "van",
+      from: hubCity,
+      to: def.port.label,
+      duration: def.coastVanDuration ?? "3.5h",
+      estimatedPrice: def.coastVanPrice ?? 20,
+    },
+    {
+      type: "ferry",
+      from: def.port.label,
+      to: def.island.name,
+      duration: def.ferryDuration ?? "1.5–2h",
+      estimatedPrice: def.ferryPrice ?? 30,
+    },
+  ];
+}
+
 function buildArrivalLegs(def: IslandAirportAccessDef, hubCity: string): DayTransportLeg[] {
+  if (islandAccessFromCoast(hubCity, def)) return buildCoastalArrivalLegs(def, hubCity);
   return [
     {
       type: "flight",
@@ -165,7 +202,14 @@ function buildDepartureLegs(def: IslandAirportAccessDef, hubCity: string): DayTr
   ];
 }
 
-function arrivalTransportTip(def: IslandAirportAccessDef, lang?: string): string {
+function arrivalTransportTip(def: IslandAirportAccessDef, lang?: string, hubCity?: string): string {
+  if (def.id === "koh-lipe" && hubCity && islandAccessFromCoast(hubCity, def)) {
+    return planLangCopy(lang, {
+      sl: `Koh Lipe nima letališča. Z Andamanske obale (${hubCity}) greš s kombijem do ${def.port.label} (cca ${def.coastVanDuration ?? "3,5 h"}), nato speedboat/ferry na otok. Ni leta ${hubCity} → Hat Yai.`,
+      en: `Koh Lipe has no airport. From the Andaman coast (${hubCity}) take a van to ${def.port.label} (about ${def.coastVanDuration ?? "3.5h"}), then speedboat/ferry. There is no ${hubCity} → Hat Yai flight.`,
+      de: `Koh Lipe hat keinen Flughafen. Von der Andaman-Küste (${hubCity}) mit dem Van nach ${def.port.label} (ca. ${def.coastVanDuration ?? "3,5 Std."}), dann Speedboat/Fähre. Kein Flug ${hubCity} → Hat Yai.`,
+    });
+  }
   if (def.id === "koh-lipe") {
     return planLangCopy(lang, {
       sl: `Koh Lipe nima letališča — let do ${def.airport.label}, nato kombi do ${def.port.label} in speedboat/ferry na otok. Rezerviraj čoln vnaprej (sezonski urniki).`,
@@ -229,16 +273,29 @@ function rewriteKohLipeAccessActivities(
   lang?: string,
 ): void {
   if (def.id !== "koh-lipe" || !day.activities) return;
-  const arrival = planLangCopy(lang, {
-    sl: `Let ${hubCity} → ${def.airport.label}, kombi do ${def.port.label}, nato speedboat na Koh Lipe`,
-    en: `Fly ${hubCity} → ${def.airport.label}, van to ${def.port.label}, then speedboat to Koh Lipe`,
-    de: `Flug ${hubCity} → ${def.airport.label}, Van nach ${def.port.label}, dann Speedboat nach Koh Lipe`,
-  });
-  const arrivalDesc = planLangCopy(lang, {
-    sl: `Koh Lipe nima letališča in ni direktnega trajekta iz Krabija (Klong Jilad). Let na Hat Yai (HDY), 1,5–2 h kombi do Pak Bara, nato 1,5–2 h čoln. Računaj 6–8 ur od vrat do vrat.`,
-    en: `Koh Lipe has no airport and no useful direct ferry from Krabi (Klong Jilad). Fly to Hat Yai (HDY), 1.5–2h van to Pak Bara, then 1.5–2h boat. Door-to-door 6–8h.`,
-    de: `Koh Lipe hat keinen Flughafen und keine sinnvolle Direktfähre ab Krabi (Klong Jilad). Flug nach Hat Yai (HDY), 1,5–2 Std. Van nach Pak Bara, dann 1,5–2 Std. Boot. Tür-zu-Tür 6–8 Std.`,
-  });
+  const fromCoast = islandAccessFromCoast(hubCity, def);
+  const arrival = fromCoast
+    ? planLangCopy(lang, {
+        sl: `Kombi ${hubCity} → ${def.port.label}, nato speedboat na Koh Lipe`,
+        en: `Van ${hubCity} → ${def.port.label}, then speedboat to Koh Lipe`,
+        de: `Van ${hubCity} → ${def.port.label}, dann Speedboat nach Koh Lipe`,
+      })
+    : planLangCopy(lang, {
+        sl: `Let ${hubCity} → ${def.airport.label}, kombi do ${def.port.label}, nato speedboat na Koh Lipe`,
+        en: `Fly ${hubCity} → ${def.airport.label}, van to ${def.port.label}, then speedboat to Koh Lipe`,
+        de: `Flug ${hubCity} → ${def.airport.label}, Van nach ${def.port.label}, dann Speedboat nach Koh Lipe`,
+      });
+  const arrivalDesc = fromCoast
+    ? planLangCopy(lang, {
+        sl: `Koh Lipe nima letališča. S kombijem do Pak Bara (cca 3,5 h), nato 1,5–2 h čoln. Let Krabi → Hat Yai ne obstaja.`,
+        en: `Koh Lipe has no airport. Van to Pak Bara (about 3.5h), then 1.5–2h boat. There is no Krabi → Hat Yai flight.`,
+        de: `Koh Lipe hat keinen Flughafen. Van nach Pak Bara (ca. 3,5 Std.), dann 1,5–2 Std. Boot. Kein Flug Krabi → Hat Yai.`,
+      })
+    : planLangCopy(lang, {
+        sl: `Koh Lipe nima letališča in ni direktnega trajekta iz Krabija (Klong Jilad). Let na Hat Yai (HDY), 1,5–2 h kombi do Pak Bara, nato 1,5–2 h čoln. Računaj 6–8 ur od vrat do vrat.`,
+        en: `Koh Lipe has no airport and no useful direct ferry from Krabi (Klong Jilad). Fly to Hat Yai (HDY), 1.5–2h van to Pak Bara, then 1.5–2h boat. Door-to-door 6–8h.`,
+        de: `Koh Lipe hat keinen Flughafen und keine sinnvolle Direktfähre ab Krabi (Klong Jilad). Flug nach Hat Yai (HDY), 1,5–2 Std. Van nach Pak Bara, dann 1,5–2 Std. Boot. Tür-zu-Tür 6–8 Std.`,
+      });
   const departureDesc = planLangCopy(lang, {
     sl: `Zjutraj čoln s Koh Lipeja do Pak Bara, kombi do Hat Yai, nato notranji let proti ${hubCity}. Računaj 6–8 ur — danes ni Siam Paragon / mestni program dopoldne.`,
     en: `Morning boat from Koh Lipe to Pak Bara, van to Hat Yai, then a domestic flight to ${hubCity}. Budget 6–8h — no Siam Paragon / city sights this morning.`,
@@ -254,13 +311,13 @@ function rewriteKohLipeAccessActivities(
       const blob = activityBlob(a);
       const isMove = /prevoz|transfer|let |flight|ferry|trajekt|van|kombi|speedboat|čoln/i.test(blob);
       if (!isMove) return a;
-      if (direction === "arrival" && (looksLikeWrongLipeFerry(blob) || /koh lipe|hat yai|pak bara/i.test(blob))) {
+      if (direction === "arrival" && (looksLikeWrongLipeFerry(blob) || /koh lipe|hat yai|pak bara|krabi/i.test(blob))) {
         return {
           ...a,
           name: arrival,
           description: arrivalDesc,
           type: "TRANSPORT",
-          transportType: "flight",
+          transportType: fromCoast ? "van" : "flight",
         };
       }
       if (direction === "departure" && /koh lipe|pak bara|hat yai|prevoz iz/i.test(blob)) {
@@ -323,12 +380,17 @@ export function enrichIslandAirportTransfers(
     // steal the last beach day (Lipe 10 Nov still sleeps on the island; leave 11 Nov).
     if (isArrivalDay) {
       const hubCity = prevCity || (def.id === "koh-lipe" ? "Phuket" : "Manila");
-      if (!hasCompleteIslandAccessLegs(legs) || singleFlightToIsland(legs, def)) {
+      const fromCoast = islandAccessFromCoast(hubCity, def);
+      const needsLegs = fromCoast
+        ? !hasCompleteCoastalAccessLegs(legs) || legs.some((l) => l.type === "flight")
+        : !hasCompleteIslandAccessLegs(legs) || singleFlightToIsland(legs, def);
+      if (needsLegs) {
         day.transportation = buildArrivalLegs(def, hubCity);
       }
       day.islandAccessRoute = { defId: def.id, direction: "arrival" };
-      if (!day.transportationTips?.includes(def.airport.label)) {
-        day.transportationTips = arrivalTransportTip(def, lang);
+      const tip = arrivalTransportTip(def, lang, hubCity);
+      if (!day.transportationTips?.includes(def.port.label)) {
+        day.transportationTips = tip;
       }
       rewriteKohLipeAccessActivities(day, def, "arrival", hubCity, lang);
     }

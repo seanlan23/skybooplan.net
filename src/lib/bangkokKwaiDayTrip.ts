@@ -1,4 +1,5 @@
 import type { Activity } from "@/lib/aiPlan.functions";
+import { isSmallIsland } from "@/lib/islandStays";
 import type { TripLocale } from "@/lib/tripLocale";
 
 type DaySlots = { morning: Activity[]; afternoon: Activity[]; evening: Activity[] };
@@ -92,11 +93,13 @@ export function shouldInjectBangkokKwaiDayTrip(opts: {
   priorScheduledText?: string;
   isArrivalDay?: boolean;
   isDepartureDay?: boolean;
+  /** Island → hub travel day (boat + van + flight). Never a 6:30 Kwai start. */
+  isTransferDay?: boolean;
   /** Day title / highlight names — force overwrite when Gemini labeled Kwai but left city fillers. */
   dayLabelText?: string;
   currentSlots?: DaySlots;
 }): boolean {
-  if (opts.isArrivalDay || opts.isDepartureDay) return false;
+  if (opts.isArrivalDay || opts.isDepartureDay || opts.isTransferDay) return false;
 
   const labeledKwai = KWAI_DAY_CUE_RE.test(opts.dayLabelText ?? "");
   const slotsKwai = opts.currentSlots
@@ -206,6 +209,7 @@ export function ensureBangkokKwaiDayTrip(
     isArrivalDay?: boolean;
     isDepartureDay?: boolean;
     dayLabelText?: string;
+    isTransferDay?: boolean;
   },
 ): DaySlots {
   if (
@@ -253,7 +257,7 @@ type PlanDayLike = {
   category?: string;
   inFlightDay?: boolean;
   activities?: DaySlots | null;
-  transportation?: unknown;
+  transportation?: Array<{ type?: string; from?: string; to?: string }>;
   transport?: unknown;
   transportationTips?: string;
   travelHack?: string;
@@ -262,6 +266,39 @@ type PlanDayLike = {
   drivingDurationHours?: string | number;
   mapPins?: Array<{ name: string; lat: number; lng: number; description?: string }>;
 };
+
+function isIslandHubReturnDay<T extends PlanDayLike>(
+  day: T,
+  prevCity: string,
+): boolean {
+  if (prevCity.trim() && isSmallIsland(prevCity)) return true;
+  const legs = day.transportation ?? [];
+  if (
+    legs.some((l) =>
+      /lipe|pak bara|hat yai|\bhdy\b/i.test(`${l.from ?? ""} ${l.to ?? ""}`),
+    )
+  ) {
+    return true;
+  }
+  const blob = [day.title, day.focusName, JSON.stringify(day.activities ?? {})].join(" ");
+  return (
+    /pak bara|hat yai|\bhdy\b/i.test(blob) &&
+    /trajekt|ferry|speedboat|kombi|van|let /i.test(blob)
+  );
+}
+
+function keepNonKwaiSlots(slots: DaySlots): DaySlots {
+  const keep = (list: Activity[]) =>
+    list.filter((a) => {
+      if (a.type === "TRANSPORT") return true;
+      return !KWAI_DAY_CUE_RE.test(`${a.name} ${a.description ?? ""}`);
+    });
+  return {
+    morning: keep(slots.morning),
+    afternoon: keep(slots.afternoon),
+    evening: keep(slots.evening),
+  };
+}
 
 /** Final pass: any Bangkok day that looks like Kwai (or mixes Kwai + shopping) becomes the curated exclusive day. */
 export function applyBangkokKwaiDayTripToPlan<T extends PlanDayLike>(
@@ -274,7 +311,7 @@ export function applyBangkokKwaiDayTripToPlan<T extends PlanDayLike>(
   ).length;
 
   let bangkokIndex = 0;
-  return days.map((day) => {
+  return days.map((day, i) => {
     if (!/bangkok/i.test(day.city ?? "") || day.inFlightDay || !day.activities) {
       return day;
     }
@@ -287,6 +324,18 @@ export function applyBangkokKwaiDayTripToPlan<T extends PlanDayLike>(
     const dayLabelText = [day.title, day.focusName, day.category]
       .filter(Boolean)
       .join(" ");
+    const prevCity = String(days[i - 1]?.city ?? "");
+    const isTransferDay = isIslandHubReturnDay(day, prevCity);
+    if (isTransferDay) {
+      const cleaned = keepNonKwaiSlots(slots);
+      prior += ` ${dayLabelText}`;
+      const title = KWAI_DAY_CUE_RE.test(day.title ?? "")
+        ? locale.slo
+          ? "Prevoz v Bangkok"
+          : "Transfer to Bangkok"
+        : day.title;
+      return { ...day, activities: cleaned, title };
+    }
     const fixed = ensureBangkokKwaiDayTrip(slots, locale, {
       dayInRegion: bangkokIndex,
       bangkokStayDays: bangkokStayDays || 3,
@@ -294,6 +343,7 @@ export function applyBangkokKwaiDayTripToPlan<T extends PlanDayLike>(
       dayLabelText,
       isArrivalDay: day.day === 1,
       isDepartureDay: Boolean(day.inFlightDay),
+      isTransferDay,
     });
     const blob = [...fixed.morning, ...fixed.afternoon, ...fixed.evening]
       .map((a) => `${a.name} ${a.description ?? ""}`)
