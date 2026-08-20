@@ -658,11 +658,16 @@ export function naiveWallClockMinutes(
   return mins > 0 ? mins : 0;
 }
 
+/** Same-timezone wall under 8h is one segment / clock subtraction, not a 1-stop long-haul. */
+const NAIVE_WALL_JUNK_MAX_MIN = 8 * 60;
+
 /**
  * Choose between timezone-elapsed minutes and a provider-stored duration.
  *
- * - When stored ≈ wall-clock gap, take the shorter of TZ vs stored:
- *   eastbound Make 20h45 → TZ 14h45; westbound HKT→MUC TZ 20h30 → stored 14h45.
+ * - When stored ≈ wall-clock gap and stored is long: take the shorter of TZ vs stored
+ *   (eastbound Make 20h45 → TZ 14h45; westbound HKT→MUC TZ 20h30 → Duffel 14h45).
+ * - When stored ≈ wall-clock and stored is short (<8h) while TZ is longer: trust TZ
+ *   (NRT 09:15→VIE 16:55 "7h 40m", BKK 15:15→VIE 16:20 "1h 5m").
  * - When stored is far from wall-clock (junk "7h"), trust TZ.
  * - Explicit UTC-offset ISO timestamps are authoritative — skip this merge.
  */
@@ -674,7 +679,10 @@ function preferTravelMinutes(
   if (tzMins <= 0) return stored > 0 ? stored : 0;
   if (stored <= 0) return tzMins;
   const nearNaive = naive > 0 && Math.abs(stored - naive) <= 30;
-  if (nearNaive) return Math.min(tzMins, stored);
+  if (nearNaive) {
+    if (stored < tzMins && stored < NAIVE_WALL_JUNK_MAX_MIN) return tzMins;
+    return Math.min(tzMins, stored);
+  }
   // Far from wall-clock: short junk → TZ; much longer provider total → stored.
   if (stored > tzMins + 3 * 60) return stored;
   return tzMins;
@@ -790,7 +798,9 @@ function durationFromSegments(segments: unknown[]): string {
   const last = asRecord(segments[segments.length - 1]) ?? first;
   const depart = readString(first ?? {}, "departing_at");
   const arrive = readString(last ?? {}, "arriving_at");
-  return isoDurationBetween(depart, arrive);
+  const from = readNestedIata(first?.origin);
+  const to = readNestedIata(last?.destination);
+  return isoDurationBetween(depart, arrive, from || undefined, to || undefined);
 }
 
 /** Parse PT14H30M or "14h 30m" → minutes. */

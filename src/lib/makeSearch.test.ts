@@ -235,6 +235,48 @@ describe("travelDurationMinutes", () => {
       }),
     ).toBe(14 * 60 + 45);
   });
+
+  it("does not keep naive westbound wall as duration (NRT→VIE 7h 40m)", () => {
+    // 09:15→16:55 same calendar is 7h40 wall; real elapsed is ~15h40 (JST→CET).
+    const mins = travelDurationMinutes({
+      departHm: "09:15",
+      arriveHm: "16:55",
+      departDate: "2026-11-10",
+      arriveDayOffset: 0,
+      fromIata: "NRT",
+      toIata: "VIE",
+      storedLabel: "7h 40m",
+    });
+    expect(mins).toBe(15 * 60 + 40);
+  });
+
+  it("does not keep last-segment wall as duration (NRT→VIE 2h 55m)", () => {
+    const mins = travelDurationMinutes({
+      departHm: "14:00",
+      arriveHm: "16:55",
+      departDate: "2026-11-10",
+      arriveDayOffset: 0,
+      fromIata: "NRT",
+      toIata: "VIE",
+      storedLabel: "2h 55m",
+    });
+    expect(mins).toBeGreaterThan(8 * 60);
+    expect(mins).toBeLessThan(16 * 60);
+  });
+
+  it("does not keep naive westbound wall as duration (BKK→VIE 1h 5m)", () => {
+    const mins = travelDurationMinutes({
+      departHm: "15:15",
+      arriveHm: "16:20",
+      departDate: "2026-11-27",
+      arriveDayOffset: 0,
+      fromIata: "BKK",
+      toIata: "VIE",
+      storedLabel: "1h 5m",
+    });
+    expect(mins).toBeGreaterThan(6 * 60);
+    expect(mins).toBeLessThan(10 * 60);
+  });
 });
 
 describe("parseMakeSearchFlights", () => {
@@ -932,6 +974,65 @@ describe("pickTravelDurationRaw / long-haul", () => {
     expect(result[0]?.outbound_duration).toBe("16h 35m");
     expect(result[0]?.outbound_arrive_day_offset).toBe(1);
     expect(parseDurationMinutes(result[0]?.outbound_duration ?? "")).toBeGreaterThan(12 * 60);
+  });
+
+  it("does not show naive NRT→VIE wall as inbound duration", () => {
+    const result = parseMakeSearchFlights({
+      flights: [
+        {
+          id: "off_ke",
+          total_amount: "2024.00",
+          total_currency: "EUR",
+          owner: { name: "Korean Air", iata_code: "KE" },
+          slices: [
+            {
+              origin: { iata_code: "VIE" },
+              destination: { iata_code: "NRT" },
+              duration: "PT17H50M",
+              segments: [
+                {
+                  departing_at: "2026-10-26T19:15:00",
+                  arriving_at: "2026-10-27T12:00:00",
+                  origin: { iata_code: "VIE" },
+                  destination: { iata_code: "ICN" },
+                  marketing_carrier: { name: "Korean Air", iata_code: "KE" },
+                },
+                {
+                  departing_at: "2026-10-27T16:00:00",
+                  arriving_at: "2026-10-27T21:05:00",
+                  origin: { iata_code: "ICN" },
+                  destination: { iata_code: "NRT" },
+                  marketing_carrier: { name: "Korean Air", iata_code: "KE" },
+                },
+              ],
+            },
+            {
+              origin: { iata_code: "NRT" },
+              destination: { iata_code: "VIE" },
+              duration: "PT7H40M",
+              segments: [
+                {
+                  departing_at: "2026-11-10T09:15:00",
+                  arriving_at: "2026-11-10T12:00:00",
+                  origin: { iata_code: "NRT" },
+                  destination: { iata_code: "ICN" },
+                  marketing_carrier: { name: "Korean Air", iata_code: "KE" },
+                },
+                {
+                  departing_at: "2026-11-10T14:00:00",
+                  arriving_at: "2026-11-10T16:55:00",
+                  origin: { iata_code: "ICN" },
+                  destination: { iata_code: "VIE" },
+                  marketing_carrier: { name: "Korean Air", iata_code: "KE" },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+    expect(result[0]?.inbound_duration).toBe("15h 40m");
+    expect(parseDurationMinutes(result[0]?.inbound_duration ?? "")).toBeGreaterThan(12 * 60);
   });
 });
 
