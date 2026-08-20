@@ -81,8 +81,8 @@ function chainedSliceMinutes(
 
 /**
  * Duffel owns the minutes.
- * 1. `slice.duration` unless it is clearly one segment (or a naive <8h wall).
- * 2. Else segment + layover chain.
+ * 1. `slice.duration` when it is the full total (not one hop, not a wall-clock gap).
+ * 2. Else segment air + layover chain.
  * 3. Else first.departing_at → last.arriving_at (UTC if offsets exist).
  */
 export function duffelSliceDurationMin(slice: DuffelSliceDurationInput): number {
@@ -92,7 +92,7 @@ export function duffelSliceDurationMin(slice: DuffelSliceDurationInput): number 
   const official = parseIso8601DurationMin(slice.duration);
   const maxSeg = segments.reduce((m, s) => Math.max(m, segmentAirMin(s)), 0);
   const officialIsOneSegment =
-    segments.length > 1 && official > 0 && maxSeg > 0 && official <= maxSeg + 20;
+    segments.length > 1 && official > 0 && maxSeg > 0 && official <= maxSeg + 60;
 
   const first = segments[0];
   const last = segments[segments.length - 1];
@@ -108,7 +108,9 @@ export function duffelSliceDurationMin(slice: DuffelSliceDurationInput): number 
   const chained = chainedSliceMinutes(segments);
 
   if (official > 0 && !officialIsOneSegment) {
-    // Naive westbound wall (7h 40m) vs real 15h — don't keep the wall.
+    // Missing hop: NRT→FRA "11h 20m" is PEK→FRA while chain is ~15h+.
+    // Keep Duffel 14h45 when chain is not 3h+ longer (westbound TZ overshoot).
+    if (segments.length > 1 && chained > official + 3 * 60) return chained;
     if (official < 8 * 60 && firstLast > official + 60) return firstLast;
     if (official < 8 * 60 && chained > official + 60) return chained;
     return official;

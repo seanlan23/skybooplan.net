@@ -73,4 +73,28 @@ describe("duffelSliceDurationMin", () => {
       }),
     ).toBe(15 * 60 + 35);
   });
+
+  it("does not keep PEK→FRA hop as NRT→FRA total (11h 20m)", () => {
+    const mins = duffelSliceDurationMin({
+      duration: "PT11H20M",
+      segments: [
+        {
+          duration: "PT3H20M",
+          departing_at: "2026-11-04T13:15:00+09:00",
+          arriving_at: "2026-11-04T16:00:00+08:00",
+          origin: { iata_code: "NRT" },
+          destination: { iata_code: "PEK" },
+        },
+        {
+          duration: "PT10H50M",
+          departing_at: "2026-11-04T18:00:00+08:00",
+          arriving_at: "2026-11-04T16:35:00+01:00",
+          origin: { iata_code: "PEK" },
+          destination: { iata_code: "FRA" },
+        },
+      ],
+    });
+    expect(mins).toBe(3 * 60 + 20 + 2 * 60 + 10 * 60 + 50);
+    expect(mins).toBeGreaterThan(14 * 60);
+  });
 });
