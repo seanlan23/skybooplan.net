@@ -78,6 +78,55 @@ export function isEnricherPlaceholderActivity(a: {
   );
 }
 
+const MEAL_HEAD_RE =
+  /^(zajtrk|kosilo|večerja|breakfast|lunch|dinner|mittagessen|abendessen|frühstück|déjeuner|dîner|cena|colazione|pranzo)\b/i;
+
+const GENERIC_MEAL_PLACE_RE =
+  /\b(area|območj\w*|okrožj\w*|četrti|sosesk\w*|središč\w*|cent(er|re)|downtown|viertel|neighbourhood|neighborhood|ulic[ae]|streets?|alley|yokocho|lane|tržnic\w*|markets?|plaz[ae]|district|barrio|quartier)\b/i;
+
+const MEAL_CUISINE_RE =
+  /\b(izakaya|sushi|ramen|yakitori|okonomiyaki|monjayaki|oyakodon|tempura|pizza|pasta|tapas|meze|pho|barbecue|seafood|izkušnja|experience|erlebnis)\b/i;
+
+function mealVenueTail(name: string): string {
+  const colon = name.match(/^[^:]{1,48}:\s*(.+)$/);
+  if (colon?.[1]) return colon[1].trim();
+  const prep = name.match(/\b(?:at|bei|chez|da)\s+(.+)$/i);
+  if (prep?.[1]) return prep[1].trim();
+  return "";
+}
+
+/** True when the meal names a bookable venue, not “izakaya in this neighbourhood”. */
+function hasConcreteVenueName(name: string): boolean {
+  if (/['"«»][^'"«»]{2,}['"»]/.test(name)) return true;
+  const tail = mealVenueTail(name);
+  if (!tail) return false;
+  if (/['"«»][^'"«»]{2,}['"»]/.test(tail)) return true;
+  if (GENERIC_MEAL_PLACE_RE.test(tail)) {
+    const rest = tail
+      .replace(GENERIC_MEAL_PLACE_RE, " ")
+      .replace(MEAL_CUISINE_RE, " ")
+      .replace(/\([^)]*\)/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (/\b[A-Z]{2,}\b/.test(rest)) return true;
+    return false;
+  }
+  if (/\b(izkušnja|experience|erlebnis)\b/i.test(tail)) return false;
+  if (
+    MEAL_CUISINE_RE.test(tail) &&
+    /\b(v|in|im|at|na)\s+\w+/i.test(tail) &&
+    !/['"«»]/.test(tail)
+  ) {
+    return false;
+  }
+  const rest = tail
+    .replace(MEAL_CUISINE_RE, " ")
+    .replace(/\([^)]*\)/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return rest.length >= 3;
+}
+
 /**
  * Generic meal cards without a venue name — drop worldwide.
  * Keep "Večerja: Ichiran Ramen" / "Dinner at Sukiyabashi Jiro"; strip "Abendessen in Kyoto".
@@ -89,44 +138,11 @@ export function isGenericMealActivity(a: {
 }): boolean {
   const name = (a.name ?? "").trim();
   if (!name) return false;
-  const mealWord =
-    /^(zajtrk|kosilo|večerja|breakfast|lunch|dinner|mittagessen|abendessen|frühstück|déjeuner|dîner|cena|colazione|pranzo)\b/i;
-  const isMeal = a.type === "EAT" || mealWord.test(name);
+  const isMeal = a.type === "EAT" || MEAL_HEAD_RE.test(name);
   if (!isMeal) return false;
   if (isEnricherPlaceholderActivity(a)) return true;
-
-  // Named venue: "Večerja: Ichiran", "Dinner: X", "Abendessen: X"
-  if (
-    /^(zajtrk|kosilo|večerja|breakfast|lunch|dinner|mittagessen|abendessen|frühstück|déjeuner|dîner|cena|colazione|pranzo)\s*:\s*\S+/i.test(
-      name,
-    )
-  ) {
-    return false;
-  }
-  // Named venue: "Dinner at Ichiran", "Abendessen bei Kyubey", "Dîner chez X"
-  if (/\b(at|bei|chez|da)\s+[A-ZÀ-Ü"«]/u.test(name)) return false;
-
-  return (
-    /^(lokalna večerja|local dinner|sproščena večerja|relaxed dinner|lahka večerja|abendessen im viertel|dinner in the (neighbourhood|neighborhood)|večerja v četrti)\b/i.test(
-      name,
-    ) ||
-    /^(abendessen|mittagessen|frühstück|večerja|kosilo|dinner|lunch|dîner|déjeuner|cena|pranzo)\s+(in|im|v|at|près de|nahe|in der nähe|einem|einer|eines)/i.test(
-      name,
-    ) ||
-    /^(abendessen|mittagessen|dinner|lunch|večerja|kosilo)\s+in\s+einem\b/i.test(name) ||
-    /^(abendessen und nachtleben|dinner and nightlife|večerja in nočno|večerja in koktajl)/i.test(
-      name,
-    ) ||
-    /^(dinner and cocktails|cocktails in an elegant|elegantem bar|elegantnem baru)\b/i.test(
-      name,
-    ) ||
-    /^(check-in und mittagessen|shopping und mittagessen)\b/i.test(name) ||
-    // Name is only a meal label + neighborhood, optionally trailing colon (PDF: "Mittagessen in San Telmo:")
-    /^(abendessen|mittagessen|dinner|lunch|večerja|kosilo)\b[^:]{0,60}:\s*$/i.test(name) ||
-    /elegantn[ea]m baru|elegant bar|v bližini hotela|near the hotel|trendovsk[ei]|trendy (neighbourhood|neighborhood|area)|številnih stilskih|one of the many/i.test(
-      `${name} ${a.description ?? ""}`,
-    )
-  );
+  if (hasConcreteVenueName(name)) return false;
+  return true;
 }
 
 /** Airport / first-arrival logistics (not sightseeing near an airport). */
@@ -477,26 +493,27 @@ export function fillNamedEveningIfEmpty(
   return filled;
 }
 
-/** Drop venue-less meal fillers worldwide (all languages). */
+/** Drop venue-less meal fillers worldwide (all languages). Do not invent a replacement restaurant. */
 export function stripGenericMealActivities(plan: AiTripPlan): number {
   let removed = 0;
-  const eveningsToName = new Set<DayPlan>();
   for (const day of plan.days ?? []) {
     if (!day.activities) continue;
+    const total = SLOTS.reduce((n, s) => n + (day.activities?.[s]?.length ?? 0), 0);
+    let dropping = 0;
+    for (const slot of SLOTS) {
+      dropping += (day.activities[slot] ?? []).filter((a) => isGenericMealActivity(a)).length;
+    }
+    if (dropping === 0) continue;
+    if (dropping >= total) continue;
     for (const slot of SLOTS) {
       const list = day.activities[slot] ?? [];
-      const next = list.filter((a) => {
-        const drop = isGenericMealActivity(a);
-        if (drop) {
-          removed += 1;
-          if (slot === "evening") eveningsToName.add(day);
-        }
-        return !drop;
+      day.activities[slot] = list.filter((a) => {
+        if (!isGenericMealActivity(a)) return true;
+        removed += 1;
+        return false;
       });
-      day.activities[slot] = next;
     }
   }
-  if (eveningsToName.size) fillNamedEveningIfEmpty(plan, eveningsToName);
   return removed;
 }
 
@@ -686,6 +703,115 @@ export function stripPhantomArrivals(plan: AiTripPlan, arrivalDay = 1): number {
         if (drop) removed += 1;
         return !drop;
       });
+      day.activities[slot] = next;
+    }
+  }
+  return removed;
+}
+
+const POI_TYPE_FLUFF_RE =
+  /\b(vecerni|dopoldanski|popoldanski|tempelj|temple|shrine|svetisce|jingu|market|trznica|park|vrt|garden|muzej|museum|gozd|gaj|bambusov|okrozju|okrozje|cetrt|raziskovanje|sprehod|obisk|ogled|potepanje|paviljon|zlati|tradicionaln\w*)\b/g;
+
+function poiDedupeKey(name: string): string {
+  return sameDayActivityCoreKey(name)
+    .replace(POI_TYPE_FLUFF_RE, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function poiKeyTokens(key: string): string[] {
+  return key.split(/\s+/).filter((t) => t.length >= 4);
+}
+
+function poiTokensAlign(a: string, b: string): boolean {
+  if (a === b) return true;
+  return a.length >= 4 && b.length >= 4 && (a.startsWith(b) || b.startsWith(a));
+}
+
+function poiKeysMatch(a: string, b: string, cityKey: string): boolean {
+  if (!a || !b) return false;
+  if (a === b) return true;
+  const shorter = a.length <= b.length ? a : b;
+  const longer = a.length <= b.length ? b : a;
+  if (shorter.includes(" ") && shorter.length >= 8 && longer.includes(shorter)) {
+    return true;
+  }
+  const cityTok = new Set(poiKeyTokens(cityKey));
+  const shared: string[] = [];
+  for (const x of poiKeyTokens(a)) {
+    for (const y of poiKeyTokens(b)) {
+      if (!poiTokensAlign(x, y)) continue;
+      if (cityTok.has(x) || cityTok.has(y)) continue;
+      shared.push(x.length >= y.length ? x : y);
+    }
+  }
+  const distinctive = [...new Set(shared)];
+  if (!(distinctive.some((t) => t.length >= 5) || distinctive.length >= 2)) {
+    return false;
+  }
+  const inShare = (t: string) => distinctive.some((s) => poiTokensAlign(t, s));
+  const extraA = poiKeyTokens(a).filter(
+    (t) => t.length >= 6 && !cityTok.has(t) && !inShare(t),
+  );
+  const extraB = poiKeyTokens(b).filter(
+    (t) => t.length >= 6 && !cityTok.has(t) && !inShare(t),
+  );
+  if (extraA.length > 0 && extraB.length > 0) return false;
+  return true;
+}
+
+function isNonPoiActivity(a: Activity): boolean {
+  if (a.transportType === "flight" || a.type === "TRANSPORT" || a.type === "STAY") {
+    return true;
+  }
+  const t = `${a.name ?? ""} ${a.description ?? ""}`.toLowerCase();
+  return /check-?in|check-?out|prevoz na letališč|prevoz do hotela|airport transfer|mednarodni\s*(povratni\s*)?let|international\s*(return\s*)?flight|shinkansen|potovanje (s |z )|vožnja s hitrim vlakom/i.test(
+    t,
+  );
+}
+
+/**
+ * Same POI must not repeat later in the trip. Keep the first visit; drop the repeat.
+ * If that would empty the day, keep the activity. Never invent a replacement sight.
+ */
+export function dropDuplicatePoisAcrossPlan(plan: AiTripPlan): number {
+  const seen: string[] = [];
+  let removed = 0;
+  const days = plan.days ?? [];
+  for (const day of days) {
+    if (!day.activities) continue;
+    const cityKey = poiDedupeKey(day.city ?? day.focusName ?? "");
+    for (let si = 0; si < SLOTS.length; si++) {
+      const slot = SLOTS[si]!;
+      const list = day.activities[slot] ?? [];
+      const next: Activity[] = [];
+      for (let i = 0; i < list.length; i++) {
+        const a = list[i]!;
+        if (isNonPoiActivity(a)) {
+          next.push(a);
+          continue;
+        }
+        const key = poiDedupeKey(a.name ?? "");
+        if (!key || key.length < 4) {
+          next.push(a);
+          continue;
+        }
+        const dup = seen.some((prev) => poiKeysMatch(prev, key, cityKey));
+        if (dup) {
+          let left = next.length + (list.length - i - 1);
+          for (let sj = si + 1; sj < SLOTS.length; sj++) {
+            left += day.activities?.[SLOTS[sj]!]?.length ?? 0;
+          }
+          if (left > 0) {
+            removed += 1;
+            continue;
+          }
+          next.push(a);
+          continue;
+        }
+        seen.push(key);
+        next.push(a);
+      }
       day.activities[slot] = next;
     }
   }
@@ -913,6 +1039,7 @@ export function applyItineraryGuards(
   stealNights: number;
   wrongCity: number;
   templateScrub: number;
+  duplicatePois: number;
 } {
   applyIslandHopLogistics(plan, opts?.language ?? plan.contentLanguage);
   enrichIslandAirportTransfers(plan, {
@@ -934,6 +1061,7 @@ export function applyItineraryGuards(
   const clones = dedupeNearIdenticalConsecutiveDays(plan, {
     language: opts?.language ?? plan.contentLanguage,
   });
+  const duplicatePois = dropDuplicatePoisAcrossPlan(plan);
   const truncated = stripTruncatedCopyFromPlan(plan);
   const logisticsCopy = repairIncompleteLogisticsCopy(plan);
   const transportLegs = sanitizeTransportationLegs(plan);
@@ -973,5 +1101,6 @@ export function applyItineraryGuards(
     stealNights,
     wrongCity,
     templateScrub,
+    duplicatePois,
   };
 }

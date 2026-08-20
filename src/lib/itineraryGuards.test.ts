@@ -16,6 +16,7 @@ import {
   stripPhantomArrivals,
   stripPlaceholderActivities,
   stripWrongCityDayActivities,
+  dropDuplicatePoisAcrossPlan,
 } from "@/lib/itineraryGuards";
 import { repairTruncatedCopy } from "@/lib/textSanitize";
 
@@ -90,7 +91,7 @@ describe("isGenericMealActivity", () => {
     expect(isGenericMealActivity({ name: "Abendessen: Kyubey", type: "EAT" })).toBe(false);
   });
 
-  it("strips elegant-bar cocktail fillers and names a real Paris venue", () => {
+  it("strips elegant-bar cocktail fillers and leaves evening empty", () => {
     expect(
       isGenericMealActivity({
         name: "Večerja in koktajli v elegantnem baru",
@@ -120,7 +121,8 @@ describe("isGenericMealActivity", () => {
       ],
     } as AiTripPlan;
     expect(stripGenericMealActivities(plan)).toBe(1);
-    expect(plan.days[0]!.activities!.evening[0]!.name).toMatch(/Comptoir du Relais/i);
+    expect(plan.days[0]!.activities!.evening).toEqual([]);
+    expect(plan.days[0]!.activities!.morning[0]!.name).toMatch(/Eiffel/i);
   });
 
   it("removes generic meals from a Japan-style day", () => {
@@ -145,6 +147,25 @@ describe("isGenericMealActivity", () => {
     expect(plan.days[0]!.activities!.afternoon).toHaveLength(0);
     expect(plan.days[0]!.activities!.evening).toHaveLength(1);
     expect(plan.days[0]!.activities!.evening[0]!.name).toMatch(/Ichiran/i);
+  });
+
+  it("strips neighbourhood/cuisine dinners and keeps a named restaurant", () => {
+    expect(isGenericMealActivity({ name: "Večerja: Izakaya v Akihabari", type: "EAT" })).toBe(true);
+    expect(isGenericMealActivity({ name: "Večerja: Kawaramachi Area", type: "EAT" })).toBe(true);
+    expect(isGenericMealActivity({ name: "Večerja: Yakitori izkušnja v Ginzi", type: "EAT" })).toBe(
+      true,
+    );
+    expect(isGenericMealActivity({ name: "Večerja: Nishiki Market", type: "EAT" })).toBe(true);
+    expect(isGenericMealActivity({ name: "Večerja: Pontocho Alley", type: "EAT" })).toBe(true);
+    expect(isGenericMealActivity({ name: "Večerja: Ramen v 'Ichiran Ramen'", type: "EAT" })).toBe(
+      false,
+    );
+    expect(isGenericMealActivity({ name: "Večerja: Pontocho Yakitori AKIRA", type: "EAT" })).toBe(
+      false,
+    );
+    expect(isGenericMealActivity({ name: "Kosilo: Arashiyama Yoshimura", type: "EAT" })).toBe(
+      false,
+    );
   });
 });
 
@@ -316,6 +337,152 @@ describe("stripPhantomArrivals", () => {
     expect(plan.days[1]!.activities!.afternoon).toHaveLength(0);
     expect(plan.days[1]!.activities!.evening).toHaveLength(0);
     expect(plan.days[1]!.activities!.morning[0]!.name).toMatch(/Casco/i);
+  });
+});
+
+describe("dropDuplicatePoisAcrossPlan", () => {
+  it("keeps the first visit and drops the later repeat, without emptying the day", () => {
+    const plan = {
+      destinationName: "Japan",
+      contentLanguage: "sl",
+      days: [
+        day({
+          day: 1,
+          city: "Kyoto",
+          activities: {
+            morning: [
+              {
+                name: "Bambusov gozd Arashiyama in tempelj Tenryu-ji",
+                type: "SIGHT",
+                description: "Prvi obisk.",
+              },
+            ],
+            afternoon: [{ name: "Zlati paviljon Kinkaku-ji", type: "SIGHT", description: "Paviljon." }],
+            evening: [],
+          },
+        }),
+        day({
+          day: 2,
+          city: "Kyoto",
+          activities: {
+            morning: [
+              {
+                name: "Bambusov gaj Arashiyama in tempelj Tenryu-ji",
+                type: "SIGHT",
+                description: "Ponovitev.",
+              },
+            ],
+            afternoon: [
+              { name: "Kosilo: Arashiyama Yoshimura", type: "EAT", description: "Soba." },
+            ],
+            evening: [{ name: "Raziskovanje Giona", type: "SIGHT", description: "Gejše." }],
+          },
+        }),
+      ],
+    } as AiTripPlan;
+
+    expect(dropDuplicatePoisAcrossPlan(plan)).toBe(1);
+    expect(plan.days[0]!.activities!.morning[0]!.name).toMatch(/Arashiyama/i);
+    expect(plan.days[1]!.activities!.morning).toEqual([]);
+    expect(plan.days[1]!.activities!.afternoon[0]!.name).toMatch(/Yoshimura/i);
+    expect(plan.days[1]!.activities!.evening[0]!.name).toMatch(/Gion/i);
+  });
+
+  it("does not empty a day that only has the repeated POI", () => {
+    const plan = {
+      destinationName: "Japan",
+      contentLanguage: "sl",
+      days: [
+        day({
+          day: 1,
+          city: "Tokyo",
+          activities: {
+            morning: [{ name: "Svetišče Meiji Jingu", type: "SIGHT", description: "Prvi." }],
+            afternoon: [],
+            evening: [],
+          },
+        }),
+        day({
+          day: 2,
+          city: "Tokyo",
+          activities: {
+            morning: [{ name: "Svetišče Meiji Jingu", type: "SIGHT", description: "Samo to." }],
+            afternoon: [],
+            evening: [],
+          },
+        }),
+      ],
+    } as AiTripPlan;
+
+    expect(dropDuplicatePoisAcrossPlan(plan)).toBe(0);
+    expect(plan.days[1]!.activities!.morning).toHaveLength(1);
+  });
+
+  it("does not treat two different Tokyo sights as the same POI", () => {
+    const plan = {
+      destinationName: "Japan",
+      contentLanguage: "sl",
+      days: [
+        day({
+          day: 1,
+          city: "Tokyo",
+          activities: {
+            morning: [{ name: "Tokyo Skytree", type: "SIGHT", description: "Razgled." }],
+            afternoon: [],
+            evening: [],
+          },
+        }),
+        day({
+          day: 2,
+          city: "Tokyo",
+          activities: {
+            morning: [{ name: "Senso-ji", type: "SIGHT", description: "Tempelj." }],
+            afternoon: [],
+            evening: [],
+          },
+        }),
+      ],
+    } as AiTripPlan;
+
+    expect(dropDuplicatePoisAcrossPlan(plan)).toBe(0);
+    expect(plan.days[1]!.activities!.morning[0]!.name).toMatch(/Senso/i);
+  });
+
+  it("drops a later Meiji visit when the shrine was already part of an earlier day", () => {
+    const plan = {
+      destinationName: "Japan",
+      contentLanguage: "sl",
+      days: [
+        day({
+          day: 3,
+          city: "Tokyo",
+          activities: {
+            morning: [],
+            afternoon: [
+              {
+                name: "Harajuku: Takeshita Street in svetišče Meiji Jingu",
+                type: "SIGHT",
+                description: "Prvi obisk.",
+              },
+            ],
+            evening: [],
+          },
+        }),
+        day({
+          day: 15,
+          city: "Tokyo",
+          activities: {
+            morning: [],
+            afternoon: [{ name: "Svetišče Meiji Jingu", type: "SIGHT", description: "Spet." }],
+            evening: [{ name: "Shibuya Crossing", type: "SIGHT", description: "Križišče." }],
+          },
+        }),
+      ],
+    } as AiTripPlan;
+
+    expect(dropDuplicatePoisAcrossPlan(plan)).toBe(1);
+    expect(plan.days[1]!.activities!.afternoon).toEqual([]);
+    expect(plan.days[1]!.activities!.evening[0]!.name).toMatch(/Shibuya/i);
   });
 });
 

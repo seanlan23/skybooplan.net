@@ -26,6 +26,7 @@ import {
   isTightDeparture,
   isEveningDeparture,
   departureLogisticsOffsetsMin,
+  originAirportLeadHours,
   type LogisticsActivity,
   type TripFlightContext,
 } from "@/lib/flightScheduling";
@@ -862,6 +863,143 @@ function parseHmSafe(hm: string): number {
   return Number(m[1]) * 60 + Number(m[2]);
 }
 
+/** Prose that may still carry Gemini-invented international-flight clocks. */
+const FLIGHT_CLOCK_PROSE_RE =
+  /letališč|airport|flughafen|aeroporto|aéroport|mednarodni(?:\s+povratni)?\s+let|international(?:\s+return)?\s+flight|internationaler\s+(?:rück)?flug|\bpristan|boarding|odlet|rückflug|povratni\s+let|prevoz na letališč/i;
+
+function duffelOwnedClockList(
+  flights: TripFlightContext,
+  destIata?: string,
+): string[] {
+  const owned = [
+    flights.outboundDepart,
+    flights.outboundArrive,
+    flights.inboundDepart ?? "",
+    flights.inboundArrive ?? "",
+    addHmMinutes(flights.outboundArrive, ARRIVAL_TRANSFER_OFFSET_MIN),
+    addHmMinutes(flights.outboundArrive, ARRIVAL_HOTEL_OFFSET_MIN),
+    addHmMinutes(
+      flights.outboundDepart,
+      -Math.round(originAirportLeadHours(flights.outboundDepart) * 60),
+    ),
+  ];
+  if (flights.inboundDepart) {
+    const off = departureLogisticsOffsetsMin(destIata);
+    const depMin = parseHmSafe(flights.inboundDepart);
+    owned.push(
+      hmFromMinutes(depMin - off.checkoutMin),
+      hmFromMinutes(depMin - off.transferMin),
+      hmFromMinutes(depMin - off.airportMin),
+    );
+  }
+  return owned.filter(Boolean);
+}
+
+function clockIsOwned(hm: string | undefined, owned: string[]): boolean {
+  const norm = normalizeHmToken(hm ?? "");
+  if (!norm) return false;
+  return owned.some((t) => normalizeHmToken(t) === norm);
+}
+
+function stripNonDuffelFlightClocks(text: string | undefined, owned: string[]): string | undefined {
+  if (!text) return text;
+  if (!FLIGHT_CLOCK_PROSE_RE.test(text)) return text;
+  return stripProseClocksExcept(text, owned) ?? text;
+}
+
+function isDuffelOwnedFlightActivity(a: Activity): boolean {
+  if (a.transportType === "flight" || isFlightRangeActivity(a)) return true;
+  const name = a.name ?? "";
+  return /mednarodni(?:\s+povratni)?\s+let|international(?:\s+return)?\s+flight|internationaler\s+(?:rück)?flug|prihod na letališče|airport arrival|ankunft am flughafen|arrivo in aeroporto|llegada al aeropuerto|arrivée à l'aéroport|prevoz na letališč|na letališču .+\([A-Z]{3}\)|mednarodni let\s*\(/i.test(
+    name,
+  );
+}
+
+/**
+ * Duffel boarding-pass times win everywhere Gemini still wrote a flight clock.
+ * Does not invent times when this function is not called (no flight context).
+ */
+function overwriteGeminiFlightClocksWithDuffel(
+  plan: AiTripPlan,
+  flights: TripFlightContext,
+  opts: { arrivalDay: number; totalDays: number; planComplete: boolean },
+): void {
+  const owned = duffelOwnedClockList(flights, plan.destinationIata);
+  plan.summary = stripNonDuffelFlightClocks(plan.summary, owned) ?? plan.summary;
+
+  for (const day of plan.days) {
+    const flightCalendarDay =
+      isInFlightTripDay(day.day, flights) ||
+      day.day === opts.arrivalDay ||
+      (opts.planComplete && Boolean(flights.inboundDepart) && day.day === opts.totalDays);
+    const stripDayText = (text: string | undefined) =>
+      flightCalendarDay
+        ? (stripProseClocksExcept(text, owned) ?? text)
+        : stripNonDuffelFlightClocks(text, owned);
+
+    day.title = stripDayText(day.title) ?? day.title;
+    day.travelHack = stripDayText(day.travelHack);
+    day.transportationTips = stripDayText(day.transportationTips);
+    day.localWarnings = stripDayText(day.localWarnings);
+    day.morning = stripDayText(day.morning) ?? "";
+    day.afternoon = stripDayText(day.afternoon) ?? "";
+    day.evening = stripDayText(day.evening) ?? "";
+
+    if (!day.activities) continue;
+    const patchSlot = (list: Activity[] | undefined): Activity[] =>
+      (list ?? []).map((a) => {
+        const blob = `${a.name} ${a.description ?? ""}`;
+        const flightRow = isDuffelOwnedFlightActivity(a) || FLIGHT_CLOCK_PROSE_RE.test(blob);
+        if (!flightRow) return a;
+        const description = stripProseClocksExcept(a.description, owned) ?? a.description;
+        const next: Activity = { ...a, description };
+        if (next.arrivalTime && !clockIsOwned(next.arrivalTime, owned)) {
+          delete next.arrivalTime;
+        }
+        if (next.departureTime && !clockIsOwned(next.departureTime, owned)) {
+          delete next.departureTime;
+        }
+        return normalizeActivityClocks(next);
+      });
+    day.activities = {
+      morning: patchSlot(day.activities.morning),
+      afternoon: patchSlot(day.activities.afternoon),
+      evening: patchSlot(day.activities.evening),
+    };
+  }
+
+  const arrival = plan.days.find((d) => d.day === opts.arrivalDay);
+  if (arrival?.activities) {
+    arrival.activities = lockCodeOwnedFlightDayClocks(
+      patchArrivalActivityClockTimes(arrival.activities, flights),
+      owned,
+    );
+    arrival.transportation = undefined;
+  }
+
+  if (opts.planComplete && flights.inboundDepart) {
+    const last = plan.days.find((d) => d.day === opts.totalDays);
+    if (last?.activities) {
+      last.activities = lockCodeOwnedFlightDayClocks(
+        patchAirportActivityTimes(
+          last.activities,
+          flights.inboundDepart,
+          flights.inboundArrive,
+          plan.destinationIata,
+        ),
+        owned,
+      );
+      last.transportation = undefined;
+    }
+  }
+
+  for (const day of plan.days) {
+    if (isInFlightTripDay(day.day, flights)) {
+      day.transportation = undefined;
+    }
+  }
+}
+
 /**
  * Safety net after Gemini stream/catalog: rewrite day 1 / last day around real flight times.
  */
@@ -1287,4 +1425,9 @@ export function applyFlightContextToGeminiPlan(
   // After flight rewrite: strip phantom Tocumen/airport re-arrivals on non-arrival days.
   applyItineraryGuards(plan, { arrivalDay, language: lang });
   scrubImpossibleIslandDayTrips(plan, lang);
+  overwriteGeminiFlightClocksWithDuffel(plan, flights, {
+    arrivalDay,
+    totalDays,
+    planComplete,
+  });
 }

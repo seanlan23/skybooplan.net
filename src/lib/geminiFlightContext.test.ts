@@ -180,6 +180,163 @@ describe("applyFlightContextToGeminiPlan", () => {
     expect(lastText).not.toContain("23:00");
   });
 
+  it("Duffel clocks overwrite Gemini VIE→NRT 21:05 leftover everywhere", () => {
+    const plan = basePlan({
+      destinationName: "Japan",
+      destinationIata: "NRT",
+      originIata: "VIE",
+      summary: "Pristanek na NRT ob 21:05, potem Tokio.",
+      days: [
+        {
+          day: 1,
+          date: "2026-10-26",
+          title: "Prihod v Tokio 21:05",
+          morning: "",
+          afternoon: "",
+          evening: "",
+          travelHack: "Let pristane 21:05 — takoj v hotel.",
+          transportationTips: "NRT transfer po 21:05",
+          localWarnings: "",
+          dailyBudgetEur: 80,
+          lat: 35.68,
+          lng: 139.76,
+          city: "Tokyo",
+          focusName: "Tokyo",
+          category: "transport",
+          transportation: [{ type: "flight", from: "VIE", to: "NRT", duration: "2h", estimatedPrice: 0 }],
+          activities: {
+            morning: [
+              {
+                name: "Mednarodni let (VIE)",
+                type: "TRANSPORT",
+                transportType: "flight",
+                description: "Odhod 19:15 z VIE, pristanek 21:05.",
+                arrivalTime: "19:15",
+                departureTime: "21:05",
+              },
+            ],
+            afternoon: [],
+            evening: [
+              {
+                name: "Prihod na letališče",
+                type: "TRANSPORT",
+                description: "Polet pristane na destinaciji ob 21:05 (lokalni čas).",
+                arrivalTime: "21:05",
+              },
+            ],
+          },
+        },
+        {
+          day: 2,
+          date: "2026-10-27",
+          title: "Tokyo",
+          morning: "",
+          afternoon: "",
+          evening: "",
+          travelHack: "",
+          transportationTips: "",
+          localWarnings: "",
+          dailyBudgetEur: 110,
+          lat: 35.68,
+          lng: 139.76,
+          city: "Tokyo",
+          focusName: "Tokyo",
+          category: "city",
+          activities: {
+            morning: [{ name: "Senso-ji", type: "SIGHT", description: "Tempelj" }],
+            afternoon: [],
+            evening: [],
+          },
+        },
+        {
+          day: 3,
+          date: "2026-10-28",
+          title: "Tokyo",
+          morning: "",
+          afternoon: "",
+          evening: "",
+          travelHack: "",
+          transportationTips: "",
+          localWarnings: "",
+          dailyBudgetEur: 110,
+          lat: 35.68,
+          lng: 139.76,
+          city: "Tokyo",
+          focusName: "Tokyo",
+          category: "city",
+          activities: {
+            morning: [],
+            afternoon: [],
+            evening: [
+              {
+                name: "Večerja: Monjayaki v Tsukishima",
+                type: "EAT",
+                description: "Lokalna specialiteta ob 19:00",
+                arrivalTime: "19:00",
+              },
+            ],
+          },
+        },
+        {
+          day: 4,
+          date: "2026-10-29",
+          title: "Odhod",
+          morning: "",
+          afternoon: "",
+          evening: "",
+          travelHack: "",
+          transportationTips: "",
+          localWarnings: "",
+          dailyBudgetEur: 40,
+          lat: 35.68,
+          lng: 139.76,
+          city: "Tokyo",
+          focusName: "Tokyo",
+          category: "transport",
+          activities: {
+            morning: [
+              {
+                name: "Mednarodni povratni let",
+                type: "TRANSPORT",
+                transportType: "flight",
+                description: "Odhod 12:00, prihod 18:00",
+                arrivalTime: "12:00",
+                departureTime: "18:00",
+              },
+            ],
+            afternoon: [],
+            evening: [],
+          },
+        },
+      ],
+    });
+
+    applyFlightContextToGeminiPlan(
+      plan,
+      {
+        outboundDepart: "19:15",
+        outboundArrive: "15:20",
+        outboundArriveDayOffset: 1,
+        inboundDepart: "09:15",
+        inboundArrive: "16:55",
+      },
+      { originIata: "VIE", language: "sl", expectedDays: 4 },
+    );
+
+    const blob = JSON.stringify(plan);
+    expect(blob).not.toMatch(/\b21:05\b/);
+    expect(blob).not.toMatch(/\b12:00\b/);
+    expect(blob).toMatch(/15:20/);
+    expect(blob).toMatch(/19:15/);
+    expect(blob).toMatch(/09:15/);
+    expect(plan.days[0]?.inFlightDay).toBe(true);
+    expect(plan.days[0]?.transportation).toBeUndefined();
+    expect(plan.days[0]?.activities?.evening ?? []).toEqual([]);
+    const dinner = plan.days[2]?.activities?.evening?.find((a) => /Monjayaki/i.test(a.name));
+    expect(dinner?.arrivalTime).toBe("19:00");
+    expect(dinner?.description).toContain("19:00");
+  });
+
   it("clears breakfast/siesta and stamps 17:55 when landing late afternoon (+1d)", () => {
     const plan = basePlan();
     plan.days[1]!.activities = {
