@@ -460,11 +460,27 @@ function Landing() {
   resetLandingRef.current = resetLanding;
 
   // Ujemi napake v useEffect / event handlerjih (Error Boundary jih ne vidi).
+  // Failed lazy chunks (PDF, stale deploy) must not wipe the whole landing page.
   useEffect(() => {
     const toError = (value: unknown): Error =>
       value instanceof Error ? value : new Error(String(value));
 
+    const isFailedModuleImport = (reason: unknown): boolean => {
+      const msg =
+        reason instanceof Error
+          ? `${reason.name}: ${reason.message}`
+          : String(reason ?? "");
+      return /importing a module script failed|failed to fetch dynamically imported module|error loading dynamically imported module|loading chunk/i.test(
+        msg,
+      );
+    };
+
     const onWindowError = (event: ErrorEvent) => {
+      const reason = event.error ?? event.message;
+      if (isFailedModuleImport(reason)) {
+        console.error("[landing] module script failed", reason);
+        return;
+      }
       setFatalError(
         toError(
           event.error ??
@@ -473,6 +489,11 @@ function Landing() {
       );
     };
     const onUnhandledRejection = (event: PromiseRejectionEvent) => {
+      if (isFailedModuleImport(event.reason)) {
+        console.error("[landing] dynamic import failed", event.reason);
+        event.preventDefault();
+        return;
+      }
       setFatalError(toError(event.reason));
     };
 
@@ -483,6 +504,12 @@ function Landing() {
       window.removeEventListener("unhandledrejection", onUnhandledRejection);
     };
   }, []);
+
+  // Warm PDF chunk + fonts so Safari keeps the click inside the user-gesture window.
+  useEffect(() => {
+    if (!aiPlan?.days?.length) return;
+    void import("@/lib/pdf-export").then((m) => m.preloadPdfFonts()).catch(() => undefined);
+  }, [aiPlan]);
 
   // Logo “home” on the same page — wipe session without a full navigation.
   useEffect(() => {
@@ -1390,11 +1417,12 @@ function Landing() {
         alert(t("trips.pdfError"));
         return;
       }
-      const { generatePlanPdf, offerPdfDownload, openPendingPdfWindow } = await import(
-        "@/lib/pdf-export"
-      );
-      const pendingWindow = openPendingPdfWindow();
+      let pendingWindow: Window | null = null;
       try {
+        const { generatePlanPdf, offerPdfDownload, openPendingPdfWindow } = await import(
+          "@/lib/pdf-export"
+        );
+        pendingWindow = openPendingPdfWindow();
         const { buildPdfPlanTitle } = await import("@/lib/pdfPlanTitle");
         const dayDate = (raw: unknown): string | null =>
           typeof raw === "string" && raw.trim() ? raw.slice(0, 10) : null;

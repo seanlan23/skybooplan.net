@@ -1025,7 +1025,7 @@ const en: Dict = {
   "trips.none": "No trips yet",
   "trips.noneSub": "Generate your first Travel plan on the home page.",
   "trips.planTrip": "Plan a trip",
-  "trips.pdfError": "Could not generate PDF. Please try again.",
+  "trips.pdfError": "Could not generate PDF. Refresh the page and try again.",
   // Flight results / filters
   "results.openSkyscanner": "Open search on Skyscanner",
   "results.summary": "{n} of {total} flights · sorted:",
@@ -2249,7 +2249,7 @@ const dicts: Record<DictLang, Dict> = {
     "trips.none": "Še ni potovanj",
     "trips.noneSub": "Ustvari svoj prvi Potovalni plan na domači strani.",
     "trips.planTrip": "Načrtuj potovanje",
-    "trips.pdfError": "PDF-a ni bilo mogoče ustvariti. Poskusi znova.",
+    "trips.pdfError": "PDF-a ni bilo mogoče ustvariti. Osveži stran in poskusi znova.",
     // Flight results / filters
     "results.openSkyscanner": "Odpri iskanje na Skyscanner",
     "results.summary": "{n} od {total} letov · razvrščeno:",
