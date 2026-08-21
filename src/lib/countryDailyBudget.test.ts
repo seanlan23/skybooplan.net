@@ -53,6 +53,9 @@ describe("countryDailyBudget", () => {
       }),
     ).toBe("AL");
     expect(inferBudgetCountryFromPlace("New York")).toBe("US");
+    expect(inferBudgetCountryFromPlace("Riviera Maya")).toBe("MX");
+    expect(inferBudgetCountryFromPlace("Mehika (Yucatán)")).toBe("MX");
+    expect(inferBudgetCountryFromPlace("Saranda")).toBe("AL");
     expect(
       resolveDayBudgetCountry({
         destinationName: "New York",

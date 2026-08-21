@@ -18,6 +18,32 @@ describe("buildWeatherWidgetFallback Balkan road trip", () => {
   });
 });
 
+describe("Mexico / Yucatán climate", () => {
+  it("does not call Riviera Maya the Adriatic", () => {
+    const w = buildWeatherWidgetFallback({
+      destinationIata: "CUN",
+      destinationPlace: "Mehika (Yucatán) Riviera Maya",
+      departDate: "2026-09-12",
+      lang: "sl",
+    });
+    expect(w?.season).not.toMatch(/Jadran/i);
+    expect(w?.avgTemp).toMatch(/26–32|25–31|Toplo/i);
+  });
+
+  it("replaces a Gemini Adriatic season on a Cancún ticket", () => {
+    expect(
+      weatherWidgetNeedsClimateFallback(
+        {
+          season: "Hladnejša sezona na Jadranu — jakna za večer, manj kopanja.",
+          avgTemp: "32°C",
+          clothing: "Lahka oblačila.",
+        },
+        { destinationIata: "CUN", destinationPlace: "Mehika (Yucatán)" },
+      ),
+    ).toBe(true);
+  });
+});
+
 describe("weatherWidgetNeedsClimateFallback", () => {
   it("replaces trip-summary season plus check-forecast stub", () => {
     expect(

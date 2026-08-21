@@ -8,14 +8,21 @@ import { weatherWidgetNeedsClimateFallback } from "@/lib/weatherWidgetFallback";
 export function PlanIntroInsightBlocks({
   plan,
   weatherFallback,
+  destinationIata,
+  destinationPlace,
   className = "",
 }: {
   plan: Pick<AiTripPlan, "safetyWarning" | "weatherWidget">;
   weatherFallback?: WeatherWidget | null;
+  destinationIata?: string;
+  destinationPlace?: string;
   className?: string;
 }) {
   const hasSafety = Boolean(plan.safetyWarning?.message?.trim());
-  const widget = weatherWidgetNeedsClimateFallback(plan.weatherWidget)
+  const widget = weatherWidgetNeedsClimateFallback(plan.weatherWidget, {
+    destinationIata,
+    destinationPlace,
+  })
     ? (weatherFallback ?? plan.weatherWidget ?? null)
     : (plan.weatherWidget ?? weatherFallback ?? null);
   const hasWeather = Boolean(widget?.season && widget?.avgTemp && widget?.clothing);

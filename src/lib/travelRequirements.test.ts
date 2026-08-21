@@ -212,6 +212,18 @@ describe("travel insurance (code, not Gemini)", () => {
     expect(req?.insurance?.body).not.toMatch(/Medicare/i);
   });
 
+  it("does not treat a Cancún ticket as an intra-EU trip", () => {
+    const req = buildFallbackTravelRequirements(
+      "CGN",
+      "CUN",
+      "sl",
+      "Mehika (Yucatán) Riviera Maya Cologne",
+      "SI",
+    );
+    expect(req?.insurance?.body).toMatch(/ne velja/);
+    expect(req?.insurance?.body).not.toMatch(/znotraj EU/);
+  });
+
   it("still requires extra cover for EU residents inside Schengen (EHIC is not enough)", () => {
     const req = buildFallbackTravelRequirements("LJU", "MAD", "sl", null, "SI");
     expect(req?.insurance?.required).toBe(true);

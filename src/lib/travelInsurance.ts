@@ -189,6 +189,8 @@ export function tripLeavesEhicArea(
   destinationHint?: string | null,
 ): boolean {
   const hint = destinationHint ?? "";
+  const iataCc = DESTINATION_BY_IATA[normalizeIata(destinationIata ?? "")]?.country;
+  if (iataCc && !EHIC_COUNTRY_CODES.has(iataCc)) return true;
   const codes = destCountryCodes(destinationIata, hint);
   if (codes.some((cc) => !EHIC_COUNTRY_CODES.has(cc))) return true;
   if (codes.length === 0 && NON_EHIC_HINT.test(hint)) return true;

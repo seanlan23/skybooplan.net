@@ -140,7 +140,7 @@ export function inferBudgetCountryFromPlace(place?: string): string | null {
   const n = (place ?? "").trim().toLowerCase();
   if (!n) return null;
 
-  if (/albania|albanij|tirana|berat|saranda|sarandë|himar|ksamil|gjirokast|shkod|shkodër|vlore|vlorë|durres|durrës|riviera|skadar|\btia\b/.test(n)) {
+  if (/albania|albanij|tirana|berat|saranda|sarandë|himar|ksamil|gjirokast|shkod|shkodër|vlore|vlorë|durres|durrës|albanian\s*riviera|riviera\s*e\s*jonit|skadar|\btia\b/.test(n)) {
     return "AL";
   }
   if (/montenegro|črna\s*gora|crna\s*gora|kotor|budva|tivat|podgorica|herceg|\btiv\b|\btgd\b/.test(n)) {
@@ -184,7 +184,7 @@ export function inferBudgetCountryFromPlace(place?: string): string | null {
   if (/malaysia|malezij|kuala|penang|\bkul\b/.test(n)) return "MY";
   if (/peru|lima|cusco|cuzco|machu/.test(n)) return "PE";
   if (/colombia|kolumbij|cartagena|bogot/.test(n)) return "CO";
-  if (/mexico|mehik|cancun|cancún|tulum/.test(n)) return "MX";
+  if (/mexico|mehik|cancun|cancún|tulum|yucat|holbox|playa\s*del\s*carmen|riviera\s*maya/.test(n)) return "MX";
   if (/portugal|portugalsk|lisbon|lisboa|porto/.test(n)) return "PT";
   if (/spain|španij|barcelona|madrid|seville|valencia/.test(n)) return "ES";
   if (/france|francij|paris|lyon|nice|marseille/.test(n)) return "FR";

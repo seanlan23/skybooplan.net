@@ -47,13 +47,30 @@ const MONTH_TEMP_RANGE: Record<string, Partial<Record<number, string>>> = {
   SI: ADRIATIC_TEMP,
   MK: ADRIATIC_TEMP,
   RS: ADRIATIC_TEMP,
+  MX: {
+    1: "22–28 °C",
+    2: "23–29 °C",
+    3: "25–31 °C",
+    4: "26–32 °C",
+    5: "27–33 °C",
+    6: "27–33 °C",
+    7: "27–33 °C",
+    8: "27–33 °C",
+    9: "26–32 °C",
+    10: "25–31 °C",
+    11: "23–29 °C",
+    12: "22–28 °C",
+  },
 };
+
+const ADRIATIC_COUNTRIES = new Set(["HR", "BA", "ME", "AL", "SI", "MK", "RS"]);
 
 function climateCountry(iata?: string, placeHint?: string): string | null {
   const dest = iata ? lookupDestination(iata.trim().toUpperCase()) : null;
   const fromPlace = inferBudgetCountryFromPlace(placeHint ?? "");
-  if (fromPlace && dest && fromPlace !== dest.country) return fromPlace;
-  return fromPlace || dest?.country || null;
+  // Ticket airport owns climate when present — "Riviera Maya" must not beat CUN with Albania.
+  if (dest?.country) return dest.country;
+  return fromPlace;
 }
 
 function adriaticSeason(month: number, lang: string): string {
@@ -100,12 +117,20 @@ function isBalkanPlaceHint(hint: string): boolean {
 }
 
 /** Gemini sometimes dumps the trip summary into “season” and a check-forecast stub into temp. */
-export function weatherWidgetNeedsClimateFallback(widget?: WeatherWidget | null): boolean {
+export function weatherWidgetNeedsClimateFallback(
+  widget?: WeatherWidget | null,
+  dest?: { destinationIata?: string; destinationPlace?: string },
+): boolean {
   if (!widget?.season || !widget.avgTemp || !widget.clothing) return true;
   if (/check weather forecast|preveri vremensko|wettervorhersage prüfen/i.test(widget.avgTemp)) {
     return true;
   }
-  return /^\s*(this|ta|diese|cette|questa)\s+\d+/i.test(widget.season);
+  if (/^\s*(this|ta|diese|cette|questa)\s+\d+/i.test(widget.season)) return true;
+  if (/jadran|adriatic|\badria\b/i.test(widget.season)) {
+    const country = climateCountry(dest?.destinationIata, dest?.destinationPlace);
+    if (country && !ADRIATIC_COUNTRIES.has(country)) return true;
+  }
+  return false;
 }
 
 function monthFromIso(iso?: string): number | null {
@@ -174,8 +199,9 @@ export function buildWeatherWidgetFallback(opts: {
   const month = monthFromIso(opts.departDate);
   const country = climateCountry(iata, opts.destinationPlace);
   const adriatic =
-    isBalkanPlaceHint(opts.destinationPlace ?? "") ||
-    (country != null && ["HR", "BA", "ME", "AL", "SI", "MK", "RS"].includes(country));
+    !iata &&
+    (isBalkanPlaceHint(opts.destinationPlace ?? "") ||
+      (country != null && ADRIATIC_COUNTRIES.has(country)));
 
   const climate =
     iata && opts.departDate

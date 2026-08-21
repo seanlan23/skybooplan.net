@@ -205,13 +205,7 @@ export function AiPlanView({
       plan
         ? buildWeatherWidgetFallback({
             destinationIata: destinationIata ?? plan.destinationIata,
-            destinationPlace: [
-              plan.destinationPlace,
-              plan.destinationName,
-              ...(plan.days ?? []).map((d) => d.city),
-            ]
-              .filter(Boolean)
-              .join(" "),
+            destinationPlace: [plan.destinationPlace, plan.destinationName].filter(Boolean).join(" "),
             departDate: departDate ?? plan.days[0]?.date,
             returnDate,
             lang,
@@ -903,6 +897,8 @@ export function AiPlanView({
             <PlanIntroInsightBlocks
               plan={plan}
               weatherFallback={weatherFallback}
+              destinationIata={destinationIata ?? plan.destinationIata}
+              destinationPlace={plan.destinationPlace ?? plan.destinationName}
               className="mt-3"
             />
             <div className="mt-4">
