@@ -15,6 +15,7 @@ import {
 } from "@/lib/parseStreamNdjson";
 import { patchSessionAiPlan } from "@/lib/sessionStore";
 import { classifyStreamAbort, waitUntilDocumentVisible } from "@/lib/streamAbort";
+import { maxPlanDayNumber } from "@/lib/geminiStreamBatches";
 
 function sanitizeStreamPlan(
   plan: AiTripPlan,
@@ -49,6 +50,8 @@ function isTransientDisconnect(err: unknown): boolean {
  */
 const CLIENT_STREAM_IDLE_MS = 240_000;
 const MAX_CONNECTION_RETRIES = 1;
+/** Fresh 280s serverless slices until 9–16 day plans are full (6/13). */
+const MAX_HTTP_CONTINUATIONS = 3;
 
 export type StreamItineraryStatus = "idle" | "streaming" | "done" | "error";
 
@@ -205,9 +208,6 @@ export function useStreamItinerary() {
               plan.days.length,
               expectedFromInput,
             );
-            setFinalPlan(null);
-            setError(streamError);
-            setStatus("error");
             return "stop";
           }
           resolvedPlan = plan;
@@ -215,28 +215,13 @@ export function useStreamItinerary() {
           return "continue";
         }
         streamError = event.error;
-        if (
-          lastPartialPlan?.days?.length &&
-          !hasAcceptablePlanDayCoverage(lastPartialPlan.days.length, expectedFromInput)
-        ) {
-          rejectIncomplete(
-            lastPartialPlan,
-            incompletePlanDayCoverageMessage(
-              lastPartialPlan.days.length,
-              expectedFromInput,
-            ),
-          );
-          return "stop";
-        }
-        const partial = finishWithPartial(
-          `${event.error} — prikazan je delni načrt.`,
-        );
-        if (partial) return "stop";
-        setError(event.error);
-        setStatus("error");
         return "stop";
       };
 
+      let resumePlan: AiTripPlan | null = null;
+      let prevMaxDay = 0;
+
+      for (let continuation = 0; continuation <= MAX_HTTP_CONTINUATIONS; continuation++) {
       for (let attempt = 0; attempt <= MAX_CONNECTION_RETRIES; attempt++) {
         if (!isCurrent() || userAbortRef.current) {
           if (isCurrent()) setStatus("idle");
@@ -276,31 +261,15 @@ export function useStreamItinerary() {
           return "continue";
         };
 
-        const stopResult = (): StreamItineraryResult => {
-          if (resolvedPlan) {
-            setStatus("done");
-            return { plan: resolvedPlan, error: streamError };
-          }
-          if (lastPartialPlan?.days?.length) {
-            return (
-              finishWithPartial(
-                streamError
-                  ? `${streamError} — prikazan je delni načrt.`
-                  : "Stream se je končal pred končnim načrtom — prikazan je delni načrt.",
-              ) ?? { plan: null, error: streamError }
-            );
-          }
-          setError(streamError);
-          setStatus("error");
-          return { plan: null, error: streamError };
-        };
-
         try {
           bumpIdle();
+          const payload = resumePlan
+            ? { ...input, resumePlan, attachment: undefined }
+            : input;
           const res = await fetch("/api/generate-itinerary", {
             method: "POST",
             headers: await supabaseAuthHeaders({ "Content-Type": "application/json" }),
-            body: JSON.stringify(input),
+            body: JSON.stringify(payload),
             signal: controller.signal,
           });
 
@@ -326,23 +295,17 @@ export function useStreamItinerary() {
             if (done) break;
 
             ndjsonBuffer += decoder.decode(value, { stream: true });
-            if (drainBuffer() === "stop") {
-              return stopResult();
-            }
+            if (drainBuffer() === "stop") break;
           }
 
           ndjsonBuffer += decoder.decode();
-          if (drainBuffer() === "stop") {
-            return stopResult();
-          }
+          drainBuffer();
 
           const trailing = flushNdjsonBuffer(ndjsonBuffer);
           ndjsonBuffer = "";
           if (trailing) {
             const event = asStreamEvent(trailing);
-            if (event && handleEvent(event) === "stop") {
-              return stopResult();
-            }
+            if (event) handleEvent(event);
           }
 
           if (resolvedPlan) {
@@ -350,11 +313,26 @@ export function useStreamItinerary() {
             return { plan: resolvedPlan, error: null };
           }
 
+          const gotMax = maxPlanDayNumber(lastPartialPlan?.days) || lastPartialPlan?.days.length || 0;
+          if (
+            lastPartialPlan?.days?.length &&
+            !hasAcceptablePlanDayCoverage(lastPartialPlan.days.length, expectedFromInput) &&
+            gotMax > prevMaxDay &&
+            continuation < MAX_HTTP_CONTINUATIONS
+          ) {
+            prevMaxDay = gotMax;
+            resumePlan = lastPartialPlan;
+            streamError = null;
+            break;
+          }
+
           if (lastPartialPlan?.days?.length) {
             return (
               finishWithPartial(
-                "Stream se je končal pred končnim načrtom — prikazan je delni načrt.",
-              ) ?? { plan: null, error: "Stream se je končal brez končnega načrta." }
+                streamError
+                  ? `${streamError} — prikazan je delni načrt.`
+                  : "Stream se je končal pred končnim načrtom — prikazan je delni načrt.",
+              ) ?? { plan: null, error: streamError }
             );
           }
 
@@ -377,6 +355,20 @@ export function useStreamItinerary() {
           if (kind === "user") {
             if (isCurrent()) setStatus("idle");
             return { plan: null, error: null, cancelled: true };
+          }
+
+          const gotMax = maxPlanDayNumber(lastPartialPlan?.days) || lastPartialPlan?.days.length || 0;
+          const canContinueHttp =
+            Boolean(lastPartialPlan?.days?.length) &&
+            !hasAcceptablePlanDayCoverage(lastPartialPlan!.days.length, expectedFromInput) &&
+            gotMax > prevMaxDay &&
+            continuation < MAX_HTTP_CONTINUATIONS;
+
+          if ((kind === "idle" || kind === "connection" || isTransientDisconnect(err)) && canContinueHttp) {
+            prevMaxDay = gotMax;
+            resumePlan = lastPartialPlan;
+            streamError = null;
+            break;
           }
 
           if (kind === "idle") {
@@ -433,9 +425,19 @@ export function useStreamItinerary() {
         }
       }
 
+      if (
+        resumePlan &&
+        lastPartialPlan?.days?.length &&
+        !hasAcceptablePlanDayCoverage(lastPartialPlan.days.length, expectedFromInput) &&
+        continuation < MAX_HTTP_CONTINUATIONS
+      ) {
+        continue;
+      }
+
       setError("error.planInterrupted");
       setStatus("error");
       return { plan: null, error: "error.planInterrupted" };
+      }
     },
     [abort],
   );

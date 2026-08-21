@@ -127,6 +127,20 @@ export const generateGeminiProTripInputSchema = z
         base64: z.string().trim().min(1).max(7_000_000),
       })
       .optional(),
+    /** Partial plan from a previous 280s stream — fill remaining days in a fresh function. */
+    resumePlan: z
+      .object({
+        destinationName: z.string().min(1).max(200),
+        summary: z.string().max(12_000).optional(),
+        centerLat: z.number().optional(),
+        centerLng: z.number().optional(),
+        totalBudgetEur: z.number().optional(),
+        days: z
+          .array(z.object({ day: z.number().int().min(1).max(40) }).passthrough())
+          .min(1)
+          .max(24),
+      })
+      .optional(),
   })
   .superRefine((data, ctx) => {
     if (data.groundTransportMode) {
@@ -231,13 +245,12 @@ export function incompletePlanDayCoverageMessage(
   return `Načrt je nepopoln (${gotDays}/${expectedDays} dni). Poskusi znova.`;
 }
 
-/** Catalog JSON is too rich for 16 days in one Gemini call — split longer trips. */
-export const GEMINI_STREAM_DAYS_PER_BATCH = 5;
-export const GEMINI_STREAM_MAX_BATCHES = 5;
+/** Catalog JSON is too rich for 9+ days in one Gemini call — split so 280s can finish. */
+export const GEMINI_STREAM_DAYS_PER_BATCH = 4;
+export const GEMINI_STREAM_MAX_BATCHES = 6;
 
 export function streamBatchSize(expectedDays: number): number {
   if (expectedDays <= 8) return Math.max(1, expectedDays);
-  if (expectedDays <= 12) return 6;
   return GEMINI_STREAM_DAYS_PER_BATCH;
 }
 

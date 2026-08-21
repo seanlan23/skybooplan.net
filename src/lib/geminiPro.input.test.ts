@@ -50,4 +50,25 @@ describe("generateGeminiProTripInputSchema", () => {
     expect(result.data.originIata).toBe("");
     expect(result.data.destinationPlace).toBe("Balkan");
   });
+
+  it("accepts a partial resume plan so a second 280s call can finish 6/13", () => {
+    const result = generateGeminiProTripInputSchema.safeParse({
+      originIata: "FRA",
+      destinationIata: "CUN",
+      departDate: "2026-10-26",
+      returnDate: "2026-11-07",
+      pax: { adults: 2 },
+      budget: "standard",
+      resumePlan: {
+        destinationName: "Mehika",
+        summary: "Yucatán",
+        centerLat: 21.16,
+        centerLng: -86.85,
+        days: [{ day: 1, title: "Prihod", city: "Cancun" }],
+      },
+    });
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.resumePlan?.days).toHaveLength(1);
+  });
 });

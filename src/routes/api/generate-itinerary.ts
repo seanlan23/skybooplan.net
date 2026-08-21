@@ -142,6 +142,28 @@ export const Route = createFileRoute("/api/generate-itinerary")({
               const loopStarted = Date.now();
               let noProgressStreak = 0;
 
+              if (data.resumePlan?.days?.length) {
+                accumulated = {
+                  destinationName: data.resumePlan.destinationName,
+                  summary: data.resumePlan.summary ?? data.resumePlan.destinationName,
+                  centerLat: data.resumePlan.centerLat ?? 0,
+                  centerLng: data.resumePlan.centerLng ?? 0,
+                  totalBudgetEur: data.resumePlan.totalBudgetEur ?? 0,
+                  days: data.resumePlan.days as AiTripPlan["days"],
+                };
+                lastDayCount = accumulated.days.length;
+                push({
+                  type: "partial",
+                  plan: accumulated,
+                  dayCount: lastDayCount,
+                  expectedDays,
+                });
+                pipelineLog(
+                  "stream:generate-itinerary RESUME",
+                  `${lastDayCount} days → continue / ${expectedDays}`,
+                );
+              }
+
               const mergePush = (
                 incoming: AiTripPlan | null | undefined,
                 stampFlights: boolean,
