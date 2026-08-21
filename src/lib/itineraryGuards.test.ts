@@ -519,6 +519,43 @@ describe("dropDuplicatePoisAcrossPlan", () => {
     expect(plan.days[1]!.activities!.evening[0]!.name).toMatch(/Gion/i);
   });
 
+  it("drops a later Mercado 28 visit after the first market day", () => {
+    const plan = {
+      destinationName: "Mexico",
+      days: [
+        day({
+          day: 2,
+          city: "Cancun",
+          activities: {
+            morning: [],
+            afternoon: [
+              { name: "Mercado 28 – Lokalna tržnica", type: "SIGHT", description: "Spominki." },
+            ],
+            evening: [],
+          },
+        }),
+        day({
+          day: 5,
+          city: "Cancun",
+          activities: {
+            morning: [{ name: "Plaža", type: "ACTIVITY", description: "Bazen." }],
+            afternoon: [
+              {
+                name: "Odkrivanje Mercado 28 (tržnice)",
+                type: "SIGHT",
+                description: "Spet tržnica.",
+              },
+            ],
+            evening: [{ name: "Taqueria Coapeñitos", type: "EAT", description: "Tacos." }],
+          },
+        }),
+      ],
+    } as AiTripPlan;
+    expect(dropDuplicatePoisAcrossPlan(plan)).toBe(1);
+    expect(plan.days[1]!.activities!.afternoon).toEqual([]);
+    expect(plan.days[1]!.activities!.morning[0]!.name).toMatch(/Plaža/);
+  });
+
   it("does not empty a day that only has the repeated POI", () => {
     const plan = {
       destinationName: "Japan",

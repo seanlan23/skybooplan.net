@@ -198,7 +198,8 @@ export function stripConcreteBangkokHotelBrands(text: string): string {
  */
 export function repairTruncatedCopy(text: string): string {
   if (!text) return text;
-  return text
+  const glued = text.replace(/\s*–\s*,\s*/g, " ").replace(/\n,\s*/g, " ");
+  return glued
     .split("\n")
     .map((line) => repairTruncatedLine(line))
     .join("\n")
@@ -209,49 +210,80 @@ export function repairTruncatedCopy(text: string): string {
 function repairTruncatedLine(line: string): string {
   let t = line.replace(/[^\S\n]+/g, " ").trim();
   if (!t) return "";
-  // Truncation mark at end of this line (common Gemini cut).
-  const truncated = /…\s*$/u.test(t) || /\.\.\.\s*$/.test(t);
-  // Finished-looking but incomplete ends (FRA→EZE DE): "die maritime.", "ausklingen zu.", "Museums, das."
+  t = t.replace(/^,\s+/, "").replace(/\s+[-–—]\s*$/u, "").trim();
+
+  // Unclosed "(" — Gemini cut mid-terminal: "Puerto Juarez ali Embar"
+  const lastOpen = t.lastIndexOf("(");
+  const lastClose = t.lastIndexOf(")");
+  if (lastOpen >= 0 && lastOpen > lastClose) {
+    t = t.slice(0, lastOpen).trim().replace(/[–—,:;]+\s*$/u, "").trim();
+    if (t && !/[.!?]$/.test(t) && t.split(/\s+/).length >= 5) t = `${t}.`;
+  }
+
+  // Finished sentence then a stub token: "...Yucatánu. Cen" / "...Holbox. Kopajte"
+  t = t.replace(/\.\s+[A-ZÁÉÍÓÚÄÖÜČŠŽ][A-Za-zÁÉÍÓÚÄÖÜáéíóúäöüčšž]{1,10}\s*$/u, ".");
+
   const danglingEnd =
-    /\b(zu|to|the|a|an|die|der|das|den|dem|und|and|mit|with|für|for|besonders|optional|höchstens|maritime|ein|eine|einen|einer|eines)\.\s*$/i.test(
+    /\b(zu|to|the|a|an|die|der|das|den|dem|und|and|mit|with|für|for|besonders|optional|höchstens|maritime|ein|eine|einen|einer|eines|primerno)\.\s*$/i.test(
       t,
-    ) || /,\s*(das|die|der|den|dem|the|a|an|zu|to|ein|eine)\.\s*$/i.test(t);
+    ) ||
+    /,\s*(das|die|der|den|dem|the|a|an|zu|to|ein|eine|primerno)\.\s*$/i.test(t) ||
+    /\b(in|ali|ter|and|or)\s+(si\s+)?[A-Za-zÁÉÍÓÚÄÖÜáéíóúäöüčšž]{3,16}\.\s*$/i.test(t);
+
+  const lastWord = t.split(/\s+/).pop() ?? "";
+  const noStop = !/[.!?…]$/u.test(t);
+  // "ulicah Hol" — not "Tulum" / "Pueblo" (5+ letters, likely a real place).
+  const shortCapStub =
+    noStop &&
+    /^[A-ZÁÉÍÓÚÄÖÜČŠŽ][a-záéíóúäöüčšž]{1,3}$/u.test(lastWord) &&
+    t.length > lastWord.length + 12;
+
+  const truncated = /…\s*$/u.test(t) || /\.\.\.\s*$/.test(t) || shortCapStub;
+
   if (!truncated && !danglingEnd) return t;
 
   t = t.replace(/\s*…\s*$/u, "").replace(/\s*\.\.\.\s*$/, "").trim();
   if (danglingEnd) {
-    // Keep a prior complete sentence when present.
     const lastGood = Math.max(t.lastIndexOf(". "), t.lastIndexOf("! "), t.lastIndexOf("? "));
     if (lastGood >= 20) {
       return t.slice(0, lastGood + 1).trim();
     }
-    // Strip the dangling tail token(s); drop irreparable stubs.
     let next = t
       .replace(/\s+\b(?:die|der|das|den|dem|the|a|an)\s+(?:maritime|besonders)\.\s*$/iu, ".")
-      .replace(/\s+\b(?:maritime|besonders|optional|höchstens)\.\s*$/iu, ".")
+      .replace(/\s+\b(?:maritime|besonders|optional|höchstens|primerno)\.\s*$/iu, ".")
       .replace(/\s+\bau?sklingen\s+zu\.\s*$/iu, ".")
-      .replace(/,\s*(?:das|die|der|den|dem|the|a|an|ein|eine)(?:\s+\w+)?\.\s*$/iu, ".")
+      .replace(/,\s*(?:das|die|der|den|dem|the|a|an|ein|eine|primerno)(?:\s+\w+)?\.\s*$/iu, ".")
+      .replace(/\s+\b(?:in|ali|ter|and|or)\s+(?:si\s+)?[A-Za-zÁÉÍÓÚÄÖÜáéíóúäöüčšž]{3,16}\.\s*$/iu, ".")
       .replace(/\s+\b(?:zu|to|und|and|mit|with|für|for|die|der|das|the)\.\s*$/iu, ".")
+      .replace(/,\s*\.\s*$/u, ".")
       .trim();
     if (next.length < 20 || /\b(?:die|der|das|the|zu|to|ein|eine)\.\s*$/i.test(next)) {
       return "";
     }
+    next = next.replace(/[,\s]+$/u, "").trim();
     return /[.!?]$/.test(next) ? next : `${next}.`;
   }
-  t = t
-    .replace(
-      /\s+(in|and|ter|or|ali|za|to|with|z|s|the|a|an|s|po|na|ob|morda|maybe|perhaps)\s*$/i,
-      "",
-    )
-    .trim();
-  // Also trim dangling open words like "nočnem", "templjih," left mid-phrase.
+
+  if (shortCapStub) {
+    t = t.slice(0, t.length - lastWord.length).trim();
+    t = t.replace(/\s+\b(ali|or|and|in|ter|za|to)\s*$/i, "").trim();
+  } else {
+    t = t
+      .replace(
+        /\s+(in|and|ter|or|ali|za|to|with|z|s|the|a|an|po|na|ob|morda|maybe|perhaps)\s*$/i,
+        "",
+      )
+      .trim();
+  }
   t = t.replace(/,\s*$/, "").trim();
 
   const last = Math.max(t.lastIndexOf("."), t.lastIndexOf("!"), t.lastIndexOf("?"));
-  if (last >= 40) {
+  if (last >= 24) {
     return t.slice(0, last + 1).trim();
   }
-  if (t && !/[.!?]$/.test(t)) return `${t}.`;
+  if (!t) return "";
+  if (shortCapStub && t.split(/\s+/).length < 6) return t ? `${t.replace(/[,:;]+$/, "")}.` : "";
+  if (t && !/[.!?]$/.test(t) && t.split(/\s+/).length >= 6) return `${t}.`;
   return t;
 }
 

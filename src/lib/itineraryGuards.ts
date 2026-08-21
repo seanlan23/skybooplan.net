@@ -19,6 +19,7 @@ import {
 import { applyIslandHopLogistics } from "@/lib/islandHopLogistics";
 import { enrichIslandAirportTransfers } from "@/lib/islandAirportTransfers";
 import { scrubImpossibleIslandDayTrips } from "@/lib/islandHopGuard";
+import { isSmallIsland } from "@/lib/islandStays";
 import { scrubBangkokSightsOnIslandTransferDays } from "@/lib/bangkokMustSee";
 import { alignSummaryTripLength } from "@/lib/planTeaser";
 import { lookupRegionCoords } from "@/lib/regionCoords";
@@ -851,7 +852,7 @@ export function stripPhantomArrivals(plan: AiTripPlan, arrivalDay = 1): number {
 }
 
 const POI_TYPE_FLUFF_RE =
-  /\b(vecerni|dopoldanski|popoldanski|tempelj|temple|shrine|svetisce|jingu|market|trznica|park|vrt|garden|muzej|museum|gozd|gaj|bambusov|okrozju|okrozje|cetrt|raziskovanje|sprehod|obisk|ogled|potepanje|paviljon|zlati|tradicionaln\w*)\b/g;
+  /\b(vecerni|dopoldanski|popoldanski|tempelj|temple|shrine|svetisce|jingu|market|trznica|trznice|park|vrt|garden|muzej|museum|gozd|gaj|bambusov|okrozju|okrozje|cetrt|raziskovanje|odkrivanje|sprehod|obisk|ogled|potepanje|paviljon|zlati|tradicionaln\w*|lokaln\w*)\b/g;
 
 function poiDedupeKey(name: string): string {
   return sameDayActivityCoreKey(name)
@@ -883,6 +884,13 @@ function poiTokensAlign(a: string, b: string): boolean {
 function poiKeysMatch(a: string, b: string, cityKey: string): boolean {
   if (!a || !b) return false;
   if (a === b) return true;
+  const numbered = (k: string) => {
+    const m = k.match(/\b([a-z]{4,})\s*(\d{1,4})\b/);
+    return m ? `${m[1]}${m[2]}` : "";
+  };
+  const na = numbered(a);
+  const nb = numbered(b);
+  if (na && na === nb) return true;
   const shorter = a.length <= b.length ? a : b;
   const longer = a.length <= b.length ? b : a;
   if (shorter.includes(" ") && shorter.length >= 8 && longer.includes(shorter)) {
@@ -1064,6 +1072,26 @@ function formatHoursDuration(hours: number): string {
 }
 
 /**
+ * Last night is already at the ticket hub — island golf-cart / ferry-to-airport
+ * tips left on the departure day are leftovers from the previous stay.
+ */
+function stripStaleIslandTipsOnHubDeparture(plan: AiTripPlan): number {
+  const days = plan.days ?? [];
+  if (days.length < 1) return 0;
+  const last = days[days.length - 1]!;
+  const tips = last.transportationTips?.trim() ?? "";
+  if (!tips) return 0;
+  const city = last.city || last.focusName || "";
+  if (isSmallIsland(city)) return 0;
+  const leftover =
+    /golf vozič|peščene ulice|avtomobili niso dovoljeni|collectivo|chiquil/i.test(tips) ||
+    (/trajekt|ferry/i.test(tips) && /letališč|airport/i.test(tips) && /otok|island/i.test(tips));
+  if (!leftover) return 0;
+  last.transportationTips = "";
+  return 1;
+}
+
+/**
  * Drop "first metro/RER at 04:50" advice when the flight is early morning —
  * public transit first trains are almost never safe for a 06:00 international departure.
  */
@@ -1215,6 +1243,7 @@ export function applyItineraryGuards(
   });
   const duplicatePois = dropDuplicatePoisAcrossPlan(plan);
   const truncated = stripTruncatedCopyFromPlan(plan);
+  stripStaleIslandTipsOnHubDeparture(plan);
   const logisticsCopy = repairIncompleteLogisticsCopy(plan);
   const transportLegs = sanitizeTransportationLegs(plan);
   ensureCityChangeTransfer(plan);

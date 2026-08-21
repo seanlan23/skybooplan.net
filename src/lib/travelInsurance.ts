@@ -287,9 +287,9 @@ function titleFor(lang: string): string {
 function howToFor(lang: string, insurers: string[]): string {
   const names = insurers.join(", ");
   return planLangCopy(lang, {
-    sl: `Skleni pred odhodom. Za tvoj odhod priporočamo: ${names}. Preveri kritje (zdravljenje v tujini, 24h asistença, repatriacija, odpoved). ${disclaimer(lang)}`,
-    en: `Buy before you go. For your departure we recommend: ${names}. Check cover (treatment abroad, 24h assistance, repatriation, cancellation). ${disclaimer(lang)}`,
-    de: `Vor der Abreise abschließen. Für deinen Start empfehlen wir: ${names}. Deckung prüfen (Behandlung im Ausland, 24h-Assistance, Rücktransport, Storno). ${disclaimer(lang)}`,
+    sl: `Za tvoj odhod priporočamo: ${names}. Preveri kritje (zdravljenje v tujini, 24h asistença, repatriacija, odpoved). ${disclaimer(lang)}`,
+    en: `For your departure we recommend: ${names}. Check cover (treatment abroad, 24h assistance, repatriation, cancellation). ${disclaimer(lang)}`,
+    de: `Für deinen Start empfehlen wir: ${names}. Deckung prüfen (Behandlung im Ausland, 24h-Assistance, Rücktransport, Storno). ${disclaimer(lang)}`,
   });
 }
 

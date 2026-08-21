@@ -4,6 +4,7 @@ import {
   fixMotorhomeCopyErrors,
   fixPoiNameForSlot,
   fixSlotTimeMismatch,
+  repairTruncatedCopy,
   rewriteActivityCityLeak,
   rewriteCountryFoodLeak,
   sanitizeForLang,
@@ -128,5 +129,42 @@ describe("fixSlotTimeMismatch", () => {
     );
     expect(out).toMatch(/dopoldan/i);
     expect(out).not.toMatch(/sončni zahod ob 18:00/i);
+  });
+});
+
+describe("repairTruncatedCopy", () => {
+  it("closes unclosed ferry-terminal cuts and drops sentence stubs", () => {
+    expect(
+      repairTruncatedCopy(
+        "Zjutraj se odpravite do enega izmed trajektnih terminalov (Puerto Juarez ali Embar",
+      ),
+    ).toMatch(/terminalov\.$/);
+    expect(
+      repairTruncatedCopy(
+        "Dopoldne preživite v Gran Cenote, eni najbolj znanih cenot na Yucatánu. Cen",
+      ),
+    ).toMatch(/Yucatánu\.$/);
+    expect(
+      repairTruncatedCopy("Uživajte na glavni plaži otoka, Playa Holbox. Kopajte"),
+    ).toMatch(/Holbox\.$/);
+    expect(
+      repairTruncatedCopy(
+        "izlet vključuje Isla Pajaros (Otok ptic), Isla Pasión (Otok.",
+      ),
+    ).toMatch(/Pajaros \(Otok ptic\)\.$|Pajaros \(Otok ptic\), Isla Pasión\.$/);
+    expect(
+      repairTruncatedCopy(
+        "obiščite kakšno trgovino in si privoščite.",
+      ),
+    ).not.toMatch(/privoščite/);
+    expect(
+      repairTruncatedCopy("Vzdušje je sproščeno in prijetno, primerno."),
+    ).toMatch(/prijetno\.$/);
+    expect(
+      repairTruncatedCopy("Za večerjo obiščite El Camello Jr.\n, kjer boste uživali v svežih morskih sadežih."),
+    ).toMatch(/morskih sadežih/);
+    expect(repairTruncatedCopy("Sprehodite se po mestu Tulum.")).toBe(
+      "Sprehodite se po mestu Tulum.",
+    );
   });
 });

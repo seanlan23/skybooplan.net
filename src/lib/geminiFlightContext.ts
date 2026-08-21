@@ -436,9 +436,9 @@ function relocateLastIslandOvernightToHub(
         }),
         type: "STAY",
         description: planLangCopy(opts.language, {
-          sl: `Nočitev v ${opts.hubName} pred jutrišnjim mednarodnim letom. Z otoka zjutraj ne gre.`,
-          en: `Overnight in ${opts.hubName} before tomorrow’s international flight. Leaving the island in the morning will not make it.`,
-          de: `Übernachtung in ${opts.hubName} vor dem internationalen Flug morgen. Morgens von der Insel schafft man das nicht.`,
+          sl: `Nočitev v ${opts.hubName} pred jutrišnjim mednarodnim letom.`,
+          en: `Overnight in ${opts.hubName} before tomorrow’s international flight.`,
+          de: `Übernachtung in ${opts.hubName} vor dem internationalen Flug morgen.`,
         }),
       },
     ],
