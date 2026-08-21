@@ -278,4 +278,42 @@ describe("repairTransportLegs", () => {
     expect(legs?.[0]?.from).toMatch(/Dubrovnik/i);
     expect(legs?.[0]?.to).toMatch(/Lokrum/i);
   });
+
+  it("does not turn a CUN domestic-hop day into a Mexico City → MEX airport van", () => {
+    const legs = repairTransportLegs(
+      [
+        {
+          type: "van",
+          from: "Mexico City",
+          to: "Mexico City",
+          duration: "2h 15min",
+          estimatedPrice: 40,
+        },
+      ],
+      {
+        dayNumber: 14,
+        city: "Mexico City",
+        destinationIata: "MEX",
+        previousCity: "Isla Holbox",
+        activities: {
+          morning: [
+            {
+              name: "Prevoz iz Chiquilá na letališče Cancun (CUN)",
+              type: "TRANSPORT",
+              description: "Kombi do CUN.",
+            },
+          ],
+          afternoon: [
+            {
+              name: "Notranji let Cancun (CUN) → Mexico City (MEX)",
+              type: "TRANSPORT",
+              transportType: "flight",
+            },
+          ],
+          evening: [],
+        },
+      },
+    );
+    expect(legs ?? []).toHaveLength(0);
+  });
 });

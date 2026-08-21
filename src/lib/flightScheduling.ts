@@ -75,7 +75,8 @@ function parseHm(hm: string): number {
   return h * 60 + m;
 }
 
-/** Same-clock range under ~40 min is never a real long-haul (VIE–MEX “14:00–14:15”). */
+/** Same-clock range under ~40 min is never a real long-haul (VIE–MEX “14:00–14:15”).
+ *  A ~24h wrap (19:50 → 19:30) is the same bug with an overnight label. */
 export function inboundArriveForDisplay(
   depart?: string,
   arrive?: string,
@@ -86,6 +87,7 @@ export function inboundArriveForDisplay(
   if (!dep) return arr;
   const mins = (parseHm(arr) - parseHm(dep) + 24 * 60) % (24 * 60);
   if (mins > 0 && mins < 40) return undefined;
+  if (mins > 20 * 60) return undefined;
   return arr;
 }
 

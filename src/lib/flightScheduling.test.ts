@@ -120,4 +120,8 @@ describe("inboundArriveForDisplay", () => {
   it("keeps a real short-haul arrival", () => {
     expect(inboundArriveForDisplay("09:40", "11:10")).toBe("11:10");
   });
+
+  it("drops a ~24h wrap (19:50 → 19:30)", () => {
+    expect(inboundArriveForDisplay("19:50", "19:30")).toBeUndefined();
+  });
 });

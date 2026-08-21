@@ -50,6 +50,18 @@ function extractIata(label: string): string | null {
   return m?.[1] ?? null;
 }
 
+function knownIatasInBlob(blob: string): string[] {
+  const found: string[] = [];
+  const re = /\b([A-Z]{3})\b/g;
+  const upper = blob.toUpperCase();
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(upper))) {
+    const code = m[1]!;
+    if (DESTINATION_BY_IATA[code] && !found.includes(code)) found.push(code);
+  }
+  return found;
+}
+
 function inferAirportLabel(
   blob: string,
   destinationIata?: string,
@@ -231,6 +243,10 @@ export function repairTransportLegs(
     }
 
     if (leg.type === "van" && /letali|airport|pristanek|prevoz na let/i.test(blob)) {
+      const destIata = ctx.destinationIata?.trim().toUpperCase();
+      const otherHub = knownIatasInBlob(blob).some((code) => code !== destIata);
+      // Holbox→CUN→MEX day: don't invent "Mexico City center → MEX" because the blob said "airport".
+      if (otherHub) return [];
       return [{ ...leg, from: center, to: airport }];
     }
 

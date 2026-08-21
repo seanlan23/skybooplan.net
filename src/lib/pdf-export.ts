@@ -689,11 +689,21 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
             type,
             from: textOf(t.from),
             to: textOf(t.to),
-            duration: textOf(t.duration) || undefined,
-            price:
-              typeof t.estimatedPrice === "number"
-                ? `€${t.estimatedPrice}`
-                : textOf(t.cost) || textOf(t.price) || undefined,
+            duration: (() => {
+              const raw = textOf(t.duration);
+              if (!raw) return undefined;
+              if (/^\d+(\.\d+)?$/.test(raw.trim())) return undefined;
+              return raw;
+            })(),
+            price: (() => {
+              if (typeof t.estimatedPrice === "number") {
+                if (t.estimatedPrice <= 0) return undefined;
+                return `€${t.estimatedPrice}`;
+              }
+              const labeled = textOf(t.cost) || textOf(t.price);
+              if (!labeled || /^€?0$/.test(labeled.trim())) return undefined;
+              return labeled;
+            })(),
           };
         })
       : [];

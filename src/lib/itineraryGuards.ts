@@ -23,6 +23,7 @@ import { scrubBangkokSightsOnIslandTransferDays } from "@/lib/bangkokMustSee";
 import { alignSummaryTripLength } from "@/lib/planTeaser";
 import { lookupRegionCoords } from "@/lib/regionCoords";
 import { haversineKm } from "@/lib/geoMath";
+import { DESTINATION_BY_IATA } from "@/lib/destinationCoords";
 
 type DaySlots = NonNullable<DayPlan["activities"]>;
 type Slot = keyof DaySlots;
@@ -284,6 +285,24 @@ function sameStayCity(a: string, b: string): boolean {
   return false;
 }
 
+function cityHopCoords(name: string): { lat: number; lng: number } | null {
+  const region = lookupRegionCoords(name);
+  if (region) return region;
+  const token = stayCityKey(name);
+  if (!token) return null;
+  for (const hub of Object.values(DESTINATION_BY_IATA)) {
+    const n = stayCityKey(hub.name);
+    if (n === token) return { lat: hub.lat, lng: hub.lng };
+    if (n.length >= 4 && (n.includes(token) || token.includes(n))) {
+      return { lat: hub.lat, lng: hub.lng };
+    }
+  }
+  return null;
+}
+
+/** Above this, A→B is air — not a van/taxi “prevoz”. */
+const MAX_GROUND_CITY_CHANGE_KM = 750;
+
 function isMoveActivity(a: Activity): boolean {
   if (a.type === "TRANSPORT" || a.transportType) return true;
   const t = `${a.name ?? ""} ${a.description ?? ""}`.toLowerCase();
@@ -353,13 +372,27 @@ export function ensureCityChangeTransfer(plan: AiTripPlan): number {
     if (!cur.activities) {
       cur.activities = { morning: [], afternoon: [], evening: [] };
     }
+    const fromC = cityHopCoords(from);
+    const toC = cityHopCoords(to);
+    const km =
+      fromC && toC ? haversineKm([fromC.lng, fromC.lat], [toC.lng, toC.lat]) : null;
+    const byAir = km != null && km > MAX_GROUND_CITY_CHANGE_KM;
     cur.activities.morning = [
       {
-        name: `${from} → ${to}`,
+        name: byAir
+          ? slo
+            ? `Notranji let ${from} → ${to}`
+            : `Domestic flight ${from} → ${to}`
+          : `${from} → ${to}`,
         type: "TRANSPORT",
-        description: slo
-          ? `Prevoz ${from} → ${to}.`
-          : `Transfer ${from} → ${to}.`,
+        ...(byAir ? { transportType: "flight" as const } : {}),
+        description: byAir
+          ? slo
+            ? `Notranji let ${from} → ${to}.`
+            : `Domestic flight ${from} → ${to}.`
+          : slo
+            ? `Prevoz ${from} → ${to}.`
+            : `Transfer ${from} → ${to}.`,
       },
       ...(cur.activities.morning ?? []),
     ];

@@ -363,6 +363,21 @@ describe("ensureCityChangeTransfer", () => {
     } as AiTripPlan;
     expect(ensureCityChangeTransfer(plan)).toBe(0);
   });
+
+  it("labels a 1 300 km city change as a domestic flight, not a taxi prevoz", () => {
+    const plan = {
+      destinationName: "Mexico",
+      contentLanguage: "sl" as const,
+      days: [
+        day({ day: 4, city: "Mexico City" }),
+        day({ day: 5, city: "Cancun", title: "Potovanje v Cancún" }),
+      ],
+    } as AiTripPlan;
+    expect(ensureCityChangeTransfer(plan)).toBe(1);
+    expect(plan.days[1]!.activities!.morning[0]!.name).toMatch(/Notranji let Mexico City → Cancun/);
+    expect(plan.days[1]!.activities!.morning[0]!.transportType).toBe("flight");
+    expect(plan.days[1]!.morning).not.toMatch(/^Prevoz Mexico City/);
+  });
 });
 
 describe("dedupeSameDayMeals", () => {
