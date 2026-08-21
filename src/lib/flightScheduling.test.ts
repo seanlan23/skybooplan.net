@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   arrivalDaySlot,
+  inboundArriveForDisplay,
   isAfternoonDeparture,
   isEveningDeparture,
   isLateArrival,
@@ -108,5 +109,15 @@ describe("arrivalDaySlot", () => {
         outboundArriveDayOffset: 0,
       }),
     ).toBe("morning");
+  });
+});
+
+describe("inboundArriveForDisplay", () => {
+  it("drops a 15-minute same-clock arrival (broken long-haul stamp)", () => {
+    expect(inboundArriveForDisplay("14:00", "14:15")).toBeUndefined();
+  });
+
+  it("keeps a real short-haul arrival", () => {
+    expect(inboundArriveForDisplay("09:40", "11:10")).toBe("11:10");
   });
 });

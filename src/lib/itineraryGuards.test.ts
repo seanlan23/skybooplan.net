@@ -293,6 +293,8 @@ describe("ensureCityChangeTransfer", () => {
     expect(ensureCityChangeTransfer(plan)).toBe(1);
     expect(plan.days[1]!.activities!.morning[0]!.name).toBe("Porto → Lisbon");
     expect(plan.days[1]!.activities!.morning[0]!.type).toBe("TRANSPORT");
+    expect(plan.days[1]!.activities!.morning[0]!.description).toMatch(/Porto → Lisbon/);
+    expect(plan.days[1]!.activities!.morning[0]!.description).not.toMatch(/teleport/i);
     expect(plan.days[1]!.morning).toMatch(/Porto → Lisbon/);
     expect(plan.days[1]!.morning).not.toMatch(/Prosti dan/);
   });
@@ -311,6 +313,34 @@ describe("ensureCityChangeTransfer", () => {
                 name: "Vožnja z vlakom Lizbona -> Porto",
                 type: "TRANSPORT",
                 description: "Hitri vlak ~3 h.",
+              },
+            ],
+            afternoon: [],
+            evening: [],
+          },
+        }),
+      ],
+    } as AiTripPlan;
+    expect(ensureCityChangeTransfer(plan)).toBe(0);
+    expect(plan.days[1]!.activities!.morning).toHaveLength(1);
+  });
+
+  it("does not add a second hop when Gemini already wrote prevoz iz A do B", () => {
+    const plan = {
+      destinationName: "Mexico",
+      contentLanguage: "sl" as const,
+      days: [
+        day({ day: 11, city: "Tulum" }),
+        day({
+          day: 12,
+          city: "Isla Holbox",
+          title: "Potovanje na Isla Holbox",
+          activities: {
+            morning: [
+              {
+                name: "Prevoz iz Tuluma do Chiquilá",
+                type: "SIGHT",
+                description: "Avtobus ali kombi do pristanišča.",
               },
             ],
             afternoon: [],

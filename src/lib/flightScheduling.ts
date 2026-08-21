@@ -75,6 +75,20 @@ function parseHm(hm: string): number {
   return h * 60 + m;
 }
 
+/** Same-clock range under ~40 min is never a real long-haul (VIE–MEX “14:00–14:15”). */
+export function inboundArriveForDisplay(
+  depart?: string,
+  arrive?: string,
+): string | undefined {
+  const dep = depart?.trim();
+  const arr = arrive?.trim();
+  if (!arr) return undefined;
+  if (!dep) return arr;
+  const mins = (parseHm(arr) - parseHm(dep) + 24 * 60) % (24 * 60);
+  if (mins > 0 && mins < 40) return undefined;
+  return arr;
+}
+
 /** Hours before outbound departure to be at the origin airport (check-in + security). */
 export function originAirportLeadHours(depart: string): number {
   const depMin = parseHm(depart);
@@ -581,6 +595,7 @@ export function buildDepartureLogistics(
   const motorhome = opts?.accommodationMode === "motorhome";
   const dep = flights.inboundDepart ?? "12:00";
   const depMin = parseHm(dep);
+  const inboundArrive = inboundArriveForDisplay(dep, flights.inboundArrive);
   const offsets = departureLogisticsOffsetsMin(locale.destinationIata);
   const leaveHours = offsets.leaveHours;
 
@@ -786,15 +801,15 @@ export function buildDepartureLogistics(
       }),
       type: "TRANSPORT",
       description: planLangCopy(lang, {
-        sl: `Odhod ${dep}${flights.inboundArrive ? `, prihod ${flights.inboundArrive}` : ""}.`,
-        en: `Depart ${dep}${flights.inboundArrive ? `, arrive ${flights.inboundArrive}` : ""}.`,
-        de: `Abflug ${dep}${flights.inboundArrive ? `, Ankunft ${flights.inboundArrive}` : ""}.`,
-        it: `Partenza ${dep}${flights.inboundArrive ? `, arrivo ${flights.inboundArrive}` : ""}.`,
-        es: `Salida ${dep}${flights.inboundArrive ? `, llegada ${flights.inboundArrive}` : ""}.`,
-        fr: `Départ ${dep}${flights.inboundArrive ? `, arrivée ${flights.inboundArrive}` : ""}.`,
+        sl: `Odhod ${dep}${inboundArrive ? `, prihod ${inboundArrive}` : ""}.`,
+        en: `Depart ${dep}${inboundArrive ? `, arrive ${inboundArrive}` : ""}.`,
+        de: `Abflug ${dep}${inboundArrive ? `, Ankunft ${inboundArrive}` : ""}.`,
+        it: `Partenza ${dep}${inboundArrive ? `, arrivo ${inboundArrive}` : ""}.`,
+        es: `Salida ${dep}${inboundArrive ? `, llegada ${inboundArrive}` : ""}.`,
+        fr: `Départ ${dep}${inboundArrive ? `, arrivée ${inboundArrive}` : ""}.`,
       }),
       arrivalTime: dep,
-      departureTime: flights.inboundArrive,
+      departureTime: inboundArrive,
     },
   ];
 }

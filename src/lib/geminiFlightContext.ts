@@ -28,10 +28,11 @@ import {
   isEveningDeparture,
   departureLogisticsOffsetsMin,
   originAirportLeadHours,
+  inboundArriveForDisplay,
   type LogisticsActivity,
   type TripFlightContext,
 } from "@/lib/flightScheduling";
-import { lookupDestination } from "@/lib/destinationCoords";
+import { DESTINATION_BY_IATA, lookupDestination } from "@/lib/destinationCoords";
 import { haversineKm } from "@/lib/geoMath";
 import {
   dedupePlanDaysByNumber,
@@ -50,6 +51,8 @@ import { stripArrivalLabelSpam } from "@/lib/textSanitize";
 const MAX_SAME_DAY_GROUND_HUB_HOP_KM = 750;
 /** Morning international boards leave no time for a 4h Shinkansen + NRT check-in. */
 const MAX_MORNING_GROUND_HUB_HOP_KM = 220;
+/** Airport taxi/ADO to the first hotel — not a 1 300 km MEX→Cancún hop. */
+const MAX_AIRPORT_TRANSFER_KM = 180;
 const MORNING_INBOUND_HOUR = 14;
 
 function logisticsToActivity(a: LogisticsActivity): Activity {
@@ -193,24 +196,13 @@ function resolveCityLatLng(city: string): { lat: number; lng: number } | null {
   if (!label) return null;
   const region = lookupRegionCoords(label);
   if (region) return region;
-  // Fall back to known IATA hub cities by name (Bangkok, New York, …).
+  // Known IATA hub cities by name (Cancún, Mexico City, Bangkok, …).
   const token = normalizeCityToken(label);
-  for (const iata of [
-    "BKK",
-    "HKT",
-    "KBV",
-    "JFK",
-    "LAX",
-    "LAS",
-    "CDG",
-    "MUC",
-    "FCO",
-    "MXP",
-    "YYZ",
-    "YVR",
-  ]) {
-    const hub = lookupDestination(iata);
-    if (hub && normalizeCityToken(hub.name) === token) {
+  if (!token) return null;
+  for (const hub of Object.values(DESTINATION_BY_IATA)) {
+    const name = normalizeCityToken(hub.name);
+    if (name === token) return { lat: hub.lat, lng: hub.lng };
+    if (name.length >= 4 && (name.includes(token) || token.includes(name))) {
       return { lat: hub.lat, lng: hub.lng };
     }
   }
@@ -1160,7 +1152,7 @@ function overwriteGeminiFlightClocksWithDuffel(
         patchAirportActivityTimes(
           last.activities,
           flights.inboundDepart,
-          flights.inboundArrive,
+          inboundArriveForDisplay(flights.inboundDepart, flights.inboundArrive),
           plan.destinationIata,
         ),
         owned,
@@ -1304,6 +1296,26 @@ export function applyFlightContextToGeminiPlan(
     }
 
     if (day.day === arrivalDay) {
+      const destIata = (plan.destinationIata ?? "").toUpperCase();
+      const hub = destIata ? lookupDestination(destIata) : null;
+      const stayCity = (day.city || plan.destinationName || "").trim();
+      if (hub && stayCity && !cityNamesMatch(stayCity, hub.name)) {
+        const km = groundHubHopKm(stayCity, hub.name);
+        if (km != null && km > MAX_AIRPORT_TRANSFER_KM) {
+          day.city = hub.name;
+          day.focusName = hub.name;
+          day.lat = hub.lat;
+          day.lng = hub.lng;
+          day.title = planLangCopy(lang, {
+            sl: `Prihod v ${hub.name} (${destIata}) in počitek`,
+            en: `Arrival in ${hub.name} (${destIata}) and rest`,
+            de: `Ankunft in ${hub.name} (${destIata}) und Erholung`,
+            it: `Arrivo a ${hub.name} (${destIata}) e riposo`,
+            es: `Llegada a ${hub.name} (${destIata}) y descanso`,
+            fr: `Arrivée à ${hub.name} (${destIata}) et repos`,
+          });
+        }
+      }
       const logistics = buildArrivalLogistics(day.city || plan.destinationName, flights, locale, {
         accommodationMode: plan.accommodationMode,
       });
@@ -1596,7 +1608,7 @@ export function applyFlightContextToGeminiPlan(
         patchAirportActivityTimes(
           merged,
           flights.inboundDepart,
-          flights.inboundArrive,
+          inboundArriveForDisplay(flights.inboundDepart, flights.inboundArrive),
           plan.destinationIata,
         ),
         [

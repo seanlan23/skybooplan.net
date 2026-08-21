@@ -31,6 +31,11 @@ describe("Phase 1 hub IATA coverage", () => {
     const names = PHASE1_HUB_IATA.map((i) => lookupDestination(i)!.name);
     expect(new Set(names).size).toBe(names.length);
   });
+
+  it("resolves MEX as Mexico City, not Cancún", () => {
+    expect(lookupDestination("MEX")?.name).toBe("Mexico City");
+    expect(lookupDestination("CUN")?.name).toBe("Cancún");
+  });
 });
 
 describe("tripIntent country patterns (phase 1)", () => {

@@ -287,11 +287,18 @@ function sameStayCity(a: string, b: string): boolean {
 function isMoveActivity(a: Activity): boolean {
   if (a.type === "TRANSPORT" || a.transportType) return true;
   const t = `${a.name ?? ""} ${a.description ?? ""}`.toLowerCase();
-  return (
+  if (
     /→|->/.test(t) &&
     /\b(vlak|train|let|flight|ferry|trajekt|avtobus|bus|kombi|van|prevoz|transfer|shinkansen)\b/i.test(
       t,
     )
+  ) {
+    return true;
+  }
+  // "Prevoz iz Tuluma do Chiquilá" — Gemini often omits the arrow.
+  return (
+    /\b(prevoz|transfer|trajekt|ferry|avtobus|bus|kombi|van|vlak|train)\b/i.test(t) &&
+    /\b(iz|from)\b.+\b(do|to)\b/i.test(t)
   );
 }
 
@@ -351,8 +358,8 @@ export function ensureCityChangeTransfer(plan: AiTripPlan): number {
         name: `${from} → ${to}`,
         type: "TRANSPORT",
         description: slo
-          ? `Prevoz med bazama. Rezerviraj vlak, bus, trajekt ali let — ta dan ni teleport.`
-          : `Transfer between bases. Book train, bus, ferry, or flight — this day is not a teleport.`,
+          ? `Prevoz ${from} → ${to}.`
+          : `Transfer ${from} → ${to}.`,
       },
       ...(cur.activities.morning ?? []),
     ];

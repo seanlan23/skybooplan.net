@@ -133,6 +133,7 @@ export const DESTINATION_BY_IATA: Record<string, DestinationMeta> = {
   MIA: { name: "Miami", lat: 25.795, lng: -80.29, country: "US" },
   HNL: { name: "Honolulu", lat: 21.319, lng: -157.922, country: "US" },
   CUN: { name: "Cancún", lat: 21.036, lng: -86.877, country: "MX" },
+  MEX: { name: "Mexico City", lat: 19.436, lng: -99.072, country: "MX" },
   YYZ: { name: "Toronto", lat: 43.677, lng: -79.631, country: "CA" },
   YVR: { name: "Vancouver", lat: 49.196, lng: -123.182, country: "CA" },
   YOW: { name: "Ottawa", lat: 45.323, lng: -75.669, country: "CA" },

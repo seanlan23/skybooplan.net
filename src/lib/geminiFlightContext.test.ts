@@ -2621,4 +2621,83 @@ describe("applyFlightContextToGeminiPlan", () => {
     expect(last.title).not.toMatch(/Ouarzazate/i);
     expect(JSON.stringify(last.activities)).toMatch(/18:40/);
   });
+
+  it("does not taxi from MEX to a Cancún hotel when the ticket lands at Mexico City", () => {
+    const blank = {
+      morning: "",
+      afternoon: "",
+      evening: "",
+      travelHack: "",
+      transportationTips: "",
+      localWarnings: "",
+      dailyBudgetEur: 60,
+    };
+    const plan = basePlan({
+      destinationName: "Mehika - Riviera Maya",
+      destinationIata: "MEX",
+      originIata: "VIE",
+      contentLanguage: "sl",
+      days: [
+        {
+          day: 1,
+          date: "2026-10-26",
+          title: "Odhod",
+          ...blank,
+          lat: 48.2,
+          lng: 16.37,
+          city: "Vienna",
+          focusName: "Vienna",
+          category: "transport",
+          activities: { morning: [], afternoon: [], evening: [] },
+        },
+        {
+          day: 2,
+          date: "2026-10-27",
+          title: "Prihod v Cancun (MEX) in počitek",
+          ...blank,
+          lat: 21.16,
+          lng: -86.85,
+          city: "Cancun",
+          focusName: "Cancun",
+          category: "activity",
+          activities: { morning: [], afternoon: [], evening: [] },
+        },
+        {
+          day: 3,
+          date: "2026-10-28",
+          title: "Cancun plaža",
+          ...blank,
+          lat: 21.16,
+          lng: -86.85,
+          city: "Cancun",
+          focusName: "Cancun",
+          category: "activity",
+          activities: { morning: [], afternoon: [], evening: [] },
+        },
+      ],
+    });
+
+    applyFlightContextToGeminiPlan(
+      plan,
+      {
+        outboundDepart: "06:00",
+        outboundArrive: "00:15",
+        outboundArriveDayOffset: 1,
+        inboundDepart: "14:00",
+        inboundArrive: "14:15",
+      },
+      { originIata: "VIE", language: "sl", expectedDays: 3 },
+    );
+
+    const arrival = plan.days.find((d) => d.day === 2)!;
+    expect(arrival.city).toMatch(/mexico city/i);
+    expect(arrival.title).toMatch(/Mexico City/i);
+    const arrivalBlob = JSON.stringify(arrival.activities);
+    expect(arrivalBlob).toMatch(/MEX/);
+    expect(arrivalBlob).not.toMatch(/do hotela v Cancun/i);
+
+    const lastBlob = JSON.stringify(plan.days.find((d) => d.day === 3)!.activities);
+    expect(lastBlob).toMatch(/Odhod 14:00/);
+    expect(lastBlob).not.toMatch(/14:15/);
+  });
 });
