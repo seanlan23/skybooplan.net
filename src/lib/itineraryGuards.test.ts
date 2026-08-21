@@ -17,6 +17,7 @@ import {
   stripPlaceholderActivities,
   stripWrongCityDayActivities,
   dropDuplicatePoisAcrossPlan,
+  ensureCityChangeTransfer,
 } from "@/lib/itineraryGuards";
 import { repairTruncatedCopy } from "@/lib/textSanitize";
 
@@ -246,6 +247,91 @@ describe("stripWrongCityDayActivities", () => {
     expect(stripWrongCityDayActivities(plan)).toBe(1);
     expect(plan.days[0]!.activities!.morning).toHaveLength(1);
     expect(plan.days[0]!.activities!.morning[0]!.name).toMatch(/Fourvière/i);
+  });
+
+  it("keeps a Porto → Lisbon train on a Lisbon day", () => {
+    const plan = {
+      destinationName: "Portugal",
+      days: [
+        day({
+          day: 9,
+          city: "Lisbon",
+          activities: {
+            morning: [
+              {
+                name: "Vlak Porto → Lisbon",
+                type: "TRANSPORT",
+                description: "Alfa Pendular iz Porta.",
+              },
+            ],
+            afternoon: [],
+            evening: [],
+          },
+        }),
+      ],
+    } as AiTripPlan;
+    expect(stripWrongCityDayActivities(plan)).toBe(0);
+    expect(plan.days[0]!.activities!.morning[0]!.name).toMatch(/Porto/);
+  });
+});
+
+describe("ensureCityChangeTransfer", () => {
+  it("does not leave a Porto→Lisbon overnight as an empty teleport", () => {
+    const plan = {
+      destinationName: "Portugal",
+      contentLanguage: "sl" as const,
+      days: [
+        day({ day: 8, city: "Porto", title: "Porto" }),
+        day({
+          day: 9,
+          city: "Lisbon",
+          title: "Potovanje v Lisbon",
+          morning: "Prosti dan / raziskovanje okolice.",
+        }),
+      ],
+    } as AiTripPlan;
+    expect(ensureCityChangeTransfer(plan)).toBe(1);
+    expect(plan.days[1]!.activities!.morning[0]!.name).toBe("Porto → Lisbon");
+    expect(plan.days[1]!.activities!.morning[0]!.type).toBe("TRANSPORT");
+    expect(plan.days[1]!.morning).toMatch(/Porto → Lisbon/);
+    expect(plan.days[1]!.morning).not.toMatch(/Prosti dan/);
+  });
+
+  it("does not duplicate a train that is already on the city-change day", () => {
+    const plan = {
+      destinationName: "Portugal",
+      days: [
+        day({ day: 6, city: "Lisbon" }),
+        day({
+          day: 7,
+          city: "Porto",
+          activities: {
+            morning: [
+              {
+                name: "Vožnja z vlakom Lizbona -> Porto",
+                type: "TRANSPORT",
+                description: "Hitri vlak ~3 h.",
+              },
+            ],
+            afternoon: [],
+            evening: [],
+          },
+        }),
+      ],
+    } as AiTripPlan;
+    expect(ensureCityChangeTransfer(plan)).toBe(0);
+    expect(plan.days[1]!.activities!.morning).toHaveLength(1);
+  });
+
+  it("does not invent a hop when consecutive nights stay in the same city", () => {
+    const plan = {
+      destinationName: "Portugal",
+      days: [
+        day({ day: 2, city: "Lisbon" }),
+        day({ day: 3, city: "Lisboa" }),
+      ],
+    } as AiTripPlan;
+    expect(ensureCityChangeTransfer(plan)).toBe(0);
   });
 });
 

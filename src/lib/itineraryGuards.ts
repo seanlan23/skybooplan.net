@@ -21,6 +21,8 @@ import { enrichIslandAirportTransfers } from "@/lib/islandAirportTransfers";
 import { scrubImpossibleIslandDayTrips } from "@/lib/islandHopGuard";
 import { scrubBangkokSightsOnIslandTransferDays } from "@/lib/bangkokMustSee";
 import { alignSummaryTripLength } from "@/lib/planTeaser";
+import { lookupRegionCoords } from "@/lib/regionCoords";
+import { haversineKm } from "@/lib/geoMath";
 
 type DaySlots = NonNullable<DayPlan["activities"]>;
 type Slot = keyof DaySlots;
@@ -231,7 +233,6 @@ function thinLocalDay(day: DayPlan, lang: string): DayPlan {
     afternoon: "",
     evening: "",
     mapPins: [],
-    transportation: undefined,
     activities: {
       morning: [],
       afternoon: [
@@ -262,6 +263,105 @@ function thinLocalDay(day: DayPlan, lang: string): DayPlan {
   };
 }
 
+function stayCityKey(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .replace(/[^a-z0-9]+/g, "");
+}
+
+function sameStayCity(a: string, b: string): boolean {
+  const left = stayCityKey(a);
+  const right = stayCityKey(b);
+  if (!left || !right) return false;
+  if (left === right) return true;
+  const ca = lookupRegionCoords(a);
+  const cb = lookupRegionCoords(b);
+  if (ca && cb) {
+    return haversineKm([ca.lng, ca.lat], [cb.lng, cb.lat]) < 20;
+  }
+  return false;
+}
+
+function isMoveActivity(a: Activity): boolean {
+  if (a.type === "TRANSPORT" || a.transportType) return true;
+  const t = `${a.name ?? ""} ${a.description ?? ""}`.toLowerCase();
+  return (
+    /→|->/.test(t) &&
+    /\b(vlak|train|let|flight|ferry|trajekt|avtobus|bus|kombi|van|prevoz|transfer|shinkansen)\b/i.test(
+      t,
+    )
+  );
+}
+
+function dayHasIntercityMove(day: DayPlan, from: string, to: string): boolean {
+  if (day.transportation?.some((leg) => !sameStayCity(leg.from, leg.to))) return true;
+  for (const slot of SLOTS) {
+    for (const a of day.activities?.[slot] ?? []) {
+      if (isMoveActivity(a) || isNonPoiActivity(a)) {
+        const blob = `${a.name} ${a.description ?? ""}`;
+        const mentionsFrom = stayCityKey(from).length >= 4 && stayCityKey(blob).includes(stayCityKey(from));
+        const mentionsTo = stayCityKey(to).length >= 4 && stayCityKey(blob).includes(stayCityKey(to));
+        if (mentionsFrom && mentionsTo) return true;
+        if (isMoveActivity(a)) return true;
+      }
+    }
+  }
+  const blob = `${day.title ?? ""} ${day.morning ?? ""} ${day.afternoon ?? ""}`;
+  return (
+    /→|->/.test(blob) &&
+    /\b(vlak|train|let|flight|ferry|trajekt|prevoz|transfer)\b/i.test(blob)
+  );
+}
+
+function resyncDaySlotProse(day: DayPlan): void {
+  if (!day.activities) return;
+  const join = (list: Activity[]) =>
+    list
+      .map((a) => (a.description ? `${a.name}: ${a.description}` : a.name))
+      .filter(Boolean)
+      .join("\n\n");
+  day.morning = join(day.activities.morning ?? []);
+  day.afternoon = join(day.activities.afternoon ?? []);
+  day.evening = join(day.activities.evening ?? []);
+}
+
+/**
+ * Overnight city change without a train/flight/ferry is a teleport.
+ * Restore A→B as TRANSPORT — do not invent a clock or ticket price.
+ */
+export function ensureCityChangeTransfer(plan: AiTripPlan): number {
+  const days = plan.days ?? [];
+  const slo = !plan.contentLanguage || plan.contentLanguage.startsWith("sl");
+  let added = 0;
+  for (let i = 1; i < days.length; i++) {
+    const prev = days[i - 1]!;
+    const cur = days[i]!;
+    if (cur.inFlightDay) continue;
+    const from = (prev.city || prev.focusName || "").trim();
+    const to = (cur.city || cur.focusName || "").trim();
+    if (!from || !to || sameStayCity(from, to)) continue;
+    if (dayHasIntercityMove(cur, from, to)) continue;
+    if (!cur.activities) {
+      cur.activities = { morning: [], afternoon: [], evening: [] };
+    }
+    cur.activities.morning = [
+      {
+        name: `${from} → ${to}`,
+        type: "TRANSPORT",
+        description: slo
+          ? `Prevoz med bazama. Rezerviraj vlak, bus, trajekt ali let — ta dan ni teleport.`
+          : `Transfer between bases. Book train, bus, ferry, or flight — this day is not a teleport.`,
+      },
+      ...(cur.activities.morning ?? []),
+    ];
+    resyncDaySlotProse(cur);
+    added += 1;
+  }
+  return added;
+}
+
 /** Drop Paris sights on Lyon days (and other city-locked landmarks). */
 export function stripWrongCityDayActivities(plan: AiTripPlan): number {
   let removed = 0;
@@ -271,6 +371,7 @@ export function stripWrongCityDayActivities(plan: AiTripPlan): number {
       for (const slot of SLOTS) {
         const list = day.activities[slot] ?? [];
         const next = list.filter((a) => {
+          if (isMoveActivity(a)) return true;
           const drop = isWrongCityPoi(a.name ?? "", a.description ?? "", city);
           if (drop) removed += 1;
           return !drop;
@@ -1076,6 +1177,7 @@ export function applyItineraryGuards(
   const truncated = stripTruncatedCopyFromPlan(plan);
   const logisticsCopy = repairIncompleteLogisticsCopy(plan);
   const transportLegs = sanitizeTransportationLegs(plan);
+  ensureCityChangeTransfer(plan);
   const returnFlights = dedupeLastDayReturnFlights(plan);
   const earlyAirport = scrubUnsafeEarlyAirportTips(plan);
   const durationAlign = alignTransportationDurationWithTips(plan);

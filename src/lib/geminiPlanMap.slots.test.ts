@@ -101,6 +101,12 @@ describe("tripPlanResponseToAiTripPlan slotting", () => {
     expect(day.activities.morning.some((a) => /Mednarodni let/i.test(a.name))).toBe(false);
   });
 
+  it("does not invent a prosti-dan filler when Gemini returns no morning activities", () => {
+    const plan = tripPlanResponseToAiTripPlan(minimalPlan([]));
+    expect(plan.days[0]!.morning).toBe("");
+    expect(plan.days[0]!.morning).not.toMatch(/Prosti dan/i);
+  });
+
   it("dedupes duplicate day_number across itinerar phases", () => {
     const base = minimalPlan([
       {

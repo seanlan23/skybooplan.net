@@ -400,9 +400,7 @@ function syncDayActivitySlots(
     evening: sortActivitiesByTime(slots.evening),
   };
   const afternoonText = joinSlotActivities(slots.afternoon);
-  day.morning =
-    joinSlotActivities(slots.morning) ||
-    (afternoonText ? "" : "Prosti dan / raziskovanje okolice.");
+  day.morning = joinSlotActivities(slots.morning);
   day.afternoon = afternoonText;
   day.evening = joinSlotActivities(slots.evening);
 }
@@ -443,7 +441,7 @@ function slotActivities(
   const afternoonText = join(afternoonActs);
 
   return {
-    morning: morningText || (afternoonText ? "" : "Prosti dan / raziskovanje okolice."),
+    morning: morningText,
     afternoon: afternoonText,
     evening: join(eveningActs),
     structured: {
