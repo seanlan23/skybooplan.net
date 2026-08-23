@@ -290,13 +290,19 @@ function repairTruncatedLine(line: string): string {
     /\s+v\s+(čudovit\w*|prelep\w*|elegantn\w*|beautiful|wonderful|wunderschön\w*)\.\s*$/iu.test(
       t,
     );
+  // "Po vrnitvi v let" / "in prefinjenem ambient" — Gemini cut the noun.
+  const cutReturnFlight = /\bpo vrnitvi v let\.?\s*$/iu.test(t);
+  const cutAdjNoun =
+    /\s+in\s+\w{4,14}(?:em|im)\s+[a-záéíóúäöüčšž]{4,10}\.?\s*$/iu.test(t);
   const truncated =
     /…\s*$/u.test(t) ||
     /\.\.\.\s*$/.test(t) ||
     shortCapStub ||
     shortLowerStub ||
     danglingVerb ||
-    danglingAdjStop;
+    danglingAdjStop ||
+    cutReturnFlight ||
+    cutAdjNoun;
 
   if (!truncated && !danglingEnd) return t;
 
@@ -322,6 +328,16 @@ function repairTruncatedLine(line: string): string {
     return /[.!?]$/.test(next) ? next : `${next}.`;
   }
 
+  if (cutReturnFlight) {
+    t = t.replace(/\s*\bpo vrnitvi v let\.?\s*$/iu, "").trim();
+    if (!t) return "";
+    return /[.!?]$/.test(t) ? t : `${t}.`;
+  }
+  if (cutAdjNoun) {
+    t = t.replace(/\s+in\s+\w{4,14}(?:em|im)\s+[a-záéíóúäöüčšž]{4,10}\.?\s*$/iu, "").trim();
+    if (!t) return "";
+    return /[.!?]$/.test(t) ? t : `${t}.`;
+  }
   if (danglingAdjStop) {
     t = t.replace(/\s+v\s+(čudovit\w*|prelep\w*|elegantn\w*|beautiful|wonderful|wunderschön\w*)\.\s*$/iu, ".").trim();
   } else if (shortCapStub || shortLowerStub) {

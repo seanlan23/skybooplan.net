@@ -21,7 +21,7 @@ export const STRICT_LLM_LANGUAGE_RULE = `LANGUAGE (mandatory):
 - You must strictly output the entire JSON and all human-readable content in the user's selected languageCode from the user message.
 - Allowed language codes only: en, sl, de.
 - Never mix languages in the same response — no bilingual lines, no dual translations, no English glosses in parentheses when another language is selected.
-- If languageCode is "sl", every sentence must be 100% Slovenian (proper nouns and airport codes only exception).
+- If languageCode is "sl", every title, description, and day name must be 100% Slovenian. Do not mix English and Slovenian in the same title or sentence (proper nouns and airport codes only exception).
 - If languageCode is "de", every sentence must be 100% German (proper nouns and airport codes only exception).
 - POI names may stay in their official local form; all descriptions, tips, labels, titles, and price text must match languageCode.
 

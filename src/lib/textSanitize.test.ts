@@ -226,6 +226,10 @@ describe("repairTruncatedCopy", () => {
     expect(completeTruncatedHeadline("Odhod iz Mexico City / mednarodni..")).toBe(
       "Odhod iz Mexico City / mednarodni let",
     );
+    expect(repairTruncatedCopy("Po vrnitvi v let")).toBe("");
+    expect(repairTruncatedCopy("Večerja v restavraciji in prefinjenem ambient")).toBe(
+      "Večerja v restavraciji.",
+    );
   });
 
   it("drops a two-letter day stub and completes a cut city title", () => {

@@ -14,6 +14,7 @@ import {
   findNonLinearRoute,
   findOverpackedDays,
   findSameDayFarPois,
+  findWrongStayActivities,
   dropSameDayFarPois,
   validateItinerary,
 } from "./planValidation";
@@ -663,5 +664,24 @@ describe("day feasibility", () => {
     expect(findSameDayFarPois(p)[0]?.rule).toBe("same_day_far_pois");
     expect(dropSameDayFarPois(p)).toBe(1);
     expect(JSON.stringify(p.days[0]!.activities)).not.toMatch(/Doi Suthep/);
+  });
+
+  it("flags another country's beach on the sleep-city card", () => {
+    const p = plan([
+      day({
+        day: 15,
+        city: "Kasane",
+        lat: -17.8,
+        lng: 25.15,
+        activities: {
+          morning: [{ name: "Kasane Town", type: "SIGHT", description: "Sprehod." }],
+          afternoon: [
+            { name: "Sprostitev na plaži Vilanculos", type: "ACTIVITY", description: "Ocean." },
+          ],
+          evening: [],
+        },
+      }),
+    ]);
+    expect(findWrongStayActivities(p)[0]?.rule).toBe("wrong_stay_activity");
   });
 });

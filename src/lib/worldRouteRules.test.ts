@@ -16,6 +16,7 @@ describe("worldRouteRulesPromptBlock", () => {
     expect(sl).toMatch(/zapuščeno regijo|En premik med dvema bazama/i);
     expect(sl).toMatch(/votli naslovi|10\+ ur/i);
     expect(sl).toMatch(/POI/i);
+    expect(sl).toMatch(/Dve oddaljeni državi|en dan samo prevoz/i);
     expect(en).toMatch(/Bases first/i);
     expect(en).toMatch(/NEW base/i);
     expect(worldRouteRulesMentionsDestination(sl)).toBe(false);

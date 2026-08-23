@@ -81,6 +81,9 @@ export const COUNTRY_MID_DAILY_EUR: Record<string, number> = {
   TZ: 85,
   NA: 80,
   BW: 120,
+  MZ: 70,
+  ZM: 70,
+  ZW: 70,
   MU: 130,
   SC: 180,
   MV: 200,
@@ -167,6 +170,9 @@ export function inferBudgetCountryFromPlace(place?: string): string | null {
   if (/namibia|namibij|windhoek|etosha|sossusvlei|\bwdh\b/.test(n)) return "NA";
   if (/botswana|bocvan|maun|gaborone|chobe|okavango|makgadikgadi|kasane|\bgbe\b|\bmub\b/.test(n)) {
     return "BW";
+  }
+  if (/mozambique|mozambik|vilanculos|maputo|bazaruto|two mile|\bvnx\b/.test(n)) {
+    return "MZ";
   }
   if (/south\s*africa|južna\s*afrik|kruger|cape\s*town|johannesburg|\bjnb\b|\bcpt\b/.test(n)) {
     return "ZA";

@@ -10,6 +10,7 @@ const POINTS_SL = [
   "Težek premik (≥5–6 h vrata–vrata: čoln+kombi+let) poje dan: ni templja ob 09:00 in ni celodnevnega izleta.",
   "Dolg dostop = dovolj noči ali izpusti. Kraj, do katerega rabiš pol dneva, dobi ≥4 noči — ali ga ni.",
   "Aktivnosti so od mesta, kjer spiš. POI ∈ baza. Ne parkirati znamenitosti naslednje baze na današnji dan.",
+  "Dve oddaljeni državi/regiji: najprej zaključi vse nočitve v prvi, potem en dan samo prevoz (let), šele nato program v drugi. Prepovedano: plaža/otok/safari druge države na dnevu, kjer spiš v prvi.",
   "Let > program. Pred pristankom prazno. Zadnji dan samo do ure odhoda.",
   "Mednarodni dolg let: ne izmišljuj pristanka 2 uri po odhodu. Evropa→Azija/Amerika je 10+ ur plus časovni pas — prihod šele popoldan/zvečer istega dne ali naslednje jutro. Ure z izbranega leta zmagajo.",
   "Prepovedani votli naslovi brez opisa (Morning in …, Visit …, City Exploration, Snorkeling Trip). Poln dan v bazi = konkretno ime + opis. Transfer/prihod/odhod sme imeti prazen slot.",
@@ -23,6 +24,7 @@ const POINTS_EN = [
   "A heavy move (≥5–6h door-to-door: boat+van+flight) consumes the day: no 09:00 temple and no full-day excursion.",
   "Long access = enough nights or skip. A place that takes half a day to reach gets ≥4 nights — or it is not on the trip.",
   "Activities belong to the city you sleep in. POI ∈ base. Do not park the next base's sights on today's card.",
+  "Two distant countries/regions: finish every night in the first, then one travel-only day (flight), then the second region's programme. Forbidden: the other country's beach/island/safari on a day you still sleep in the first.",
   "Flight beats programme. Empty before landing. Last day only until departure.",
   "Long-haul: do not invent a landing 2 hours after departure. Europe→Asia/Americas is 10+ hours plus timezone — arrive afternoon/evening the same day or next morning. The chosen ticket wins.",
   "Forbidden hollow titles without a description (Morning in …, Visit …, City Exploration, Snorkeling Trip). A full base day needs a real name + description. Transfer/arrival/departure days may leave a slot empty.",
@@ -42,5 +44,7 @@ export function worldRouteRulesPromptBlock(slo: boolean): string {
 
 /** True if the block leaked a locked destination (regression guard). */
 export function worldRouteRulesMentionsDestination(text: string): boolean {
-  return /phuket|krabi|lipe|ayutthaya|holbox|ubud|bali|bangkok|chiang mai/i.test(text);
+  return /phuket|krabi|lipe|ayutthaya|holbox|ubud|bali|bangkok|chiang mai|vilanculos|botswana|bocvan|mozambik/i.test(
+    text,
+  );
 }

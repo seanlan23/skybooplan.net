@@ -594,7 +594,7 @@ export function airportTransferDescription(
 }
 
 const WRITING_RULES: Record<PlanLang, string> = {
-  sl: "KRITIČNO: Ves tekst SAMO v slovenščini — tudi naslovi aktivnosti, opisi, travelHack, transportationTips. Prepovedano: angleški naslovi tipa \"Departure from…\", \"Lunch stop en route\", \"Drive to…\". Piši npr. \"Odhod iz Mežice\", \"Kosilo na poti\", \"Vožnja proti Gardskemu jezeru\". Nikoli ne mešaj jezikov v istem bloku. Dovoljene izjeme: uradna imena krajev/znamenitosti in kode letališč (npr. CDG).",
+  sl: "KRITIČNO: Vsi naslovi, opisi in imena dni SAMO v slovenščini. Nikoli ne mešaj angleščine in slovenščine v istem naslovu ali stavku. Prepovedano: \"Departure from…\", \"Lunch stop en route\", \"Hike to the summit\", \"Morning Game Drive\". Piši npr. \"Odhod iz Mežice\", \"Kosilo na poti\", \"Pohod na vrh\". Dovoljene izjeme: uradna imena krajev/znamenitosti in kode letališč (npr. CDG).",
   en: "CRITICAL: All text in English only. Never mix languages or provide dual translations in the same field. Proper nouns and airport codes may stay as-is.",
   de: "KRITISCH: Gesamter Text nur auf Deutsch. Niemals Sprachen mischen oder Doppelübersetzungen im selben Feld. Eigennamen und Flughafencodes unverändert.",
 };

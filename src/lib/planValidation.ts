@@ -5,6 +5,7 @@ import { isHollowProgramTitle } from "./itineraryGuards";
 import { DESTINATION_BY_IATA } from "./destinationCoords";
 import { isImplausibleLongHaulArrive, parseClockMinutes } from "./flightScheduling";
 import { isSmallIsland } from "./islandStays";
+import { activityLeaksStay, collectStayRefs } from "./stayLeakGuard";
 
 /**
  * Pure validators for AI-generated itineraries. Each rule mirrors a
@@ -24,7 +25,8 @@ export type PlanViolation = {
     | "same_day_far_pois"
     | "replayed_arrival"
     | "hollow_activity"
-    | "impossible_arrival";
+    | "impossible_arrival"
+    | "wrong_stay_activity";
   message: string;
   dayNumbers: number[];
 };
@@ -39,6 +41,7 @@ export const ROUTING_BLOCK_RULES = new Set<PlanViolation["rule"]>([
   "thin_long_access",
   "replayed_arrival",
   "hollow_activity",
+  "wrong_stay_activity",
   "impossible_arrival",
 ]);
 
@@ -558,15 +561,29 @@ export function findOverpackedDays(plan: AiTripPlan): PlanViolation[] {
   return out;
 }
 
-/** Two sights on the same day more than ~3h apart, with no transfer on that day. */
+/** Sight vs sleep city (or two sights) more than ~3h apart — transport on the day does not excuse it. */
 export function findSameDayFarPois(plan: AiTripPlan): PlanViolation[] {
   const out: PlanViolation[] = [];
   for (const day of plan.days ?? []) {
-    const acts = dayActivities(day);
-    if (acts.some((a) => isTransportLike(a))) continue;
+    const acts = dayActivities(day).filter((a) => !isTransportLike(a));
+    const hub =
+      Number.isFinite(day.lat) && Number.isFinite(day.lng)
+        ? { lat: day.lat, lng: day.lng }
+        : null;
     const pinned = acts.filter(
       (a) => typeof a.lat === "number" && typeof a.lng === "number",
     );
+    if (hub) {
+      const far = pinned.find((a) => distanceKm(hub, { lat: a.lat!, lng: a.lng! }) > SAME_DAY_FAR_KM);
+      if (far) {
+        out.push({
+          rule: "same_day_far_pois",
+          message: `Day ${day.day}: "${far.name}" is ${Math.round(distanceKm(hub, { lat: far.lat!, lng: far.lng! }))}km from ${day.city || "the sleep city"}`,
+          dayNumbers: [day.day],
+        });
+        continue;
+      }
+    }
     for (let i = 0; i < pinned.length; i++) {
       for (let j = i + 1; j < pinned.length; j++) {
         const km = distanceKm(
@@ -593,8 +610,6 @@ export function dropSameDayFarPois(plan: AiTripPlan): number {
   let removed = 0;
   for (const day of plan.days ?? []) {
     if (!day.activities) continue;
-    const acts = dayActivities(day);
-    if (acts.some((a) => isTransportLike(a))) continue;
     const hub = { lat: day.lat, lng: day.lng };
     if (!Number.isFinite(hub.lat) || !Number.isFinite(hub.lng)) continue;
     for (const slot of ["morning", "afternoon", "evening"] as const) {
@@ -676,6 +691,33 @@ export function findImpossibleArrivals(plan: AiTripPlan): PlanViolation[] {
   ];
 }
 
+/** Sight on today's card belongs to another stay/country in the same trip. */
+export function findWrongStayActivities(plan: AiTripPlan): PlanViolation[] {
+  const stays = collectStayRefs(plan);
+  const out: PlanViolation[] = [];
+  for (const day of plan.days ?? []) {
+    const sleep = { city: day.city || day.focusName || "", lat: day.lat, lng: day.lng };
+    if (!sleep.city) continue;
+    for (const a of dayActivities(day)) {
+      if (isTransportLike(a)) continue;
+      const leak = activityLeaksStay(a.name ?? "", a.description ?? "", sleep, stays, {
+        coords:
+          typeof a.lat === "number" && typeof a.lng === "number"
+            ? { lat: a.lat, lng: a.lng }
+            : undefined,
+      });
+      if (!leak) continue;
+      out.push({
+        rule: "wrong_stay_activity",
+        message: `Day ${day.day} (${sleep.city}): "${a.name}" belongs to another stay (${leak}). Finish one country, then fly, then the next — do not mix.`,
+        dayNumbers: [day.day],
+      });
+      break;
+    }
+  }
+  return out;
+}
+
 export function validateItinerary(plan: AiTripPlan): PlanViolation[] {
   return [
     ...findDuplicateDayNumbers(plan),
@@ -689,5 +731,6 @@ export function validateItinerary(plan: AiTripPlan): PlanViolation[] {
     ...findDuplicateActivities(plan),
     ...findOverpackedDays(plan),
     ...findSameDayFarPois(plan),
+    ...findWrongStayActivities(plan),
   ];
 }

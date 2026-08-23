@@ -32,6 +32,7 @@ import {
 } from "@/lib/flightScheduling";
 import { lookupLeg } from "@/lib/curatedRoutes.legs";
 import { relabelHubDayTripOvernights } from "@/lib/stayFacts";
+import { stripCrossStayLeaks } from "@/lib/stayLeakGuard";
 
 type DaySlots = NonNullable<DayPlan["activities"]>;
 type Slot = keyof DaySlots;
@@ -1652,7 +1653,7 @@ export function applyItineraryGuards(
   scrubBangkokSightsOnIslandTransferDays(plan);
   const placeholders = stripPlaceholderActivities(plan);
   dedupeSameDayActivities(plan);
-  const wrongCity = stripWrongCityDayActivities(plan);
+  const wrongCity = stripWrongCityDayActivities(plan) + stripCrossStayLeaks(plan);
   const templateScrub = scrubForbiddenTemplateCopy(plan);
   const genericMeals = stripGenericMealActivities(plan);
   if (plan.summary && plan.days?.length) {
