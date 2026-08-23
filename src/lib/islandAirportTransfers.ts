@@ -20,6 +20,8 @@ export type IslandAirportAccessDef = {
   coastHubMatch?: RegExp;
   coastVanDuration?: string;
   coastVanPrice?: number;
+  /** No commercial runway — never invent a flight onto/off this island. */
+  coastOnly?: boolean;
 };
 
 export type { IslandAccessRoute };
@@ -79,6 +81,31 @@ const ISLAND_AIRPORT_ACCESS: IslandAirportAccessDef[] = [
     coastHubMatch: /krabi|ao nang|aonang|phuket|railay|koh lanta|\blanta\b|khao lak|\bkbv\b|\bhkt\b/i,
     coastVanDuration: "3.5h",
     coastVanPrice: 20,
+  },
+  {
+    id: "holbox",
+    matchIsland: /holbox/i,
+    airport: {
+      label: "Cancún (CUN)",
+      lat: 21.0365,
+      lng: -86.8771,
+    },
+    port: {
+      label: "Chiquilá",
+      lat: 21.428,
+      lng: -87.339,
+    },
+    island: {
+      name: "Isla Holbox",
+      lat: 21.5236,
+      lng: -87.3776,
+    },
+    ferryDuration: "20–30 min",
+    ferryPrice: 12,
+    coastHubMatch: /tulum|cancun|cancún|playa del carmen|playa|valladolid|m[eé]rida/i,
+    coastVanDuration: "2–2.5h",
+    coastVanPrice: 20,
+    coastOnly: true,
   },
 ];
 
@@ -149,8 +176,33 @@ function buildCoastalArrivalLegs(def: IslandAirportAccessDef, hubCity: string): 
   ];
 }
 
+function buildCoastalDepartureLegs(def: IslandAirportAccessDef, hubCity: string): DayTransportLeg[] {
+  return [
+    {
+      type: "ferry",
+      from: def.island.name,
+      to: def.port.label,
+      duration: def.ferryDuration ?? "20–30 min",
+      estimatedPrice: def.ferryPrice ?? 12,
+    },
+    {
+      type: "van",
+      from: def.port.label,
+      to: hubCity,
+      duration: def.coastVanDuration ?? "2–2.5h",
+      estimatedPrice: def.coastVanPrice ?? 20,
+    },
+  ];
+}
+
+function usesCoastOnlyAccess(def: IslandAirportAccessDef, hubCity: string): boolean {
+  return Boolean(def.coastOnly) || (!def.gatewayIata && islandAccessFromCoast(hubCity, def));
+}
+
 function buildArrivalLegs(def: IslandAirportAccessDef, hubCity: string): DayTransportLeg[] {
-  if (islandAccessFromCoast(hubCity, def)) return buildCoastalArrivalLegs(def, hubCity);
+  if (usesCoastOnlyAccess(def, hubCity) || islandAccessFromCoast(hubCity, def)) {
+    return buildCoastalArrivalLegs(def, hubCity);
+  }
   return [
     {
       type: "flight",
@@ -177,6 +229,9 @@ function buildArrivalLegs(def: IslandAirportAccessDef, hubCity: string): DayTran
 }
 
 function buildDepartureLegs(def: IslandAirportAccessDef, hubCity: string): DayTransportLeg[] {
+  if (usesCoastOnlyAccess(def, hubCity)) {
+    return buildCoastalDepartureLegs(def, hubCity);
+  }
   return [
     {
       type: "ferry",
@@ -203,6 +258,14 @@ function buildDepartureLegs(def: IslandAirportAccessDef, hubCity: string): DayTr
 }
 
 function arrivalTransportTip(def: IslandAirportAccessDef, lang?: string, hubCity?: string): string {
+  if (usesCoastOnlyAccess(def, hubCity ?? "")) {
+    const hub = (hubCity ?? "").trim() || "the coast";
+    return planLangCopy(lang, {
+      sl: `${def.island.name} nima letališča. S celine (${hub}) greš s kombijem/avtobusom do ${def.port.label}, nato trajekt na otok (cca ${def.ferryDuration ?? "20–30 min"}). Ni direktnega trajekta ${hub} → ${def.island.name}.`,
+      en: `${def.island.name} has no airport. From the mainland (${hub}) take a van/bus to ${def.port.label}, then the ferry (about ${def.ferryDuration ?? "20–30 min"}). There is no direct ferry ${hub} → ${def.island.name}.`,
+      de: `${def.island.name} hat keinen Flughafen. Vom Festland (${hub}) mit Van/Bus nach ${def.port.label}, dann Fähre (ca. ${def.ferryDuration ?? "20–30 Min."}). Keine direkte Fähre ${hub} → ${def.island.name}.`,
+    });
+  }
   if (def.id === "koh-lipe" && hubCity && islandAccessFromCoast(hubCity, def)) {
     return planLangCopy(lang, {
       sl: `Koh Lipe nima letališča. Z Andamanske obale (${hubCity}) greš s kombijem do ${def.port.label} (cca ${def.coastVanDuration ?? "3,5 h"}), nato speedboat/ferry na otok. Ni leta ${hubCity} → Hat Yai.`,
@@ -232,6 +295,13 @@ function arrivalTransportTip(def: IslandAirportAccessDef, lang?: string, hubCity
 
 function departureTransportTip(def: IslandAirportAccessDef, lang?: string, hubCity?: string): string {
   const hub = (hubCity ?? "").trim() || (def.id === "koh-lipe" ? "Bangkok" : "Manila");
+  if (usesCoastOnlyAccess(def, hub)) {
+    return planLangCopy(lang, {
+      sl: `Odhod z otoka: trajekt ${def.island.name} → ${def.port.label}, nato kombi/avtobus do ${hub}. Z otoka zjutraj ne gre na mednarodni let.`,
+      en: `Leaving the island: ferry ${def.island.name} → ${def.port.label}, then van/bus to ${hub}. An early international flight from the island is not feasible.`,
+      de: `Abreise: Fähre ${def.island.name} → ${def.port.label}, dann Van/Bus nach ${hub}. Ein früher internationaler Flug von der Insel ist nicht machbar.`,
+    });
+  }
   if (def.id === "koh-lipe") {
     return planLangCopy(lang, {
       sl: `Odhod z otoka: speedboat/ferry ${def.island.name} → ${def.port.label}, kombi do ${def.airport.label} (${def.gatewayIata ?? "HDY"}), nato notranji let proti ${hub}. Ni neposrednega leta z Lipe.`,
@@ -419,9 +489,11 @@ export function enrichIslandAirportTransfers(
 
     const hubCity = (day.city ?? "").trim() || (prevDef.id === "koh-lipe" ? "Bangkok" : "Manila");
     const legs = day.transportation ?? [];
-    const hasDepartureLegs =
-      legs.length >= 3 &&
-      legs.some((l) => l.type === "ferry" && prevDef.matchIsland.test(l.from));
+    const hasDepartureLegs = usesCoastOnlyAccess(prevDef, hubCity)
+      ? hasCompleteCoastalAccessLegs(legs) &&
+        legs.some((l) => l.type === "ferry" && prevDef.matchIsland.test(l.from))
+      : legs.length >= 3 &&
+        legs.some((l) => l.type === "ferry" && prevDef.matchIsland.test(l.from));
     if (!hasDepartureLegs) {
       day.transportation = buildDepartureLegs(prevDef, hubCity);
     }

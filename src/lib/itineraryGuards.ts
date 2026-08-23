@@ -852,7 +852,7 @@ export function stripPhantomArrivals(plan: AiTripPlan, arrivalDay = 1): number {
 }
 
 const POI_TYPE_FLUFF_RE =
-  /\b(vecerni|dopoldanski|popoldanski|tempelj|temple|shrine|svetisce|jingu|market|trznica|trznice|park|vrt|garden|muzej|museum|gozd|gaj|bambusov|okrozju|okrozje|cetrt|raziskovanje|odkrivanje|sprehod|obisk|ogled|potepanje|paviljon|zlati|tradicionaln\w*|lokaln\w*)\b/g;
+  /\b(vecerni|dopoldanski|popoldanski|tempelj|temple|shrine|svetisce|jingu|market|trznica|trznice|park|vrt|garden|muzej|museum|gozd|gaj|bambusov|okrozju|okrozje|cetrt|raziskovanje|odkrivanje|sprehod|obisk|ogled|potepanje|paviljon|zlati|tradicionaln\w*|lokaln\w*|sprostitev|sproscanje|relax\w*|beach|playa|plaza|rusevin\w*|ruins?)\b/g;
 
 function poiDedupeKey(name: string): string {
   return sameDayActivityCoreKey(name)
@@ -976,6 +976,64 @@ export function dropDuplicatePoisAcrossPlan(plan: AiTripPlan): number {
     }
   }
   return removed;
+}
+
+/** "Sprostitev na Playa" with no real place name — Gemini stub, not a sight. */
+function isGenericSightStub(a: Activity): boolean {
+  if (isNonPoiActivity(a)) return false;
+  const name = (a.name ?? "").trim();
+  if (!name) return true;
+  const key = poiDedupeKey(name);
+  if (key.length >= 5) return false;
+  return /sprostitev|relax|playa|beach|plaž|ruševin|ruins/i.test(name);
+}
+
+export function dropGenericSightStubs(plan: AiTripPlan): number {
+  let removed = 0;
+  for (const day of plan.days ?? []) {
+    if (!day.activities) continue;
+    for (const slot of SLOTS) {
+      const list = day.activities[slot] ?? [];
+      const next = list.filter((a) => {
+        if (!isGenericSightStub(a)) return true;
+        removed += 1;
+        return false;
+      });
+      day.activities[slot] = next;
+    }
+  }
+  return removed;
+}
+
+/** "Po ogledu ruševin se sprostite…" when the ruins were already a day — keep the new place. */
+function stripRevisitLeadIn(text: string): string {
+  const next = text
+    .replace(
+      /^(Po ogledu ruševin|Po obisku ruševin|After (?:exploring|visiting) the ruins|Nach (?:dem )?Besuch der Ruinen)\s*,?\s*/i,
+      "",
+    )
+    .trim();
+  if (!next || next === text) return text;
+  const normalized = next.replace(/^(se)\s+/i, "");
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+}
+
+export function stripRevisitLeadIns(plan: AiTripPlan): number {
+  let fixed = 0;
+  for (const day of plan.days ?? []) {
+    if (!day.activities) continue;
+    for (const slot of SLOTS) {
+      for (const a of day.activities[slot] ?? []) {
+        if (!a.description) continue;
+        const next = stripRevisitLeadIn(a.description);
+        if (next !== a.description) {
+          a.description = next;
+          fixed += 1;
+        }
+      }
+    }
+  }
+  return fixed;
 }
 
 /**
@@ -1241,7 +1299,9 @@ export function applyItineraryGuards(
   const clones = dedupeNearIdenticalConsecutiveDays(plan, {
     language: opts?.language ?? plan.contentLanguage,
   });
+  dropGenericSightStubs(plan);
   const duplicatePois = dropDuplicatePoisAcrossPlan(plan);
+  stripRevisitLeadIns(plan);
   const truncated = stripTruncatedCopyFromPlan(plan);
   stripStaleIslandTipsOnHubDeparture(plan);
   const logisticsCopy = repairIncompleteLogisticsCopy(plan);

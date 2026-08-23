@@ -166,5 +166,10 @@ describe("repairTruncatedCopy", () => {
     expect(repairTruncatedCopy("Sprehodite se po mestu Tulum.")).toBe(
       "Sprehodite se po mestu Tulum.",
     );
+    expect(
+      repairTruncatedCopy(
+        "Odpravite se na Isla Mujeres s trajektom iz Puerto Juareza. Vožnja traja",
+      ),
+    ).toMatch(/Juareza\.$/);
   });
 });

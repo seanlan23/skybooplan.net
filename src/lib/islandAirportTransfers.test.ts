@@ -137,4 +137,32 @@ describe("islandAirportTransfers", () => {
     expect(plan.days[1]!.transportation!.map((l) => l.type)).toEqual(["van", "ferry"]);
     expect(plan.days[1]!.transportation![0]!.from).toMatch(/Krabi/i);
   });
+
+  it("splits a fake Tulum→Holbox ferry into van + Chiquilá ferry", () => {
+    expect(getIslandAirportAccessDef("Isla Holbox")?.id).toBe("holbox");
+    const plan: AiTripPlan = {
+      destinationName: "Mexico",
+      destinationIata: "CUN",
+      contentLanguage: "sl",
+      days: [
+        day({ day: 10, city: "Tulum" }),
+        day({
+          day: 11,
+          city: "Isla Holbox",
+          transportation: [
+            { type: "ferry", from: "Tulum", to: "Isla Holbox", duration: "0h 30m" },
+          ],
+        }),
+      ],
+    } as AiTripPlan;
+    enrichIslandAirportTransfers(plan, { destinationIata: "CUN", language: "sl" });
+    const holbox = plan.days[1]!;
+    expect(holbox.transportation!.map((l) => l.type)).toEqual(["van", "ferry"]);
+    expect(holbox.transportation![0]!.from).toMatch(/Tulum/i);
+    expect(holbox.transportation![0]!.to).toMatch(/Chiquilá/i);
+    expect(holbox.transportation![1]!.from).toMatch(/Chiquilá/i);
+    expect(holbox.transportation![1]!.to).toMatch(/Holbox/i);
+    expect(holbox.transportationTips).toMatch(/Chiquilá/i);
+    expect(holbox.transportationTips).toMatch(/Ni direktnega trajekta/i);
+  });
 });

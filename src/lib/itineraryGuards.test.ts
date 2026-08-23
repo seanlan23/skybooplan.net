@@ -17,6 +17,8 @@ import {
   stripPlaceholderActivities,
   stripWrongCityDayActivities,
   dropDuplicatePoisAcrossPlan,
+  dropGenericSightStubs,
+  stripRevisitLeadIns,
   ensureCityChangeTransfer,
 } from "@/lib/itineraryGuards";
 import { repairTruncatedCopy } from "@/lib/textSanitize";
@@ -554,6 +556,101 @@ describe("dropDuplicatePoisAcrossPlan", () => {
     expect(dropDuplicatePoisAcrossPlan(plan)).toBe(1);
     expect(plan.days[1]!.activities!.afternoon).toEqual([]);
     expect(plan.days[1]!.activities!.morning[0]!.name).toMatch(/Plaža/);
+  });
+
+  it("drops a later Playa Delfines visit after the first beach morning", () => {
+    const plan = {
+      destinationName: "Mexico",
+      days: [
+        day({
+          day: 2,
+          city: "Cancun",
+          activities: {
+            morning: [
+              { name: "Playa Delfines (El Mirador)", type: "SIGHT", description: "Prva." },
+            ],
+            afternoon: [{ name: "Navios", type: "EAT", description: "Kosilo." }],
+            evening: [],
+          },
+        }),
+        day({
+          day: 14,
+          city: "Cancun",
+          activities: {
+            morning: [],
+            afternoon: [
+              {
+                name: "Sproščanje na plaži Delfines (Playa Delfines)",
+                type: "SIGHT",
+                description: "Spet ista plaža.",
+              },
+            ],
+            evening: [{ name: "Coco Bongo", type: "ACTIVITY", description: "Noč." }],
+          },
+        }),
+      ],
+    } as AiTripPlan;
+    expect(dropDuplicatePoisAcrossPlan(plan)).toBe(1);
+    expect(plan.days[1]!.activities!.afternoon).toEqual([]);
+    expect(plan.days[1]!.activities!.evening[0]!.name).toMatch(/Coco/);
+  });
+
+  it("drops a generic Playa stub so the named beach can stay once", () => {
+    const plan = {
+      destinationName: "Mexico",
+      days: [
+        day({
+          day: 8,
+          city: "Tulum",
+          activities: {
+            morning: [{ name: "Sprostitev na Playa", type: "SIGHT", description: "Sprostitev na Playa" }],
+            afternoon: [],
+            evening: [],
+          },
+        }),
+        day({
+          day: 9,
+          city: "Tulum",
+          activities: {
+            morning: [],
+            afternoon: [
+              { name: "Sprostitev na Playa Paraíso", type: "SIGHT", description: "Turkizno morje." },
+            ],
+            evening: [],
+          },
+        }),
+      ],
+    } as AiTripPlan;
+    expect(dropGenericSightStubs(plan)).toBe(1);
+    expect(plan.days[0]!.activities!.morning).toEqual([]);
+    expect(dropDuplicatePoisAcrossPlan(plan)).toBe(0);
+    expect(plan.days[1]!.activities!.afternoon[0]!.name).toMatch(/Paraíso|Paraiso/i);
+  });
+
+  it("strips 'after the ruins' lead-in when the ruins were already a day", () => {
+    const plan = {
+      destinationName: "Mexico",
+      days: [
+        day({
+          day: 10,
+          city: "Tulum",
+          activities: {
+            morning: [],
+            afternoon: [
+              {
+                name: "Koktajli na plažnem klubu",
+                type: "SIGHT",
+                description: "Po ogledu ruševin se sprostite v enem izmed plažnih klubov.",
+              },
+            ],
+            evening: [],
+          },
+        }),
+      ],
+    } as AiTripPlan;
+    expect(stripRevisitLeadIns(plan)).toBe(1);
+    expect(plan.days[0]!.activities!.afternoon[0]!.description).toMatch(/^Sprostite/i);
+    expect(plan.days[0]!.activities!.afternoon[0]!.description).not.toMatch(/ruševin/i);
   });
 
   it("does not empty a day that only has the repeated POI", () => {

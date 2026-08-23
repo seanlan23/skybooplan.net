@@ -21,6 +21,7 @@ describe("normalizeActivityBullets", () => {
     expect(out.length).toBeGreaterThanOrEqual(2);
     expect(out.length).toBeLessThanOrEqual(4);
     expect(out.every((b) => b.length <= 140)).toBe(true);
+    expect(out.every((b) => !/\b[A-Za-zÁÉÍÓÚÄÖÜáéíóúäöüčšž]{1,3}…$/.test(b))).toBe(true);
     // Must not remain a single unbroken paragraph.
     expect(formatActivityDescription(out)).toContain("\n");
   });

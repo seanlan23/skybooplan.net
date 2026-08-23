@@ -13,8 +13,10 @@ function clipBullet(line: string): string {
   if (t.length <= MAX_ACTIVITY_BULLET_CHARS) return t;
   const chunk = t.slice(0, MAX_ACTIVITY_BULLET_CHARS - 1).trim();
   const breakAt = Math.max(chunk.lastIndexOf(". "), chunk.lastIndexOf(", "), chunk.lastIndexOf(" "));
-  const cut = breakAt > 60 ? chunk.slice(0, breakAt).trim() : chunk;
-  return `${cut}…`;
+  const cut = (breakAt > 40 ? chunk.slice(0, breakAt) : chunk).trim();
+  // Never end on a half-word — PDF/UI used to print "Puerto Juare" / "Vožnja tr".
+  const safe = cut.replace(/\s+\S{1,12}$/u, "").trim() || cut.replace(/\s+\S+$/u, "").trim() || cut;
+  return /[.!?…]$/u.test(safe) ? safe : `${safe}…`;
 }
 
 function cleanBulletLine(line: string): string {

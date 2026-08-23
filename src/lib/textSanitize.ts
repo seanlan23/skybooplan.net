@@ -232,13 +232,17 @@ function repairTruncatedLine(line: string): string {
 
   const lastWord = t.split(/\s+/).pop() ?? "";
   const noStop = !/[.!?…]$/u.test(t);
+  const danglingVerb =
+    noStop &&
+    /\b(traja|lasts|dauert|vključuje|includes|umfasst)\s*$/i.test(t) &&
+    t.length > 24;
   // "ulicah Hol" — not "Tulum" / "Pueblo" (5+ letters, likely a real place).
   const shortCapStub =
     noStop &&
     /^[A-ZÁÉÍÓÚÄÖÜČŠŽ][a-záéíóúäöüčšž]{1,3}$/u.test(lastWord) &&
     t.length > lastWord.length + 12;
 
-  const truncated = /…\s*$/u.test(t) || /\.\.\.\s*$/.test(t) || shortCapStub;
+  const truncated = /…\s*$/u.test(t) || /\.\.\.\s*$/.test(t) || shortCapStub || danglingVerb;
 
   if (!truncated && !danglingEnd) return t;
 
