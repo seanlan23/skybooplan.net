@@ -50,8 +50,6 @@ export type AiPlannerSubmit = {
   plannerStyle?: "ai" | "catalog";
 };
 
-const BUDGET_KEYS: TripBudgetTier[] = ["budget", "standard", "premium"];
-
 const WISH_TAG_I18N: Record<TripWishTag, "ai.wish.vegetarian" | "ai.wish.accessible" | "ai.wish.carRental" | "ai.wish.noNightDrives"> = {
   "Vegetarijansko/Vegansko": "ai.wish.vegetarian",
   "Dostopno z vozičkom": "ai.wish.accessible",
@@ -72,19 +70,21 @@ export function AiPlannerPreview({
   onGenerate,
   loading,
   initialWishes,
+  initialBudget,
 }: {
   context?: AiPlannerContext | null;
   onGenerate?: (v: AiPlannerSubmit) => void;
   loading?: boolean;
   /** Pre-fill from hero conversational input */
   initialWishes?: string;
+  /** Already chosen in hero chat — do not ask again. */
+  initialBudget?: TripBudgetTier;
 } = {}) {
   const { t, lang } = useI18n();
   const [mode, setMode] = useState<"ai" | "manual">("ai");
   const [pace, setPace] = useState<"intensive" | "relaxed" | "calm">("relaxed");
   const [wishes, setWishes] = useState(initialWishes?.trim() ?? "");
   const [customPrompt] = useState("");
-  const [budget, setBudget] = useState<TripBudgetTier>("standard");
   const [wishTags, setWishTags] = useState<(typeof TRIP_WISH_TAGS)[number][]>([]);
   const [selectedInterests, setSelectedInterests] = useState<PlannerInterestKey[]>([]);
   const [pickedIds, setPickedIds] = useState<string[]>([]);
@@ -124,15 +124,7 @@ export function AiPlannerPreview({
     { key: "calm" as const, label: t("ai.paceCalm") },
   ];
 
-  const budgetOptions = useMemo(
-    () =>
-      BUDGET_KEYS.map((key) => ({
-        key,
-        label: t(`ai.budget.${key}` as never),
-        hint: t(`ai.budget.${key}Hint` as never),
-      })),
-    [lang, t],
-  );
+  const budget = initialBudget ?? "standard";
 
   const hasContext = !!context;
   const interestsOk = selectedInterests.length >= MIN_PLANNER_INTERESTS;
@@ -300,35 +292,6 @@ export function AiPlannerPreview({
                 {t("ai.interestsHint").replace("{min}", String(MIN_PLANNER_INTERESTS))} (
                 {selectedInterests.length}/{MIN_PLANNER_INTERESTS}).
               </p>
-            </div>
-
-            <div>
-              <label className="text-sm font-semibold text-foreground">{t("ai.budget")}</label>
-              <div className="mt-3 grid grid-cols-3 gap-2">
-                {budgetOptions.map((b) => (
-                  <button
-                    key={b.key}
-                    type="button"
-                    onClick={() => setBudget(b.key)}
-                    className={cn(
-                      "rounded-xl border px-3 py-2.5 text-left transition-colors",
-                      budget === b.key
-                        ? "bg-brand text-brand-foreground border-brand shadow-sm"
-                        : "bg-card text-foreground border-border hover:border-brand/40",
-                    )}
-                  >
-                    <div className="text-sm font-semibold">{b.label}</div>
-                    <div
-                      className={cn(
-                        "text-xs mt-0.5",
-                        budget === b.key ? "text-brand-foreground/80" : "text-muted-foreground",
-                      )}
-                    >
-                      {b.hint}
-                    </div>
-                  </button>
-                ))}
-              </div>
             </div>
 
             <div>

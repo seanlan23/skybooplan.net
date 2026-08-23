@@ -325,6 +325,7 @@ function Landing() {
   const [aiExpandingFull, setAiExpandingFull] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [heroDreamPrompt, setHeroDreamPrompt] = useState("");
+  const [heroPlannerBudget, setHeroPlannerBudget] = useState<AiPlannerSubmit["budget"]>("standard");
   const [heroChatSeed, setHeroChatSeed] = useState<string | null>(null);
   const [heroFlights, setHeroFlights] = useState<MakeSearchFlight[]>([]);
   const [heroStaySearch, setHeroStaySearch] = useState<HeroStaySearchParams | null>(null);
@@ -440,6 +441,7 @@ function Landing() {
     setError(null);
     setShowSpotlight(false);
     setHeroDreamPrompt("");
+    setHeroPlannerBudget("standard");
     setHeroChatSeed(null);
     setHeroPlannerActive(false);
     setHeroSearchAttempted(false);
@@ -693,6 +695,7 @@ function Landing() {
     // so AiPlannerPreview / Gemini actually receive location preferences.
     const { form: plannerFormFromChat } = heroChatToPlannerPayload(collected, lang);
     setHeroDreamPrompt(plannerFormFromChat.wishes?.trim() || trimmed);
+    setHeroPlannerBudget(plannerFormFromChat.budget ?? "standard");
 
     // Avtodom: start → end → dates → people → AI road-trip plan + Mapbox.
     if (mode === "motorhome") {
@@ -1945,6 +1948,7 @@ function Landing() {
             setHeroSkyChatComplete(false);
             setHeroPlannerActive(false);
             setHeroDreamPrompt("");
+            setHeroPlannerBudget("standard");
             setHeroChatSeed(null);
           }}
         />
@@ -1955,6 +1959,7 @@ function Landing() {
           <AiPlannerPreview
             context={aiContext}
             initialWishes={heroDreamPrompt}
+            initialBudget={heroPlannerBudget}
             onGenerate={(f) =>
               handleGeneratePlan(f, undefined, plannerMode, "hero-trip-plan")
             }
