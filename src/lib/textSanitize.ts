@@ -220,7 +220,7 @@ function repairTruncatedLine(line: string): string {
   if (
     bareWords.length <= 2 &&
     t.replace(/[.!?…]+$/u, "").length <= 28 &&
-    /^(obiščite|obiscite|visit|besuche?n|odpravite|raziščite|raziscite)\b/i.test(t) &&
+    /^(obiščite|obiscite|obisk|visit|besuche?n|odpravite|raziščite|raziscite)\b/i.test(t) &&
     !lastIsPlace
   ) {
     return "";
@@ -425,8 +425,10 @@ export function stripTruncatedCopyFromPlan(plan: {
           if (a.name && a.name.trim().length <= 2) {
             a.name = "";
             fixed += 1;
-          } else if (a.name && place) {
-            const named = completeTruncatedPlaceName(a.name, place);
+          } else if (a.name) {
+            let named = repairTruncatedCopy(a.name);
+            if (place) named = completeTruncatedPlaceName(named, place);
+            named = completeTruncatedHeadline(named);
             if (named !== a.name) {
               a.name = named;
               fixed += 1;

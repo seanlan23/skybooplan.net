@@ -3,6 +3,7 @@ import type { AiTripPlan, DayPlan } from "@/lib/aiPlan.functions";
 import {
   alignTransportationDurationWithTips,
   applyItineraryGuards,
+  stripPrematureDestinationProgram,
   relocateClosedEveningSights,
   dedupeLastDayReturnFlights,
   dedupeNearIdenticalConsecutiveDays,
@@ -1301,6 +1302,107 @@ describe("FRA→EZE failure classes", () => {
     );
     expect(returns).toHaveLength(1);
     expect(returns[0]!.description).toMatch(/22:30/);
+  });
+
+  it("drops destination breakfast and sights before an afternoon inbound flight", () => {
+    const plan = {
+      destinationName: "Thailand",
+      days: [
+        day({
+          day: 10,
+          city: "Krabi",
+          activities: {
+            morning: [
+              {
+                name: "Zajtrk v Ao Nang",
+                type: "EAT",
+                description: "Zajtrk pred izletom na Phi Phi.",
+              },
+              {
+                name: "Celodnevni izlet na Phi Phi",
+                type: "SIGHT",
+                description: "Otoki pred prihodom.",
+              },
+            ],
+            afternoon: [
+              {
+                name: "Let Chiang Mai → Krabi",
+                type: "TRANSPORT",
+                transportType: "flight",
+                description: "Domači let CNX–KBV.",
+              },
+            ],
+            evening: [],
+          },
+        }),
+      ],
+    } as AiTripPlan;
+    expect(stripPrematureDestinationProgram(plan)).toBe(2);
+    expect(plan.days[0]!.activities!.morning).toEqual([]);
+    expect(plan.days[0]!.activities!.afternoon).toHaveLength(1);
+  });
+
+  it("drops island breakfast when the morning is still the inbound boat", () => {
+    const plan = {
+      destinationName: "Thailand",
+      days: [
+        day({
+          day: 13,
+          city: "Koh Lipe",
+          activities: {
+            morning: [
+              {
+                name: "Zajtrk na otoku / Počasen zajtrk v beach baru",
+                type: "EAT",
+                description: "Zajtrk pred plažo.",
+              },
+              {
+                name: "Prevoz iz Krabija do Pak Bara",
+                type: "TRANSPORT",
+                description: "Kombi in čoln na Koh Lipe.",
+              },
+            ],
+            afternoon: [],
+            evening: [],
+          },
+        }),
+      ],
+    } as AiTripPlan;
+    expect(stripPrematureDestinationProgram(plan)).toBe(1);
+    const names = (plan.days[0]!.activities!.morning ?? []).map((a) => a.name).join(" ");
+    expect(names).not.toMatch(/zajtrk/i);
+    expect(names).toMatch(/Pak Bara/i);
+  });
+
+  it("keeps a mid-stay morning program when afternoon is only a local van", () => {
+    const plan = {
+      destinationName: "Thailand",
+      days: [
+        day({
+          day: 8,
+          city: "Chiang Mai",
+          activities: {
+            morning: [
+              {
+                name: "Wat Phra Singh",
+                type: "SIGHT",
+                description: "Tempelj v starem mestu.",
+              },
+            ],
+            afternoon: [
+              {
+                name: "Kombi iz hotela do templja",
+                type: "TRANSPORT",
+                description: "Kratek lokalni prevoz.",
+              },
+            ],
+            evening: [],
+          },
+        }),
+      ],
+    } as AiTripPlan;
+    expect(stripPrematureDestinationProgram(plan)).toBe(0);
+    expect(plan.days[0]!.activities!.morning[0]!.name).toMatch(/Wat Phra Singh/i);
   });
 
   it("repairs DE dangling sentence ends without ellipsis", () => {

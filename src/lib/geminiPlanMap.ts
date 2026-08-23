@@ -939,6 +939,11 @@ export function enrichGeminiCatalogPlan(
       const dayLabelText = [day.title, day.focusName, day.category]
         .filter(Boolean)
         .join(" ");
+      const prevCity = i > 0 ? (plan.days[i - 1]?.city ?? "").trim() : "";
+      const travelBlob = `${JSON.stringify(day.activities ?? {})} ${JSON.stringify(day.transportation ?? [])}`;
+      const inboundTravelDay =
+        Boolean(prevCity && prevCity.toLowerCase() !== city.trim().toLowerCase()) &&
+        /let |flight|trajekt|ferry|prevoz|transfer|kombi|van/i.test(travelBlob);
       let enriched = enrichDayActivities(
         {
           morning: [...day.activities.morning],
@@ -960,6 +965,7 @@ export function enrichGeminiCatalogPlan(
           motorhome,
           paceLabel: plan.travelPace,
           dayLabelText,
+          inboundTravelDay,
         },
       );
       // Chatuchak / weekend markets — same gate as skeleton path.

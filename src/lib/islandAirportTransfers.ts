@@ -542,6 +542,7 @@ export function enrichIslandAirportTransfers(
     if (!prevDef || isIslandCity(day.city ?? "", prevDef)) continue;
 
     const hubCity = (day.city ?? "").trim() || (prevDef.id === "koh-lipe" ? "Bangkok" : "Manila");
+    if (previousDayAlreadyReachedHub(prev, hubCity)) continue;
     const legs = day.transportation ?? [];
     const hasDepartureLegs = usesCoastOnlyAccess(prevDef, hubCity)
       ? hasCompleteCoastalAccessLegs(legs, prevDef) &&
@@ -553,5 +554,68 @@ export function enrichIslandAirportTransfers(
     day.islandAccessRoute = { defId: prevDef.id, direction: "departure" };
     day.transportationTips = departureTransportTip(prevDef, lang, hubCity);
     rewriteKohLipeAccessActivities(day, prevDef, "departure", hubCity, lang);
+  }
+
+  stripStaleIslandDepartureOnHubDays(days);
+}
+
+function previousDayAlreadyReachedHub(prev: DayPlan, hubCity: string): boolean {
+  if (!hubCity.trim()) return false;
+  const hubRe = new RegExp(hubCity.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+  const blob = `${prev.title ?? ""} ${JSON.stringify(prev.activities ?? {})}`;
+  if (!hubRe.test(blob) && !hubRe.test(prev.city ?? "")) return false;
+  return /prihod|check-?in|namestit|večerja|dinner|hotel/i.test(blob);
+}
+
+function stripStaleIslandDepartureOnHubDays(days: DayPlan[]): void {
+  for (let i = 1; i < days.length; i++) {
+    const day = days[i]!;
+    const prev = days[i - 1]!;
+    const hubCity = (day.city ?? "").trim();
+    if (!hubCity || getIslandAirportAccessDef(hubCity)) continue;
+    const prevStillOnIsland =
+      Boolean(getIslandAirportAccessDef(prev.city ?? "")) &&
+      !previousDayAlreadyReachedHub(prev, hubCity);
+    if (prevStillOnIsland) continue;
+
+    const legs = day.transportation ?? [];
+    const nextLegs = legs.filter((l) => {
+      const blob = `${l.from} ${l.to}`;
+      return !ISLAND_AIRPORT_ACCESS.some(
+        (def) =>
+          def.matchIsland.test(l.from) ||
+          mentionsPort(l.from, def) ||
+          mentionsPort(l.to, def),
+      ) && !/pak bara|hat yai|\bhdy\b|chiquilá|chiquila|caticlan/i.test(blob);
+    });
+    if (nextLegs.length !== legs.length) {
+      day.transportation = nextLegs.length ? nextLegs : undefined;
+    }
+    if (day.islandAccessRoute?.direction === "departure") {
+      day.islandAccessRoute = undefined;
+    }
+    if (
+      day.transportationTips &&
+      ISLAND_AIRPORT_ACCESS.some(
+        (def) =>
+          def.matchIsland.test(day.transportationTips!) ||
+          day.transportationTips!.includes(def.port.label) ||
+          /pak bara|hat yai|chiquilá|chiquila|caticlan/i.test(day.transportationTips!),
+      )
+    ) {
+      day.transportationTips = "";
+    }
+    if (!day.activities) continue;
+    for (const slot of SLOTS) {
+      day.activities[slot] = (day.activities[slot] ?? []).filter((a) => {
+        const blob = `${a.name ?? ""} ${a.description ?? ""}`;
+        const islandExit = ISLAND_AIRPORT_ACCESS.some(
+          (def) =>
+            (def.matchIsland.test(blob) || mentionsPort(blob, def)) &&
+            /trajekt|ferry|speedboat|pak bara|hat yai|kombi|van|let |flight/i.test(blob),
+        );
+        return !islandExit;
+      });
+    }
   }
 }

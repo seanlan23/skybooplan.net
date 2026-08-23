@@ -95,11 +95,20 @@ export function shouldInjectBangkokKwaiDayTrip(opts: {
   isDepartureDay?: boolean;
   /** Island → hub travel day (boat + van + flight). Never a 6:30 Kwai start. */
   isTransferDay?: boolean;
+  /** Last calendar day, or the day before an international departure. */
+  isLateTripDay?: boolean;
   /** Day title / highlight names — force overwrite when Gemini labeled Kwai but left city fillers. */
   dayLabelText?: string;
   currentSlots?: DaySlots;
 }): boolean {
-  if (opts.isArrivalDay || opts.isDepartureDay || opts.isTransferDay) return false;
+  if (
+    opts.isArrivalDay ||
+    opts.isDepartureDay ||
+    opts.isTransferDay ||
+    opts.isLateTripDay
+  ) {
+    return false;
+  }
 
   const labeledKwai = KWAI_DAY_CUE_RE.test(opts.dayLabelText ?? "");
   const slotsKwai = opts.currentSlots
@@ -210,6 +219,7 @@ export function ensureBangkokKwaiDayTrip(
     isDepartureDay?: boolean;
     dayLabelText?: string;
     isTransferDay?: boolean;
+    isLateTripDay?: boolean;
   },
 ): DaySlots {
   if (
@@ -287,6 +297,18 @@ function isIslandHubReturnDay<T extends PlanDayLike>(
   );
 }
 
+function previousDayAlreadyAtHub<T extends PlanDayLike>(prev: T | undefined, hubCity: string): boolean {
+  if (!prev || !hubCity.trim()) return false;
+  if (new RegExp(hubCity.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i").test(prev.city ?? "")) {
+    return true;
+  }
+  const blob = `${prev.title ?? ""} ${JSON.stringify(prev.activities ?? {})}`;
+  if (!new RegExp(hubCity.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i").test(blob)) {
+    return false;
+  }
+  return /prihod|check-?in|namestit|večerja|dinner|hotel/i.test(blob);
+}
+
 function keepNonKwaiSlots(slots: DaySlots): DaySlots {
   const keep = (list: Activity[]) =>
     list.filter((a) => {
@@ -325,14 +347,26 @@ export function applyBangkokKwaiDayTripToPlan<T extends PlanDayLike>(
       .filter(Boolean)
       .join(" ");
     const prevCity = String(days[i - 1]?.city ?? "");
-    const isTransferDay = isIslandHubReturnDay(day, prevCity);
-    if (isTransferDay) {
+    const arrivedYesterday = previousDayAlreadyAtHub(days[i - 1], day.city ?? "Bangkok");
+    const isTransferDay = isIslandHubReturnDay(day, prevCity) && !arrivedYesterday;
+    const next = days[i + 1];
+    const isLateTripDay =
+      i === days.length - 1 ||
+      Boolean(next?.inFlightDay) ||
+      /odhod|mednarodni (povratni )?let|international (return )?flight|abflug|partenza|salida desde/i.test(
+        `${next?.title ?? ""} ${next?.focusName ?? ""}`,
+      );
+    if (isTransferDay || isLateTripDay) {
       const cleaned = keepNonKwaiSlots(slots);
       prior += ` ${dayLabelText}`;
       const title = KWAI_DAY_CUE_RE.test(day.title ?? "")
         ? locale.slo
-          ? "Prevoz v Bangkok"
-          : "Transfer to Bangkok"
+          ? isTransferDay
+            ? "Prevoz v Bangkok"
+            : "Bangkok"
+          : isTransferDay
+            ? "Transfer to Bangkok"
+            : "Bangkok"
         : day.title;
       return { ...day, activities: cleaned, title };
     }
@@ -342,8 +376,9 @@ export function applyBangkokKwaiDayTripToPlan<T extends PlanDayLike>(
       priorScheduledText: prior,
       dayLabelText,
       isArrivalDay: day.day === 1,
-      isDepartureDay: Boolean(day.inFlightDay),
+      isDepartureDay: Boolean(day.inFlightDay) || i === days.length - 1,
       isTransferDay,
+      isLateTripDay,
     });
     const blob = [...fixed.morning, ...fixed.afternoon, ...fixed.evening]
       .map((a) => `${a.name} ${a.description ?? ""}`)

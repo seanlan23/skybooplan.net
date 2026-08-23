@@ -221,4 +221,56 @@ describe("islandAirportTransfers", () => {
     expect(mex.transportationTips).toMatch(/Cancún|CUN/i);
     expect(mex.transportationTips).not.toMatch(/kombi\/avtobus do Mexico City/i);
   });
+
+  it("drops a leftover Lipe→Bangkok badge after the previous evening already arrived", () => {
+    const plan: AiTripPlan = {
+      destinationName: "Thailand",
+      destinationIata: "BKK",
+      contentLanguage: "sl",
+      days: [
+        day({
+          day: 14,
+          city: "Bangkok",
+          title: "Prihod v Bangkok",
+          activities: {
+            morning: [],
+            afternoon: [],
+            evening: [
+              {
+                name: "Večerja: Baan Phadthai",
+                type: "EAT",
+                description: "Prihod v Bangkok in večerja.",
+              },
+            ],
+          },
+        }),
+        day({
+          day: 15,
+          city: "Bangkok",
+          transportation: [
+            { type: "ferry", from: "Koh Lipe", to: "Pak Bara Pier" },
+            { type: "van", from: "Pak Bara Pier", to: "Hat Yai (HDY)" },
+            { type: "flight", from: "Hat Yai (HDY)", to: "Bangkok" },
+          ],
+          transportationTips: "Odhod z otoka: speedboat/ferry Koh Lipe → Pak Bara.",
+          activities: {
+            morning: [
+              {
+                name: "Let Koh Lipe → Bangkok prek Pak Bara",
+                type: "TRANSPORT",
+                description: "Trajekt, kombi in let.",
+              },
+            ],
+            afternoon: [],
+            evening: [],
+          },
+        }),
+      ],
+    } as AiTripPlan;
+    enrichIslandAirportTransfers(plan, { destinationIata: "BKK", language: "sl" });
+    const next = plan.days[1]!;
+    expect(next.transportation ?? []).toHaveLength(0);
+    expect(next.transportationTips ?? "").not.toMatch(/Pak Bara|Koh Lipe/i);
+    expect(JSON.stringify(next.activities)).not.toMatch(/Pak Bara|Koh Lipe/i);
+  });
 });

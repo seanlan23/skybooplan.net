@@ -1240,10 +1240,68 @@ function formatHoursDuration(hours: number): string {
   return `${whole}h ${mins}min`;
 }
 
+function isAirportOrCheckout(a: Activity): boolean {
+  return /check-?out|check-?in|letališč|airport|odhod iz hotela/i.test(
+    `${a.name ?? ""} ${a.description ?? ""}`,
+  );
+}
+
+function isDestinationStayFiller(a: Activity): boolean {
+  if (isMoveActivity(a) || isAirportOrCheckout(a)) return false;
+  return /zajtrk|breakfast|frühstück|siesta|beach bar|počasen zajtrk/i.test(
+    `${a.name ?? ""} ${a.description ?? ""}`,
+  );
+}
+
+/** Flight / ferry / train — not a local Grab or hotel-to-temple van. */
+function isCityChangeTravel(a: Activity): boolean {
+  const t = `${a.name ?? ""} ${a.description ?? ""}`;
+  if (a.transportType === "flight") return true;
+  if (
+    (a.type === "TRANSPORT" || isMoveActivity(a)) &&
+    /\b(let|flight|trajekt|ferry|speedboat|vlak|train|shinkansen)\b/i.test(t)
+  ) {
+    return true;
+  }
+  return (a.type === "TRANSPORT" || Boolean(a.transportType)) && /→|->/.test(t);
+}
+
+/**
+ * Breakfast / beach program in the destination city before the inbound flight/van
+ * has happened (Ao Nang breakfast + afternoon CNX→KBV, Lipe breakfast + morning boat).
+ */
+export function stripPrematureDestinationProgram(plan: AiTripPlan): number {
+  let removed = 0;
+  for (const day of plan.days ?? []) {
+    if (!day.activities) continue;
+    const morning = day.activities.morning ?? [];
+    const afternoon = day.activities.afternoon ?? [];
+    const morningMove = morning.some((a) => isMoveActivity(a));
+    const afternoonInbound = afternoon.some((a) => isCityChangeTravel(a));
+    if (!morningMove && !afternoonInbound) continue;
+
+    if (afternoonInbound) {
+      const kept = morning.filter((a) => isMoveActivity(a) || isAirportOrCheckout(a));
+      if (kept.length !== morning.length) {
+        removed += morning.length - kept.length;
+        day.activities.morning = kept;
+      }
+      continue;
+    }
+    const kept = morning.filter((a) => !isDestinationStayFiller(a));
+    if (kept.length !== morning.length) {
+      removed += morning.length - kept.length;
+      day.activities.morning = kept;
+    }
+  }
+  return removed;
+}
+
 /**
  * Last night is already at the ticket hub — island golf-cart / ferry-to-airport
  * tips left on the departure day are leftovers from the previous stay.
  */
+
 function stripStaleIslandTipsOnHubDeparture(plan: AiTripPlan): number {
   const days = plan.days ?? [];
   if (days.length < 1) return 0;
@@ -1395,6 +1453,7 @@ export function applyItineraryGuards(
     destinationIata: plan.destinationIata,
     language: opts?.language ?? plan.contentLanguage,
   });
+  stripPrematureDestinationProgram(plan);
   scrubImpossibleIslandDayTrips(plan, opts?.language ?? plan.contentLanguage);
   scrubBangkokSightsOnIslandTransferDays(plan);
   const placeholders = stripPlaceholderActivities(plan);

@@ -90,6 +90,67 @@ describe("bangkokKwaiDayTrip", () => {
     expect(day15.transportation).toHaveLength(3);
   });
 
+  it("does not put Kwai on the Bangkok day before an early international flight", () => {
+    const out = applyBangkokKwaiDayTripToPlan(
+      [
+        {
+          day: 14,
+          city: "Bangkok",
+          title: "Prihod v Bangkok",
+          activities: {
+            morning: [],
+            afternoon: [],
+            evening: [
+              {
+                name: "Večerja: Baan Phadthai",
+                type: "EAT",
+                description: "Pad thai.",
+              },
+            ],
+          },
+        },
+        {
+          day: 15,
+          city: "Bangkok",
+          title: "Celodnevni izlet: Mae Klong → Damnoen → River Kwai → Death Railway (6:30–21:00)",
+          transportation: [
+            { type: "ferry", from: "Koh Lipe", to: "Pak Bara Pier" },
+            { type: "van", from: "Pak Bara Pier", to: "Hat Yai (HDY)" },
+            { type: "flight", from: "Hat Yai (HDY)", to: "Bangkok" },
+          ],
+          activities: {
+            morning: [
+              {
+                name: "Celodnevni izlet 6:30–21:00 — odhod iz hotela → Mae Klong",
+                type: "ACTIVITY",
+                description: "TA DAN JE SAMO TA IZLET",
+              },
+            ],
+            afternoon: [
+              {
+                name: "Kanchanaburi War Cemetery + most na reki Kwai",
+                type: "SIGHT",
+                description: "Nato naprej proti Sai Yok.",
+              },
+            ],
+            evening: [],
+          },
+        },
+        {
+          day: 16,
+          city: "Bangkok",
+          title: "Odhod iz Bangkok / mednarodni let",
+          inFlightDay: true,
+          activities: { morning: [], afternoon: [], evening: [] },
+        },
+      ],
+      locale,
+    );
+    const day15 = out[1]!;
+    expect(day15.title).not.toMatch(/Kwai|Mae Klong/i);
+    expect(JSON.stringify(day15.activities)).not.toMatch(/Mae Klong|Kwai|Sai Yok/i);
+  });
+
   it("injects on Bangkok day 3 when stay ≥ 3", () => {
     expect(
       shouldInjectBangkokKwaiDayTrip({

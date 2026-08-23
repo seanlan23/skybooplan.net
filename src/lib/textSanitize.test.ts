@@ -193,6 +193,8 @@ describe("repairTruncatedCopy", () => {
       completeTruncatedPlaceName("Povratek iz Wae Reba v Labuan.", "Labuan Bajo"),
     ).toBe("Povratek iz Wae Reba v Labuan Bajo.");
     expect(repairTruncatedCopy("Obiščite starodavno.")).toBe("");
+    expect(repairTruncatedCopy("Obisk trž")).toBe("");
+    expect(repairTruncatedCopy("Tečaj tajske kuhinje (")).toBe("Tečaj tajske kuhinje");
     expect(repairTruncatedCopy("Odp")).toBe("");
     expect(
       repairTruncatedCopy(
@@ -264,5 +266,27 @@ describe("repairTruncatedCopy", () => {
     expect(plan.days[0]!.activities!.morning[0]!.description).toBe("");
     expect(plan.days[0]!.activities!.morning[1]!.description).toBe("");
     expect(plan.days[0]!.activities!.morning[0]!.name).toMatch(/Teotihuacán/);
+  });
+
+  it("drops a cut market stub and closes an unclosed cooking-class name", () => {
+    const plan = {
+      days: [
+        {
+          day: 8,
+          city: "Chiang Mai",
+          title: "Chiang Mai",
+          activities: {
+            morning: [{ name: "Obisk trž", description: "Obisk trž" }],
+            afternoon: [],
+            evening: [
+              { name: "Tečaj tajske kuhinje (", description: "Večerni tečaj." },
+            ],
+          },
+        },
+      ],
+    };
+    expect(stripTruncatedCopyFromPlan(plan)).toBeGreaterThan(0);
+    expect(plan.days[0]!.activities!.morning).toEqual([]);
+    expect(plan.days[0]!.activities!.evening[0]!.name).toBe("Tečaj tajske kuhinje");
   });
 });
