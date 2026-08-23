@@ -6,7 +6,7 @@
 const POINTS_SL = [
   "Najprej baze, potem dnevi. Zakleni mesta + nočitve + prevoze; šele nato dopoldan/popoldan/večer.",
   "Število baz raste z dnevi, ne dolžina ene plaže. ~2–4 noči na bazo; 1 noč samo za čisti transfer. Če ostane ≥3 noči presežka, dodaj NOVO bazo na isti smeri — ne 5. dan v istem letovišču.",
-  "Enosmerni lok po zemljevidu. Ena dolga os, potem lahko drugi konec, nato hub. PREPOVEDANO vrniti se z notranjim letom ali težkim trajektom v zapuščeno regijo (jug→sever→spet jug, vzhod→zahod→spet vzhod, ali obala→drug otok→spet ista obala). En premik med dvema bazama — naslednji dan je samo lokalno, brez ponovljenega prihodnega leta.",
+  "Enosmerni lok po zemljevidu. Ena dolga os, potem lahko drugi konec, nato hub. PREPOVEDANO vrniti se z notranjim letom ali težkim trajektom v zapuščeno regijo (jug→sever→spet jug, vzhod→zahod→spet vzhod, ali obala→drug otok→spet ista obala). En premik med dvema bazama — naslednji dan je samo nova baza: brez naslova stare regije in brez ponovljenega A→B. Zadnji koledarski dan = mesto mednarodnega IATA leta, ne oddaljen park brez piste.",
   "Težek premik (≥5–6 h vrata–vrata: čoln+kombi+let) poje dan: ni templja ob 09:00 in ni celodnevnega izleta.",
   "Dolg dostop = dovolj noči ali izpusti. Kraj, do katerega rabiš pol dneva, dobi ≥4 noči — ali ga ni.",
   "Aktivnosti so od mesta, kjer spiš. POI ∈ baza — samo območje te baze, ne drug kraj istega otoka ali države. Ne parkirati znamenitosti naslednje baze na današnji dan.",
@@ -20,7 +20,7 @@ const POINTS_SL = [
 const POINTS_EN = [
   "Bases first, then days. Lock cities + night counts + transfers; only then fill morning/afternoon/evening.",
   "The number of bases grows with trip length, not one beach town. ~2–4 nights per base; 1 night only for a pure transfer. If ≥3 surplus nights remain, add a NEW base on the same heading — not a 5th night in the same resort.",
-  "One-way arc on the map. One long axis, then the other end if needed, then hub. FORBIDDEN to fly or take a heavy ferry back into an abandoned region (south→north→south again, east→west→east, or coast→another island→same coast). One transfer between two bases — the next day is local only, no replayed arrival flight.",
+  "One-way arc on the map. One long axis, then the other end if needed, then hub. FORBIDDEN to fly or take a heavy ferry back into an abandoned region (south→north→south again, east→west→east, or coast→another island→same coast). One transfer between two bases — the next day is only the new base: no leftover title of region A and no replayed A→B. Last calendar day = the international IATA city, not a remote park without a runway.",
   "A heavy move (≥5–6h door-to-door: boat+van+flight) consumes the day: no 09:00 temple and no full-day excursion.",
   "Long access = enough nights or skip. A place that takes half a day to reach gets ≥4 nights — or it is not on the trip.",
   "Activities belong to the city you sleep in. POI ∈ that base's area — not another town on the same island or country. Do not park the next base's sights on today's card.",

@@ -289,7 +289,7 @@ describe("applyItineraryGuards Philippines hop", () => {
           morning: [
             { name: "Notranji let Manila → El Nido", type: "TRANSPORT", description: "Drugič." },
           ],
-          afternoon: [{ name: "Tour A", type: "SIGHT", description: "Lagune." }],
+          afternoon: [{ name: "El Nido Tour A", type: "SIGHT", description: "Big Lagoon in Small Lagoon." }],
           evening: [],
         },
       }),

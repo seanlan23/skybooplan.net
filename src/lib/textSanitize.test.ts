@@ -227,6 +227,15 @@ describe("repairTruncatedCopy", () => {
       "Odhod iz Mexico City / mednarodni let",
     );
     expect(repairTruncatedCopy("Po vrnitvi v let")).toBe("");
+    expect(repairTruncatedCopy("Sprehod po starem mestnem jedru in ogled palače...")).not.toMatch(
+      /\.\.\.|…/,
+    );
+    expect(repairTruncatedCopy("Sprehod po starem mestnem jedru in ogled palače...")).toMatch(
+      /jedru|palače\.$/,
+    );
+    expect(
+      repairTruncatedCopy("Po kosilu se sprehodite do tržnice in poskusite lokaln"),
+    ).not.toMatch(/lokaln\s*$/);
     expect(repairTruncatedCopy("Večerja v restavraciji in prefinjenem ambient")).toBe(
       "Večerja v restavraciji.",
     );

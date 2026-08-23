@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AiTripPlan, DayPlan } from "@/lib/aiPlan.functions";
-import { stripCrossStayLeaks } from "@/lib/stayLeakGuard";
+import { activityMismatchesSleepCity, stripCrossStayLeaks } from "@/lib/stayLeakGuard";
 import { inferBudgetCountryFromPlace } from "@/lib/countryDailyBudget";
 
 const KASANE = { lat: -17.8, lng: 25.15 };
@@ -103,6 +103,61 @@ describe("stripCrossStayLeaks", () => {
     expect(p.days[0]!.activities!.morning).toHaveLength(1);
     expect(p.days[0]!.activities!.afternoon).toEqual([]);
     expect(p.days[1]!.activities!.morning).toHaveLength(1);
+  });
+});
+
+describe("activityMismatchesSleepCity", () => {
+  it("drops inland safari copy on an island sleep day", () => {
+    expect(
+      activityMismatchesSleepCity(
+        "Safari v savani",
+        "Jutranji game drive v narodnem parku.",
+        "Mafia Island",
+      ),
+    ).toBe(true);
+    expect(
+      activityMismatchesSleepCity("Šnorklanje na grebenu", "Plavanje med koralami.", "Mafia Island"),
+    ).toBe(false);
+    expect(
+      activityMismatchesSleepCity("Safari v savani", "Jutranji game drive.", "Mikumi"),
+    ).toBe(false);
+  });
+
+  it("strips savannah safari from an island-titled day", () => {
+    const p = plan([
+      day({
+        day: 4,
+        city: "Mafia Island",
+        title: "Mafia Island",
+        lat: -7.81,
+        lng: 39.83,
+        activities: {
+          morning: [
+            { name: "Safari v savani", type: "SIGHT", description: "Game drive v narodnem parku." },
+          ],
+          afternoon: [
+            { name: "Šnorklanje na grebenu", type: "ACTIVITY", description: "Koralni greben ob otoku." },
+          ],
+          evening: [],
+        },
+      }),
+      day({
+        day: 5,
+        city: "Mikumi",
+        title: "Mikumi",
+        lat: -7.404,
+        lng: 37.0,
+        activities: {
+          morning: [{ name: "Safari v savani", type: "SIGHT", description: "Game drive." }],
+          afternoon: [],
+          evening: [],
+        },
+      }),
+    ]);
+    expect(stripCrossStayLeaks(p)).toBeGreaterThan(0);
+    expect(p.days[0]!.activities!.morning).toEqual([]);
+    expect(p.days[0]!.activities!.afternoon.map((a) => a.name)).toEqual(["Šnorklanje na grebenu"]);
+    expect(p.days[1]!.activities!.morning.map((a) => a.name)).toEqual(["Safari v savani"]);
   });
 });
 

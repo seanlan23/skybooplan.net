@@ -24,6 +24,8 @@ import {
   stripReplayedIntercityHops,
   stripImplausibleLongHaulProgram,
   isHollowProgramTitle,
+  lockOneWayRegionTransition,
+  snapDepartureDayToTicketHub,
 } from "@/lib/itineraryGuards";
 import { repairTruncatedCopy } from "@/lib/textSanitize";
 
@@ -1740,5 +1742,185 @@ describe("FRA→EZE failure classes", () => {
         "Nutzen Sie den Vormittag für einen Museumsbesuch, das Ihnen besonders.",
       ),
     ).not.toMatch(/besonders/i);
+  });
+});
+
+const MAFIA = { lat: -7.81, lng: 39.83 };
+const MIKUMI = { lat: -7.404, lng: 37.0 };
+
+describe("lockOneWayRegionTransition", () => {
+  it("relabels the next day after A→B and strips the replayed hop", () => {
+    const plan = {
+      destinationName: "Tanzania",
+      destinationIata: "DAR",
+      contentLanguage: "sl" as const,
+      days: [
+        day({
+          day: 6,
+          city: "Mafia Island",
+          title: "Mafia Island",
+          ...MAFIA,
+          activities: {
+            morning: [
+              {
+                name: "Let Mafia Island → Mikumi",
+                type: "TRANSPORT",
+                transportType: "flight",
+                description: "Premik iz Mafia Island v Mikumi.",
+              },
+            ],
+            afternoon: [],
+            evening: [],
+          },
+        }),
+        day({
+          day: 7,
+          city: "Mafia Island",
+          title: "Mafia Island",
+          focusName: "Mafia Island",
+          ...MAFIA,
+          activities: {
+            morning: [
+              {
+                name: "Let Mafia Island → Mikumi",
+                type: "TRANSPORT",
+                transportType: "flight",
+                description: "Ponovni transfer iz Mafia Island.",
+              },
+            ],
+            afternoon: [
+              {
+                name: "Safari v savani",
+                type: "SIGHT",
+                description: "Game drive v narodnem parku.",
+              },
+            ],
+            evening: [],
+          },
+        }),
+      ],
+    } as AiTripPlan;
+    expect(lockOneWayRegionTransition(plan)).toBeGreaterThan(0);
+    expect(plan.days[1]!.city).toMatch(/Mikumi/i);
+    expect(plan.days[1]!.title).not.toMatch(/Mafia/i);
+    expect(JSON.stringify(plan.days[1]!.activities!.morning)).not.toMatch(/Mafia Island → Mikumi/);
+    expect(plan.days[1]!.activities!.afternoon.map((a) => a.name)).toEqual(["Safari v savani"]);
+  });
+});
+
+describe("snapDepartureDayToTicketHub", () => {
+  it("moves a remote last day onto the ticket hub city", () => {
+    const plan = {
+      destinationName: "Tanzania",
+      destinationIata: "DAR",
+      contentLanguage: "sl" as const,
+      days: [
+        day({
+          day: 10,
+          city: "Mikumi",
+          title: "Mikumi",
+          ...MIKUMI,
+          activities: {
+            morning: [{ name: "Safari v savani", type: "SIGHT", description: "Game drive ob zori." }],
+            afternoon: [],
+            evening: [],
+          },
+        }),
+        day({
+          day: 11,
+          city: "Mikumi",
+          title: "Mikumi National Park",
+          ...MIKUMI,
+          activities: {
+            morning: [
+              { name: "Zadnji safari", type: "SIGHT", description: "Jutranji game drive." },
+              {
+                name: "Mednarodni odhod",
+                type: "TRANSPORT",
+                transportType: "flight",
+                description: "Odhod z mednarodnega letališča.",
+              },
+            ],
+            afternoon: [],
+            evening: [],
+          },
+        }),
+      ],
+    } as AiTripPlan;
+    expect(snapDepartureDayToTicketHub(plan)).toBe(1);
+    expect(plan.days[1]!.city).toMatch(/Dar es Salaam/i);
+    expect(plan.days[1]!.title).toMatch(/Dar es Salaam/i);
+    expect(plan.days[1]!.activities!.morning.map((a) => a.name)).toEqual(["Mednarodni odhod"]);
+  });
+});
+
+describe("applyItineraryGuards region lock", () => {
+  it("locks the one-way hop, hub departure, and drops island-safari mismatch", () => {
+    const plan = {
+      destinationName: "Tanzania",
+      destinationIata: "DAR",
+      contentLanguage: "sl" as const,
+      days: [
+        day({
+          day: 5,
+          city: "Mafia Island",
+          title: "Mafia Island",
+          ...MAFIA,
+          activities: {
+            morning: [
+              {
+                name: "Safari v savani",
+                type: "SIGHT",
+                description: "Game drive v narodnem parku.",
+              },
+            ],
+            afternoon: [
+              {
+                name: "Let Mafia Island → Mikumi",
+                type: "TRANSPORT",
+                transportType: "flight",
+                description: "Premik v Mikumi.",
+              },
+            ],
+            evening: [],
+          },
+        }),
+        day({
+          day: 6,
+          city: "Mafia Island",
+          title: "Mafia Island",
+          ...MAFIA,
+          activities: {
+            morning: [
+              {
+                name: "Let Mafia Island → Mikumi",
+                type: "TRANSPORT",
+                transportType: "flight",
+                description: "Ponovni transfer.",
+              },
+            ],
+            afternoon: [],
+            evening: [],
+          },
+        }),
+        day({
+          day: 7,
+          city: "Mikumi",
+          title: "Mikumi",
+          ...MIKUMI,
+          activities: {
+            morning: [{ name: "Zadnji safari", type: "SIGHT", description: "Game drive." }],
+            afternoon: [],
+            evening: [],
+          },
+        }),
+      ],
+    } as AiTripPlan;
+    applyItineraryGuards(plan, { language: "sl" });
+    expect(plan.days[0]!.activities!.morning.map((a) => a.name).join(" ")).not.toMatch(/Safari|savan/i);
+    expect(plan.days[1]!.city).toMatch(/Mikumi/i);
+    expect(plan.days[1]!.title).not.toMatch(/Mafia/i);
+    expect(JSON.stringify(plan.days[1]!.activities)).not.toMatch(/Mafia Island → Mikumi/);
+    expect(plan.days[2]!.city).toMatch(/Dar es Salaam/i);
   });
 });

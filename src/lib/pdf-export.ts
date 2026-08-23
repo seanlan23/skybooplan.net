@@ -451,6 +451,14 @@ export function sanitizePdfText(input: unknown): string {
     .trim();
 }
 
+function clipAtWordBoundary(text: string, maxChars: number): string {
+  const t = text.trim();
+  if (t.length <= maxChars) return t;
+  const cut = t.slice(0, maxChars);
+  const sp = cut.lastIndexOf(" ");
+  return (sp > 16 ? cut.slice(0, sp) : cut).replace(/[.…]+$/u, "").trim();
+}
+
 /** jsPDF throws on width <= 0 (long clock labels can eat the title column). */
 function wrapPdfLines(doc: jsPDF, text: string, maxWidth: number): string[] {
   const cleaned = text || "";
@@ -459,7 +467,7 @@ function wrapPdfLines(doc: jsPDF, text: string, maxWidth: number): string[] {
   try {
     return doc.splitTextToSize(cleaned, width) as string[];
   } catch {
-    return [cleaned.slice(0, 80)];
+    return [clipAtWordBoundary(cleaned, 80)];
   }
 }
 
@@ -1619,23 +1627,25 @@ function renderEmergencyPdf(plan: PlanForPdf): {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(16);
   const title = asciiFallback(sanitizePdfText(plan.title || plan.destination) || "Skybooplan");
-  doc.text(title.slice(0, 80), 44, 64);
+  const titleLines = doc.splitTextToSize(title, 500) as string[];
+  doc.text(titleLines, 44, 64);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(11);
   const days = Array.isArray((plan.itinerary as { days?: unknown[] } | undefined)?.days)
     ? ((plan.itinerary as { days: Array<Record<string, unknown>> }).days ?? [])
     : [];
-  let y = 92;
+  let y = 64 + titleLines.length * 18;
   days.slice(0, 40).forEach((d, i) => {
     const line = asciiFallback(
       sanitizePdfText(d?.title) || sanitizePdfText(d?.city) || `Day ${i + 1}`,
     );
+    const wrapped = doc.splitTextToSize(`${i + 1}. ${line}`, 500) as string[];
     if (y > 780) {
       doc.addPage();
       y = 64;
     }
-    doc.text(`${i + 1}. ${line}`.slice(0, 90), 44, y);
-    y += 16;
+    doc.text(wrapped, 44, y);
+    y += wrapped.length * 16;
   });
   const fileName = buildPdfDownloadFileName(title, plan.destination);
   return { buffer: doc.output("arraybuffer"), fileName, doc };

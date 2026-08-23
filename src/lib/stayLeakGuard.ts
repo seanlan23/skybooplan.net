@@ -1,8 +1,8 @@
 import type { Activity, AiTripPlan, DayPlan } from "@/lib/aiPlan.functions";
 import { inferBudgetCountryFromPlace } from "@/lib/countryDailyBudget";
 import { haversineKm } from "@/lib/geoMath";
+import { isSmallIsland } from "@/lib/islandStays";
 
-const CROSS_STAY_KM = 250;
 const FAR_POI_KM = 180;
 
 export type StayRef = {
@@ -33,11 +33,42 @@ function cityKey(city: string): string {
 export function mentionsStayCity(blob: string, city: string): boolean {
   const key = (city.split(",")[0] ?? city).trim();
   if (key.length < 4) return false;
-  try {
-    return new RegExp(`\\b${escapeRe(key)}\\b`, "i").test(blob);
-  } catch {
-    return blob.toLowerCase().includes(key.toLowerCase());
+  const tokens = [key];
+  const first = key.split(/\s+/)[0] ?? "";
+  if (first.length >= 5 && first.toLowerCase() !== key.toLowerCase()) tokens.push(first);
+  for (const token of tokens) {
+    try {
+      if (new RegExp(`\\b${escapeRe(token)}\\b`, "i").test(blob)) return true;
+    } catch {
+      if (blob.toLowerCase().includes(token.toLowerCase())) return true;
+    }
   }
+  return false;
+}
+
+const ISLAND_SLEEP_NAME =
+  /\b(island|otok|isla|isle|atoll|atol|archipelago|souostrov)\b/i;
+const INLAND_WILD =
+  /\b(game drive|game-drive|savann[ae]?|savana|bush camp|game reserve|wildlife reserve)\b/i;
+
+/** Sleep city is an island / named isle — not a mainland park. */
+export function isIslandSleepCity(city: string): boolean {
+  const name = city.trim();
+  if (!name) return false;
+  return isSmallIsland(name) || ISLAND_SLEEP_NAME.test(name);
+}
+
+/** Savannah / game-drive copy on an island sleep card (no destination names). */
+export function activityMismatchesSleepCity(
+  name: string,
+  description: string,
+  sleepCity: string,
+): boolean {
+  if (!isIslandSleepCity(sleepCity)) return false;
+  const blob = blobOf(name, description);
+  if (mentionsStayCity(blob, sleepCity)) return false;
+  if (INLAND_WILD.test(blob)) return true;
+  return /\bsafari\b/i.test(blob) && /\b(park|savan|bush|reserve|krater|crater|stepp|divjin)/i.test(blob);
 }
 
 function isTransportActivity(a: Pick<Activity, "name" | "description" | "type" | "transportType">): boolean {
@@ -50,12 +81,6 @@ function isTransportActivity(a: Pick<Activity, "name" | "description" | "type" |
     /\b(let|flight|trajekt|ferry|prevoz|transfer)\b/i.test(t) &&
     /\b(iz|from)\b.+\b(v|do|to)\b/i.test(t)
   );
-}
-
-function stayDistanceKm(a: StayRef, b: { lat?: number; lng?: number }): number | null {
-  if (!Number.isFinite(a.lat) || !Number.isFinite(a.lng)) return null;
-  if (!Number.isFinite(b.lat) || !Number.isFinite(b.lng)) return null;
-  return haversineKm([a.lng, a.lat], [b.lng!, b.lat!]);
 }
 
 export function collectStayRefs(plan: AiTripPlan): StayRef[] {
@@ -94,11 +119,13 @@ export function activityLeaksStay(
 
   for (const stay of stays) {
     if (cityKey(stay.city) === cityKey(sleepCity)) continue;
-    const km = stayDistanceKm(stay, sleep);
-    if (km != null && km < CROSS_STAY_KM) continue;
     if (mentionsStayCity(blob, stay.city)) {
       return `mentions "${stay.city}"`;
     }
+  }
+
+  if (activityMismatchesSleepCity(name, description, sleepCity)) {
+    return `inland wild on island stay "${sleepCity}"`;
   }
 
   const pin = opts?.coords;

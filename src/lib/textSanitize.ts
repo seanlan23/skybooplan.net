@@ -294,7 +294,15 @@ function repairTruncatedLine(line: string): string {
   const cutReturnFlight = /\bpo vrnitvi v let\.?\s*$/iu.test(t);
   const cutAdjNoun =
     /\s+in\s+\w{4,14}(?:em|im)\s+[a-záéíóúäöüčšž]{4,10}\.?\s*$/iu.test(t);
+  const hasEllipsis = /…|\.\.\./.test(t);
+  const cutMidWord =
+    noStop &&
+    lastWord.length >= 4 &&
+    lastWord.length <= 8 &&
+    /^[a-záéíóúäöüčšž]+$/u.test(lastWord) &&
+    t.length > lastWord.length + 20;
   const truncated =
+    hasEllipsis ||
     /…\s*$/u.test(t) ||
     /\.\.\.\s*$/.test(t) ||
     shortCapStub ||
@@ -302,11 +310,20 @@ function repairTruncatedLine(line: string): string {
     danglingVerb ||
     danglingAdjStop ||
     cutReturnFlight ||
-    cutAdjNoun;
+    cutAdjNoun ||
+    cutMidWord;
 
   if (!truncated && !danglingEnd) return t;
 
   t = t.replace(/\s*…\s*$/u, "").replace(/\s*\.\.\.\s*$/, "").trim();
+  if (hasEllipsis) {
+    const idx = t.search(/…|\.\.\./);
+    if (idx >= 20) {
+      const head = t.slice(0, idx).trim().replace(/[,:;–—-]+\s*$/u, "").trim();
+      return head ? (/[.!?]$/.test(head) ? head : `${head}.`) : "";
+    }
+    t = t.replace(/…|\.\.\./g, " ").replace(/\s+/g, " ").trim();
+  }
   if (danglingEnd) {
     const lastGood = Math.max(t.lastIndexOf(". "), t.lastIndexOf("! "), t.lastIndexOf("? "));
     if (lastGood >= 20) {
@@ -340,7 +357,7 @@ function repairTruncatedLine(line: string): string {
   }
   if (danglingAdjStop) {
     t = t.replace(/\s+v\s+(čudovit\w*|prelep\w*|elegantn\w*|beautiful|wonderful|wunderschön\w*)\.\s*$/iu, ".").trim();
-  } else if (shortCapStub || shortLowerStub) {
+  } else if (shortCapStub || shortLowerStub || cutMidWord) {
     t = t.slice(0, t.length - lastWord.length).trim();
     t = t.replace(/\s+\b(ali|or|and|in|ter|za|to)\s*$/i, "").trim();
     t = t.replace(/,\s+(ki|that|die|der|who)\s+\S{1,16}\s*$/iu, ".").trim();
