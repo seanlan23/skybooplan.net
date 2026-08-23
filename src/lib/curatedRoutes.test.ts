@@ -259,7 +259,7 @@ describe("curatedRoutes global defaults", () => {
       priorities: ["sights"],
       wishes: "templji tajska",
     });
-    expect(block).toMatch(/KURIRANA POT/i);
+    expect(block).toMatch(/PREDLOG POTI|KURIRANA POT/i);
     expect(block).toMatch(/Chiang Mai|Kanchanaburi|Krabi/i);
     expect(block).toMatch(/Dan 1–[23]: Bangkok/i);
     expect(block).not.toMatch(/Dan 1–[5-9]: Bangkok/i);

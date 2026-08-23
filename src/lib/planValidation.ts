@@ -1,5 +1,6 @@
 import type { Activity, AiTripPlan, DayPlan } from "./aiPlan.functions";
 import { isPaceLightDay, isPaceProgramActivity } from "./paceGuard";
+import { findThinStayGaps } from "./stayFacts";
 
 /**
  * Pure validators for AI-generated itineraries. Each rule mirrors a
@@ -13,12 +14,27 @@ export type PlanViolation = {
     | "duplicate_destination_segment"
     | "non_linear_route"
     | "missing_travel_block"
+    | "thin_long_access"
     | "duplicate_activity"
     | "overpacked_day"
     | "same_day_far_pois";
   message: string;
   dayNumbers: number[];
 };
+
+/** Blocking rules: one Gemini repair, do not rewrite the stay list in code. */
+export const ROUTING_BLOCK_RULES = new Set<PlanViolation["rule"]>([
+  "duplicate_destination_segment",
+  "non_linear_route",
+  "same_day_far_pois",
+  "overpacked_day",
+  "missing_travel_block",
+  "thin_long_access",
+]);
+
+export function blockingRouteViolations(plan: AiTripPlan): PlanViolation[] {
+  return validateItinerary(plan).filter((v) => ROUTING_BLOCK_RULES.has(v.rule));
+}
 
 const HAVERSINE_R_KM = 6371;
 const toRad = (deg: number) => (deg * Math.PI) / 180;
@@ -150,6 +166,21 @@ export function findDuplicateCitySegments(plan: AiTripPlan): PlanViolation[] {
  * Rule: a long hop between consecutive days (>= 250km) must be marked as a
  * transport day. Otherwise the plan is teleporting the traveller.
  */
+function dayHasTravelBlock(day: DayPlan | undefined): boolean {
+  if (!day) return false;
+  if (day.category === "transport") return true;
+  if (day.transport) return true;
+  if ((day.transportation?.length ?? 0) > 0) return true;
+  const acts = [
+    ...(day.activities?.morning ?? []),
+    ...(day.activities?.afternoon ?? []),
+    ...(day.activities?.evening ?? []),
+  ];
+  if (acts.some((a) => a.type === "TRANSPORT" || !!a.transportType)) return true;
+  const blob = acts.map((a) => `${a.name ?? ""} ${a.description ?? ""}`).join(" ");
+  return /→|->/.test(blob) && /let|flight|trajekt|ferry|vlak|train|kombi|van|bus/i.test(blob);
+}
+
 export function findMissingTravelBlocks(
   plan: AiTripPlan,
   longHopKm = 250,
@@ -161,21 +192,28 @@ export function findMissingTravelBlocks(
     const curr = days[i];
     const km = distanceKm(prev, curr);
     if (km < longHopKm) continue;
-    const hasTransport =
-      curr.category === "transport" ||
-      prev.category === "transport" ||
-      !!curr.transport;
-    if (!hasTransport) {
-      violations.push({
-        rule: "missing_travel_block",
-        message: `Day ${prev.day} → ${curr.day}: ${Math.round(
-          km,
-        )}km hop without a transport block`,
-        dayNumbers: [prev.day, curr.day],
-      });
-    }
+    if (dayHasTravelBlock(curr) || dayHasTravelBlock(prev)) continue;
+    violations.push({
+      rule: "missing_travel_block",
+      message: `Day ${prev.day} → ${curr.day}: ${Math.round(
+        km,
+      )}km hop without a transport block`,
+      dayNumbers: [prev.day, curr.day],
+    });
   }
   return violations;
+}
+
+/** Long-access island / coast prelude too thin — model must rebalance or skip. */
+export function findThinLongAccessStays(plan: AiTripPlan): PlanViolation[] {
+  return findThinStayGaps(plan.days ?? []).map((gap) => ({
+    rule: "thin_long_access" as const,
+    message:
+      gap.kind === "coast_prelude"
+        ? `"${gap.city}" has ${gap.have} hotel night(s) before ${gap.nextCity}; coast prelude needs ≥${gap.need}. Rebalance nights or skip the long-access place — do not leave a 1-night coast stop.`
+        : `"${gap.city}" has ${gap.have} hotel night(s); long-access stays need ≥${gap.need}. Skip the place or give it enough nights — do not steal nights from the previous coast base.`,
+    dayNumbers: gap.dayNumbers,
+  }));
 }
 
 /**
@@ -348,6 +386,7 @@ export function validateItinerary(plan: AiTripPlan): PlanViolation[] {
     ...findDuplicateDayNumbers(plan),
     ...findDuplicateCitySegments(plan),
     ...findMissingTravelBlocks(plan),
+    ...findThinLongAccessStays(plan),
     ...findNonLinearRoute(plan),
     ...findDuplicateActivities(plan),
     ...findOverpackedDays(plan),

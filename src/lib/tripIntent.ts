@@ -170,8 +170,8 @@ export function tripIntentPromptRule(intent: TripIntent, langCode: string): stri
 
   if (intent.countries.length >= 2) {
     return slo
-      ? `Večdržavno potovanje: ${intent.countries.join(" → ")} — sledi regionBlueprint in returnHub.`
-      : `Multi-country: ${intent.countries.join(" → ")} — follow regionBlueprint and returnHub.`;
+      ? `Večdržavno potovanje: ${intent.countries.join(" → ")} — returnHub je obvezen; regionBlueprint je predlog.`
+      : `Multi-country: ${intent.countries.join(" → ")} — returnHub is required; regionBlueprint is a hint.`;
   }
 
   return undefined;

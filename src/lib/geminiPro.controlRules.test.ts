@@ -55,6 +55,7 @@ describe("tripPlanControlRules", () => {
   it("system prompt no longer forces every slot filled", () => {
     const system = tripPlanSystemPrompt(baseParams());
     expect(system).toMatch(/HIERARHIJA PRAVIL/);
+    expect(system).toMatch(/SMSEL POTI/);
     expect(system).toMatch(/KAKOVOST NAČRTA/);
     expect(system).toMatch(/vse destinacije/);
     expect(system).toMatch(/prazni timeSlot-i PRED\/ZA letom so OBVEZNI/);
@@ -65,6 +66,9 @@ describe("tripPlanControlRules", () => {
     expect(system).not.toMatch(/category airport z natančno uro/i);
     expect(system).toMatch(/bullets/);
     expect(system).toMatch(/wall of text|neformatiran odstavek/i);
+    expect(system).toMatch(/weatherWidget/);
+    expect(system).toMatch(/safetyWarning/);
+    expect(system).not.toMatch(/Mae Klong|KURIRANA POT|Dan 1–3: Bangkok|Koh Lipe: NI neposrednega/i);
   });
 
   it("continuation batches ask only for remaining day_numbers and leftover destinations", () => {

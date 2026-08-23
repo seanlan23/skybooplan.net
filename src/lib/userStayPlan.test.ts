@@ -78,6 +78,6 @@ describe("userStayPlan", () => {
       wishes: "phuket beaches",
       skipForUserStayPlan: false,
     });
-    expect(withoutSkip).toMatch(/KURIRANA POT/);
+    expect(withoutSkip).toMatch(/PREDLOG POTI|KURIRANA POT/);
   });
 });

@@ -2,6 +2,7 @@
  * Curated trip graphs — logistics for ALL destinations.
  * Agency patterns (high priority) + interest-anchor defaults + hub IATA templates.
  * Origin airport ignored; AI scales segments to user totalDays.
+ * Prompt treats these as a hint (worldRouteRules). Do not add if (18 days → extra city) here.
  */
 
 import { lookupDestination } from "@/lib/destinationCoords";
@@ -259,7 +260,7 @@ const TH_BEACHES_ANDAMAN: CuratedRoute = {
     "Railay Beach",
   ],
   steer:
-    "Tajska plaže: Bangkok 3 noči (Ayutthaya = dnevni izlet; 1 cel dan Mae Klong/Kwai) → Chiang Mai 2 noči (templji + etični sloni) → Krabi/Ao Nang 3 noči (Railay, Phra Nang, Phi Phi) → Koh Lipe 5 noči (plaže, snorklanje) → Bangkok 1 noč pred povratnim letom. PREPOVEDANO 1 noč Krabi + 7 noči Lipe.",
+    "Tajska plaže (PREDLOG, ne ukaz): Bangkok → Chiang Mai → Andaman (Krabi in/ali sosednja obala) → dolg-dostopni otok samo z dovolj nočmi → Bangkok pred odhodom. Model sme dodati bazo, ko koledar drži — ne 5 dni v enem letovišču.",
 };
 
 /**
@@ -853,7 +854,7 @@ export function buildCuratedRoutePayload(
   return {
     curatedRoute: curatedRouteMeta(route),
     curatedRouteRule:
-      "curatedRoute je globalni logistični graf (vse destinacije). Sledi vrstnemu redu regij in prevoznim nogam; AI prilagodi dolžine segmentov na totalDays — brez teleporta. Izhodišče (LJU/MXP/…) je izven grafa.",
+      "curatedRoute je PREDLOG poti (vse destinacije), ne ukaz. Smeš dodati ali izpustiti bazo, če koledar in enosmerni lok držita. Prevozne noge so dejstva (otok brez piste). Izhodišče (LJU/MXP/…) je izven grafa. Uporabnikov razpored mest/noči premaga ta predlog.",
     regionBlueprint: templateToBlueprintBlocks(route.segments, nDays),
   };
 }
@@ -1091,22 +1092,22 @@ PRIHODOVNO LETALIŠČE (PREDNOST PRED BLUEPRINTOM):
     : "";
 
   return `
-=== KURIRANA POT (OBVEZNO — ima prednost pred splošnimi pravili o mestih) ===
+=== PREDLOG POTI (ni ukaz — smeš dodati/izpustiti bazo) ===
 ${meta.steer}
 ${arrivalLock}
 
-regionBlueprint — vsaka faza itinerar[] = ena baza; city mora ustrezati (NE podaljšuj enega mesta dlje):
+regionBlueprint — predlagane baze za ${opts.nDays} dni (ne zaklepaj, razen če je uporabnik sam napisal razpored):
 ${blueprintLines}
 
-mustIncludeHighlights (vključi kot realne POI / aktivnosti):
+mustIncludeHighlights (vključi kot realne POI samo če je baza na poti):
 ${meta.mustIncludeHighlights.map((h) => `- ${h}`).join("\n")}
 
-Pravila kurirane poti:
-- Strogo sledi vrstnemu redu mest iz regionBlueprint — enosmerna pot, brez teleporta — RAZEN če je v nasprotju s prihodovnim letališčem zgoraj.
-- Med fazami obvezno transportation[] (let/trajekt/vlak/kombi) in aktivnosti prevoza.
-- Hub mesto na začetku/koncu samo če je to mesto prihoda/odhoda mednarodnega leta — ne izmišljuj notranjega leta na hub.
-- Hub buffer (Manila/Bangkok/Jakarta …): prihod max 1–2 dni, odhod max 2–3 dni. Prepovedano: 5+ zaporednih dni na hubu — odvečne dni dodaj na otoke/plaže/notranje baze.
-- Število dni na mesto prilagodi na ${opts.nDays} dni skupaj, a NE spreminjaj vrstnega reda regij (razen prihodovnega popravka).
+Pravila predloga:
+- Enosmerna pot, brez teleporta. Če koledar drži, raje NOVA baza kot 5. noč v istem letovišču.
+- Med fazami obvezno transportation[] (let/trajekt/vlak/kombi) na danu premika.
+- Hub na začetku/koncu samo če je to prihod/odhod mednarodnega leta — ne izmišljuj notranjega leta na hub.
+- Hub buffer: prihod max 1–2 dni, odhod max 2–3 dni. 5+ dni na hubu = napačno; presežek gre na novo bazo, ne na isti hub.
+- Število dni prilagodi na ${opts.nDays}; vrstni red smeš razširiti z bazo na isti smeri.
 ${stayFactsPromptBlock(true)}
 ===`;
 }

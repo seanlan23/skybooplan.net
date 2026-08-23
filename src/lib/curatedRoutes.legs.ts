@@ -250,6 +250,24 @@ export const CURATED_LEGS: LegDef[] = [
     howTo: "Let CNX → HKT/KBV.",
     heavyTravel: true,
   },
+  {
+    from: /phuket|patong/i,
+    to: /krabi|ao nang/i,
+    type: "van",
+    duration: "2.5–3.5h",
+    costLabel: "15–30 €",
+    howTo: "Kombi ali minibus Phuket → Krabi / Ao Nang.",
+    heavyTravel: true,
+  },
+  {
+    from: /krabi|ao nang/i,
+    to: /phuket|patong/i,
+    type: "van",
+    duration: "2.5–3.5h",
+    costLabel: "15–30 €",
+    howTo: "Kombi ali minibus Krabi / Ao Nang → Phuket.",
+    heavyTravel: true,
+  },
   // —— Indonesia ——
   {
     from: /jakarta/i,

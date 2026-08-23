@@ -29,6 +29,7 @@ import {
   slotsLookLikeKwaiDayTrip,
 } from "@/lib/bangkokKwaiDayTrip";
 import { applyItineraryGuards } from "@/lib/itineraryGuards";
+import { hasExplicitStayPlan } from "@/lib/userStayPlan";
 import {
   applyCanadaBudgetFloor,
   applyCountryDayBudgetCeil,
@@ -127,7 +128,6 @@ import {
 } from "@/lib/tripContent";
 import { collapseSmallIslandStays, isSmallIsland } from "@/lib/islandStays";
 import {
-  buildCuratedRoutePayload,
   lookupCuratedTransportLeg,
   resolveCuratedBlueprint,
   templateToBlueprintBlocks as scaleCuratedRouteDays,
@@ -756,7 +756,7 @@ function buildSkeletonUserMessage(opts: {
     if (hotelRest) payload.hotelRestEveryNDays = hotelRest;
   }
   if (opts.coverageRepair) payload.coverageRepair = opts.coverageRepair;
-  if (opts.regionBlueprint?.length) {
+  if (opts.regionBlueprint?.length && hasExplicitStayPlan(opts.wishes)) {
     payload.regionBlueprint = annotateCollapsedStayBlueprint(opts.regionBlueprint);
   }
   payload.scheduling = buildSchedulingHint(opts.paceLabel, opts.nDays);
@@ -766,14 +766,7 @@ function buildSkeletonUserMessage(opts: {
   if (opts.tripClimate?.length) payload.tripClimate = opts.tripClimate;
   if (opts.regionClimate?.length) payload.regionClimate = opts.regionClimate;
   if (opts.tripAstronomy?.length) payload.tripAstronomy = opts.tripAstronomy;
-  const curated = buildCuratedRoutePayload(
-    opts.nDays,
-    opts.destinationIata,
-    opts.priorities,
-    opts.wishes,
-    opts.returnFromIata,
-  );
-  if (curated) Object.assign(payload, curated);
+  // Curated city lists stay in code for legs/access — do not lock the LLM route.
   const metro = buildMetroClusteringPayload(opts.destinationIata, opts.nDays, opts.langCode);
   if (metro) payload.metroClustering = metro;
   return JSON.stringify(payload, null, 2);
@@ -1801,13 +1794,6 @@ export const generateAiPlan = createServerFn({ method: "POST" })
             { start: mid + 1, end: nDays, handoff: undefined as BatchHandoff | undefined },
           ];
 
-    const ROUTING_BLOCK_RULES = new Set([
-      "duplicate_destination_segment",
-      "non_linear_route",
-      "same_day_far_pois",
-      "overpacked_day",
-    ]);
-
     const buildRoutingRepair = (
       violations: { rule: string; message: string }[],
       startDay = 1,
@@ -1848,7 +1834,7 @@ export const generateAiPlan = createServerFn({ method: "POST" })
       violations.every((v) => v.dayNumbers.every((d) => d > splitDay));
 
     try {
-      const { validateItinerary } = await import("./planValidation");
+      const { validateItinerary, ROUTING_BLOCK_RULES } = await import("./planValidation");
       let lastBlocking: { rule: string; message: string; dayNumbers: number[] }[] = [];
       let savedFirstBatch: {
         meta: Omit<AiTripPlan, "days">;
@@ -4367,9 +4353,9 @@ export const generateAiPlanSkeleton = createServerFn({ method: "POST" })
       console.timeEnd("SkeletonPostProcess");
       let cityViolations = findDuplicateCitySegments(preview);
 
-      if (cityViolations.length && regionBlueprint?.length) {
+      if (cityViolations.length && regionBlueprint?.length && hasExplicitStayPlan(data.wishes)) {
         trace(
-          `routing retry: ${cityViolations.map((v) => v.message).join("; ")} → blueprint`,
+          `routing retry: ${cityViolations.map((v) => v.message).join("; ")} → user stay blueprint`,
         );
         const rebuilt = rebuildRegionsFromBlueprint(
           regionBlueprint,

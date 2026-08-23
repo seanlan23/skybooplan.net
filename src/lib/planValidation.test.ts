@@ -6,6 +6,7 @@ import {
   findDuplicateCitySegments,
   findDuplicateDayNumbers,
   findMissingTravelBlocks,
+  findThinLongAccessStays,
   findNonLinearRoute,
   findOverpackedDays,
   findSameDayFarPois,
@@ -202,6 +203,61 @@ describe("findMissingTravelBlocks — realistic travel time", () => {
       }),
     ]);
     expect(findMissingTravelBlocks(p)).toEqual([]);
+  });
+
+  it("accepts catalog transportation[] as a travel block", () => {
+    const p = plan([
+      day({ day: 1, city: "Phuket", ...PHUKET }),
+      day({
+        day: 2,
+        city: "Koh Samui",
+        ...KOH_SAMUI,
+        category: "beach",
+        transportation: [
+          {
+            type: "flight",
+            from: "Phuket",
+            to: "Koh Samui",
+            duration: "1h",
+            estimatedPrice: 60,
+          },
+        ],
+      }),
+    ]);
+    expect(findMissingTravelBlocks(p)).toEqual([]);
+  });
+});
+
+describe("findThinLongAccessStays", () => {
+  const LIPE = { lat: 6.49, lng: 99.3 };
+
+  it("flags a 2-night Koh Lipe stay", () => {
+    const p = plan([
+      day({ day: 1, city: "Krabi", ...KRABI }),
+      day({ day: 2, city: "Krabi", ...KRABI }),
+      day({ day: 3, city: "Krabi", ...KRABI }),
+      day({ day: 4, city: "Koh Lipe", ...LIPE }),
+      day({ day: 5, city: "Koh Lipe", ...LIPE }),
+      day({ day: 6, city: "Bangkok", ...BANGKOK }),
+    ]);
+    const v = findThinLongAccessStays(p);
+    expect(v.some((x) => x.rule === "thin_long_access" && /Lipe/i.test(x.message))).toBe(
+      true,
+    );
+  });
+
+  it("passes when Lipe has 4 hotel nights", () => {
+    const p = plan([
+      day({ day: 1, city: "Krabi", ...KRABI }),
+      day({ day: 2, city: "Krabi", ...KRABI }),
+      day({ day: 3, city: "Krabi", ...KRABI }),
+      day({ day: 4, city: "Koh Lipe", ...LIPE }),
+      day({ day: 5, city: "Koh Lipe", ...LIPE }),
+      day({ day: 6, city: "Koh Lipe", ...LIPE }),
+      day({ day: 7, city: "Koh Lipe", ...LIPE }),
+      day({ day: 8, city: "Bangkok", ...BANGKOK }),
+    ]);
+    expect(findThinLongAccessStays(p).filter((x) => /Lipe/i.test(x.message))).toEqual([]);
   });
 });
 

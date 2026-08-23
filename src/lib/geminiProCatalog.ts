@@ -75,6 +75,18 @@ export function buildCatalogPlanFromResponse(
   return { plan: catalogPlan, error: null };
 }
 
+/** One Gemini repair after code-only physics checks. Never fails the trip. */
+export async function repairCatalogPlanIfNeeded(
+  plan: AiTripPlan,
+  data: Pick<GenerateGeminiProTripInput, "language">,
+): Promise<AiTripPlan> {
+  const { repairPlanLogisticsOnce } = await import("@/lib/routeRepair");
+  await repairPlanLogisticsOnce(plan, {
+    language: plan.contentLanguage ?? data.language ?? "sl",
+  });
+  return plan;
+}
+
 /** Enrich a merged multi-batch stream plan without cloning missing calendar days. */
 export function finalizeMergedStreamPlan(
   plan: AiTripPlan,

@@ -3,6 +3,7 @@ import { buildCuratedRoutePayload, templateToBlueprintBlocks } from "@/lib/curat
 import {
   coastPreludeMinNights,
   ensureLongAccessMinNights,
+  findThinStayGaps,
   hubDayTripOnly,
   minStayNights,
   relabelHubDayTripOvernights,
@@ -36,6 +37,21 @@ describe("relabelHubDayTripOvernights", () => {
     expect(days[1]!.title).toMatch(/Dnevni izlet v Ayutthaya/i);
     expect(days[2]!.city).toBe("Bangkok");
     expect(days[3]!.city).toBe("Chiang Mai");
+  });
+});
+
+describe("findThinStayGaps", () => {
+  it("flags 2-night Lipe and 1-night Krabi prelude without rewriting days", () => {
+    const days = [
+      { day: 8, city: "Krabi" },
+      { day: 9, city: "Koh Lipe" },
+      { day: 10, city: "Koh Lipe" },
+      { day: 11, city: "Bangkok" },
+    ];
+    const gaps = findThinStayGaps(days);
+    expect(gaps.some((g) => g.kind === "long_access" && /lipe/i.test(g.city))).toBe(true);
+    expect(gaps.some((g) => g.kind === "coast_prelude" && /krabi/i.test(g.city))).toBe(true);
+    expect(days.map((d) => d.city)).toEqual(["Krabi", "Koh Lipe", "Koh Lipe", "Bangkok"]);
   });
 });
 

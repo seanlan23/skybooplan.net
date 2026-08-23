@@ -1111,6 +1111,29 @@ describe("applyItineraryGuards", () => {
     expect(plan.days[1]!.activities!.afternoon).toHaveLength(0);
     expect(plan.days[4]!.activities!.evening).toHaveLength(1);
   });
+
+  it("does not steal Krabi nights onto Koh Lipe", () => {
+    const plan = {
+      destinationName: "Thailand",
+      contentLanguage: "sl",
+      days: [
+        day({ day: 8, city: "Krabi", lat: 8.05, lng: 98.92, title: "Krabi" }),
+        day({ day: 9, city: "Koh Lipe", lat: 6.49, lng: 99.3, title: "Koh Lipe" }),
+        day({ day: 10, city: "Koh Lipe", lat: 6.49, lng: 99.3, title: "Koh Lipe" }),
+        day({ day: 11, city: "Koh Lipe", lat: 6.49, lng: 99.3, title: "Koh Lipe" }),
+        day({ day: 12, city: "Koh Lipe", lat: 6.49, lng: 99.3, title: "Koh Lipe" }),
+        day({ day: 13, city: "Koh Lipe", lat: 6.49, lng: 99.3, title: "Koh Lipe" }),
+        day({ day: 14, city: "Koh Lipe", lat: 6.49, lng: 99.3, title: "Koh Lipe" }),
+        day({ day: 15, city: "Koh Lipe", lat: 6.49, lng: 99.3, title: "Koh Lipe" }),
+        day({ day: 16, city: "Bangkok", lat: 13.75, lng: 100.5, title: "Bangkok" }),
+      ],
+    } as AiTripPlan;
+    applyItineraryGuards(plan, { language: "sl" });
+    expect(plan.days.filter((d) => /krabi/i.test(d.city)).map((d) => d.day)).toEqual([8]);
+    expect(plan.days.filter((d) => /lipe/i.test(d.city)).map((d) => d.day)).toEqual(
+      expect.arrayContaining([9, 10, 11, 12, 13, 14]),
+    );
+  });
 });
 
 describe("relocateClosedEveningSights", () => {

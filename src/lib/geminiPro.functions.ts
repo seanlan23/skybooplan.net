@@ -13,6 +13,7 @@ import {
 } from "@/lib/geminiPro.shared";
 import {
   buildCatalogPlanFromResponse,
+  repairCatalogPlanIfNeeded,
 } from "@/lib/geminiProCatalog";
 import type { AiTripPlan } from "@/lib/aiPlan.functions";
 import { DESTINATION_BY_IATA } from "@/lib/destinationCoords";
@@ -413,6 +414,8 @@ export const generateGeminiProTrip = createServerFn({ method: "POST" })
       if (built.error || !built.plan) {
         return { plan: null, error: built.error ?? "Načrt ni bil generiran." };
       }
+
+      await repairCatalogPlanIfNeeded(built.plan, data);
 
       pipelineLog("handler DONE", `${Math.round(performance.now() - pipelineStart)}ms total`);
       return { plan: built.plan, error: null };

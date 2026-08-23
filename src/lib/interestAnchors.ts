@@ -34,7 +34,7 @@ const BEACH_ANCHORS: Record<string, InterestAnchorConfig> = {
       "Sunrise Beach (Koh Lipe)",
     ],
     steer:
-      "Dream beaches selected — allocate ≥40% of trip to Andaman coast. Bangkok 3 nights (Kwai day trip; Ayutthaya = day trip only). Chiang Mai 2 nights. Krabi/Ao Nang 3 nights for Railay/Phra Nang/Phi Phi — never 1 night. Koh Lipe 5 nights if included (≥4). Final Bangkok: 1 hotel night + international departure day. Name real beaches in highlights.",
+      "Dream beaches selected — allocate ≥40% of trip to Andaman coast. Treat any city list as a hint: add a new coast base when leftover nights would stretch one resort. Long-access islands only with enough nights. Final hub: 1 hotel night + departure day. Name real beaches in highlights.",
   },
   PH: {
     routeTemplate: [

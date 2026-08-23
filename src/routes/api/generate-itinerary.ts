@@ -26,6 +26,7 @@ import {
   buildCatalogPlanFromResponse,
   buildGeminiMapOpts,
   finalizeMergedStreamPlan,
+  repairCatalogPlanIfNeeded,
 } from "@/lib/geminiProCatalog";
 import {
   alignBatchDays,
@@ -323,7 +324,10 @@ export const Route = createFileRoute("/api/generate-itinerary")({
                 accumulated &&
                 hasAcceptablePlanDayCoverage(accumulated.days.length, expectedDays)
               ) {
-                const finalPlan = finalizeMergedStreamPlan(accumulated, data);
+                const finalPlan = await repairCatalogPlanIfNeeded(
+                  finalizeMergedStreamPlan(accumulated, data),
+                  data,
+                );
                 await recordPlanGeneration(userId, quota.tier, request);
                 push({ type: "done", plan: finalPlan });
                 pipelineLog(

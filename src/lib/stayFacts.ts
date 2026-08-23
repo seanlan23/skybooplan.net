@@ -1,7 +1,8 @@
 import { lookupRegionCoords } from "@/lib/regionCoords";
 
 /**
- * Stay facts (catalog) — never overnight a hub day-trip; long-access islands need enough nights.
+ * Stay facts (catalog) — physics only: hub day-trips, long-access min nights.
+ * Route sense (how many bases, when to add a coast) lives in worldRouteRules — do not grow this file with if (city / 18 days).
  * Keep this file free of aiPlan / curatedRoutes imports (used while building blueprints).
  */
 
@@ -115,6 +116,15 @@ export function relabelHubDayTripOvernights<T extends StayDay>(
   return n;
 }
 
+export type ThinStayGap = {
+  city: string;
+  nextCity?: string;
+  have: number;
+  need: number;
+  dayNumbers: number[];
+  kind: "long_access" | "coast_prelude";
+};
+
 type CityRun = { city: string; start: number; end: number };
 
 function cityRuns<T extends StayDay>(days: T[]): CityRun[] {
@@ -137,6 +147,49 @@ function hotelNightsInRun<T extends StayDay>(days: T[], run: CityRun): number {
   let nights = run.end - run.start + 1;
   if (run.end === lastCal) nights -= 1;
   return Math.max(0, nights);
+}
+
+function runDayNumbers<T extends StayDay>(days: T[], run: CityRun): number[] {
+  return days
+    .slice(run.start, run.end + 1)
+    .map((d) => d.day)
+    .filter((n): n is number => typeof n === "number");
+}
+
+/** Report thin long-access / coast-prelude stays. Does not rewrite the calendar. */
+export function findThinStayGaps<T extends StayDay>(days: T[]): ThinStayGap[] {
+  if (days.length < 2) return [];
+  const gaps: ThinStayGap[] = [];
+  const runs = cityRuns(days);
+  for (let r = 0; r < runs.length; r++) {
+    const run = runs[r]!;
+    const next = runs[r + 1];
+    const have = hotelNightsInRun(days, run);
+    const dayNumbers = runDayNumbers(days, run);
+    const islandNeed = LONG_ACCESS_MIN_NIGHTS.find((f) => f.match.test(run.city))?.minNights;
+    if (islandNeed && have < islandNeed) {
+      gaps.push({
+        city: run.city,
+        nextCity: next?.city,
+        have,
+        need: islandNeed,
+        dayNumbers,
+        kind: "long_access",
+      });
+    }
+    const preludeNeed = coastPreludeMinNights(run.city, next?.city);
+    if (preludeNeed >= 3 && have < preludeNeed) {
+      gaps.push({
+        city: run.city,
+        nextCity: next?.city,
+        have,
+        need: preludeNeed,
+        dayNumbers,
+        kind: "coast_prelude",
+      });
+    }
+  }
+  return gaps;
 }
 
 /**

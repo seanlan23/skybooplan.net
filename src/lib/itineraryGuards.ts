@@ -26,10 +26,7 @@ import { lookupRegionCoords } from "@/lib/regionCoords";
 import { haversineKm } from "@/lib/geoMath";
 import { DESTINATION_BY_IATA } from "@/lib/destinationCoords";
 import { lookupLeg } from "@/lib/curatedRoutes.legs";
-import {
-  ensureLongAccessMinNights,
-  relabelHubDayTripOvernights,
-} from "@/lib/stayFacts";
+import { relabelHubDayTripOvernights } from "@/lib/stayFacts";
 
 type DaySlots = NonNullable<DayPlan["activities"]>;
 type Slot = keyof DaySlots;
@@ -1470,7 +1467,6 @@ export function applyItineraryGuards(
 } {
   applyIslandHopLogistics(plan, opts?.language ?? plan.contentLanguage);
   relabelHubDayTripOvernights(plan.days ?? [], opts?.language ?? plan.contentLanguage);
-  ensureLongAccessMinNights(plan.days ?? []);
   enrichIslandAirportTransfers(plan, {
     destinationIata: plan.destinationIata,
     language: opts?.language ?? plan.contentLanguage,

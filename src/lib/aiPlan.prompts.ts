@@ -1,6 +1,7 @@
 import { STRICT_LLM_CURRENCY_RULE } from "@/lib/planCurrency";
 import { STRICT_LLM_LANGUAGE_RULE } from "@/lib/planLanguages";
 import { DISTANCE_TRANSPORT_RULES } from "@/lib/transportPromptRules";
+import { worldRouteRulesPromptBlock } from "@/lib/worldRouteRules";
 
 /** System prompts for LLM calls — user messages are JSON trip parameters only. */
 
@@ -35,6 +36,8 @@ The user message is JSON trip parameters. Return ONE JSON object only.
 
 ${DISTANCE_TRANSPORT_RULES}
 
+${worldRouteRulesPromptBlock(false)}
+
 Rules:
 - TWO PHASES: first lock cities + night counts + transfers; then fill daily details. Do not start with restaurant lists if the city skeleton is not honest
 - Works for ANY country/city — adapt sights, transport, and prices to destinationCountry in user JSON
@@ -44,7 +47,7 @@ Rules:
 - Food highlights: name a real venue or omit the meal
 - regions MUST span coverage.firstDay through coverage.lastDay (equals totalDays), no gaps
 - The last region's endDay MUST equal totalDays from the user message — never stop early
-- For totalDays >= 10: use 3–5 regions, each 2–5 days; follow regionBlueprint if provided, else plan a logical multi-city route for that country
+- For totalDays 10–14: 3–4 regions; 15–21: 4–6 regions, each ~2–4 nights. regionBlueprint is a hint unless the user spelled cities/nights — you may add a base on the same heading instead of a 5th resort night
 - Day 1 (arrival): ONLY after airport transfer + hotel — light programme, never a heavy museum/park the same day. Prefer an empty morning/afternoon slot over a filler
 - Full days: 1 named anchor + 1–2 supporting stops. Prefer an empty slot over a template activity
 - NEVER invent “morning walk / coffee before the sight”, “check-in refresh”, “if you still have energy”, or “without rushing from the airport” — these are forbidden worldwide
@@ -65,12 +68,8 @@ Rules:
 - Linear routing: no mid-trip city revisit; final region may return to hub for flight home only
 - City lock: highlights MUST match that region’s city. Louvre/Eiffel/Orsay only in Paris; Lyon = Fourvière/traboules/Vieux Lyon — never Louvre in Lyon
 - NEVER repeat the same sight/POI name on two different days (Griffith Observatory once; not again as "Griffith Park Observatory")
-- If metroClustering in user JSON: each day MUST stay within maxKmSameDay — cluster by zone (Hollywood one day, Santa Monica another; never cross LA in one day)
-- Tanzania safari: Arusha → Serengeti → Zanzibar linear; Ngorongoro Crater = FULL DAY transit (never same morning as Maasai boma inside Serengeti); safari game drives ≥200 €/person/day ONLY on premium / explicit safari lodge trips; balloon safari ~500 € (premium only)
-- Botswana / Namibia / Kenya / South Africa (JNB safari) on budget or standard (≤2000 €/person on destination): NO Okavango fly-in lodges, private concessions, or balloon safaris — use mid-range wilderness bases + day trips / self-drive (Maun, Makgadikgadi, Kasane/Chobe, Etosha, Sossusvlei, Kruger, Maasai Mara, Amboseli). Gaborone/Windhoek/Johannesburg/Nairobi = arrival/departure buffer only (≤1–2 nights each) — NEVER pad leftover days with capital malls/city walks; put surplus into wilderness. Cape Town may be a real destination (not only a hub). Luxury delta/Mara camps only when budget=premium or user explicitly asks.
-- Zanzibar: one island zone per day (north/east/south/Stone Town); NEVER Mikindani or Dar es Salaam — those are mainland Tanzania, not Zanzibar
-- Canada (YYZ/YVR): Toronto → Niagara (Canadian side: Hornblower/Journey Behind the Falls) → Ottawa → Banff → Vancouver — linear east to west. Ottawa→Banff and Banff→Vancouver need FULL travel days (domestic flight + transfer). Last day: if overnighting in Vancouver, include domestic air YVR→YYZ before the international return (never invent “no Uber in Canada” — Uber works in Canadian cities; use Uber/taxi/transit, not Grab). NEVER Maid of the Mist or Cave of the Winds (US side, border/visa). Banff/Vancouver budgets are premium (hotels, park fees, domestic flights)
-- Spain + Gibraltar: southbound linear route (Barcelona/Málaga → Seville → Gibraltar). Madrid ONLY on the return leg north (1–2 days) before final hub for outbound flight — NEVER Madrid → south → Madrid → hub (duplicate Madrid). Follow regionBlueprint when provided
+- If metroClustering in user JSON: each day MUST stay within maxKmSameDay — cluster by zone (one neighbourhood per day; never cross a sprawling metro in one day)
+- Safari / wilderness on budget or standard: no fly-in luxury lodges or balloon safaris unless budget=premium or the user asks. Hub capitals = arrival/departure buffer only — put surplus nights in the wilderness, not mall walks
 - If accommodationMode=motorhome in user JSON: campgrounds OUTSIDE city centers only — NO downtown hotels; inter-city travel by DRIVING the motorhome only (never domestic flights); city sightseeing via public transit from campsite
 - If hotelRestEveryNDays in user JSON (e.g. 3 or 5): motorhome/campground on most nights; hotel ONLY on days divisible by that number (e.g. 3→day 3,6,9… or 5→day 5,10,15…) — never suggest hotels on other days
 - If writingRule in user JSON: follow it strictly (language + currency)
@@ -84,11 +83,11 @@ Rules:
 - If regionClimate in user JSON: put each city's hints in that region's summary and in localWarnings/travelHack for days in that city — warn about north Thailand afternoon rain, Andaman boat cancellations, rainforest muddy trails; suggest morning outdoor / indoor backup afternoons
 - If tripAstronomy in user JSON: schedule bioluminescence on dark-moon evenings only; low-tide caves/lagoons at low tide (not morning if tide is afternoon); full moon = brighter nights, poorer plankton
 - If priorities in user JSON: follow steer field — weight regions and highlights toward selected keys (beaches→islands/coast; sights→temples/museums; nature→parks/jungle; food→markets/cooking; culture→museums/temples; nightlife→evening districts; hikes/mountains→trails; rivers→rafting/cruises; fun→adventure/water parks). At least ~40% of highlight days must clearly match a priority. Do NOT ignore priorities when wishes also mention them.
-- If priorities.anchors in user JSON: obey anchorRule — use mustIncludeHighlights as real highlight names; align regionBlueprint with anchors.beaches.routeTemplate (e.g. TH: Krabi + Koh Lipe + Phi Phi; PH: El Nido + Boracay)
-- Small islands (Phu Quoc, Gili, Caribbean, etc.): allocate 2–4 nights; spread beaches, boats, snorkeling across the stay (UI may collapse multi-day island blocks). Long-access islands (Koh Lipe: boat+van+flight 6–8h): ≥4 nights if included — never 1–2. Ayutthaya is a Bangkok day trip (train ~1.5h), never an overnight stay. Ha Long Bay = overnight CRUISE (bay_cruise), NOT a small island with longtail boats
+- If priorities.anchors in user JSON: use mustIncludeHighlights as real highlight names when that base is on the route. regionBlueprint / routeTemplate is a hint, not a locked day list
+- Small islands: allocate 2–4 nights; spread beaches, boats, snorkeling across the stay (UI may collapse multi-day island blocks). Long-access islands (half-day boat+van+flight): ≥4 nights if included — never 1–2. Hub day-trips stay at the hub (never overnight the day-trip town). A bay cruise is an overnight cruise, not a small island with longtail boats
 - JSON shape: flat regions[] only — no nested duplicate blocks; never repeat the same description on two highlights
-- If openJawRule in user JSON: trip spans TWO countries — follow regionBlueprint exactly; final region MUST be returnHub.city for the flight home (e.g. BKK = Bangkok, not Hanoi)
-- If tripIntent + tripIntentRule in user JSON: obey structured intent (countries, routeId, minIslandDays) — regionBlueprint overrides generic single-country templates
+- If openJawRule in user JSON: trip spans TWO countries — final region MUST be returnHub.city for the flight home. regionBlueprint is a hint for the middle
+- If tripIntent + tripIntentRule in user JSON: obey countries and return hub; regionBlueprint is a hint unless the user wrote the stay plan
 
 Task skeleton_repair: fix coverage only — extend or add regions so the last endDay equals totalDays; keep valid existing regions; fill all missing highlights with unique POIs per day.`;
 
@@ -140,8 +139,10 @@ Task types (from user JSON):
 
 ${DISTANCE_TRANSPORT_RULES}
 
+${worldRouteRulesPromptBlock(false)}
+
 Rules:
-- TWO PHASES already done at skeleton: obey region night counts. Do not teleport back to the international hub except on the real last day
+- TWO PHASES already done at skeleton: keep honest night counts. Do not teleport back to the international hub except on the real last day. You may have added a base — fill that city's days, do not copy the previous resort's sights
 - Output exactly (generateDays.end - generateDays.start + 1) day objects
 - Prefer an empty morning/afternoon/evening slot over a template. Full day = 1 anchor + 1–2 stops; arrival day = light only after check-in
 - Road (car/motorhome): ≤5h driving per day or overnight in between. Not for international flights
@@ -157,7 +158,7 @@ Rules:
 - Do NOT invent HH:MM for international arrival/departure logistics (checkout, airport transfer, return flight) — the app injects boarding-pass clocks. Optional sightseeing may omit clocks; long “(+1 dan od odhoda…)” at most once in a day title
 - MANDATORY transportation[] on inter-city travel days: array of legs with type, from, to, duration, estimatedPrice — UI transport cards require this
 - MANDATORY transport_type + duration on every movement activity (airport/flight/ferry/train/van) — UI activity badges require both fields
-- For Thailand days: rotate tuk-tuk warnings (agree price upfront, temple-closed scams), BTS/Rabbit Card in Bangkok, ferry cancellations in monsoon
+- Rotate local warnings per city (scam, transit pass, peak hour, ferry/season) — never the same sentence every day
 - Voice: human local planner, not a brochure or Wikipedia. Each activity = what you do + one useful detail (hours, ticket, how to get there, what to skip). FORBIDDEN brochure: "Enjoy…", "Uživajte v…", "hidden gem", "kulturni dragulj", "authentic cuisine", "fine dining experience", "light stroll around your accommodation". FORBIDDEN echoing these rules into travelHack
 - Activity descriptions MAY mention how to reach the next stop when it is specific (walk 8 min / BTS one stop). Do NOT append a generic transfer sentence to every activity
 - Dates must match dateRange; day numbers must match generateDays

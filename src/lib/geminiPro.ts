@@ -32,8 +32,6 @@ import {
   type PlanCurrency,
 } from "@/lib/planCurrency";
 import { languageWritingRule } from "@/lib/tripLocale";
-import { bangkokKwaiDayTripPromptBlock } from "@/lib/bangkokKwaiDayTrip";
-import { buildCuratedRoutePromptBlock } from "@/lib/curatedRoutes";
 import {
   buildUserStayPlanPromptBlock,
   hasExplicitStayPlan,
@@ -42,6 +40,7 @@ import { flightContextPromptBlock } from "@/lib/geminiFlightContext";
 import { lookupDestination } from "@/lib/destinationCoords";
 import { DISTANCE_TRANSPORT_RULES } from "@/lib/transportPromptRules";
 import { plannerQualityPromptBlock } from "@/lib/plannerQuality";
+import { worldRouteRulesPromptBlock } from "@/lib/worldRouteRules";
 import { normalizeAppLang } from "@/lib/i18n";
 
 export type {
@@ -158,16 +157,16 @@ export function tripPlanControlRules(params: {
       : `- Če ni izbranega leta: dan 1 = prihod v ${params.arrivalCity} (${params.destinationIata}), lahek program.`;
 
   const stayBlock = params.explicitStayPlan
-    ? `- UPORABNIKOV RAZPORED MEST/NOČI ima ABSOLUTNO PREDNOST pred limito “max 3–4 baze”, unikatnostjo mest in kurirano Andaman potjo.
+    ? `- UPORABNIKOV RAZPORED MEST/NOČI ima ABSOLUTNO PREDNOST pred limito baz in kakršnimkoli predlogom poti.
 - Vrnitev na Phuket/Patong za odhod je dovoljena, če je v željah.`
-    : `- Brez eksplicitnega razporeda: drži enosmerni lok in razumno število baz (glej PRILAGODITEV TRAJANJU).`;
+    : `- Brez eksplicitnega razporeda: drži enosmerni lok; število baz raste z dnevi (glej SMSEL POTI).`;
 
   return `
 === HIERARHIJA PRAVIL (obvezno — ob konfliktu zmaga višje) ===
 1) Uporabnikove želje / razpored mest in noči
 2) IZBRANI LET (realne ure prihoda/odhoda) — prazni sloti pred pristankom
 3) Tempo potovanja (${PACE_LABELS[pace]}) — lahek program, ne naporen
-4) Kurirana pot / limity baz (samo če točki 1 ni)
+4) Predlog poti (samo če točki 1 ni) — smeš dodati/izpustiti bazo; ne nategovati ene plaže
 5) “Poln dan” (dopoldan/popoldan/večer) — SAMO na polnih dneh na destinaciji, ko ni konflikta z 2–3
 
 ${stayBlock}
@@ -235,18 +234,9 @@ TRANSPORT IN PREMIKANJE (obvezno — več plasti):
 - Vsak zapis v transportation[] mora imeti duration (npr. "1h 10min") — enako kot activities[].duration za isti korak.
 - Primer enega dneva z letom:
   "transportation": [{ "type": "flight", "from": "Bangkok BKK", "to": "Chiang Mai CNX", "duration": "1h 10min", "estimatedPrice": 45 }]
-- Za otoke: navedi urnike trajektov in hitrih čolnov (speedboat), sezonske odpovedi (Andaman dež), rezervacijo vnaprej, pristanišča (jetty) in transfer letališče → pristanišče.
-- Otok z letališčem na celini: 3 koraki (flight → van → ferry) — glej pravilo spodaj.
-- Koh Lipe: NI neposrednega leta z otoka. Če si že v Krabiju / Ao Nangu / Phuketu: SAMO kombi do Pak Bara (~3,5 h) + speedboat — PREPOVEDANO let KBV→HDY (ta povezava ne obstaja). Če prihajaš iz BKK/CNX: let HDY → kombi Pak Bara → čoln. Odhod z otoka = čoln → Pak Bara → HDY → BKK/HKT. PREPOVEDANO: "letališče → letališče z letalom" na Lipe.
-
-TAJSKA — POSEBNA OPOZORILA (obvezno ko je destinacija Tajska ali faza v Tajske):
-- V transportTip ali localWarnings na vsakem dnevu v Tajske vključi vsaj eno specifično opozorilo, rotirano po dneh (ne isto vsak dan):
-  • tuk-tuk: ceno dogovori VNAPREJ v bahtih, zavrnite "temple closed" prevare in vlečenje v trgovine,
-  • Grab/Bolt v mestih; na Phuketu/Krabi pogosto InDrive ali lokalni pink taxi z meterjem,
-  • BTS/MRT v Bangkoku — Rabbit Card; izogibaj prometni konici 07–09 in 17–19,
-  • trajekti na otoke: preveri sezonske odpovedi, vihar, dnevne urnike (npr. Phi Phi, Koh Lipe, Koh Samui).
-- Ne piši generičnega "uporabite Grab" brez konteksta mesta in relacije A→B.
-- Ko je baza Bangkok (BKK): vključi 1 celodnevni izlet Mae Klong → Damnoen Saduak → Kanchanaburi (War Cemetery + River Kwai) → Tham Krasae Death Railway → Suan Sai Yok → nazaj (~06:30–21:00, ~14–15 ur). Ta dan JE SAMO TA IZLET — PREPOVEDANO Siam Paragon / templji / nakupi isti dan; zvečer samo lahka večerja pri hotelu. Odhod 6:30 za vlak ~8:30 na Mae Klong. NIKOLI konkretno ime hotela — vedno „tvoj hotel“ / „your hotel“.
+- Za otoke: navedi urnike trajektov in hitrih čolnov, sezonske odpovedi, rezervacijo vnaprej, pristanišče in transfer letališče → pristanišče.
+- Otok z letališčem na celini: 3 koraki (flight → van → ferry) — glej pravilo spodaj. Otok BREZ piste: nikoli ne izmisli leta na otok; uporabi resnične noge (čoln/kombi/let na celinsko letališče).
+- V transportTip ali localWarnings vsak dan eno konkretno lokalno opozorilo (prevara, karta, konica, sezona) — rotiraj, ne isto vsak dan. Ne piši generičnega "uporabite aplikacijo" brez mesta in relacije A→B.
 `.trim();
 }
 
@@ -351,10 +341,10 @@ function buildTripPlanPrompt(params: GenerateTripPlanParams): string {
   const tvojeZeljeBlock = customWishes
     ? `
 
-=== TVOJE ŽELJE (ABSOLUTNA PREDNOST — pred kurirano potjo in limito baz) ===
+=== TVOJE ŽELJE (ABSOLUTNA PREDNOST — pred predlogom poti in limito baz) ===
 ${customWishes}
 
-Če želje vsebujejo razpored mest z dnevi/nočmi (npr. "3 dni Khao Sok"): itinerar[] in days[].city MORATA slediti temu razporedu. PREPOVEDANO ga zamenjati s "tipično" Andaman potjo (Koh Lipe ipd.), če uporabnik tega ni prosil.
+Če želje vsebujejo razpored mest z dnevi/nočmi: itinerar[] in days[].city MORATA slediti temu razporedu. PREPOVEDANO ga zamenjati s prednastavljeno potjo, če uporabnik tega ni prosil.
 ===`
     : "";
 
@@ -451,24 +441,6 @@ Takoj za tem nadaljuj s kratkim narativnim uvodom o poti (največ 1–2 stavka �
     params.days,
   );
 
-  const curatedRouteBlock = buildCuratedRoutePromptBlock({
-    nDays: params.days,
-    destinationIata: params.destinationIata,
-    priorities: params.priorities,
-    wishes: wishBlob,
-    returnFromIata: params.returnFromIata,
-    skipForUserStayPlan: explicitStayPlan,
-  });
-
-  const bangkokDayTripBlock =
-    /^(BKK|DMK)$/i.test(params.destinationIata) ||
-    /^(BKK|DMK)$/i.test(params.returnFromIata ?? "") ||
-    /bangkok|tajsk|thailand/i.test(
-      `${params.destination} ${params.destinationPlace ?? ""} ${wishBlob}`,
-    )
-      ? bangkokKwaiDayTripPromptBlock(true)
-      : "";
-
   const arrivalCityName =
     lookupDestination(params.destinationIata)?.name ??
     params.destinationPlace ??
@@ -500,8 +472,6 @@ ${plannerQualityPromptBlock({
   totalDays: params.days,
 })}
 ${userStayPlanBlock ?? ""}
-${curatedRouteBlock ?? ""}
-${bangkokDayTripBlock}
 ${tvojeZeljeBlock}${motorhomeBlock}${carHotelBlock}${groundTransportBlock}
 
 Let: ${route}.
@@ -521,15 +491,14 @@ Obvezna logistična pravila za ta načrt:
         ? `Načrtuj največ ${maxBases} baz/kampov vzdolž enosmerne poti; ${dayObjectsRule} (več noči na isti bazi = več day{} — NE samo ${maxBases} day{}).`
         : carTrip || roadTrip
           ? `Načrtuj največ ${maxBases} hotelskih baz (mesta) vzdolž enosmerne poti; ${dayObjectsRule} (več noči v istem mestu = več day{} — NE samo ${maxBases} day{}). PREPOVEDANO: kamp/RV/sosta kot nočitev.`
-        : `Največ ${maxBases} glavne baze (mesta/regije) za ${params.days} dni — brez skakanja sem in tja po državi.`
+        : `Število baz: glej SMSEL POTI (ne strop 4 baze). ${params.days} dni = dovolj baz za ~2–4 noči, ne 5+ v istem letovišču.`
   }
-- ${explicitStayPlan ? "Sledi uporabnikovemu vrstnemu redu mest (lahko se vrneš na Phuket/Patong za odhod, če je to v razporedu)." : "Enosmerna geografska pot (en jasen lok); brez vračanja v že obiskana mesta."}
+- ${explicitStayPlan ? "Sledi uporabnikovemu vrstnemu redu mest (vrnitev na odhodni hub je dovoljena, če je v razporedu)." : "Enosmerna geografska pot (en jasen lok); brez vračanja v že obiskana mesta."}
 ${arrivalDayRule}
 ${flightReturnLine}
 - Za vsako fazo obvezno izpolni city (angleško ime), lat in lng (centrum mesta${motorhome ? " ali kamp ob poti" : ""}).
 - Vsaka aktivnost mora imeti category (sightseeing, nature, beach, food, entertainment, hotel, airport) in koordinate za oglede.
-- PREPOVEDANO: Grand Palace, Wat Pho, Wat Arun, Khao San na dnevih zunaj Bangkoka (npr. Khao Sok, Phuket, Krabi, Ao Nang). To so samo Bangkok znamenitosti.
-- PREPOVEDANO vulgarno/spolno opisovanje Phra Nang (penis temple, phallic, fertility shrine, lingam). Piši kot Phra Nang Cave Beach / Princess Cave — plaža in jama ob Railayu.
+- PREPOVEDANO: znamenitosti enega mesta na dnevu v drugem mestu (POI ∈ baza).
 - timeSlot je obvezen: "dopoldan", "popoldan" ali "vecer". arrivalTime/departureTime sta neobvezna za oglede — NE izmišljuj ur za mednarodni prihod/odhod (check-out, transfer, letališče, mednarodni let); aplikacija jih vstavi iz izbrane letalske karte.
 - ČASOVNA STRUKTURA: glej HIERARHIJA PRAVIL zgoraj — prazni sloti pred/za letom in ob mirnem tempu SO dovoljeni; ne polni dneva na silo.
 - Vsak dan obvezno izpolni travelHack (unikaten insider nasvet) in transportTip (dnevni pregled prevoza) — glej podrobna pravila spodaj.
@@ -648,17 +617,6 @@ export function tripPlanSystemPrompt(params: GenerateTripPlanParams): string {
     params.destination ??
     params.destinationIata;
   const returnAirport = params.returnFromIata ?? params.destinationIata;
-  const thailandRouteExamples =
-    params.destinationIata.toUpperCase() === "HKT" ||
-    params.destinationIata.toUpperCase() === "KBV"
-      ? `  • južni lok (prihod ${params.destinationIata}): Phuket → Krabi/Koh Lanta → Koh Lipe samo z ≥4 nočitvami (sicer izpusti) → odhod iz Phuketa (ali Krabi) — NE začni v Bangkoku,
-  • če uporabnik eksplicitno želi Bangkok: Phuket → … → Bangkok šele proti koncu (nikoli notranji let stran z ${params.destinationIata} na dan 1).`
-      : params.destinationIata.toUpperCase() === "CNX"
-        ? `  • severni lok (prihod CNX): Chiang Mai → Chiang Rai/Pai → odhod iz Chiang Mai — NE začni v Bangkoku.`
-        : `  • severni lok: Bangkok (Ayutthaya = dnevni izlet, brez nočitve) → Chiang Mai → Chiang Rai → odhod iz Chiang Mai ali Bangkoka,
-  • južni lok: Bangkok (Ayutthaya = dnevni izlet, brez nočitve) → Krabi/Phuket/Koh Lanta → odhod iz južnega letališča ali Bangkoka,
-  • Koh Lipe samo z ≥4 nočitvami (pristop 6–8 h); sicer izpusti otok. Krabi/Ao Nang pred Lipejem ≥3 noči (Railay, Phi Phi) — ne 1 noč Krabi + 7 noči Lipe.
-  • osrednji lok: Bangkok → Chiang Mai (brez skoka na otroke) ALI Bangkok → Hua Hin → juž — nikoli oboje v istem načrtu.`;
 
   const arrivalDayNum = 1 + (params.flightContext?.outboundArriveDayOffset ?? 0);
   const controlRules = tripPlanControlRules({
@@ -706,6 +664,8 @@ VALUTA (displayCurrency = ${displayCurrency}):
 ${moneyRule}
 
 ${controlRules}
+
+${worldRouteRulesPromptBlock(true)}
 
 ${plannerQualityPromptBlock({
   road: Boolean(params.groundTransportMode === "car" || params.groundTransportMode === "motorhome" || roadTrip || carTrip),
@@ -857,17 +817,15 @@ ${
   explicitStayPlan
     ? `- UPORABNIK JE PODAL RAZPORED MEST/DNI — to ima ABSOLUTNO PREDNOST pred vsemi spodnjimi limito-baz in "tipičnimi" Tajskimi potmi.
 - Sledi uporabnikovemu vrstnemu redu (npr. Phuket → Khao Sok → Ao Nang → Phi Phi → Patong). Dovoljeno je več kot 4 baze in vrnitev na Phuket/Patong za odhod, če je to v željah.
-- PREPOVEDANO zamenjati ta razpored s kurirano Andaman potjo (Koh Lipe ipd.), če uporabnik tega ni prosil.
+- PREPOVEDANO zamenjati ta razpored s prednastavljeno potjo, če uporabnik tega ni prosil.
 - Vsaka faza (phase) = ena baza iz uporabnikovega razporeda; days[].city mora ujemati.`
-    : `- Če je potovanje daljše od 10 dni in destinacija predstavlja celo državo ali večjo regijo (npr. Japonska, Tajska, Italija, Španija), NE omejuj celotnega itinerarja na eno samo mesto — a tudi NE raztegni na preveč regij.
-- STROGA GEOGRAFSKA LINEARNOST (obvezno): Pot mora potekati enosmerno v enem jasnem geografskem smernem loku. Prepovedano je:
-  • skakanje s severa na jug in nazaj (npr. Bangkok → Chiang Mai → južni otoki → spet Bangkok — NAROBE),
+    : `- Če je potovanje daljše od 10 dni in destinacija predstavlja celo državo ali večjo regijo, NE omejuj celotnega itinerarja na eno samo mesto — a tudi NE raztegni ene plaže na 5+ noči.
+- STROGA GEOGRAFSKA LINEARNOST: enosmerni lok. Prepovedano je:
+  • skakanje s severa na jug in nazaj,
   • vračanje v mesta/regije, ki jih je potnik že obiskal (${lastDayTransitException}),
-  • ciklična pot ali "zig-zag" preko celega ozemlja brez smisla.
-- Primeri DOVOLJENIH poti za Tajsko (izberi EN sam smerni lok; vedno spoštuj prihodovno letališče zgoraj):
-${thailandRouteExamples}
-- Primer za Japonsko: Tokio → Hakone → Kjoto → Osaka (enosmerno proti zahodu/jugu, brez vračanja v Tokio sredi poti).
-- Vsaka faza (phase) = ena regija/mesto; dni razporedi sorazmerno glede na velikost lokacije.
+  • ciklična pot ali "zig-zag" brez smisla.
+- Sledi SMSEL POTI zgoraj — ne seznamom mest za eno državo. Smeš dodati bazo, če koledar drži.
+- Vsaka faza (phase) = ena regija/mesto; dni razporedi sorazmerno.
 - Unikatnost mest: Vsako mesto/regija se lahko v celotnem itinerarju pojavi samo enkrat (izjema: zadnji dan — le ${params.groundTransportMode ? "vožnja/vlak nazaj domov" : "tranzit na izhodno letališče"}, brez ogledov).`
 }
 
@@ -879,12 +837,12 @@ ${
       ? `- ROAD TRIP / AVTODOM: Enosmerna pot z največ ${motorhomeRoadTripMaxBases(params.days)} bazami/kampi (itinerar[]). Število kampov ≠ število dni. days[] (vsota itinerar[].days) = NATANKO ${params.days} koledarskih day{} — združi 2–3 noči na isti bazi (vsaka noč = svoj day{}). Vsak dan: smiselne aktivnosti + kamp/RV park za nočitev. PREPOVEDANO: ena baza na vsak dan (to preseže output limit). PREPOVEDANO: vrniti samo ${motorhomeRoadTripMaxBases(params.days)} day{} za ${params.days}-dnevni izlet.`
       : carTrip || roadTrip
         ? `- ROAD TRIP / AVTO + HOTELI: Enosmerna pot z največ ${motorhomeRoadTripMaxBases(params.days)} hotelskimi bazami (itinerar[]). Število mest ≠ število dni. days[] = NATANKO ${params.days} koledarskih day{} — združi 2–3 noči v istem mestu. Vsak dan: smiselne aktivnosti + hotel nočitev. PREPOVEDANO: kamp/RV/sosta. PREPOVEDANO: vrniti samo ${motorhomeRoadTripMaxBases(params.days)} day{} za ${params.days}-dnevni izlet.`
-      : `- Število glavnih baz (mest/regij, kjer potnik prespi več dni) MORAŠ omejiti glede na dolžino poti — manj regij = manj prevozev, več uživanja:
-  • 7–9 dni: največ 2 glavni bazi (+ morebitna kratka postaja),
-  • 10–14 dni: največ 3 glavne baze (NE 4, 5 ali več — uporabnik ne sme preživeti dopusta na letalih/vlakih),
-  • 15–21 dni: največ 4 glavne baze.
-- Med bazami načrtuj le en logičen premik; izogibaj se dnevnim dolgim preskokom (>4–5 h prevoza) razen ob enem preselitvenem dnevu med bazami.
-- Če je pot krajša od 10 dni, ostani v 1–2 mestih/regijah — ne raztezaj na celo državo.`
+      : `- Število baz raste z dnevi (glej SMSEL POTI) — ne nategovati ene plaže:
+  • 7–9 dni: 2–3 baze,
+  • 10–14 dni: 3–4 baze,
+  • 15–21 dni: 4–6 baz (vključno hub prihoda/odhoda).
+- ~2–4 noči na bazo. Če ostane ≥3 noči, dodaj novo bazo na isti smeri.
+- Med bazami en logičen premik; težek hop (≥5–6 h) = transfer dan.`
 }
 
 ${lastDayBlock}
