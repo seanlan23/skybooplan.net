@@ -33,6 +33,7 @@ import {
 import { lookupLeg } from "@/lib/curatedRoutes.legs";
 import { relabelHubDayTripOvernights } from "@/lib/stayFacts";
 import { stripCrossStayLeaks } from "@/lib/stayLeakGuard";
+import { stripUnrenderablePlanCopy } from "@/lib/twoStagePlan";
 
 type DaySlots = NonNullable<DayPlan["activities"]>;
 type Slot = keyof DaySlots;
@@ -1667,7 +1668,7 @@ export function applyItineraryGuards(
   dropGenericSightStubs(plan);
   const duplicatePois = dropDuplicatePoisAcrossPlan(plan);
   stripRevisitLeadIns(plan);
-  const truncated = stripTruncatedCopyFromPlan(plan);
+  const truncated = stripTruncatedCopyFromPlan(plan) + stripUnrenderablePlanCopy(plan);
   stripStaleIslandTipsOnHubDeparture(plan);
   const logisticsCopy = repairIncompleteLogisticsCopy(plan);
   const transportLegs = sanitizeTransportationLegs(plan);

@@ -38,6 +38,7 @@ import {
   streamPartialPastItinerary,
 } from "@/lib/geminiStreamBatches";
 import type { AiTripPlan } from "@/lib/aiPlan.functions";
+import { extractRouteMatrix, formatLockedRouteMatrix } from "@/lib/twoStagePlan";
 import { optionalSupabaseAuthRequest } from "@/lib/supabaseRequestAuth.server";
 import { enforceItineraryQuota, recordPlanGeneration } from "@/lib/quota.server";
 
@@ -235,6 +236,12 @@ export const Route = createFileRoute("/api/generate-itinerary")({
                     end: range.end,
                     visitedCities: planVisitedCities(accumulated),
                     lastCity: planLastCity(accumulated),
+                    lockedRoute: accumulated
+                      ? formatLockedRouteMatrix(
+                          extractRouteMatrix(accumulated),
+                          (data.language ?? "sl").startsWith("sl"),
+                        )
+                      : undefined,
                   },
                 };
 

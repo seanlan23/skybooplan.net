@@ -139,14 +139,44 @@ describe("normalizePlanForPdf", () => {
           {
             day: 1,
             title: "Arrival",
-            items: [{ time: "10:00", title: "Colosseum", description: "Skip the line" }],
+            items: [{ time: "10:00", title: "The Colosseum", description: "Skip the line" }],
           },
         ],
       },
     });
 
     expect(model.labels.morning).toBe("Morning");
-    expect(model.days[0]!.slots[0]!.items[0]!.title).toBe("Colosseum");
+    expect(model.days[0]!.slots[0]!.items[0]!.title).toBe("The Colosseum");
+  });
+
+  it("drops stub titles and ellipsis descriptions from the PDF model", () => {
+    const model = normalizePlanForPdf({
+      title: "Trip",
+      destination: "Zanzibar",
+      start_date: "2026-11-01",
+      end_date: "2026-11-02",
+      language: "sl",
+      itinerary: {
+        days: [
+          {
+            day: 3,
+            title: "Dan 3",
+            city: "Nungwi",
+            activities: {
+              morning: [{ name: "Dan 3", description: "…" }],
+              afternoon: [
+                {
+                  name: "Sprehod po obali Nungwija",
+                  description: "Po zajtrku se sprehodite ob severni plaži.",
+                },
+              ],
+            },
+          },
+        ],
+      },
+    });
+    const titles = model.days[0]!.slots.flatMap((s) => s.items.map((i) => i.title));
+    expect(titles).toEqual(["Sprehod po obali Nungwija"]);
   });
 
   it("keeps Slovenian characters in titles for PDF model", () => {

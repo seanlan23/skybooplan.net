@@ -56,6 +56,7 @@ describe("tripPlanControlRules", () => {
     const system = tripPlanSystemPrompt(baseParams());
     expect(system).toMatch(/HIERARHIJA PRAVIL/);
     expect(system).toMatch(/SMSEL POTI/);
+    expect(system).toMatch(/DVO-STOPENJSKI NAČRT|FAZA 1/i);
     expect(system).toMatch(/KAKOVOST NAČRTA/);
     expect(system).toMatch(/vse destinacije/);
     expect(system).toMatch(/prazni timeSlot-i PRED\/ZA letom so OBVEZNI/);
@@ -89,10 +90,17 @@ describe("tripPlanControlRules", () => {
 
     const system = tripPlanSystemPrompt(
       baseParams({
-        dayRange: { start: 7, end: 12, lastCity: "Phuket", visitedCities: ["Phuket"] },
+        dayRange: {
+          start: 7,
+          end: 12,
+          lastCity: "Phuket",
+          visitedCities: ["Phuket"],
+          lockedRoute: "=== ZAKLENJENA MATRIKA BAZ ===\n- Dan 1–6 · Phuket",
+        },
       }),
     );
     expect(system).toMatch(/RAZPON DNI ZA TA JSON/);
+    expect(system).toMatch(/FAZA 2|ZAKLENJENA MATRIKA BAZ/);
     expect(system).not.toMatch(/PRIHODOVNO LETALIŠČE \(OBVEZNO/);
   });
 });

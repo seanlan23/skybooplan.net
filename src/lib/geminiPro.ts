@@ -41,6 +41,7 @@ import { lookupDestination } from "@/lib/destinationCoords";
 import { DISTANCE_TRANSPORT_RULES } from "@/lib/transportPromptRules";
 import { plannerQualityPromptBlock } from "@/lib/plannerQuality";
 import { worldRouteRulesPromptBlock } from "@/lib/worldRouteRules";
+import { twoStagePromptBlock } from "@/lib/twoStagePlan";
 import { normalizeAppLang } from "@/lib/i18n";
 
 export type {
@@ -288,12 +289,14 @@ export function dayRangePromptBlock(params: GenerateTripPlanParams): string {
 - NE generiraj day_number 1–${span.start - 1}. Ne začenjaj poti znova na letališču prihoda.
 - Destinacije iz želja, ki še NISO med že obiskanimi (npr. drugo mesto/država), MORAŠ vključiti v tem razponu.`
       : `- To je SAMO prvi del ${span.total}-dnevne poti. Generiraj začetek; kasnejši dnevi pridejo v naslednjem klicu. Ne stisni cele poti v ${span.count} dni.`;
+  const locked = params.dayRange?.lockedRoute?.trim();
   return `
 RAZPON DNI ZA TA JSON (STROGO — prebije vsa druga pravila o številu dni):
 - Generiraj SAMO day_number ${span.start} do ${span.end} — natanko ${span.count} day{} objektov.
 - Celotna pot ima ${span.total} koledarskih dni.
 ${continuation}
 - PREPOVEDANO vrniti manj kot ${span.count} day{} ali day_number zunaj ${span.start}–${span.end}.
+${locked ? `\n${locked}\n` : ""}
 `;
 }
 
@@ -666,6 +669,11 @@ ${moneyRule}
 ${controlRules}
 
 ${worldRouteRulesPromptBlock(true)}
+
+${twoStagePromptBlock({
+  phase: span.start > 1 ? 2 : 1,
+  slo: true,
+})}
 
 ${plannerQualityPromptBlock({
   road: Boolean(params.groundTransportMode === "car" || params.groundTransportMode === "motorhome" || roadTrip || carTrip),

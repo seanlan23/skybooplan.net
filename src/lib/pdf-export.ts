@@ -528,7 +528,8 @@ function activityFromUnknown(
   }
   const o = raw as Record<string, unknown>;
   const title = textOf(o.name) || textOf(o.title);
-  if (!title) return null;
+  if (!title || title.trim().length < 10) return null;
+  if (/…|\.\.\./.test(title)) return null;
   // Slot names (Morning/Afternoon/…) are section headers — never show them as clock badges.
   const explicitTime = textOf(o.time);
   const clockFromFields = formatActivityClockLabel({
@@ -551,7 +552,9 @@ function activityFromUnknown(
   const bullets = Array.isArray(o.bullets)
     ? o.bullets.filter((b): b is string => typeof b === "string" && b.trim().length > 0)
     : undefined;
-  const desc = textOf(o.description);
+  const rawDesc = textOf(o.description);
+  const desc =
+    rawDesc && rawDesc.trim().length >= 10 && !/…|\.\.\./.test(rawDesc) ? rawDesc : "";
   const location = textOf(o.location) || textOf(o.city);
   const lat = typeof o.lat === "number" ? o.lat : Number(o.lat);
   const lng = typeof o.lng === "number" ? o.lng : Number(o.lng);
@@ -605,7 +608,7 @@ function slotItems(
   return blob
     .split(/\n+/)
     .map((line) => line.replace(/^[-•*]\s*/, "").trim())
-    .filter(Boolean)
+    .filter((line) => line.length >= 10 && !/…|\.\.\./.test(line))
     .map((title) => ({ title }));
 }
 

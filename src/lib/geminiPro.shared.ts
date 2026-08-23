@@ -227,6 +227,8 @@ export type TripPlanDayRange = {
   end: number;
   visitedCities?: string[];
   lastCity?: string;
+  /** Phase-1 bases locked after the first stream batch. */
+  lockedRoute?: string;
 };
 
 export function thisResponseDaySpan(
