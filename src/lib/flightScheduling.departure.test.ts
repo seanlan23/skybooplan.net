@@ -38,9 +38,9 @@ describe("buildDepartureLogistics hotel clocks", () => {
       { accommodationMode: "hotel" },
     );
     const transfer = acts.find((a) => /airport transfer/i.test(a.name));
-    expect(transfer?.arrivalTime).toBe("05:00");
+    expect(transfer?.arrivalTime).toBe("04:00");
     expect(transfer?.description).toMatch(/Flight departs at 08:30/);
-    expect(transfer?.description).not.toMatch(/departs at 05:00/);
+    expect(transfer?.description).not.toMatch(/departs at 04:00/);
     const flight = acts.find((a) => /international return flight/i.test(a.name));
     expect(flight?.arrivalTime).toBe("08:30");
     expect(flight?.departureTime).toBe("10:00");
@@ -63,5 +63,28 @@ describe("buildDepartureLogistics hotel clocks", () => {
     const checkout = acts.find((a) => /check-out/i.test(a.name));
     expect(checkout?.description).not.toMatch(/Zjutraj/i);
     expect(checkout?.description).toMatch(/Check-out pred odhodom/i);
+  });
+
+  it("does not call a 01:30 red-eye a morning checkout", () => {
+    const locale = resolveTripLocale("DPS", "Canggu", "sl");
+    const acts = buildDepartureLogistics(
+      "Canggu",
+      {
+        outboundDepart: "11:55",
+        outboundArrive: "11:25",
+        outboundArriveDayOffset: 1,
+        inboundDepart: "01:30",
+        inboundArrive: "06:40",
+      },
+      locale,
+      { accommodationMode: "hotel" },
+    );
+    const checkout = acts.find((a) => /check-out/i.test(a.name));
+    expect(checkout?.arrivalTime).toBe("21:30");
+    expect(checkout?.description).not.toMatch(/Zjutraj/i);
+    expect(checkout?.description).toMatch(/zvečer|nočn/i);
+    const airport = acts.find((a) => /prihod na letališče/i.test(a.name));
+    expect(airport?.description).not.toMatch(/Zgodnji\/popoldanski/i);
+    expect(airport?.description).toMatch(/Nočni let ob 01:30/i);
   });
 });

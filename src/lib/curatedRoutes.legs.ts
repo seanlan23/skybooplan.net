@@ -288,12 +288,21 @@ export const CURATED_LEGS: LegDef[] = [
     heavyTravel: true,
   },
   {
-    from: /kuta|ubud|bali|denpasar/i,
+    from: /kuta|ubud|seminyak|canggu|sanur|bali|denpasar/i,
     to: /labuan bajo|flores|komodo/i,
     type: "flight",
     duration: "1h 15m",
     costLabel: "50–90 €",
     howTo: "Let DPS → LBJ (Labuan Bajo). Cel dan prevoz — Komodo cruise naslednji dan.",
+    heavyTravel: true,
+  },
+  {
+    from: /labuan bajo|flores|komodo/i,
+    to: /kuta|ubud|seminyak|canggu|sanur|bali|denpasar/i,
+    type: "flight",
+    duration: "1h 15m",
+    costLabel: "50–90 €",
+    howTo: "Let LBJ → DPS (Bali). Cel dan prevoz — lahek program po prihodu.",
     heavyTravel: true,
   },
   {

@@ -211,6 +211,7 @@ function repairTruncatedLine(line: string): string {
   let t = line.replace(/[^\S\n]+/g, " ").trim();
   if (!t) return "";
   t = t.replace(/^,\s+/, "").replace(/\s+[-–—]\s*$/u, "").trim();
+  if (/^(preizkusite|try|probieren)\.?$/i.test(t)) return "";
 
   // Unclosed "(" — Gemini cut mid-terminal: "Puerto Juarez ali Embar"
   const lastOpen = t.lastIndexOf("(");
@@ -234,15 +235,33 @@ function repairTruncatedLine(line: string): string {
   const noStop = !/[.!?…]$/u.test(t);
   const danglingVerb =
     noStop &&
-    /\b(traja|lasts|dauert|vključuje|includes|umfasst)\s*$/i.test(t) &&
-    t.length > 24;
+    /\b(traja|lasts|dauert|vključuje|includes|umfasst|preizkusite|probieren|pripravijo)\s*$/i.test(
+      t,
+    ) &&
+    t.length > 12;
   // "ulicah Hol" — not "Tulum" / "Pueblo" (5+ letters, likely a real place).
   const shortCapStub =
     noStop &&
     /^[A-ZÁÉÍÓÚÄÖÜČŠŽ][a-záéíóúäöüčšž]{1,3}$/u.test(lastWord) &&
     t.length > lastWord.length + 12;
+  // "pripravijo va" / "zadnjem raz" — Gemini cut a lowercase stem.
+  const shortLowerStub =
+    noStop &&
+    lastWord.length <= 3 &&
+    /^[a-záéíóúäöüčšž]+$/u.test(lastWord) &&
+    t.length > lastWord.length + 16;
 
-  const truncated = /…\s*$/u.test(t) || /\.\.\.\s*$/.test(t) || shortCapStub || danglingVerb;
+  const danglingAdjStop =
+    /\s+v\s+(čudovit\w*|prelep\w*|elegantn\w*|beautiful|wonderful|wunderschön\w*)\.\s*$/iu.test(
+      t,
+    );
+  const truncated =
+    /…\s*$/u.test(t) ||
+    /\.\.\.\s*$/.test(t) ||
+    shortCapStub ||
+    shortLowerStub ||
+    danglingVerb ||
+    danglingAdjStop;
 
   if (!truncated && !danglingEnd) return t;
 
@@ -268,9 +287,13 @@ function repairTruncatedLine(line: string): string {
     return /[.!?]$/.test(next) ? next : `${next}.`;
   }
 
-  if (shortCapStub) {
+  if (danglingAdjStop) {
+    t = t.replace(/\s+v\s+(čudovit\w*|prelep\w*|elegantn\w*|beautiful|wonderful|wunderschön\w*)\.\s*$/iu, ".").trim();
+  } else if (shortCapStub || shortLowerStub) {
     t = t.slice(0, t.length - lastWord.length).trim();
     t = t.replace(/\s+\b(ali|or|and|in|ter|za|to)\s*$/i, "").trim();
+    t = t.replace(/,\s+(ki|that|die|der|who)\s+\S{1,16}\s*$/iu, ".").trim();
+    t = t.replace(/\s+(in|and|ter|und)\s+(zadnjem|last|letzten)\s*$/iu, ".").trim();
   } else {
     t = t
       .replace(
@@ -278,6 +301,7 @@ function repairTruncatedLine(line: string): string {
         "",
       )
       .trim();
+    t = t.replace(/,\s+(ki|that|die|der|who)\s+\S{1,16}\s*$/iu, ".").trim();
   }
   t = t.replace(/,\s*$/, "").trim();
 
@@ -291,6 +315,25 @@ function repairTruncatedLine(line: string): string {
   return t;
 }
 
+/** Finish "v Labuan." when the day city is Labuan Bajo — do not invent a new place. */
+export function completeTruncatedPlaceName(text: string, place: string): string {
+  if (!text || !place) return text;
+  const ended = /[.!?]\s*$/.test(text);
+  const stem = text.replace(/[.!?\s]+$/u, "").split(/\s+/).pop() ?? "";
+  if (stem.length < 4) return text;
+  const placeTrim = place.trim();
+  if (!placeTrim.toLowerCase().startsWith(stem.toLowerCase())) return text;
+  if (placeTrim.length <= stem.length) return text;
+  const head = text.replace(/[.!?\s]+$/u, "").slice(0, -stem.length).trimEnd();
+  const next = `${head} ${placeTrim}`.replace(/\s+/g, " ").trim();
+  return ended ? `${next}.` : next;
+}
+
+function isSlotStub(raw: string): boolean {
+  const t = raw.trim();
+  return t.length > 0 && t.length <= 3 && !/\d/.test(t);
+}
+
 /** Apply truncation repair across day/activity copy (all trip modes). */
 export function stripTruncatedCopyFromPlan(plan: {
   days?: Array<{
@@ -301,6 +344,8 @@ export function stripTruncatedCopyFromPlan(plan: {
     transportationTips?: string;
     localWarnings?: string;
     title?: string;
+    city?: string;
+    focusName?: string;
     activities?: {
       morning?: Array<{ name?: string; description?: string; bullets?: string[] }>;
       afternoon?: Array<{ name?: string; description?: string; bullets?: string[] }>;
@@ -310,9 +355,10 @@ export function stripTruncatedCopyFromPlan(plan: {
   }>;
 }): number {
   let fixed = 0;
-  const fixStr = (raw: string | undefined, assign: (v: string) => void) => {
+  const fixStr = (raw: string | undefined, assign: (v: string) => void, place?: string) => {
     if (typeof raw !== "string" || !raw) return;
-    const next = repairTruncatedCopy(raw);
+    let next = isSlotStub(raw) ? "" : repairTruncatedCopy(raw);
+    if (place && next) next = completeTruncatedPlaceName(next, place);
     if (next !== raw) {
       assign(next);
       fixed += 1;
@@ -320,6 +366,7 @@ export function stripTruncatedCopyFromPlan(plan: {
   };
 
   for (const day of plan.days ?? []) {
+    const place = (day.city || day.focusName || "").trim();
     for (const key of [
       "title",
       "morning",
@@ -331,11 +378,21 @@ export function stripTruncatedCopyFromPlan(plan: {
     ] as const) {
       fixStr(day[key], (v) => {
         day[key] = v;
-      });
+      }, key === "title" ? place : undefined);
     }
     if (day.activities) {
       for (const slot of ["morning", "afternoon", "evening"] as const) {
         for (const a of day.activities[slot] ?? []) {
+          if (a.name && a.name.trim().length <= 2) {
+            a.name = "";
+            fixed += 1;
+          } else if (a.name && place) {
+            const named = completeTruncatedPlaceName(a.name, place);
+            if (named !== a.name) {
+              a.name = named;
+              fixed += 1;
+            }
+          }
           fixStr(a.description, (v) => {
             a.description = v;
           });
@@ -346,6 +403,11 @@ export function stripTruncatedCopyFromPlan(plan: {
               return next;
             });
           }
+        }
+        const kept = (day.activities[slot] ?? []).filter((a) => (a.name ?? "").trim());
+        if (kept.length !== (day.activities[slot] ?? []).length) {
+          day.activities[slot] = kept;
+          fixed += 1;
         }
       }
     }

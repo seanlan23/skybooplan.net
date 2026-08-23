@@ -380,6 +380,36 @@ describe("ensureCityChangeTransfer", () => {
     expect(plan.days[1]!.activities!.morning[0]!.transportType).toBe("flight");
     expect(plan.days[1]!.morning).not.toMatch(/^Prevoz Mexico City/);
   });
+
+  it("upgrades a sea hop labeled Prevoz to a domestic flight", () => {
+    const plan = {
+      destinationName: "Indonesia",
+      contentLanguage: "sl" as const,
+      days: [
+        day({ day: 7, city: "Seminyak" }),
+        day({
+          day: 8,
+          city: "Labuan Bajo",
+          activities: {
+            morning: [
+              {
+                name: "Seminyak → Labuan Bajo",
+                type: "TRANSPORT",
+                description: "Prevoz Seminyak → Labuan Bajo.",
+              },
+            ],
+            afternoon: [],
+            evening: [],
+          },
+        }),
+      ],
+    } as AiTripPlan;
+    expect(ensureCityChangeTransfer(plan)).toBeGreaterThan(0);
+    expect(plan.days[1]!.activities!.morning[0]!.name).toMatch(/Notranji let/i);
+    expect(plan.days[1]!.activities!.morning[0]!.transportType).toBe("flight");
+    expect(plan.days[1]!.activities!.morning[0]!.description).toMatch(/DPS|LBJ|let/i);
+    expect(plan.days[1]!.activities!.morning[0]!.description).not.toMatch(/^Prevoz Seminyak/);
+  });
 });
 
 describe("dedupeSameDayMeals", () => {

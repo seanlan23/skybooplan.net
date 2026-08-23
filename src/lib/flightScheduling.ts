@@ -414,13 +414,17 @@ export function formatArrivalTimeShort(flights: TripFlightContext, langCode: str
 
 export function isEarlyDeparture(flights?: TripFlightContext): boolean {
   if (!flights?.inboundDepart) return false;
-  return parseHm(flights.inboundDepart) <= 13 * 60;
+  const depMin = parseHm(flights.inboundDepart);
+  if (depMin < 6 * 60) return false;
+  return depMin <= 13 * 60;
 }
 
 /** Return flight by ~14:30 — no sights at all, airport focus only. */
 export function isTightDeparture(flights?: TripFlightContext): boolean {
   if (!flights?.inboundDepart) return false;
-  return parseHm(flights.inboundDepart) <= 14 * 60 + 30;
+  const depMin = parseHm(flights.inboundDepart);
+  if (depMin < 6 * 60) return false;
+  return depMin <= 14 * 60 + 30;
 }
 
 /** Return by ≤17:00 — must leave hotel ~2.5h early; no popoldan/večer ogledi. */
@@ -601,8 +605,18 @@ export function buildDepartureLogistics(
   const offsets = departureLogisticsOffsetsMin(locale.destinationIata);
   const leaveHours = offsets.leaveHours;
 
+  const overnight = depMin < 6 * 60;
   const leaveHint =
-    depMin <= 9 * 60
+    overnight
+      ? planLangCopy(lang, {
+          sl: `nočni let ob ${dep} — na letališče že prejšnji večer`,
+          en: `overnight flight at ${dep} — be at the airport the evening before`,
+          de: `Nachtflug um ${dep} — am Vorabend zum Flughafen`,
+          it: `volo notturno alle ${dep} — in aeroporto già la sera prima`,
+          es: `vuelo nocturno a las ${dep} — al aeropuerto ya la noche anterior`,
+          fr: `vol de nuit à ${dep} — à l'aéroport dès la veille au soir`,
+        })
+    : depMin <= 9 * 60
       ? planLangCopy(lang, {
           sl: "zaradi zgodnjega leta vstani zgodaj",
           en: "early wake-up for your morning flight",
@@ -692,6 +706,15 @@ export function buildDepartureLogistics(
           es: `Por la mañana devuelve la autocaravana, haz la inspección final y recoge el equipaje. ${leaveHint}.`,
           fr: `Le matin, rendez le camping-car, faites le contrôle final et prenez les bagages. ${leaveHint}.`,
         })
+    : overnight
+      ? planLangCopy(lang, {
+          sl: `Check-out zvečer pred nočnim letom — ${leaveHint}. Prtljago vzemi s seboj.`,
+          en: `Check out in the evening before the overnight flight — ${leaveHint}. Take your bags with you.`,
+          de: `Check-out am Abend vor dem Nachtflug — ${leaveHint}. Gepäck mitnehmen.`,
+          it: `Check-out la sera prima del volo notturno — ${leaveHint}. Porta i bagagli.`,
+          es: `Check-out por la noche antes del vuelo nocturno — ${leaveHint}. Lleva el equipaje.`,
+          fr: `Check-out le soir avant le vol de nuit — ${leaveHint}. Prenez les bagages.`,
+        })
     : depMin <= 17 * 60
       ? planLangCopy(lang, {
           sl: `Zjutraj zaključi check-out in se odpravi na letališče — ${leaveHint}.`,
@@ -711,7 +734,16 @@ export function buildDepartureLogistics(
         });
 
   const airportDesc =
-    depMin <= 13 * 60
+    overnight
+      ? planLangCopy(lang, {
+          sl: `Na letališču oddaj prtljago in opravi check-in. Nočni let ob ${dep} — pridi ~3 ure pred odletom, ne zjutraj na dan leta.`,
+          en: `Check in and clear security. Overnight flight at ${dep} — arrive ~3h before, not on the morning of departure.`,
+          de: `Am Flughafen Gepäck aufgeben und Check-in. Nachtflug um ${dep} — ~3 Stunden vorher da, nicht am Morgen des Abflugs.`,
+          it: `In aeroporto: bagagli e check-in. Volo notturno alle ${dep} — arriva ~3 ore prima, non la mattina del volo.`,
+          es: `En el aeropuerto: facturación y check-in. Vuelo nocturno a las ${dep} — llega ~3 h antes, no por la mañana del vuelo.`,
+          fr: `À l'aéroport : bagages et check-in. Vol de nuit à ${dep} — arrivez ~3 h avant, pas le matin du vol.`,
+        })
+    : depMin <= 13 * 60
       ? planLangCopy(lang, {
           sl: `Na letališču oddaj prtljago, opravi check-in in varnostni pregled. Zgodnji/popoldanski odhod — danes ni časa za dodatne oglede v mestu.`,
           en: `Check in and clear security. Early/midday departure — no extra city sightseeing today.`,

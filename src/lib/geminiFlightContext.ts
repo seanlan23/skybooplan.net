@@ -537,12 +537,25 @@ function mergeArrivalDay(
   };
 }
 
+function isIntlReturnLogistics(a: { name?: string }): boolean {
+  return /\b(mednarodni (povratni )?let|international return flight|volo internazionale|internationaler rückflug|vuelo internacional|vol international)\b/i.test(
+    a.name ?? "",
+  );
+}
+
 function mergeDepartureDay(
   day: DayPlan,
   flights: TripFlightContext,
   logistics: LogisticsActivity[],
 ): DayPlan["activities"] {
   const logisticsActs = logistics.map(logisticsToActivity);
+  if (isOvernightDeparture(flights)) {
+    return {
+      morning: logisticsActs.filter(isIntlReturnLogistics),
+      afternoon: [],
+      evening: [],
+    };
+  }
   if (isTightDeparture(flights) || isEarlyDeparture(flights) || isAfternoonDeparture(flights)) {
     return { morning: logisticsActs, afternoon: [], evening: [] };
   }
@@ -1499,6 +1512,21 @@ export function applyFlightContextToGeminiPlan(
         afternoon: [],
         evening: [],
       };
+      const prevDay = plan.days.find((d) => d.day === day.day - 1);
+      if (isOvernightDeparture(flights) && prevDay) {
+        const nightActs = logistics
+          .filter((l) => !isIntlReturnLogistics(l))
+          .map(logisticsToActivity);
+        if (!prevDay.activities) {
+          prevDay.activities = { morning: [], afternoon: [], evening: [] };
+        }
+        const already = (prevDay.activities.evening ?? []).some((a) =>
+          /check-out|prevoz na letališč|airport transfer|flughafentransfer/i.test(a.name),
+        );
+        if (!already && nightActs.length) {
+          prevDay.activities.evening = [...(prevDay.activities.evening ?? []), ...nightActs];
+        }
+      }
       // Drop Gemini phantom domestic flights to the hub when traveler is already there
       // (or when a prior day already did the TGV/train return). Keep room for code air hop.
       const stripPhantomHubFlight = (list: Activity[] | undefined): Activity[] =>

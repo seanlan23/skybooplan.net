@@ -25,6 +25,7 @@ import { alignSummaryTripLength } from "@/lib/planTeaser";
 import { lookupRegionCoords } from "@/lib/regionCoords";
 import { haversineKm } from "@/lib/geoMath";
 import { DESTINATION_BY_IATA } from "@/lib/destinationCoords";
+import { lookupLeg } from "@/lib/curatedRoutes.legs";
 
 type DaySlots = NonNullable<DayPlan["activities"]>;
 type Slot = keyof DaySlots;
@@ -304,6 +305,12 @@ function cityHopCoords(name: string): { lat: number; lng: number } | null {
 /** Above this, A→B is air — not a van/taxi “prevoz”. */
 const MAX_GROUND_CITY_CHANGE_KM = 750;
 
+function cityChangeIsAir(from: string, to: string, km: number | null): boolean {
+  const leg = lookupLeg(from, to);
+  if (leg && /flight/.test(leg.type)) return true;
+  return km != null && km > MAX_GROUND_CITY_CHANGE_KM;
+}
+
 function isMoveActivity(a: Activity): boolean {
   if (a.type === "TRANSPORT" || a.transportType) return true;
   const t = `${a.name ?? ""} ${a.description ?? ""}`.toLowerCase();
@@ -369,28 +376,76 @@ export function ensureCityChangeTransfer(plan: AiTripPlan): number {
     const from = (prev.city || prev.focusName || "").trim();
     const to = (cur.city || cur.focusName || "").trim();
     if (!from || !to || sameStayCity(from, to)) continue;
-    if (dayHasIntercityMove(cur, from, to)) continue;
-    if (!cur.activities) {
-      cur.activities = { morning: [], afternoon: [], evening: [] };
-    }
     const fromC = cityHopCoords(from);
     const toC = cityHopCoords(to);
     const km =
       fromC && toC ? haversineKm([fromC.lng, fromC.lat], [toC.lng, toC.lat]) : null;
-    const byAir = km != null && km > MAX_GROUND_CITY_CHANGE_KM;
+    const byAir = cityChangeIsAir(from, to, km);
+    const airLeg = byAir ? lookupLeg(from, to) : null;
+    const airName = slo ? `Notranji let ${from} → ${to}` : `Domestic flight ${from} → ${to}`;
+    const airDesc = airLeg?.howTo
+      ? airLeg.howTo
+      : slo
+        ? `Notranji let ${from} → ${to}.`
+        : `Domestic flight ${from} → ${to}.`;
+
+    if (dayHasIntercityMove(cur, from, to)) {
+      if (!byAir || !cur.activities) continue;
+      const lastBlob = [
+        cur.title ?? "",
+        ...SLOTS.flatMap((s) =>
+          (cur.activities?.[s] ?? []).map((a) => `${a.name} ${a.description ?? ""}`),
+        ),
+      ].join(" ");
+      if (
+        i === days.length - 1 &&
+        /mednarodni (povratni )?let|international return flight|internationaler rückflug/i.test(
+          lastBlob,
+        )
+      ) {
+        continue;
+      }
+      let upgraded = 0;
+      for (const slot of SLOTS) {
+        cur.activities[slot] = (cur.activities[slot] ?? []).map((a) => {
+          if (!isMoveActivity(a) && a.type !== "TRANSPORT") return a;
+          if (a.transportType === "flight") return a;
+          const blob = `${a.name ?? ""} ${a.description ?? ""}`;
+          if (/trajekt|ferry|chiquilá|pak bara|letališč|airport|check-out|hotela/i.test(blob)) {
+            return a;
+          }
+          const key = stayCityKey(blob);
+          const fromKey = stayCityKey(from);
+          const toKey = stayCityKey(to);
+          if (fromKey.length < 4 || toKey.length < 4) return a;
+          if (!key.includes(fromKey) || !key.includes(toKey)) return a;
+          if (!/prevoz|transfer/i.test(blob)) return a;
+          upgraded += 1;
+          return {
+            ...a,
+            name: airName,
+            type: "TRANSPORT" as const,
+            transportType: "flight" as const,
+            description: airDesc,
+          };
+        });
+      }
+      if (upgraded) {
+        resyncDaySlotProse(cur);
+        added += upgraded;
+      }
+      continue;
+    }
+    if (!cur.activities) {
+      cur.activities = { morning: [], afternoon: [], evening: [] };
+    }
     cur.activities.morning = [
       {
-        name: byAir
-          ? slo
-            ? `Notranji let ${from} → ${to}`
-            : `Domestic flight ${from} → ${to}`
-          : `${from} → ${to}`,
+        name: byAir ? airName : `${from} → ${to}`,
         type: "TRANSPORT",
         ...(byAir ? { transportType: "flight" as const } : {}),
         description: byAir
-          ? slo
-            ? `Notranji let ${from} → ${to}.`
-            : `Domestic flight ${from} → ${to}.`
+          ? airDesc
           : slo
             ? `Prevoz ${from} → ${to}.`
             : `Transfer ${from} → ${to}.`,

@@ -4,7 +4,9 @@ import {
   fixMotorhomeCopyErrors,
   fixPoiNameForSlot,
   fixSlotTimeMismatch,
+  completeTruncatedPlaceName,
   repairTruncatedCopy,
+  stripTruncatedCopyFromPlan,
   rewriteActivityCityLeak,
   rewriteCountryFoodLeak,
   sanitizeForLang,
@@ -171,5 +173,52 @@ describe("repairTruncatedCopy", () => {
         "Odpravite se na Isla Mujeres s trajektom iz Puerto Juareza. Vožnja traja",
       ),
     ).toMatch(/Juareza\.$/);
+    expect(repairTruncatedCopy("Preizkusite")).toBe("");
+    expect(
+      repairTruncatedCopy(
+        "Uživajte v elegantni večerji v Metis Restaurant & Gallery, ki ponuja prefinjeno francosko-mediteransko kuhinjo v čudovitem.",
+      ),
+    ).toMatch(/kuhinjo\.$/);
+    expect(
+      repairTruncatedCopy("Uživajte v skupni večerji, ki jo pripravijo va"),
+    ).toMatch(/večerji/);
+    expect(
+      repairTruncatedCopy("Uživajte v skupni večerji, ki jo pripravijo va"),
+    ).not.toMatch(/\bva\s*$/);
+    expect(repairTruncatedCopy("Po zajtrku v vasi in zadnjem raz")).toMatch(
+      /vasi\.$/,
+    );
+    expect(
+      completeTruncatedPlaceName("Povratek iz Wae Reba v Labuan.", "Labuan Bajo"),
+    ).toBe("Povratek iz Wae Reba v Labuan Bajo.");
+  });
+
+  it("drops a two-letter day stub and completes a cut city title", () => {
+    const plan = {
+      days: [
+        {
+          day: 4,
+          city: "Ubud",
+          title: "Riževe terase",
+          morning: "Ri",
+          activities: {
+            morning: [{ name: "Ri", description: "Ri" }],
+            afternoon: [],
+            evening: [],
+          },
+        },
+        {
+          day: 12,
+          city: "Labuan Bajo",
+          title: "Povratek iz Wae Reba v Labuan.",
+          morning: "Po zajtrku v vasi in zadnjem raz",
+        },
+      ],
+    };
+    expect(stripTruncatedCopyFromPlan(plan)).toBeGreaterThan(0);
+    expect(plan.days[0]!.morning).toBe("");
+    expect(plan.days[0]!.activities!.morning).toEqual([]);
+    expect(plan.days[1]!.title).toMatch(/Labuan Bajo/);
+    expect(plan.days[1]!.morning).toMatch(/vasi\.$/);
   });
 });

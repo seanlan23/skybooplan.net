@@ -2700,4 +2700,121 @@ describe("applyFlightContextToGeminiPlan", () => {
     expect(lastBlob).toMatch(/Odhod 14:00/);
     expect(lastBlob).not.toMatch(/14:15/);
   });
+
+  it("puts 01:30 red-eye checkout on the previous evening, not last-day morning", () => {
+    const plan = basePlan({
+      destinationName: "Indonesia",
+      destinationIata: "DPS",
+      contentLanguage: "sl",
+      centerLat: -8.65,
+      centerLng: 115.22,
+      days: [
+        {
+          day: 1,
+          date: "2026-09-13",
+          title: "Odhod",
+          morning: "",
+          afternoon: "",
+          evening: "",
+          travelHack: "",
+          transportationTips: "",
+          localWarnings: "",
+          dailyBudgetEur: 40,
+          lat: 48.11,
+          lng: 16.57,
+          city: "Vienna",
+          focusName: "Vienna",
+          category: "transport",
+          activities: { morning: [], afternoon: [], evening: [] },
+        },
+        {
+          day: 2,
+          date: "2026-09-14",
+          title: "Prihod",
+          morning: "",
+          afternoon: "",
+          evening: "",
+          travelHack: "",
+          transportationTips: "",
+          localWarnings: "",
+          dailyBudgetEur: 40,
+          lat: -8.65,
+          lng: 115.22,
+          city: "Ubud",
+          focusName: "Ubud",
+          category: "city",
+          activities: { morning: [], afternoon: [], evening: [] },
+        },
+        {
+          day: 3,
+          date: "2026-09-26",
+          title: "Canggu",
+          morning: "",
+          afternoon: "",
+          evening: "",
+          travelHack: "",
+          transportationTips: "",
+          localWarnings: "",
+          dailyBudgetEur: 47,
+          lat: -8.65,
+          lng: 115.14,
+          city: "Canggu",
+          focusName: "Canggu",
+          category: "beach",
+          activities: {
+            morning: [],
+            afternoon: [],
+            evening: [
+              {
+                name: "Večerja: Finns Beach Club",
+                type: "EAT",
+                description: "Sončni zahod.",
+              },
+            ],
+          },
+        },
+        {
+          day: 4,
+          date: "2026-09-27",
+          title: "Odhod",
+          morning: "",
+          afternoon: "",
+          evening: "",
+          travelHack: "",
+          transportationTips: "",
+          localWarnings: "",
+          dailyBudgetEur: 20,
+          lat: -8.65,
+          lng: 115.14,
+          city: "Canggu",
+          focusName: "Canggu",
+          category: "transport",
+          activities: { morning: [], afternoon: [], evening: [] },
+        },
+      ],
+    });
+
+    applyFlightContextToGeminiPlan(
+      plan,
+      {
+        outboundDepart: "11:55",
+        outboundArrive: "11:25",
+        outboundArriveDayOffset: 1,
+        inboundDepart: "01:30",
+        inboundArrive: "06:40",
+      },
+      { originIata: "VIE", language: "sl", expectedDays: 4 },
+    );
+
+    const prev = plan.days.find((d) => d.day === 3)!;
+    const last = plan.days.find((d) => d.day === 4)!;
+    const prevEve = prev.activities?.evening ?? [];
+    expect(prevEve.some((a) => /Finns/i.test(a.name))).toBe(true);
+    const checkout = prevEve.find((a) => /check-out/i.test(a.name));
+    expect(checkout?.arrivalTime).toBe("21:30");
+    expect(checkout?.description ?? "").not.toMatch(/Zjutraj/i);
+    expect(JSON.stringify(last.activities?.morning ?? [])).toMatch(/01:30/);
+    expect(JSON.stringify(last.activities?.morning ?? [])).not.toMatch(/21:30/);
+    expect(JSON.stringify(last.activities?.morning ?? [])).not.toMatch(/Dopoldan[\s\S]*21:30/);
+  });
 });

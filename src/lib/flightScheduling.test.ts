@@ -3,9 +3,11 @@ import {
   arrivalDaySlot,
   inboundArriveForDisplay,
   isAfternoonDeparture,
+  isEarlyDeparture,
   isEveningDeparture,
   isLateArrival,
   isLateNightDeparture,
+  isOvernightDeparture,
   isTightDeparture,
 } from "@/lib/flightScheduling";
 import { isoToHM } from "@/lib/flights.functions";
@@ -88,6 +90,19 @@ describe("arrivalDaySlot", () => {
       outboundArriveDayOffset: 0,
       inboundDepart: "20:00",
     })).toBe(false);
+  });
+
+  it("treats 01:30 as overnight, not a morning tight departure", () => {
+    const flights = {
+      outboundDepart: "11:55",
+      outboundArrive: "11:25",
+      outboundArriveDayOffset: 1,
+      inboundDepart: "01:30",
+    };
+    expect(isOvernightDeparture(flights)).toBe(true);
+    expect(isEarlyDeparture(flights)).toBe(false);
+    expect(isTightDeparture(flights)).toBe(false);
+    expect(isLateNightDeparture(flights)).toBe(false);
   });
 
   it("treats 23:40 departure as late-night (full day, airport in evening)", () => {
