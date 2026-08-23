@@ -16,8 +16,10 @@ import {
 import { patchSessionAiPlan } from "@/lib/sessionStore";
 import {
   classifyStreamAbort,
+  abortFetchWhenBackgrounded,
   createHiddenAwareIdleWatchdog,
   isDocumentHidden,
+  streamNeedsForegroundGuard,
   waitUntilDocumentVisible,
 } from "@/lib/streamAbort";
 import { maxPlanDayNumber } from "@/lib/geminiStreamBatches";
@@ -55,6 +57,8 @@ function isTransientDisconnect(err: unknown): boolean {
  * stream starts; this is a backstop if the proxy drops keepalive bytes.
  */
 const CLIENT_STREAM_IDLE_MS = 240_000;
+/** Mobile WebKit often drops keepalive bytes; fail over sooner and resume. */
+const MOBILE_STREAM_IDLE_MS = 90_000;
 const MAX_CONNECTION_RETRIES = 2;
 /** Fresh 280s serverless slices until 9–16 day plans are full (6/13). */
 const MAX_HTTP_CONTINUATIONS = 3;
@@ -239,8 +243,13 @@ export function useStreamItinerary() {
         abortRef.current = controller;
         const idleWatch = createHiddenAwareIdleWatchdog(
           () => controller.abort(),
-          CLIENT_STREAM_IDLE_MS,
+          streamNeedsForegroundGuard() ? MOBILE_STREAM_IDLE_MS : CLIENT_STREAM_IDLE_MS,
         );
+        const detachBackgroundAbort = abortFetchWhenBackgrounded(() => {
+          const plan = lastPartialPlan ?? previewRef.current;
+          if (plan?.days?.length) persistPreview(plan);
+          if (!controller.signal.aborted) controller.abort();
+        });
         let ndjsonBuffer = "";
         resolvedPlan = null;
         streamError = null;
@@ -419,6 +428,7 @@ export function useStreamItinerary() {
           setStatus("error");
           return { plan: null, error: message };
         } finally {
+          detachBackgroundAbort();
           idleWatch.dispose();
           if (abortRef.current === controller) abortRef.current = null;
         }

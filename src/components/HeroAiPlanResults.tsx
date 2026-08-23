@@ -60,12 +60,15 @@ export function HeroAiPlanResults({
   lastSearchPax,
 }: HeroAiPlanResultsProps) {
   const { t } = useI18n();
-
-  if (!visible) return null;
-
   const showBlock =
     aiLoading || isGeminiStreaming || aiSkeleton || displayPlan || aiError || aiExpandingFull;
-  if (!showBlock) return null;
+
+  useEffect(() => {
+    if (!visible || !displayPlan?.days?.length) return;
+    void import("@/lib/pdf-export").then((m) => m.preloadPdfFonts()).catch(() => undefined);
+  }, [visible, displayPlan]);
+
+  if (!visible || !showBlock) return null;
 
   const tripDays =
     aiContext?.departDate && aiContext?.returnDate
@@ -95,11 +98,6 @@ export function HeroAiPlanResults({
           displayPlan?.groundTransportMode === "car"
         ? ("car" as const)
         : ("flight" as const);
-
-  useEffect(() => {
-    if (!displayPlan?.days?.length) return;
-    void import("@/lib/pdf-export").then((m) => m.preloadPdfFonts()).catch(() => undefined);
-  }, [displayPlan]);
 
   return (
     <section

@@ -1680,8 +1680,8 @@ function Landing() {
 
         const { plan, error: streamError, cancelled } = await streamItinerary.start(streamInput);
         if (planJob !== planJobRef.current) return;
-        if (cancelled) return;
         setAiLoading(false);
+        if (cancelled) return;
 
         console.log(
           `[GeminiPro] client: stream finished in ${Math.round(performance.now() - clientStartedAt)}ms`,
@@ -1879,7 +1879,7 @@ function Landing() {
   // After the stream ends, never fall back to a 2/16 stub — only a committed plan.
   const displayPlan = streamItinerary.isStreaming
     ? previewWithPhotos ?? aiPlan
-    : aiPlan;
+    : aiPlan ?? previewWithPhotos;
   const isGeminiStreaming = streamItinerary.isStreaming;
 
   const showHeroPlannerForm =

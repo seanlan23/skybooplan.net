@@ -3,6 +3,7 @@ import {
   classifyStreamAbort,
   createHiddenAwareIdleWatchdog,
   streamNeedsForegroundGuard,
+  abortFetchWhenBackgrounded,
   waitUntilDocumentVisible,
 } from "@/lib/streamAbort";
 
@@ -51,6 +52,40 @@ describe("streamNeedsForegroundGuard", () => {
         { ontouchend: false },
       ),
     ).toBe(false);
+    expect(
+      streamNeedsForegroundGuard(
+        "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
+      ),
+    ).toBe(true);
+  });
+});
+
+describe("abortFetchWhenBackgrounded", () => {
+  it("aborts once the tab is hidden", () => {
+    let visibility: "visible" | "hidden" = "visible";
+    let onHide: (() => void) | undefined;
+    const abort = vi.fn();
+    const stop = abortFetchWhenBackgrounded(abort, {
+      enabled: true,
+      getVisibility: () => visibility,
+      addListeners: (fn) => {
+        onHide = fn;
+        return () => {
+          onHide = undefined;
+        };
+      },
+    });
+    visibility = "hidden";
+    onHide?.();
+    expect(abort).toHaveBeenCalledTimes(1);
+    stop();
+  });
+
+  it("does nothing when the guard is off", () => {
+    const abort = vi.fn();
+    const stop = abortFetchWhenBackgrounded(abort, { enabled: false });
+    stop();
+    expect(abort).not.toHaveBeenCalled();
   });
 });
 

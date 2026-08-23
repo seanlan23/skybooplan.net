@@ -23,7 +23,48 @@ export function streamNeedsForegroundGuard(
     (opts?.ontouchend ??
       (typeof document !== "undefined" && "ontouchend" in document));
   if (macTouch) return true;
+  if (/Android/i.test(n)) return true;
   return /safari/i.test(n) && !/chrome|chromium|crios|android|fxios|edg|opr\//i.test(n);
+}
+
+/**
+ * Mobile WebKit/Chrome freeze a live fetch when the tab backgrounds.
+ * Abort so the client can resume instead of hanging on `reader.read()`.
+ */
+export function abortFetchWhenBackgrounded(
+  abort: () => void,
+  opts?: {
+    enabled?: boolean;
+    getVisibility?: () => DocumentVisibilityState | "visible" | "hidden";
+    addListeners?: (fn: () => void) => () => void;
+  },
+): () => void {
+  const enabled = opts?.enabled ?? (typeof navigator !== "undefined" && streamNeedsForegroundGuard());
+  if (!enabled) return () => undefined;
+
+  const getVisibility =
+    opts?.getVisibility ??
+    (() => (typeof document !== "undefined" ? document.visibilityState : "visible"));
+
+  const fire = () => {
+    if (getVisibility() === "hidden") abort();
+  };
+
+  if (opts?.addListeners) return opts.addListeners(fire);
+
+  if (typeof document === "undefined" || typeof window === "undefined") {
+    return () => undefined;
+  }
+  const onVis = () => {
+    if (document.visibilityState === "hidden") abort();
+  };
+  const onPageHide = () => abort();
+  document.addEventListener("visibilitychange", onVis);
+  window.addEventListener("pagehide", onPageHide);
+  return () => {
+    document.removeEventListener("visibilitychange", onVis);
+    window.removeEventListener("pagehide", onPageHide);
+  };
 }
 
 export function isDocumentHidden(): boolean {
