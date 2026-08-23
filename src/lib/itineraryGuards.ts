@@ -515,6 +515,76 @@ export function ensureCityChangeTransfer(plan: AiTripPlan): number {
   return added;
 }
 
+function hopArrivesAt(blob: string, destCity: string): boolean {
+  const dest = stayCityKey(destCity);
+  if (dest.length < 4) return false;
+  const arrow = blob.match(/(.+?)\s*(?:→|->)\s*(.+)/);
+  if (arrow) return stayCityKey(arrow[2] ?? "").includes(dest);
+  return (
+    /let|flight|trajekt|ferry|vlak|train/i.test(blob) && stayCityKey(blob).includes(dest)
+  );
+}
+
+function dayHasInboundTo(day: DayPlan, destCity: string): boolean {
+  if (
+    day.transportation?.some(
+      (leg) => sameStayCity(leg.to, destCity) && !sameStayCity(leg.from, destCity),
+    )
+  ) {
+    return true;
+  }
+  for (const slot of SLOTS) {
+    for (const a of day.activities?.[slot] ?? []) {
+      if (a.type !== "TRANSPORT" && !a.transportType) continue;
+      if (hopArrivesAt(`${a.name ?? ""} ${a.description ?? ""}`, destCity)) return true;
+    }
+  }
+  return hopArrivesAt(day.title ?? "", destCity);
+}
+
+/** Same-city day must not replay yesterday's inbound hop. Outbound on the last night stays. */
+export function stripReplayedIntercityHops(plan: AiTripPlan): number {
+  const days = plan.days ?? [];
+  let removed = 0;
+  for (let i = 1; i < days.length; i++) {
+    const prev = days[i - 1]!;
+    const curr = days[i]!;
+    const dest = (curr.city || curr.focusName || "").trim();
+    if (!dest || !sameStayCity(prev.city || prev.focusName || "", dest)) continue;
+    if (!dayHasInboundTo(prev, dest)) continue;
+
+    let dayRemoved = 0;
+    if (curr.transportation?.length) {
+      const next = curr.transportation.filter((leg) => {
+        const inbound = sameStayCity(leg.to, dest) && !sameStayCity(leg.from, dest);
+        if (inbound) {
+          dayRemoved += 1;
+          return false;
+        }
+        return true;
+      });
+      if (next.length !== curr.transportation.length) {
+        curr.transportation = next.length ? next : undefined;
+      }
+    }
+
+    if (curr.activities) {
+      for (const slot of SLOTS) {
+        const list = curr.activities[slot] ?? [];
+        curr.activities[slot] = list.filter((a) => {
+          if (a.type !== "TRANSPORT" && !a.transportType) return true;
+          if (!hopArrivesAt(`${a.name ?? ""} ${a.description ?? ""}`, dest)) return true;
+          dayRemoved += 1;
+          return false;
+        });
+      }
+    }
+    if (dayRemoved) resyncDaySlotProse(curr);
+    removed += dayRemoved;
+  }
+  return removed;
+}
+
 /** Drop Paris sights on Lyon days (and other city-locked landmarks). */
 export function stripWrongCityDayActivities(plan: AiTripPlan): number {
   let removed = 0;
@@ -1495,6 +1565,7 @@ export function applyItineraryGuards(
   const logisticsCopy = repairIncompleteLogisticsCopy(plan);
   const transportLegs = sanitizeTransportationLegs(plan);
   ensureCityChangeTransfer(plan);
+  stripReplayedIntercityHops(plan);
   const returnFlights = dedupeLastDayReturnFlights(plan);
   const earlyAirport = scrubUnsafeEarlyAirportTips(plan);
   const durationAlign = alignTransportationDurationWithTips(plan);

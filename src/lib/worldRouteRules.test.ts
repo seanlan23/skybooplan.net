@@ -13,6 +13,7 @@ describe("worldRouteRulesPromptBlock", () => {
     expect(sl).toMatch(/Najprej baze/i);
     expect(sl).toMatch(/NOVO bazo/i);
     expect(sl).toMatch(/Težek premik/i);
+    expect(sl).toMatch(/zapuščeno regijo|En premik med dvema bazama/i);
     expect(sl).toMatch(/POI/i);
     expect(en).toMatch(/Bases first/i);
     expect(en).toMatch(/NEW base/i);

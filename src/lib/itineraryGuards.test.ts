@@ -21,6 +21,7 @@ import {
   dropGenericSightStubs,
   stripRevisitLeadIns,
   ensureCityChangeTransfer,
+  stripReplayedIntercityHops,
 } from "@/lib/itineraryGuards";
 import { repairTruncatedCopy } from "@/lib/textSanitize";
 
@@ -510,6 +511,90 @@ describe("ensureCityChangeTransfer", () => {
     expect(plan.days[1]!.activities!.morning.map((a) => a.name)).toEqual([
       "Sprostitev na Playa Delfines",
     ]);
+  });
+
+  it("strips a replayed inbound flight on the second day of the same city", () => {
+    const plan = {
+      destinationName: "Thailand",
+      contentLanguage: "sl" as const,
+      days: [
+        day({
+          day: 11,
+          city: "Chiang Mai",
+          lat: 18.79,
+          lng: 98.99,
+          activities: {
+            morning: [
+              {
+                name: "Notranji let Phuket → Chiang Mai",
+                type: "TRANSPORT",
+                transportType: "flight",
+                description: "HKT → CNX",
+              },
+            ],
+            afternoon: [{ name: "Pavza v Nimman", type: "SIGHT", description: "Nimman." }],
+            evening: [],
+          },
+        }),
+        day({
+          day: 12,
+          city: "Chiang Mai",
+          lat: 18.79,
+          lng: 98.99,
+          activities: {
+            morning: [
+              {
+                name: "Notranji let Phuket (HKT) → Chiang Mai (CNX)",
+                type: "TRANSPORT",
+                transportType: "flight",
+                description: "Notranji let Phuket (HKT) → Chiang Mai (CNX)",
+              },
+            ],
+            afternoon: [{ name: "Pavza v Nimman", type: "SIGHT", description: "Galerije." }],
+            evening: [],
+          },
+        }),
+      ],
+    } as AiTripPlan;
+    expect(stripReplayedIntercityHops(plan)).toBeGreaterThan(0);
+    expect(JSON.stringify(plan.days[1]!.activities)).not.toMatch(/Notranji let|HKT/i);
+    expect(plan.days[1]!.activities!.afternoon.map((a) => a.name)).toEqual(["Pavza v Nimman"]);
+  });
+
+  it("keeps an outbound flight on the last night of a stay", () => {
+    const plan = {
+      destinationName: "Thailand",
+      contentLanguage: "sl" as const,
+      days: [
+        day({
+          day: 10,
+          city: "Phuket",
+          lat: 7.88,
+          lng: 98.4,
+          activities: { morning: [], afternoon: [], evening: [] },
+        }),
+        day({
+          day: 11,
+          city: "Phuket",
+          lat: 7.88,
+          lng: 98.4,
+          activities: {
+            morning: [
+              {
+                name: "Notranji let Phuket → Chiang Mai",
+                type: "TRANSPORT",
+                transportType: "flight",
+                description: "HKT → CNX",
+              },
+            ],
+            afternoon: [],
+            evening: [],
+          },
+        }),
+      ],
+    } as AiTripPlan;
+    expect(stripReplayedIntercityHops(plan)).toBe(0);
+    expect(plan.days[1]!.activities!.morning[0]!.name).toMatch(/Phuket → Chiang Mai/);
   });
 
   it("does not treat the reverse hop as already flown", () => {

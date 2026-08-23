@@ -229,6 +229,12 @@ function repairTruncatedLine(line: string): string {
   // Unclosed "(" — Gemini cut mid-terminal: "Puerto Juarez ali Embar"
   const lastOpen = t.lastIndexOf("(");
   const lastClose = t.lastIndexOf(")");
+  // "Wat Plai Laem in Hin Ta Hin." — second POI cut to short Title-Case tokens.
+  t = t.replace(
+    /\s+\bin\s+(?:[A-ZÁÉÍÓÚČŠŽ][a-záéíóúäöüčšž]{1,4}\s+){1,2}[A-ZÁÉÍÓÚČŠŽ][a-záéíóúäöüčšž]{1,4}\.\s*$/u,
+    ".",
+  );
+
   if (lastOpen >= 0 && lastOpen > lastClose) {
     t = t.slice(0, lastOpen).trim().replace(/[–—,:;]+\s*$/u, "").trim();
     if (t && !/[.!?]$/.test(t) && t.split(/\s+/).length >= 5) t = `${t}.`;
@@ -258,7 +264,7 @@ function repairTruncatedLine(line: string): string {
       t,
     ) ||
     /,\s*(das|die|der|den|dem|the|a|an|zu|to|ein|eine|primerno)\.\s*$/i.test(t) ||
-    /\b(in|ali|ter|and|or)\s+(si\s+)?[A-Za-zÁÉÍÓÚÄÖÜáéíóúäöüčšž]{3,16}\.\s*$/i.test(t);
+    /\b(in|ali|ter|and|or)\s+(si\s+)?[A-Za-zÁÉÍÓÚÄÖÜáéíóúäöüčšž]{2,16}\.\s*$/i.test(t);
 
   const lastWord = t.split(/\s+/).pop() ?? "";
   const noStop = !/[.!?…]$/u.test(t);
@@ -305,7 +311,7 @@ function repairTruncatedLine(line: string): string {
       .replace(/\s+\b(?:maritime|besonders|optional|höchstens|primerno)\.\s*$/iu, ".")
       .replace(/\s+\bau?sklingen\s+zu\.\s*$/iu, ".")
       .replace(/,\s*(?:das|die|der|den|dem|the|a|an|ein|eine|primerno)(?:\s+\w+)?\.\s*$/iu, ".")
-      .replace(/\s+\b(?:in|ali|ter|and|or)\s+(?:si\s+)?[A-Za-zÁÉÍÓÚÄÖÜáéíóúäöüčšž]{3,16}\.\s*$/iu, ".")
+      .replace(/\s+\b(?:in|ali|ter|and|or)\s+(?:si\s+)?[A-Za-zÁÉÍÓÚÄÖÜáéíóúäöüčšž]{2,16}\.\s*$/iu, ".")
       .replace(/\s+\b(?:zu|to|und|and|mit|with|für|for|die|der|das|the)\.\s*$/iu, ".")
       .replace(/,\s*\.\s*$/u, ".")
       .trim();
@@ -357,14 +363,20 @@ export function completeTruncatedHeadline(text: string): string {
 export function completeTruncatedPlaceName(text: string, place: string): string {
   if (!text || !place) return text;
   const ended = /[.!?]\s*$/.test(text);
-  const stem = text.replace(/[.!?\s]+$/u, "").split(/\s+/).pop() ?? "";
-  if (stem.length < 4) return text;
+  const body = text.replace(/[.!?\s]+$/u, "");
   const placeTrim = place.trim();
-  if (!placeTrim.toLowerCase().startsWith(stem.toLowerCase())) return text;
-  if (placeTrim.length <= stem.length) return text;
-  const head = text.replace(/[.!?\s]+$/u, "").slice(0, -stem.length).trimEnd();
-  const next = `${head} ${placeTrim}`.replace(/\s+/g, " ").trim();
-  return ended ? `${next}.` : next;
+  const placeLc = placeTrim.toLowerCase();
+  const words = body.split(/\s+/);
+  for (let n = Math.min(3, words.length); n >= 1; n--) {
+    const chunk = words.slice(-n).join(" ");
+    if (chunk.length < 3) continue;
+    const chunkLc = chunk.toLowerCase();
+    if (!placeLc.startsWith(chunkLc) || placeTrim.length <= chunk.length) continue;
+    const head = words.slice(0, -n).join(" ").trim();
+    const next = `${head} ${placeTrim}`.replace(/\s+/g, " ").trim();
+    return ended ? `${next}.` : next;
+  }
+  return text;
 }
 
 function isSlotStub(raw: string): boolean {

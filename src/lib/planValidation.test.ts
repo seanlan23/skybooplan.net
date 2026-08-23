@@ -7,6 +7,8 @@ import {
   findDuplicateDayNumbers,
   findMissingTravelBlocks,
   findThinLongAccessStays,
+  findAbandonedRegionReturn,
+  findReplayedArrivals,
   findNonLinearRoute,
   findOverpackedDays,
   findSameDayFarPois,
@@ -49,6 +51,8 @@ const KRABI = { lat: 8.05, lng: 98.92 };
 const KOH_SAMUI = { lat: 9.51, lng: 100.0 };
 const KOH_PHANGAN = { lat: 9.74, lng: 100.02 };
 const BANGKOK = { lat: 13.75, lng: 100.5 };
+const CHIANG_MAI = { lat: 18.79, lng: 98.99 };
+const LJUBLJANA = { lat: 46.06, lng: 14.51 };
 
 describe("distanceKm", () => {
   it("computes Phuket → Koh Samui as a long hop (>250km)", () => {
@@ -291,6 +295,73 @@ describe("findNonLinearRoute — linear A→B→C flow", () => {
       day({ day: 4, city: "Koh Samui", ...KOH_SAMUI, category: "transport" }),
     ]);
     expect(findNonLinearRoute(p).length).toBeGreaterThan(0);
+  });
+
+  it("flags south→north→south even when day 1 is the origin airport", () => {
+    const p = plan([
+      day({ day: 1, city: "Ljubljana", ...LJUBLJANA, inFlightDay: true }),
+      day({ day: 2, city: "Bangkok", ...BANGKOK }),
+      day({ day: 5, city: "Krabi", ...KRABI }),
+      day({ day: 8, city: "Phuket", ...PHUKET }),
+      day({ day: 11, city: "Chiang Mai", ...CHIANG_MAI }),
+      day({ day: 13, city: "Koh Samui", ...KOH_SAMUI }),
+      day({ day: 15, city: "Bangkok", ...BANGKOK }),
+    ]);
+    const v = findAbandonedRegionReturn(p);
+    expect(v[0]?.rule).toBe("non_linear_route");
+    expect(v[0]?.message).toMatch(/zigzag|abandoned/i);
+  });
+
+  it("allows hub → north → south → hub (one long-axis change)", () => {
+    const p = plan([
+      day({ day: 1, city: "Ljubljana", ...LJUBLJANA, inFlightDay: true }),
+      day({ day: 2, city: "Bangkok", ...BANGKOK }),
+      day({ day: 5, city: "Chiang Mai", ...CHIANG_MAI }),
+      day({ day: 8, city: "Krabi", ...KRABI }),
+      day({ day: 11, city: "Phuket", ...PHUKET }),
+      day({ day: 15, city: "Bangkok", ...BANGKOK }),
+    ]);
+    expect(findAbandonedRegionReturn(p)).toEqual([]);
+  });
+});
+
+describe("findReplayedArrivals", () => {
+  it("flags the same internal flight on two consecutive days", () => {
+    const p = plan([
+      day({
+        day: 11,
+        city: "Chiang Mai",
+        ...CHIANG_MAI,
+        activities: {
+          morning: [
+            {
+              name: "Notranji let Phuket → Chiang Mai",
+              type: "TRANSPORT",
+              transportType: "flight",
+              description: "HKT → CNX",
+            },
+          ],
+        },
+      }),
+      day({
+        day: 12,
+        city: "Chiang Mai",
+        ...CHIANG_MAI,
+        activities: {
+          morning: [
+            {
+              name: "Notranji let Phuket (HKT) → Chiang Mai (CNX)",
+              type: "TRANSPORT",
+              transportType: "flight",
+              description: "Notranji let Phuket (HKT) → Chiang Mai (CNX)",
+            },
+          ],
+        },
+      }),
+    ]);
+    const v = findReplayedArrivals(p);
+    expect(v[0]?.rule).toBe("replayed_arrival");
+    expect(v[0]?.dayNumbers).toEqual([11, 12]);
   });
 });
 

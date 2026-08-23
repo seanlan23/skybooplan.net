@@ -17,7 +17,8 @@ export type PlanViolation = {
     | "thin_long_access"
     | "duplicate_activity"
     | "overpacked_day"
-    | "same_day_far_pois";
+    | "same_day_far_pois"
+    | "replayed_arrival";
   message: string;
   dayNumbers: number[];
 };
@@ -30,6 +31,7 @@ export const ROUTING_BLOCK_RULES = new Set<PlanViolation["rule"]>([
   "overpacked_day",
   "missing_travel_block",
   "thin_long_access",
+  "replayed_arrival",
 ]);
 
 export function blockingRouteViolations(plan: AiTripPlan): PlanViolation[] {
@@ -225,10 +227,103 @@ export function findThinLongAccessStays(plan: AiTripPlan): PlanViolation[] {
  * distances exceeds the straight-line span × `slack`. A perfectly linear
  * A→B→C route has total ≈ A→C; backtracking inflates the total.
  */
+const LEAVE_REGION_KM = 500;
+const NEAR_REGION_KM = 450;
+const ORIGIN_FAR_KM = 1500;
+
+function median(values: number[]): number {
+  const s = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(s.length / 2);
+  return s.length % 2 ? s[mid]! : (s[mid - 1]! + s[mid]!) / 2;
+}
+
+function isOriginOrInFlightDay(day: DayPlan, destDays: DayPlan[]): boolean {
+  if (day.inFlightDay || day.journeyPhase === "outbound") return true;
+  if (!Number.isFinite(day.lat) || !Number.isFinite(day.lng) || destDays.length < 2) {
+    return false;
+  }
+  const core = destDays.filter((d) => d.day !== day.day);
+  if (core.length < 2) return false;
+  const mid = {
+    lat: median(core.map((d) => d.lat)),
+    lng: median(core.map((d) => d.lng)),
+  };
+  return distanceKm(day, mid) > ORIGIN_FAR_KM;
+}
+
+type StayBase = {
+  city: string;
+  lat: number;
+  lng: number;
+  dayNumbers: number[];
+  hub: boolean;
+};
+
+function destinationBases(plan: AiTripPlan): StayBase[] {
+  const days = [...(plan.days ?? [])].sort((a, b) => a.day - b.day);
+  const dest = days.filter((d) => !isOriginOrInFlightDay(d, days));
+  const runs: StayBase[] = [];
+  for (const d of dest) {
+    const city = (d.city || d.focusName || "").trim();
+    if (!city || !Number.isFinite(d.lat) || !Number.isFinite(d.lng)) continue;
+    const last = runs[runs.length - 1];
+    if (last && normalizeCity(last.city) === normalizeCity(city)) {
+      last.dayNumbers.push(d.day);
+      continue;
+    }
+    runs.push({
+      city,
+      lat: d.lat,
+      lng: d.lng,
+      dayNumbers: [d.day],
+      hub: runs.length === 0,
+    });
+  }
+  return runs;
+}
+
+/**
+ * South → north → south (or east → west → east) on long hops: landing
+ * back near an abandoned non-hub cluster. Hub return at the end is allowed.
+ */
+export function findAbandonedRegionReturn(plan: AiTripPlan): PlanViolation[] {
+  const bases = destinationBases(plan);
+  if (bases.length < 4) return [];
+  const abandoned: StayBase[] = [];
+  let cluster: StayBase[] = [bases[0]!];
+  for (let i = 1; i < bases.length; i++) {
+    const next = bases[i]!;
+    const from = cluster[cluster.length - 1]!;
+    const km = distanceKm(from, next);
+    if (km < LEAVE_REGION_KM) {
+      cluster.push(next);
+      continue;
+    }
+    for (const left of cluster) {
+      if (!left.hub) abandoned.push(left);
+    }
+    const back = !next.hub && abandoned.find((a) => distanceKm(a, next) < NEAR_REGION_KM);
+    if (back) {
+      return [
+        {
+          rule: "non_linear_route",
+          message: `Long-hop zigzag: "${from.city}" → "${next.city}" returns to the abandoned "${back.city}" region. One long-axis direction, then the other, then hub — do not fly south→north→south.`,
+          dayNumbers: [...from.dayNumbers, ...next.dayNumbers],
+        },
+      ];
+    }
+    cluster = [next];
+  }
+  return [];
+}
+
 export function findNonLinearRoute(
   plan: AiTripPlan,
   slack = 2.5,
 ): PlanViolation[] {
+  const zigzag = findAbandonedRegionReturn(plan);
+  if (zigzag.length) return zigzag;
+
   const days = [...plan.days].sort((a, b) => a.day - b.day);
   if (days.length < 3) return [];
   let total = 0;
@@ -249,6 +344,70 @@ export function findNonLinearRoute(
     ];
   }
   return [];
+}
+
+function hopPairKey(from: string, to: string): string {
+  return `${normalizeCity(from)}>${normalizeCity(to)}`;
+}
+
+function listedIntercityHops(day: DayPlan): Array<{ from: string; to: string }> {
+  const hops: Array<{ from: string; to: string }> = [];
+  for (const leg of day.transportation ?? []) {
+    if ((leg.from ?? "").trim() && (leg.to ?? "").trim()) {
+      hops.push({ from: leg.from, to: leg.to });
+    }
+  }
+  const acts = [
+    ...(day.activities?.morning ?? []),
+    ...(day.activities?.afternoon ?? []),
+    ...(day.activities?.evening ?? []),
+  ];
+  const blob = [
+    day.title ?? "",
+    day.morning ?? "",
+    ...acts.map((a) => `${a.name ?? ""} ${a.description ?? ""}`),
+  ].join(" ");
+  for (const m of blob.matchAll(
+    /([A-Za-zÁÉÍÓÚÄÖÜČŠŽ][\wÁÉÍÓÚÄÖÜáéíóúäöüčšž.'’ -]{2,40}?)\s*(?:\([A-Z]{3}\))?\s*(?:→|->)\s*([A-Za-zÁÉÍÓÚÄÖÜČŠŽ][\wÁÉÍÓÚÄÖÜáéíóúäöüčšž.'’ -]{2,40}?)(?:\s*\([A-Z]{3}\))?/g,
+  )) {
+    hops.push({ from: m[1]!.trim(), to: m[2]!.trim() });
+  }
+  return hops;
+}
+
+/** Same intercity hop on two consecutive days (arrival replayed on the stay day). */
+export function findReplayedArrivals(plan: AiTripPlan): PlanViolation[] {
+  const days = [...(plan.days ?? [])].sort((a, b) => a.day - b.day);
+  const out: PlanViolation[] = [];
+  for (let i = 1; i < days.length; i++) {
+    const prev = days[i - 1]!;
+    const curr = days[i]!;
+    const prevHops = listedIntercityHops(prev);
+    const currHops = listedIntercityHops(curr);
+    if (!currHops.length) continue;
+    const prevKeys = new Set(prevHops.map((h) => hopPairKey(h.from, h.to)));
+    const sameCity =
+      normalizeCity(prev.city || prev.focusName || "") ===
+      normalizeCity(curr.city || curr.focusName || "");
+    const replayed = currHops.filter((h) => {
+      if (prevKeys.has(hopPairKey(h.from, h.to))) return true;
+      if (!sameCity) return false;
+      const dest = curr.city || curr.focusName || "";
+      return (
+        dest &&
+        normalizeCity(h.to).includes(normalizeCity(dest).slice(0, 6)) &&
+        normalizeCity(h.from) !== normalizeCity(dest)
+      );
+    });
+    if (!replayed.length) continue;
+    const hop = replayed[0]!;
+    out.push({
+      rule: "replayed_arrival",
+      message: `Day ${curr.day} repeats the ${hop.from} → ${hop.to} hop from day ${prev.day}. One transfer between bases; the next day is local only.`,
+      dayNumbers: [prev.day, curr.day],
+    });
+  }
+  return out;
 }
 
 /**
@@ -388,6 +547,7 @@ export function validateItinerary(plan: AiTripPlan): PlanViolation[] {
     ...findMissingTravelBlocks(plan),
     ...findThinLongAccessStays(plan),
     ...findNonLinearRoute(plan),
+    ...findReplayedArrivals(plan),
     ...findDuplicateActivities(plan),
     ...findOverpackedDays(plan),
     ...findSameDayFarPois(plan),

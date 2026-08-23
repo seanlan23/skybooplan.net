@@ -192,6 +192,20 @@ describe("repairTruncatedCopy", () => {
     expect(
       completeTruncatedPlaceName("Povratek iz Wae Reba v Labuan.", "Labuan Bajo"),
     ).toBe("Povratek iz Wae Reba v Labuan Bajo.");
+    expect(
+      completeTruncatedPlaceName("Celodnevna otoška tura okoli Koh Phi.", "Koh Phi Phi Don"),
+    ).toBe("Celodnevna otoška tura okoli Koh Phi Phi Don.");
+    expect(repairTruncatedCopy("Wat Plai Laem in Hin Ta Hin.")).toBe("Wat Plai Laem.");
+    expect(
+      repairTruncatedCopy(
+        "Hin Ta Hin Yai so nenavadne skalne formacije, ki spominjajo na moške in ženske genitalije in so.",
+      ),
+    ).toMatch(/formacije|Yai/i);
+    expect(
+      repairTruncatedCopy(
+        "Hin Ta Hin Yai so nenavadne skalne formacije, ki spominjajo na moške in ženske genitalije in so.",
+      ),
+    ).not.toMatch(/in so\.\s*$/);
     expect(repairTruncatedCopy("Obiščite starodavno.")).toBe("");
     expect(repairTruncatedCopy("Obisk trž")).toBe("");
     expect(repairTruncatedCopy("Tečaj tajske kuhinje (")).toBe("Tečaj tajske kuhinje");
