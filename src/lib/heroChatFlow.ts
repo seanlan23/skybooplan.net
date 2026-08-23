@@ -4,14 +4,20 @@ export const HERO_CHAT_TOTAL_STEPS = 5;
 
 export type HeroChatMode = "all" | "flights" | "stays" | "plan" | "motorhome" | "car";
 
+/** Homepage searcher tabs. Flights stay inside the full plan — no standalone flight search. */
+export const HERO_SEARCHER_MODES: HeroChatMode[] = ["all", "stays", "car", "motorhome"];
+
 export const HERO_CHAT_MODES: HeroChatMode[] = [
-  "flights",
   "stays",
   "car",
   "motorhome",
   "plan",
   "all",
 ];
+
+export function normalizeHeroSearcherMode(mode: HeroChatMode): HeroChatMode {
+  return mode === "flights" ? "all" : mode;
+}
 
 /** Start-city chips for Avtodom guided flow. */
 export const HERO_MOTORHOME_START_CHIPS: Array<{

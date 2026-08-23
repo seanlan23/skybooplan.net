@@ -3,7 +3,11 @@ import { useI18n } from "@/lib/i18n";
 import { HeroChatFlow } from "@/components/HeroChatFlow";
 import { HeroModeTabs } from "@/components/HeroModeTabs";
 import { HeroRotatingBackground } from "@/components/HeroRotatingBackground";
-import type { HeroChatCollected, HeroChatMode } from "@/lib/heroChatFlow";
+import {
+  normalizeHeroSearcherMode,
+  type HeroChatCollected,
+  type HeroChatMode,
+} from "@/lib/heroChatFlow";
 import type { HeroStaySearchParams } from "@/lib/heroStaySearch";
 
 export function HeroSection({
@@ -45,9 +49,10 @@ export function HeroSection({
   const [chatActive, setChatActive] = useState(false);
 
   function handleModeChange(next: HeroChatMode) {
-    setMode(next);
+    const mode = normalizeHeroSearcherMode(next);
+    setMode(mode);
     setChatActive(false);
-    onModeChange?.(next);
+    onModeChange?.(mode);
   }
 
   return (

@@ -2,12 +2,14 @@ import { describe, expect, it } from "vitest";
 import { translate } from "@/lib/i18n";
 import {
   HERO_DESTINATION_CHIPS,
+  HERO_SEARCHER_MODES,
   buildHeroMakeSearchQuery,
   buildHeroSearchQuery,
   getDestinationChipDisplay,
   localizeDestinationDisplay,
   localizeHeroCollectedForUi,
   localizeWishesDisplay,
+  normalizeHeroSearcherMode,
 } from "@/lib/heroChatFlow";
 
 describe("getDestinationChipDisplay", () => {
@@ -145,5 +147,14 @@ describe("buildHeroSearchQuery", () => {
     expect(query).toContain("Julij 2027");
     expect(query).toContain("Ljubljana");
     expect(query).toContain("2 odrasla");
+  });
+});
+
+describe("hero searcher modes", () => {
+  it("does not offer a standalone flights tab", () => {
+    expect(HERO_SEARCHER_MODES).toEqual(["all", "stays", "car", "motorhome"]);
+    expect(HERO_SEARCHER_MODES).not.toContain("flights");
+    expect(normalizeHeroSearcherMode("flights")).toBe("all");
+    expect(normalizeHeroSearcherMode("stays")).toBe("stays");
   });
 });

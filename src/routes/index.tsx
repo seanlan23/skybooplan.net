@@ -15,6 +15,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { HeroSection } from "@/components/HeroSection";
 import {
   localizeWishesDisplay,
+  normalizeHeroSearcherMode,
   type HeroChatCollected,
   type HeroChatMode,
 } from "@/lib/heroChatFlow";
@@ -675,6 +676,7 @@ function Landing() {
   ) {
     const trimmed = prompt.trim();
     if (!trimmed || heroSearchLoading) return;
+    mode = normalizeHeroSearcherMode(mode);
 
     setHeroSearchAttempted(true);
     setHeroSkyChatComplete(true);

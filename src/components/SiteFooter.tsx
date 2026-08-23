@@ -14,7 +14,6 @@ export function SiteFooter() {
         <FooterCol
           title={t("footer.product")}
           links={[
-            { label: t("nav.flights"), to: "/" },
             { label: t("nav.stays"), to: "/" },
             { label: t("nav.ai"), to: "/" },
             { label: t("nav.myPlans"), to: "/dashboard" },

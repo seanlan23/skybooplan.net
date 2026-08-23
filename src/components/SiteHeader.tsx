@@ -100,9 +100,6 @@ export function SiteHeader({
         {/* Center — navigation (desktop only) */}
         <nav className="absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 md:flex items-center gap-6 lg:gap-10 text-[15px] font-medium">
           <a href="#hero-chat-window" className={navLinkClass}>
-            {t("nav.flights")}
-          </a>
-          <a href="#hero-chat-window" className={navLinkClass}>
             {t("nav.stays")}
           </a>
           <a href="#ai-planner" className={navLinkClass}>
