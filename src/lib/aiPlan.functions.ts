@@ -1801,7 +1801,12 @@ export const generateAiPlan = createServerFn({ method: "POST" })
             { start: mid + 1, end: nDays, handoff: undefined as BatchHandoff | undefined },
           ];
 
-    const ROUTING_BLOCK_RULES = new Set(["duplicate_destination_segment", "non_linear_route"]);
+    const ROUTING_BLOCK_RULES = new Set([
+      "duplicate_destination_segment",
+      "non_linear_route",
+      "same_day_far_pois",
+      "overpacked_day",
+    ]);
 
     const buildRoutingRepair = (
       violations: { rule: string; message: string }[],
@@ -3148,7 +3153,7 @@ export function buildSkeletonDayPlans(
       activities =
         slots.morning.length + slots.afternoon.length + slots.evening.length > 0
           ? slots
-          : padEmptyDayActivities(undefined, region, d, langCode, { inboundTravelDay: true });
+          : { morning: [], afternoon: [], evening: [] };
     } else if (shortInbound && prevRegionForDay && prevHop) {
       const prevoz: Activity = {
         name: locale.slo

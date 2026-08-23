@@ -7,6 +7,9 @@ import {
   findDuplicateDayNumbers,
   findMissingTravelBlocks,
   findNonLinearRoute,
+  findOverpackedDays,
+  findSameDayFarPois,
+  dropSameDayFarPois,
   validateItinerary,
 } from "./planValidation";
 
@@ -352,5 +355,63 @@ describe("validateItinerary — end-to-end on a realistic Thailand plan", () => 
     expect(rules.has("missing_travel_block")).toBe(true);
     expect(rules.has("duplicate_destination_segment")).toBe(true);
     expect(rules.has("duplicate_activity")).toBe(true);
+  });
+});
+
+describe("day feasibility", () => {
+  it("flags more than four program items on a full day", () => {
+    const sight = (name: string) => ({
+      name,
+      type: "SIGHT" as const,
+      description: "Ogled.",
+    });
+    const p = plan([
+      day({
+        day: 2,
+        city: "Paris",
+        lat: 48.86,
+        lng: 2.35,
+        activities: {
+          morning: [sight("Louvre"), sight("Orsay")],
+          afternoon: [sight("Notre-Dame"), sight("Sainte-Chapelle")],
+          evening: [sight("Eiffel Tower")],
+        },
+      }),
+    ]);
+    expect(findOverpackedDays(p)[0]?.rule).toBe("overpacked_day");
+  });
+
+  it("flags two sights 400km apart with no transfer", () => {
+    const p = plan([
+      day({
+        day: 3,
+        city: "Bangkok",
+        ...BANGKOK,
+        activities: {
+          morning: [
+            {
+              name: "Grand Palace",
+              type: "SIGHT",
+              lat: 13.75,
+              lng: 100.49,
+              description: "Tempelj.",
+            },
+          ],
+          afternoon: [
+            {
+              name: "Doi Suthep",
+              type: "SIGHT",
+              lat: 18.8,
+              lng: 98.92,
+              description: "Chiang Mai.",
+            },
+          ],
+          evening: [],
+        },
+      }),
+    ]);
+    expect(findSameDayFarPois(p)[0]?.rule).toBe("same_day_far_pois");
+    expect(dropSameDayFarPois(p)).toBe(1);
+    expect(JSON.stringify(p.days[0]!.activities)).not.toMatch(/Doi Suthep/);
   });
 });

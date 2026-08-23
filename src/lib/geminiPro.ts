@@ -474,15 +474,6 @@ Takoj za tem nadaljuj s kratkim narativnim uvodom o poti (največ 1–2 stavka �
     params.destinationPlace ??
     params.destination;
   const arrivalDayNum = 1 + (params.flightContext?.outboundArriveDayOffset ?? 0);
-  const controlRules = tripPlanControlRules({
-    pace: params.pace,
-    hasFlightContext: Boolean(params.flightContext && !params.groundTransportMode),
-    explicitStayPlan,
-    arrivalCity: arrivalCityName,
-    destinationIata: params.destinationIata,
-    arrivalDay: arrivalDayNum,
-    groundTransport: Boolean(params.groundTransportMode),
-  });
   const arrivalDayRule = !span.includesArrival
     ? `- Dan prihoda je že zgeneriran. Začni z dnevom ${span.start} v nadaljevanju poti — ne ponavljaj letališča prihoda.`
     : params.groundTransportMode
@@ -504,7 +495,6 @@ Takoj za tem nadaljuj s kratkim narativnim uvodom o poti (največ 1–2 stavka �
 ${dayRangePromptBlock(params)}
 ${span.includesArrival ? teaserBlock : ""}
 ${travelReqBlock}
-${controlRules}
 ${plannerQualityPromptBlock({
   road: Boolean(params.groundTransportMode === "car" || params.groundTransportMode === "motorhome" || roadTrip || carTrip),
   totalDays: params.days,

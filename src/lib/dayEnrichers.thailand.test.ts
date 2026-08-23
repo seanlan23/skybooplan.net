@@ -254,16 +254,27 @@ describe("enrichDayActivities Thailand", () => {
     expect(out.morning.length + out.afternoon.length).toBeGreaterThan(0);
   });
 
-  it("inbound travel day gets afternoon sights and evening culture", () => {
+  it("inbound travel day does not invent afternoon sights or island breakfast", () => {
     const out = enrichDayActivities(
-      { morning: [], afternoon: [], evening: [] },
-      "Chiang Mai",
+      {
+        morning: [
+          {
+            name: "Zajtrk v Ao Nang",
+            type: "EAT",
+            description: "Počasen zajtrk v beach baru.",
+          },
+        ],
+        afternoon: [],
+        evening: [],
+      },
+      "Krabi",
       1,
       locale,
       { inboundTravelDay: true },
     );
-    expect(out.afternoon.some((a) => /doi suthep|suthep/i.test(a.name))).toBe(true);
-    expect(out.evening.length).toBeGreaterThan(0);
+    expect(out.morning.some((a) => /zajtrk|breakfast/i.test(a.name))).toBe(false);
+    expect(out.afternoon).toEqual([]);
+    expect(out.evening).toEqual([]);
   });
 
   it("does not repeat Chiang Mai Night Bazaar on consecutive evenings", () => {

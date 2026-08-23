@@ -1,4 +1,5 @@
-import type { AiTripPlan, DayPlan } from "./aiPlan.functions";
+import type { Activity, AiTripPlan, DayPlan } from "./aiPlan.functions";
+import { isPaceLightDay, isPaceProgramActivity } from "./paceGuard";
 
 /**
  * Pure validators for AI-generated itineraries. Each rule mirrors a
@@ -12,7 +13,9 @@ export type PlanViolation = {
     | "duplicate_destination_segment"
     | "non_linear_route"
     | "missing_travel_block"
-    | "duplicate_activity";
+    | "duplicate_activity"
+    | "overpacked_day"
+    | "same_day_far_pois";
   message: string;
   dayNumbers: number[];
 };
@@ -249,6 +252,97 @@ export function findDuplicateActivities(plan: AiTripPlan): PlanViolation[] {
   return violations;
 }
 
+const SAME_DAY_FAR_KM = 180;
+
+function dayActivities(day: DayPlan): Activity[] {
+  return [
+    ...(day.activities?.morning ?? []),
+    ...(day.activities?.afternoon ?? []),
+    ...(day.activities?.evening ?? []),
+  ];
+}
+
+function isTransportLike(a: Activity): boolean {
+  if (a.type === "TRANSPORT" || a.transportType) return true;
+  return /→|->/.test(`${a.name ?? ""} ${a.description ?? ""}`);
+}
+
+/** More program items than a human day (or a transfer day) can hold. */
+export function findOverpackedDays(plan: AiTripPlan): PlanViolation[] {
+  const totalDays = plan.days?.length ?? 0;
+  const out: PlanViolation[] = [];
+  for (const day of plan.days ?? []) {
+    const program = dayActivities(day).filter((a) => isPaceProgramActivity(a));
+    const light = isPaceLightDay(day, { arrivalDay: 1, totalDays });
+    const cap = light ? 2 : 4;
+    if (program.length > cap) {
+      out.push({
+        rule: "overpacked_day",
+        message: `Day ${day.day} has ${program.length} program items (cap ${cap}${light ? ", light/transfer day" : ""})`,
+        dayNumbers: [day.day],
+      });
+    }
+  }
+  return out;
+}
+
+/** Two sights on the same day more than ~3h apart, with no transfer on that day. */
+export function findSameDayFarPois(plan: AiTripPlan): PlanViolation[] {
+  const out: PlanViolation[] = [];
+  for (const day of plan.days ?? []) {
+    const acts = dayActivities(day);
+    if (acts.some((a) => isTransportLike(a))) continue;
+    const pinned = acts.filter(
+      (a) => typeof a.lat === "number" && typeof a.lng === "number",
+    );
+    for (let i = 0; i < pinned.length; i++) {
+      for (let j = i + 1; j < pinned.length; j++) {
+        const km = distanceKm(
+          { lat: pinned[i]!.lat!, lng: pinned[i]!.lng! },
+          { lat: pinned[j]!.lat!, lng: pinned[j]!.lng! },
+        );
+        if (km > SAME_DAY_FAR_KM) {
+          out.push({
+            rule: "same_day_far_pois",
+            message: `Day ${day.day}: "${pinned[i]!.name}" and "${pinned[j]!.name}" are ${Math.round(km)}km apart with no transfer`,
+            dayNumbers: [day.day],
+          });
+          i = pinned.length;
+          break;
+        }
+      }
+    }
+  }
+  return out;
+}
+
+/** Drop the outlier (farthest from the day's city) when two POIs are a same-day teleport. */
+export function dropSameDayFarPois(plan: AiTripPlan): number {
+  let removed = 0;
+  for (const day of plan.days ?? []) {
+    if (!day.activities) continue;
+    const acts = dayActivities(day);
+    if (acts.some((a) => isTransportLike(a))) continue;
+    const hub = { lat: day.lat, lng: day.lng };
+    if (!Number.isFinite(hub.lat) || !Number.isFinite(hub.lng)) continue;
+    for (const slot of ["morning", "afternoon", "evening"] as const) {
+      const list = day.activities[slot] ?? [];
+      const next = list.filter((a) => {
+        if (typeof a.lat !== "number" || typeof a.lng !== "number") return true;
+        if (isTransportLike(a) || !isPaceProgramActivity(a)) return true;
+        const km = distanceKm(hub, { lat: a.lat, lng: a.lng });
+        if (km > SAME_DAY_FAR_KM) {
+          removed += 1;
+          return false;
+        }
+        return true;
+      });
+      if (next.length !== list.length) day.activities[slot] = next;
+    }
+  }
+  return removed;
+}
+
 export function validateItinerary(plan: AiTripPlan): PlanViolation[] {
   return [
     ...findDuplicateDayNumbers(plan),
@@ -256,5 +350,7 @@ export function validateItinerary(plan: AiTripPlan): PlanViolation[] {
     ...findMissingTravelBlocks(plan),
     ...findNonLinearRoute(plan),
     ...findDuplicateActivities(plan),
+    ...findOverpackedDays(plan),
+    ...findSameDayFarPois(plan),
   ];
 }

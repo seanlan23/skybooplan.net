@@ -20,6 +20,7 @@ import {
 import { expandPlanDaysToExpected } from "@/lib/daySequence";
 import { finalizeItineraryMapCoords } from "@/lib/itineraryMapModel";
 import { enforceTravelPace } from "@/lib/paceGuard";
+import { dropSameDayFarPois } from "@/lib/planValidation";
 import { dedupeCrossDayBoilerplate, dedupeSameDayActivities } from "@/lib/textSanitize";
 import { attachActivityCoordinates } from "@/lib/mapPoiResolver";
 import { stripMisplacedCityPois } from "@/lib/cityPoiGuard";
@@ -1183,6 +1184,7 @@ export function enrichGeminiCatalogPlan(
     pace: plan.travelPace ?? opts.pace,
     arrivalDay: 1,
   });
+  dropSameDayFarPois(plan);
   if (motorhome) {
     enrichMotorhomePlanTips(plan, planLang);
   }

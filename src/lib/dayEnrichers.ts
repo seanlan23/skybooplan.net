@@ -2132,23 +2132,13 @@ export function enrichDayActivities(
     return sanitizeDaySlots(result, locale.langCode, locale.country, city);
   }
 
+  if (opts?.isDepartureDay) {
+    return sanitizeDaySlots(result, locale.langCode, locale.country, city);
+  }
+
   if (opts?.inboundTravelDay) {
-    for (const act of buildInboundArrivalAfternoonSights(city, locale)) {
-      if (!hasSimilar(result, act.name)) result.afternoon.push(act);
-    }
-    const culture = buildArrivalEveningCulture(city, locale).slice(0, 1);
-    for (const act of culture) {
-      if (!hasSimilar(result, act.name)) result.evening.push(act);
-    }
-    const pk = poolKey(city, locale.country, opts?.destinationIata);
-    if (pk === "vietnam" || pk === "hoi_an") {
-      result = fixVietnamDaySlots(result, city, dayIndexInRegion, locale, {
-        priorScheduledText: opts?.priorScheduledText,
-        isTripDay1: opts?.isTripDay1,
-        isArrivalDay: opts?.isArrivalDay,
-        tripDate: opts?.tripDate,
-      });
-    }
+    result.morning = result.morning.filter((a) => !isPreArrivalFiller(a));
+    result.afternoon = result.afternoon.filter((a) => !isPreArrivalFiller(a));
     return sanitizeDaySlots(result, locale.langCode, locale.country, city);
   }
 
@@ -2234,15 +2224,11 @@ export function enrichDayActivities(
     (poolKeyName === "generic" && (plannedSights >= 1 || hasMainSight || countActivities(result) >= 3));
   const minTotal = skipGenericPoolPad
     ? countActivities(result)
-    : intensive
-      ? plannedSights >= 2 || hasMainSight
-        ? 4
-        : 5
-      : plannedSights >= 2 || hasMainSight
+    : plannedSights >= 1 || hasMainSight
+      ? countActivities(result)
+      : intensive
         ? 3
-        : opts?.isTripDay1 || opts?.isArrivalDay
-          ? 2
-          : 3;
+        : 2;
   const hasMorningSight = slotHasRealSight(result.morning);
   const hasFullDayExcursion = [...result.morning, ...result.afternoon, ...result.evening].some(
     (a) => isFullDayExcursion({ name: a.name, description: a.description ?? "" }),
@@ -2297,7 +2283,7 @@ export function enrichDayActivities(
       ) {
         continue;
       }
-      if (result[entry.slot].length < 2 && countActivities(result) < minTotal) {
+      if (result[entry.slot].length === 0 && countActivities(result) < minTotal) {
         const act = entry.activity(locale, dayIndexInRegion, poolCtx);
         if (intensive && isWeakFillerActivity(act) && hasMorningSight) continue;
         if (
