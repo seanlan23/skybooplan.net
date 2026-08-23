@@ -14,8 +14,14 @@ import {
   isStreamEvent,
 } from "@/lib/parseStreamNdjson";
 import { patchSessionAiPlan } from "@/lib/sessionStore";
-import { classifyStreamAbort, waitUntilDocumentVisible } from "@/lib/streamAbort";
+import {
+  classifyStreamAbort,
+  createHiddenAwareIdleWatchdog,
+  isDocumentHidden,
+  waitUntilDocumentVisible,
+} from "@/lib/streamAbort";
 import { maxPlanDayNumber } from "@/lib/geminiStreamBatches";
+import { requestScreenWakeLock } from "@/hooks/useScreenWakeLock";
 
 function sanitizeStreamPlan(
   plan: AiTripPlan,
@@ -49,7 +55,7 @@ function isTransientDisconnect(err: unknown): boolean {
  * stream starts; this is a backstop if the proxy drops keepalive bytes.
  */
 const CLIENT_STREAM_IDLE_MS = 240_000;
-const MAX_CONNECTION_RETRIES = 1;
+const MAX_CONNECTION_RETRIES = 2;
 /** Fresh 280s serverless slices until 9–16 day plans are full (6/13). */
 const MAX_HTTP_CONTINUATIONS = 3;
 
@@ -89,7 +95,7 @@ export type StreamItineraryResult = {
  * (`parsePartialJson` — never JSON.parse on a raw chunk).
  *
  * Screen lock / iOS Safari abort the fetch. We persist the preview immediately,
- * wait until the tab is visible, then retry the stream once.
+ * wait until the tab is visible, then retry the stream (idle timer paused while hidden).
  */
 export function useStreamItinerary() {
   const [previewPlan, setPreviewPlan] = useState<AiTripPlan | null>(null);
@@ -133,6 +139,7 @@ export function useStreamItinerary() {
       const isCurrent = () => generationRef.current === generation;
       userAbortRef.current = false;
       abort("replace");
+      requestScreenWakeLock();
 
       const expectedFromInput = tripDayCount(input.departDate, input.returnDate);
 
@@ -230,24 +237,13 @@ export function useStreamItinerary() {
 
         const controller = new AbortController();
         abortRef.current = controller;
-        let idleTimedOut = false;
-        let idleTimer: ReturnType<typeof setTimeout> | undefined;
+        const idleWatch = createHiddenAwareIdleWatchdog(
+          () => controller.abort(),
+          CLIENT_STREAM_IDLE_MS,
+        );
         let ndjsonBuffer = "";
         resolvedPlan = null;
         streamError = null;
-
-        const clearIdle = () => {
-          if (idleTimer !== undefined) clearTimeout(idleTimer);
-          idleTimer = undefined;
-        };
-
-        const bumpIdle = () => {
-          clearIdle();
-          idleTimer = setTimeout(() => {
-            idleTimedOut = true;
-            controller.abort();
-          }, CLIENT_STREAM_IDLE_MS);
-        };
 
         const drainBuffer = (): "stop" | "continue" => {
           const { events, remainder } = consumeNdjsonBuffer(ndjsonBuffer);
@@ -262,7 +258,10 @@ export function useStreamItinerary() {
         };
 
         try {
-          bumpIdle();
+          if (isDocumentHidden()) {
+            await waitUntilDocumentVisible(controller.signal);
+          }
+          idleWatch.bump();
           const payload = resumePlan
             ? { ...input, resumePlan, attachment: undefined }
             : input;
@@ -290,7 +289,7 @@ export function useStreamItinerary() {
           const decoder = new TextDecoder();
 
           while (true) {
-            bumpIdle();
+            idleWatch.bump();
             const { done, value } = await reader.read();
             if (done) break;
 
@@ -349,7 +348,7 @@ export function useStreamItinerary() {
           const kind = classifyStreamAbort({
             aborted,
             userAborted: userAbortRef.current,
-            idleTimedOut,
+            idleTimedOut: idleWatch.isTimedOut(),
           });
 
           if (kind === "user") {
@@ -420,7 +419,7 @@ export function useStreamItinerary() {
           setStatus("error");
           return { plan: null, error: message };
         } finally {
-          clearIdle();
+          idleWatch.dispose();
           if (abortRef.current === controller) abortRef.current = null;
         }
       }

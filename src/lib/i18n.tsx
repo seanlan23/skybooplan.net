@@ -638,7 +638,7 @@ const en: Dict = {
   "aiplan.loadingEta": "About {sec} seconds left — worth the wait.",
   "aiplan.loadingAlmost": "Almost done…",
   "aiplan.keepScreenOn":
-    "Keep the screen on until the plan is ready — locking the phone can stop generation.",
+    "Keep this tab open and the screen on until the plan is ready — Safari or a locked phone can stop generation.",
   "aiplan.statHotels": "stays",
   "aiplan.statAttractions": "attractions",
   "aiplan.statRestaurants": "restaurants",
@@ -1859,7 +1859,7 @@ const dicts: Record<DictLang, Dict> = {
     "aiplan.loadingEta": "Še približno {sec} sekund — vredno je počakati.",
     "aiplan.loadingAlmost": "Skoraj končano…",
     "aiplan.keepScreenOn":
-      "Pusti zaslon vklopljen, dokler načrt ni pripravljen — zaklenjen telefon lahko prekine generiranje.",
+      "Pusti ta zavihek odprt in zaslon vklopljen, dokler načrt ni pripravljen — Safari sicer ustavi generiranje.",
     "aiplan.statHotels": "nastanitev",
     "aiplan.statAttractions": "znamenitosti",
     "aiplan.statRestaurants": "restavracij",
@@ -2524,7 +2524,7 @@ const dicts: Record<DictLang, Dict> = {
     "aiplan.loadingEta": "Quedan unos {sec} segundos — vale la pena.",
     "aiplan.loadingAlmost": "Casi listo…",
     "aiplan.keepScreenOn":
-      "Deja la pantalla encendida hasta que el plan esté listo — bloquear el teléfono puede detener la generación.",
+      "Deja esta pestaña abierta y la pantalla encendida hasta que el plan esté listo — Safari o bloquear el teléfono pueden detener la generación.",
     "aiplan.phase1": "Buscando alojamientos …",
     "aiplan.phase2": "Analizando atracciones y actividades …",
     "aiplan.phase3": "Construyendo la mejor ruta de ciudad a ciudad …",
@@ -2730,7 +2730,7 @@ const dicts: Record<DictLang, Dict> = {
     "aiplan.loadingEta": "Encore environ {sec} secondes — ça vaut le coup.",
     "aiplan.loadingAlmost": "Presque terminé…",
     "aiplan.keepScreenOn":
-      "Gardez l'écran allumé jusqu'à ce que le plan soit prêt — verrouiller le téléphone peut interrompre la génération.",
+      "Gardez cet onglet ouvert et l'écran allumé jusqu'à ce que le plan soit prêt — Safari ou un téléphone verrouillé peut interrompre la génération.",
     "aiplan.phase1": "Recherche d'hébergements …",
     "aiplan.phase2": "Analyse des attractions et activités …",
     "aiplan.phase3": "Construction du meilleur itinéraire ville par ville …",
@@ -2821,7 +2821,7 @@ const dicts: Record<DictLang, Dict> = {
     "aiplan.loadingEta": "Noch etwa {sec} Sekunden — es lohnt sich.",
     "aiplan.loadingAlmost": "Gleich fertig…",
     "aiplan.keepScreenOn":
-      "Bildschirm an lassen, bis der Plan fertig ist — ein gesperrtes Handy kann die Erstellung abbrechen.",
+      "Tab offen und Bildschirm an lassen, bis der Plan fertig ist — Safari oder ein gesperrtes Handy kann die Erstellung abbrechen.",
     "aiplan.phase1": "Unterkünfte werden gesucht …",
     "aiplan.phase2": "Sehenswürdigkeiten und Aktivitäten werden analysiert …",
     "aiplan.phase3": "Beste Route von Stadt zu Stadt wird gebaut …",
@@ -3235,7 +3235,7 @@ const dicts: Record<DictLang, Dict> = {
     "aiplan.loadingEta": "Ancora circa {sec} secondi — ne vale la pena.",
     "aiplan.loadingAlmost": "Quasi fatto…",
     "aiplan.keepScreenOn":
-      "Tieni lo schermo acceso finché il piano non è pronto — bloccare il telefono può interrompere la generazione.",
+      "Tieni questa scheda aperta e lo schermo acceso finché il piano non è pronto — Safari o un telefono bloccato possono interrompere la generazione.",
     "aiplan.phase1": "Cerchiamo alloggi …",
     "aiplan.phase2": "Analizziamo attrazioni e attività …",
     "aiplan.phase3": "Costruiamo il percorso migliore città per città …",

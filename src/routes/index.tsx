@@ -47,7 +47,7 @@ import {
   type TripSkeleton,
 } from "@/lib/aiPlan.functions";
 import { useStreamItinerary } from "@/hooks/useStreamItinerary";
-import { useScreenWakeLock } from "@/hooks/useScreenWakeLock";
+import { requestScreenWakeLock, useScreenWakeLock } from "@/hooks/useScreenWakeLock";
 import { usePlanPhotoEnrichment } from "@/hooks/usePlanPhotoEnrichment";
 import { mergePlanPhotos } from "@/lib/unsplashPhotos";
 import {
@@ -1612,6 +1612,7 @@ function Landing() {
     setGenInterrupted(false);
     setAiGenStartedAt(Date.now());
     setAiLoading(true);
+    requestScreenWakeLock();
     setTimeout(() => {
       // Prefer the plan section title in view (not the loader card alone).
       const el =

@@ -11,6 +11,8 @@ import { DayScrollDebug } from "@/components/DayScrollDebug";
 import { AiPlanLoader } from "@/components/AiPlanLoader";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { isSoftQuotaError, resolveErrorMessage, useI18n } from "@/lib/i18n";
+import { streamNeedsForegroundGuard } from "@/lib/streamAbort";
+import { cn } from "@/lib/utils";
 import { resolvePlanContentLanguage, stripPlanTeaser } from "@/lib/planTeaser";
 import { getSeasonalHints } from "@/lib/seasonalHints";
 import { resolveDayBudgetCountry } from "@/lib/countryDailyBudget";
@@ -954,7 +956,12 @@ export function AiPlanView({
               </p>
             )}
             {streaming ? (
-              <p className="mt-2 max-w-xl text-xs leading-relaxed text-amber-800/90 md:hidden">
+              <p
+                className={cn(
+                  "mt-2 max-w-xl text-xs leading-relaxed text-amber-800/90",
+                  !streamNeedsForegroundGuard() && "md:hidden",
+                )}
+              >
                 {t("aiplan.keepScreenOn")}
               </p>
             ) : null}

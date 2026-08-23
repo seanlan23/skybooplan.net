@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Car, Caravan, Plane, Sparkles, Lightbulb } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { shuffleTipOrder, tipKeysForDestination } from "@/lib/aiPlanTips";
+import { streamNeedsForegroundGuard } from "@/lib/streamAbort";
 import { cn } from "@/lib/utils";
 
 /** Bundled Earth texture (local) — looks like the real planet, not green blobs. */
@@ -215,7 +216,12 @@ export function AiPlanLoader({
             ? t("aiplan.loadingEta").replace("{sec}", String(remainingSec))
             : t("aiplan.loadingAlmost")}
         </div>
-        <p className="mx-auto mt-3 max-w-md text-center text-xs leading-relaxed text-amber-800/90 md:hidden">
+        <p
+          className={cn(
+            "mx-auto mt-3 max-w-md text-center text-xs leading-relaxed text-amber-800/90",
+            !streamNeedsForegroundGuard() && "md:hidden",
+          )}
+        >
           {t("aiplan.keepScreenOn")}
         </p>
       </div>
