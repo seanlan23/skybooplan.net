@@ -543,6 +543,21 @@ export function stripWrongCityDayActivities(plan: AiTripPlan): number {
       });
       day.mapPins = nextPins;
     }
+    if (day.title && isWrongCityPoi(day.title, "", city)) {
+      day.title = city || day.title;
+      removed += 1;
+    }
+    if (day.focusName && city && isWrongCityPoi(day.focusName, "", city)) {
+      day.focusName = city;
+      removed += 1;
+    }
+    for (const prose of ["morning", "afternoon", "evening"] as const) {
+      const text = day[prose];
+      if (text && isWrongCityPoi(text, "", city)) {
+        day[prose] = "";
+        removed += 1;
+      }
+    }
   }
   return removed;
 }
@@ -1281,10 +1296,11 @@ export function stripPrematureDestinationProgram(plan: AiTripPlan): number {
     const morning = day.activities.morning ?? [];
     const afternoon = day.activities.afternoon ?? [];
     const morningMove = morning.some((a) => isMoveActivity(a));
+    const morningCityChange = morning.some((a) => isCityChangeTravel(a));
     const afternoonInbound = afternoon.some((a) => isCityChangeTravel(a));
     if (!morningMove && !afternoonInbound) continue;
 
-    if (afternoonInbound) {
+    if (morningCityChange || afternoonInbound) {
       const kept = morning.filter((a) => isMoveActivity(a) || isAirportOrCheckout(a));
       if (kept.length !== morning.length) {
         removed += morning.length - kept.length;

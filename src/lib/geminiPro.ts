@@ -657,7 +657,7 @@ export function tripPlanSystemPrompt(params: GenerateTripPlanParams): string {
         ? `  • severni lok (prihod CNX): Chiang Mai → Chiang Rai/Pai → odhod iz Chiang Mai — NE začni v Bangkoku.`
         : `  • severni lok: Bangkok (Ayutthaya = dnevni izlet, brez nočitve) → Chiang Mai → Chiang Rai → odhod iz Chiang Mai ali Bangkoka,
   • južni lok: Bangkok (Ayutthaya = dnevni izlet, brez nočitve) → Krabi/Phuket/Koh Lanta → odhod iz južnega letališča ali Bangkoka,
-  • Koh Lipe samo z ≥4 nočitvami (pristop 6–8 h); sicer izpusti otok.
+  • Koh Lipe samo z ≥4 nočitvami (pristop 6–8 h); sicer izpusti otok. Krabi/Ao Nang pred Lipejem ≥3 noči (Railay, Phi Phi) — ne 1 noč Krabi + 7 noči Lipe.
   • osrednji lok: Bangkok → Chiang Mai (brez skoka na otroke) ALI Bangkok → Hua Hin → juž — nikoli oboje v istem načrtu.`;
 
   const arrivalDayNum = 1 + (params.flightContext?.outboundArriveDayOffset ?? 0);

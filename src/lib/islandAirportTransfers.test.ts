@@ -273,4 +273,54 @@ describe("islandAirportTransfers", () => {
     expect(next.transportationTips ?? "").not.toMatch(/Pak Bara|Koh Lipe/i);
     expect(JSON.stringify(next.activities)).not.toMatch(/Pak Bara|Koh Lipe/i);
   });
+
+  it("drops a replayed Krabi→Pak Bara arrival on a later Koh Lipe day", () => {
+    const plan: AiTripPlan = {
+      destinationName: "Thailand",
+      destinationIata: "BKK",
+      contentLanguage: "sl",
+      days: [
+        day({
+          day: 10,
+          city: "Koh Lipe",
+          transportation: [
+            { type: "van", from: "Krabi", to: "Pak Bara Pier" },
+            { type: "ferry", from: "Pak Bara Pier", to: "Koh Lipe" },
+          ],
+        }),
+        day({
+          day: 11,
+          city: "Koh Lipe",
+          islandAccessRoute: { defId: "koh-lipe", direction: "arrival" },
+          transportation: [
+            { type: "van", from: "Krabi", to: "Pak Bara Pier" },
+            { type: "ferry", from: "Pak Bara Pier", to: "Koh Lipe" },
+          ],
+          activities: {
+            morning: [
+              {
+                name: "Prevoz iz Krabija do Pak Bara",
+                type: "TRANSPORT",
+                description: "Kombi in čoln — ponovljen prihod.",
+              },
+            ],
+            afternoon: [
+              {
+                name: "Sunrise Beach",
+                type: "SIGHT",
+                description: "Plaža na Lipeju.",
+              },
+            ],
+            evening: [],
+          },
+        }),
+      ],
+    } as AiTripPlan;
+    enrichIslandAirportTransfers(plan, { destinationIata: "BKK", language: "sl" });
+    const later = plan.days[1]!;
+    expect(later.transportation ?? []).toHaveLength(0);
+    expect(later.islandAccessRoute).toBeUndefined();
+    expect(JSON.stringify(later.activities)).not.toMatch(/Pak Bara|Krabi/i);
+    expect(JSON.stringify(later.activities)).toMatch(/Sunrise Beach/i);
+  });
 });

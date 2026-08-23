@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { templateToBlueprintBlocks } from "@/lib/curatedRoutes";
+import { buildCuratedRoutePayload, templateToBlueprintBlocks } from "@/lib/curatedRoutes";
 import {
+  coastPreludeMinNights,
   ensureLongAccessMinNights,
   hubDayTripOnly,
   minStayNights,
@@ -13,9 +14,12 @@ describe("stayFacts catalog", () => {
     expect(hubDayTripOnly("Bangkok")).toBeNull();
   });
 
-  it("requires 4 nights on Koh Lipe", () => {
+  it("requires 4 nights on Koh Lipe and 3 on Krabi before Lipe", () => {
     expect(minStayNights("Koh Lipe")).toBe(4);
     expect(minStayNights("Krabi")).toBe(1);
+    expect(minStayNights("Krabi", "Koh Lipe")).toBe(3);
+    expect(coastPreludeMinNights("Krabi", "Koh Lipe")).toBe(3);
+    expect(coastPreludeMinNights("Bangkok", "Chiang Mai")).toBe(1);
   });
 });
 
@@ -36,8 +40,10 @@ describe("relabelHubDayTripOvernights", () => {
 });
 
 describe("ensureLongAccessMinNights", () => {
-  it("grows a 2-night Lipe stay to 4 from the previous coast base", () => {
+  it("grows a 2-night Lipe stay without taking Krabi below 3 nights", () => {
     const days = [
+      { day: 8, city: "Krabi" },
+      { day: 9, city: "Krabi" },
       { day: 10, city: "Krabi" },
       { day: 11, city: "Krabi" },
       { day: 12, city: "Krabi" },
@@ -49,26 +55,73 @@ describe("ensureLongAccessMinNights", () => {
     expect(days.filter((d) => /lipe/i.test(d.city ?? "")).map((d) => d.day)).toEqual([
       11, 12, 13, 14,
     ]);
-    expect(days[0]!.city).toBe("Krabi");
+    expect(days.filter((d) => /krabi/i.test(d.city ?? "")).map((d) => d.day)).toEqual([
+      8, 9, 10,
+    ]);
+  });
+
+  it("gives surplus Lipe nights back so Krabi keeps a 3-night prelude", () => {
+    const days = [
+      { day: 8, city: "Krabi" },
+      { day: 9, city: "Koh Lipe" },
+      { day: 10, city: "Koh Lipe" },
+      { day: 11, city: "Koh Lipe" },
+      { day: 12, city: "Koh Lipe" },
+      { day: 13, city: "Koh Lipe" },
+      { day: 14, city: "Koh Lipe" },
+      { day: 15, city: "Koh Lipe" },
+      { day: 16, city: "Bangkok" },
+    ];
+    expect(ensureLongAccessMinNights(days)).toBeGreaterThanOrEqual(2);
+    expect(days.filter((d) => /krabi/i.test(d.city ?? "")).map((d) => d.day)).toEqual([
+      8, 9, 10,
+    ]);
+    const lipe = days.filter((d) => /lipe/i.test(d.city ?? "")).map((d) => d.day);
+    expect(lipe).toEqual([11, 12, 13, 14, 15]);
   });
 });
 
 describe("Thailand blueprint stay facts", () => {
-  it("keeps Ayutthaya off the 15-day Andaman stay list and gives Lipe ≥4 nights", () => {
+  it("keeps Ayutthaya off the 15-day Andaman stay list and gives Krabi ≥3 and Lipe 4–6", () => {
     const blocks = templateToBlueprintBlocks(
       [
-        ["Bangkok", 2],
+        ["Bangkok", 3],
         ["Chiang Mai", 2],
-        ["Krabi", 0],
-        ["Koh Lipe", 4],
+        ["Krabi", 3],
+        ["Koh Lipe", 5],
         ["Bangkok", 2],
       ],
       15,
     );
     expect(blocks.some((b) => /ayutthaya/i.test(b.city))).toBe(false);
+    const krabi = blocks.find((b) => /krabi/i.test(b.city));
     const lipe = blocks.find((b) => /lipe/i.test(b.city));
+    expect(krabi).toBeTruthy();
     expect(lipe).toBeTruthy();
-    expect(lipe!.endDay - lipe!.startDay + 1).toBeGreaterThanOrEqual(4);
+    expect(krabi!.endDay - krabi!.startDay + 1).toBeGreaterThanOrEqual(3);
+    const lipeDays = lipe!.endDay - lipe!.startDay + 1;
+    expect(lipeDays).toBeGreaterThanOrEqual(4);
+    expect(lipeDays).toBeLessThanOrEqual(6);
+  });
+
+  it("on 16 days keeps Krabi ≥3, Lipe 5–6, and first Bangkok ≥3", () => {
+    const payload = buildCuratedRoutePayload(16, "BKK", ["beaches"], "koh lipe krabi railay");
+    const blocks = payload?.regionBlueprint as
+      | Array<{ city: string; startDay: number; endDay: number }>
+      | undefined;
+    expect(blocks?.some((b) => /ayutthaya/i.test(b.city))).toBe(false);
+    const first = blocks?.[0];
+    const krabi = blocks?.find((b) => /krabi/i.test(b.city));
+    const lipe = blocks?.find((b) => /lipe/i.test(b.city));
+    const last = blocks?.at(-1);
+    expect(first?.city).toMatch(/bangkok/i);
+    expect(first!.endDay - first!.startDay + 1).toBeGreaterThanOrEqual(3);
+    expect(krabi!.endDay - krabi!.startDay + 1).toBeGreaterThanOrEqual(3);
+    const lipeDays = lipe!.endDay - lipe!.startDay + 1;
+    expect(lipeDays).toBeGreaterThanOrEqual(5);
+    expect(lipeDays).toBeLessThanOrEqual(6);
+    expect(last?.city).toMatch(/bangkok/i);
+    expect(last!.endDay - last!.startDay + 1).toBeLessThanOrEqual(2);
   });
 
   it("drops Koh Lipe from an 8-day Phuket loop that cannot hold 4 nights", () => {

@@ -276,6 +276,49 @@ describe("stripWrongCityDayActivities", () => {
     expect(stripWrongCityDayActivities(plan)).toBe(0);
     expect(plan.days[0]!.activities!.morning[0]!.name).toMatch(/Porto/);
   });
+
+  it("strips Railay title and Ao Nang dinner from a Koh Lipe day", () => {
+    const plan = {
+      destinationName: "Thailand",
+      days: [
+        day({
+          day: 12,
+          city: "Koh Lipe",
+          title: "Rajske plaže Railaya in Phra Nang",
+          focusName: "Ao Nang",
+          activities: {
+            morning: [
+              {
+                name: "Sunrise Beach",
+                type: "SIGHT",
+                description: "Jutranji sprehod po Lipeju.",
+              },
+            ],
+            afternoon: [
+              {
+                name: "Celodnevni izlet na otoke Phi",
+                type: "SIGHT",
+                description: "Phi Phi z Lipeja.",
+              },
+            ],
+            evening: [
+              {
+                name: "Večerja v Ao Nangu: The Hilltop",
+                type: "EAT",
+                description: "The Hilltop nad Ao Nangom.",
+              },
+            ],
+          },
+        }),
+      ],
+    } as AiTripPlan;
+    expect(stripWrongCityDayActivities(plan)).toBeGreaterThanOrEqual(3);
+    expect(plan.days[0]!.title).toMatch(/Koh Lipe/i);
+    expect(plan.days[0]!.focusName).toMatch(/Koh Lipe/i);
+    const blob = JSON.stringify(plan.days[0]!.activities);
+    expect(blob).not.toMatch(/Railay|Phi Phi|Ao Nang|Hilltop/i);
+    expect(blob).toMatch(/Sunrise Beach/i);
+  });
 });
 
 describe("ensureCityChangeTransfer", () => {
@@ -1403,6 +1446,39 @@ describe("FRA→EZE failure classes", () => {
     } as AiTripPlan;
     expect(stripPrematureDestinationProgram(plan)).toBe(0);
     expect(plan.days[0]!.activities!.morning[0]!.name).toMatch(/Wat Phra Singh/i);
+  });
+
+  it("drops Doi Suthep when the morning is still the BKK→CNX flight", () => {
+    const plan = {
+      destinationName: "Thailand",
+      days: [
+        day({
+          day: 5,
+          city: "Chiang Mai",
+          activities: {
+            morning: [
+              {
+                name: "Let Bangkok → Chiang Mai",
+                type: "TRANSPORT",
+                transportType: "flight",
+                description: "Domači let BKK–CNX.",
+              },
+              {
+                name: "Doi Suthep",
+                type: "SIGHT",
+                description: "Tempelj ob 09:00, pred pristankom.",
+              },
+            ],
+            afternoon: [],
+            evening: [],
+          },
+        }),
+      ],
+    } as AiTripPlan;
+    expect(stripPrematureDestinationProgram(plan)).toBe(1);
+    const names = (plan.days[0]!.activities!.morning ?? []).map((a) => a.name).join(" ");
+    expect(names).toMatch(/Bangkok → Chiang Mai/i);
+    expect(names).not.toMatch(/Doi Suthep/i);
   });
 
   it("repairs DE dangling sentence ends without ellipsis", () => {

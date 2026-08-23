@@ -15,10 +15,10 @@ export type InterestAnchorConfig = {
 const BEACH_ANCHORS: Record<string, InterestAnchorConfig> = {
   TH: {
     routeTemplate: [
-      ["Bangkok", 2],
+      ["Bangkok", 3],
       ["Chiang Mai", 2],
-      ["Krabi", 0],
-      ["Koh Lipe", 4],
+      ["Krabi", 3],
+      ["Koh Lipe", 5],
       ["Bangkok", 2],
     ],
     mustIncludeHighlights: [
@@ -34,7 +34,7 @@ const BEACH_ANCHORS: Record<string, InterestAnchorConfig> = {
       "Sunrise Beach (Koh Lipe)",
     ],
     steer:
-      "Dream beaches selected — allocate ≥40% of trip to Andaman coast. Krabi for Phi Phi/Maya Bay day trip; Ayutthaya = Bangkok day trip only (never overnight). Koh Lipe only if ≥4 overnight nights (6–8h access). Final Bangkok: ≥2 days (travel buffer from islands + international flight day). Name real beaches in highlights.",
+      "Dream beaches selected — allocate ≥40% of trip to Andaman coast. Bangkok 3 nights (Kwai day trip; Ayutthaya = day trip only). Chiang Mai 2 nights. Krabi/Ao Nang 3 nights for Railay/Phra Nang/Phi Phi — never 1 night. Koh Lipe 5 nights if included (≥4). Final Bangkok: 1 hotel night + international departure day. Name real beaches in highlights.",
   },
   PH: {
     routeTemplate: [

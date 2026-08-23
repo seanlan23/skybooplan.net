@@ -133,6 +133,19 @@ describe("isWrongCityPoi", () => {
     expect(isWrongCityPoi("Maya Bay", "Celodnevni izlet", "Krabi")).toBe(false);
   });
 
+  it("drops Railay, Ao Nang dinner, and Phi-stub titles on Koh Lipe", () => {
+    expect(
+      isWrongCityPoi("Rajske plaže Railaya in Phra Nang", "", "Koh Lipe"),
+    ).toBe(true);
+    expect(
+      isWrongCityPoi("Večerja v Ao Nangu: The Hilltop", "The Hilltop", "Koh Lipe"),
+    ).toBe(true);
+    expect(
+      isWrongCityPoi("Celodnevni izlet na otoke Phi", "Phi Phi z Lipeja", "Koh Lipe"),
+    ).toBe(true);
+    expect(isWrongCityPoi("Railay Beach", "Phra Nang", "Krabi")).toBe(false);
+  });
+
   it("blocks Louvre on a Lyon day and keeps it in Paris", () => {
     expect(isWrongCityPoi("Louvre", "Mona Lisa", "Lyon")).toBe(true);
     expect(isWrongCityPoi("Louvre", "Mona Lisa", "Paris")).toBe(false);

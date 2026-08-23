@@ -95,8 +95,12 @@ const REGION_LOCKED_POI: Array<{ test: RegExp; homePattern: RegExp }> = [
   },
   // Thailand (sub-region)
   {
-    test: /maya bay|phi phi|ko phi phi|pi pi/i,
+    test: /maya bay|phi phi|ko phi phi|pi pi|otoke? phi\b|otoki phi\b/i,
     homePattern: /krabi|phuket|phi phi|ao nang|railay|phang nga/i,
+  },
+  {
+    test: /railay|phra nang|\bao nang\b|the hilltop/i,
+    homePattern: /krabi|ao nang|railay|phra nang/i,
   },
   {
     test: /james bond island|phang nga bay/i,

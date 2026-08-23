@@ -1,7 +1,5 @@
 import { lookupRegionCoords } from "@/lib/regionCoords";
 
-import { lookupRegionCoords } from "@/lib/regionCoords";
-
 /**
  * Stay facts (catalog) — never overnight a hub day-trip; long-access islands need enough nights.
  * Keep this file free of aiPlan / curatedRoutes imports (used while building blueprints).
@@ -29,16 +27,32 @@ export const LONG_ACCESS_MIN_NIGHTS: LongAccessMinNights[] = [
   { match: /koh\s*lipe|\blipe\b/i, minNights: 4 },
 ];
 
+/** Coast base before a long-access island — Railay/Phi Phi need a real Krabi stay. */
+const COAST_PRELUDE: Array<{ coast: RegExp; island: RegExp; minNights: number }> = [
+  {
+    coast: /krabi|ao nang|aonang|phuket|railay/i,
+    island: /koh\s*lipe|\blipe\b/i,
+    minNights: 3,
+  },
+];
+
 export function hubDayTripOnly(city: string): HubDayTripOnly | null {
   const t = city.trim();
   if (!t) return null;
   return HUB_DAY_TRIP_ONLY.find((f) => f.match.test(t)) ?? null;
 }
 
-export function minStayNights(city: string): number {
+export function coastPreludeMinNights(city: string, nextCity?: string): number {
+  if (!nextCity?.trim()) return 1;
+  const hit = COAST_PRELUDE.find((f) => f.coast.test(city) && f.island.test(nextCity));
+  return hit?.minNights ?? 1;
+}
+
+export function minStayNights(city: string, nextCity?: string): number {
   const t = city.trim();
   if (!t) return 1;
-  return LONG_ACCESS_MIN_NIGHTS.find((f) => f.match.test(t))?.minNights ?? 1;
+  const islandMin = LONG_ACCESS_MIN_NIGHTS.find((f) => f.match.test(t))?.minNights ?? 1;
+  return Math.max(islandMin, coastPreludeMinNights(t, nextCity));
 }
 
 export function stayFactsPromptBlock(slo: boolean): string {
@@ -46,11 +60,13 @@ export function stayFactsPromptBlock(slo: boolean): string {
     return [
       "- Ayutthaya: SAMO dnevni izlet iz Bangkoka (vlak ~1,5 h). PREPOVEDANO hotel / nočitev v Ayutthayi — spi v Bangkoku.",
       "- Koh Lipe: če je na poti, ≥4 nočitve (pristop 6–8 h). PREPOVEDANO 1–2 noči; raje izpusti otok, kot da greš samo čez vikend.",
+      "- Krabi / Ao Nang pred Koh Lipe: ≥3 nočitve (Railay, Phra Nang, Phi Phi). PREPOVEDANO 1 noč v Krabiju in 7 noči na Lipeju.",
     ].join("\n");
   }
   return [
     "- Ayutthaya: Bangkok day trip only (train ~1.5h). Never overnight there — sleep in Bangkok.",
     "- Koh Lipe: if included, ≥4 nights (6–8h access). Never 1–2 nights; skip the island rather than a weekend hop.",
+    "- Krabi / Ao Nang before Koh Lipe: ≥3 nights (Railay, Phra Nang, Phi Phi). Never 1 night in Krabi and 7 on Lipe.",
   ].join("\n");
 }
 
@@ -125,7 +141,8 @@ function hotelNightsInRun<T extends StayDay>(days: T[], run: CityRun): number {
 
 /**
  * If a long-access island is already on the plan, grow it to min nights
- * by taking surplus from the previous stay (then the next), never the last calendar day.
+ * without stealing the coast prelude (Krabi ≥3 before Lipe). Surplus island
+ * days go back to a starved coast base.
  */
 export function ensureLongAccessMinNights<T extends StayDay>(days: T[]): number {
   if (days.length < 3) return 0;
@@ -157,12 +174,40 @@ export function ensureLongAccessMinNights<T extends StayDay>(days: T[]): number 
         }
       };
 
-      stealFrom(runs[r - 1], true, 2);
+      const prev = runs[r - 1];
+      const preludeKeep = Math.max(2, coastPreludeMinNights(prev?.city ?? "", run.city));
+      stealFrom(prev, true, preludeKeep);
       stealFrom(runs[r + 1], false, 2);
-      if (have < need) stealFrom(runs[r - 1], true, 1);
+      if (have < need && preludeKeep < 3) {
+        stealFrom(prev, true, 1);
+      }
+    }
+  };
+
+  const giveBackPrelude = () => {
+    const runs = cityRuns(days);
+    for (let r = 1; r < runs.length; r++) {
+      const prev = runs[r - 1]!;
+      const cur = runs[r]!;
+      const need = coastPreludeMinNights(prev.city, cur.city);
+      if (need < 3) continue;
+      let have = hotelNightsInRun(days, prev);
+      const islandMin = minStayNights(cur.city);
+      let islandHave = hotelNightsInRun(days, cur);
+      while (have < need && islandHave > islandMin) {
+        const idx = cur.start;
+        if (idx === lastCal || idx < 0 || idx >= days.length) break;
+        stampCity(days[idx]!, prev.city);
+        moved += 1;
+        have += 1;
+        islandHave -= 1;
+        cur.start += 1;
+        prev.end += 1;
+      }
     }
   };
 
   grow();
+  giveBackPrelude();
   return moved;
 }

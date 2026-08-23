@@ -557,6 +557,7 @@ export function enrichIslandAirportTransfers(
   }
 
   stripStaleIslandDepartureOnHubDays(days);
+  stripStaleIslandArrivalOnLaterStayDays(days);
 }
 
 function previousDayAlreadyReachedHub(prev: DayPlan, hubCity: string): boolean {
@@ -615,6 +616,43 @@ function stripStaleIslandDepartureOnHubDays(days: DayPlan[]): void {
             /trajekt|ferry|speedboat|pak bara|hat yai|kombi|van|let |flight/i.test(blob),
         );
         return !islandExit;
+      });
+    }
+  }
+}
+
+function isIslandAccessReplayCopy(blob: string, def: IslandAirportAccessDef): boolean {
+  if (mentionsPort(blob, def) || blob.toLowerCase().includes(def.port.label.toLowerCase())) {
+    return true;
+  }
+  if (def.gatewayIata && new RegExp(`\\b${def.gatewayIata}\\b`, "i").test(blob)) return true;
+  return /pak bara|hat yai|chiquilá|chiquila|caticlan jetty/i.test(blob);
+}
+
+/** Inverse of stale departure: later island nights must not replay the first-day van/boat. */
+function stripStaleIslandArrivalOnLaterStayDays(days: DayPlan[]): void {
+  for (let i = 1; i < days.length; i++) {
+    const day = days[i]!;
+    const prev = days[i - 1]!;
+    const def = getIslandAirportAccessDef(day.city ?? "");
+    if (!def || !isIslandCity(prev.city ?? "", def)) continue;
+
+    const legs = day.transportation ?? [];
+    const nextLegs = legs.filter((l) => !isIslandAccessReplayCopy(`${l.from} ${l.to}`, def));
+    if (nextLegs.length !== legs.length) {
+      day.transportation = nextLegs.length ? nextLegs : undefined;
+    }
+    if (day.islandAccessRoute?.direction === "arrival") {
+      day.islandAccessRoute = undefined;
+    }
+    if (day.transportationTips && isIslandAccessReplayCopy(day.transportationTips, def)) {
+      day.transportationTips = "";
+    }
+    if (!day.activities) continue;
+    for (const slot of SLOTS) {
+      day.activities[slot] = (day.activities[slot] ?? []).filter((a) => {
+        const blob = `${a.name ?? ""} ${a.description ?? ""}`;
+        return !isIslandAccessReplayCopy(blob, def);
       });
     }
   }

@@ -243,10 +243,10 @@ const TH_BEACHES_ANDAMAN: CuratedRoute = {
   wishTest: /koh lipe|lipe|krabi|phi phi|maya bay|andaman|railay/i,
   interests: ["beaches"],
   segments: [
-    ["Bangkok", 2],
+    ["Bangkok", 3],
     ["Chiang Mai", 2],
-    ["Krabi", 0],
-    ["Koh Lipe", 4],
+    ["Krabi", 3],
+    ["Koh Lipe", 5],
     ["Bangkok", 2],
   ],
   mustIncludeHighlights: [
@@ -259,7 +259,7 @@ const TH_BEACHES_ANDAMAN: CuratedRoute = {
     "Railay Beach",
   ],
   steer:
-    "Tajska plaže: Bangkok (Ayutthaya = dnevni izlet, brez nočitve) → Chiang Mai → Krabi (Phi Phi) → Koh Lipe ≥4 noči → Bangkok buffer ≥2 dni.",
+    "Tajska plaže: Bangkok 3 noči (Ayutthaya = dnevni izlet; 1 cel dan Mae Klong/Kwai) → Chiang Mai 2 noči (templji + etični sloni) → Krabi/Ao Nang 3 noči (Railay, Phra Nang, Phi Phi) → Koh Lipe 5 noči (plaže, snorklanje) → Bangkok 1 noč pred povratnim letom. PREPOVEDANO 1 noč Krabi + 7 noči Lipe.",
 };
 
 /**
@@ -882,6 +882,8 @@ function isBlueprintArrivalHub(
   templateDays: number,
 ): boolean {
   if (index !== 0) return false;
+  // 3+ days in the template is a real opening stay (Bangkok 3), not a thin hub buffer.
+  if (templateDays > 2) return false;
   if (templateDays > 0 && templateDays <= 2) return true;
   return BLUEPRINT_HUB_CITY_RE.test(city.trim());
 }
@@ -927,7 +929,8 @@ function blueprintFloor(
   index: number,
   template: Array<[string, number]>,
 ): number {
-  const minN = minStayNights(city);
+  const nextCity = template[index + 1]?.[0];
+  const minN = minStayNights(city, nextCity);
   if (isBlueprintReturnHub(index, city, template)) {
     return Math.min(Math.max(1, days || 1), 3);
   }
@@ -954,8 +957,8 @@ function assignBlueprintBlocks(
       flex,
       returnHub,
       arrivalHub,
-      /** Expandable: islands / middle bases — not short hub buffers. */
-      expandable: flex || (!returnHub && !arrivalHub),
+      /** Expandable: islands / middle bases — not hub buffers or a fixed opening stay. */
+      expandable: flex || (!returnHub && !arrivalHub && i !== 0),
     };
   });
 
