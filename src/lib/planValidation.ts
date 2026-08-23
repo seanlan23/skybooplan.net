@@ -1,6 +1,10 @@
 import type { Activity, AiTripPlan, DayPlan } from "./aiPlan.functions";
 import { isPaceLightDay, isPaceProgramActivity } from "./paceGuard";
 import { findThinStayGaps } from "./stayFacts";
+import { isHollowProgramTitle } from "./itineraryGuards";
+import { DESTINATION_BY_IATA } from "./destinationCoords";
+import { isImplausibleLongHaulArrive, parseClockMinutes } from "./flightScheduling";
+import { isSmallIsland } from "./islandStays";
 
 /**
  * Pure validators for AI-generated itineraries. Each rule mirrors a
@@ -18,7 +22,9 @@ export type PlanViolation = {
     | "duplicate_activity"
     | "overpacked_day"
     | "same_day_far_pois"
-    | "replayed_arrival";
+    | "replayed_arrival"
+    | "hollow_activity"
+    | "impossible_arrival";
   message: string;
   dayNumbers: number[];
 };
@@ -32,6 +38,8 @@ export const ROUTING_BLOCK_RULES = new Set<PlanViolation["rule"]>([
   "missing_travel_block",
   "thin_long_access",
   "replayed_arrival",
+  "hollow_activity",
+  "impossible_arrival",
 ]);
 
 export function blockingRouteViolations(plan: AiTripPlan): PlanViolation[] {
@@ -183,6 +191,21 @@ function dayHasTravelBlock(day: DayPlan | undefined): boolean {
   return /→|->/.test(blob) && /let|flight|trajekt|ferry|vlak|train|kombi|van|bus/i.test(blob);
 }
 
+function isIslandGroupHop(fromCity: string, toCity: string): boolean {
+  const a = isSmallIsland(fromCity);
+  const b = isSmallIsland(toCity);
+  return a !== b || (a && b);
+}
+
+function isArrowTransferStub(day: DayPlan): boolean {
+  const title = (day.title ?? "").trim();
+  if (!/→|->/.test(title)) return false;
+  if (/let|flight|trajekt|ferry|vlak|train|kombi|van|bus|speedboat|čoln|boat/i.test(title)) {
+    return false;
+  }
+  return /^.+\s*(?:→|->)\s*\.?\s*$/.test(title) || title.length < 64;
+}
+
 export function findMissingTravelBlocks(
   plan: AiTripPlan,
   longHopKm = 250,
@@ -192,8 +215,17 @@ export function findMissingTravelBlocks(
   for (let i = 1; i < days.length; i++) {
     const prev = days[i - 1];
     const curr = days[i];
+    if (curr.inFlightDay || prev.inFlightDay) continue;
     const km = distanceKm(prev, curr);
-    if (km < longHopKm) continue;
+    const cityChanged =
+      normalizeCity(prev.city || prev.focusName || "") !==
+      normalizeCity(curr.city || curr.focusName || "");
+    const islandHop = cityChanged && isIslandGroupHop(prev.city || "", curr.city || "");
+    const needsBlock =
+      km >= longHopKm ||
+      (islandHop && km >= ISLAND_LEAVE_KM) ||
+      (cityChanged && isArrowTransferStub(curr));
+    if (!needsBlock) continue;
     if (dayHasTravelBlock(curr) || dayHasTravelBlock(prev)) continue;
     violations.push({
       rule: "missing_travel_block",
@@ -228,8 +260,45 @@ export function findThinLongAccessStays(plan: AiTripPlan): PlanViolation[] {
  * A→B→C route has total ≈ A→C; backtracking inflates the total.
  */
 const LEAVE_REGION_KM = 500;
+const ISLAND_LEAVE_KM = 70;
 const NEAR_REGION_KM = 450;
 const ORIGIN_FAR_KM = 1500;
+
+function isHeavyRegionLeave(from: StayBase, next: StayBase): boolean {
+  const km = distanceKm(from, next);
+  if (km >= LEAVE_REGION_KM) return true;
+  return isIslandGroupHop(from.city, next.city) && km >= ISLAND_LEAVE_KM;
+}
+
+function findReturnToAbandoned(
+  from: StayBase,
+  next: StayBase,
+  abandoned: StayBase[],
+  entryHub: StayBase,
+  isLastBase: boolean,
+): StayBase | undefined {
+  if (
+    isLastBase &&
+    normalizeCity(next.city) === normalizeCity(entryHub.city) &&
+    abandoned.every((a) => distanceKm(a, next) >= LEAVE_REGION_KM)
+  ) {
+    return undefined;
+  }
+
+  const backToCoast =
+    isSmallIsland(from.city) && !isSmallIsland(next.city)
+      ? abandoned.find(
+          (a) => !isSmallIsland(a.city) && distanceKm(a, next) < NEAR_REGION_KM,
+        )
+      : undefined;
+  if (backToCoast) return backToCoast;
+
+  return abandoned.find((a) => {
+    const toOld = distanceKm(a, next);
+    if (toOld >= NEAR_REGION_KM) return false;
+    return toOld + 40 < distanceKm(from, next);
+  });
+}
 
 function median(values: number[]): number {
   const s = [...values].sort((a, b) => a - b);
@@ -294,23 +363,24 @@ export function findAbandonedRegionReturn(plan: AiTripPlan): PlanViolation[] {
   for (let i = 1; i < bases.length; i++) {
     const next = bases[i]!;
     const from = cluster[cluster.length - 1]!;
-    const km = distanceKm(from, next);
-    if (km < LEAVE_REGION_KM) {
+    const back =
+      !next.hub &&
+      findReturnToAbandoned(from, next, abandoned, bases[0]!, i === bases.length - 1);
+    if (back) {
+      return [
+        {
+          rule: "non_linear_route",
+          message: `Zigzag: "${from.city}" → "${next.city}" returns to the abandoned "${back.city}" region. One heading — do not bounce back after a long hop or island crossing.`,
+          dayNumbers: [...from.dayNumbers, ...next.dayNumbers],
+        },
+      ];
+    }
+    if (!isHeavyRegionLeave(from, next)) {
       cluster.push(next);
       continue;
     }
     for (const left of cluster) {
       if (!left.hub) abandoned.push(left);
-    }
-    const back = !next.hub && abandoned.find((a) => distanceKm(a, next) < NEAR_REGION_KM);
-    if (back) {
-      return [
-        {
-          rule: "non_linear_route",
-          message: `Long-hop zigzag: "${from.city}" → "${next.city}" returns to the abandoned "${back.city}" region. One long-axis direction, then the other, then hub — do not fly south→north→south.`,
-          dayNumbers: [...from.dayNumbers, ...next.dayNumbers],
-        },
-      ];
     }
     cluster = [next];
   }
@@ -369,6 +439,11 @@ function listedIntercityHops(day: DayPlan): Array<{ from: string; to: string }> 
   ].join(" ");
   for (const m of blob.matchAll(
     /([A-Za-zÁÉÍÓÚÄÖÜČŠŽ][\wÁÉÍÓÚÄÖÜáéíóúäöüčšž.'’ -]{2,40}?)\s*(?:\([A-Z]{3}\))?\s*(?:→|->)\s*([A-Za-zÁÉÍÓÚÄÖÜČŠŽ][\wÁÉÍÓÚÄÖÜáéíóúäöüčšž.'’ -]{2,40}?)(?:\s*\([A-Z]{3}\))?/g,
+  )) {
+    hops.push({ from: m[1]!.trim(), to: m[2]!.trim() });
+  }
+  for (const m of blob.matchAll(
+    /(?:let|flight|trajekt|ferry)[^.]{0,48}?\b(?:iz|from)\s+(.+?)\s+(?:v|do|to)\s+(.+)/gi,
   )) {
     hops.push({ from: m[1]!.trim(), to: m[2]!.trim() });
   }
@@ -540,6 +615,67 @@ export function dropSameDayFarPois(plan: AiTripPlan): number {
   return removed;
 }
 
+/** Title-only stubs on a stay day (transfer/arrival days may be empty). */
+export function findHollowActivities(plan: AiTripPlan): PlanViolation[] {
+  const totalDays = plan.days?.length ?? 0;
+  const out: PlanViolation[] = [];
+  for (const day of plan.days ?? []) {
+    if (day.inFlightDay || day.category === "transport") continue;
+    if (day.day === 1 || day.day === totalDays) continue;
+    if (isPaceLightDay(day, { arrivalDay: 1, totalDays })) continue;
+    const acts = dayActivities(day);
+    if (!acts.length) continue;
+    const hollow = acts.filter((a) => isHollowProgramTitle(a.name ?? "", a.description));
+    const program = acts.filter(
+      (a) => isPaceProgramActivity(a) && !isHollowProgramTitle(a.name ?? "", a.description),
+    );
+    if (!hollow.length && program.length) continue;
+    out.push({
+      rule: "hollow_activity",
+      message: hollow.length
+        ? `Day ${day.day} has hollow titles (${hollow.map((a) => a.name).join(", ")}). A stay day needs a real name + description — not “Morning in …” / “Visit …”.`
+        : `Day ${day.day} has no real morning/afternoon programme. Fill named sights with descriptions, or mark the day as a transfer.`,
+      dayNumbers: [day.day],
+    });
+  }
+  return out;
+}
+
+export function findImpossibleArrivals(plan: AiTripPlan): PlanViolation[] {
+  const day = [...(plan.days ?? [])].sort((a, b) => a.day - b.day)[0];
+  if (!day) return [];
+  const origin = plan.originIata
+    ? DESTINATION_BY_IATA[plan.originIata.toUpperCase()]
+    : undefined;
+  if (!origin || !Number.isFinite(day.lat) || !Number.isFinite(day.lng)) return [];
+  const blob = JSON.stringify(day.activities ?? {});
+  const depart = blob.match(
+    /(?:mednarodni let|international flight|odhod)[^0-9]{0,40}(\d{1,2}[:.]\d{2})/i,
+  );
+  const hotel = blob.match(
+    /(?:hotel|check-?in|prevoz do hotela|transfer)[^0-9]{0,40}(\d{1,2}[:.]\d{2})/i,
+  );
+  if (!depart || !hotel) return [];
+  const departMin = parseClockMinutes(depart[1]);
+  const arriveMin = parseClockMinutes(hotel[1]);
+  if (departMin == null || arriveMin == null) return [];
+  if (
+    !isImplausibleLongHaulArrive(departMin, arriveMin, origin, {
+      lat: day.lat,
+      lng: day.lng,
+    })
+  ) {
+    return [];
+  }
+  return [
+    {
+      rule: "impossible_arrival",
+      message: `Day ${day.day}: hotel/transfer at ${hotel[1]} is only ${Math.round((arriveMin - departMin) / 60)}h after the international departure ${depart[1]} — long-haul needs 10+ hours plus timezone. Empty the destination programme until a plausible landing.`,
+      dayNumbers: [day.day],
+    },
+  ];
+}
+
 export function validateItinerary(plan: AiTripPlan): PlanViolation[] {
   return [
     ...findDuplicateDayNumbers(plan),
@@ -548,6 +684,8 @@ export function validateItinerary(plan: AiTripPlan): PlanViolation[] {
     ...findThinLongAccessStays(plan),
     ...findNonLinearRoute(plan),
     ...findReplayedArrivals(plan),
+    ...findHollowActivities(plan),
+    ...findImpossibleArrivals(plan),
     ...findDuplicateActivities(plan),
     ...findOverpackedDays(plan),
     ...findSameDayFarPois(plan),

@@ -1,4 +1,5 @@
 import { lookupDestination } from "@/lib/destinationCoords";
+import { haversineKm } from "@/lib/geoMath";
 import { planLangCopy } from "@/lib/planLangCopy";
 import {
   airportArrivalHint,
@@ -89,6 +90,52 @@ export function inboundArriveForDisplay(
   if (mins > 0 && mins < 40) return undefined;
   if (mins > 20 * 60) return undefined;
   return arr;
+}
+
+const LONG_HAUL_KM = 4000;
+const JET_KMH = 800;
+
+export function parseClockMinutes(hm: string | undefined): number | null {
+  if (!hm?.trim()) return null;
+  const cleaned = hm.trim().replace(/\+\d+\s*$/, "");
+  const match = cleaned.match(/(\d{1,2})[:.](\d{2})/);
+  if (!match) return null;
+  const h = Number(match[1]);
+  const m = Number(match[2]);
+  if (!Number.isFinite(h) || !Number.isFinite(m) || h > 23 || m > 59) return null;
+  return h * 60 + m;
+}
+
+/** Block time (hours) for a great-circle hop — cruise + climb, not taxi clocks. */
+export function minAirBlockHours(km: number): number {
+  return Math.max(1.5, km / JET_KMH + 0.75);
+}
+
+export function isLongHaulKm(km: number): boolean {
+  return km >= LONG_HAUL_KM;
+}
+
+/** Longitude-only TZ guess — good enough to reject 06:40 Europe → 08:55 Asia. */
+export function earliestDestLocalMinutes(
+  departMin: number,
+  from: { lat: number; lng: number },
+  to: { lat: number; lng: number },
+): number {
+  const km = haversineKm([from.lng, from.lat], [to.lng, to.lat]);
+  const tzH = (to.lng - from.lng) / 15;
+  return departMin + minAirBlockHours(km) * 60 + tzH * 60;
+}
+
+/** Dest-local arrive clock is earlier than physics allows (90 min slack). */
+export function isImplausibleLongHaulArrive(
+  departMin: number,
+  arriveMin: number,
+  from: { lat: number; lng: number },
+  to: { lat: number; lng: number },
+): boolean {
+  const km = haversineKm([from.lng, from.lat], [to.lng, to.lat]);
+  if (!isLongHaulKm(km)) return false;
+  return arriveMin < earliestDestLocalMinutes(departMin, from, to) - 90;
 }
 
 /** Hours before outbound departure to be at the origin airport (check-in + security). */

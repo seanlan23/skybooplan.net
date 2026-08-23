@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   arrivalDaySlot,
   inboundArriveForDisplay,
+  earliestDestLocalMinutes,
+  isImplausibleLongHaulArrive,
   isAfternoonDeparture,
   isEarlyDeparture,
   isEveningDeparture,
@@ -138,5 +140,19 @@ describe("inboundArriveForDisplay", () => {
 
   it("drops a ~24h wrap (19:50 → 19:30)", () => {
     expect(inboundArriveForDisplay("19:50", "19:30")).toBeUndefined();
+  });
+});
+
+describe("long-haul physics", () => {
+  const LJU = { lat: 46.22, lng: 14.46 };
+  const BKK = { lat: 13.69, lng: 100.75 };
+
+  it("rejects hotel 08:55 after a 06:40 Europe departure to Bangkok", () => {
+    expect(isImplausibleLongHaulArrive(6 * 60 + 40, 8 * 60 + 55, LJU, BKK)).toBe(true);
+    expect(earliestDestLocalMinutes(6 * 60 + 40, LJU, BKK)).toBeGreaterThan(18 * 60);
+  });
+
+  it("allows an evening landing the same calendar day", () => {
+    expect(isImplausibleLongHaulArrive(6 * 60 + 40, 22 * 60 + 30, LJU, BKK)).toBe(false);
   });
 });

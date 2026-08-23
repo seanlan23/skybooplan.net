@@ -25,6 +25,11 @@ import { alignSummaryTripLength } from "@/lib/planTeaser";
 import { lookupRegionCoords } from "@/lib/regionCoords";
 import { haversineKm } from "@/lib/geoMath";
 import { DESTINATION_BY_IATA } from "@/lib/destinationCoords";
+import {
+  earliestDestLocalMinutes,
+  isLongHaulKm,
+  parseClockMinutes,
+} from "@/lib/flightScheduling";
 import { lookupLeg } from "@/lib/curatedRoutes.legs";
 import { relabelHubDayTripOvernights } from "@/lib/stayFacts";
 
@@ -80,7 +85,29 @@ export function isEnricherPlaceholderActivity(a: {
     /^kaffeepause$/i.test(name) ||
     /^pause café$/i.test(name) ||
     /2[–-]3\s*stavki|what to see|why it matters|practical tip/i.test(blob) ||
-    /kaj vidiš.*zakaj je vredno/i.test(blob)
+    /kaj vidiš.*zakaj je vredno/i.test(blob) ||
+    isHollowProgramTitle(name, desc)
+  );
+}
+
+/** Title-only stubs Gemini ships instead of a real stop. */
+export function isHollowProgramTitle(name: string, description?: string): boolean {
+  const n = name.trim();
+  const d = (description ?? "").trim();
+  if (!n) return true;
+  if (
+    /^(morning|afternoon|evening)\s+in\s+/i.test(n) ||
+    /^(dopoldne|dopoldan|popoldne|popoldan|večer)\s+v\s+/i.test(n) ||
+    /^(last morning|zadnje jutro)\s+in\s+/i.test(n) ||
+    /^(travel to|potovanje (na|v)|morning in)\s+/i.test(n)
+  ) {
+    return true;
+  }
+  if (/^(dan|day)\s+\d+$/i.test(n)) return true;
+  if (/^.+\s*(?:→|->)\s*\.?\s*$/.test(n)) return true;
+  if (d.length >= 40) return false;
+  return /^(city exploration|temple visit|boat tour|old town walk|nature excursion|snorkeling trip|shopping and sightseeing|visit\s+\w[\w\s]{1,40})$/i.test(
+    n,
   );
 }
 
@@ -325,8 +352,8 @@ function isMoveActivity(a: Activity): boolean {
   }
   // "Prevoz iz Tuluma do Chiquilá" — Gemini often omits the arrow.
   return (
-    /\b(prevoz|transfer|trajekt|ferry|avtobus|bus|kombi|van|vlak|train)\b/i.test(t) &&
-    /\b(iz|from)\b.+\b(do|to)\b/i.test(t)
+    /\b(prevoz|transfer|trajekt|ferry|avtobus|bus|kombi|van|vlak|train|let|flight)\b/i.test(t) &&
+    /\b(iz|from)\b.+\b(do|to|v)\b/i.test(t)
   );
 }
 
@@ -520,9 +547,11 @@ function hopArrivesAt(blob: string, destCity: string): boolean {
   if (dest.length < 4) return false;
   const arrow = blob.match(/(.+?)\s*(?:→|->)\s*(.+)/);
   if (arrow) return stayCityKey(arrow[2] ?? "").includes(dest);
-  return (
-    /let|flight|trajekt|ferry|vlak|train/i.test(blob) && stayCityKey(blob).includes(dest)
+  const izV = blob.match(
+    /(?:let|flight|trajekt|ferry|vlak|train)[^.]{0,40}?\b(?:iz|from)\s+(.+?)\s+(?:v|do|to)\s+(.+)/i,
   );
+  if (izV) return stayCityKey(izV[2] ?? "").includes(dest);
+  return /let|flight|trajekt|ferry|vlak|train/i.test(blob) && stayCityKey(blob).includes(dest);
 }
 
 function dayHasInboundTo(day: DayPlan, destCity: string): boolean {
@@ -572,8 +601,12 @@ export function stripReplayedIntercityHops(plan: AiTripPlan): number {
       for (const slot of SLOTS) {
         const list = curr.activities[slot] ?? [];
         curr.activities[slot] = list.filter((a) => {
-          if (a.type !== "TRANSPORT" && !a.transportType) return true;
-          if (!hopArrivesAt(`${a.name ?? ""} ${a.description ?? ""}`, dest)) return true;
+          const blob = `${a.name ?? ""} ${a.description ?? ""}`;
+          const hop =
+            a.type === "TRANSPORT" ||
+            !!a.transportType ||
+            /let|flight|trajekt|ferry/i.test(blob);
+          if (!hop || !hopArrivesAt(blob, dest)) return true;
           dayRemoved += 1;
           return false;
         });
@@ -582,6 +615,79 @@ export function stripReplayedIntercityHops(plan: AiTripPlan): number {
     if (dayRemoved) resyncDaySlotProse(curr);
     removed += dayRemoved;
   }
+  return removed;
+}
+
+function activityClockMin(a: Activity): number | null {
+  return (
+    parseClockMinutes(a.arrivalTime) ??
+    parseClockMinutes(a.departureTime) ??
+    parseClockMinutes(`${a.name ?? ""} ${a.description ?? ""}`)
+  );
+}
+
+function isOriginAirportLeg(a: Activity, originIata?: string): boolean {
+  const blob = `${a.name ?? ""} ${a.description ?? ""}`;
+  if (originIata && new RegExp(`\\b${originIata}\\b`, "i").test(blob)) return true;
+  return /mednarodni let|international (return )?flight|odhod iz|departure from/i.test(blob);
+}
+
+/** Europe→Asia same-day 08:55 hotel is a lie — strip dest programme before physics allows landing. */
+export function stripImplausibleLongHaulProgram(plan: AiTripPlan): number {
+  const days = [...(plan.days ?? [])].sort((a, b) => a.day - b.day);
+  if (!days.length) return 0;
+  const originHub = plan.originIata
+    ? DESTINATION_BY_IATA[plan.originIata.toUpperCase()]
+    : undefined;
+  const arrival = days.find((d) => !d.inFlightDay) ?? days[0]!;
+  const from = originHub
+    ? { lat: originHub.lat, lng: originHub.lng }
+    : days[0]!.inFlightDay
+      ? { lat: days[0]!.lat, lng: days[0]!.lng }
+      : null;
+  const to = { lat: arrival.lat, lng: arrival.lng };
+  if (!from || !Number.isFinite(to.lat) || !Number.isFinite(to.lng)) return 0;
+  const km = haversineKm([from.lng, from.lat], [to.lng, to.lat]);
+  if (!isLongHaulKm(km)) return 0;
+
+  let departMin: number | null = null;
+  for (const day of [days[0]!, arrival]) {
+    for (const slot of SLOTS) {
+      for (const a of day.activities?.[slot] ?? []) {
+        if (!isOriginAirportLeg(a, plan.originIata)) continue;
+        const t = activityClockMin(a);
+        if (t != null) {
+          departMin = t;
+          break;
+        }
+      }
+      if (departMin != null) break;
+    }
+    if (departMin != null) break;
+  }
+
+  const earliest =
+    departMin != null
+      ? earliestDestLocalMinutes(departMin, from, to)
+      : arrival.day === 1
+        ? 16 * 60
+        : null;
+  if (earliest == null) return 0;
+
+  let removed = 0;
+  if (!arrival.activities) return 0;
+  for (const slot of SLOTS) {
+    const slotFloor = slot === "morning" ? 0 : slot === "afternoon" ? 12 * 60 : 17 * 60;
+    arrival.activities[slot] = (arrival.activities[slot] ?? []).filter((a) => {
+      if (isOriginAirportLeg(a, plan.originIata)) return true;
+      const clock = activityClockMin(a);
+      const tooEarly = clock != null ? clock < earliest - 90 : slotFloor < earliest - 90;
+      if (!tooEarly) return true;
+      removed += 1;
+      return false;
+    });
+  }
+  if (removed) resyncDaySlotProse(arrival);
   return removed;
 }
 
@@ -1566,6 +1672,7 @@ export function applyItineraryGuards(
   const transportLegs = sanitizeTransportationLegs(plan);
   ensureCityChangeTransfer(plan);
   stripReplayedIntercityHops(plan);
+  stripImplausibleLongHaulProgram(plan);
   const returnFlights = dedupeLastDayReturnFlights(plan);
   const earlyAirport = scrubUnsafeEarlyAirportTips(plan);
   const durationAlign = alignTransportationDurationWithTips(plan);

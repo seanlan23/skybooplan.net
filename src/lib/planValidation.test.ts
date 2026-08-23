@@ -9,6 +9,8 @@ import {
   findThinLongAccessStays,
   findAbandonedRegionReturn,
   findReplayedArrivals,
+  findHollowActivities,
+  findImpossibleArrivals,
   findNonLinearRoute,
   findOverpackedDays,
   findSameDayFarPois,
@@ -173,6 +175,21 @@ describe("findMissingTravelBlocks — realistic travel time", () => {
     expect(v[0].rule).toBe("missing_travel_block");
   });
 
+  it("flags an island hop with only an arrow title and no legs", () => {
+    const p = plan([
+      day({ day: 1, city: "Nusa Lembongan", lat: -8.679, lng: 115.451, category: "sight" }),
+      day({
+        day: 2,
+        city: "Uluwatu",
+        lat: -8.829,
+        lng: 115.084,
+        title: "Nusa Lembongan →.",
+        category: "sight",
+      }),
+    ]);
+    expect(findMissingTravelBlocks(p)[0]?.rule).toBe("missing_travel_block");
+  });
+
   it("accepts a transport day between distant regions", () => {
     const p = plan([
       day({ day: 1, city: "Phuket", ...PHUKET, category: "sight" }),
@@ -323,6 +340,36 @@ describe("findNonLinearRoute — linear A→B→C flow", () => {
     ]);
     expect(findAbandonedRegionReturn(p)).toEqual([]);
   });
+
+  it("flags coast → far island → same coast even when haversine is under 500km", () => {
+    const SEMINYAK = { lat: -8.691, lng: 115.168 };
+    const ULUWATU = { lat: -8.829, lng: 115.084 };
+    const GILI = { lat: -8.348, lng: 116.037 };
+    const CANGGU = { lat: -8.648, lng: 115.138 };
+    const p = plan([
+      day({ day: 1, city: "Seminyak", ...SEMINYAK }),
+      day({ day: 3, city: "Uluwatu", ...ULUWATU }),
+      day({ day: 4, city: "Gili Trawangan", ...GILI }),
+      day({ day: 7, city: "Canggu", ...CANGGU }),
+    ]);
+    const v = findAbandonedRegionReturn(p);
+    expect(v[0]?.rule).toBe("non_linear_route");
+    expect(v[0]?.message).toMatch(/island crossing|abandoned/i);
+  });
+
+  it("allows one coast plus a nearby island without calling it a zigzag", () => {
+    const SEMINYAK = { lat: -8.691, lng: 115.168 };
+    const UBUD = { lat: -8.507, lng: 115.262 };
+    const LEMBONGAN = { lat: -8.679, lng: 115.451 };
+    const ULUWATU = { lat: -8.829, lng: 115.084 };
+    const p = plan([
+      day({ day: 1, city: "Seminyak", ...SEMINYAK }),
+      day({ day: 3, city: "Ubud", ...UBUD }),
+      day({ day: 5, city: "Nusa Lembongan", ...LEMBONGAN }),
+      day({ day: 8, city: "Uluwatu", ...ULUWATU }),
+    ]);
+    expect(findAbandonedRegionReturn(p)).toEqual([]);
+  });
 });
 
 describe("findReplayedArrivals", () => {
@@ -362,6 +409,82 @@ describe("findReplayedArrivals", () => {
     const v = findReplayedArrivals(p);
     expect(v[0]?.rule).toBe("replayed_arrival");
     expect(v[0]?.dayNumbers).toEqual([11, 12]);
+  });
+
+  it("flags let iz Krabija v Bangkok replayed on the next day", () => {
+    const p = plan([
+      day({
+        day: 13,
+        city: "Bangkok",
+        ...BANGKOK,
+        transportation: [
+          { type: "flight", from: "Krabi", to: "Bangkok", duration: "1h 20m", estimatedPrice: 60 },
+        ],
+      }),
+      day({
+        day: 14,
+        city: "Bangkok",
+        ...BANGKOK,
+        activities: {
+          morning: [
+            {
+              name: "Notranji let iz Krabija v Bangkok",
+              type: "SIGHT",
+              description: "Jutranji let KBV → BKK.",
+            },
+          ],
+        },
+      }),
+    ]);
+    expect(findReplayedArrivals(p)[0]?.rule).toBe("replayed_arrival");
+  });
+});
+
+describe("findHollowActivities", () => {
+  it("flags Visit Railay Beach without a description", () => {
+    const p = plan([
+      day({ day: 8, city: "Krabi", ...KRABI }),
+      day({
+        day: 9,
+        city: "Krabi",
+        ...KRABI,
+        activities: {
+          morning: [{ name: "Visit Railay Beach", type: "SIGHT" }],
+        },
+      }),
+      day({ day: 10, city: "Krabi", ...KRABI }),
+    ]);
+    expect(findHollowActivities(p)[0]?.rule).toBe("hollow_activity");
+  });
+});
+
+describe("findImpossibleArrivals", () => {
+  it("flags hotel 08:55 after 06:40 LJU on a Bangkok day", () => {
+    const p = {
+      ...plan([
+        day({
+          day: 1,
+          city: "Bangkok",
+          ...BANGKOK,
+          activities: {
+            morning: [
+              {
+                name: "Mednarodni let (LJU) 06:40",
+                type: "TRANSPORT",
+                description: "Odhod 06:40 z LJU.",
+              },
+              {
+                name: "Prevoz do hotela 08:55",
+                type: "TRANSPORT",
+                description: "Transfer.",
+              },
+            ],
+          },
+        }),
+      ]),
+      originIata: "LJU",
+    };
+    expect(findImpossibleArrivals(p)[0]?.rule).toBe("impossible_arrival");
   });
 });
 

@@ -22,6 +22,8 @@ import {
   stripRevisitLeadIns,
   ensureCityChangeTransfer,
   stripReplayedIntercityHops,
+  stripImplausibleLongHaulProgram,
+  isHollowProgramTitle,
 } from "@/lib/itineraryGuards";
 import { repairTruncatedCopy } from "@/lib/textSanitize";
 
@@ -595,6 +597,138 @@ describe("ensureCityChangeTransfer", () => {
     } as AiTripPlan;
     expect(stripReplayedIntercityHops(plan)).toBe(0);
     expect(plan.days[1]!.activities!.morning[0]!.name).toMatch(/Phuket → Chiang Mai/);
+  });
+
+  it("strips 'let iz Krabija v Bangkok' on the second Bangkok day", () => {
+    const plan = {
+      destinationName: "Thailand",
+      originIata: "LJU",
+      contentLanguage: "sl" as const,
+      days: [
+        day({
+          day: 13,
+          city: "Bangkok",
+          lat: 13.75,
+          lng: 100.5,
+          transportation: [
+            { type: "ferry", from: "Koh Phi Phi", to: "Krabi", duration: "1h 30m", estimatedPrice: 15 },
+            { type: "flight", from: "Krabi", to: "Bangkok", duration: "1h 20m", estimatedPrice: 60 },
+          ],
+          activities: {
+            morning: [
+              {
+                name: "Vožnja s trajektom s Koh Phi Phi v Krabi",
+                type: "TRANSPORT",
+                transportType: "ferry",
+                description: "Trajekt na celino.",
+              },
+            ],
+            afternoon: [],
+            evening: [],
+          },
+        }),
+        day({
+          day: 14,
+          city: "Bangkok",
+          lat: 13.75,
+          lng: 100.5,
+          activities: {
+            morning: [
+              {
+                name: "Notranji let iz Krabija v Bangkok",
+                type: "SIGHT",
+                description:
+                  "Jutranji let iz Krabija (KBV) na letališče Suvarnabhumi (BKK) v Bangkoku.",
+              },
+            ],
+            afternoon: [
+              { name: "Wat Arun", type: "SIGHT", description: "Tempelj zore ob reki Chao Phraya." },
+            ],
+            evening: [],
+          },
+        }),
+      ],
+    } as AiTripPlan;
+    expect(stripReplayedIntercityHops(plan)).toBeGreaterThan(0);
+    expect(JSON.stringify(plan.days[1]!.activities!.morning)).not.toMatch(/Krabija|KBV/i);
+    expect(plan.days[1]!.activities!.afternoon.map((a) => a.name)).toEqual(["Wat Arun"]);
+  });
+
+  it("drops hollow Morning in / Visit titles", () => {
+    expect(isHollowProgramTitle("Morning in Krabi")).toBe(true);
+    expect(isHollowProgramTitle("Visit Railay Beach")).toBe(true);
+    expect(isHollowProgramTitle("Snorkeling Trip")).toBe(true);
+    expect(isHollowProgramTitle("Dan 3")).toBe(true);
+    expect(isHollowProgramTitle("Gili Trawangan →.")).toBe(true);
+    expect(
+      isHollowProgramTitle(
+        "Wat Pho (Tempelj ležečega Bude)",
+        "Sprehodite se do Wat Pho, templja z ležečim Budo.",
+      ),
+    ).toBe(false);
+    const plan = {
+      destinationName: "Thailand",
+      contentLanguage: "sl",
+      days: [
+        day({
+          day: 9,
+          city: "Krabi",
+          activities: {
+            morning: [{ name: "Visit Railay Beach", type: "SIGHT" }],
+            afternoon: [{ name: "City Exploration", type: "SIGHT" }],
+            evening: [],
+          },
+        }),
+      ],
+    } as AiTripPlan;
+    expect(stripPlaceholderActivities(plan)).toBeGreaterThan(0);
+    expect(plan.days[0]!.activities!.morning).toEqual([]);
+    expect(plan.days[0]!.activities!.afternoon).toEqual([]);
+  });
+
+  it("strips Bangkok afternoon sights after a 06:40 Europe departure", () => {
+    const plan = {
+      destinationName: "Thailand",
+      originIata: "LJU",
+      destinationIata: "BKK",
+      contentLanguage: "sl",
+      days: [
+        day({
+          day: 1,
+          city: "Bangkok",
+          lat: 13.75,
+          lng: 100.5,
+          activities: {
+            morning: [
+              {
+                name: "Mednarodni let (LJU) 06:40",
+                type: "TRANSPORT",
+                transportType: "flight",
+                description: "Odhod 06:40 z LJU.",
+                departureTime: "06:40",
+              },
+              {
+                name: "Prevoz do hotela (Grab / taxi) 08:55",
+                type: "TRANSPORT",
+                description: "Iz BKK do hotela.",
+                arrivalTime: "08:55",
+              },
+            ],
+            afternoon: [
+              {
+                name: "Večerna rečna vožnja po Chao Phraya",
+                type: "SIGHT",
+                description: "Ladja mimo templjev.",
+              },
+            ],
+            evening: [],
+          },
+        }),
+      ],
+    } as AiTripPlan;
+    expect(stripImplausibleLongHaulProgram(plan)).toBeGreaterThan(0);
+    expect(JSON.stringify(plan.days[0]!.activities)).toMatch(/LJU|06:40/);
+    expect(JSON.stringify(plan.days[0]!.activities)).not.toMatch(/Chao Phraya|08:55/);
   });
 
   it("does not treat the reverse hop as already flown", () => {
