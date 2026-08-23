@@ -78,6 +78,17 @@ describe("i18n strict fallback", () => {
     expect(translate("de", "travelReq.vaccinations")).toContain("Impfungen");
   });
 
+  it("de chat chips and return-home labels stay German", () => {
+    expect(translate("de", "heroChat.stepDates.ask")).toBe("Wann möchtest du reisen?");
+    expect(translate("de", "heroChat.pace.ask")).toBe("Welches Tempo möchtest du?");
+    expect(translate("de", "heroChat.pace.relaxed")).toBe("Entspannt");
+    expect(translate("de", "heroChat.passengers.2adults")).toBe("2 Erwachsene");
+    expect(translate("de", "heroChat.budget.ask")).toMatch(/Budget/);
+    expect(translate("de", "returnHome.title")).toMatch(/Rückreise/);
+    expect(translate("de", "returnHome.departure")).toBe("Abflug");
+    expect(translate("de", "returnHome.arrivalEu")).toBe("Ankunft in der EU");
+  });
+
   it("auth + dashboard strings exist in every active UI language", () => {
     const keys = [
       "nav.signIn",

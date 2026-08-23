@@ -3,6 +3,8 @@
  * Never claim "direct" unless stop count is explicitly 0.
  */
 
+import { planLangCopy } from "@/lib/planLangCopy";
+
 export type ReturnFlightStopInfo = {
   /** Number of stops on the return leg; undefined = unknown. */
   stops?: number;
@@ -50,46 +52,60 @@ export function buildReturnFlightSummary(opts: {
   depart?: string;
   arrive?: string;
 }): string {
-  const slo = !(opts.language && !opts.language.startsWith("sl"));
+  const lang = opts.language;
   const from = opts.fromIata.toUpperCase();
   const to = opts.toIata.toUpperCase();
   const via = opts.via?.replace(/,/g, ", ");
   const times =
     opts.depart && opts.arrive
-      ? slo
-        ? ` Odhod ${opts.depart}, prihod ${opts.arrive} (lokalni časi).`
-        : ` Depart ${opts.depart}, arrive ${opts.arrive} (local times).`
+      ? planLangCopy(lang, {
+          sl: ` Odhod ${opts.depart}, prihod ${opts.arrive} (lokalni časi).`,
+          en: ` Depart ${opts.depart}, arrive ${opts.arrive} (local times).`,
+          de: ` Abflug ${opts.depart}, Ankunft ${opts.arrive} (Ortszeit).`,
+        })
       : "";
 
   if (opts.stops === 0) {
-    return slo
-      ? `Direktni let ${from} → ${to}.${times}`
-      : `Direct flight from ${from} to ${to}.${times}`;
+    return planLangCopy(lang, {
+      sl: `Direktni let ${from} → ${to}.${times}`,
+      en: `Direct flight from ${from} to ${to}.${times}`,
+      de: `Direktflug ${from} → ${to}.${times}`,
+    });
   }
 
   if (opts.stops != null && opts.stops > 0) {
     const stopLabel =
       opts.stops === 1
-        ? slo
-          ? "1 postankom"
-          : "1 stop"
-        : slo
-          ? `${opts.stops} postanki`
-          : `${opts.stops} stops`;
+        ? planLangCopy(lang, {
+            sl: "1 postankom",
+            en: "1 stop",
+            de: "1 Zwischenstopp",
+          })
+        : planLangCopy(lang, {
+            sl: `${opts.stops} postanki`,
+            en: `${opts.stops} stops`,
+            de: `${opts.stops} Zwischenstopps`,
+          });
     const viaBit = via
-      ? slo
-        ? ` prek ${via}`
-        : ` via ${via}`
+      ? planLangCopy(lang, {
+          sl: ` prek ${via}`,
+          en: ` via ${via}`,
+          de: ` über ${via}`,
+        })
       : "";
-    return slo
-      ? `Let ${from} → ${to} z ${stopLabel}${viaBit}.${times}`
-      : `Flight ${from} → ${to} with ${stopLabel}${viaBit}.${times}`;
+    return planLangCopy(lang, {
+      sl: `Let ${from} → ${to} z ${stopLabel}${viaBit}.${times}`,
+      en: `Flight ${from} → ${to} with ${stopLabel}${viaBit}.${times}`,
+      de: `Flug ${from} → ${to} mit ${stopLabel}${viaBit}.${times}`,
+    });
   }
 
   // Unknown stop count — never claim direct.
-  return slo
-    ? `Mednarodni let ${from} → ${to}.${times}`
-    : `International flight from ${from} to ${to}.${times}`;
+  return planLangCopy(lang, {
+    sl: `Mednarodni let ${from} → ${to}.${times}`,
+    en: `International flight from ${from} to ${to}.${times}`,
+    de: `Internationaler Flug ${from} → ${to}.${times}`,
+  });
 }
 
 /** If summary falsely says "direct", replace with a neutral/honest line. */

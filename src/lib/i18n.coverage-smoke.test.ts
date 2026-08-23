@@ -41,6 +41,15 @@ const SURFACE_KEYS = [
   "dashboard.donationTitle",
   "context.flightLand",
   "aiplan.streamingProgress",
+  "heroChat.stepDates.ask",
+  "heroChat.pace.ask",
+  "heroChat.pace.relaxed",
+  "heroChat.budget.ask",
+  "heroChat.passengers.2adults",
+  "heroChat.wishes.ask",
+  "returnHome.title",
+  "returnHome.departure",
+  "returnHome.arrivalEu",
 ] as const;
 
 describe("i18n surface coverage", () => {

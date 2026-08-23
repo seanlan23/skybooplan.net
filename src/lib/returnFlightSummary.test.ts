@@ -47,4 +47,18 @@ describe("sanitizeReturnFlightSummary", () => {
     expect(out).toContain("AUH");
     expect(out.toLowerCase()).not.toContain("direct");
   });
+
+  it("writes German copy when the UI language is de", () => {
+    const out = buildReturnFlightSummary({
+      fromIata: "SJJ",
+      toIata: "HAM",
+      language: "de",
+      stops: 1,
+      depart: "19:15",
+      arrive: "08:25",
+    });
+    expect(out).toMatch(/Flug SJJ → HAM mit 1 Zwischenstopp/);
+    expect(out).toMatch(/Abflug 19:15, Ankunft 08:25/);
+    expect(out).not.toMatch(/Flight |Depart |1 stop/i);
+  });
 });
