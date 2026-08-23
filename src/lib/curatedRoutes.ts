@@ -15,6 +15,7 @@ import {
 } from "@/lib/curatedRoutes.generated";
 import { lookupLeg } from "@/lib/curatedRoutes.legs";
 import type { CuratedRoute, CuratedTransportLeg } from "@/lib/curatedRoutes.types";
+import { minStayNights, stayFactsPromptBlock } from "@/lib/stayFacts";
 
 export type { CuratedRoute, CuratedTransportLeg } from "@/lib/curatedRoutes.types";
 
@@ -243,22 +244,22 @@ const TH_BEACHES_ANDAMAN: CuratedRoute = {
   interests: ["beaches"],
   segments: [
     ["Bangkok", 2],
-    ["Ayutthaya", 1],
     ["Chiang Mai", 2],
     ["Krabi", 0],
-    ["Koh Lipe", 0],
+    ["Koh Lipe", 4],
     ["Bangkok", 2],
   ],
   mustIncludeHighlights: [
     "Grand Palace",
     "Wat Pho",
+    "Ayutthaya",
     "Koh Phi Phi",
     "Maya Bay",
     "Koh Lipe",
     "Railay Beach",
   ],
   steer:
-    "Tajska plaže: Bangkok → Ayutthaya → Chiang Mai → Krabi (Phi Phi) → Koh Lipe → Bangkok buffer ≥2 dni.",
+    "Tajska plaže: Bangkok (Ayutthaya = dnevni izlet, brez nočitve) → Chiang Mai → Krabi (Phi Phi) → Koh Lipe ≥4 noči → Bangkok buffer ≥2 dni.",
 };
 
 /**
@@ -277,7 +278,7 @@ const TH_PHUKET_ANDAMAN: CuratedRoute = {
   segments: [
     ["Phuket", 4],
     ["Krabi", 0],
-    ["Koh Lipe", 0],
+    ["Koh Lipe", 4],
     ["Phuket", 2],
   ],
   mustIncludeHighlights: [
@@ -290,7 +291,7 @@ const TH_PHUKET_ANDAMAN: CuratedRoute = {
     "Sunrise Beach (Koh Lipe)",
   ],
   steer:
-    "Prihod HKT/KBV: Dan 1 = Phuket (ali Krabi). BREZ notranjega leta na Bangkok na dan 1. Andaman: Phuket → Krabi/Phi Phi → Koh Lipe → nazaj Phuket za mednarodni odhod. Bangkok samo če je odhod eksplicitno iz BKK.",
+    "Prihod HKT/KBV: Dan 1 = Phuket (ali Krabi). BREZ notranjega leta na Bangkok na dan 1. Andaman: Phuket → Krabi/Phi Phi → Koh Lipe ≥4 noči (sicer izpusti otok) → nazaj Phuket za mednarodni odhod. Bangkok samo če je odhod eksplicitno iz BKK.",
 };
 
 /** North Thailand when landing at Chiang Mai. */
@@ -896,6 +897,53 @@ export function templateToBlueprintBlocks(
 ): RegionBlueprintBlock[] {
   if (!template.length || nDays < 1) return [];
 
+  const fitted = dropUnreachableLongAccessStays(template, nDays);
+  return assignBlueprintBlocks(fitted, nDays);
+}
+
+/** Skip a 6–8h island hop when the calendar cannot hold its minimum nights. */
+function dropUnreachableLongAccessStays(
+  template: Array<[string, number]>,
+  nDays: number,
+): Array<[string, number]> {
+  let next = template;
+  for (let guard = 0; guard < template.length; guard++) {
+    const floors = next.map(([city, days], i) =>
+      blueprintFloor(city, days, i, next),
+    );
+    if (floors.reduce((sum, n) => sum + n, 0) <= nDays) return next;
+    const drop = [...next.keys()]
+      .reverse()
+      .find((i) => minStayNights(next[i]![0]) >= 4);
+    if (drop == null) return next;
+    next = next.filter((_, i) => i !== drop);
+  }
+  return next;
+}
+
+function blueprintFloor(
+  city: string,
+  days: number,
+  index: number,
+  template: Array<[string, number]>,
+): number {
+  const minN = minStayNights(city);
+  if (isBlueprintReturnHub(index, city, template)) {
+    return Math.min(Math.max(1, days || 1), 3);
+  }
+  if (isBlueprintArrivalHub(index, city, days)) {
+    return Math.max(minN, Math.min(Math.max(1, days || 1), 2));
+  }
+  if (days === 0) return Math.max(1, minN);
+  return Math.max(1, minN, days);
+}
+
+function assignBlueprintBlocks(
+  template: Array<[string, number]>,
+  nDays: number,
+): RegionBlueprintBlock[] {
+  if (!template.length || nDays < 1) return [];
+
   const meta = template.map(([city, days], i) => {
     const returnHub = isBlueprintReturnHub(i, city, template);
     const arrivalHub = isBlueprintArrivalHub(i, city, days);
@@ -911,12 +959,11 @@ export function templateToBlueprintBlocks(
     };
   });
 
-  const assigned = meta.map((m) => {
-    if (m.flex) return 1;
-    if (m.returnHub) return Math.min(Math.max(1, m.templateDays), 3);
-    if (m.arrivalHub) return Math.min(Math.max(1, m.templateDays), 2);
-    return Math.max(1, m.templateDays);
-  });
+  const assigned = meta.map((m, i) =>
+    blueprintFloor(m.city, m.templateDays, i, template),
+  );
+  const floorOf = (i: number) =>
+    blueprintFloor(meta[i]!.city, meta[i]!.templateDays, i, template);
 
   let remaining = nDays - assigned.reduce((sum, d) => sum + d, 0);
 
@@ -931,7 +978,7 @@ export function templateToBlueprintBlocks(
     let shrunk = false;
     for (let i = shrinkIdx.length - 1; i >= 0 && remaining < 0; i--) {
       const idx = shrinkIdx[i]!;
-      if (assigned[idx]! > 1) {
+      if (assigned[idx]! > floorOf(idx)) {
         assigned[idx]!--;
         remaining++;
         shrunk = true;
@@ -939,7 +986,7 @@ export function templateToBlueprintBlocks(
     }
     if (!shrunk) {
       for (let i = assigned.length - 1; i >= 0 && remaining < 0; i--) {
-        if (assigned[i]! > 1) {
+        if (assigned[i]! > floorOf(i)) {
           assigned[i]!--;
           remaining++;
           shrunk = true;
@@ -1057,5 +1104,6 @@ Pravila kurirane poti:
 - Hub mesto na začetku/koncu samo če je to mesto prihoda/odhoda mednarodnega leta — ne izmišljuj notranjega leta na hub.
 - Hub buffer (Manila/Bangkok/Jakarta …): prihod max 1–2 dni, odhod max 2–3 dni. Prepovedano: 5+ zaporednih dni na hubu — odvečne dni dodaj na otoke/plaže/notranje baze.
 - Število dni na mesto prilagodi na ${opts.nDays} dni skupaj, a NE spreminjaj vrstnega reda regij (razen prihodovnega popravka).
+${stayFactsPromptBlock(true)}
 ===`;
 }

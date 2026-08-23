@@ -661,13 +661,14 @@ export function tripPlanSystemPrompt(params: GenerateTripPlanParams): string {
   const thailandRouteExamples =
     params.destinationIata.toUpperCase() === "HKT" ||
     params.destinationIata.toUpperCase() === "KBV"
-      ? `  • južni lok (prihod ${params.destinationIata}): Phuket → Krabi/Koh Lanta/Koh Lipe → odhod iz Phuketa (ali Krabi) — NE začni v Bangkoku,
+      ? `  • južni lok (prihod ${params.destinationIata}): Phuket → Krabi/Koh Lanta → Koh Lipe samo z ≥4 nočitvami (sicer izpusti) → odhod iz Phuketa (ali Krabi) — NE začni v Bangkoku,
   • če uporabnik eksplicitno želi Bangkok: Phuket → … → Bangkok šele proti koncu (nikoli notranji let stran z ${params.destinationIata} na dan 1).`
       : params.destinationIata.toUpperCase() === "CNX"
         ? `  • severni lok (prihod CNX): Chiang Mai → Chiang Rai/Pai → odhod iz Chiang Mai — NE začni v Bangkoku.`
-        : `  • severni lok: Bangkok → Ayutthaya → Chiang Mai → Chiang Rai → odhod iz Chiang Mai ali Bangkoka,
-  • južni lok: Bangkok → Ayutthaya → Krabi/Phuket/Koh Lanta → odhod iz južnega letališča ali Bangkoka,
-  • osrednji lok: Bangkok → Ayutthaya → Chiang Mai (brez skoka na otroke) ALI Bangkok → Hua Hin → juž — nikoli oboje v istem načrtu.`;
+        : `  • severni lok: Bangkok (Ayutthaya = dnevni izlet, brez nočitve) → Chiang Mai → Chiang Rai → odhod iz Chiang Mai ali Bangkoka,
+  • južni lok: Bangkok (Ayutthaya = dnevni izlet, brez nočitve) → Krabi/Phuket/Koh Lanta → odhod iz južnega letališča ali Bangkoka,
+  • Koh Lipe samo z ≥4 nočitvami (pristop 6–8 h); sicer izpusti otok.
+  • osrednji lok: Bangkok → Chiang Mai (brez skoka na otroke) ALI Bangkok → Hua Hin → juž — nikoli oboje v istem načrtu.`;
 
   const arrivalDayNum = 1 + (params.flightContext?.outboundArriveDayOffset ?? 0);
   const controlRules = tripPlanControlRules({

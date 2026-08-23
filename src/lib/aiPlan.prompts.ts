@@ -58,7 +58,7 @@ Rules:
 - NEVER paste the same Grab/tuk-tuk/"if you still have energy" sentence on many days — vary local transport tips per city/day
 - day numbers must be contiguous 1…totalDays with no skipped numbers
 - Arrival clock labels: use short local time (e.g. 17:55); put long “(+1 day from departure…)” at most once in a day title — never on every activity
-- Inter-city travel days: morning = transport; SAME day still needs real afternoon + evening sights in the new city (e.g. Ayutthaya: Wat Phra Si Sanphet; Chiang Mai: Doi Suthep)
+- Inter-city travel days: morning = transport; SAME day still needs real afternoon + evening sights in the new city (e.g. Bangkok day trip to Ayutthaya: Wat Phra Si Sanphet; Chiang Mai: Doi Suthep)
 - Day 1 highlights: only AFTER airport transfer + hotel check-in (UI adds logistics separately — do NOT duplicate airport transfer)
 - Last-day highlights: respect flightScheduling.lastDay — early/afternoon flight = no sights; evening flight = max 1 light morning sight, NO afternoon/evening sights
 - Use real sight names — Mapbox geocodes these for the map
@@ -85,7 +85,7 @@ Rules:
 - If tripAstronomy in user JSON: schedule bioluminescence on dark-moon evenings only; low-tide caves/lagoons at low tide (not morning if tide is afternoon); full moon = brighter nights, poorer plankton
 - If priorities in user JSON: follow steer field — weight regions and highlights toward selected keys (beaches→islands/coast; sights→temples/museums; nature→parks/jungle; food→markets/cooking; culture→museums/temples; nightlife→evening districts; hikes/mountains→trails; rivers→rafting/cruises; fun→adventure/water parks). At least ~40% of highlight days must clearly match a priority. Do NOT ignore priorities when wishes also mention them.
 - If priorities.anchors in user JSON: obey anchorRule — use mustIncludeHighlights as real highlight names; align regionBlueprint with anchors.beaches.routeTemplate (e.g. TH: Krabi + Koh Lipe + Phi Phi; PH: El Nido + Boracay)
-- Small islands (Phu Quoc, Koh Lipe, Gili, Caribbean, etc.): allocate 2–4 nights; spread beaches, boats, snorkeling across the stay (UI may collapse multi-day island blocks). Ha Long Bay = overnight CRUISE (bay_cruise), NOT a small island with longtail boats
+- Small islands (Phu Quoc, Gili, Caribbean, etc.): allocate 2–4 nights; spread beaches, boats, snorkeling across the stay (UI may collapse multi-day island blocks). Long-access islands (Koh Lipe: boat+van+flight 6–8h): ≥4 nights if included — never 1–2. Ayutthaya is a Bangkok day trip (train ~1.5h), never an overnight stay. Ha Long Bay = overnight CRUISE (bay_cruise), NOT a small island with longtail boats
 - JSON shape: flat regions[] only — no nested duplicate blocks; never repeat the same description on two highlights
 - If openJawRule in user JSON: trip spans TWO countries — follow regionBlueprint exactly; final region MUST be returnHub.city for the flight home (e.g. BKK = Bangkok, not Hanoi)
 - If tripIntent + tripIntentRule in user JSON: obey structured intent (countries, routeId, minIslandDays) — regionBlueprint overrides generic single-country templates

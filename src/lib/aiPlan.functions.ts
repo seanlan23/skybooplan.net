@@ -831,7 +831,7 @@ function buildRegionBlueprint(nDays: number, destinationIata: string): RegionBlu
 
   if (iata === "BKK") {
     return scaleCuratedRouteDays(
-      [["Bangkok", 3], ["Ayutthaya", 1], ["Chiang Mai", 4], ["Phuket", 0], ["Bangkok", 2]],
+      [["Bangkok", 3], ["Chiang Mai", 4], ["Phuket", 0], ["Bangkok", 2]],
       nDays,
     );
   }

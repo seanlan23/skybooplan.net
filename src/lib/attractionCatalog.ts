@@ -329,8 +329,8 @@ const CITY_TIPS: Record<string, { localSl: string; localEn: string; travelSl: st
   Ayutthaya: {
     localSl: "Kolo ali tuk-tuk med templji.",
     localEn: "Bike or tuk-tuk between temples.",
-    travelSl: "Voda in kapa — malo senč.",
-    travelEn: "Water and hat — little shade.",
+    travelSl: "Dnevni izlet iz Bangkoka (vlak ~1,5 h) — nočitev v Bangkoku, ne v Ayutthayi.",
+    travelEn: "Day trip from Bangkok (train ~1.5h) — overnight in Bangkok, not Ayutthaya.",
   },
   "Chiang Mai": {
     localSl: "Songthaew za kratke vožnje.",
