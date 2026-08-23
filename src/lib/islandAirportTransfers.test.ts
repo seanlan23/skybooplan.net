@@ -165,4 +165,60 @@ describe("islandAirportTransfers", () => {
     expect(holbox.transportationTips).toMatch(/Chiquilá/i);
     expect(holbox.transportationTips).toMatch(/Ni direktnega trajekta/i);
   });
+
+  it("rewrites a fake Tulum→Holbox van+ferry so both legs go via Chiquilá", () => {
+    const plan: AiTripPlan = {
+      destinationName: "Mexico",
+      destinationIata: "CUN",
+      contentLanguage: "sl",
+      days: [
+        day({ day: 10, city: "Tulum" }),
+        day({
+          day: 11,
+          city: "Isla Holbox",
+          transportation: [
+            { type: "van", from: "Tulum", to: "Isla Holbox", duration: "2h 30min", estimatedPrice: 25 },
+            { type: "ferry", from: "Tulum", to: "Isla Holbox", duration: "25min", estimatedPrice: 10 },
+          ],
+        }),
+      ],
+    } as AiTripPlan;
+    enrichIslandAirportTransfers(plan, { destinationIata: "CUN", language: "sl" });
+    const holbox = plan.days[1]!;
+    expect(holbox.transportation!.map((l) => l.type)).toEqual(["van", "ferry"]);
+    expect(holbox.transportation![0]!.to).toMatch(/Chiquilá/i);
+    expect(holbox.transportation![1]!.from).toMatch(/Chiquilá/i);
+    expect(holbox.transportation![0]!.to).not.toMatch(/Holbox/i);
+    expect(holbox.transportation![1]!.from).not.toMatch(/Tulum/i);
+  });
+
+  it("leaves Holbox via CUN + flight when the next city is Mexico City", () => {
+    const plan: AiTripPlan = {
+      destinationName: "Mexico",
+      destinationIata: "MEX",
+      contentLanguage: "sl",
+      days: [
+        day({ day: 12, city: "Isla Holbox" }),
+        day({
+          day: 13,
+          city: "Mexico City",
+          transportation: [
+            { type: "ferry", from: "Isla Holbox", to: "Chiquilá", duration: "20–30 min", estimatedPrice: 12 },
+            { type: "van", from: "Chiquilá", to: "Mexico City", duration: "2–2.5h", estimatedPrice: 20 },
+          ],
+        }),
+      ],
+    } as AiTripPlan;
+    enrichIslandAirportTransfers(plan, { destinationIata: "MEX", language: "sl" });
+    const mex = plan.days[1]!;
+    expect(mex.transportation!.map((l) => l.type)).toEqual(["ferry", "van", "flight"]);
+    expect(mex.transportation![0]!.to).toMatch(/Chiquilá/i);
+    expect(mex.transportation![1]!.from).toMatch(/Chiquilá/i);
+    expect(mex.transportation![1]!.to).toMatch(/Cancún|CUN/i);
+    expect(mex.transportation![1]!.to).not.toMatch(/Mexico City/i);
+    expect(mex.transportation![2]!.from).toMatch(/Cancún|CUN/i);
+    expect(mex.transportation![2]!.to).toMatch(/Mexico City/i);
+    expect(mex.transportationTips).toMatch(/Cancún|CUN/i);
+    expect(mex.transportationTips).not.toMatch(/kombi\/avtobus do Mexico City/i);
+  });
 });

@@ -4,6 +4,7 @@ import {
   fixMotorhomeCopyErrors,
   fixPoiNameForSlot,
   fixSlotTimeMismatch,
+  completeTruncatedHeadline,
   completeTruncatedPlaceName,
   repairTruncatedCopy,
   stripTruncatedCopyFromPlan,
@@ -191,6 +192,24 @@ describe("repairTruncatedCopy", () => {
     expect(
       completeTruncatedPlaceName("Povratek iz Wae Reba v Labuan.", "Labuan Bajo"),
     ).toBe("Povratek iz Wae Reba v Labuan Bajo.");
+    expect(repairTruncatedCopy("Obiščite starodavno.")).toBe("");
+    expect(repairTruncatedCopy("Odp")).toBe("");
+    expect(
+      repairTruncatedCopy(
+        "Odpravite se na izlet z ladjo, ki vas popelje do bližnjih otokov, mangrov in Punta Cocos, kjer lahko opazujete ptice in se kopate v.",
+      ),
+    ).toMatch(/Punta Cocos\.$/);
+    expect(
+      repairTruncatedCopy(
+        "Odpravite se na izlet z ladjo, ki vas popelje do bližnjih otokov, mangrov in Punta Cocos, kjer lahko opazujete ptice in se kopate v.",
+      ),
+    ).not.toMatch(/kopate/);
+    expect(completeTruncatedHeadline("Odhod iz Mexico City / mednarodni.")).toBe(
+      "Odhod iz Mexico City / mednarodni let",
+    );
+    expect(completeTruncatedHeadline("Odhod iz Mexico City / mednarodni..")).toBe(
+      "Odhod iz Mexico City / mednarodni let",
+    );
   });
 
   it("drops a two-letter day stub and completes a cut city title", () => {
@@ -220,5 +239,30 @@ describe("repairTruncatedCopy", () => {
     expect(plan.days[0]!.activities!.morning).toEqual([]);
     expect(plan.days[1]!.title).toMatch(/Labuan Bajo/);
     expect(plan.days[1]!.morning).toMatch(/vasi\.$/);
+  });
+
+  it("finishes a cut departure title and drops stub activity copy", () => {
+    const plan = {
+      days: [
+        {
+          day: 14,
+          city: "Mexico City",
+          title: "Odhod iz Mexico City / mednarodni.",
+          activities: {
+            morning: [
+              { name: "Celodnevni izlet v Teotihuacán", description: "Obiščite starodavno." },
+              { name: "Celodnevni izlet v zabaviščni park Xcaret", description: "Odp" },
+            ],
+            afternoon: [],
+            evening: [],
+          },
+        },
+      ],
+    };
+    expect(stripTruncatedCopyFromPlan(plan)).toBeGreaterThan(0);
+    expect(plan.days[0]!.title).toBe("Odhod iz Mexico City / mednarodni let");
+    expect(plan.days[0]!.activities!.morning[0]!.description).toBe("");
+    expect(plan.days[0]!.activities!.morning[1]!.description).toBe("");
+    expect(plan.days[0]!.activities!.morning[0]!.name).toMatch(/Teotihuacán/);
   });
 });

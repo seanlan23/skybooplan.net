@@ -329,15 +329,65 @@ function isMoveActivity(a: Activity): boolean {
   );
 }
 
+function blobNamesCityHop(blob: string, from: string, to: string): boolean {
+  const fromKey = stayCityKey(from);
+  const toKey = stayCityKey(to);
+  if (fromKey.length < 4 || toKey.length < 4) return false;
+  const parts = blob.split(/\s*(?:→|->|—|–)\s*/);
+  if (parts.length >= 2) {
+    return stayCityKey(parts[0]!).includes(fromKey) && stayCityKey(parts.slice(1).join(" ")).includes(toKey);
+  }
+  const key = stayCityKey(blob);
+  const iFrom = key.indexOf(fromKey);
+  const iTo = key.indexOf(toKey);
+  return iFrom >= 0 && iTo >= 0 && iFrom < iTo;
+}
+
+function isNamedCityHop(
+  a: { name?: string; description?: string; type?: string; transportType?: string },
+  from: string,
+  to: string,
+): boolean {
+  if (!isMoveActivity(a as Activity) && a.transportType !== "flight") return false;
+  return blobNamesCityHop(`${a.name ?? ""} ${a.description ?? ""}`, from, to);
+}
+
+function dayHasNamedCityHop(day: DayPlan, from: string, to: string): boolean {
+  if (
+    day.transportation?.some((leg) => blobNamesCityHop(`${leg.from} → ${leg.to}`, from, to))
+  ) {
+    return true;
+  }
+  for (const slot of SLOTS) {
+    for (const a of day.activities?.[slot] ?? []) {
+      if (isNamedCityHop(a, from, to)) return true;
+    }
+  }
+  return blobNamesCityHop(day.title ?? "", from, to);
+}
+
+function stripNamedCityHop(day: DayPlan, from: string, to: string): number {
+  if (!day.activities) return 0;
+  let removed = 0;
+  for (const slot of SLOTS) {
+    const list = day.activities[slot] ?? [];
+    const next = list.filter((a) => {
+      if (!isNamedCityHop(a, from, to)) return true;
+      removed += 1;
+      return false;
+    });
+    day.activities[slot] = next;
+  }
+  if (removed) resyncDaySlotProse(day);
+  return removed;
+}
+
 function dayHasIntercityMove(day: DayPlan, from: string, to: string): boolean {
   if (day.transportation?.some((leg) => !sameStayCity(leg.from, leg.to))) return true;
   for (const slot of SLOTS) {
     for (const a of day.activities?.[slot] ?? []) {
       if (isMoveActivity(a) || isNonPoiActivity(a)) {
-        const blob = `${a.name} ${a.description ?? ""}`;
-        const mentionsFrom = stayCityKey(from).length >= 4 && stayCityKey(blob).includes(stayCityKey(from));
-        const mentionsTo = stayCityKey(to).length >= 4 && stayCityKey(blob).includes(stayCityKey(to));
-        if (mentionsFrom && mentionsTo) return true;
+        if (blobNamesCityHop(`${a.name} ${a.description ?? ""}`, from, to)) return true;
         if (isMoveActivity(a)) return true;
       }
     }
@@ -388,6 +438,12 @@ export function ensureCityChangeTransfer(plan: AiTripPlan): number {
       : slo
         ? `Notranji let ${from} → ${to}.`
         : `Domestic flight ${from} → ${to}.`;
+
+    // Flight already happened on the previous calendar day (city label lags a night).
+    if (dayHasNamedCityHop(prev, from, to)) {
+      stripNamedCityHop(cur, from, to);
+      continue;
+    }
 
     if (dayHasIntercityMove(cur, from, to)) {
       if (!byAir || !cur.activities) continue;

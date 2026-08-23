@@ -212,6 +212,19 @@ function repairTruncatedLine(line: string): string {
   if (!t) return "";
   t = t.replace(/^,\s+/, "").replace(/\s+[-–—]\s*$/u, "").trim();
   if (/^(preizkusite|try|probieren)\.?$/i.test(t)) return "";
+  if (t.length <= 3 && !/\d/.test(t)) return "";
+
+  const bareWords = t.replace(/[.!?…]+$/u, "").trim().split(/\s+/);
+  const lastBare = bareWords[bareWords.length - 1] ?? "";
+  const lastIsPlace = /^[A-ZÁÉÍÓÚÄÖÜČŠŽ]/.test(lastBare);
+  if (
+    bareWords.length <= 2 &&
+    t.replace(/[.!?…]+$/u, "").length <= 28 &&
+    /^(obiščite|obiscite|visit|besuche?n|odpravite|raziščite|raziscite)\b/i.test(t) &&
+    !lastIsPlace
+  ) {
+    return "";
+  }
 
   // Unclosed "(" — Gemini cut mid-terminal: "Puerto Juarez ali Embar"
   const lastOpen = t.lastIndexOf("(");
@@ -223,6 +236,22 @@ function repairTruncatedLine(line: string): string {
 
   // Finished sentence then a stub token: "...Yucatánu. Cen" / "...Holbox. Kopajte"
   t = t.replace(/\.\s+[A-ZÁÉÍÓÚÄÖÜČŠŽ][A-Za-zÁÉÍÓÚÄÖÜáéíóúäöüčšž]{1,10}\s*$/u, ".");
+
+  const danglingPrep =
+    /\s+\b(v|na|po|pri|do|za|ob|iz|at|to|in)\.+\s*$/iu.test(t) ||
+    /\s+\b(v|na|po|pri|do|za|ob|iz)\s*$/iu.test(t);
+
+  if (danglingPrep) {
+    const clause = t.search(/,?\s+(kjer|where|wo)\b/i);
+    if (clause >= 20) {
+      const head = t.slice(0, clause).replace(/[,\s]+$/u, "").trim();
+      return head ? (/[.!?]$/.test(head) ? head : `${head}.`) : "";
+    }
+    t = t.replace(/\s+\b(v|na|po|pri|do|za|ob|iz|at|to|in)\.+\s*$/iu, "").trim();
+    t = t.replace(/\s+\b(v|na|po|pri|do|za|ob|iz)\s*$/iu, "").trim();
+    if (!t) return "";
+    return /[.!?]$/.test(t) ? t : `${t}.`;
+  }
 
   const danglingEnd =
     /\b(zu|to|the|a|an|die|der|das|den|dem|und|and|mit|with|für|for|besonders|optional|höchstens|maritime|ein|eine|einen|einer|eines|primerno)\.\s*$/i.test(
@@ -315,6 +344,15 @@ function repairTruncatedLine(line: string): string {
   return t;
 }
 
+/** Finish Gemini-cut departure titles: "… / mednarodni." → "… / mednarodni let". */
+export function completeTruncatedHeadline(text: string): string {
+  if (!text) return text;
+  return text
+    .replace(/\/\s*mednarodni\.+$/i, "/ mednarodni let")
+    .replace(/\/\s*international\.+$/i, "/ international flight")
+    .replace(/\/\s*internationaler\.+$/i, "/ internationaler Flug");
+}
+
 /** Finish "v Labuan." when the day city is Labuan Bajo — do not invent a new place. */
 export function completeTruncatedPlaceName(text: string, place: string): string {
   if (!text || !place) return text;
@@ -359,6 +397,7 @@ export function stripTruncatedCopyFromPlan(plan: {
     if (typeof raw !== "string" || !raw) return;
     let next = isSlotStub(raw) ? "" : repairTruncatedCopy(raw);
     if (place && next) next = completeTruncatedPlaceName(next, place);
+    next = completeTruncatedHeadline(next);
     if (next !== raw) {
       assign(next);
       fixed += 1;

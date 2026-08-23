@@ -410,6 +410,111 @@ describe("ensureCityChangeTransfer", () => {
     expect(plan.days[1]!.activities!.morning[0]!.description).toMatch(/DPS|LBJ|let/i);
     expect(plan.days[1]!.activities!.morning[0]!.description).not.toMatch(/^Prevoz Seminyak/);
   });
+
+  it("does not replay yesterday's domestic flight on the arrival-city day", () => {
+    const plan = {
+      destinationName: "Mexico",
+      contentLanguage: "sl" as const,
+      days: [
+        day({
+          day: 5,
+          city: "Mexico City",
+          activities: {
+            morning: [
+              {
+                name: "Notranji let iz Mexico Cityja (MEX) v Cancún (CUN)",
+                type: "TRANSPORT",
+                transportType: "flight",
+                description: "Zjutraj se odpravite na letališče.",
+              },
+            ],
+            afternoon: [
+              {
+                name: "Prihod v Cancún in namestitev v hotel",
+                type: "STAY",
+                description: "Po pristanku do hotela.",
+              },
+            ],
+            evening: [],
+          },
+        }),
+        day({
+          day: 6,
+          city: "Cancun",
+          activities: {
+            morning: [
+              {
+                name: "Notranji let Mexico City → Cancun",
+                type: "TRANSPORT",
+                transportType: "flight",
+                description: "Notranji let Mexico City → Cancun.",
+              },
+              {
+                name: "Sprostitev na Playa Delfines",
+                type: "SIGHT",
+                description: "Javna plaža.",
+              },
+            ],
+            afternoon: [],
+            evening: [],
+          },
+        }),
+      ],
+    } as AiTripPlan;
+    expect(ensureCityChangeTransfer(plan)).toBe(0);
+    expect(JSON.stringify(plan.days[1]!.activities)).not.toMatch(/Notranji let/i);
+    expect(plan.days[1]!.activities!.morning.map((a) => a.name)).toEqual([
+      "Sprostitev na Playa Delfines",
+    ]);
+  });
+
+  it("does not treat the reverse hop as already flown", () => {
+    const plan = {
+      destinationName: "Canada",
+      contentLanguage: "en" as const,
+      days: [
+        day({ day: 1, city: "Toronto", title: "Toronto" }),
+        day({
+          day: 2,
+          city: "Vancouver",
+          title: "Vancouver",
+          activities: {
+            morning: [
+              {
+                name: "Domestic flight Toronto → Vancouver",
+                type: "TRANSPORT",
+                transportType: "flight",
+                description: "Domestic flight Toronto → Vancouver.",
+              },
+            ],
+            afternoon: [],
+            evening: [],
+          },
+        }),
+        day({
+          day: 3,
+          city: "Toronto",
+          title: "Domestic flight to Toronto and international departure",
+          activities: {
+            morning: [
+              {
+                name: "Domestic flight Vancouver → Toronto",
+                type: "TRANSPORT",
+                transportType: "flight",
+                description: "Morning domestic air Vancouver → Toronto.",
+              },
+            ],
+            afternoon: [],
+            evening: [],
+          },
+        }),
+      ],
+    } as AiTripPlan;
+    expect(ensureCityChangeTransfer(plan)).toBe(0);
+    expect(plan.days[2]!.activities!.morning[0]!.name).toMatch(
+      /Domestic flight Vancouver\s*→\s*Toronto/i,
+    );
+  });
 });
 
 describe("dedupeSameDayMeals", () => {

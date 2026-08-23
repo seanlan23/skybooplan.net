@@ -100,6 +100,11 @@ const ISLAND_AIRPORT_ACCESS: IslandAirportAccessDef[] = [
       lat: 21.5236,
       lng: -87.3776,
     },
+    gatewayIata: "CUN",
+    flightDuration: "2h",
+    flightPrice: 55,
+    vanDuration: "2–2.5h",
+    vanPrice: 20,
     ferryDuration: "20–30 min",
     ferryPrice: 12,
     coastHubMatch: /tulum|cancun|cancún|playa del carmen|playa|valladolid|m[eé]rida/i,
@@ -151,10 +156,34 @@ function islandAccessFromCoast(hubCity: string, def: IslandAirportAccessDef): bo
   return Boolean(def.coastHubMatch?.test(hubCity.trim()));
 }
 
-function hasCompleteCoastalAccessLegs(legs: DayTransportLeg[]): boolean {
+function normPlaceToken(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .replace(/[^a-z0-9]+/g, "");
+}
+
+function mentionsPort(value: string, def: IslandAirportAccessDef): boolean {
+  const v = normPlaceToken(value);
+  const p = normPlaceToken(def.port.label);
+  return v.length >= 4 && p.length >= 4 && (v.includes(p) || p.includes(v));
+}
+
+function hasCompleteCoastalAccessLegs(
+  legs: DayTransportLeg[],
+  def: IslandAirportAccessDef,
+): boolean {
   if (legs.some((l) => l.type === "flight")) return false;
-  const types = legs.map((l) => l.type);
-  return types.includes("van") && types.includes("ferry");
+  const van = legs.find((l) => l.type === "van");
+  const ferry = legs.find((l) => l.type === "ferry");
+  if (!van || !ferry) return false;
+  // Van Tulum → Holbox / ferry Tulum → Holbox is a lie — both must touch the pier.
+  if (def.matchIsland.test(van.to) || def.matchIsland.test(van.from)) return false;
+  return (
+    (mentionsPort(van.from, def) || mentionsPort(van.to, def)) &&
+    (mentionsPort(ferry.from, def) || mentionsPort(ferry.to, def))
+  );
 }
 
 function buildCoastalArrivalLegs(def: IslandAirportAccessDef, hubCity: string): DayTransportLeg[] {
@@ -196,7 +225,32 @@ function buildCoastalDepartureLegs(def: IslandAirportAccessDef, hubCity: string)
 }
 
 function usesCoastOnlyAccess(def: IslandAirportAccessDef, hubCity: string): boolean {
-  return Boolean(def.coastOnly) || (!def.gatewayIata && islandAccessFromCoast(hubCity, def));
+  // Coast hub + no useful gateway flight (Holbox→Cancún). Lipe→Phuket still flies via HDY.
+  if (!islandAccessFromCoast(hubCity, def)) return false;
+  return Boolean(def.coastOnly) || !def.gatewayIata;
+}
+
+function vanClaimsInlandCity(leg: DayTransportLeg, hubCity: string, def: IslandAirportAccessDef): boolean {
+  if (leg.type !== "van" || !hubCity) return false;
+  const to = normPlaceToken(leg.to);
+  const hub = normPlaceToken(hubCity);
+  if (!to || !hub || to.length < 4 || hub.length < 4) return false;
+  if (!to.includes(hub) && !hub.includes(to)) return false;
+  if (mentionsPort(leg.to, def)) return false;
+  return !/airport|letališč|\([A-Z]{3}\)/i.test(leg.to);
+}
+
+function hasCompleteGatewayDepartureLegs(
+  legs: DayTransportLeg[],
+  def: IslandAirportAccessDef,
+  hubCity: string,
+): boolean {
+  return (
+    legs.some((l) => l.type === "ferry" && def.matchIsland.test(l.from)) &&
+    legs.some((l) => l.type === "van") &&
+    legs.some((l) => l.type === "flight") &&
+    !legs.some((l) => vanClaimsInlandCity(l, hubCity, def))
+  );
 }
 
 function buildArrivalLegs(def: IslandAirportAccessDef, hubCity: string): DayTransportLeg[] {
@@ -452,7 +506,7 @@ export function enrichIslandAirportTransfers(
       const hubCity = prevCity || (def.id === "koh-lipe" ? "Phuket" : "Manila");
       const fromCoast = islandAccessFromCoast(hubCity, def);
       const needsLegs = fromCoast
-        ? !hasCompleteCoastalAccessLegs(legs) || legs.some((l) => l.type === "flight")
+        ? !hasCompleteCoastalAccessLegs(legs, def) || legs.some((l) => l.type === "flight")
         : !hasCompleteIslandAccessLegs(legs) || singleFlightToIsland(legs, def);
       if (needsLegs) {
         day.transportation = buildArrivalLegs(def, hubCity);
@@ -490,10 +544,9 @@ export function enrichIslandAirportTransfers(
     const hubCity = (day.city ?? "").trim() || (prevDef.id === "koh-lipe" ? "Bangkok" : "Manila");
     const legs = day.transportation ?? [];
     const hasDepartureLegs = usesCoastOnlyAccess(prevDef, hubCity)
-      ? hasCompleteCoastalAccessLegs(legs) &&
+      ? hasCompleteCoastalAccessLegs(legs, prevDef) &&
         legs.some((l) => l.type === "ferry" && prevDef.matchIsland.test(l.from))
-      : legs.length >= 3 &&
-        legs.some((l) => l.type === "ferry" && prevDef.matchIsland.test(l.from));
+      : hasCompleteGatewayDepartureLegs(legs, prevDef, hubCity);
     if (!hasDepartureLegs) {
       day.transportation = buildDepartureLegs(prevDef, hubCity);
     }
