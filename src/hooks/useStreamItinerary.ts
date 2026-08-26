@@ -345,7 +345,7 @@ export function useStreamItinerary() {
             );
           }
 
-          const fallbackError = streamError ?? "Stream se je končal brez končnega načrta.";
+          const fallbackError = streamError ?? "error.planTimeout";
           setError(fallbackError);
           setStatus("error");
           return { plan: null, error: fallbackError };

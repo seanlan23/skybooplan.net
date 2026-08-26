@@ -33,8 +33,8 @@ function baseParams(
 }
 
 describe("trip plan output tokens", () => {
-  it("sets max_output_tokens to 8192", () => {
-    expect(GEMINI_TRIP_PLAN_MAX_OUTPUT_TOKENS).toBe(8192);
+  it("sets max_output_tokens high enough for a 4-day nested-slot batch", () => {
+    expect(GEMINI_TRIP_PLAN_MAX_OUTPUT_TOKENS).toBe(16384);
   });
 });
 

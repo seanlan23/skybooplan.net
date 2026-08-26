@@ -687,8 +687,8 @@ function lightPacePoisHint(pace?: GenerateTripPlanParams["pace"]): string {
 export const GEMINI_TRIP_PLAN_MODEL =
   process.env.GEMINI_TRIP_PLAN_MODEL?.trim() || "gemini-2.5-flash";
 
-/** Per-call output cap. Long trips are split into stream batches. */
-export const GEMINI_TRIP_PLAN_MAX_OUTPUT_TOKENS = 8192;
+/** Per-call output cap. 8192 truncated 3-slot days before JSON closed. */
+export const GEMINI_TRIP_PLAN_MAX_OUTPUT_TOKENS = 16384;
 export const GEMINI_TRIP_PLAN_TEMPERATURE = 0.3;
 
 const google = createGoogleGenerativeAI({

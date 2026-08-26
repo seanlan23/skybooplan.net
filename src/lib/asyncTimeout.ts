@@ -6,9 +6,9 @@ export const GEMINI_GENERATION_TIMEOUT_MS = 180_000;
 
 /**
  * Abort itinerary stream if Gemini goes silent between partials.
- * Long-haul / complex schemas often need >2 min before the first partialObject yield.
+ * Structured Outputs often emit nothing until the first day object is complete.
  */
-export const GEMINI_STREAM_STALL_MS = 200_000;
+export const GEMINI_STREAM_STALL_MS = 240_000;
 
 /** Absolute max for one itinerary stream (stall may fire earlier). Keep under Vercel 300s. */
 export const GEMINI_STREAM_HARD_MS = 280_000;

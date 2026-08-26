@@ -91,10 +91,15 @@ function isMapCategory(value: unknown): value is (typeof MAP_POI_CATEGORIES)[num
 }
 
 function coercePartialResponse(partial: PartialResponse): TripPlanResponse | null {
+  const fallbackCity =
+    partial.trip_metadata?.destination?.trim() ||
+    (typeof partial.itinerar?.[0]?.city === "string"
+      ? partial.itinerar[0].city.trim()
+      : "");
   const itinerar = (partial.itinerar ?? [])
     .map((phase) => {
-      if (!phase?.city?.trim()) return null;
-      const city = phase.city.trim();
+      const city = phase?.city?.trim() || fallbackCity;
+      if (!city) return null;
 
       const pois = (phase.pois ?? [])
         .map((poi) => {
@@ -118,7 +123,8 @@ function coercePartialResponse(partial: PartialResponse): TripPlanResponse | nul
 
       const days = (phase.days ?? [])
         .map((day) => {
-          if (typeof day?.day_number !== "number" || !day.title?.trim()) return null;
+          if (typeof day?.day_number !== "number") return null;
+          const dayTitle = day.title?.trim() || `Dan ${day.day_number}`;
 
           const activities = flattenPartialActivities(day.activities)
             .map((raw, idx) => {
@@ -190,8 +196,8 @@ function coercePartialResponse(partial: PartialResponse): TripPlanResponse | nul
           return {
             day_number: day.day_number,
             date: day.date?.trim() || "",
-            day_name: day.day_name?.trim() || day.title.trim(),
-            title: day.title.trim(),
+            day_name: day.day_name?.trim() || dayTitle,
+            title: dayTitle,
             city: typeof day.city === "string" ? day.city.trim() : undefined,
             dailyBudget:
               typeof day.dailyBudget === "number"

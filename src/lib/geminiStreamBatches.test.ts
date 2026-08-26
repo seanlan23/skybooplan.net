@@ -45,9 +45,10 @@ function plan(days: DayPlan[], name = "Phuket"): AiTripPlan {
 }
 
 describe("stream day batches", () => {
-  it("keeps 8-day trips in one Gemini call", () => {
-    expect(streamBatchSize(8)).toBe(8);
-    expect(nextIncompleteDayRange(0, 8)).toEqual({ start: 1, end: 8 });
+  it("caps every Gemini call at 4 days so nested morning/afternoon/evening JSON can finish", () => {
+    expect(streamBatchSize(8)).toBe(4);
+    expect(nextIncompleteDayRange(0, 8)).toEqual({ start: 1, end: 4 });
+    expect(nextIncompleteDayRange(4, 8)).toEqual({ start: 5, end: 8 });
     expect(nextIncompleteDayRange(8, 8)).toBeNull();
   });
 

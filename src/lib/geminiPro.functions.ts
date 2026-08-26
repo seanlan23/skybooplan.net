@@ -240,13 +240,12 @@ export function incompletePlanDayCoverageMessage(
   return `Načrt je nepopoln (${gotDays}/${expectedDays} dni). Poskusi znova.`;
 }
 
-/** Catalog JSON is too rich for 9+ days in one Gemini call — split so 280s can finish. */
+/** Nested morning/afternoon/evening JSON is too rich for 8 days in one call. */
 export const GEMINI_STREAM_DAYS_PER_BATCH = 4;
 export const GEMINI_STREAM_MAX_BATCHES = 6;
 
 export function streamBatchSize(expectedDays: number): number {
-  if (expectedDays <= 8) return Math.max(1, expectedDays);
-  return GEMINI_STREAM_DAYS_PER_BATCH;
+  return Math.min(GEMINI_STREAM_DAYS_PER_BATCH, Math.max(1, expectedDays));
 }
 
 /** Shrink the window when the Vercel/hard cap would otherwise skip the rest (7/16). */
