@@ -19,7 +19,8 @@ import {
   streamBatchSizeWithTimeLeft,
   type GenerateGeminiProTripInput,
 } from "@/lib/geminiPro.functions";
-import { createTripPlanStream } from "@/lib/geminiPro";
+import { createTripPlanStream, extractGeneratedObject } from "@/lib/geminiPro";
+import type { TripPlanResponse } from "@/lib/geminiPro.shared";
 import { partialTripPlanToPreviewPlan } from "@/lib/geminiStreamMap";
 import {
   applyFlightContextIfPresent,
@@ -52,6 +53,31 @@ type StreamEvent =
 const PING_EVERY_MS = 20_000;
 /** Don't start another Gemini batch if the hard cap is already gone. */
 const MIN_MS_FOR_NEXT_BATCH = 20_000;
+
+function mergeSalvagedBatch(
+  raw: unknown,
+  data: GenerateGeminiProTripInput,
+  mapOpts: ReturnType<typeof buildGeminiMapOpts>,
+  range: { start: number; end: number },
+  mergePush: (
+    incoming: AiTripPlan | null | undefined,
+    stampFlights: boolean,
+    force?: boolean,
+  ) => void,
+) {
+  if (raw == null) return;
+  const built = buildCatalogPlanFromResponse(
+    raw as TripPlanResponse,
+    data,
+    { expandToExpectedDays: false },
+  );
+  if (built.plan?.days.length) {
+    mergePush(alignBatchDays(built.plan, range), true);
+    return;
+  }
+  const preview = partialTripPlanToPreviewPlan(raw, { ...mapOpts, enrich: false });
+  if (preview?.days.length) mergePush(alignBatchDays(preview, range), true);
+}
 
 function ndjson(event: StreamEvent): Uint8Array {
   return new TextEncoder().encode(`${JSON.stringify(event)}\n`);
@@ -245,6 +271,7 @@ export const Route = createFileRoute("/api/generate-itinerary")({
                 );
                 stallWatchdog.bump();
                 const daysBefore = accumulated?.days.length ?? 0;
+                let lastRawPartial: unknown = null;
 
                 try {
                   const batchAbort = new AbortController();
@@ -253,6 +280,7 @@ export const Route = createFileRoute("/api/generate-itinerary")({
                   let windowReady = false;
 
                   for await (const partial of result.partialObjectStream) {
+                    lastRawPartial = partial;
                     if (abortSignal.aborted) break;
                     stallWatchdog.bump();
                     const preview = partialTripPlanToPreviewPlan(partial, {
@@ -281,10 +309,18 @@ export const Route = createFileRoute("/api/generate-itinerary")({
                         expandToExpectedDays: false,
                       });
                       if (built.plan) mergePush(alignBatchDays(built.plan, range), true);
+                      else mergeSalvagedBatch(lastRawPartial, data, mapOpts, range, mergePush);
                     } catch (objectErr) {
                       pipelineLog(
                         "stream:generate-itinerary BATCH_OBJECT",
                         objectErr instanceof Error ? objectErr.message : "truncated",
+                      );
+                      mergeSalvagedBatch(
+                        extractGeneratedObject(objectErr) ?? lastRawPartial,
+                        data,
+                        mapOpts,
+                        range,
+                        mergePush,
                       );
                     }
                   } else {
@@ -301,6 +337,13 @@ export const Route = createFileRoute("/api/generate-itinerary")({
                     pipelineLog(
                       "stream:generate-itinerary BATCH_FAIL",
                       batchErr instanceof Error ? batchErr.message : "error",
+                    );
+                    mergeSalvagedBatch(
+                      extractGeneratedObject(batchErr) ?? lastRawPartial,
+                      data,
+                      mapOpts,
+                      range,
+                      mergePush,
                     );
                   }
                   if (abortSignal.aborted) break;

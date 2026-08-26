@@ -221,4 +221,43 @@ describe("Gemini nested slots → frontend / PDF / Mapbox", () => {
     expect(day.transportation?.[0]?.from).toBe("Suvarnabhumi");
     expect(JSON.stringify(day.activities)).not.toMatch(/09:00/);
   });
+
+  it("streams a preview day before Gemini finishes city, title, or pois", () => {
+    const preview = partialTripPlanToPreviewPlan(
+      {
+        trip_metadata: {
+          destination: "Bangkok",
+          season_warning: "Hot",
+          currency: "EUR",
+          visa_required: false,
+        },
+        itinerar: [
+          {
+            days: [
+              {
+                day_number: 1,
+                activities: {
+                  morning: {
+                    title: "Wat Pho",
+                    description: SLOT_COPY,
+                    category: "sightseeing",
+                  },
+                },
+              },
+            ],
+          },
+        ],
+      },
+      {
+        language: "sl",
+        originIata: "MUC",
+        destinationIata: "BKK",
+        enrich: false,
+      },
+    );
+    expect(preview?.days).toHaveLength(1);
+    expect(preview!.days[0]!.city).toMatch(/Bangkok/i);
+    expect(preview!.days[0]!.title).toMatch(/Dan 1/);
+    expect(preview!.days[0]!.activities.morning.some((a) => /Wat Pho/i.test(a.name))).toBe(true);
+  });
 });

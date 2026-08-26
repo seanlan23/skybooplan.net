@@ -921,7 +921,8 @@ export function createTripPlanStream(
   });
 }
 
-function extractGeneratedObject(error: unknown): unknown | null {
+/** Pull a truncated JSON object out of an AI SDK / Gemini stream error. */
+export function extractGeneratedObject(error: unknown): unknown | null {
   if (!error || typeof error !== "object") return null;
   const e = error as {
     value?: unknown;

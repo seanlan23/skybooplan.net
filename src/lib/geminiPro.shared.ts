@@ -242,7 +242,7 @@ export const tripPlanSchema = z.object({
     .default([]),
 });
 
-/** Structured Outputs schema: every day must emit morning/afternoon/evening + transportTip. */
+/** Structured Outputs schema: nested slots. Optional so a truncated stream can still yield a day. */
 const dayPartSlotSchema = activitySchema.extend({
   timeSlot: z.enum(DAY_TIME_SLOTS).optional(),
 });
@@ -255,17 +255,18 @@ export const tripPlanGeminiSchema = tripPlanSchema.extend({
       unsplashQuery: z.string().min(1),
       lat: wgsLat,
       lng: wgsLng,
-      pois: z.array(poiSchema).default([]),
+      // Days before pois so Gemini emits calendar days first (partials / token cap).
       days: z.array(
         daySchema.extend({
           activities: z.object({
-            morning: dayPartSlotSchema,
-            afternoon: dayPartSlotSchema,
-            evening: dayPartSlotSchema,
+            morning: dayPartSlotSchema.optional(),
+            afternoon: dayPartSlotSchema.optional(),
+            evening: dayPartSlotSchema.optional(),
           }),
-          transportTip: z.string().min(20),
+          transportTip: z.string().min(20).optional(),
         }),
       ),
+      pois: z.array(poiSchema).default([]),
     }),
   ),
 });
