@@ -124,6 +124,12 @@ export function corePlanForDb(plan: AiTripPlan): AiTripPlan {
     summary: clip(plan.summary, 400) ?? "",
     contentLanguage: plan.contentLanguage,
     totalBudgetEur: plan.totalBudgetEur,
+    flightTotalEur:
+      typeof plan.flightTotalEur === "number" &&
+      Number.isFinite(plan.flightTotalEur) &&
+      plan.flightTotalEur > 0
+        ? Math.round(plan.flightTotalEur)
+        : undefined,
     centerLat: plan.centerLat,
     centerLng: plan.centerLng,
     originIata: plan.originIata,

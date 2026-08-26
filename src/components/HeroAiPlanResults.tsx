@@ -134,6 +134,7 @@ export function HeroAiPlanResults({
               departDate={aiContext?.departDate}
               returnDate={aiContext?.returnDate}
               flights={aiContext?.flights as TripFlightContext | undefined}
+              flightTotalEur={aiContext?.flightTotalEur}
               loaderOrbit={loaderOrbit}
             />
           ) : aiLoading || aiExpandingFull ? (
@@ -158,6 +159,7 @@ export function HeroAiPlanResults({
               flights={aiContext?.flights as TripFlightContext | undefined}
               stayInfo={stayInfo}
               onExpandFull={onExpandFull}
+              flightTotalEur={aiContext?.flightTotalEur}
               plannerWishes={
                 lastPlannerForm ? buildWishes(lastPlannerForm) || undefined : undefined
               }

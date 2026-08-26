@@ -70,12 +70,12 @@ import { normalizePlanLangCode } from "@/lib/planLanguages";
 import { normalizePlanCurrency } from "@/lib/planCurrency";
 import { applyFlightContextToGeminiPlan } from "@/lib/geminiFlightContext";
 import { flightContextFromLegs } from "@/lib/flightScheduling";
-import { buildTripCostSummary, heroFlightPartyTotalEur } from "@/lib/tripCostSummary";
-import { overnightPlaceHint } from "@/lib/overnightEstimate";
-import { nudgeIntoView } from "@/lib/utils";
-import { countHomeboundUnpaidNights } from "@/lib/roadTripLogistics";
-import { resolveDayBudgetCountry } from "@/lib/countryDailyBudget";
-import { computeTripTotalBudgetEur } from "@/lib/tripBudget";
+import {
+  heroFlightPartyTotalEur,
+  itineraryWithTripCosts,
+  stampFlightTotalOnPlan,
+  summarizeAiTripCosts,
+} from "@/lib/tripCostSummary";
 import { isClassicRoundTrip } from "@/lib/flightSearch";
 import { formatPlannerInterests } from "@/lib/plannerInterests";
 import { Button } from "@/components/ui/button";
@@ -85,6 +85,7 @@ import { parsePostankiLeg } from "@/lib/returnFlightSummary";
 import { resolveHeroSearchData } from "@/lib/heroSearchPoll";
 import { heroChatToPlannerPayload, resolveDestinationIata } from "@/lib/heroChatPlanner";
 import { useUserLocation } from "@/lib/hooks/useUserLocation";
+import { nudgeIntoView } from "@/lib/utils";
 
 /** Full-screen fatal error — visible without devtools. */
 function FatalErrorScreen({ error }: { error: Error }) {
@@ -377,6 +378,8 @@ function Landing() {
   aiFlightsRef.current = aiContext?.flights;
   const aiOriginRef = useRef(aiContext?.from);
   aiOriginRef.current = aiContext?.from;
+  const aiFlightTotalRef = useRef(aiContext?.flightTotalEur);
+  aiFlightTotalRef.current = aiContext?.flightTotalEur;
   const aiLangRef = useRef(aiContext?.language || lang);
   aiLangRef.current = aiContext?.language || lang;
   const aiDatesRef = useRef({
@@ -406,10 +409,10 @@ function Landing() {
         ),
         departDate: aiDatesRef.current.departDate,
       });
-      setAiPlan(next);
+      setAiPlan(stampFlightTotalOnPlan(next, aiFlightTotalRef.current));
       return;
     }
-    setAiPlan(withPhotos);
+    setAiPlan(stampFlightTotalOnPlan(withPhotos, aiFlightTotalRef.current));
   }, []);
 
   // Enrich final plan + stream preview so Layla-style photo pins appear ASAP.
@@ -1228,9 +1231,13 @@ function Landing() {
           }
         : aiContext.flights;
 
-    const adultsForPrice = Math.max(
+    const partyForPrice = Math.max(
       1,
-      aiContext.adults || lastSearch?.adults || lastSearch?.pax || 1,
+      aiContext.pax ||
+        (aiContext.adults || 0) + (aiContext.childrenAges?.length ?? 0) ||
+        lastSearch?.pax ||
+        lastSearch?.adults ||
+        1,
     );
     setAiContext({
       ...aiContext,
@@ -1242,7 +1249,7 @@ function Landing() {
       flights: flightCtx,
       flightTotalEur: heroFlightPartyTotalEur(
         flight.cena_eur,
-        adultsForPrice,
+        partyForPrice,
         flight.price_basis,
       ),
     });
@@ -1436,44 +1443,41 @@ function Landing() {
         const endDate =
           aiContext?.returnDate ?? dayDate(lastDay?.dateEnd ?? lastDay?.date);
         const paxPdf = Math.max(1, aiContext?.pax ?? 1);
-        const motorhomePdf =
-          planForPdf.groundTransportMode === "motorhome" ||
-          planForPdf.accommodationMode === "motorhome";
-        let costPdf: { grandTotalEur: number; overnight: { totalEur: number } } | null = null;
+        let costPdf: ReturnType<typeof summarizeAiTripCosts> | null = null;
         try {
-          const planEurPdf =
-            planForPdf.totalBudgetEur > 0
-              ? planForPdf.totalBudgetEur
-              : computeTripTotalBudgetEur(planForPdf.days, paxPdf);
-          costPdf = buildTripCostSummary({
-            planEur: planEurPdf,
-            flightTotalEur: motorhomePdf ? 0 : aiContext?.flightTotalEur ?? 0,
-            dayCount: planForPdf.days.length,
+          costPdf = summarizeAiTripCosts(planForPdf, {
             pax: paxPdf,
-            countryCode: resolveDayBudgetCountry({
-              destinationName: planForPdf.destinationName,
-              destinationIata: planForPdf.destinationIata ?? aiContext?.to,
-            }),
-            place: overnightPlaceHint({
-              destinationName: planForPdf.destinationName,
-              destinationPlace: planForPdf.destinationPlace,
-              destinationIata: planForPdf.destinationIata ?? aiContext?.to,
-              dayCities: planForPdf.days.map((d) => d.city),
-            }),
-            iata: planForPdf.destinationIata ?? aiContext?.to,
-            mode: motorhomePdf
-              ? "motorhome"
-              : planForPdf.groundTransportMode === "car"
-                ? "car"
-                : "hotel",
-            unpaidNights:
-              motorhomePdf || planForPdf.groundTransportMode === "car"
-                ? countHomeboundUnpaidNights(planForPdf)
-                : 0,
+            flightTotalEur: aiContext?.flightTotalEur ?? planForPdf.flightTotalEur,
+            destinationIata: planForPdf.destinationIata ?? aiContext?.to,
           });
         } catch (costErr) {
           console.warn("[pdf] cost summary skipped", costErr);
         }
+        const pdfFlights =
+          costPdf && costPdf.flightEur > 0
+            ? [
+                ...(aiContext?.from && aiContext?.to
+                  ? [
+                      {
+                        from: aiContext.from,
+                        to: aiContext.to,
+                        date: startDate ?? undefined,
+                        airline: aiContext.flights?.outboundDepart,
+                      },
+                    ]
+                  : []),
+                ...(aiContext?.flights?.inboundDepart && aiContext?.from && aiContext?.to
+                  ? [
+                      {
+                        from: aiContext.returnFromIata || aiContext.to,
+                        to: aiContext.from,
+                        date: endDate ?? undefined,
+                        airline: aiContext.flights.inboundDepart,
+                      },
+                    ]
+                  : []),
+              ]
+            : undefined;
         const pdf = await generatePlanPdf({
           title: buildPdfPlanTitle({
             groundTransportMode:
@@ -1493,9 +1497,8 @@ function Landing() {
           start_date: startDate,
           end_date: endDate,
           itinerary: {
-            ...planForPdf,
-            totalBudgetEur: costPdf?.grandTotalEur ?? planForPdf.totalBudgetEur,
-            staysApproxEur: costPdf?.overnight.totalEur,
+            ...(costPdf ? itineraryWithTripCosts(planForPdf, costPdf) : planForPdf),
+            ...(pdfFlights?.length ? { flights: pdfFlights } : {}),
           } as never,
           language: aiContext?.language,
           pax: paxPdf,
@@ -1546,13 +1549,27 @@ function Landing() {
       try {
         const { generatePlanPdf, offerPdfDownload } = await import("@/lib/pdf-export");
         const lastDay = planForMail.days[planForMail.days.length - 1];
+        const paxMail = Math.max(1, aiContext?.pax ?? 1);
+        let costMail: ReturnType<typeof summarizeAiTripCosts> | null = null;
+        try {
+          costMail = summarizeAiTripCosts(planForMail, {
+            pax: paxMail,
+            flightTotalEur: aiContext?.flightTotalEur ?? planForMail.flightTotalEur,
+            destinationIata: planForMail.destinationIata ?? aiContext?.to,
+          });
+        } catch (costErr) {
+          console.warn("[email] cost summary skipped", costErr);
+        }
         const out = await generatePlanPdf({
           title,
           destination: planForMail.destinationName || planForMail.destinationPlace || "",
           start_date: aiContext?.departDate ?? planForMail.days[0]?.date ?? null,
           end_date: aiContext?.returnDate ?? lastDay?.dateEnd ?? lastDay?.date ?? null,
-          itinerary: planForMail as never,
+          itinerary: (costMail
+            ? itineraryWithTripCosts(planForMail, costMail)
+            : planForMail) as never,
           language: aiContext?.language,
+          pax: paxMail,
           ipCountry,
         });
         pdf = { buffer: out.buffer, fileName: out.fileName };
@@ -2147,6 +2164,7 @@ function Landing() {
                   departDate={aiContext?.departDate}
                   language={aiContext?.language}
                   flights={aiContext?.flights}
+                  flightTotalEur={aiContext?.flightTotalEur}
                   stayInfo={{
                     adults: lastSearch?.stayAdults ?? lastSearch?.pax ?? 2,
                     childrenAges: lastSearch?.childrenAges ?? [],

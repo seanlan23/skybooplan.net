@@ -412,6 +412,11 @@ export type AiTripPlan = {
   /** @deprecated Legacy — prefer weatherWidget. */
   weatherSummary?: WeatherSummary;
   totalBudgetEur: number;
+  /**
+   * Selected international ticket party total (EUR) — outbound + return, all passengers.
+   * On-destination spend stays in `totalBudgetEur`; UI/PDF add this into the grand TOTAL.
+   */
+  flightTotalEur?: number;
   centerLat: number;
   centerLng: number;
   days: DayPlan[];

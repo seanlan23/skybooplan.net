@@ -618,16 +618,24 @@ const en: Dict = {
   "aiplan.totalIncludes": "Includes: meals, sights, local & domestic transport",
   "aiplan.totalIncludesWithFlights":
     "Includes: meals, sights, local & domestic transport + selected flights",
-  "aiplan.totalExcludes": "Hotels/apartments shown separately below (approx.)",
+  "aiplan.costOnDestinationLabel": "On destination",
+  "aiplan.costOnDestinationHint": "meals, sights, local & domestic transport",
+  "aiplan.costOnDestinationCarHint": "meals, sights, fuel & toll/vignette share",
+  "aiplan.costOnDestinationMotorhomeHint": "food, sights, fuel, tolls & campsite share",
+  "aiplan.costFlightsLabel": "International tickets",
+  "aiplan.costFlightsHintRoundtrip": "outbound + return, all passengers",
+  "aiplan.costFlightsHintOneway": "all passengers on this ticket",
+  "aiplan.notInTotal": "Not in the total above",
+  "aiplan.totalExcludes": "Hotels/apartments (approx. below)",
   "aiplan.totalIncludesCar":
     "Includes: meals, sights, fuel & toll/vignette share",
   "aiplan.totalIncludesCarWithFlights":
     "Includes: meals, sights, fuel & tolls + selected flights",
-  "aiplan.totalExcludesCar": "Excludes car rental · hotels approx. below",
+  "aiplan.totalExcludesCar": "Car rental · hotels (approx. below)",
   "aiplan.totalIncludesMotorhome":
     "Includes: food, sights, fuel, tolls & campsite share",
   "aiplan.totalExcludesMotorhome":
-    "Excludes motorhome rental & international transport",
+    "Motorhome rental (international transport not included)",
   "aiplan.overnightApprox": "+ Stays (approx.): €{n} · ~€{night}/night",
   "aiplan.totalForTravelers": "Total for {n} travelers",
   "aiplan.totalForOne": "Estimate for 1 traveler",
@@ -1840,16 +1848,24 @@ const dicts: Record<DictLang, Dict> = {
     "aiplan.totalIncludes": "Vključeno: hrana, vstopnine, lokalni in notranji prevoz",
     "aiplan.totalIncludesWithFlights":
       "Vključeno: hrana, vstopnine, lokalni in notranji prevoz + izbrani leti",
+    "aiplan.costOnDestinationLabel": "Na destinaciji",
+    "aiplan.costOnDestinationHint": "hrana, vstopnine, lokalni in notranji prevoz",
+    "aiplan.costOnDestinationCarHint": "hrana, vstopnine, delež goriva in cestnin/vinjet",
+    "aiplan.costOnDestinationMotorhomeHint": "hrana, vstopnine, delež goriva, cestnin in kampa",
+    "aiplan.costFlightsLabel": "Mednarodne letalske karte",
+    "aiplan.costFlightsHintRoundtrip": "tja in nazaj, vsi potniki",
+    "aiplan.costFlightsHintOneway": "vsi potniki na tej karti",
+    "aiplan.notInTotal": "Ni v zgornjem znesku",
     "aiplan.totalIncludesCar":
       "Vključeno: hrana, vstopnine, delež goriva in cestnin/vinjet",
     "aiplan.totalIncludesCarWithFlights":
       "Vključeno: hrana, vstopnine, gorivo in cestnine + izbrani leti",
     "aiplan.totalIncludesMotorhome":
       "Vključeno: hrana, vstopnine, delež goriva, cestnin in kampa",
-    "aiplan.totalExcludes": "Hoteli/apartmaji ločeno spodaj (okvirno)",
-    "aiplan.totalExcludesCar": "Brez najema avtomobila · hoteli okvirno spodaj",
+    "aiplan.totalExcludes": "Hoteli/apartmaji (okvirno spodaj)",
+    "aiplan.totalExcludesCar": "Najem avtomobila · hoteli (okvirno spodaj)",
     "aiplan.totalExcludesMotorhome":
-      "Brez najema avtodoma in mednarodnega prevoza",
+      "Najem avtodoma (mednarodni prevoz ni vključen)",
     "aiplan.overnightApprox": "+ Nastanitev (okvirno): €{n} · ~€{night}/noč",
     "aiplan.totalForTravelers": "Skupaj za {n} potnike",
     "aiplan.totalForOne": "Ocena za 1 potnika",

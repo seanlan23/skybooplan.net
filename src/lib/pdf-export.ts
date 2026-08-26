@@ -34,6 +34,11 @@ export type PlanItinerary = {
   summary?: string;
   destinationName?: string;
   totalBudgetEur?: number;
+  /** On-destination spend (meals, sights, local/domestic transport). */
+  planEur?: number;
+  /** International ticket party total (outbound+return, all pax). */
+  flightEur?: number;
+  flightTotalEur?: number;
   days?: Array<Record<string, unknown>>;
   flights?: Array<{ from?: string; to?: string; date?: string; airline?: string; price?: string }>;
   hotels?: Array<{ name?: string; area?: string; nights?: number; price?: string }>;
@@ -97,6 +102,8 @@ type NormalizedPdfPlan = {
   summary: string;
   insurance?: { title: string; body: string; insurers: string };
   totalBudgetEur?: number;
+  planEur?: number;
+  flightEur?: number;
   staysApproxEur?: number;
   roadTrip: boolean;
   pax: number;
@@ -225,6 +232,23 @@ function isPdfLogisticsTitle(title: string): boolean {
 }
 
 function roadBudgetCaption(model: NormalizedPdfPlan): string {
+  if (model.flightEur && model.flightEur > 0) {
+    const n = model.pax;
+    const lang = model.contentLang;
+    if (lang === "sl") {
+      return n <= 1
+        ? "Skupaj = destinacija + mednarodne karte (hoteli posebej)"
+        : `Skupaj za ${n} oseb = destinacija + mednarodne karte (hoteli posebej)`;
+    }
+    if (lang === "de") {
+      return n <= 1
+        ? "Gesamt = vor Ort + internationale Tickets (Hotels extra)"
+        : `Gesamt für ${n} Reisende = vor Ort + internationale Tickets (Hotels extra)`;
+    }
+    return n <= 1
+      ? "Total = on destination + international tickets (hotels extra)"
+      : `Total for ${n} travelers = on destination + international tickets (hotels extra)`;
+  }
   if (!model.roadTrip) return model.labels.budgetForPax(model.pax);
   const n = model.pax;
   const lang = model.contentLang;
@@ -241,6 +265,113 @@ function roadBudgetCaption(model: NormalizedPdfPlan): string {
   return n <= 1
     ? "Total (meals, fuel, tolls — hotels extra)"
     : `Total for ${n} travelers (meals, fuel, tolls — hotels extra)`;
+}
+
+export function pdfBudgetBreakdownLines(opts: {
+  lang: string;
+  pax: number;
+  planEur?: number;
+  flightEur?: number;
+  staysApproxEur?: number;
+  roadTrip: boolean;
+}): string[] {
+  const lang = (opts.lang ?? "en").slice(0, 2);
+  const planEur = opts.planEur != null && opts.planEur > 0 ? Math.round(opts.planEur) : 0;
+  const flightEur = opts.flightEur != null && opts.flightEur > 0 ? Math.round(opts.flightEur) : 0;
+  const stays = opts.staysApproxEur != null && opts.staysApproxEur > 0 ? Math.round(opts.staysApproxEur) : 0;
+  const lines: string[] = [];
+
+  if (lang === "sl") {
+    if (planEur > 0) {
+      lines.push(
+        opts.roadTrip
+          ? `Na cesti (hrana, gorivo, cestnine): €${planEur}`
+          : `Na destinaciji (hrana, vstopnine, lokalni/notranji prevoz): €${planEur}`,
+      );
+    }
+    if (flightEur > 0) {
+      lines.push(`Mednarodne letalske karte (tja + nazaj, vsi potniki): €${flightEur}`);
+    }
+    if (stays > 0) {
+      lines.push(`Ni v tem znesku — hoteli/apartmaji (okvirno): €${stays}`);
+    }
+    return lines;
+  }
+  if (lang === "de") {
+    if (planEur > 0) {
+      lines.push(
+        opts.roadTrip
+          ? `Unterwegs (Essen, Kraftstoff, Maut): €${planEur}`
+          : `Vor Ort (Essen, Sehenswürdigkeiten, lokaler/Inlandsverkehr): €${planEur}`,
+      );
+    }
+    if (flightEur > 0) {
+      lines.push(`Internationale Flugtickets (Hin- und Rückflug, alle Reisenden): €${flightEur}`);
+    }
+    if (stays > 0) {
+      lines.push(`Nicht in dieser Summe — Hotels/Apartments (ca.): €${stays}`);
+    }
+    return lines;
+  }
+  if (planEur > 0) {
+    lines.push(
+      opts.roadTrip
+        ? `On the road (meals, fuel, tolls): €${planEur}`
+        : `On destination (meals, sights, local/domestic transport): €${planEur}`,
+    );
+  }
+  if (flightEur > 0) {
+    lines.push(`International tickets (outbound + return, all passengers): €${flightEur}`);
+  }
+  if (stays > 0) {
+    lines.push(`Not in this total — hotels/apartments (approx.): €${stays}`);
+  }
+  return lines;
+}
+
+function finiteEur(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0
+    ? Math.round(value)
+    : undefined;
+}
+
+function resolvePdfTripCosts(itin: PlanItinerary): {
+  grandTotalEur?: number;
+  planEur?: number;
+  flightEur?: number;
+} {
+  const flightEur = finiteEur(itin.flightEur) ?? finiteEur(itin.flightTotalEur) ?? 0;
+  const explicitPlan = finiteEur(itin.planEur);
+  const storedTotal = finiteEur(itin.totalBudgetEur);
+
+  if (explicitPlan != null) {
+    const grand =
+      storedTotal != null && storedTotal >= explicitPlan
+        ? storedTotal
+        : explicitPlan + flightEur;
+    return { grandTotalEur: grand, planEur: explicitPlan, flightEur };
+  }
+  if (flightEur > 0 && storedTotal != null) {
+    return { grandTotalEur: storedTotal + flightEur, planEur: storedTotal, flightEur };
+  }
+  return { grandTotalEur: storedTotal, planEur: storedTotal, flightEur };
+}
+
+function pdfTicketPartyLine(lang: string, pax: number, eur: number): string {
+  const n = Math.max(1, pax);
+  if (lang === "sl") {
+    return n <= 1
+      ? `Karte (tja + nazaj, 1 potnik): €${eur}`
+      : `Karte (tja + nazaj, ${n} potnikov): €${eur}`;
+  }
+  if (lang === "de") {
+    return n <= 1
+      ? `Tickets (Hin- und Rückflug, 1 Reisender): €${eur}`
+      : `Tickets (Hin- und Rückflug, ${n} Reisende): €${eur}`;
+  }
+  return n <= 1
+    ? `Tickets (outbound + return, 1 traveler): €${eur}`
+    : `Tickets (outbound + return, ${n} travelers): €${eur}`;
 }
 
 function nightsPhrase(n: number, lang: string): string {
@@ -286,7 +417,7 @@ function labelsFor(lang: PlanForPdf["language"], sampleText: string): PdfLabels 
       transport: "Prevoz",
       budget: "Proračun",
       budgetForPax: (n) =>
-        n <= 1 ? "Skupaj (ocena na destinaciji, brez mednarodnih letov)" : `Skupaj za ${n} oseb (ocena na destinaciji, brez mednarodnih letov)`,
+        n <= 1 ? "Skupaj (ocena na destinaciji — hoteli posebej)" : `Skupaj za ${n} oseb (ocena na destinaciji — hoteli posebej)`,
       dailyBudget: "Dnevni proračun",
       dailyBudgetPerPerson: "na osebo",
       flights: "Leti",
@@ -310,8 +441,8 @@ function labelsFor(lang: PlanForPdf["language"], sampleText: string): PdfLabels 
       budget: "Budget",
       budgetForPax: (n) =>
         n <= 1
-          ? "Totale (stima a destinazione, esclusi voli internazionali)"
-          : `Totale per ${n} viaggiatori (stima a destinazione, esclusi voli internazionali)`,
+          ? "Totale (stima a destinazione — hotel extra)"
+          : `Totale per ${n} viaggiatori (stima a destinazione — hotel extra)`,
       dailyBudget: "Budget giornaliero",
       dailyBudgetPerPerson: "a persona",
       flights: "Voli",
@@ -335,8 +466,8 @@ function labelsFor(lang: PlanForPdf["language"], sampleText: string): PdfLabels 
       budget: "Budget",
       budgetForPax: (n) =>
         n <= 1
-          ? "Gesamt (Schätzung vor Ort, ohne internationale Flüge)"
-          : `Gesamt für ${n} Reisende (Schätzung vor Ort, ohne internationale Flüge)`,
+          ? "Gesamt (Schätzung vor Ort — Hotels extra)"
+          : `Gesamt für ${n} Reisende (Schätzung vor Ort — Hotels extra)`,
       dailyBudget: "Tagesbudget",
       dailyBudgetPerPerson: "pro Person",
       flights: "Flüge",
@@ -360,8 +491,8 @@ function labelsFor(lang: PlanForPdf["language"], sampleText: string): PdfLabels 
       budget: "Presupuesto",
       budgetForPax: (n) =>
         n <= 1
-          ? "Total (estimación en destino, sin vuelos internacionales)"
-          : `Total para ${n} viajeros (estimación en destino, sin vuelos internacionales)`,
+          ? "Total (estimación en destino — hoteles aparte)"
+          : `Total para ${n} viajeros (estimación en destino — hoteles aparte)`,
       dailyBudget: "Presupuesto diario",
       dailyBudgetPerPerson: "por persona",
       flights: "Vuelos",
@@ -385,8 +516,8 @@ function labelsFor(lang: PlanForPdf["language"], sampleText: string): PdfLabels 
       budget: "Budget",
       budgetForPax: (n) =>
         n <= 1
-          ? "Total (estimation sur place, hors vols internationaux)"
-          : `Total pour ${n} voyageurs (estimation sur place, hors vols internationaux)`,
+          ? "Total (estimation sur place — hôtels en extra)"
+          : `Total pour ${n} voyageurs (estimation sur place — hôtels en extra)`,
       dailyBudget: "Budget journalier",
       dailyBudgetPerPerson: "par personne",
       flights: "Vols",
@@ -409,8 +540,8 @@ function labelsFor(lang: PlanForPdf["language"], sampleText: string): PdfLabels 
     budget: "Budget",
     budgetForPax: (n) =>
       n <= 1
-        ? "Total (on-destination estimate, excl. international flights)"
-        : `Total for ${n} travelers (on-destination estimate, excl. international flights)`,
+        ? "Total (on-destination estimate — hotels extra)"
+        : `Total for ${n} travelers (on-destination estimate — hotels extra)`,
     dailyBudget: "Daily budget",
     dailyBudgetPerPerson: "per person",
     flights: "Flights",
@@ -865,11 +996,6 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
     ? itin.packing.map((p) => textOf(p)).filter(Boolean)
     : [];
 
-  const totalBudgetEur =
-    typeof itin.totalBudgetEur === "number" && Number.isFinite(itin.totalBudgetEur)
-      ? itin.totalBudgetEur
-      : undefined;
-
   const destination =
     plan.destination ||
     textOf(itin.destinationName) ||
@@ -880,6 +1006,18 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
     typeof plan.pax === "number" && Number.isFinite(plan.pax) && plan.pax >= 1
       ? Math.round(plan.pax)
       : 1;
+
+  const costs = resolvePdfTripCosts(itin);
+  const totalBudgetEur = costs.grandTotalEur;
+  const planEur = costs.planEur;
+  const flightEur = costs.flightEur;
+
+  if (flightEur && flightEur > 0) {
+    const ticketLine = pdfTicketPartyLine(contentLang, pax, flightEur);
+    if (!flights.some((f) => f.includes(`€${flightEur}`))) {
+      flights.push(ticketLine);
+    }
+  }
 
   const originPlace = textOf((itin as { originPlace?: string }).originPlace);
   const stays = motorhome
@@ -978,6 +1116,8 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
     ),
     insurance,
     totalBudgetEur,
+    planEur,
+    flightEur,
     staysApproxEur,
     roadTrip,
     pax,
@@ -1378,18 +1518,28 @@ async function renderPlanPdf(plan: PlanForPdf): Promise<{
 
   if (model.totalBudgetEur != null) {
     heading(model.labels.budget);
-    const budgetH = model.roadTrip && model.staysApproxEur ? 60 : 48;
+    const breakdown = pdfBudgetBreakdownLines({
+      lang: model.contentLang,
+      pax: model.pax,
+      planEur: model.planEur,
+      flightEur: model.flightEur,
+      staysApproxEur: model.staysApproxEur,
+      roadTrip: model.roadTrip,
+    });
+    const caption = roadBudgetCaption(model);
+    const extraLines = breakdown.length ? breakdown : [caption];
+    if (breakdown.length === 0 && model.roadTrip && model.staysApproxEur && model.staysApproxEur > 0) {
+      extraLines.push(roadStaysCaption(model));
+    }
+    const budgetH = 28 + extraLines.length * 13;
     softPanel(budgetH);
     setFont("bold", 20, INK);
     safeText(`€${Math.round(model.totalBudgetEur)}`, margin + 16, y + 20);
-    setFont("normal", 9, MUTED);
-    safeText(roadBudgetCaption(model), margin + 16, y + 36);
-    if (model.roadTrip && model.staysApproxEur && model.staysApproxEur > 0) {
-      safeText(
-        roadStaysCaption(model),
-        margin + 16,
-        y + 48,
-      );
+    setFont("normal", 8.5, MUTED);
+    let lineY = y + 34;
+    for (const line of extraLines) {
+      safeText(line, margin + 16, lineY);
+      lineY += 13;
     }
     y += budgetH + 12;
   }

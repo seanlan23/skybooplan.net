@@ -15,11 +15,7 @@ import { streamNeedsForegroundGuard } from "@/lib/streamAbort";
 import { cn } from "@/lib/utils";
 import { resolvePlanContentLanguage, stripPlanTeaser } from "@/lib/planTeaser";
 import { getSeasonalHints } from "@/lib/seasonalHints";
-import { resolveDayBudgetCountry } from "@/lib/countryDailyBudget";
-import { computeTripTotalBudgetEur } from "@/lib/tripBudget";
-import { buildTripCostSummary } from "@/lib/tripCostSummary";
-import { overnightPlaceHint } from "@/lib/overnightEstimate";
-import { countHomeboundUnpaidNights } from "@/lib/roadTripLogistics";
+import { buildTripCostSummary, summarizeAiTripCosts } from "@/lib/tripCostSummary";
 import { buildWeatherWidgetFallback } from "@/lib/weatherWidgetFallback";
 import { useDestinationContext } from "@/hooks/useDestinationContext";
 import { DestinationInsightBanner } from "@/components/DestinationInsightBanner";
@@ -239,47 +235,12 @@ export function AiPlanView({
         mode: "hotel",
       });
     }
-    const planEur =
-      plan.totalBudgetEur > 0
-        ? plan.totalBudgetEur
-        : computeTripTotalBudgetEur(plan.days, Math.max(1, pax));
-    const motorhome =
-      plan.groundTransportMode === "motorhome" || plan.accommodationMode === "motorhome";
-    const car = plan.groundTransportMode === "car";
-    const destIata = destinationIata ?? plan.destinationIata;
-    const countryCode = resolveDayBudgetCountry({
-      destinationName: plan.destinationName,
-      destinationIata: destIata,
-    });
-    return buildTripCostSummary({
-      planEur,
-      flightTotalEur: motorhome ? 0 : flightTotalEur ?? 0,
-      dayCount: plan.days.length,
+    return summarizeAiTripCosts(plan, {
       pax: Math.max(1, pax),
-      countryCode,
-      place: overnightPlaceHint({
-        destinationName: plan.destinationName,
-        destinationPlace: plan.destinationPlace,
-        destinationIata: destIata,
-        dayCities: plan.days.map((d) => d.city),
-      }),
-      iata: destIata,
-      mode: motorhome ? "motorhome" : car ? "car" : "hotel",
-      unpaidNights: car || motorhome ? countHomeboundUnpaidNights(plan) : 0,
+      flightTotalEur: flightTotalEur ?? plan.flightTotalEur,
+      destinationIata: destinationIata ?? plan.destinationIata,
     });
-  }, [
-    plan?.totalBudgetEur,
-    plan?.days,
-    plan?.destinationName,
-    plan?.destinationPlace,
-    plan?.destinationIata,
-    plan?.groundTransportMode,
-    plan?.accommodationMode,
-    plan?.originPlace,
-    destinationIata,
-    flightTotalEur,
-    pax,
-  ]);
+  }, [plan, destinationIata, flightTotalEur, pax]);
 
   const displayTotalBudget = costSummary.grandTotalEur;
 
@@ -980,7 +941,9 @@ export function AiPlanView({
                 plan.accommodationMode === "motorhome"
               }
               car={plan.groundTransportMode === "car"}
+              planEur={costSummary.planEur}
               flightEur={costSummary.flightEur}
+              roundTrip={Boolean(flights?.inboundDepart)}
               overnight={costSummary.overnight}
             />
           </div>

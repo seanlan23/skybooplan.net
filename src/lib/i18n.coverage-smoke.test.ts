@@ -36,6 +36,7 @@ const SURFACE_KEYS = [
   "ai.wishesOptional",
   "heroTrip.planTitle",
   "aiplan.downloadPdf",
+  "aiplan.costFlightsLabel",
   "aiplan.totalIncludes",
   "dashboard.donationBadge",
   "dashboard.donationTitle",

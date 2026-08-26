@@ -81,6 +81,53 @@ describe("normalizePlanForPdf", () => {
     expect(model.coverImageUrl).toBeUndefined();
   });
 
+  it("adds international tickets into the grand total and labels the split", () => {
+    const model = normalizePlanForPdf({
+      title: "BER → BKK",
+      destination: "Bangkok",
+      start_date: "2026-07-24",
+      end_date: "2026-08-07",
+      language: "sl",
+      pax: 2,
+      itinerary: {
+        summary: "Petnajst dni po Tajski.",
+        totalBudgetEur: 3874,
+        planEur: 1000,
+        flightEur: 2874,
+        staysApproxEur: 770,
+        flights: [
+          { from: "BER", to: "BKK", date: "2026-07-24", airline: "17:55" },
+          { from: "BKK", to: "BER", date: "2026-08-07", airline: "14:00" },
+        ],
+        days: [],
+      },
+    });
+    expect(model.totalBudgetEur).toBe(3874);
+    expect(model.planEur).toBe(1000);
+    expect(model.flightEur).toBe(2874);
+    expect(model.flights.some((f) => /2874/.test(f))).toBe(true);
+    expect(model.flights.some((f) => /BER/.test(f) && /BKK/.test(f))).toBe(true);
+  });
+
+  it("saved plan dest-only total + flightTotalEur does not double-count", () => {
+    const model = normalizePlanForPdf({
+      title: "BER → BKK",
+      destination: "Bangkok",
+      start_date: "2026-07-24",
+      end_date: "2026-08-07",
+      language: "en",
+      pax: 2,
+      itinerary: {
+        totalBudgetEur: 1000,
+        flightTotalEur: 2874,
+        days: [],
+      },
+    });
+    expect(model.planEur).toBe(1000);
+    expect(model.flightEur).toBe(2874);
+    expect(model.totalBudgetEur).toBe(3874);
+  });
+
   it("passes cover_image_url through for hero cover", () => {
     const model = normalizePlanForPdf({
       title: "MUC → SYD",

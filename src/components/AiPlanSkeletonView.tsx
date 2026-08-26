@@ -31,6 +31,7 @@ export function AiPlanSkeletonView({
   onExpandFull,
   plannerWishes,
   plannerForm,
+  flightTotalEur,
 }: {
   skeleton: TripSkeleton | null;
   loading: boolean;
@@ -47,6 +48,8 @@ export function AiPlanSkeletonView({
   onExpandFull: () => void;
   plannerWishes?: string;
   plannerForm?: AiPlannerSubmit | null;
+  /** Selected international ticket party total — added into skeleton TOTAL. */
+  flightTotalEur?: number | null;
 }) {
   const { t, lang, formatMoney } = useI18n();
   const [activeDay, setActiveDay] = useState(1);
@@ -93,7 +96,7 @@ export function AiPlanSkeletonView({
     () => (skeleton ? buildSkeletonDayPlans(skeleton, planOpts) : []),
     [skeleton, planOpts],
   );
-  const computedTotalEur = useMemo(
+  const destinationEur = useMemo(
     () =>
       dayPlans.reduce(
         (sum, d) => sum + (d.dailyBudgetEur ?? 0) * Math.max(1, pax),
@@ -101,6 +104,8 @@ export function AiPlanSkeletonView({
       ),
     [dayPlans, pax],
   );
+  const ticketEur = Math.max(0, Math.round(flightTotalEur ?? 0));
+  const computedTotalEur = destinationEur + ticketEur;
 
   useEffect(() => {
     if (dayPlans.length) setActiveDay(dayPlans[0].day);
@@ -237,7 +242,12 @@ export function AiPlanSkeletonView({
               {t("aiplan.total" as never)}
             </div>
             <div className="text-2xl sm:text-3xl font-bold text-slate-900">{formatMoney(computedTotalEur)}</div>
-            <TripTotalBreakdown pax={pax} />
+            <TripTotalBreakdown
+              pax={pax}
+              planEur={destinationEur}
+              flightEur={ticketEur}
+              roundTrip={Boolean(flights?.inboundDepart)}
+            />
           </div>
         </div>
       </div>
