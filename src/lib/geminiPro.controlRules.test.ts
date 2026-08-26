@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { tripPlanControlRules, tripPlanSystemPrompt, dayRangePromptBlock, GEMINI_TRIP_PLAN_MAX_OUTPUT_TOKENS, GEMINI_TRIP_PLAN_THINKING_BUDGET, extractGeneratedObject } from "@/lib/geminiPro";
+import { tripPlanControlRules, tripPlanSystemPrompt, dayRangePromptBlock, GEMINI_TRIP_PLAN_MAX_OUTPUT_TOKENS, GEMINI_TRIP_PLAN_THINKING_BUDGET, GEMINI_TRIP_PLAN_MODEL, resolveTripPlanModel, extractGeneratedObject } from "@/lib/geminiPro";
 import type { GenerateTripPlanParams } from "@/lib/geminiPro.shared";
 
 function baseParams(
@@ -39,6 +39,13 @@ describe("trip plan output tokens", () => {
 
   it("disables Gemini 2.5 thinking so the first JSON tokens are not delayed past the stall window", () => {
     expect(GEMINI_TRIP_PLAN_THINKING_BUDGET).toBe(0);
+  });
+
+  it("refuses gemini-2.5-flash for live plans because it thinks for minutes before JSON", () => {
+    expect(resolveTripPlanModel("gemini-2.5-flash")).toBe("gemini-2.5-flash-lite");
+    expect(resolveTripPlanModel("gemini-2.5-pro")).toBe("gemini-2.5-flash-lite");
+    expect(resolveTripPlanModel(undefined)).toBe("gemini-2.5-flash-lite");
+    expect(GEMINI_TRIP_PLAN_MODEL).not.toMatch(/^gemini-2\.5-flash$/);
   });
 
   it("recovers a truncated Gemini object from the AI SDK error payload", () => {

@@ -222,7 +222,7 @@ export function buildTravelPlanRow(
     start_date: startDate,
     end_date: endDate,
     itinerary: serializePlanForDb(plan),
-    ai_model: "google:gemini-2.5-flash",
+    ai_model: "google:gemini-2.5-flash-lite",
   };
 }
 

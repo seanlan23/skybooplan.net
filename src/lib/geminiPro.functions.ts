@@ -240,9 +240,9 @@ export function incompletePlanDayCoverageMessage(
   return `Načrt je nepopoln (${gotDays}/${expectedDays} dni). Poskusi znova.`;
 }
 
-/** Nested morning/afternoon/evening JSON is too rich for 8 days in one call. */
-export const GEMINI_STREAM_DAYS_PER_BATCH = 4;
-export const GEMINI_STREAM_MAX_BATCHES = 6;
+/** Nested morning/afternoon/evening JSON — two days so the first cards appear before the stall. */
+export const GEMINI_STREAM_DAYS_PER_BATCH = 2;
+export const GEMINI_STREAM_MAX_BATCHES = 8;
 
 export function streamBatchSize(expectedDays: number): number {
   return Math.min(GEMINI_STREAM_DAYS_PER_BATCH, Math.max(1, expectedDays));
@@ -256,7 +256,7 @@ export function streamBatchSizeWithTimeLeft(
 ): number {
   const left = hardMs - elapsedMs;
   const base = streamBatchSize(expectedDays);
-  if (left < 90_000) return Math.min(3, base);
+  if (left < 90_000) return 1;
   return base;
 }
 

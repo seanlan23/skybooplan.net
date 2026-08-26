@@ -242,34 +242,36 @@ export const tripPlanSchema = z.object({
     .default([]),
 });
 
-/** Structured Outputs schema: nested slots. Optional so a truncated stream can still yield a day. */
 const dayPartSlotSchema = activitySchema.extend({
   timeSlot: z.enum(DAY_TIME_SLOTS).optional(),
 });
 
-export const tripPlanGeminiSchema = tripPlanSchema.extend({
-  itinerar: z.array(
-    z.object({
-      phase: z.string().min(1),
-      city: z.string().min(1),
-      unsplashQuery: z.string().min(1),
-      lat: wgsLat,
-      lng: wgsLng,
-      // Days before pois so Gemini emits calendar days first (partials / token cap).
-      days: z.array(
-        daySchema.extend({
-          activities: z.object({
-            morning: dayPartSlotSchema.optional(),
-            afternoon: dayPartSlotSchema.optional(),
-            evening: dayPartSlotSchema.optional(),
-          }),
-          transportTip: z.string().min(20).optional(),
+/** Structured Outputs schema: nested slots. Optional so a truncated stream can still yield a day.
+ * `itinerar` is the first key so Gemini emits days before weather/POI preamble. */
+const geminiItinerarSchema = z.array(
+  z.object({
+    phase: z.string().min(1),
+    city: z.string().min(1),
+    unsplashQuery: z.string().min(1),
+    lat: wgsLat,
+    lng: wgsLng,
+    days: z.array(
+      daySchema.extend({
+        activities: z.object({
+          morning: dayPartSlotSchema.optional(),
+          afternoon: dayPartSlotSchema.optional(),
+          evening: dayPartSlotSchema.optional(),
         }),
-      ),
-      pois: z.array(poiSchema).default([]),
-    }),
-  ),
-});
+        transportTip: z.string().min(20).optional(),
+      }),
+    ),
+    pois: z.array(poiSchema).default([]),
+  }),
+);
+
+export const tripPlanGeminiSchema = z
+  .object({ itinerar: geminiItinerarSchema })
+  .merge(tripPlanSchema.omit({ itinerar: true }));
 
 export type TripPlanResponse = z.infer<typeof tripPlanSchema>;
 

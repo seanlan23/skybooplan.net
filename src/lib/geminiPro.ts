@@ -684,8 +684,16 @@ function lightPacePoisHint(pace?: GenerateTripPlanParams["pace"]): string {
 }
 
 /** Structured trip-plan JSON — override via GEMINI_TRIP_PLAN_MODEL in .env / Vercel. */
-export const GEMINI_TRIP_PLAN_MODEL =
-  process.env.GEMINI_TRIP_PLAN_MODEL?.trim() || "gemini-2.5-flash";
+export function resolveTripPlanModel(raw?: string | null): string {
+  const requested = raw?.trim() || "gemini-2.5-flash-lite";
+  // 2.5 Flash/Pro think for minutes with zero itinerary tokens.
+  if (/^gemini-2\.5-flash$/i.test(requested) || /^gemini-2\.5-pro/i.test(requested)) {
+    return "gemini-2.5-flash-lite";
+  }
+  return requested;
+}
+
+export const GEMINI_TRIP_PLAN_MODEL = resolveTripPlanModel(process.env.GEMINI_TRIP_PLAN_MODEL);
 
 /** Per-call output cap. 8192 truncated 3-slot days before JSON closed. */
 export const GEMINI_TRIP_PLAN_MAX_OUTPUT_TOKENS = 16384;
