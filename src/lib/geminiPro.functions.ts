@@ -240,24 +240,24 @@ export function incompletePlanDayCoverageMessage(
   return `Načrt je nepopoln (${gotDays}/${expectedDays} dni). Poskusi znova.`;
 }
 
-/** Nested morning/afternoon/evening JSON — two days so the first cards appear before the stall. */
-export const GEMINI_STREAM_DAYS_PER_BATCH = 2;
-export const GEMINI_STREAM_MAX_BATCHES = 8;
+/** One structured call for the full calendar. Leftover days are a single repair window, not 2-day glue. */
+export const GEMINI_STREAM_DAYS_PER_BATCH = 21;
+export const GEMINI_STREAM_MAX_BATCHES = 3;
 
 export function streamBatchSize(expectedDays: number): number {
-  return Math.min(GEMINI_STREAM_DAYS_PER_BATCH, Math.max(1, expectedDays));
+  return Math.max(1, expectedDays);
 }
 
-/** Shrink the window when the Vercel/hard cap would otherwise skip the rest (7/16). */
+/** Prefer finishing the remaining days in one window; only shrink when the hard cap is already gone. */
 export function streamBatchSizeWithTimeLeft(
   expectedDays: number,
   elapsedMs: number,
   hardMs: number,
 ): number {
   const left = hardMs - elapsedMs;
-  const base = streamBatchSize(expectedDays);
-  if (left < 90_000) return 1;
-  return base;
+  const remaining = Math.max(1, expectedDays);
+  if (left < 90_000) return Math.min(remaining, 4);
+  return remaining;
 }
 
 /** Next day_number window to request, or null when coverage is already acceptable. */
@@ -270,8 +270,8 @@ export function nextIncompleteDayRange(
   if (hasAcceptablePlanDayCoverage(gotDays, expectedDays)) return null;
   const start = Math.max(1, gotDays + 1);
   if (start > expectedDays) return null;
-  const size = Math.max(1, batchSize);
-  return { start, end: Math.min(expectedDays, start + size - 1) };
+  const window = Math.max(1, batchSize);
+  return { start, end: Math.min(expectedDays, start + window - 1) };
 }
 
 export function monthNameSl(isoDate: string): string {

@@ -13,7 +13,7 @@ const POINTS_SL = [
   "Dve oddaljeni državi/regiji: najprej zaključi vse nočitve v prvi, potem en dan samo prevoz (let), šele nato program v drugi. Prepovedano: plaža/otok/safari druge države na dnevu, kjer spiš v prvi.",
   "Let > program. Pred pristankom prazno. Zadnji dan samo do ure odhoda.",
   "Mednarodni dolg let: ne izmišljuj pristanka 2 uri po odhodu. Evropa→Azija/Amerika je 10+ ur plus časovni pas — prihod šele popoldan/zvečer istega dne ali naslednje jutro. Ure z izbranega leta zmagajo.",
-  "Prepovedani votli naslovi brez opisa (Morning in …, Visit …, City Exploration, Snorkeling Trip). Poln dan v bazi = konkretno ime + opis. Transfer/prihod/odhod sme imeti prazen slot.",
+  "Prepovedani votli naslovi brez opisa (Morning in …, Visit …, City Exploration, Snorkeling Trip, prosti / lokalni dan, Izlet na otok, Raziskovanje območja, Po jutranji kavi se sprehodite). Poln dan v bazi = konkretno ime + opis. Transfer/prihod/odhod sme imeti prazen slot. Ne kopiraj odhodnega mednarodnega leta (domači IATA + ura na vozovnici) na dneve 2…N−1 — ta let je samo dan 1 / dnevi v zraku.",
   "Ne izmišljuj hotelov in restavracij. Ime kraja ali izpusti slot.",
 ];
 
@@ -27,7 +27,7 @@ const POINTS_EN = [
   "Two distant countries/regions: finish every night in the first, then one travel-only day (flight), then the second region's programme. Forbidden: the other country's beach/island/safari on a day you still sleep in the first.",
   "Flight beats programme. Empty before landing. Last day only until departure.",
   "Long-haul: do not invent a landing 2 hours after departure. Europe→Asia/Americas is 10+ hours plus timezone — arrive afternoon/evening the same day or next morning. The chosen ticket wins.",
-  "Forbidden hollow titles without a description (Morning in …, Visit …, City Exploration, Snorkeling Trip). A full base day needs a real name + description. Transfer/arrival/departure days may leave a slot empty.",
+  "Forbidden hollow titles without a description (Morning in …, Visit …, City Exploration, Snorkeling Trip, free / local day, Island trip, Area exploration). A full base day needs a real name + description. Transfer/arrival/departure days may leave a slot empty. Never copy the origin international departure (home IATA + boarding-pass HH:MM) onto days 2…N−1 — that flight exists only on day 1 / in-flight days.",
   "Do not invent hotel or restaurant names. A real venue or omit the slot.",
 ];
 

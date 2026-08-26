@@ -45,29 +45,35 @@ function plan(days: DayPlan[], name = "Phuket"): AiTripPlan {
 }
 
 describe("stream day batches", () => {
-  it("caps every Gemini call at 2 days so nested morning/afternoon/evening JSON finishes quickly", () => {
-    expect(streamBatchSize(8)).toBe(2);
-    expect(nextIncompleteDayRange(0, 8)).toEqual({ start: 1, end: 2 });
-    expect(nextIncompleteDayRange(2, 8)).toEqual({ start: 3, end: 4 });
+  it("asks Gemini for the full calendar in one window", () => {
+    expect(streamBatchSize(8)).toBe(8);
+    expect(nextIncompleteDayRange(0, 8)).toEqual({ start: 1, end: 8 });
+    expect(nextIncompleteDayRange(2, 8)).toEqual({ start: 3, end: 8 });
     expect(nextIncompleteDayRange(8, 8)).toBeNull();
   });
 
-  it("splits a 13–16 day trip into 2-day windows so one 280s call is not the whole itinerary", () => {
-    expect(streamBatchSize(10)).toBe(2);
-    expect(streamBatchSize(13)).toBe(2);
-    expect(streamBatchSize(16)).toBe(2);
-    expect(nextIncompleteDayRange(0, 13)).toEqual({ start: 1, end: 2 });
-    expect(nextIncompleteDayRange(4, 13)).toEqual({ start: 5, end: 6 });
-    expect(nextIncompleteDayRange(6, 13)).toEqual({ start: 7, end: 8 });
-    expect(nextIncompleteDayRange(0, 16)).toEqual({ start: 1, end: 2 });
-    expect(nextIncompleteDayRange(4, 16)).toEqual({ start: 5, end: 6 });
-    expect(nextIncompleteDayRange(8, 16)).toEqual({ start: 9, end: 10 });
+  it("repairs leftover days as one remaining window, not 2-day glue", () => {
+    expect(streamBatchSize(10)).toBe(10);
+    expect(streamBatchSize(13)).toBe(13);
+    expect(streamBatchSize(16)).toBe(16);
+    expect(nextIncompleteDayRange(0, 13)).toEqual({ start: 1, end: 13 });
+    expect(nextIncompleteDayRange(4, 13)).toEqual({ start: 5, end: 13 });
+    expect(nextIncompleteDayRange(6, 13)).toEqual({ start: 7, end: 13 });
+    expect(nextIncompleteDayRange(0, 16)).toEqual({ start: 1, end: 16 });
+    expect(nextIncompleteDayRange(4, 16)).toEqual({ start: 5, end: 16 });
+    expect(nextIncompleteDayRange(8, 16)).toEqual({ start: 9, end: 16 });
     expect(nextIncompleteDayRange(14, 16)).toEqual({ start: 15, end: 16 });
     expect(nextIncompleteDayRange(16, 16)).toBeNull();
   });
 
-  it("continues from a 2-day stub instead of shipping 2/16", () => {
-    expect(nextIncompleteDayRange(2, 16)).toEqual({ start: 3, end: 4 });
+  it("uses the supplied window length only as a time-budget cap, not 2-day glue", () => {
+    expect(nextIncompleteDayRange(0, 15, 15)).toEqual({ start: 1, end: 15 });
+    expect(nextIncompleteDayRange(8, 15, 15)).toEqual({ start: 9, end: 15 });
+    expect(nextIncompleteDayRange(10, 15, 4)).toEqual({ start: 11, end: 14 });
+  });
+
+  it("continues from a stub instead of shipping 2/16", () => {
+    expect(nextIncompleteDayRange(2, 16)).toEqual({ start: 3, end: 16 });
   });
 
   it("does not treat a premature day 15 as full coverage of a 15-day trip", () => {
@@ -77,13 +83,13 @@ describe("stream day batches", () => {
         contiguousCoveredDays([{ day: 1 }, { day: 2 }, { day: 3 }, { day: 15 }]),
         15,
       ),
-    ).toEqual({ start: 4, end: 5 });
+    ).toEqual({ start: 4, end: 15 });
   });
 
-  it("shrinks to a single day when the hard cap would otherwise skip the rest", () => {
-    expect(streamBatchSizeWithTimeLeft(16, 0, 280_000)).toBe(2);
-    expect(streamBatchSizeWithTimeLeft(16, 200_000, 280_000)).toBe(1);
-    expect(streamBatchSizeWithTimeLeft(8, 200_000, 280_000)).toBe(1);
+  it("still requests the remaining calendar when time is left; shrinks only under the cap", () => {
+    expect(streamBatchSizeWithTimeLeft(16, 0, 280_000)).toBe(16);
+    expect(streamBatchSizeWithTimeLeft(16, 200_000, 280_000)).toBe(4);
+    expect(streamBatchSizeWithTimeLeft(8, 200_000, 280_000)).toBe(4);
   });
 });
 

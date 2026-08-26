@@ -84,6 +84,9 @@ export function isEnricherPlaceholderActivity(a: {
     /^morning stroll \/ local pace$/i.test(name) ||
     /^morning stroll in /i.test(name) ||
     /lokalni pomembnejši ogled/i.test(name) ||
+    /^izlet na otok\.?$/i.test(name) ||
+    /^raziskovanje območja/i.test(name) ||
+    /^po jutranji kavi se sprehodite/i.test(name) ||
     /^key local sight in /i.test(name) ||
     /^večernji sprehod in lokalna večerja$/i.test(name) ||
     /^evening stroll & local dinner$/i.test(name) ||
@@ -110,6 +113,9 @@ export function isHollowProgramTitle(name: string, description?: string): boolea
     return true;
   }
   if (/^(dan|day)\s+\d+$/i.test(n)) return true;
+  if (/^(izlet na otok|island trip|island excursion|raziskovanje območja|po jutranji kavi se sprehodite)\.?$/i.test(n)) {
+    return true;
+  }
   if (/^.+\s*(?:→|->)\s*\.?\s*$/.test(n)) return true;
   if (d.length >= 40) return false;
   return /^(city exploration|temple visit|boat tour|old town walk|nature excursion|snorkeling trip|shopping and sightseeing|visit\s+\w[\w\s]{1,40})$/i.test(
@@ -262,10 +268,8 @@ function thinLocalDay(day: DayPlan, lang: string): DayPlan {
   const city = day.city || day.focusName || (slo ? "destinacija" : "destination");
   return {
     ...day,
-    title: slo ? `${city} — prosti / lokalni dan` : `${city} — free / local day`,
-    travelHack: slo
-      ? "Dan je bil podvojen v osnutku — zamenjan z lahkotnim lokalnim programom."
-      : "Day was duplicated in the draft — replaced with a light local schedule.",
+    title: city,
+    travelHack: "",
     morning: "",
     afternoon: "",
     evening: "",
@@ -1324,6 +1328,136 @@ export function stripPhantomArrivals(plan: AiTripPlan, arrivalDay = 1): number {
   return removed;
 }
 
+/**
+ * Origin boarding-pass logistics (MUC 09:00) belong on day 1 / in-flight days only.
+ * Empty mid-trip slots used to replay the outbound ticket.
+ */
+export function isOriginOutboundLogistics(a: {
+  name?: string;
+  description?: string;
+}): boolean {
+  const t = `${a.name ?? ""} ${a.description ?? ""}`.toLowerCase();
+  if (/povratn|return flight|rückflug|flight home|inbound/i.test(t)) return false;
+  if (/notranji let|domestic flight|inlandsflug/i.test(t)) return false;
+  return (
+    /mednarodni let\s*\([a-z]{3}\)/i.test(t) ||
+    /international flight\s*\([a-z]{3}\)/i.test(t) ||
+    /internationaler flug\s*\([a-z]{3}\)/i.test(t) ||
+    /odhod\s+\d{1,2}:\d{2}\s+z\s+[a-z]{3}/i.test(t) ||
+    /departs\s+\d{1,2}:\d{2}\s+from\s+[a-z]{3}/i.test(t) ||
+    /na letališču .{0,48}\([a-z]{3}\)/i.test(t) ||
+    /be at [a-z]{3} .{0,40}check-in/i.test(t) ||
+    /^mednarodni let$/i.test((a.name ?? "").trim())
+  );
+}
+
+export function stripOriginOutboundFromNonDepartureDays(
+  plan: AiTripPlan,
+  arrivalDay = 1,
+): number {
+  let removed = 0;
+  for (const day of plan.days ?? []) {
+    if (!day.activities) continue;
+    if (day.inFlightDay) continue;
+    if (day.day === 1 || day.day === arrivalDay) continue;
+    for (const slot of SLOTS) {
+      const list = day.activities[slot] ?? [];
+      const next = list.filter((a) => {
+        const drop = isOriginOutboundLogistics(a);
+        if (drop) removed += 1;
+        return !drop;
+      });
+      day.activities[slot] = next;
+    }
+  }
+  return removed;
+}
+
+function scrubGenericDayTitles(plan: AiTripPlan): number {
+  let n = 0;
+  for (const day of plan.days ?? []) {
+    const title = (day.title ?? "").trim();
+    if (
+      /prosti\s*\/\s*lokalni dan|free\s*\/\s*local day/i.test(title) ||
+      /^pri$/i.test(title)
+    ) {
+      day.title = (day.city || day.focusName || title).trim();
+      n += 1;
+    }
+  }
+  return n;
+}
+
+function overnightHubName(plan: AiTripPlan): string {
+  const code = (plan.destinationIata ?? "").toUpperCase();
+  if (!code) return "";
+  return DESTINATION_BY_IATA[code]?.name ?? "";
+}
+
+function reassignOvernightCity(day: DayPlan, src: DayPlan): void {
+  day.city = src.city;
+  day.focusName = src.focusName || src.city;
+  day.lat = src.lat;
+  day.lng = src.lng;
+  day.title = src.city || day.title;
+  day.transportation = undefined;
+  day.transportationTips = "";
+}
+
+/**
+ * One-way overnight arc: A→B→A→B among non-hub bases is forbidden.
+ * Re-entering the international IATA hub (connecting flight / last day) is allowed.
+ */
+export function linearizeOvernightArc(plan: AiTripPlan): number {
+  const days = plan.days ?? [];
+  if (days.length < 4) return 0;
+  const hub = overnightHubName(plan);
+  let changed = 0;
+  const seen: string[] = [];
+  const abandoned = new Set<string>();
+  let liveKey = "";
+  let liveSrc: DayPlan | null = null;
+
+  for (const day of days) {
+    if (day.inFlightDay) continue;
+    const city = (day.city || day.focusName || "").trim();
+    if (!city) continue;
+    const key = stayCityKey(city);
+    // International IATA city may be re-entered (north↔south via hub, last-day airport).
+    if (hub && sameStayCity(city, hub)) {
+      if (!seen.includes(key)) seen.push(key);
+      liveKey = key;
+      liveSrc = day;
+      continue;
+    }
+
+    if (abandoned.has(key) && liveSrc && liveKey !== key) {
+      reassignOvernightCity(day, liveSrc);
+      changed += 1;
+      continue;
+    }
+
+    if (!seen.includes(key)) {
+      seen.push(key);
+      liveKey = key;
+      liveSrc = day;
+      continue;
+    }
+
+    if (key === liveKey) {
+      liveSrc = day;
+      continue;
+    }
+
+    abandoned.add(key);
+    if (liveSrc) {
+      reassignOvernightCity(day, liveSrc);
+      changed += 1;
+    }
+  }
+  return changed;
+}
+
 const POI_TYPE_FLUFF_RE =
   /\b(vecerni|dopoldanski|popoldanski|tempelj|temple|shrine|svetisce|jingu|market|trznica|trznice|park|vrt|garden|muzej|museum|gozd|gaj|bambusov|okrozju|okrozje|cetrt|raziskovanje|odkrivanje|sprehod|obisk|ogled|potepanje|paviljon|zlati|tradicionaln\w*|lokaln\w*|sprostitev|sproscanje|relax\w*|beach|playa|plaza|rusevin\w*|ruins?)\b/g;
 
@@ -1864,42 +1998,6 @@ export function alignTransportationDurationWithTips(plan: AiTripPlan): number {
   return fixed;
 }
 
-function localDaypartActivity(city: string, slot: Slot, slo: boolean): Activity {
-  const place = city.trim() || (slo ? "destinaciji" : "the destination");
-  if (slot === "morning") {
-    return {
-      name: slo ? `Središče in trg v mestu ${place}` : `Centre and main square in ${place}`,
-      type: "SIGHT",
-      description: slo
-        ? `Dopoldan v ${place}: začni na glavnem trgu ali tržnici, ko se mesto zbudi. Oglej si eno javno stavbo ali park v peš razdalji od hotela, sedi na kavo tam, kjer sedijo domačini, in si začrtaj popoldansko pot brez hitenja na daljni izlet.`
-        : `Morning in ${place}: start at the main square or market as the town wakes up. See one public building or park within walking distance of the hotel, have coffee where locals sit, and plan the afternoon without rushing into a long excursion.`,
-    };
-  }
-  if (slot === "afternoon") {
-    return {
-      name: slo ? `Popoldanski ogled v mestu ${place}` : `Afternoon sight in ${place}`,
-      type: "SIGHT",
-      description: slo
-        ? `Popoldan ostani v ${place}: izberi muzej, četrt ali obalo, ki je logistično usklajena z dopoldanskim programom. Vzemi si odmor v senci, pij vodo in se pred mrakom vrni proti nastanitvi, da večer ne bo samo prevoz.`
-        : `Afternoon in ${place}: pick a museum, neighbourhood, or waterfront that sits logically after the morning. Take shade and water, then head toward the stay before dusk so the evening is not only transport.`,
-    };
-  }
-  return {
-    name: slo ? `Večer v soseski, kjer spiš v mestu ${place}` : `Evening near your stay in ${place}`,
-    type: "EAT",
-    description: slo
-      ? `Zvečer v ${place} ostani blizu nastanitve: sprehod po osvetljeni ulici in večerja v lokalu z imenom na izvesku, ne generična “lokalna večerja”. Če si podnevi veliko hodil, izberi kratek meni in zgodnji povratek.`
-      : `Evening in ${place}: stay near the hotel, walk a lit street, and eat at a venue with a name on the sign — not a generic “local dinner”. If the day was long, keep the menu short and return early.`,
-  };
-}
-
-function dayHasReturnFlight(day: DayPlan): boolean {
-  const blob = `${day.title ?? ""} ${JSON.stringify(day.activities ?? {})}`;
-  return /mednarodni (povratni )?let|international return flight|internationaler rückflug/i.test(
-    blob,
-  );
-}
-
 function slotHasBody(list: Activity[] | undefined): boolean {
   return (list ?? []).some((a) =>
     activityHasRenderableBody({ description: a.description, bullets: a.bullets }),
@@ -1981,6 +2079,7 @@ export function applyItineraryGuards(
   templateScrub: number;
   duplicatePois: number;
 } {
+  linearizeOvernightArc(plan);
   applyIslandHopLogistics(plan, opts?.language ?? plan.contentLanguage);
   relabelHubDayTripOvernights(plan.days ?? [], opts?.language ?? plan.contentLanguage);
   enrichIslandAirportTransfers(plan, {
@@ -1999,7 +2098,10 @@ export function applyItineraryGuards(
     plan.summary = alignSummaryTripLength(plan.summary, plan.days.length);
   }
   const meals = dedupeSameDayMeals(plan);
-  const arrivals = stripPhantomArrivals(plan, opts?.arrivalDay ?? 1);
+  const arrivals =
+    stripPhantomArrivals(plan, opts?.arrivalDay ?? 1) +
+    stripOriginOutboundFromNonDepartureDays(plan, opts?.arrivalDay ?? 1);
+  scrubGenericDayTitles(plan);
   const clones = dedupeNearIdenticalConsecutiveDays(plan, {
     language: opts?.language ?? plan.contentLanguage,
   });

@@ -78,7 +78,8 @@ describe("tripPlanControlRules", () => {
   it("system prompt requires morning, afternoon, evening and transport notes", () => {
     const system = tripPlanSystemPrompt(baseParams());
     expect(system).toMatch(/HIERARHIJA PRAVIL/);
-    expect(system).not.toMatch(/SMSEL POTI|DVO-STOPENJSKI NAČRT|FAZA 1/i);
+    expect(system).toMatch(/SMSEL POTI|ROUTE SENSE/);
+    expect(system).not.toMatch(/DVO-STOPENJSKI NAČRT|FAZA 1/i);
     expect(system).toMatch(/experienced human travel consultant/);
     expect(system).toMatch(/Never mix English terms or placeholder words/);
     expect(system).toMatch(/10–11 hours door-to-door/);
@@ -102,6 +103,8 @@ describe("tripPlanControlRules", () => {
     expect(system).toMatch(/NO PLACEHOLDERS \/ NO TRUNCATION/);
     expect(system).toMatch(/fully completed description \(minimum 25 words\)/);
     expect(system).toMatch(/minimum 25 words/);
+    expect(system).toMatch(/Never copy the origin international departure/);
+    expect(system).toMatch(/prosti \/ lokalni dan/);
     expect(system).toMatch(/TRAVEL DAY RULE/);
     expect(system).toMatch(/Morning is reserved for travel\/transfer/);
     expect(system).toMatch(/STRICT GENERATION & FORMATTING CONSTRAINTS/);

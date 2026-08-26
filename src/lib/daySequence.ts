@@ -67,13 +67,11 @@ function thinPlaceholderDay(
   return {
     day: dayNum,
     date: template.date,
-    title: slo ? `${city} — prosti / lokalni dan` : `${city} — free / local day`,
+    title: city,
     morning: "",
     afternoon: "",
     evening: "",
-    travelHack: slo
-      ? "Vstavljen dan (manjkala številka v AI načrtu) — lahek lokalni program."
-      : "Inserted day (AI skipped this number) — keep a light local schedule.",
+    travelHack: "",
     transportationTips: "",
     localWarnings: "",
     dailyBudgetEur: 60,
@@ -124,17 +122,9 @@ function cloneStayDay(
     lang,
     opts,
   );
-  const slo = !lang || lang.startsWith("sl");
-  const motorhome = opts?.motorhome === true;
   return {
     ...thin,
-    travelHack: slo
-      ? motorhome
-        ? "Dodan dan na isti bazi (AI je vrnil premalo koledarskih dni) — lahek lokalni program, isti kamp."
-        : "Dodan dan v istem mestu (AI je vrnil premalo koledarskih dni) — lahek lokalni program, ista hotelska baza."
-      : motorhome
-        ? "Extra night at the same base (AI returned too few calendar days) — keep a light local day."
-        : "Extra night in the same city (AI returned too few calendar days) — keep a light local day.",
+    travelHack: "",
   };
 }
 
@@ -153,13 +143,14 @@ export function expandPlanDaysToExpected(
   const lang = opts.language ?? "sl";
   const expected = opts.expectedDays;
   const inserted: number[] = [];
-  const motorhomeOpts = {
-    motorhome:
-      plan.accommodationMode === "motorhome" ||
-      plan.groundTransportMode === "motorhome",
-  };
+  const motorhome =
+    plan.accommodationMode === "motorhome" ||
+    plan.groundTransportMode === "motorhome";
+  const padTrailing =
+    motorhome || plan.groundTransportMode === "car";
+  const motorhomeOpts = { motorhome };
 
-  if (plan.days.length < expected) {
+  if (padTrailing && plan.days.length < expected) {
     const need = expected - plan.days.length;
     const slots = plan.days.length;
     const extras = Array.from({ length: slots }, () => 0);
@@ -188,7 +179,7 @@ export function expandPlanDaysToExpected(
   }
 
   const repaired = repairPlanDaySequence(plan, {
-    expectedDays: expected,
+    expectedDays: padTrailing ? expected : undefined,
     language: lang,
     departDate: opts.departDate,
   });

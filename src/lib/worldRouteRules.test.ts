@@ -18,6 +18,8 @@ describe("worldRouteRulesPromptBlock", () => {
     expect(sl).toMatch(/Zadnji koledarski dan|IATA/i);
     expect(en).toMatch(/Last calendar day|IATA city/i);
     expect(sl).toMatch(/votli naslovi|10\+ ur/i);
+    expect(sl).toMatch(/prosti \/ lokalni dan|Izlet na otok/i);
+    expect(en).toMatch(/origin international departure|boarding-pass/i);
     expect(sl).toMatch(/POI/i);
     expect(sl).toMatch(/Dve oddaljeni državi|en dan samo prevoz/i);
     expect(en).toMatch(/Bases first/i);

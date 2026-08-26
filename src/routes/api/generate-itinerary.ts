@@ -231,15 +231,18 @@ export const Route = createFileRoute("/api/generate-itinerary")({
                 }
 
                 const elapsed = Date.now() - loopStarted;
+                const covered =
+                  contiguousCoveredDays(accumulated?.days) ||
+                  accumulated?.days.length ||
+                  0;
+                const remaining = Math.max(1, expectedDays - covered);
                 const size = streamBatchSizeWithTimeLeft(
-                  expectedDays,
+                  remaining,
                   elapsed,
                   GEMINI_STREAM_HARD_MS,
                 );
                 const range = nextIncompleteDayRange(
-                  contiguousCoveredDays(accumulated?.days) ||
-                    accumulated?.days.length ||
-                    0,
+                  covered,
                   expectedDays,
                   size,
                 );

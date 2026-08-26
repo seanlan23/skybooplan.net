@@ -41,7 +41,7 @@ describe("repairPlanDaySequence", () => {
     const { inserted } = repairPlanDaySequence(plan, { language: "sl" });
     expect(inserted).toContain(5);
     expect(plan.days.map((d) => d.day)).toEqual([1, 2, 3, 4, 5, 6, 7]);
-    expect(plan.days.find((d) => d.day === 5)?.title).toMatch(/prosti|lokalni/i);
+    expect(plan.days.find((d) => d.day === 5)?.title).toMatch(/Ayutthaya|Chiang Mai/i);
   });
 });
 
@@ -76,7 +76,7 @@ describe("expandPlanDaysToExpected", () => {
     ).toBe(true);
   });
 
-  it("expands a 3-day stream stub to a 15-day calendar so 3/15 is not shipped", () => {
+  it("does not pad a hotel stream stub with empty calendar fillers", () => {
     const plan = {
       destinationName: "France",
       contentLanguage: "sl",
@@ -93,12 +93,9 @@ describe("expandPlanDaysToExpected", () => {
       departDate: "2026-08-01",
     });
 
-    expect(plan.days).toHaveLength(15);
-    expect(plan.days.map((d) => d.day)).toEqual(
-      [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
-    );
-    expect(plan.days[14]?.date).toBe("2026-08-15");
+    expect(plan.days).toHaveLength(3);
     const blob = JSON.stringify(plan);
+    expect(blob).not.toMatch(/prosti \/ lokalni dan/i);
     expect(blob).not.toMatch(/Popoldanski lokalni ogled/i);
     expect(blob).not.toMatch(/Popoldanski ogled v mestu/i);
   });
@@ -156,12 +153,10 @@ describe("expandPlanDaysToExpected", () => {
       departDate: "2026-08-01",
     });
 
-    expect(plan.days).toHaveLength(3);
+    expect(plan.days).toHaveLength(1);
     const d1 = plan.days[0]!.activities!.morning[0]!.name;
     expect(d1).toMatch(/Casco/i);
-    expect(plan.days[1]!.activities!.morning ?? []).toHaveLength(0);
-    expect(plan.days[1]!.activities!.afternoon ?? []).toHaveLength(0);
-    expect(plan.days[1]!.title).toMatch(/prosti|lokalni|nadaljevanje/i);
+    expect(JSON.stringify(plan)).not.toMatch(/prosti \/ lokalni dan/i);
   });
 
   it("trims extra days so the calendar is exactly N", () => {

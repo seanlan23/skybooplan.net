@@ -20,11 +20,14 @@ import {
   dropDuplicatePoisAcrossPlan,
   dropGenericSightStubs,
   ensureCompleteDaySlots,
+  isHollowProgramTitle,
   stripRevisitLeadIns,
   ensureCityChangeTransfer,
   stripReplayedIntercityHops,
   stripImplausibleLongHaulProgram,
-  isHollowProgramTitle,
+  stripOriginOutboundFromNonDepartureDays,
+  linearizeOvernightArc,
+  isOriginOutboundLogistics,
 } from "@/lib/itineraryGuards";
 import { repairTruncatedCopy } from "@/lib/textSanitize";
 import { expandPlanDaysToExpected } from "@/lib/daySequence";
@@ -731,6 +734,9 @@ describe("ensureCityChangeTransfer", () => {
     expect(isHollowProgramTitle("Snorkeling Trip")).toBe(true);
     expect(isHollowProgramTitle("Dan 3")).toBe(true);
     expect(isHollowProgramTitle("Gili Trawangan →.")).toBe(true);
+    expect(isHollowProgramTitle("Izlet na otok.")).toBe(true);
+    expect(isHollowProgramTitle("Raziskovanje območja")).toBe(true);
+    expect(isHollowProgramTitle("Po jutranji kavi se sprehodite.")).toBe(true);
     expect(
       isHollowProgramTitle(
         "Wat Pho (Tempelj ležečega Bude)",
@@ -1402,7 +1408,8 @@ describe("dedupeNearIdenticalConsecutiveDays", () => {
 
     expect(dedupeNearIdenticalConsecutiveDays(plan)).toBe(1);
     expect(plan.days[0]!.activities!.morning[0]!.name).toMatch(/Casco/i);
-    expect(plan.days[1]!.title).toMatch(/prosti|lokalni/i);
+    expect(plan.days[1]!.title).toMatch(/Panama/i);
+    expect(plan.days[1]!.title).not.toMatch(/prosti|lokalni dan/i);
     expect(plan.days[1]!.activities!.morning ?? []).toHaveLength(0);
     expect(plan.days[1]!.activities!.afternoon ?? []).toHaveLength(0);
     expect(plan.days[1]!.activities!.evening ?? []).toHaveLength(0);
@@ -2082,7 +2089,7 @@ describe("ensureCompleteDaySlots", () => {
     expect(plan.days[0]!.activities!.evening).toEqual([]);
   });
 
-  it("turns a 3-day France stub into a full 15-day calendar without filler titles", () => {
+  it("does not invent a 15-day hotel calendar from a 3-day stub", () => {
     const plan = {
       destinationName: "Francija in Španija",
       contentLanguage: "sl",
@@ -2139,12 +2146,75 @@ describe("ensureCompleteDaySlots", () => {
       departDate: "2026-08-01",
     });
     applyItineraryGuards(plan, { arrivalDay: 1, language: "sl" });
-    expect(plan.days).toHaveLength(15);
+    expect(plan.days).toHaveLength(3);
     const blob = JSON.stringify(plan);
+    expect(blob).not.toMatch(/prosti \/ lokalni dan/i);
     expect(blob).not.toMatch(/Popoldanski ogled v mestu/i);
     expect(blob).not.toMatch(/Večer v soseski, kjer spiš/i);
     expect(blob).not.toMatch(/Središče in trg v mestu/i);
     expect(blob).not.toMatch(/Popoldanski lokalni ogled/i);
+  });
+
+  it("scrubs the MUC→CUN PDF failure: origin replay, generic titles, Tulum↔Holbox bounce", () => {
+    const origin = {
+      name: "Mednarodni let (MUC)",
+      type: "TRANSPORT",
+      description: "Odhod 09:00 z MUC.",
+    };
+    const plan = {
+      destinationName: "Mexico",
+      destinationIata: "CUN",
+      originIata: "MUC",
+      contentLanguage: "sl",
+      days: [
+        day({
+          day: 1,
+          city: "Cancún",
+          title: "Prihod",
+          activities: { morning: [origin], afternoon: [], evening: [] },
+        }),
+        day({ day: 2, city: "Cancún", title: "Cancún — prosti / lokalni dan" }),
+        day({ day: 3, city: "Playa del Carmen", title: "Pri" }),
+        day({ day: 4, city: "Tulum", title: "Tulum" }),
+        day({
+          day: 5,
+          city: "Playa del Carmen",
+          title: "Playa del Carmen — prosti / lokalni dan",
+          activities: {
+            morning: [{ ...origin }],
+            afternoon: [{ name: "Izlet na otok.", type: "SIGHT" }],
+            evening: [],
+          },
+        }),
+        day({ day: 6, city: "Tulum" }),
+        day({ day: 7, city: "Tulum" }),
+        day({ day: 8, city: "Isla Holbox", title: "Pri" }),
+        day({ day: 9, city: "Tulum" }),
+        day({ day: 10, city: "Tulum" }),
+        day({
+          day: 11,
+          city: "Isla Holbox",
+          activities: { morning: [{ ...origin }], afternoon: [], evening: [] },
+        }),
+        day({
+          day: 12,
+          city: "Tulum",
+          activities: { morning: [{ ...origin }], afternoon: [], evening: [] },
+        }),
+        day({ day: 13, city: "Cancún" }),
+      ],
+    } as AiTripPlan;
+
+    applyItineraryGuards(plan, { arrivalDay: 1, language: "sl" });
+    const blob = JSON.stringify(plan);
+    expect(blob).not.toMatch(/prosti \/ lokalni dan/i);
+    expect(plan.days.some((d) => /^pri$/i.test(d.title ?? ""))).toBe(false);
+    expect(JSON.stringify(plan.days[4]!.activities)).not.toMatch(/Mednarodni let \(MUC\)/i);
+    expect(JSON.stringify(plan.days[10]!.activities)).not.toMatch(/Odhod 09:00 z MUC/i);
+    expect(JSON.stringify(plan.days[11]!.activities)).not.toMatch(/Mednarodni let \(MUC\)/i);
+    expect(plan.days[0]!.activities!.morning.some((a) => /MUC/i.test(a.name ?? ""))).toBe(true);
+    expect(plan.days.map((d) => d.city).join("|")).not.toMatch(/Tulum\|Isla Holbox\|Tulum/i);
+    expect(blob).not.toMatch(/Izlet na otok/i);
   });
 
   it("scrubs Thailand PDF mix-ups: wrong-city POI, stale tips, domestic label on long-haul", () => {
@@ -2252,5 +2322,97 @@ describe("ensureCompleteDaySlots", () => {
     expect(JSON.stringify(plan.days[4]!.activities)).toMatch(/Wat Phra Yai/);
     expect(JSON.stringify(plan.days[4]!.activities)).not.toMatch(/Thompson|Yaowarat|BTS/i);
     expect(plan.days[4]!.transportationTips ?? "").not.toMatch(/BTS Skytrain/i);
+  });
+});
+
+describe("stripOriginOutboundFromNonDepartureDays", () => {
+  it("removes the origin MUC ticket from mid-trip empty mornings", () => {
+    const origin = {
+      name: "Mednarodni let (MUC)",
+      type: "TRANSPORT",
+      description: "Odhod 09:00 z MUC.",
+    };
+    const plan = {
+      destinationName: "Mexico",
+      destinationIata: "CUN",
+      originIata: "MUC",
+      contentLanguage: "sl",
+      days: [
+        day({
+          day: 1,
+          city: "Cancún",
+          activities: { morning: [origin], afternoon: [], evening: [] },
+        }),
+        day({
+          day: 5,
+          city: "Playa del Carmen",
+          title: "Playa del Carmen — prosti / lokalni dan",
+          activities: { morning: [origin], afternoon: [], evening: [] },
+        }),
+        day({
+          day: 11,
+          city: "Isla Holbox",
+          activities: { morning: [{ ...origin }], afternoon: [], evening: [] },
+        }),
+      ],
+    } as AiTripPlan;
+
+    expect(isOriginOutboundLogistics(origin)).toBe(true);
+    expect(stripOriginOutboundFromNonDepartureDays(plan, 1)).toBe(2);
+    expect(plan.days[0]!.activities!.morning).toHaveLength(1);
+    expect(plan.days[1]!.activities!.morning).toHaveLength(0);
+    expect(plan.days[2]!.activities!.morning).toHaveLength(0);
+  });
+});
+
+describe("linearizeOvernightArc", () => {
+  it("collapses a mid-trip A→B→A→B bounce into a one-way arc", () => {
+    const plan = {
+      destinationName: "Mexico",
+      destinationIata: "CUN",
+      contentLanguage: "sl",
+      days: [
+        day({ day: 1, city: "Cancún" }),
+        day({ day: 2, city: "Cancún" }),
+        day({ day: 3, city: "Playa del Carmen" }),
+        day({ day: 4, city: "Tulum" }),
+        day({ day: 5, city: "Tulum" }),
+        day({ day: 6, city: "Isla Holbox" }),
+        day({ day: 7, city: "Tulum" }),
+        day({ day: 8, city: "Isla Holbox" }),
+        day({ day: 9, city: "Cancún" }),
+      ],
+    } as AiTripPlan;
+
+    expect(linearizeOvernightArc(plan)).toBeGreaterThan(0);
+    const cities = plan.days.map((d) => d.city);
+    expect(cities.join("|")).not.toMatch(/Tulum\|Isla Holbox\|Tulum/i);
+    expect(cities[8]).toMatch(/Cancún/i);
+  });
+
+  it("keeps a hub return between regions (Bangkok is the IATA city)", () => {
+    const plan = {
+      destinationName: "Thailand",
+      destinationIata: "BKK",
+      contentLanguage: "sl",
+      days: [
+        day({ day: 1, city: "Bangkok" }),
+        day({ day: 2, city: "Bangkok" }),
+        day({ day: 3, city: "Chiang Mai" }),
+        day({ day: 4, city: "Chiang Mai" }),
+        day({ day: 5, city: "Bangkok" }),
+        day({ day: 6, city: "Phuket" }),
+      ],
+    } as AiTripPlan;
+
+    expect(linearizeOvernightArc(plan)).toBe(0);
+    expect(plan.days.map((d) => d.city)).toEqual([
+      "Bangkok",
+      "Bangkok",
+      "Chiang Mai",
+      "Chiang Mai",
+      "Bangkok",
+      "Phuket",
+    ]);
   });
 });
