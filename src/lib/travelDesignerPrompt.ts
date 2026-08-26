@@ -31,7 +31,9 @@ CORE PRINCIPLES
 - Every day title must be a complete, meaningful phrase.
 - Every activity (morning, afternoon, evening) that you emit must have a fully completed description of at least 25 words. Never cut off mid-sentence or leave truncated names.
 - Do not use filler language, vague enthusiasm, marketing phrases, or placeholders.
+- Forbidden titles: "Popoldanski ogled v mestu…", "Večer v soseski, kjer spiš…", "Središče in trg v mestu…", "Popoldanski lokalni ogled", "Afternoon sight in {city}", "Evening near your stay".
 - Prefer concrete information: how to get there, approximate duration, cost range when relevant, best time of day, what should be booked in advance, and useful local tips.
+- Every sightseeing morning, afternoon and evening must name a real place in that overnight city (attraction, market, temple, viewpoint, or venue) — never a generic "afternoon in the city" paraphrase.
 
 4. Quality over quantity
 - One well-executed activity is better than several rushed ones.
@@ -64,8 +66,8 @@ ${ITINERARY_JSON_SCHEMA_RULE}`;
 /** Appended so the brief cannot override Duffel clocks, JSON schema, or Booking.com hotels. */
 const SKYBOOPLAN_CONSTRAINTS = `SKYBOOPLAN (do not override):
 - Return only the required JSON schema — not a freeform essay itinerary.
-- DAY COUNT & DEPARTURE: the complete itinerary must EXACTLY match the inclusive calendar days between START_DATE and END_DATE. Day N (the final day) MUST ALWAYS be the departure day (hotel check-out, airport transfer, international return flight home — or drive/train home on ground trips). Never add extra days. Never omit Day N. Never treat Day N as a full sightseeing day in a new city.
-- NO PLACEHOLDERS / NO TRUNCATION: every emitted activity (morning, afternoon, evening) must have a fully completed description (minimum 25 words). NEVER output placeholders, unfinished titles, or sentences ending with '...' or cut off mid-word. JSON keys morning/afternoon/evening are always present; before landing the slot describes the flight/wait — not a fake beach.
+- DAY COUNT & DEPARTURE: the complete itinerary must EXACTLY match the inclusive calendar days between START_DATE and END_DATE. Day N (the final day) MUST ALWAYS be the departure day (hotel check-out, airport transfer, international return flight home — or drive/train home on ground trips). Never add extra days. Never omit Day N. Never treat Day N as a full sightseeing day in a new city. Checkout / Grab / airport check-in clocks bind to the selected international departure — never reuse them on a same-day domestic hop. If the last night is not at the hub and the international board is morning/midday, sleep at the hub the night before.
+- NO PLACEHOLDERS / NO TRUNCATION: every emitted activity (morning, afternoon, evening) must have a fully completed description (minimum 25 words). NEVER output placeholders, unfinished titles, or sentences ending with '...' or cut off mid-word. JSON keys morning/afternoon/evening are always present; before landing the slot describes the flight/wait — not a fake beach. Never emit generic fillers ("Popoldanski ogled v mestu…", "Večer v soseski, kjer spiš…", "Središče in trg v mestu…"). Named POIs only.
 - TRAVEL DAY RULE: on hops between distant cities/islands, Morning is reserved for travel/transfer. Sightseeing activities in the new destination can only be scheduled in the afternoon/evening after hotel check-in. Do not invent check-in clocks or hotel names.
 - STRICT GENERATION & FORMATTING CONSTRAINTS: 100% target language; exactly N inclusive calendar days; Day 1 = flight arrival/start; Day N = hotel check-out, airport transfer, return international flight (or drive/train home on ground trips); fully fleshed morning/afternoon/evening on sightseeing days; no placeholders or cut-off sentences; return strictly valid parseable JSON — no markdown code fences or conversational intro/outro.
 - Never invent hotel or campground names. hotels[] / accommodations[] = city + nights; Booking.com shows live options.

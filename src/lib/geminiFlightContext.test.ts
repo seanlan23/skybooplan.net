@@ -1260,6 +1260,124 @@ describe("applyFlightContextToGeminiPlan", () => {
     expect(names.join(" | ")).toMatch(/Krabi.*Bangkok|Notranji prevoz/i);
   });
 
+  it("moves the last Krabi night to Bangkok before a 09:05 international flight", () => {
+    const empty = {
+      morning: "",
+      afternoon: "",
+      evening: "",
+      travelHack: "",
+      transportationTips: "",
+      localWarnings: "",
+      dailyBudgetEur: 80,
+    };
+    const plan = basePlan({
+      destinationName: "Thailand",
+      destinationIata: "BKK",
+      originIata: "BER",
+      centerLat: 13.75,
+      centerLng: 100.5,
+      days: [
+        {
+          day: 1,
+          date: "2026-10-16",
+          title: "Let",
+          ...empty,
+          lat: 52.36,
+          lng: 13.5,
+          city: "Berlin",
+          focusName: "Berlin",
+          category: "transport",
+          inFlightDay: true,
+          activities: { morning: [], afternoon: [], evening: [] },
+        },
+        {
+          day: 2,
+          date: "2026-10-17",
+          title: "Bangkok",
+          ...empty,
+          lat: 13.75,
+          lng: 100.5,
+          city: "Bangkok",
+          focusName: "Bangkok",
+          category: "city",
+          activities: {
+            morning: [{ name: "Wat Pho", type: "SIGHT", description: "Tempelj" }],
+            afternoon: [],
+            evening: [],
+          },
+        },
+        {
+          day: 3,
+          date: "2026-10-29",
+          title: "Krabi plaže",
+          ...empty,
+          lat: 8.08,
+          lng: 98.91,
+          city: "Krabi",
+          focusName: "Krabi",
+          category: "beach",
+          activities: {
+            morning: [{ name: "Ao Nang", type: "beach", description: "Plaža" }],
+            afternoon: [],
+            evening: [],
+          },
+        },
+        {
+          day: 4,
+          date: "2026-10-30",
+          title: "Odhod iz Krabija",
+          ...empty,
+          lat: 8.08,
+          lng: 98.91,
+          city: "Krabi",
+          focusName: "Krabi",
+          category: "transport",
+          activities: {
+            morning: [
+              {
+                name: "Notranji let Krabi → Bangkok",
+                type: "TRANSPORT",
+                transportType: "flight",
+                description: "Notranji let 09:05 – 10:45, nato mednarodni odhod.",
+                arrivalTime: "09:05",
+                departureTime: "10:45",
+              },
+            ],
+            afternoon: [],
+            evening: [],
+          },
+        },
+      ],
+    });
+
+    applyFlightContextToGeminiPlan(
+      plan,
+      {
+        outboundDepart: "15:00",
+        outboundArrive: "07:00",
+        outboundArriveDayOffset: 1,
+        inboundDepart: "09:05",
+        inboundArrive: "16:40",
+      },
+      { originIata: "BER", language: "sl", expectedDays: 4 },
+    );
+
+    const overnight = plan.days.find((d) => d.day === 3)!;
+    const last = plan.days.find((d) => d.day === 4)!;
+    expect(overnight.city).toMatch(/Bangkok/i);
+    expect(last.city).toMatch(/Bangkok/i);
+    const lastBlob = JSON.stringify(last.activities);
+    expect(lastBlob).toMatch(/09:05/);
+    expect(lastBlob).toMatch(/05:05/);
+    expect(lastBlob).toMatch(/05:35/);
+    expect(lastBlob).toMatch(/06:05/);
+    expect(lastBlob).not.toMatch(/Notranji let Krabi/i);
+    expect(lastBlob).not.toMatch(/09:05\s*[–-]\s*10:45/);
+    const hopBlob = JSON.stringify(overnight.activities);
+    expect(hopBlob).toMatch(/Notranji let Krabi.*Bangkok/i);
+    expect(hopBlob).not.toMatch(/09:05\s*[–-]\s*10:45/);
+  });
+
   it("injects Vancouver→Toronto domestic air before international return (YYZ hub)", () => {
     const emptySlots = {
       morning: "",
@@ -2445,13 +2563,16 @@ describe("applyFlightContextToGeminiPlan", () => {
       { originIata: "FRA", language: "sl", expectedDays: 4 },
     );
 
+    const overnight = plan.days.find((d) => d.day === 3)!;
     const last = plan.days.find((d) => d.day === 4)!;
+    expect(overnight.city).toMatch(/tokyo/i);
     expect(last.city).toMatch(/tokyo/i);
-    expect(last.title).toMatch(/notranji let|tokyo|mednarodni/i);
-    const blob = JSON.stringify(last.activities);
-    expect(blob).toMatch(/10:50/);
-    expect(blob).toMatch(/Hiroshima.*Tokyo|Notranji let/i);
-    expect(blob).not.toMatch(/Narita Express/);
+    expect(last.title).toMatch(/tokyo|mednarodni|odhod/i);
+    const lastBlob = JSON.stringify(last.activities);
+    expect(lastBlob).toMatch(/10:50/);
+    expect(lastBlob).not.toMatch(/Notranji let Hiroshima/i);
+    expect(JSON.stringify(overnight.activities)).toMatch(/Hiroshima.*Tokyo|Notranji let/i);
+    expect(lastBlob).not.toMatch(/Narita Express/);
   });
 
   it("drops leftover island-to-hub prevoz on last day when already in Manila", () => {

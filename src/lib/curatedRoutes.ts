@@ -202,7 +202,7 @@ const TH_CLASSIC_CIRCLE: CuratedRoute = {
   country: "TH",
   hubIata: "BKK",
   minDays: 10,
-  maxDays: 14,
+  maxDays: 13,
   priority: 14,
   wishTest: /kanchanaburi|kwai|erawan|ko samet|koh samet|samet|tigri|sloni/i,
   interests: ["sights", "nature", "beaches"],
@@ -231,6 +231,39 @@ const TH_CLASSIC_CIRCLE: CuratedRoute = {
   ],
   steer:
     "Tajska klasika: Bangkok (templji + 1 celodnevni izlet Mae Klong→Damnoen→Kwai→Death Railway→Sai Yok, start 6:30 izpred hotela — brez imena hotela) → Kanchanaburi → Chiang Mai → Ko Samet → Bangkok buffer.",
+};
+
+/** Default 14–16d BKK arrival: do not park a week in Bangkok. */
+const TH_CLASSIC_LONG: CuratedRoute = {
+  id: "th-classic-long",
+  country: "TH",
+  hubIata: "BKK",
+  minDays: 14,
+  maxDays: 16,
+  priority: 15,
+  interests: ["sights", "beaches", "nature"],
+  segments: [
+    ["Bangkok", 4],
+    ["Chiang Mai", 3],
+    ["Phuket", 3],
+    ["Krabi", 3],
+    ["Bangkok", 1],
+  ],
+  mustIncludeHighlights: [
+    "Grand Palace",
+    "Wat Pho",
+    "Wat Arun",
+    "Yaowarat",
+    "Jim Thompson House",
+    "Doi Suthep",
+    "Sunday Walking Street Chiang Mai",
+    "Old Phuket Town",
+    "Patong Beach",
+    "Railay Beach",
+    "Koh Phi Phi",
+  ],
+  steer:
+    "14–16 dni Tajska (PREDLOG, razen če uporabnik napiše svoje nočitve): 3–4 noči Bangkok, 3 noči Chiang Mai, preostanek obala/otoki (Phuket/Krabi), zadnja noč buffer v Bangkoku pred mednarodnim odhodom. PREPOVEDANO 7 noči v Bangkoku.",
 };
 
 /** Andaman beaches — Krabi + Koh Lipe (interest anchor logic). */
@@ -525,6 +558,7 @@ const AGENCY_ROUTES: CuratedRoute[] = [
   VN_NORTH_SOUTH,
   TH_CLASSIC_SHORT,
   TH_CLASSIC_CIRCLE,
+  TH_CLASSIC_LONG,
   TH_BEACHES_ANDAMAN,
   TH_PHUKET_ANDAMAN,
   TH_CHIANGMAI_NORTH,
@@ -611,7 +645,8 @@ function thDefaultRoute(
   }
   if (keys.includes("beaches") && nDays >= 12) return TH_BEACHES_ANDAMAN;
   if (nDays >= 8 && nDays <= 9) return TH_CLASSIC_SHORT;
-  if (nDays >= 10 && nDays <= 14) return TH_CLASSIC_CIRCLE;
+  if (nDays >= 10 && nDays <= 13) return TH_CLASSIC_CIRCLE;
+  if (nDays >= 14 && nDays <= 16) return TH_CLASSIC_LONG;
   const anchor = getInterestAnchor("TH", "beaches");
   if (!anchor) return null;
   return {
@@ -703,6 +738,7 @@ function isRouteEligible(
   if (route.id === "th-classic-circle") {
     return route.wishTest?.test(w) || (nDays >= 10 && /samet|otok/i.test(w));
   }
+  if (route.id === "th-classic-long") return nDays >= 14 && nDays <= 16;
   if (route.id === "th-classic-short" && nDays <= 9) return true;
   if (route.id === "id-grand-circle") {
     return route.wishTest?.test(w) || (nDays >= 14 && keys.includes("nature"));

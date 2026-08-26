@@ -98,6 +98,9 @@ describe("expandPlanDaysToExpected", () => {
       [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
     );
     expect(plan.days[14]?.date).toBe("2026-08-15");
+    const blob = JSON.stringify(plan);
+    expect(blob).not.toMatch(/Popoldanski lokalni ogled/i);
+    expect(blob).not.toMatch(/Popoldanski ogled v mestu/i);
   });
 
   it("pads car/hotel days without camp evening copy", () => {
@@ -157,7 +160,7 @@ describe("expandPlanDaysToExpected", () => {
     const d1 = plan.days[0]!.activities!.morning[0]!.name;
     expect(d1).toMatch(/Casco/i);
     expect(plan.days[1]!.activities!.morning ?? []).toHaveLength(0);
-    expect(plan.days[1]!.activities!.afternoon?.[0]?.name).toMatch(/lokalni ogled/i);
+    expect(plan.days[1]!.activities!.afternoon ?? []).toHaveLength(0);
     expect(plan.days[1]!.title).toMatch(/prosti|lokalni|nadaljevanje/i);
   });
 

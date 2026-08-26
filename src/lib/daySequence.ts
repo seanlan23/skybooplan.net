@@ -84,32 +84,18 @@ function thinPlaceholderDay(
     category: "activity",
     activities: {
       morning: [],
-      afternoon: [
-        {
-          name: slo ? "Popoldanski lokalni ogled" : "Afternoon local sight",
-          type: "SIGHT",
-          description: slo
-            ? `En konkreten ogled v ${city} (muzej, trg ali park) — ne generičen filler.`
-            : `One concrete sight in ${city} (museum, square, or park) — not generic filler.`,
-        },
-      ],
-      evening: [
-        motorhome
-          ? {
+      afternoon: [],
+      evening: motorhome
+        ? [
+            {
               name: slo ? "Večer pri kampu" : "Evening at camp",
               type: "ACTIVITY",
               description: slo
                 ? "Lahek večer pri kampu — sprehod ali kuhanje v avtodomu, brez obvezne restavracije."
                 : "Easy evening at camp — stroll or cook in the RV, no restaurant required.",
-            }
-          : {
-              name: slo ? "Lahek večer v mestu" : "Easy evening in town",
-              type: "ACTIVITY",
-              description: slo
-                ? `Sprehod po ${city} in lahka večerja — brez dolgega programa.`
-                : `Stroll around ${city} and a light dinner — no heavy schedule.`,
             },
-      ],
+          ]
+        : [],
     },
   };
 }

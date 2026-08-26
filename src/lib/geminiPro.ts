@@ -41,6 +41,7 @@ import {
 import { flightContextPromptBlock } from "@/lib/geminiFlightContext";
 import { lookupDestination } from "@/lib/destinationCoords";
 import { DISTANCE_TRANSPORT_RULES } from "@/lib/transportPromptRules";
+import { buildCuratedRoutePromptBlock } from "@/lib/curatedRoutes";
 import { plannerQualityPromptBlock } from "@/lib/plannerQuality";
 import { unifiedTripPlanSystemRules } from "@/lib/unifiedTripPlanPrompt";
 import {
@@ -836,6 +837,18 @@ PRIHODOVNO LETALIŠČE (OBVEZNO — prednost pred vsemi primeri poti):
       : `STROGO PRAVILO — HOTELI:
 - hotels[] / accommodations[] = samo city + nights. Never invent hotel names.`;
 
+  const curatedBlock =
+    explicitStayPlan
+      ? ""
+      : buildCuratedRoutePromptBlock({
+          nDays: params.days,
+          destinationIata: params.destinationIata,
+          priorities: params.priorities,
+          wishes: wishesBlob(params),
+          returnFromIata: params.returnFromIata,
+          skipForUserStayPlan: false,
+        }) ?? "";
+
   const routeBlock = explicitStayPlan
     ? `VEČ DESTINACIJ: uporabnikov razpored mest/dni ima ABSOLUTNO PREDNOST. Sledi vrstnemu redu; days[].city mora ujemati.`
     : motorhome
@@ -877,6 +890,8 @@ ${selectedFlightSystemBlock}
 ${motorhomeRules}
 
 ${lodgingBlock}
+
+${curatedBlock}
 
 STROGI JSON — dnevna polja:
 - Vsak dan: activities.morning + activities.afternoon + activities.evening (vsi trije ključi) in transportTip (transportne opombe za TO mesto).

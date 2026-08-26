@@ -148,7 +148,8 @@ export function isRenderableSlotCopy(
   if (lang === "sl" && looksMostlyEnglish(name)) return false;
   const desc = (description ?? "").trim();
   if (!desc) return Boolean(opts?.allowEmptyDescription);
-  if (desc.length < MIN_SLOT_COPY_CHARS) return false;
+  // Light / transport days: a short real description ("Stojnice.") is enough.
+  if (desc.length < MIN_SLOT_COPY_CHARS) return Boolean(opts?.allowEmptyDescription);
   if (/…|\.\.\./.test(desc)) return false;
   return true;
 }

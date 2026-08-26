@@ -277,21 +277,27 @@ function reverseIslandAccessLegs(
 ): DayTransportLeg[] {
   const islandTok = normalizeCityToken(islandCity);
   if (!islandTok) return [];
-  const inbound: DayTransportLeg[] = [];
+  const touchesIsland = (leg: DayTransportLeg): boolean => {
+    const toTok = normalizeCityToken(leg.to);
+    const fromTok = normalizeCityToken(leg.from);
+    return Boolean(
+      (toTok && (toTok.includes(islandTok) || islandTok.includes(toTok))) ||
+        (fromTok && (fromTok.includes(islandTok) || islandTok.includes(fromTok))),
+    );
+  };
   for (const day of plan.days) {
-    for (const leg of day.transportation ?? []) {
-      const toTok = normalizeCityToken(leg.to);
-      if (!toTok) continue;
-      if (toTok.includes(islandTok) || islandTok.includes(toTok)) inbound.push({ ...leg });
-    }
+    const legs = (day.transportation ?? []).filter(
+      (leg) => leg.type !== "flight" && (leg.from || leg.to),
+    );
+    if (!legs.length || !legs.some(touchesIsland)) continue;
+    return [...legs].reverse().map((leg) => {
+      if (leg.type === "ferry" || cityNamesMatch(leg.to, islandCity)) {
+        return { ...leg, from: islandCity, to: cityNamesMatch(leg.from, islandCity) ? hubName : leg.from };
+      }
+      return { ...leg, from: leg.to, to: hubName };
+    });
   }
-  if (!inbound.length) return [];
-  return [...inbound].reverse().map((leg) => {
-    if (leg.type === "ferry") {
-      return { ...leg, from: islandCity, to: leg.from };
-    }
-    return { ...leg, from: leg.to, to: hubName };
-  });
+  return [];
 }
 
 function islandExitActivities(
@@ -381,6 +387,111 @@ function stampOvernightCityToHub(
     overnight.lng = hubLng;
   }
   overnight.mapPins = [];
+}
+
+function dayAlreadyReturnsToHub(
+  day: DayPlan,
+  fromCity: string,
+  hubName: string,
+): boolean {
+  for (const leg of day.transportation ?? []) {
+    if (cityNamesMatch(leg.from, fromCity) || cityNamesMatch(leg.to, hubName)) {
+      return true;
+    }
+  }
+  const blob = dayBlob(day);
+  const hubTok = normalizeCityToken(hubName);
+  if (!hubTok || !normalizeCityToken(blob).includes(hubTok)) return false;
+  return /notranji let|domestic (air|flight)|inlandsflug|volo domestico|vuelo doméstic|vol intérieur|check-?in|namestitev|vlak|train|tgv|prevoz|transfer|flight/i.test(
+    blob,
+  );
+}
+
+/**
+ * Morning/midday international boards cannot start with a same-day domestic air hop
+ * (Krabi→BKK then 09:05 Europe). Sleep at the ticket hub the night before.
+ */
+function relocateLastOvernightToHubForAirHop(
+  plan: AiTripPlan,
+  opts: {
+    fromCity: string;
+    hubName: string;
+    hubLat?: number;
+    hubLng?: number;
+    totalDays: number;
+    language: string;
+  },
+): void {
+  const overnight = plan.days.find((d) => d.day === opts.totalDays - 1);
+  if (!overnight || overnight.inFlightDay) return;
+  const alreadyReturns = dayAlreadyReturnsToHub(
+    overnight,
+    opts.fromCity,
+    opts.hubName,
+  );
+  stampOvernightCityToHub(overnight, opts.hubName, opts.hubLat, opts.hubLng);
+  if (alreadyReturns) return;
+  overnight.category = "transport";
+  overnight.title = planLangCopy(opts.language, {
+    sl: `Notranji let ${opts.fromCity} → ${opts.hubName}`,
+    en: `Domestic flight ${opts.fromCity} → ${opts.hubName}`,
+    de: `Inlandsflug ${opts.fromCity} → ${opts.hubName}`,
+    it: `Volo domestico ${opts.fromCity} → ${opts.hubName}`,
+    es: `Vuelo doméstico ${opts.fromCity} → ${opts.hubName}`,
+    fr: `Vol intérieur ${opts.fromCity} → ${opts.hubName}`,
+  });
+  overnight.transportation = [
+    {
+      type: "flight",
+      from: opts.fromCity,
+      to: opts.hubName,
+      duration: "1–2 h",
+      estimatedPrice: 0,
+    },
+  ];
+  overnight.morning = "";
+  overnight.afternoon = "";
+  overnight.evening = "";
+  overnight.activities = {
+    morning: [
+      {
+        name: planLangCopy(opts.language, {
+          sl: `Notranji let ${opts.fromCity} → ${opts.hubName}`,
+          en: `Domestic flight ${opts.fromCity} → ${opts.hubName}`,
+          de: `Inlandsflug ${opts.fromCity} → ${opts.hubName}`,
+          it: `Volo domestico ${opts.fromCity} → ${opts.hubName}`,
+          es: `Vuelo doméstico ${opts.fromCity} → ${opts.hubName}`,
+          fr: `Vol intérieur ${opts.fromCity} → ${opts.hubName}`,
+        }),
+        type: "TRANSPORT",
+        transportType: "flight",
+        description: planLangCopy(opts.language, {
+          sl: `Zgodnji notranji let ${opts.fromCity} → ${opts.hubName}. Mednarodni odhod je jutri — spi v ${opts.hubName}. Ur notranjega leta ne veži na mednarodno vozovnico.`,
+          en: `Morning domestic flight ${opts.fromCity} → ${opts.hubName}. The international departure is tomorrow — sleep in ${opts.hubName}. Do not reuse international ticket clocks on this hop.`,
+          de: `Morgens Inlandsflug ${opts.fromCity} → ${opts.hubName}. Der internationale Abflug ist morgen — übernachte in ${opts.hubName}. Keine internationalen Ticketzeiten auf diesen Hop.`,
+        }),
+      },
+    ],
+    afternoon: [
+      {
+        name: planLangCopy(opts.language, {
+          sl: `Check-in v ${opts.hubName}`,
+          en: `Check-in in ${opts.hubName}`,
+          de: `Check-in in ${opts.hubName}`,
+          it: `Check-in a ${opts.hubName}`,
+          es: `Check-in en ${opts.hubName}`,
+          fr: `Check-in à ${opts.hubName}`,
+        }),
+        type: "STAY",
+        description: planLangCopy(opts.language, {
+          sl: `Nočitev v ${opts.hubName} pred jutrišnjim mednarodnim letom.`,
+          en: `Overnight in ${opts.hubName} before tomorrow’s international flight.`,
+          de: `Übernachtung in ${opts.hubName} vor dem internationalen Flug morgen.`,
+        }),
+      },
+    ],
+    evening: [],
+  };
 }
 
 /**
@@ -633,13 +744,36 @@ function patchAirportActivityTimes(
   const patch = (list: Activity[] | undefined): Activity[] =>
     (list ?? []).map((a) => {
       const blob = `${a.name} ${a.description ?? ""} ${a.type ?? ""}`.toLowerCase();
+      const isDomesticHop =
+        /notranji\s*let|domestic\s*(air|flight)|inlandsflug|volo domestico|vuelo doméstic|vol intérieur/i.test(
+          a.name,
+        ) && !/mednarodni|international (return )?flight/i.test(a.name);
       const isIntlFlight =
+        !isDomesticHop &&
         (a.transportType === "flight" ||
           isFlightRangeActivity(a) ||
           /\b(mednarodni (povratni )?let|international (return )?flight|volo internazionale|internationaler rückflug|vuelo internacional|vol international)\b/i.test(
             a.name,
           )) &&
         !/transfer|check-?out|check-?in(?!.*flight)|grab|taxi/i.test(a.name);
+
+      if (isDomesticHop) {
+        let description = a.description ?? "";
+        if (description) {
+          description = description.replace(/\b\d{1,2}:\d{2}\b/g, (match) => {
+            const norm = normalizeHmToken(match);
+            if (norm && (norm === depNorm || (arrNorm && norm === arrNorm))) return "";
+            return match;
+          });
+          description = description.replace(/\s+[–—-]\s+/g, " ").replace(/\s{2,}/g, " ").trim();
+        }
+        return normalizeActivityClocks({
+          ...a,
+          arrivalTime: undefined,
+          departureTime: undefined,
+          description: description || a.description,
+        });
+      }
 
       let description = a.description;
       if (description && /airport|letališč|odlet|povratek|return|flight|check-?out|prevoz|transfer/i.test(blob)) {
@@ -1419,17 +1553,34 @@ export function applyFlightContextToGeminiPlan(
         hubName &&
         prevCity &&
         !alreadyAtHub &&
-        isSmallIsland(prevCity) &&
         isTightDeparture(flights)
       ) {
-        relocateLastIslandOvernightToHub(plan, {
-          islandCity: prevCity,
-          hubName,
-          hubLat: destHub?.lat,
-          hubLng: destHub?.lng,
-          totalDays,
-          language: lang,
-        });
+        if (isSmallIsland(prevCity)) {
+          relocateLastIslandOvernightToHub(plan, {
+            islandCity: prevCity,
+            hubName,
+            hubLat: destHub?.lat,
+            hubLng: destHub?.lng,
+            totalDays,
+            language: lang,
+          });
+        } else if (
+          shouldInjectDomesticAirHubHop(
+            prevCity,
+            hubName,
+            plan.destinationIata,
+            flights.inboundDepart,
+          )
+        ) {
+          relocateLastOvernightToHubForAirHop(plan, {
+            fromCity: prevCity,
+            hubName,
+            hubLat: destHub?.lat,
+            hubLng: destHub?.lng,
+            totalDays,
+            language: lang,
+          });
+        }
         const again = resolveCityBeforeDeparture(plan, totalDays, hubName);
         prevCity = again.stayCity;
         alreadyAtHub = again.alreadyAtHub;

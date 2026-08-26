@@ -265,6 +265,22 @@ describe("curatedRoutes global defaults", () => {
     expect(block).not.toMatch(/Dan 1–[5-9]: Bangkok/i);
   });
 
+  it("defaults 15-day BKK arrivals to north + coast, not a Bangkok week", () => {
+    const route = matchCuratedRoute(15, "BKK", ["sights"], "sproščeno templji");
+    expect(route?.id).toBe("th-classic-long");
+    const block = buildCuratedRoutePromptBlock({
+      nDays: 15,
+      destinationIata: "BKK",
+      priorities: ["sights"],
+      wishes: "sproščeno templji",
+    });
+    expect(block).toMatch(/PREDLOG POTI/i);
+    expect(block).toMatch(/Chiang Mai/i);
+    expect(block).toMatch(/Dan 1–[34]: Bangkok/i);
+    expect(block).not.toMatch(/Dan 1–[5-9]: Bangkok/i);
+    expect(block).toMatch(/PREPOVEDANO 7 noči/i);
+  });
+
   it("buildCuratedRoutePromptBlock covers Vietnam north-south", () => {
     const block = buildCuratedRoutePromptBlock({
       nDays: 10,

@@ -110,6 +110,32 @@ describe("tripPlanControlRules", () => {
     expect(system).toMatch(/transportTip/);
     expect(system).toMatch(/\(END_DATE − START_DATE\) \+ 1 = 16/);
     expect(system).not.toMatch(/Mae Klong|KURIRANA POT|Dan 1–3: Bangkok|Koh Lipe: NI neposrednega/i);
+    expect(system).toMatch(/Popoldanski ogled v mestu \{city\}/);
+  });
+
+  it("suggests a balanced 15-day Thailand route when the user did not spell nights", () => {
+    const system = tripPlanSystemPrompt(
+      baseParams({
+        destinationIata: "BKK",
+        destination: "Bangkok",
+        days: 15,
+        departDate: "2026-10-16",
+        returnDate: "2026-10-30",
+        customWishes: "sproščeno, templji in plaže",
+        flightContext: {
+          outboundDepart: "15:00",
+          outboundArrive: "07:00",
+          outboundArriveDayOffset: 1,
+          inboundDepart: "09:05",
+          inboundArrive: "16:40",
+        },
+      }),
+    );
+    expect(system).toMatch(/PREDLOG POTI/i);
+    expect(system).toMatch(/Chiang Mai/i);
+    expect(system).toMatch(/Dan 1–[34]: Bangkok/i);
+    expect(system).not.toMatch(/Dan 1–[5-9]: Bangkok/);
+    expect(system).toMatch(/Popoldanski ogled v mestu \{city\}/);
   });
 
   it("continuation batches ask only for remaining day_numbers and leftover destinations", () => {

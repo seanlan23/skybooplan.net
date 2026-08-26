@@ -228,6 +228,8 @@ export function looksLikeCutStemSentence(text: string): boolean {
   const last = t.slice(lastClauseStart(t));
   const words = last.replace(/[.!?…]+$/u, "").trim().split(/\s+/).filter(Boolean);
   const lastWord = words[words.length - 1] ?? "";
+  // "Odhod 14:00." is a boarding-pass clock, not a cut ordinal ("znameniti 5.").
+  if (/\d{1,2}:\d{2}\.?\s*$/.test(last)) return false;
   if (/\d+\.\s*$/.test(last) && words.length <= 6) return true;
   if (/\s+in\s+\S{3,14}\.\s*$/i.test(last) && words.length <= 6) return true;
   if (
@@ -311,9 +313,26 @@ function repairTruncatedLine(line: string): string {
 
   const lastWord = t.split(/\s+/).pop() ?? "";
   const lastWordBare = lastWord.replace(/[.…!?]+$/u, "").toLowerCase();
-  const completeShortWord = new Set(["let", "dan", "dni", "noč", "noc", "ura", "uri", "ure", "ur", "km"]).has(
-    lastWordBare,
-  );
+  const completeShortWord = new Set([
+    "let",
+    "dan",
+    "dni",
+    "noč",
+    "noc",
+    "ura",
+    "uri",
+    "ure",
+    "ur",
+    "km",
+    "flight",
+    "flug",
+    "volo",
+    "vuelo",
+    "vol",
+    "hotel",
+    "park",
+    "transfer",
+  ]).has(lastWordBare);
   const noStop = !/[.!?…]$/u.test(t);
   const danglingVerb =
     noStop &&
@@ -345,6 +364,7 @@ function repairTruncatedLine(line: string): string {
   const hasEllipsis = /…|\.\.\./.test(t);
   const cutMidWord =
     noStop &&
+    !completeShortWord &&
     lastWord.length >= 4 &&
     lastWord.length <= 8 &&
     /^[a-záéíóúäöüčšž]+$/u.test(lastWord) &&

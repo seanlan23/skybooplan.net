@@ -270,6 +270,10 @@ describe("repairTruncatedCopy", () => {
     expect(repairTruncatedCopy("Večerja v restavraciji in prefinjenem ambient")).toBe(
       "Večerja v restavraciji.",
     );
+    expect(repairTruncatedCopy("International return flight")).toBe(
+      "International return flight",
+    );
+    expect(repairTruncatedCopy("Odhod 14:00.")).toMatch(/Odhod 14:00/);
   });
 
   it("drops a two-letter day stub and completes a cut city title", () => {

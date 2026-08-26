@@ -1404,7 +1404,8 @@ describe("dedupeNearIdenticalConsecutiveDays", () => {
     expect(plan.days[0]!.activities!.morning[0]!.name).toMatch(/Casco/i);
     expect(plan.days[1]!.title).toMatch(/prosti|lokalni/i);
     expect(plan.days[1]!.activities!.morning ?? []).toHaveLength(0);
-    expect(plan.days[1]!.activities!.afternoon?.[0]?.name).not.toMatch(/Casco Vieja/i);
+    expect(plan.days[1]!.activities!.afternoon ?? []).toHaveLength(0);
+    expect(plan.days[1]!.activities!.evening ?? []).toHaveLength(0);
   });
 });
 
@@ -1965,7 +1966,7 @@ describe("FRA→EZE failure classes", () => {
 });
 
 describe("ensureCompleteDaySlots", () => {
-  it("fills empty morning, afternoon and evening on a mid-trip gap day", () => {
+  it("does not inject generic city fillers into empty mid-trip slots", () => {
     const plan = {
       destinationName: "Mexico",
       contentLanguage: "sl",
@@ -2028,16 +2029,60 @@ describe("ensureCompleteDaySlots", () => {
         }),
       ],
     } as AiTripPlan;
-    expect(ensureCompleteDaySlots(plan)).toBe(9);
+    expect(ensureCompleteDaySlots(plan)).toBe(0);
+    const blob = JSON.stringify(plan);
+    expect(blob).not.toMatch(/Popoldanski ogled v mestu/i);
+    expect(blob).not.toMatch(/Večer v soseski, kjer spiš/i);
+    expect(blob).not.toMatch(/Središče in trg v mestu/i);
     for (const n of [4, 9, 12]) {
       const d = plan.days.find((x) => x.day === n)!;
-      expect(d.activities!.morning).toHaveLength(1);
-      expect(d.activities!.afternoon).toHaveLength(1);
-      expect(d.activities!.evening).toHaveLength(1);
+      expect(d.activities!.morning).toHaveLength(0);
+      expect(d.activities!.afternoon).toHaveLength(0);
+      expect(d.activities!.evening).toHaveLength(0);
     }
   });
 
-  it("turns a 3-day France stub into a full 15-day calendar with filled slots", () => {
+  it("strips leftover day-part filler titles if they were already injected", () => {
+    const plan = {
+      destinationName: "Thailand",
+      contentLanguage: "sl",
+      days: [
+        day({
+          day: 5,
+          city: "Bangkok",
+          activities: {
+            morning: [
+              {
+                name: "Središče in trg v mestu Bangkok",
+                type: "SIGHT",
+                description: "Generičen dopoldan.",
+              },
+            ],
+            afternoon: [
+              {
+                name: "Popoldanski ogled v mestu Bangkok",
+                type: "SIGHT",
+                description: "Generičen popoldan.",
+              },
+            ],
+            evening: [
+              {
+                name: "Večer v soseski, kjer spiš v mestu Bangkok",
+                type: "EAT",
+                description: "Generičen večer.",
+              },
+            ],
+          },
+        }),
+      ],
+    } as AiTripPlan;
+    expect(dropGenericSightStubs(plan)).toBe(3);
+    expect(plan.days[0]!.activities!.morning).toEqual([]);
+    expect(plan.days[0]!.activities!.afternoon).toEqual([]);
+    expect(plan.days[0]!.activities!.evening).toEqual([]);
+  });
+
+  it("turns a 3-day France stub into a full 15-day calendar without filler titles", () => {
     const plan = {
       destinationName: "Francija in Španija",
       contentLanguage: "sl",
@@ -2095,12 +2140,11 @@ describe("ensureCompleteDaySlots", () => {
     });
     applyItineraryGuards(plan, { arrivalDay: 1, language: "sl" });
     expect(plan.days).toHaveLength(15);
-    for (const n of [4, 9, 12]) {
-      const d = plan.days.find((x) => x.day === n)!;
-      expect(d.activities!.morning.length).toBeGreaterThan(0);
-      expect(d.activities!.afternoon.length).toBeGreaterThan(0);
-      expect(d.activities!.evening.length).toBeGreaterThan(0);
-    }
+    const blob = JSON.stringify(plan);
+    expect(blob).not.toMatch(/Popoldanski ogled v mestu/i);
+    expect(blob).not.toMatch(/Večer v soseski, kjer spiš/i);
+    expect(blob).not.toMatch(/Središče in trg v mestu/i);
+    expect(blob).not.toMatch(/Popoldanski lokalni ogled/i);
   });
 
   it("scrubs Thailand PDF mix-ups: wrong-city POI, stale tips, domestic label on long-haul", () => {
@@ -2204,8 +2248,7 @@ describe("ensureCompleteDaySlots", () => {
     expect(plan.days[2]!.title).not.toMatch(/Kulinarične in kulturne/i);
     expect(plan.days[3]!.transportationTips ?? "").not.toMatch(/Doi Suthep|CNX/i);
     expect(JSON.stringify(plan.days[3]!.activities)).not.toMatch(/Lokalni pomembnejši ogled/i);
-    expect(plan.days[3]!.activities!.afternoon.length).toBeGreaterThan(0);
-    expect(plan.days[3]!.activities!.evening.length).toBeGreaterThan(0);
+    expect(JSON.stringify(plan.days[3]!.activities)).not.toMatch(/Popoldanski ogled v mestu/i);
     expect(JSON.stringify(plan.days[4]!.activities)).toMatch(/Wat Phra Yai/);
     expect(JSON.stringify(plan.days[4]!.activities)).not.toMatch(/Thompson|Yaowarat|BTS/i);
     expect(plan.days[4]!.transportationTips ?? "").not.toMatch(/BTS Skytrain/i);

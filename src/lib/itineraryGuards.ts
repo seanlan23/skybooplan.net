@@ -272,8 +272,8 @@ function thinLocalDay(day: DayPlan, lang: string): DayPlan {
     mapPins: [],
     activities: {
       morning: [],
-      afternoon: [localDaypartActivity(city, "afternoon", slo)],
-      evening: [localDaypartActivity(city, "evening", slo)],
+      afternoon: [],
+      evening: [],
     },
   };
 }
@@ -523,6 +523,13 @@ export function ensureCityChangeTransfer(plan: AiTripPlan): number {
       continue;
     }
 
+    const alreadyIslandExit = SLOTS.some((slot) =>
+      (cur.activities?.[slot] ?? []).some((a) =>
+        /trajekt|ferry|chiquil|otok/i.test(`${a.name ?? ""} ${a.description ?? ""}`),
+      ),
+    );
+    if (alreadyIslandExit) continue;
+
     if (dayHasIntercityMove(cur, from, to)) {
       if (!byAir || !cur.activities) continue;
       const lastBlob = [
@@ -735,12 +742,26 @@ export function stripReplayedIntercityHops(plan: AiTripPlan): number {
       for (const slot of SLOTS) {
         const list = curr.activities[slot] ?? [];
         curr.activities[slot] = list.filter((a) => {
+          if (a.type === "STAY" || /check-?in/i.test(a.name ?? "")) return true;
           const blob = `${a.name ?? ""} ${a.description ?? ""}`;
           const hop =
             a.type === "TRANSPORT" ||
             !!a.transportType ||
             /let|flight|trajekt|ferry/i.test(blob);
           if (!hop || !hopArrivesAt(blob, dest)) return true;
+          const arrow = blob.match(/(.+?)\s*(?:→|->)\s*(.+)/);
+          const fromHop = cleanHopEnd(arrow?.[1] ?? "");
+          const alreadyFlewThis = listedDayHops(prev).some(
+            (h) => sameStayCity(h.from, fromHop) && sameStayCity(h.to, dest),
+          );
+          // Hub-buffer overnight is already dest, but this inbound is a new city (Krabi → Bangkok).
+          if (
+            fromHop.length >= 4 &&
+            !sameStayCity(fromHop, dest) &&
+            !alreadyFlewThis
+          ) {
+            return true;
+          }
           dayRemoved += 1;
           return false;
         });
@@ -814,6 +835,14 @@ export function stripImplausibleLongHaulProgram(plan: AiTripPlan): number {
     const slotFloor = slot === "morning" ? 0 : slot === "afternoon" ? 12 * 60 : 17 * 60;
     arrival.activities[slot] = (arrival.activities[slot] ?? []).filter((a) => {
       if (isOriginAirportLeg(a, plan.originIata)) return true;
+      if (
+        arrival.day > 1 &&
+        /prihod na letališč|prevoz do hotela|prihod v hotel|airport arrival|transfer to hotel|hotel arrival|ankunft am flughafen|transfer zum hotel|ankunft im hotel|arrivo in aeroporto|transfer all'hotel|llegada al aeropuerto|traslado al hotel|arrivée à l'aéroport|transfert à l'hôtel|prevoz do najema|transfer to rv/i.test(
+          `${a.name ?? ""} ${a.description ?? ""}`,
+        )
+      ) {
+        return true;
+      }
       const clock = activityClockMin(a);
       const tooEarly = clock != null ? clock < earliest - 90 : slotFloor < earliest - 90;
       if (!tooEarly) return true;
@@ -1479,8 +1508,18 @@ export function dropDuplicatePoisAcrossPlan(plan: AiTripPlan): number {
   return removed;
 }
 
+/** App-injected or Gemini day-part padding — never a real POI. */
+function isDaypartFillerActivity(a: Activity): boolean {
+  const name = (a.name ?? "").trim();
+  if (!name) return false;
+  return /^(središče in trg v mestu|popoldanski ogled v mestu|večer v soseski|popoldanski lokalni ogled|lahek večer v mestu|centre and main square in|afternoon sight in|evening near your stay in|afternoon local sight|easy evening in town)/i.test(
+    name,
+  );
+}
+
 /** "Sprostitev na Playa" with no real place name — Gemini stub, not a sight. */
 function isGenericSightStub(a: Activity): boolean {
+  if (isDaypartFillerActivity(a)) return true;
   if (isNonPoiActivity(a)) return false;
   const name = (a.name ?? "").trim();
   if (!name) return true;
@@ -1493,15 +1532,18 @@ export function dropGenericSightStubs(plan: AiTripPlan): number {
   let removed = 0;
   for (const day of plan.days ?? []) {
     if (!day.activities) continue;
+    let changed = false;
     for (const slot of SLOTS) {
       const list = day.activities[slot] ?? [];
       const next = list.filter((a) => {
         if (!isGenericSightStub(a)) return true;
         removed += 1;
+        changed = true;
         return false;
       });
       day.activities[slot] = next;
     }
+    if (changed) resyncDaySlotProse(day);
   }
   return removed;
 }
@@ -1631,7 +1673,7 @@ function formatHoursDuration(hours: number): string {
 }
 
 function isAirportOrCheckout(a: Activity): boolean {
-  return /check-?out|check-?in|letališč|airport|odhod iz hotela/i.test(
+  return /check-?out|check-?in|letališč|airport|odhod iz hotela|prihod v hotel|hotel arrival|ankunft im hotel|prihod v kamp|arrival at camp/i.test(
     `${a.name ?? ""} ${a.description ?? ""}`,
   );
 }
@@ -1864,29 +1906,28 @@ function slotHasBody(list: Activity[] | undefined): boolean {
   );
 }
 
-/** Sightseeing days must ship morning + afternoon + evening objects (no silent gaps). */
+/**
+ * Keep slot keys present. Do not invent generic city fillers — empty mid-trip
+ * slots stay empty so PDF/UI never ship "Popoldanski ogled v mestu…".
+ */
 export function ensureCompleteDaySlots(plan: AiTripPlan): number {
-  const slo = !plan.contentLanguage || plan.contentLanguage.startsWith("sl");
-  const days = [...(plan.days ?? [])].sort((a, b) => a.day - b.day);
-  const lastDay = days[days.length - 1]?.day;
-  const firstDay = days[0]?.day ?? 1;
-  let filled = 0;
-  for (const day of days) {
+  let touched = 0;
+  for (const day of plan.days ?? []) {
     if (day.inFlightDay) continue;
-    if (day.day <= firstDay + 1) continue;
-    if (day.day === lastDay && dayHasReturnFlight(day)) continue;
     day.activities = day.activities ?? { morning: [], afternoon: [], evening: [] };
-    const city = (day.city || day.focusName || "").trim();
     let changed = false;
     for (const slot of SLOTS) {
-      if (slotHasBody(day.activities[slot])) continue;
-      day.activities[slot] = [localDaypartActivity(city, slot, slo)];
-      filled += 1;
-      changed = true;
+      const list = day.activities[slot] ?? [];
+      const next = list.filter((a) => !isDaypartFillerActivity(a));
+      if (next.length !== list.length) {
+        day.activities[slot] = next;
+        touched += list.length - next.length;
+        changed = true;
+      }
     }
     if (changed) resyncDaySlotProse(day);
   }
-  return filled;
+  return touched;
 }
 
 /** Move Tirana museums off the evening slot (they close ~18:00). */

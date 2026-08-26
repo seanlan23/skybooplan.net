@@ -66,6 +66,8 @@ NO PLACEHOLDERS / NO TRUNCATION:
 - Every activity (morning, afternoon, evening) must have a fully completed description (minimum 25 words).
 - NEVER output placeholders, unfinished titles, or sentences ending with '...' or cut off mid-word.
 - Forbidden: "Top of.", "Walk of.", "Canal.", "→ St.", trailing "proti.", "Kulinarične in kulturne.", "Lokalni pomembnejši ogled".
+- Forbidden generic day-part fillers (never use these titles or paraphrases): "Popoldanski ogled v mestu {city}", "Večer v soseski, kjer spiš v mestu {city}", "Središče in trg v mestu {city}", "Popoldanski lokalni ogled", "Lahek večer v mestu", "Afternoon sight in {city}", "Evening near your stay in {city}".
+- Each sightseeing day must name a real place for morning, afternoon AND evening (temple, market, museum, viewpoint, neighbourhood, beach, or a named local venue) in that overnight city — not a restatement of the city name.
 
 STRUCTURED JSON — every calendar day MUST include:
 - activities.morning, activities.afternoon, activities.evening — all three keys present, each a complete object { title, description, category, estimatedCostEur }.
@@ -73,7 +75,7 @@ STRUCTURED JSON — every calendar day MUST include:
 - travelHack — one unique insider tip for that city/day.
 - On arrival / in-flight / pre-landing slots: the object still exists. Content = the flight/transfer or "still airborne — no destination programme yet" (complete sentences). NEVER a beach, breakfast by the sea, or sightseeing before landing.
 - TRAVEL DAY RULE: on hops between distant cities/islands, Morning is reserved for travel/transfer. Sightseeing in the new destination only afternoon/evening after hotel check-in.
-- Last day: morning may be a light local close; afternoon/evening = checkout + airport transfer + return flight (no invented HH:MM — the selected ticket owns those clocks).
+- Last day: checkout, Grab/taxi/transfer, and airport check-in MUST be timed from the selected international departure (the ticket owns HH:MM). Never copy those clocks onto a domestic hop. If the last hotel night is not at the international hub and the board is morning/midday, return to the hub the day before — Day N is only checkout + airport + international flight.
 
 ${ITINERARY_JSON_SCHEMA_RULE}
 

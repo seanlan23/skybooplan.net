@@ -409,7 +409,8 @@ PREVOZI (leti/trajekti/vlaki):
 - Dnevni “5 h vožnje” cap NE velja za mednarodni let.
 - TRAVEL DAY: dopoldne = prevoz/transfer; ogledi v novem mestu samo popoldne/zvečer po check-inu.
 - Medmesti: najprej zapiši hop (let/trajekt/vlak), šele nato oglede v novem mestu.
-- Zadnji dan = samo pravi odhod — ne žigosi vmesnega vračanja na hub kot mednarodni let.`;
+- Zadnji dan = samo pravi odhod — ne žigosi vmesnega vračanja na hub kot mednarodni let.
+- Zadnji dan: odjava, Grab/taxi in prijava na letališču se vežejo na uro MEDNARODNEGA odhoda. Notranji let prejšnji dan (če je treba spati na hubu pred jutranjim boardom) NE sme dobiti istih ur kot mednarodna vozovnica.`;
 
   return `
 === KAKOVOST NAČRTA (vse destinacije — obvezno) ===
@@ -439,6 +440,7 @@ PRAKTIČNO (vsak dan kjer sodi):
 STIL (človeški planner, ne turistična brošura):
 - Piši kot izkušen lokalni kolega: kratko, konkretno, uporabno. Drugačen nasvet vsak dan.
 - PREPOVEDANO brošurno: "Uživajte v…", "čudovit razgled", "kulturni/zgodovinski dragulj", "avtentična kuhinja", "fine dining izkušnja", "spoznavanje s prvim okoljem", "lahkoten sprehod v okolici namestitve".
+- PREPOVEDANO generični dnevni polnilci: "Popoldanski ogled v mestu…", "Večer v soseski, kjer spiš…", "Središče in trg v mestu…", "Popoldanski lokalni ogled". Vsak slot = konkretno ime kraja v tistem mestu.
 - PREPOVEDANO Wikipedia: "zgrajeno v letu…, znana po…, ki služi kot…". Namesto tega: kaj narediš + 1 praktičen detajl (ura, kako priti, kaj vzeti, kaj stane).
 - PREPOVEDANO v travelHack echo-ati ta pravila ("Raje 2 noči…", "PREPOVEDANO", "hit and run", "cilj ≤5 h").
 
