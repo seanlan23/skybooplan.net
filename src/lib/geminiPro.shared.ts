@@ -242,36 +242,65 @@ export const tripPlanSchema = z.object({
     .default([]),
 });
 
-const dayPartSlotSchema = activitySchema.extend({
-  timeSlot: z.enum(DAY_TIME_SLOTS).optional(),
+/** Slim structured-output schema — the full tripPlanSchema is too heavy for Gemini to stream. */
+const geminiSlotSchema = z.object({
+  title: z.string().min(1),
+  description: z.string().min(1),
+  category: z.enum(MAP_POI_CATEGORIES).optional(),
+  time: z.string().optional(),
+  cost_eur: z.number().min(0).optional(),
+  estimatedCostEur: z.number().min(0).optional(),
+  coordinates: coordinatesSchema.optional(),
+  unsplashQuery: z.string().min(1).optional(),
 });
 
-/** Structured Outputs schema: nested slots. Optional so a truncated stream can still yield a day.
- * `itinerar` is the first key so Gemini emits days before weather/POI preamble. */
-const geminiItinerarSchema = z.array(
-  z.object({
-    phase: z.string().min(1),
-    city: z.string().min(1),
-    unsplashQuery: z.string().min(1),
-    lat: wgsLat,
-    lng: wgsLng,
-    days: z.array(
-      daySchema.extend({
-        activities: z.object({
-          morning: dayPartSlotSchema.optional(),
-          afternoon: dayPartSlotSchema.optional(),
-          evening: dayPartSlotSchema.optional(),
+export const tripPlanGeminiSchema = z.object({
+  itinerar: z.array(
+    z.object({
+      city: z.string().min(1),
+      phase: z.string().min(1).optional(),
+      unsplashQuery: z.string().min(1).optional(),
+      lat: wgsLat.optional(),
+      lng: wgsLng.optional(),
+      days: z.array(
+        z.object({
+          day_number: z.number().int().min(1),
+          date: z.string().optional(),
+          title: z.string().optional(),
+          city: z.string().min(1).optional(),
+          transportTip: z.string().optional(),
+          dailyBudget: z.number().min(0).optional(),
+          daily_budget_per_person_eur: z.number().min(0).optional(),
+          transfer: transferSchema.optional(),
+          activities: z.object({
+            morning: geminiSlotSchema.optional(),
+            afternoon: geminiSlotSchema.optional(),
+            evening: geminiSlotSchema.optional(),
+          }),
         }),
-        transportTip: z.string().min(20).optional(),
+      ),
+    }),
+  ),
+  trip_metadata: z
+    .object({
+      destination: z.string(),
+      season_warning: z.string().optional(),
+      currency: z.string().optional(),
+      visa_required: z.boolean().optional(),
+    })
+    .optional(),
+  weatherWidget: weatherWidgetSchema.optional(),
+  safetyWarning: safetyWarningSchema.nullable().optional(),
+  hotels: z
+    .array(
+      z.object({
+        name: z.string().optional(),
+        city: z.string().min(1),
+        nights: z.number().min(0).optional(),
       }),
-    ),
-    pois: z.array(poiSchema).default([]),
-  }),
-);
-
-export const tripPlanGeminiSchema = z
-  .object({ itinerar: geminiItinerarSchema })
-  .merge(tripPlanSchema.omit({ itinerar: true }));
+    )
+    .optional(),
+});
 
 export type TripPlanResponse = z.infer<typeof tripPlanSchema>;
 
@@ -460,8 +489,12 @@ export function coerceTripPlanPayload(raw: unknown): unknown {
     if (!phase || typeof phase !== "object") continue;
     const p = phase as Record<string, unknown>;
     const city = typeof p.city === "string" && p.city.trim() ? p.city.trim() : "City";
+    if (typeof p.phase !== "string" || !p.phase.trim()) p.phase = city;
+    if (typeof p.unsplashQuery !== "string" || !p.unsplashQuery.trim()) p.unsplashQuery = city;
     const lat = typeof p.lat === "number" ? p.lat : 0;
     const lng = typeof p.lng === "number" ? p.lng : 0;
+    p.lat = lat;
+    p.lng = lng;
     const days = Array.isArray(p.days) ? p.days : [];
 
     for (const day of days) {
@@ -558,6 +591,13 @@ export function coerceTripPlanPayload(raw: unknown): unknown {
   }
 
   if (!Array.isArray(plan.hotels)) plan.hotels = [];
+  if (!plan.logistics_and_tips || typeof plan.logistics_and_tips !== "object") {
+    plan.logistics_and_tips = {
+      transport: { flights: "", ferries: "", city_transport: "" },
+      finance: "",
+      internet: "",
+    };
+  }
   return plan;
 }
 

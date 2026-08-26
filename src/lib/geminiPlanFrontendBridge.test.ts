@@ -222,6 +222,47 @@ describe("Gemini nested slots → frontend / PDF / Mapbox", () => {
     expect(JSON.stringify(day.activities)).not.toMatch(/09:00/);
   });
 
+  it("parses a slim 2-day Gemini payload without POIs, logistics, or TripAdvisor blocks", () => {
+    const slim = {
+      trip_metadata: { destination: "Bangkok" },
+      itinerar: [
+        {
+          city: "Bangkok",
+          days: [
+            {
+              day_number: 1,
+              title: "Prihod",
+              activities: {
+                morning: { title: "Let v Bangkok", description: SLOT_COPY },
+                afternoon: { title: "Wat Pho", description: SLOT_COPY, cost_eur: 8, time: "15:00" },
+                evening: { title: "Yaowarat", description: SLOT_COPY },
+              },
+            },
+            {
+              day_number: 2,
+              title: "Mesto",
+              activities: {
+                morning: { title: "Grand Palace", description: SLOT_COPY },
+              },
+            },
+          ],
+        },
+      ],
+    };
+    const parsed = parseCoercedTripPlan(slim);
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) return;
+    expect(parsed.data.itinerar[0]!.days).toHaveLength(2);
+    const preview = partialTripPlanToPreviewPlan(slim, {
+      language: "sl",
+      originIata: "MUC",
+      destinationIata: "BKK",
+      enrich: false,
+    });
+    expect(preview?.days).toHaveLength(2);
+    expect(preview!.days[0]!.activities.afternoon.some((a) => /Wat Pho/i.test(a.name))).toBe(true);
+  });
+
   it("streams a preview day before Gemini finishes city, title, or pois", () => {
     const preview = partialTripPlanToPreviewPlan(
       {
