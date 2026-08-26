@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { coerceActivityDescriptionFields } from "@/lib/activityDescription";
+import { liftFlatItineraryToItinerar } from "@/lib/itineraryJsonSchema";
 import { MAP_POI_CATEGORIES } from "@/lib/mapPoiCategory";
 
 export { MAP_POI_CATEGORIES, type MapPoiCategory } from "@/lib/mapPoiCategory";
@@ -89,11 +90,24 @@ const activitySchema = z.object({
   tripAdvisorStyleDetails: tripAdvisorStyleDetailsSchema.optional(),
 });
 
+const transferSchema = z.object({
+  type: z.string().min(1),
+  from: z.string().min(1),
+  to: z.string().min(1),
+  duration: z.string().min(1),
+  cost_eur: z.number().min(0).optional(),
+});
+
 const daySchema = z.object({
   day_number: z.number().int().min(1),
   date: z.string(),
   day_name: z.string(),
   title: z.string(),
+  /** Booking.com / map city for this calendar day when it differs from the phase. */
+  city: z.string().min(1).optional(),
+  /** Optional hop — coerce copies this into transportation[] when missing. */
+  transfer: transferSchema.optional(),
+  daily_budget_per_person_eur: z.number().min(0).optional(),
   /** Daily spend estimate in EUR (fuel, food, camping fees). */
   dailyBudget: z.number().min(0),
   /** Driving distance for this day in km. */
@@ -200,16 +214,60 @@ export const tripPlanSchema = z.object({
     finance: z.string(),
     internet: z.string(),
   }),
+  trip_title: z.string().optional(),
+  overview: z.string().optional(),
+  total_budget_eur: z.number().min(0).optional(),
+  accommodations: z
+    .array(
+      z.object({
+        city: z.string().min(1),
+        nights: z.number().int().min(0),
+        from_date: z.string().optional(),
+        to_date: z.string().optional(),
+      }),
+    )
+    .optional(),
   /** Hotel suggestions — MUST be empty [] when user travels by motorhome/RV. */
   hotels: z
     .array(
       z.object({
         name: z.string(),
         city: z.string().optional(),
+        nights: z.number().min(0).optional(),
+        from_date: z.string().optional(),
+        to_date: z.string().optional(),
         note: z.string().optional(),
       }),
     )
     .default([]),
+});
+
+/** Structured Outputs schema: every day must emit morning/afternoon/evening + transportTip. */
+const dayPartSlotSchema = activitySchema.extend({
+  timeSlot: z.enum(DAY_TIME_SLOTS).optional(),
+});
+
+export const tripPlanGeminiSchema = tripPlanSchema.extend({
+  itinerar: z.array(
+    z.object({
+      phase: z.string().min(1),
+      city: z.string().min(1),
+      unsplashQuery: z.string().min(1),
+      lat: wgsLat,
+      lng: wgsLng,
+      pois: z.array(poiSchema).default([]),
+      days: z.array(
+        daySchema.extend({
+          activities: z.object({
+            morning: dayPartSlotSchema,
+            afternoon: dayPartSlotSchema,
+            evening: dayPartSlotSchema,
+          }),
+          transportTip: z.string().min(20),
+        }),
+      ),
+    }),
+  ),
 });
 
 export type TripPlanResponse = z.infer<typeof tripPlanSchema>;
@@ -391,7 +449,7 @@ function defaultTripAdvisorDetails(name: string) {
  */
 export function coerceTripPlanPayload(raw: unknown): unknown {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return raw;
-  const plan = structuredClone(raw) as Record<string, unknown>;
+  const plan = liftFlatItineraryToItinerar(structuredClone(raw)) as Record<string, unknown>;
   const itinerar = plan.itinerar;
   if (!Array.isArray(itinerar)) return plan;
 

@@ -4,8 +4,18 @@ import {
   formatActivityClockLabel,
   formatActivityClockRange,
   normalizeActivityClocks,
+  parseHmClock,
   stripProseClocksExcept,
 } from "@/lib/activityTime";
+
+describe("parseHmClock", () => {
+  it("parses Gemini nested-slot HH:MM and rejects day-part labels", () => {
+    expect(parseHmClock("15:00")).toBe("15:00");
+    expect(parseHmClock("9:05")).toBe("09:05");
+    expect(parseHmClock("evening")).toBeUndefined();
+    expect(parseHmClock("Večer")).toBeUndefined();
+  });
+});
 
 describe("formatActivityClockRange", () => {
   it("joins start–end in arrival/departure order", () => {

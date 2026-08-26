@@ -75,19 +75,15 @@ export function buildCatalogPlanFromResponse(
   return { plan: catalogPlan, error: null };
 }
 
-/** One Gemini repair after code-only physics checks. Never fails the trip. */
+/** Route-physics Gemini repair is off — itinerary stays as generated. */
 export async function repairCatalogPlanIfNeeded(
   plan: AiTripPlan,
-  data: Pick<GenerateGeminiProTripInput, "language">,
+  _data: Pick<GenerateGeminiProTripInput, "language">,
 ): Promise<AiTripPlan> {
-  const { repairPlanLogisticsOnce } = await import("@/lib/routeRepair");
-  await repairPlanLogisticsOnce(plan, {
-    language: plan.contentLanguage ?? data.language ?? "sl",
-  });
   return plan;
 }
 
-/** Enrich a merged multi-batch stream plan without cloning missing calendar days. */
+/** Pad/trim a merged stream plan to the inclusive calendar length so Day N is departure. */
 export function finalizeMergedStreamPlan(
   plan: AiTripPlan,
   data: GenerateGeminiProTripInput,
@@ -101,6 +97,7 @@ export function finalizeMergedStreamPlan(
     .filter(Boolean)
     .join(" ");
 
+  const tripDays = tripDayCount(data.departDate, data.returnDate);
   enrichGeminiCatalogPlan(next, {
     budget: data.budget,
     pax: data.pax.adults + data.pax.childrenAges.length,
@@ -108,7 +105,7 @@ export function finalizeMergedStreamPlan(
     language: data.language,
     departDate: data.departDate,
     returnDate: data.returnDate,
-    expectedDays: next.days.length,
+    expectedDays: tripDays,
     pace: data.pace,
   });
   enrichGroundTransportPlan(next, {

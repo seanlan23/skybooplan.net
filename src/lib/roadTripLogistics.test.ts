@@ -6,6 +6,7 @@ import {
   forceLastRoadDayHome,
   parseDriveHours,
   repairImplausibleDriveTimes,
+  repairCityHopDrivingDistances,
   splitOverlongDriveStages,
   stripHomeboundPaidStays,
   stripSightseeingOnBrutalDriveDays,
@@ -469,5 +470,39 @@ describe("forceLastRoadDayHome", () => {
     expect(forceLastRoadDayHome(plan)).toBe(1);
     expect(plan.days[2]!.city).toMatch(/Ljubljana/i);
     expect(plan.days[2]!.title).toMatch(/Ljubljan/i);
+  });
+});
+
+describe("repairCityHopDrivingDistances", () => {
+  it("converts Cancun → Playa del Carmen from 4093 km to a ~65 km hop", () => {
+    const plan = {
+      destinationName: "Mexico",
+      destinationIata: "CUN",
+      contentLanguage: "sl",
+      days: [
+        day({ day: 4, city: "Cancun", lat: 21.161, lng: -86.851, drivingDistanceKm: 0 }),
+        day({
+          day: 5,
+          city: "Playa del Carmen",
+          lat: 20.629,
+          lng: -87.073,
+          drivingDistanceKm: 4093,
+          drivingDurationHours: "40h",
+          transportation: [
+            {
+              type: "car",
+              from: "Cancun",
+              to: "Playa del Carmen",
+              duration: "40h",
+              estimatedPrice: 40,
+            },
+          ],
+        }),
+      ],
+    } as AiTripPlan;
+
+    expect(repairCityHopDrivingDistances(plan)).toBeGreaterThan(0);
+    expect(plan.days[1]!.drivingDistanceKm).toBeGreaterThan(40);
+    expect(plan.days[1]!.drivingDistanceKm).toBeLessThan(120);
   });
 });

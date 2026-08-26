@@ -116,7 +116,7 @@ function regionContext(region: TripRegion, country?: string): string {
   return `${region.city} ${country ?? ""}`.toLowerCase();
 }
 
-/** City-only landmarks — Louvre is Paris, not Lyon; Fourvière is Lyon, not Paris. */
+/** City-only landmarks — Louvre is Paris, not Lyon; Jim Thompson is Bangkok, not Samui. */
 const CITY_LOCKED_POI: Array<{ test: RegExp; cityPattern: RegExp }> = [
   {
     test: /louvre|tour eiffel|eiffel tower|montmartre|versailles|champs[-\s]?[eé]lys|arc de triomphe|mus[eé]e d['’]?orsay|orsay museum|sacr[eé][-\s]?c[oe]ur|centre pompidou|sainte[-\s]?chapelle|tuileries|le marais/i,
@@ -125,6 +125,19 @@ const CITY_LOCKED_POI: Array<{ test: RegExp; cityPattern: RegExp }> = [
   {
     test: /fourvi[eè]re|traboule|vieux lyon|t[eê]te d['’]or|place bellecour|mus[eé]e des confluences|presqu['’]?[iî]le/i,
     cityPattern: /lyon/i,
+  },
+  {
+    test:
+      /jim thompson|jima thompson|yaowarat|wat pho|wat arun|khao san|grand palace|bts skytrain|airport rail link|chatuchak|asiatique|mae klong|king power mahanakhon/i,
+    cityPattern: /bangkok|krung thep|don mueang/i,
+  },
+  {
+    test: /doi suthep|doi inthanon|nimman|wat phra singh|sunday walking street|\bcnx\b/i,
+    cityPattern: /chiang mai|chiangmai/i,
+  },
+  {
+    test: /savoey|\bpatong\b|bangla road/i,
+    cityPattern: /phuket|patong/i,
   },
 ];
 

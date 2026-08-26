@@ -16,7 +16,7 @@ describe("getSlotActivities", () => {
       lng: 11.78,
       city: "Munich",
       activities: {
-        morning: [{ name: "Mednarodni let", type: "TRANSPORT" }],
+        morning: [{ name: "Mednarodni let", type: "TRANSPORT", description: "Let iz Münchna." }],
         afternoon: [],
         evening: [],
       },
@@ -24,5 +24,56 @@ describe("getSlotActivities", () => {
 
     expect(getSlotActivities(day, "afternoon")).toEqual([]);
     expect(getSlotActivities(day, "morning").map((a) => a.name)).toEqual(["Mednarodni let"]);
+  });
+
+  it("omits a structured evening slot that has a title but no description", () => {
+    const day = {
+      day: 2,
+      date: "2026-10-27",
+      title: "Pariz",
+      morning: "",
+      afternoon: "",
+      evening: "",
+      dailyBudgetEur: 80,
+      lat: 48.85,
+      lng: 2.35,
+      city: "Paris",
+      activities: {
+        morning: [
+          {
+            name: "Sprehod ob Seni",
+            description:
+              "Začni pri Notre-Dame parvisu in preči most do Sainte-Chapelle, da se izogneš vrsti.",
+          },
+        ],
+        afternoon: [],
+        evening: [{ name: "Večerja v bistroju" }],
+      },
+    } as DayPlan;
+
+    expect(getSlotActivities(day, "evening")).toEqual([]);
+    expect(getSlotActivities(day, "morning")).toHaveLength(1);
+  });
+
+  it("omits evening when name and description are both the slot label", () => {
+    const day = {
+      day: 2,
+      date: "2026-10-18",
+      title: "Pariz",
+      morning: "",
+      afternoon: "",
+      evening: "Večer: Večer",
+      dailyBudgetEur: 80,
+      lat: 48.85,
+      lng: 2.35,
+      city: "Paris",
+      activities: {
+        morning: [],
+        afternoon: [],
+        evening: [{ name: "Večer", description: "Večer" }],
+      },
+    } as DayPlan;
+
+    expect(getSlotActivities(day, "evening")).toEqual([]);
   });
 });

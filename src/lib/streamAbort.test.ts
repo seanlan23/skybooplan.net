@@ -34,29 +34,29 @@ describe("classifyStreamAbort", () => {
 });
 
 describe("streamNeedsForegroundGuard", () => {
-  it("flags desktop Safari and iOS WebKit, not Chrome", () => {
-    expect(
-      streamNeedsForegroundGuard(
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15",
-        { ontouchend: false },
-      ),
-    ).toBe(true);
-    expect(
-      streamNeedsForegroundGuard(
-        "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
-      ),
-    ).toBe(true);
-    expect(
-      streamNeedsForegroundGuard(
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        { ontouchend: false },
-      ),
-    ).toBe(false);
-    expect(
-      streamNeedsForegroundGuard(
-        "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
-      ),
-    ).toBe(true);
+  const macSafari =
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15";
+  const macChrome =
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+  const iphone =
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
+  const android =
+    "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36";
+
+  it("flags phones and iPad, not desktop Safari or Chrome", () => {
+    expect(streamNeedsForegroundGuard(macSafari, { maxTouchPoints: 0 })).toBe(false);
+    expect(streamNeedsForegroundGuard(iphone)).toBe(true);
+    expect(streamNeedsForegroundGuard(macChrome, { maxTouchPoints: 0 })).toBe(false);
+    expect(streamNeedsForegroundGuard(android)).toBe(true);
+  });
+
+  it("does not treat desktop Safari as an iPad just because ontouchend exists", () => {
+    expect(streamNeedsForegroundGuard(macSafari)).toBe(false);
+    expect(streamNeedsForegroundGuard(macSafari, { maxTouchPoints: 0 })).toBe(false);
+  });
+
+  it("flags iPadOS that reports as Macintosh with multi-touch", () => {
+    expect(streamNeedsForegroundGuard(macSafari, { maxTouchPoints: 5 })).toBe(true);
   });
 });
 

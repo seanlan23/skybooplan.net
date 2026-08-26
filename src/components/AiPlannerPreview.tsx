@@ -18,6 +18,7 @@ import {
 import { TRIP_WISH_TAGS, type TripBudgetTier, type TripWishTag, normalizeIata } from "@/lib/geminiPro.shared";
 import { formatTravellersSummary } from "@/lib/travellersFormat";
 import { groundTransportLabel } from "@/lib/groundTransport";
+import { inclusiveCalendarDayCount } from "@/lib/dateUtils";
 
 export type AiPlannerContext = {
   from: string;
@@ -59,10 +60,7 @@ const WISH_TAG_I18N: Record<TripWishTag, "ai.wish.vegetarian" | "ai.wish.accessi
 
 function tripDays(departDate: string, returnDate?: string): number {
   if (!returnDate) return 7;
-  const start = new Date(`${departDate}T12:00:00`);
-  const end = new Date(`${returnDate}T12:00:00`);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 7;
-  return Math.max(1, Math.round((end.getTime() - start.getTime()) / 86_400_000) + 1);
+  return inclusiveCalendarDayCount(departDate, returnDate) ?? 7;
 }
 
 export function AiPlannerPreview({

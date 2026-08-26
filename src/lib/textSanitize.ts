@@ -194,8 +194,51 @@ export function stripConcreteBangkokHotelBrands(text: string): string {
 /**
  * Gemini often cuts activity copy mid-sentence with "…" / "...".
  * Prefer the last complete sentence; otherwise drop dangling connectors.
- * Repairs each line (slot blurbs often mix truncated + complete lines).
+ * "5." is an ordinal, not a sentence end ("znameniti 5. avenija").
  */
+export function isOrdinalPeriod(text: string, periodIndex: number): boolean {
+  if (text[periodIndex] !== ".") return false;
+  return periodIndex > 0 && /\d/.test(text[periodIndex - 1]!);
+}
+
+export function lastSentenceEndIndex(text: string): number {
+  for (let i = text.length - 1; i >= 0; i--) {
+    const ch = text[i];
+    if (ch === "!" || ch === "?") return i;
+    if (ch === "." && !isOrdinalPeriod(text, i)) return i;
+  }
+  return -1;
+}
+
+/** Start index of the last real sentence (skips "5." ordinals). */
+function lastClauseStart(text: string): number {
+  for (let i = text.length - 2; i >= 1; i--) {
+    const ch = text[i];
+    if ((ch === "." || ch === "!" || ch === "?") && text[i + 1] === " ") {
+      if (ch === "." && isOrdinalPeriod(text, i)) continue;
+      return i + 2;
+    }
+  }
+  return 0;
+}
+
+/** Leftover declined adjective / ordinal after a naive cut-at-period. */
+export function looksLikeCutStemSentence(text: string): boolean {
+  const t = text.trim();
+  const last = t.slice(lastClauseStart(t));
+  const words = last.replace(/[.!?…]+$/u, "").trim().split(/\s+/).filter(Boolean);
+  const lastWord = words[words.length - 1] ?? "";
+  if (/\d+\.\s*$/.test(last) && words.length <= 6) return true;
+  if (/\s+in\s+\S{3,14}\.\s*$/i.test(last) && words.length <= 6) return true;
+  if (
+    words.length <= 5 &&
+    /(ega|imi|emu|išo|jšo|ožjo|ejšo|ajšo)$/i.test(lastWord)
+  ) {
+    return true;
+  }
+  return false;
+}
+
 export function repairTruncatedCopy(text: string): string {
   if (!text) return text;
   const glued = text.replace(/\s*–\s*,\s*/g, " ").replace(/\n,\s*/g, " ");
@@ -244,8 +287,8 @@ function repairTruncatedLine(line: string): string {
   t = t.replace(/\.\s+[A-ZÁÉÍÓÚÄÖÜČŠŽ][A-Za-zÁÉÍÓÚÄÖÜáéíóúäöüčšž]{1,10}\s*$/u, ".");
 
   const danglingPrep =
-    /\s+\b(v|na|po|pri|do|za|ob|iz|at|to|in)\.+\s*$/iu.test(t) ||
-    /\s+\b(v|na|po|pri|do|za|ob|iz)\s*$/iu.test(t);
+    /\s+\b(v|na|po|pri|do|za|ob|iz|proti|čez|skozi|at|to|in)\.+\s*$/iu.test(t) ||
+    /\s+\b(v|na|po|pri|do|za|ob|iz|proti|čez|skozi)\s*$/iu.test(t);
 
   if (danglingPrep) {
     const clause = t.search(/,?\s+(kjer|where|wo)\b/i);
@@ -253,20 +296,24 @@ function repairTruncatedLine(line: string): string {
       const head = t.slice(0, clause).replace(/[,\s]+$/u, "").trim();
       return head ? (/[.!?]$/.test(head) ? head : `${head}.`) : "";
     }
-    t = t.replace(/\s+\b(v|na|po|pri|do|za|ob|iz|at|to|in)\.+\s*$/iu, "").trim();
-    t = t.replace(/\s+\b(v|na|po|pri|do|za|ob|iz)\s*$/iu, "").trim();
+    t = t.replace(/\s+\b(v|na|po|pri|do|za|ob|iz|proti|čez|skozi|at|to|in)\.+\s*$/iu, "").trim();
+    t = t.replace(/\s+\b(v|na|po|pri|do|za|ob|iz|proti|čez|skozi)\s*$/iu, "").trim();
     if (!t) return "";
     return /[.!?]$/.test(t) ? t : `${t}.`;
   }
 
   const danglingEnd =
-    /\b(zu|to|the|a|an|die|der|das|den|dem|und|and|mit|with|für|for|besonders|optional|höchstens|maritime|ein|eine|einen|einer|eines|primerno)\.\s*$/i.test(
+    /\b(zu|to|the|of|a|an|die|der|das|den|dem|und|and|mit|with|für|for|besonders|optional|höchstens|maritime|ein|eine|einen|einer|eines|primerno)\.\s*$/i.test(
       t,
     ) ||
     /,\s*(das|die|der|den|dem|the|a|an|zu|to|ein|eine|primerno)\.\s*$/i.test(t) ||
     /\b(in|ali|ter|and|or)\s+(si\s+)?[A-Za-zÁÉÍÓÚÄÖÜáéíóúäöüčšž]{2,16}\.\s*$/i.test(t);
 
   const lastWord = t.split(/\s+/).pop() ?? "";
+  const lastWordBare = lastWord.replace(/[.…!?]+$/u, "").toLowerCase();
+  const completeShortWord = new Set(["let", "dan", "dni", "noč", "noc", "ura", "uri", "ure", "ur", "km"]).has(
+    lastWordBare,
+  );
   const noStop = !/[.!?…]$/u.test(t);
   const danglingVerb =
     noStop &&
@@ -282,6 +329,7 @@ function repairTruncatedLine(line: string): string {
   // "pripravijo va" / "zadnjem raz" — Gemini cut a lowercase stem.
   const shortLowerStub =
     noStop &&
+    !completeShortWord &&
     lastWord.length <= 3 &&
     /^[a-záéíóúäöüčšž]+$/u.test(lastWord) &&
     t.length > lastWord.length + 16;
@@ -313,6 +361,18 @@ function repairTruncatedLine(line: string): string {
     cutAdjNoun ||
     cutMidWord;
 
+  if (looksLikeCutStemSentence(t)) {
+    const start = lastClauseStart(t);
+    if (start > 12) {
+      const head = t.slice(0, start).trim();
+      return /[.!?]$/.test(head) ? head : `${head}.`;
+    }
+    const stripped = t.replace(/\s+\S+\.?\s*$/u, "").replace(/[,\s]+$/u, "").trim();
+    if (!stripped || stripped.split(/\s+/).length < 4) return "";
+    if (looksLikeCutStemSentence(`${stripped}.`)) return "";
+    return /[.!?]$/.test(stripped) ? stripped : `${stripped}.`;
+  }
+
   if (!truncated && !danglingEnd) return t;
 
   t = t.replace(/\s*…\s*$/u, "").replace(/\s*\.\.\.\s*$/, "").trim();
@@ -325,9 +385,17 @@ function repairTruncatedLine(line: string): string {
     t = t.replace(/…|\.\.\./g, " ").replace(/\s+/g, " ").trim();
   }
   if (danglingEnd) {
-    const lastGood = Math.max(t.lastIndexOf(". "), t.lastIndexOf("! "), t.lastIndexOf("? "));
+    let lastGood = -1;
+    for (let i = t.length - 2; i >= 1; i--) {
+      if ((t[i] === "." || t[i] === "!" || t[i] === "?") && t[i + 1] === " ") {
+        if (t[i] === "." && isOrdinalPeriod(t, i)) continue;
+        lastGood = i;
+        break;
+      }
+    }
     if (lastGood >= 20) {
-      return t.slice(0, lastGood + 1).trim();
+      const head = t.slice(0, lastGood + 1).trim();
+      if (!looksLikeCutStemSentence(head)) return head;
     }
     let next = t
       .replace(/\s+\b(?:die|der|das|den|dem|the|a|an)\s+(?:maritime|besonders)\.\s*$/iu, ".")
@@ -373,23 +441,38 @@ function repairTruncatedLine(line: string): string {
   }
   t = t.replace(/,\s*$/, "").trim();
 
-  const last = Math.max(t.lastIndexOf("."), t.lastIndexOf("!"), t.lastIndexOf("?"));
+  const last = lastSentenceEndIndex(t);
   if (last >= 24) {
-    return t.slice(0, last + 1).trim();
+    const head = t.slice(0, last + 1).trim();
+    if (!looksLikeCutStemSentence(head)) return head;
   }
   if (!t) return "";
   if (shortCapStub && t.split(/\s+/).length < 6) return t ? `${t.replace(/[,:;]+$/, "")}.` : "";
-  if (t && !/[.!?]$/.test(t) && t.split(/\s+/).length >= 6) return `${t}.`;
+  if (t && !/[.!?]$/.test(t) && t.split(/\s+/).length >= 6) {
+    const next = `${t}.`;
+    return looksLikeCutStemSentence(next) ? t : next;
+  }
   return t;
 }
 
 /** Finish Gemini-cut departure titles: "… / mednarodni." → "… / mednarodni let". */
-export function completeTruncatedHeadline(text: string): string {
+export function completeTruncatedHeadline(text: string, hint = ""): string {
   if (!text) return text;
-  return text
+  let t = text
     .replace(/\/\s*mednarodni\.+$/i, "/ mednarodni let")
     .replace(/\/\s*international\.+$/i, "/ international flight")
     .replace(/\/\s*internationaler\.+$/i, "/ internationaler Flug");
+  const blob = `${t}\n${hint}`;
+  if (/\bTop of\.?$/i.test(t) && /Rockefeller|Top of the Rock/i.test(blob)) {
+    t = t.replace(/\bTop of\.?$/i, "Top of the Rock");
+  }
+  if (/\bWalk of\.?$/i.test(t) && /Hollywood/i.test(blob)) {
+    t = t.replace(/\bWalk of\.?$/i, "Walk of Fame");
+  }
+  if (/\bCanal\.?$/i.test(t) && /Canal Walk|Indianapolis/i.test(blob)) {
+    t = t.replace(/\bCanal\.?$/i, "Canal Walk");
+  }
+  return t;
 }
 
 /** Finish "v Labuan." when the day city is Labuan Bajo — do not invent a new place. */
@@ -402,7 +485,7 @@ export function completeTruncatedPlaceName(text: string, place: string): string 
   const words = body.split(/\s+/);
   for (let n = Math.min(3, words.length); n >= 1; n--) {
     const chunk = words.slice(-n).join(" ");
-    if (chunk.length < 3) continue;
+    if (chunk.length < 2) continue;
     const chunkLc = chunk.toLowerCase();
     if (!placeLc.startsWith(chunkLc) || placeTrim.length <= chunk.length) continue;
     const head = words.slice(0, -n).join(" ").trim();
@@ -415,6 +498,80 @@ export function completeTruncatedPlaceName(text: string, place: string): string 
 function isSlotStub(raw: string): boolean {
   const t = raw.trim();
   return t.length > 0 && t.length <= 3 && !/\d/.test(t);
+}
+
+const PLACEHOLDER_WHOLE =
+  /^(TODO|TBD|N\/A|n\/a|xxx+|placeholder|coming soon|tba|lorem ipsum)\b/i;
+const PLACEHOLDER_BRACKET = /\[(?:TODO|TBD|PLACEHOLDER|INSERT|XXX)[^\]]*\]/i;
+
+/** True when copy is a stub, still has '...', or is an obvious placeholder. */
+export function isPlaceholderOrTruncatedCopy(text: string): boolean {
+  const t = text.trim();
+  if (!t) return true;
+  if (/…|\.{3}/.test(t)) return true;
+  if (PLACEHOLDER_WHOLE.test(t) || PLACEHOLDER_BRACKET.test(t)) return true;
+  return false;
+}
+
+/** Structured slot is renderable only with a real body — title-only stubs are omitted. */
+export function activityHasRenderableBody(opts: {
+  description?: string | null;
+  bullets?: string[] | null;
+}): boolean {
+  const desc = (opts.description ?? "").trim();
+  if (desc && !isPlaceholderOrTruncatedCopy(desc) && !isDaypartSlotLabel(desc)) return true;
+  return (opts.bullets ?? []).some(
+    (b) =>
+      typeof b === "string" &&
+      b.trim().length > 0 &&
+      !isPlaceholderOrTruncatedCopy(b) &&
+      !isDaypartSlotLabel(b),
+  );
+}
+
+const DAYPART_SLOT_LABEL =
+  /^(dopoldan|popoldan|večer|vecer|morning|afternoon|evening|mattina|pomeriggio|sera|morgen|nachmittag|abend|matin|après-midi|apres-midi|soir|mañana|tarde|noche|nuit)$/i;
+
+/** Slot pill labels — never use as activity title/description fallbacks ("Večer: Večer"). */
+export function isDaypartSlotLabel(raw: string | undefined | null): boolean {
+  if (!raw?.trim()) return false;
+  const t = raw.trim();
+  if (DAYPART_SLOT_LABEL.test(t)) return true;
+  const parts = t.split(/\s*[:|/]\s*/);
+  return (
+    parts.length === 2 &&
+    DAYPART_SLOT_LABEL.test(parts[0]!.trim()) &&
+    DAYPART_SLOT_LABEL.test(parts[1]!.trim())
+  );
+}
+
+/**
+ * Drop "Večer" / "Evening: Evening" titles. If the slot has a real description,
+ * use its first sentence so the card/PDF is not titled with a day-part pill.
+ */
+export function sanitizeActivityTitle(title: string, description?: string): string {
+  const t = title.trim();
+  if (t && !isDaypartSlotLabel(t) && !isPlaceholderOrTruncatedCopy(t)) return t;
+  const desc = (description ?? "").trim();
+  if (!desc || isDaypartSlotLabel(desc) || isPlaceholderOrTruncatedCopy(desc)) return "";
+  const first = desc.split(/[.!?]/)[0]?.trim() ?? "";
+  if (first.length >= 8 && !isDaypartSlotLabel(first) && !isPlaceholderOrTruncatedCopy(first)) {
+    return first.slice(0, 80);
+  }
+  return "";
+}
+
+/** Ellipsis was removed but no missing words were filled in — still an unfinished title. */
+function ellipsisWasOnlyStripped(original: string, repaired: string): boolean {
+  if (!/…|\.{3}/.test(original)) return false;
+  const norm = (s: string) =>
+    s
+      .replace(/…|\.{3}/g, "")
+      .replace(/[.!?\s]+$/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .toLowerCase();
+  return Boolean(norm(original)) && norm(original) === norm(repaired);
 }
 
 /** Apply truncation repair across day/activity copy (all trip modes). */
@@ -440,9 +597,9 @@ export function stripTruncatedCopyFromPlan(plan: {
   let fixed = 0;
   const fixStr = (raw: string | undefined, assign: (v: string) => void, place?: string) => {
     if (typeof raw !== "string" || !raw) return;
-    let next = isSlotStub(raw) ? "" : repairTruncatedCopy(raw);
+    let next = isSlotStub(raw) ? "" : completeTruncatedHeadline(raw, place ?? "");
     if (place && next) next = completeTruncatedPlaceName(next, place);
-    next = completeTruncatedHeadline(next);
+    if (next) next = repairTruncatedCopy(next);
     if (next !== raw) {
       assign(next);
       fixed += 1;
@@ -451,6 +608,7 @@ export function stripTruncatedCopyFromPlan(plan: {
 
   for (const day of plan.days ?? []) {
     const place = (day.city || day.focusName || "").trim();
+    const titleBefore = day.title;
     for (const key of [
       "title",
       "morning",
@@ -464,6 +622,10 @@ export function stripTruncatedCopyFromPlan(plan: {
         day[key] = v;
       }, key === "title" ? place : undefined);
     }
+    if (titleBefore?.trim() && !(day.title ?? "").trim() && place) {
+      day.title = place;
+      fixed += 1;
+    }
     if (day.activities) {
       for (const slot of ["morning", "afternoon", "evening"] as const) {
         for (const a of day.activities[slot] ?? []) {
@@ -471,9 +633,19 @@ export function stripTruncatedCopyFromPlan(plan: {
             a.name = "";
             fixed += 1;
           } else if (a.name) {
-            let named = repairTruncatedCopy(a.name);
+            const originalName = a.name;
+            let named = completeTruncatedHeadline(
+              a.name,
+              `${a.description ?? ""} ${place}`,
+            );
             if (place) named = completeTruncatedPlaceName(named, place);
-            named = completeTruncatedHeadline(named);
+            named = repairTruncatedCopy(named);
+            if (
+              isPlaceholderOrTruncatedCopy(named) ||
+              ellipsisWasOnlyStripped(originalName, named)
+            ) {
+              named = "";
+            }
             if (named !== a.name) {
               a.name = named;
               fixed += 1;
@@ -482,6 +654,10 @@ export function stripTruncatedCopyFromPlan(plan: {
           fixStr(a.description, (v) => {
             a.description = v;
           });
+          if (a.description && isPlaceholderOrTruncatedCopy(a.description)) {
+            a.description = "";
+            fixed += 1;
+          }
           if (a.bullets?.length) {
             a.bullets = a.bullets.map((b) => {
               const next = repairTruncatedCopy(b);

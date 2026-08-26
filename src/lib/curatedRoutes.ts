@@ -2,7 +2,7 @@
  * Curated trip graphs — logistics for ALL destinations.
  * Agency patterns (high priority) + interest-anchor defaults + hub IATA templates.
  * Origin airport ignored; AI scales segments to user totalDays.
- * Prompt treats these as a hint (worldRouteRules). Do not add if (18 days → extra city) here.
+ * Do not add if (18 days → extra city) here.
  */
 
 import { lookupDestination } from "@/lib/destinationCoords";

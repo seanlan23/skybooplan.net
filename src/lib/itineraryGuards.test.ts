@@ -19,15 +19,15 @@ import {
   stripWrongCityDayActivities,
   dropDuplicatePoisAcrossPlan,
   dropGenericSightStubs,
+  ensureCompleteDaySlots,
   stripRevisitLeadIns,
   ensureCityChangeTransfer,
   stripReplayedIntercityHops,
   stripImplausibleLongHaulProgram,
   isHollowProgramTitle,
-  lockOneWayRegionTransition,
-  snapDepartureDayToTicketHub,
 } from "@/lib/itineraryGuards";
 import { repairTruncatedCopy } from "@/lib/textSanitize";
+import { expandPlanDaysToExpected } from "@/lib/daySequence";
 
 function day(partial: Partial<DayPlan> & { day: number }): DayPlan {
   return {
@@ -83,6 +83,15 @@ describe("isEnricherPlaceholderActivity", () => {
         description: "Sprehod po starem mestnem jedru in Plaza de la Independencia.",
       }),
     ).toBe(false);
+  });
+
+  it("flags thin-day local sight placeholders from the Thailand PDF", () => {
+    expect(
+      isEnricherPlaceholderActivity({
+        name: "Lokalni pomembnejši ogled v Phuket",
+        description: "En konkreten ogled (muzej, trg ali park) — drugačen od prejšnjega dne.",
+      }),
+    ).toBe(true);
   });
 });
 
@@ -323,6 +332,66 @@ describe("stripWrongCityDayActivities", () => {
     const blob = JSON.stringify(plan.days[0]!.activities);
     expect(blob).not.toMatch(/Railay|Phi Phi|Ao Nang|Hilltop/i);
     expect(blob).toMatch(/Sunrise Beach/i);
+  });
+
+  it("clears Chiang Mai transport tips that leaked onto a Phuket day", () => {
+    const plan = {
+      destinationName: "Thailand",
+      days: [
+        day({
+          day: 9,
+          city: "Phuket",
+          transportationTips:
+            "Grab ali songthaew do Doi Suthepa. Letališče CNX je 15 min od središča.",
+          activities: {
+            morning: [
+              { name: "Patong Beach", type: "SIGHT", description: "Jutro na Patongu." },
+            ],
+            afternoon: [],
+            evening: [],
+          },
+        }),
+      ],
+    } as AiTripPlan;
+    expect(stripWrongCityDayActivities(plan)).toBeGreaterThan(0);
+    expect(plan.days[0]!.transportationTips).toBe("");
+    expect(plan.days[0]!.activities!.morning[0]!.name).toMatch(/Patong/i);
+  });
+
+  it("drops Jim Thompson and Yaowarat from a Koh Samui day but keeps Wat Phra Yai", () => {
+    const plan = {
+      destinationName: "Thailand",
+      days: [
+        day({
+          day: 14,
+          city: "Koh Samui",
+          transportationTips: "Vožnja z BTS Skytrainom po Bangkoku in MRT do Yaowarata.",
+          activities: {
+            morning: [
+              { name: "Wat Phra Yai", type: "SIGHT", description: "Veliki Buda na Samuju." },
+            ],
+            afternoon: [
+              {
+                name: "Hiša Jima Thompsona",
+                type: "SIGHT",
+                description: "Muzej svile v Bangkoku.",
+              },
+            ],
+            evening: [
+              { name: "Večerja v Yaowarat", type: "EAT", description: "Kitajska četrt." },
+            ],
+          },
+        }),
+      ],
+    } as AiTripPlan;
+    expect(stripWrongCityDayActivities(plan)).toBeGreaterThan(0);
+    expect(plan.days[0]!.transportationTips).toBe("");
+    const names = [
+      ...(plan.days[0]!.activities!.morning ?? []),
+      ...(plan.days[0]!.activities!.afternoon ?? []),
+      ...(plan.days[0]!.activities!.evening ?? []),
+    ].map((a) => a.name);
+    expect(names).toEqual(["Wat Phra Yai"]);
   });
 });
 
@@ -780,6 +849,60 @@ describe("ensureCityChangeTransfer", () => {
       /Domestic flight Vancouver\s*→\s*Toronto/i,
     );
   });
+
+  it("does not invent a second Munich→Bangkok hop after an in-flight day", () => {
+    const plan = {
+      destinationName: "Thailand",
+      contentLanguage: "sl" as const,
+      originIata: "MUC",
+      destinationIata: "BKK",
+      days: [
+        day({
+          day: 1,
+          city: "Munich",
+          inFlightDay: true,
+          title: "Mednarodni let Munich → Bangkok",
+        }),
+        day({
+          day: 2,
+          city: "Bangkok",
+          activities: {
+            morning: [
+              {
+                name: "Notranji let Munich → Bangkok",
+                type: "TRANSPORT",
+                transportType: "flight",
+                description: "Notranji let Munich → Bangkok. Prihod v Don Mueang.",
+              },
+            ],
+            afternoon: [],
+            evening: [],
+          },
+        }),
+      ],
+    } as AiTripPlan;
+    expect(ensureCityChangeTransfer(plan)).toBe(0);
+    expect(JSON.stringify(plan.days[1]!.activities)).not.toMatch(/Notranji let/i);
+    expect(JSON.stringify(plan.days[1]!.activities)).not.toMatch(/Munich/i);
+  });
+
+  it("labels Munich→Bangkok as an international flight, not a domestic hop", () => {
+    const plan = {
+      destinationName: "Thailand",
+      contentLanguage: "sl" as const,
+      originIata: "MUC",
+      destinationIata: "BKK",
+      days: [
+        day({ day: 1, city: "Munich", title: "München" }),
+        day({ day: 2, city: "Bangkok", title: "Prihod v Bangkok" }),
+      ],
+    } as AiTripPlan;
+    expect(ensureCityChangeTransfer(plan)).toBe(1);
+    expect(plan.days[1]!.activities!.morning[0]!.name).toMatch(
+      /Mednarodni let Munich → Bangkok/,
+    );
+    expect(plan.days[1]!.activities!.morning[0]!.name).not.toMatch(/Notranji let/);
+  });
 });
 
 describe("dedupeSameDayMeals", () => {
@@ -1192,6 +1315,54 @@ describe("dropDuplicatePoisAcrossPlan", () => {
     expect(plan.days[0]!.activities!.morning[0]!.name).toMatch(/Kajakiranje/i);
     expect(plan.days[1]!.activities!.morning).toEqual([]);
     expect(plan.days[1]!.activities!.afternoon[0]!.name).toMatch(/Yalahau/i);
+  });
+
+  it("keeps Chichén Itzá on the nearest overnight (Valladolid), not Cancun", () => {
+    const plan = {
+      destinationName: "Mexico",
+      destinationIata: "CUN",
+      contentLanguage: "sl",
+      days: [
+        day({
+          day: 2,
+          city: "Cancun",
+          lat: 21.161,
+          lng: -86.851,
+          activities: {
+            morning: [
+              {
+                name: "Chichén Itzá",
+                type: "SIGHT",
+                description: "Dan izleta iz Cancuna do piramid.",
+              },
+            ],
+            afternoon: [{ name: "Mercado 28", type: "SIGHT", description: "Tržnica v Cancunu." }],
+            evening: [{ name: "Playa Delfines", type: "BEACH", description: "Večer na plaži." }],
+          },
+        }),
+        day({
+          day: 6,
+          city: "Valladolid",
+          lat: 20.69,
+          lng: -88.201,
+          activities: {
+            morning: [
+              {
+                name: "Ruševine Chichen Itza",
+                type: "SIGHT",
+                description: "Ogled piramid iz Valladolida, najbližje baze.",
+              },
+            ],
+            afternoon: [{ name: "Cenote Zaci", type: "SIGHT", description: "Cenote v mestu." }],
+            evening: [{ name: "Calzada de los Frailes", type: "SIGHT", description: "Sprehod." }],
+          },
+        }),
+      ],
+    } as AiTripPlan;
+
+    expect(dropDuplicatePoisAcrossPlan(plan)).toBe(1);
+    expect(plan.days[0]!.activities!.morning).toEqual([]);
+    expect(plan.days[1]!.activities!.morning[0]!.name).toMatch(/Chichen/i);
   });
 });
 
@@ -1723,6 +1894,54 @@ describe("FRA→EZE failure classes", () => {
     const names = (plan.days[0]!.activities!.morning ?? []).map((a) => a.name).join(" ");
     expect(names).toMatch(/Bangkok → Chiang Mai/i);
     expect(names).not.toMatch(/Doi Suthep/i);
+    expect(plan.days[0]!.activities!.afternoon.map((a) => a.name).join(" ")).toMatch(/Doi Suthep/i);
+  });
+
+  it("moves morning sights to afternoon on an overnight city/island hop", () => {
+    const plan = {
+      destinationName: "Thailand",
+      days: [
+        day({
+          day: 4,
+          city: "Bangkok",
+          activities: {
+            morning: [{ name: "Wat Arun", type: "SIGHT", description: "Tempel ob reki." }],
+            afternoon: [],
+            evening: [],
+          },
+        }),
+        day({
+          day: 5,
+          city: "Chiang Mai",
+          activities: {
+            morning: [
+              {
+                name: "Wat Phra Singh",
+                type: "SIGHT",
+                description: "Tempel v starem mestu, po prijavi v hotel.",
+              },
+            ],
+            afternoon: [],
+            evening: [],
+          },
+        }),
+        day({
+          day: 6,
+          city: "Chiang Mai",
+          activities: {
+            morning: [{ name: "Doi Suthep", type: "SIGHT", description: "Hribovski tempelj." }],
+            afternoon: [],
+            evening: [],
+          },
+        }),
+      ],
+    } as AiTripPlan;
+    expect(stripPrematureDestinationProgram(plan)).toBe(1);
+    expect(plan.days[1]!.activities!.morning).toEqual([]);
+    expect(plan.days[1]!.activities!.afternoon.map((a) => a.name).join(" ")).toMatch(
+      /Wat Phra Singh/i,
+    );
+    expect(plan.days[2]!.activities!.morning[0]!.name).toMatch(/Doi Suthep/i);
   });
 
   it("repairs DE dangling sentence ends without ellipsis", () => {
@@ -1745,28 +1964,21 @@ describe("FRA→EZE failure classes", () => {
   });
 });
 
-const MAFIA = { lat: -7.81, lng: 39.83 };
-const MIKUMI = { lat: -7.404, lng: 37.0 };
-
-describe("lockOneWayRegionTransition", () => {
-  it("relabels the next day after A→B and strips the replayed hop", () => {
+describe("ensureCompleteDaySlots", () => {
+  it("fills empty morning, afternoon and evening on a mid-trip gap day", () => {
     const plan = {
-      destinationName: "Tanzania",
-      destinationIata: "DAR",
-      contentLanguage: "sl" as const,
+      destinationName: "Mexico",
+      contentLanguage: "sl",
       days: [
         day({
-          day: 6,
-          city: "Mafia Island",
-          title: "Mafia Island",
-          ...MAFIA,
+          day: 1,
+          city: "Cancun",
           activities: {
             morning: [
               {
-                name: "Let Mafia Island → Mikumi",
+                name: "Mednarodni let v Cancun",
                 type: "TRANSPORT",
-                transportType: "flight",
-                description: "Premik iz Mafia Island v Mikumi.",
+                description: "Prihod zvečer, prvi dan brez ogledov pred pristanom.",
               },
             ],
             afternoon: [],
@@ -1774,153 +1986,228 @@ describe("lockOneWayRegionTransition", () => {
           },
         }),
         day({
-          day: 7,
-          city: "Mafia Island",
-          title: "Mafia Island",
-          focusName: "Mafia Island",
-          ...MAFIA,
+          day: 2,
+          city: "Cancun",
+          activities: {
+            morning: [{ name: "Playa Delfines", type: "BEACH", description: "Jutro na plaži v Cancunu po prihodu." }],
+            afternoon: [],
+            evening: [],
+          },
+        }),
+        day({
+          day: 4,
+          city: "Valladolid",
+          lat: 20.69,
+          lng: -88.201,
+          activities: { morning: [], afternoon: [], evening: [] },
+        }),
+        day({
+          day: 9,
+          city: "Tulum",
+          activities: { morning: [], afternoon: [], evening: [] },
+        }),
+        day({
+          day: 12,
+          city: "Playa del Carmen",
+          activities: { morning: [], afternoon: [], evening: [] },
+        }),
+        day({
+          day: 15,
+          city: "Cancun",
           activities: {
             morning: [
               {
-                name: "Let Mafia Island → Mikumi",
+                name: "Mednarodni povratni let",
                 type: "TRANSPORT",
-                transportType: "flight",
-                description: "Ponovni transfer iz Mafia Island.",
+                description: "Odhod z letališča CUN, brez popoldanskega programa.",
               },
             ],
-            afternoon: [
-              {
-                name: "Safari v savani",
-                type: "SIGHT",
-                description: "Game drive v narodnem parku.",
-              },
-            ],
+            afternoon: [],
             evening: [],
           },
         }),
       ],
     } as AiTripPlan;
-    expect(lockOneWayRegionTransition(plan)).toBeGreaterThan(0);
-    expect(plan.days[1]!.city).toMatch(/Mikumi/i);
-    expect(plan.days[1]!.title).not.toMatch(/Mafia/i);
-    expect(JSON.stringify(plan.days[1]!.activities!.morning)).not.toMatch(/Mafia Island → Mikumi/);
-    expect(plan.days[1]!.activities!.afternoon.map((a) => a.name)).toEqual(["Safari v savani"]);
+    expect(ensureCompleteDaySlots(plan)).toBe(9);
+    for (const n of [4, 9, 12]) {
+      const d = plan.days.find((x) => x.day === n)!;
+      expect(d.activities!.morning).toHaveLength(1);
+      expect(d.activities!.afternoon).toHaveLength(1);
+      expect(d.activities!.evening).toHaveLength(1);
+    }
   });
-});
 
-describe("snapDepartureDayToTicketHub", () => {
-  it("moves a remote last day onto the ticket hub city", () => {
+  it("turns a 3-day France stub into a full 15-day calendar with filled slots", () => {
     const plan = {
-      destinationName: "Tanzania",
-      destinationIata: "DAR",
-      contentLanguage: "sl" as const,
+      destinationName: "Francija in Španija",
+      contentLanguage: "sl",
       days: [
+        day({
+          day: 1,
+          city: "Paris",
+          activities: {
+            morning: [
+              {
+                name: "Prihod v Pariz",
+                type: "TRANSPORT",
+                description: "Pristanek in prevoz do hotela v središču Pariza.",
+              },
+            ],
+            afternoon: [],
+            evening: [],
+          },
+        }),
+        day({
+          day: 2,
+          city: "Paris",
+          activities: {
+            morning: [
+              {
+                name: "Louvre",
+                type: "SIGHT",
+                description: "Dopoldan v muzeju, potem sprehod ob Seni.",
+              },
+            ],
+            afternoon: [
+              { name: "Marais", type: "SIGHT", description: "Sprehod po četrti Marais." },
+            ],
+            evening: [],
+          },
+        }),
+        day({
+          day: 3,
+          city: "Blois",
+          activities: {
+            morning: [
+              { name: "Château de Blois", type: "SIGHT", description: "Ogled gradu v Bloisu." },
+            ],
+            afternoon: [],
+            evening: [],
+          },
+        }),
+      ],
+    } as AiTripPlan;
+
+    expandPlanDaysToExpected(plan, {
+      expectedDays: 15,
+      language: "sl",
+      departDate: "2026-08-01",
+    });
+    applyItineraryGuards(plan, { arrivalDay: 1, language: "sl" });
+    expect(plan.days).toHaveLength(15);
+    for (const n of [4, 9, 12]) {
+      const d = plan.days.find((x) => x.day === n)!;
+      expect(d.activities!.morning.length).toBeGreaterThan(0);
+      expect(d.activities!.afternoon.length).toBeGreaterThan(0);
+      expect(d.activities!.evening.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("scrubs Thailand PDF mix-ups: wrong-city POI, stale tips, domestic label on long-haul", () => {
+    const plan = {
+      destinationName: "Thailand",
+      contentLanguage: "sl",
+      originIata: "MUC",
+      destinationIata: "BKK",
+      days: [
+        day({ day: 1, city: "Munich", title: "Odhod" }),
+        day({
+          day: 2,
+          city: "Bangkok",
+          activities: {
+            morning: [
+              {
+                name: "Notranji let Munich → Bangkok",
+                type: "TRANSPORT",
+                transportType: "flight",
+                description: "Notranji let Munich → Bangkok. Prihod v BKK.",
+              },
+            ],
+            afternoon: [
+              { name: "Wat Pho", type: "SIGHT", description: "Ležeči Buda ob reki." },
+            ],
+            evening: [],
+          },
+        }),
+        day({
+          day: 7,
+          city: "Chiang Mai",
+          title: "Kulinarične in kulturne.",
+          activities: {
+            morning: [
+              { name: "Doi Suthep", type: "SIGHT", description: "Tempelj nad mestom." },
+            ],
+            afternoon: [],
+            evening: [
+              {
+                name: "Savoey Seafood Restaurant (Patong)",
+                type: "EAT",
+                description: "Morski sadeži na Patongu.",
+              },
+            ],
+          },
+        }),
         day({
           day: 10,
-          city: "Mikumi",
-          title: "Mikumi",
-          ...MIKUMI,
-          activities: {
-            morning: [{ name: "Safari v savani", type: "SIGHT", description: "Game drive ob zori." }],
-            afternoon: [],
-            evening: [],
-          },
-        }),
-        day({
-          day: 11,
-          city: "Mikumi",
-          title: "Mikumi National Park",
-          ...MIKUMI,
+          city: "Phuket",
+          transportationTips: "Songthaew do Doi Suthepa in taksi do CNX.",
           activities: {
             morning: [
-              { name: "Zadnji safari", type: "SIGHT", description: "Jutranji game drive." },
               {
-                name: "Mednarodni odhod",
-                type: "TRANSPORT",
-                transportType: "flight",
-                description: "Odhod z mednarodnega letališča.",
+                name: "Lokalni pomembnejši ogled v Phuket",
+                type: "SIGHT",
+                description: "En konkreten ogled (muzej, trg ali park).",
               },
             ],
             afternoon: [],
             evening: [],
           },
         }),
-      ],
-    } as AiTripPlan;
-    expect(snapDepartureDayToTicketHub(plan)).toBe(1);
-    expect(plan.days[1]!.city).toMatch(/Dar es Salaam/i);
-    expect(plan.days[1]!.title).toMatch(/Dar es Salaam/i);
-    expect(plan.days[1]!.activities!.morning.map((a) => a.name)).toEqual(["Mednarodni odhod"]);
-  });
-});
-
-describe("applyItineraryGuards region lock", () => {
-  it("locks the one-way hop, hub departure, and drops island-safari mismatch", () => {
-    const plan = {
-      destinationName: "Tanzania",
-      destinationIata: "DAR",
-      contentLanguage: "sl" as const,
-      days: [
         day({
-          day: 5,
-          city: "Mafia Island",
-          title: "Mafia Island",
-          ...MAFIA,
+          day: 14,
+          city: "Koh Samui",
+          transportationTips: "Vožnja z BTS Skytrainom po Bangkoku.",
           activities: {
             morning: [
-              {
-                name: "Safari v savani",
-                type: "SIGHT",
-                description: "Game drive v narodnem parku.",
-              },
+              { name: "Wat Phra Yai", type: "SIGHT", description: "Veliki Buda na Samuju." },
             ],
             afternoon: [
-              {
-                name: "Let Mafia Island → Mikumi",
-                type: "TRANSPORT",
-                transportType: "flight",
-                description: "Premik v Mikumi.",
-              },
+              { name: "Hiša Jima Thompsona", type: "SIGHT", description: "Svila v Bangkoku." },
             ],
             evening: [],
           },
         }),
         day({
-          day: 6,
-          city: "Mafia Island",
-          title: "Mafia Island",
-          ...MAFIA,
+          day: 16,
+          city: "Bangkok",
           activities: {
             morning: [
               {
-                name: "Let Mafia Island → Mikumi",
+                name: "Mednarodni povratni let Bangkok → Munich",
                 type: "TRANSPORT",
                 transportType: "flight",
-                description: "Ponovni transfer.",
+                description: "Povratek v MUC.",
               },
             ],
-            afternoon: [],
-            evening: [],
-          },
-        }),
-        day({
-          day: 7,
-          city: "Mikumi",
-          title: "Mikumi",
-          ...MIKUMI,
-          activities: {
-            morning: [{ name: "Zadnji safari", type: "SIGHT", description: "Game drive." }],
             afternoon: [],
             evening: [],
           },
         }),
       ],
     } as AiTripPlan;
-    applyItineraryGuards(plan, { language: "sl" });
-    expect(plan.days[0]!.activities!.morning.map((a) => a.name).join(" ")).not.toMatch(/Safari|savan/i);
-    expect(plan.days[1]!.city).toMatch(/Mikumi/i);
-    expect(plan.days[1]!.title).not.toMatch(/Mafia/i);
-    expect(JSON.stringify(plan.days[1]!.activities)).not.toMatch(/Mafia Island → Mikumi/);
-    expect(plan.days[2]!.city).toMatch(/Dar es Salaam/i);
+
+    applyItineraryGuards(plan, { arrivalDay: 1, language: "sl" });
+
+    expect(JSON.stringify(plan.days[1]!.activities)).toMatch(/Mednarodni let Munich → Bangkok/);
+    expect(JSON.stringify(plan.days[1]!.activities)).not.toMatch(/Notranji let Munich/);
+    expect(JSON.stringify(plan.days[2]!.activities)).not.toMatch(/Savoey|Patong/i);
+    expect(plan.days[2]!.title).not.toMatch(/Kulinarične in kulturne/i);
+    expect(plan.days[3]!.transportationTips ?? "").not.toMatch(/Doi Suthep|CNX/i);
+    expect(JSON.stringify(plan.days[3]!.activities)).not.toMatch(/Lokalni pomembnejši ogled/i);
+    expect(plan.days[3]!.activities!.afternoon.length).toBeGreaterThan(0);
+    expect(plan.days[3]!.activities!.evening.length).toBeGreaterThan(0);
+    expect(JSON.stringify(plan.days[4]!.activities)).toMatch(/Wat Phra Yai/);
+    expect(JSON.stringify(plan.days[4]!.activities)).not.toMatch(/Thompson|Yaowarat|BTS/i);
+    expect(plan.days[4]!.transportationTips ?? "").not.toMatch(/BTS Skytrain/i);
   });
 });

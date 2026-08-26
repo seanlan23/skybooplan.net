@@ -15,7 +15,7 @@ import { activityDescriptionBullets } from "@/lib/activityDescription";
 import { formatActivityClockLabel } from "@/lib/activityTime";
 import { enrichMotorhomePlanTips } from "@/lib/motorhomePlanTips";
 import { resyncPlanDayDates } from "@/lib/daySequence";
-import { fixMotorhomeCopyErrors } from "@/lib/textSanitize";
+import { fixMotorhomeCopyErrors, activityHasRenderableBody, isDaypartSlotLabel, isPlaceholderOrTruncatedCopy, sanitizeForLang, stripTruncatedCopyFromPlan } from "@/lib/textSanitize";
 import {
   collectOvernightHotelStays,
   overnightStayBookingUrl,
@@ -293,7 +293,7 @@ function labelsFor(lang: PlanForPdf["language"], sampleText: string): PdfLabels 
       stays: "Namestitve",
       packing: "Seznam za pakiranje",
       insurance: "Turistično zavarovanje",
-      navigate: "Navigiraj (Google Maps)",
+      navigate: "Navigiraj",
       pageOf: (page, total) => `${page} / ${total}`,
       day: (n, end) => (end && end !== n ? `Dan ${n}–${end}` : `Dan ${n}`),
     };
@@ -318,7 +318,7 @@ function labelsFor(lang: PlanForPdf["language"], sampleText: string): PdfLabels 
       stays: "Alloggi",
       packing: "Lista bagaglio",
       insurance: "Assicurazione di viaggio",
-      navigate: "Naviga (Google Maps)",
+      navigate: "Naviga",
       pageOf: (page, total) => `${page} / ${total}`,
       day: (n, end) => (end && end !== n ? `Giorno ${n}–${end}` : `Giorno ${n}`),
     };
@@ -343,7 +343,7 @@ function labelsFor(lang: PlanForPdf["language"], sampleText: string): PdfLabels 
       stays: "Unterkünfte",
       packing: "Packliste",
       insurance: "Reiseversicherung",
-      navigate: "Navigieren (Google Maps)",
+      navigate: "Navigieren",
       pageOf: (page, total) => `${page} / ${total}`,
       day: (n, end) => (end && end !== n ? `Tag ${n}–${end}` : `Tag ${n}`),
     };
@@ -368,7 +368,7 @@ function labelsFor(lang: PlanForPdf["language"], sampleText: string): PdfLabels 
       stays: "Alojamientos",
       packing: "Lista de equipaje",
       insurance: "Seguro de viaje",
-      navigate: "Navegar (Google Maps)",
+      navigate: "Navegar",
       pageOf: (page, total) => `${page} / ${total}`,
       day: (n, end) => (end && end !== n ? `Día ${n}–${end}` : `Día ${n}`),
     };
@@ -393,7 +393,7 @@ function labelsFor(lang: PlanForPdf["language"], sampleText: string): PdfLabels 
       stays: "Hébergements",
       packing: "Liste de bagages",
       insurance: "Assurance voyage",
-      navigate: "Naviguer (Google Maps)",
+      navigate: "Naviguer",
       pageOf: (page, total) => `${page} / ${total}`,
       day: (n, end) => (end && end !== n ? `Jour ${n}–${end}` : `Jour ${n}`),
     };
@@ -423,13 +423,9 @@ function labelsFor(lang: PlanForPdf["language"], sampleText: string): PdfLabels 
   };
 }
 
-/** Map Gemini/internal slot tokens (often Slovenian) to PDF morning/afternoon/evening labels. */
-/** True when a "time" value is really a day-part label (already shown as a slot pill). */
+/** True when a "time" or title is really a day-part label (already shown as a slot pill). */
 export function isPdfDaypartToken(raw: string | undefined): boolean {
-  if (!raw?.trim()) return false;
-  return /^(dopoldan|popoldan|večer|vecer|morning|afternoon|evening|mattina|pomeriggio|sera|morgen|nachmittag|abend|matin|après-midi|apres-midi|soir|mañana|tarde|noche|nuit)$/i.test(
-    raw.trim(),
-  );
+  return isDaypartSlotLabel(raw);
 }
 
 function localizePdfTimeToken(raw: string | undefined, labels: PdfLabels): string | undefined {
@@ -532,12 +528,14 @@ function activityFromUnknown(
 ): PdfActivity | null {
   if (!raw || typeof raw !== "object") {
     const s = textOf(raw);
-    return s ? { title: s } : null;
+    if (!s || isPdfDaypartToken(s)) return null;
+    return { title: s };
   }
   const o = raw as Record<string, unknown>;
   const title = textOf(o.name) || textOf(o.title);
-  if (!title || title.trim().length < 10) return null;
-  if (/…|\.\.\./.test(title)) return null;
+  if (!title || title.trim().length < 3) return null;
+  if (isPdfDaypartToken(title)) return null;
+  if (isPlaceholderOrTruncatedCopy(title) || /…|\.\.\./.test(title)) return null;
   // Slot names (Morning/Afternoon/…) are section headers — never show them as clock badges.
   const explicitTime = textOf(o.time);
   const clockFromFields = formatActivityClockLabel({
@@ -556,13 +554,22 @@ function activityFromUnknown(
   const price =
     textOf(o.priceLabel) ||
     textOf(o.price) ||
-    (typeof o.estimatedCostEur === "number" ? `€${o.estimatedCostEur}` : undefined);
+    (typeof o.estimatedCostEur === "number" && o.estimatedCostEur > 0
+      ? `€${o.estimatedCostEur}`
+      : undefined);
   const bullets = Array.isArray(o.bullets)
     ? o.bullets.filter((b): b is string => typeof b === "string" && b.trim().length > 0)
     : undefined;
   const rawDesc = textOf(o.description);
   const desc =
-    rawDesc && rawDesc.trim().length >= 10 && !/…|\.\.\./.test(rawDesc) ? rawDesc : "";
+    rawDesc &&
+    rawDesc.trim().length >= 10 &&
+    !isPdfDaypartToken(rawDesc) &&
+    !isPlaceholderOrTruncatedCopy(rawDesc) &&
+    !/…|\.\.\./.test(rawDesc)
+      ? rawDesc
+      : "";
+  if (!activityHasRenderableBody({ description: desc, bullets })) return null;
   const location = textOf(o.location) || textOf(o.city);
   const lat = typeof o.lat === "number" ? o.lat : Number(o.lat);
   const lng = typeof o.lng === "number" ? o.lng : Number(o.lng);
@@ -616,7 +623,7 @@ function slotItems(
   return blob
     .split(/\n+/)
     .map((line) => line.replace(/^[-•*]\s*/, "").trim())
-    .filter((line) => line.length >= 10 && !/…|\.\.\./.test(line))
+    .filter((line) => line.length >= 10 && !/…|\.\.\./.test(line) && !isPdfDaypartToken(line))
     .map((title) => ({ title }));
 }
 
@@ -647,6 +654,49 @@ function cloneItineraryForPdf(
     return JSON.parse(JSON.stringify(sourceItin)) as PlanItinerary & Record<string, unknown>;
   } catch {
     return { ...sourceItin, days: Array.isArray(sourceItin.days) ? [...sourceItin.days] : [] };
+  }
+}
+
+function scrubPdfItineraryLanguage(
+  itin: PlanItinerary & Record<string, unknown>,
+  lang: string,
+) {
+  try {
+    stripTruncatedCopyFromPlan(itin);
+  } catch {
+    /* never block PDF */
+  }
+  const scrub = (raw: unknown): string => {
+    const t = typeof raw === "string" ? raw : "";
+    if (!t) return t;
+    return sanitizeForLang(t, lang);
+  };
+  if (typeof itin.summary === "string") itin.summary = scrub(itin.summary);
+  for (const day of (itin.days ?? []) as Array<Record<string, unknown>>) {
+    for (const key of [
+      "title",
+      "morning",
+      "afternoon",
+      "evening",
+      "travelHack",
+      "transportationTips",
+      "localWarnings",
+    ] as const) {
+      if (typeof day[key] === "string") day[key] = scrub(day[key]);
+    }
+    const acts = day.activities as
+      | Record<string, Array<Record<string, unknown>> | undefined>
+      | undefined;
+    if (!acts) continue;
+    for (const slot of ["morning", "afternoon", "evening"] as const) {
+      for (const a of acts[slot] ?? []) {
+        if (typeof a.name === "string") a.name = scrub(a.name);
+        if (typeof a.description === "string") a.description = scrub(a.description);
+        if (Array.isArray(a.bullets)) {
+          a.bullets = a.bullets.map((b) => (typeof b === "string" ? scrub(b) : b));
+        }
+      }
+    }
   }
 }
 
@@ -685,6 +735,7 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
         days: rawDays as AiTripPlan["days"],
       }),
   );
+  scrubPdfItineraryLanguage(itin, contentLang);
   const labels = labelsFor(contentLang, sample);
 
   const days: PdfDay[] = rawDays.map((raw, idx) => {

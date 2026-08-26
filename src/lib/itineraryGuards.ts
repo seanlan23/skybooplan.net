@@ -5,11 +5,13 @@ import {
   sameDayActivityCoreKey,
   sanitizeLegacyTemplateLeak,
   stripTruncatedCopyFromPlan,
+  activityHasRenderableBody,
 } from "@/lib/textSanitize";
 import { annotateHitAndRunStays, annotateOverlongDriveStages, stealNightForHitAndRun } from "@/lib/plannerQuality";
 import {
   annotateBalkanRoadTips,
   forceLastRoadDayHome,
+  repairCityHopDrivingDistances,
   repairImplausibleDriveTimes,
   splitOverlongDriveStages,
   stripDriveStatsOnAirDays,
@@ -22,9 +24,10 @@ import { scrubImpossibleIslandDayTrips } from "@/lib/islandHopGuard";
 import { isSmallIsland } from "@/lib/islandStays";
 import { scrubBangkokSightsOnIslandTransferDays } from "@/lib/bangkokMustSee";
 import { alignSummaryTripLength } from "@/lib/planTeaser";
-import { lookupRegionCoords } from "@/lib/regionCoords";
+import { lookupOvernightCoords, lookupRegionCoords } from "@/lib/regionCoords";
 import { haversineKm } from "@/lib/geoMath";
 import { DESTINATION_BY_IATA } from "@/lib/destinationCoords";
+import { lookupPoiCoords } from "@/lib/tripGeo";
 import {
   earliestDestLocalMinutes,
   isLongHaulKm,
@@ -32,7 +35,6 @@ import {
 } from "@/lib/flightScheduling";
 import { lookupLeg } from "@/lib/curatedRoutes.legs";
 import { relabelHubDayTripOvernights } from "@/lib/stayFacts";
-import { stripCrossStayLeaks } from "@/lib/stayLeakGuard";
 import { stripUnrenderablePlanCopy } from "@/lib/twoStagePlan";
 
 type DaySlots = NonNullable<DayPlan["activities"]>;
@@ -81,6 +83,8 @@ export function isEnricherPlaceholderActivity(a: {
     /^morning walk & coffee$/i.test(name) ||
     /^morning stroll \/ local pace$/i.test(name) ||
     /^morning stroll in /i.test(name) ||
+    /lokalni pomembnejši ogled/i.test(name) ||
+    /^key local sight in /i.test(name) ||
     /^večernji sprehod in lokalna večerja$/i.test(name) ||
     /^evening stroll & local dinner$/i.test(name) ||
     /^café break$/i.test(name) ||
@@ -268,31 +272,70 @@ function thinLocalDay(day: DayPlan, lang: string): DayPlan {
     mapPins: [],
     activities: {
       morning: [],
-      afternoon: [
-        {
-          name: slo ? `Lokalni pomembnejši ogled v ${city}` : `Key local sight in ${city}`,
-          type: "SIGHT",
-          description: slo
-            ? `En konkreten ogled (muzej, trg ali park) — drugačen od prejšnjega dne.`
-            : `One concrete sight (museum, square, or park) — different from the previous day.`,
-          bullets: slo
-            ? [`Izberi eno znamenitost, ki je še nisi videl.`, `Vrni se pred večerjo.`]
-            : [`Pick one sight you have not done yet.`, `Be back before dinner.`],
-        },
-      ],
-      evening: [
-        {
-          name: slo ? `Večerja v ${city}` : `Dinner in ${city}`,
-          type: "EAT",
-          description: slo
-            ? `Ena sproščena lokalna večerja — brez drugega večernega bloka.`
-            : `One relaxed local dinner — no second evening meal block.`,
-          bullets: slo
-            ? [`Rezerviraj mizo, če je sezona.`]
-            : [`Book a table in high season.`],
-        },
-      ],
+      afternoon: [localDaypartActivity(city, "afternoon", slo)],
+      evening: [localDaypartActivity(city, "evening", slo)],
     },
+  };
+}
+
+function countryForPlace(place: string, plan?: AiTripPlan): string | null {
+  const key = stayCityKey(place);
+  if (!key || key.length < 3) return null;
+  const tryHub = (code?: string) => {
+    if (!code) return null;
+    const hub = DESTINATION_BY_IATA[code];
+    if (!hub) return null;
+    const n = stayCityKey(hub.name);
+    if (n === key || (n.length >= 5 && key.length >= 5 && (n.includes(key) || key.includes(n)))) {
+      return hub.country;
+    }
+    return null;
+  };
+  const fromOrigin = tryHub(plan?.originIata);
+  if (fromOrigin) return fromOrigin;
+  const fromDest = tryHub(plan?.destinationIata);
+  if (fromDest) return fromDest;
+  for (const hub of Object.values(DESTINATION_BY_IATA)) {
+    const n = stayCityKey(hub.name);
+    if (n === key) return hub.country;
+    if (n.length >= 5 && key.length >= 5 && (n.includes(key) || key.includes(n))) {
+      return hub.country;
+    }
+  }
+  return null;
+}
+
+function hopIsInternational(from: string, to: string, plan: AiTripPlan): boolean {
+  const a = countryForPlace(from, plan);
+  const b = countryForPlace(to, plan);
+  return Boolean(a && b && a !== b);
+}
+
+function flightHopLabels(
+  from: string,
+  to: string,
+  plan: AiTripPlan,
+  slo: boolean,
+): { name: string; description: string } {
+  const intl = hopIsInternational(from, to, plan);
+  const airLeg = lookupLeg(from, to);
+  if (intl) {
+    return {
+      name: slo ? `Mednarodni let ${from} → ${to}` : `International flight ${from} → ${to}`,
+      description: airLeg?.howTo
+        ? airLeg.howTo
+        : slo
+          ? `Mednarodni let ${from} → ${to}.`
+          : `International flight ${from} → ${to}.`,
+    };
+  }
+  return {
+    name: slo ? `Notranji let ${from} → ${to}` : `Domestic flight ${from} → ${to}`,
+    description: airLeg?.howTo
+      ? airLeg.howTo
+      : slo
+        ? `Notranji let ${from} → ${to}.`
+        : `Domestic flight ${from} → ${to}.`,
   };
 }
 
@@ -320,15 +363,17 @@ function sameStayCity(a: string, b: string): boolean {
   return false;
 }
 
-function cityHopCoords(name: string): { lat: number; lng: number } | null {
+function cityHopCoords(name: string, peerCities?: string[]): { lat: number; lng: number } | null {
+  const overnight = lookupOvernightCoords(name, { peerCities });
+  if (overnight) return overnight;
   const region = lookupRegionCoords(name);
   if (region) return region;
   const token = stayCityKey(name);
-  if (!token) return null;
+  if (!token || token.length < 5) return null;
   for (const hub of Object.values(DESTINATION_BY_IATA)) {
     const n = stayCityKey(hub.name);
     if (n === token) return { lat: hub.lat, lng: hub.lng };
-    if (n.length >= 4 && (n.includes(token) || token.includes(n))) {
+    if (n.length >= 8 && token.length >= 8 && (n.includes(token) || token.includes(n))) {
       return { lat: hub.lat, lng: hub.lng };
     }
   }
@@ -459,18 +504,18 @@ export function ensureCityChangeTransfer(plan: AiTripPlan): number {
     const from = (prev.city || prev.focusName || "").trim();
     const to = (cur.city || cur.focusName || "").trim();
     if (!from || !to || sameStayCity(from, to)) continue;
-    const fromC = cityHopCoords(from);
-    const toC = cityHopCoords(to);
+    const peers = days.map((d) => d.city || d.focusName || "");
+    const fromC = cityHopCoords(from, peers);
+    const toC = cityHopCoords(to, peers);
     const km =
       fromC && toC ? haversineKm([fromC.lng, fromC.lat], [toC.lng, toC.lat]) : null;
     const byAir = cityChangeIsAir(from, to, km);
-    const airLeg = byAir ? lookupLeg(from, to) : null;
-    const airName = slo ? `Notranji let ${from} → ${to}` : `Domestic flight ${from} → ${to}`;
-    const airDesc = airLeg?.howTo
-      ? airLeg.howTo
-      : slo
-        ? `Notranji let ${from} → ${to}.`
-        : `Domestic flight ${from} → ${to}.`;
+    const { name: airName, description: airDesc } = flightHopLabels(from, to, plan, slo);
+
+    if (prev.inFlightDay) {
+      stripNamedCityHop(cur, from, to);
+      continue;
+    }
 
     // Flight already happened on the previous calendar day (city label lags a night).
     if (dayHasNamedCityHop(prev, from, to)) {
@@ -547,6 +592,47 @@ export function ensureCityChangeTransfer(plan: AiTripPlan): number {
   return added;
 }
 
+function relabelMisnamedInternationalFlights(plan: AiTripPlan): number {
+  const slo = !plan.contentLanguage || plan.contentLanguage.startsWith("sl");
+  const hopRe = /(?:notranji let|domestic flight)\s+([^→\n]+?)\s*(?:→|->)\s+([^.?\n]+)/gi;
+  let n = 0;
+
+  const relabelBlob = (raw: string): string => {
+    hopRe.lastIndex = 0;
+    return raw.replace(hopRe, (full, fromRaw: string, toRaw: string) => {
+      const from = fromRaw.trim();
+      const to = toRaw.trim();
+      if (!from || !to || !hopIsInternational(from, to, plan)) return full;
+      n += 1;
+      return flightHopLabels(from, to, plan, slo).name;
+    });
+  };
+
+  for (const d of plan.days ?? []) {
+    let activitiesChanged = false;
+    for (const slot of SLOTS) {
+      for (const a of d.activities?.[slot] ?? []) {
+        const before = `${a.name ?? ""}\n${a.description ?? ""}`;
+        if (a.name) a.name = relabelBlob(a.name);
+        if (a.description) a.description = relabelBlob(a.description);
+        const after = `${a.name ?? ""}\n${a.description ?? ""}`;
+        if (after !== before) {
+          a.type = "TRANSPORT";
+          a.transportType = "flight";
+          activitiesChanged = true;
+        }
+      }
+    }
+    if (d.title) d.title = relabelBlob(d.title);
+    for (const prose of ["morning", "afternoon", "evening"] as const) {
+      const text = d[prose];
+      if (text) d[prose] = relabelBlob(text);
+    }
+    if (activitiesChanged) resyncDaySlotProse(d);
+  }
+  return n;
+}
+
 function hopArrivesAt(blob: string, destCity: string): boolean {
   const dest = stayCityKey(destCity);
   if (dest.length < 4) return false;
@@ -557,15 +643,6 @@ function hopArrivesAt(blob: string, destCity: string): boolean {
   );
   if (izV) return stayCityKey(izV[2] ?? "").includes(dest);
   return /let|flight|trajekt|ferry|vlak|train/i.test(blob) && stayCityKey(blob).includes(dest);
-}
-
-function hopLeavesFromTo(blob: string, fromCity: string, toCity: string): boolean {
-  if (!hopArrivesAt(blob, toCity)) return false;
-  const from = stayCityKey(fromCity);
-  if (from.length < 4) return false;
-  const arrow = blob.match(/(.+?)\s*(?:→|->)\s*(.+)/);
-  if (arrow) return stayCityKey(arrow[1] ?? "").includes(from);
-  return stayCityKey(blob).includes(from);
 }
 
 function cleanHopEnd(raw: string): string {
@@ -601,144 +678,6 @@ function listedDayHops(day: DayPlan): Array<{ from: string; to: string }> {
     if (from.length >= 4 && to.length >= 4) hops.push({ from, to });
   }
   return hops;
-}
-
-function copyNamesStay(blob: string, city: string): boolean {
-  const key = stayCityKey(city);
-  if (key.length < 4) return false;
-  return stayCityKey(blob).includes(key);
-}
-
-function snapDayCity(day: DayPlan, city: string): void {
-  day.city = city;
-  day.focusName = city;
-  const coords = cityHopCoords(city);
-  if (coords) {
-    day.lat = coords.lat;
-    day.lng = coords.lng;
-  }
-}
-
-function stripHopReplayOnDay(day: DayPlan, fromCity: string, toCity: string): number {
-  let removed = 0;
-  if (day.transportation?.length) {
-    const next = day.transportation.filter((leg) => {
-      const replay =
-        sameStayCity(leg.from, fromCity) && sameStayCity(leg.to, toCity);
-      if (replay) {
-        removed += 1;
-        return false;
-      }
-      return true;
-    });
-    if (next.length !== day.transportation.length) {
-      day.transportation = next.length ? next : undefined;
-    }
-  }
-  if (day.activities) {
-    for (const slot of SLOTS) {
-      const list = day.activities[slot] ?? [];
-      day.activities[slot] = list.filter((a) => {
-        const blob = `${a.name ?? ""} ${a.description ?? ""}`;
-        const hop =
-          a.type === "TRANSPORT" ||
-          !!a.transportType ||
-          /let|flight|trajekt|ferry|prevoz|transfer/i.test(blob);
-        if (!hop || !hopLeavesFromTo(blob, fromCity, toCity)) return true;
-        removed += 1;
-        return false;
-      });
-    }
-  }
-  if (removed) resyncDaySlotProse(day);
-  if (day.title && hopLeavesFromTo(day.title, fromCity, toCity)) {
-    day.title = toCity;
-    removed += 1;
-  }
-  return removed;
-}
-
-/**
- * After a hop A→B, the next day is only B: no leftover A title and no replayed A→B.
- */
-export function lockOneWayRegionTransition(plan: AiTripPlan): number {
-  const days = plan.days ?? [];
-  let fixed = 0;
-  for (let i = 0; i < days.length - 1; i++) {
-    const fromDay = days[i]!;
-    const next = days[i + 1]!;
-    if (next.inFlightDay) continue;
-    const fromCity = (fromDay.city || fromDay.focusName || "").trim();
-    const nextCity = (next.city || next.focusName || "").trim();
-    if (!fromCity) continue;
-
-    const leaveHop = listedDayHops(fromDay).find(
-      (h) => sameStayCity(h.from, fromCity) && !sameStayCity(h.to, fromCity),
-    );
-    const destCity = (leaveHop?.to ?? "").trim() ||
-      (nextCity && !sameStayCity(fromCity, nextCity) ? nextCity : "");
-    if (!destCity || destCity.length < 4 || sameStayCity(fromCity, destCity)) continue;
-
-    if (sameStayCity(nextCity, fromCity) || copyNamesStay(next.title ?? "", fromCity)) {
-      if (!sameStayCity(next.city || "", destCity)) {
-        snapDayCity(next, destCity);
-        if (copyNamesStay(next.title ?? "", fromCity)) next.title = destCity;
-        fixed += 1;
-      } else if (copyNamesStay(next.title ?? "", fromCity) && !copyNamesStay(next.title ?? "", destCity)) {
-        next.title = destCity;
-        if (next.focusName && copyNamesStay(next.focusName, fromCity)) next.focusName = destCity;
-        fixed += 1;
-      }
-    }
-    if (next.focusName && copyNamesStay(next.focusName, fromCity) && !sameStayCity(next.focusName, destCity)) {
-      next.focusName = destCity;
-      fixed += 1;
-    }
-    fixed += stripHopReplayOnDay(next, fromCity, destCity);
-  }
-  return fixed;
-}
-
-const LAST_HUB_METRO_KM = 100;
-
-/**
- * Departure day sits at the ticket hub — not a remote park without a runway.
- */
-export function snapDepartureDayToTicketHub(plan: AiTripPlan): number {
-  if (plan.groundTransportMode) return 0;
-  const iata = (plan.destinationIata ?? "").trim().toUpperCase();
-  const hub = iata ? DESTINATION_BY_IATA[iata] : undefined;
-  if (!hub) return 0;
-  const days = [...(plan.days ?? [])].sort((a, b) => a.day - b.day);
-  const last = [...days].reverse().find((d) => !d.inFlightDay) ?? days[days.length - 1];
-  if (!last || !Number.isFinite(last.lat) || !Number.isFinite(last.lng)) return 0;
-  const km = haversineKm([last.lng, last.lat], [hub.lng, hub.lat]);
-  if (km < LAST_HUB_METRO_KM) return 0;
-
-  last.city = hub.name;
-  last.focusName = hub.name;
-  last.lat = hub.lat;
-  last.lng = hub.lng;
-  last.title = hub.name;
-
-  if (last.activities) {
-    for (const slot of SLOTS) {
-      const list = last.activities[slot] ?? [];
-      last.activities[slot] = list.filter((a) => {
-        if (a.type === "TRANSPORT" || a.transportType) return true;
-        const blob = `${a.name ?? ""} ${a.description ?? ""}`;
-        return /mednarodni|international|odhod|departure|letališč|airport/i.test(blob);
-      });
-    }
-    resyncDaySlotProse(last);
-  }
-  if (last.mapPins?.length) {
-    last.mapPins = last.mapPins.filter((p) => {
-      if (!Number.isFinite(p.lat) || !Number.isFinite(p.lng)) return false;
-      return haversineKm([hub.lng, hub.lat], [p.lng, p.lat]) < LAST_HUB_METRO_KM;
-    });
-  }
-  return 1;
 }
 
 function dayHasInboundTo(day: DayPlan, destCity: string): boolean {
@@ -923,6 +862,13 @@ export function stripWrongCityDayActivities(plan: AiTripPlan): number {
       const text = day[prose];
       if (text && isWrongCityPoi(text, "", city)) {
         day[prose] = "";
+        removed += 1;
+      }
+    }
+    for (const tipKey of ["transportationTips", "travelHack", "localWarnings"] as const) {
+      const text = day[tipKey];
+      if (text && isWrongCityPoi(text, "", city)) {
+        day[tipKey] = "";
         removed += 1;
       }
     }
@@ -1429,49 +1375,106 @@ function isNonPoiActivity(a: Activity): boolean {
 }
 
 /**
- * Same POI must not repeat later in the trip. Keep the first visit; drop the repeat.
- * If that would empty the day, keep the activity. Never invent a replacement sight.
+ * Same landmark once per trip, on the overnight closest to the POI
+ * (Chichén Itzá → Valladolid, not Cancun).
  */
 export function dropDuplicatePoisAcrossPlan(plan: AiTripPlan): number {
-  const seen: string[] = [];
-  let removed = 0;
   const days = plan.days ?? [];
+  const peers = days.map((d) => d.city ?? d.focusName ?? "");
+
+  type Occ = {
+    day: DayPlan;
+    slot: Slot;
+    activity: Activity;
+    key: string;
+    cityKey: string;
+  };
+  const occs: Occ[] = [];
   for (const day of days) {
     if (!day.activities) continue;
     const cityKey = poiDedupeKey(day.city ?? day.focusName ?? "");
-    for (let si = 0; si < SLOTS.length; si++) {
-      const slot = SLOTS[si]!;
-      const list = day.activities[slot] ?? [];
-      const next: Activity[] = [];
-      for (let i = 0; i < list.length; i++) {
-        const a = list[i]!;
-        if (isNonPoiActivity(a)) {
-          next.push(a);
-          continue;
-        }
+    for (const slot of SLOTS) {
+      for (const a of day.activities[slot] ?? []) {
+        if (isNonPoiActivity(a)) continue;
         const key = poiDedupeKey(a.name ?? "");
-        if (!key || key.length < 4) {
-          next.push(a);
-          continue;
-        }
-        const dup = seen.some((prev) => poiKeysMatch(prev, key, cityKey));
-        if (dup) {
-          let left = next.length + (list.length - i - 1);
-          for (let sj = si + 1; sj < SLOTS.length; sj++) {
-            left += day.activities?.[SLOTS[sj]!]?.length ?? 0;
-          }
-          if (left > 0) {
-            removed += 1;
-            continue;
-          }
-          next.push(a);
-          continue;
-        }
-        seen.push(key);
-        next.push(a);
+        if (!key || key.length < 4) continue;
+        occs.push({ day, slot, activity: a, key, cityKey });
       }
-      day.activities[slot] = next;
     }
+  }
+
+  const parent = occs.map((_, i) => i);
+  const find = (i: number): number => {
+    let x = i;
+    while (parent[x] !== x) x = parent[x]!;
+    return x;
+  };
+  for (let i = 0; i < occs.length; i++) {
+    for (let j = i + 1; j < occs.length; j++) {
+      const a = occs[i]!;
+      const b = occs[j]!;
+      if (poiKeysMatch(a.key, b.key, a.cityKey) || poiKeysMatch(a.key, b.key, b.cityKey)) {
+        parent[find(j)] = find(i);
+      }
+    }
+  }
+  const groups = new Map<number, Occ[]>();
+  for (let i = 0; i < occs.length; i++) {
+    const r = find(i);
+    const list = groups.get(r) ?? [];
+    list.push(occs[i]!);
+    groups.set(r, list);
+  }
+
+  const drop = new Set<Activity>();
+  for (const group of groups.values()) {
+    if (group.length < 2) continue;
+    const scored = group.map((o) => {
+      const poi =
+        (typeof o.activity.lat === "number" && typeof o.activity.lng === "number"
+          ? { lat: o.activity.lat, lng: o.activity.lng }
+          : null) ??
+        lookupPoiCoords(o.activity.name ?? "") ??
+        lookupRegionCoords(o.activity.name ?? "");
+      const stay = lookupOvernightCoords(o.day.city ?? o.day.focusName ?? "", {
+        lat: o.day.lat,
+        lng: o.day.lng,
+        peerCities: peers,
+      });
+      const km =
+        poi && stay ? haversineKm([stay.lng, stay.lat], [poi.lng, poi.lat]) : Number.POSITIVE_INFINITY;
+      return { o, km, day: o.day.day };
+    });
+    scored.sort((a, b) => a.km - b.km || a.day - b.day);
+    const keep = scored[0]!.o.activity;
+    for (const row of scored) {
+      if (row.o.activity === keep) continue;
+      const remaining = SLOTS.flatMap((s) => row.o.day.activities?.[s] ?? []).filter(
+        (a) => a !== row.o.activity && !drop.has(a),
+      );
+      if (remaining.length === 0) continue;
+      drop.add(row.o.activity);
+    }
+  }
+
+  if (!drop.size) return 0;
+  let removed = 0;
+  for (const day of days) {
+    if (!day.activities) continue;
+    let changed = false;
+    for (const slot of SLOTS) {
+      const list = day.activities[slot] ?? [];
+      const next = list.filter((a) => {
+        if (!drop.has(a)) return true;
+        removed += 1;
+        return false;
+      });
+      if (next.length !== list.length) {
+        day.activities[slot] = next;
+        changed = true;
+      }
+    }
+    if (changed) resyncDaySlotProse(day);
   }
   return removed;
 }
@@ -1653,29 +1656,63 @@ function isCityChangeTravel(a: Activity): boolean {
   return (a.type === "TRANSPORT" || Boolean(a.transportType)) && /→|->/.test(t);
 }
 
+function isLogisticsOrTravel(a: Activity): boolean {
+  return isMoveActivity(a) || isAirportOrCheckout(a);
+}
+
+function dayCityLabel(day: DayPlan): string {
+  return (day.city || day.focusName || "").trim();
+}
+
+function isOvernightCityChange(prev: DayPlan, day: DayPlan): boolean {
+  const from = dayCityLabel(prev);
+  const to = dayCityLabel(day);
+  if (!from || !to) return false;
+  return !sameStayCity(from, to);
+}
+
 /**
  * Breakfast / beach program in the destination city before the inbound flight/van
  * has happened (Ao Nang breakfast + afternoon CNX→KBV, Lipe breakfast + morning boat).
+ * Travel days: morning = transfer only; real sights move to afternoon after check-in
+ * unless the inbound hop is still in the afternoon (then morning program is dropped).
  */
 export function stripPrematureDestinationProgram(plan: AiTripPlan): number {
   let removed = 0;
-  for (const day of plan.days ?? []) {
+  const days = plan.days ?? [];
+  const lastIdx = days.length - 1;
+  for (let i = 0; i < days.length; i++) {
+    const day = days[i]!;
     if (!day.activities) continue;
     const morning = day.activities.morning ?? [];
     const afternoon = day.activities.afternoon ?? [];
     const morningMove = morning.some((a) => isMoveActivity(a));
     const morningCityChange = morning.some((a) => isCityChangeTravel(a));
     const afternoonInbound = afternoon.some((a) => isCityChangeTravel(a));
-    if (!morningMove && !afternoonInbound) continue;
+    const overnightHop =
+      i > 0 && i < lastIdx && isOvernightCityChange(days[i - 1]!, day);
+    if (!morningMove && !afternoonInbound && !overnightHop) continue;
 
-    if (morningCityChange || afternoonInbound) {
-      const kept = morning.filter((a) => isMoveActivity(a) || isAirportOrCheckout(a));
-      if (kept.length !== morning.length) {
-        removed += morning.length - kept.length;
-        day.activities.morning = kept;
-      }
+    const premature = morning.filter((a) => !isLogisticsOrTravel(a));
+    if (!premature.length) continue;
+
+    // Still travelling in the afternoon — destination morning program did not happen.
+    if (afternoonInbound) {
+      day.activities.morning = morning.filter((a) => isLogisticsOrTravel(a));
+      removed += premature.length;
       continue;
     }
+
+    if (morningCityChange || overnightHop) {
+      day.activities.morning = morning.filter((a) => isLogisticsOrTravel(a));
+      const sights = premature.filter((a) => !isDestinationStayFiller(a));
+      if (sights.length) {
+        day.activities.afternoon = [...afternoon, ...sights];
+      }
+      removed += premature.length;
+      continue;
+    }
+
     const kept = morning.filter((a) => !isDestinationStayFiller(a));
     if (kept.length !== morning.length) {
       removed += morning.length - kept.length;
@@ -1785,6 +1822,73 @@ export function alignTransportationDurationWithTips(plan: AiTripPlan): number {
   return fixed;
 }
 
+function localDaypartActivity(city: string, slot: Slot, slo: boolean): Activity {
+  const place = city.trim() || (slo ? "destinaciji" : "the destination");
+  if (slot === "morning") {
+    return {
+      name: slo ? `Središče in trg v mestu ${place}` : `Centre and main square in ${place}`,
+      type: "SIGHT",
+      description: slo
+        ? `Dopoldan v ${place}: začni na glavnem trgu ali tržnici, ko se mesto zbudi. Oglej si eno javno stavbo ali park v peš razdalji od hotela, sedi na kavo tam, kjer sedijo domačini, in si začrtaj popoldansko pot brez hitenja na daljni izlet.`
+        : `Morning in ${place}: start at the main square or market as the town wakes up. See one public building or park within walking distance of the hotel, have coffee where locals sit, and plan the afternoon without rushing into a long excursion.`,
+    };
+  }
+  if (slot === "afternoon") {
+    return {
+      name: slo ? `Popoldanski ogled v mestu ${place}` : `Afternoon sight in ${place}`,
+      type: "SIGHT",
+      description: slo
+        ? `Popoldan ostani v ${place}: izberi muzej, četrt ali obalo, ki je logistično usklajena z dopoldanskim programom. Vzemi si odmor v senci, pij vodo in se pred mrakom vrni proti nastanitvi, da večer ne bo samo prevoz.`
+        : `Afternoon in ${place}: pick a museum, neighbourhood, or waterfront that sits logically after the morning. Take shade and water, then head toward the stay before dusk so the evening is not only transport.`,
+    };
+  }
+  return {
+    name: slo ? `Večer v soseski, kjer spiš v mestu ${place}` : `Evening near your stay in ${place}`,
+    type: "EAT",
+    description: slo
+      ? `Zvečer v ${place} ostani blizu nastanitve: sprehod po osvetljeni ulici in večerja v lokalu z imenom na izvesku, ne generična “lokalna večerja”. Če si podnevi veliko hodil, izberi kratek meni in zgodnji povratek.`
+      : `Evening in ${place}: stay near the hotel, walk a lit street, and eat at a venue with a name on the sign — not a generic “local dinner”. If the day was long, keep the menu short and return early.`,
+  };
+}
+
+function dayHasReturnFlight(day: DayPlan): boolean {
+  const blob = `${day.title ?? ""} ${JSON.stringify(day.activities ?? {})}`;
+  return /mednarodni (povratni )?let|international return flight|internationaler rückflug/i.test(
+    blob,
+  );
+}
+
+function slotHasBody(list: Activity[] | undefined): boolean {
+  return (list ?? []).some((a) =>
+    activityHasRenderableBody({ description: a.description, bullets: a.bullets }),
+  );
+}
+
+/** Sightseeing days must ship morning + afternoon + evening objects (no silent gaps). */
+export function ensureCompleteDaySlots(plan: AiTripPlan): number {
+  const slo = !plan.contentLanguage || plan.contentLanguage.startsWith("sl");
+  const days = [...(plan.days ?? [])].sort((a, b) => a.day - b.day);
+  const lastDay = days[days.length - 1]?.day;
+  const firstDay = days[0]?.day ?? 1;
+  let filled = 0;
+  for (const day of days) {
+    if (day.inFlightDay) continue;
+    if (day.day <= firstDay + 1) continue;
+    if (day.day === lastDay && dayHasReturnFlight(day)) continue;
+    day.activities = day.activities ?? { morning: [], afternoon: [], evening: [] };
+    const city = (day.city || day.focusName || "").trim();
+    let changed = false;
+    for (const slot of SLOTS) {
+      if (slotHasBody(day.activities[slot])) continue;
+      day.activities[slot] = [localDaypartActivity(city, slot, slo)];
+      filled += 1;
+      changed = true;
+    }
+    if (changed) resyncDaySlotProse(day);
+  }
+  return filled;
+}
+
 /** Move Tirana museums off the evening slot (they close ~18:00). */
 export function relocateClosedEveningSights(plan: AiTripPlan): number {
   let n = 0;
@@ -1836,8 +1940,6 @@ export function applyItineraryGuards(
   templateScrub: number;
   duplicatePois: number;
 } {
-  lockOneWayRegionTransition(plan);
-  snapDepartureDayToTicketHub(plan);
   applyIslandHopLogistics(plan, opts?.language ?? plan.contentLanguage);
   relabelHubDayTripOvernights(plan.days ?? [], opts?.language ?? plan.contentLanguage);
   enrichIslandAirportTransfers(plan, {
@@ -1849,7 +1951,7 @@ export function applyItineraryGuards(
   scrubBangkokSightsOnIslandTransferDays(plan);
   const placeholders = stripPlaceholderActivities(plan);
   dedupeSameDayActivities(plan);
-  const wrongCity = stripWrongCityDayActivities(plan) + stripCrossStayLeaks(plan);
+  const wrongCity = stripWrongCityDayActivities(plan);
   const templateScrub = scrubForbiddenTemplateCopy(plan);
   const genericMeals = stripGenericMealActivities(plan);
   if (plan.summary && plan.days?.length) {
@@ -1868,27 +1970,24 @@ export function applyItineraryGuards(
   const logisticsCopy = repairIncompleteLogisticsCopy(plan);
   const transportLegs = sanitizeTransportationLegs(plan);
   ensureCityChangeTransfer(plan);
+  relabelMisnamedInternationalFlights(plan);
   stripReplayedIntercityHops(plan);
   stripImplausibleLongHaulProgram(plan);
   const returnFlights = dedupeLastDayReturnFlights(plan);
   const earlyAirport = scrubUnsafeEarlyAirportTips(plan);
   const durationAlign = alignTransportationDurationWithTips(plan);
-  const driveTimes = repairImplausibleDriveTimes(plan);
+  const driveTimes = repairImplausibleDriveTimes(plan) + repairCityHopDrivingDistances(plan);
   stripDriveStatsOnAirDays(plan);
   const lastDayHome = forceLastRoadDayHome(plan);
   const splitDrives = splitOverlongDriveStages(plan);
   const stealNights = stealNightForHitAndRun(plan);
-  lockOneWayRegionTransition(plan);
-  snapDepartureDayToTicketHub(plan);
-  stripCrossStayLeaks(plan);
-  ensureCityChangeTransfer(plan);
-  stripReplayedIntercityHops(plan);
   stripSightseeingOnBrutalDriveDays(plan);
   const overlongDrives = annotateOverlongDriveStages(plan);
   const hitAndRun = annotateHitAndRunStays(plan);
   relocateClosedEveningSights(plan);
   const homeStays = stripHomeboundPaidStays(plan);
   const balkanTips = annotateBalkanRoadTips(plan);
+  ensureCompleteDaySlots(plan);
   return {
     placeholders,
     genericMeals,

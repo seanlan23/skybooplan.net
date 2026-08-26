@@ -805,9 +805,9 @@ export function AiPlanView({
         </div>
       ) : null}
 
-      <div className="rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-6 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
-          <div>
+      <div className="rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-6 shadow-sm overflow-x-clip">
+        <div className="flex min-w-0 flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
+          <div className="min-w-0 flex-1">
             <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
               {t("aiplan.badge" as never)}
             </p>
@@ -966,7 +966,7 @@ export function AiPlanView({
               </p>
             ) : null}
           </div>
-          <div className="sm:text-right shrink-0">
+          <div className="w-full min-w-0 sm:w-60 sm:max-w-[15rem] sm:shrink-0 sm:text-right">
             <div className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">
               {t("aiplan.total" as never)}
             </div>

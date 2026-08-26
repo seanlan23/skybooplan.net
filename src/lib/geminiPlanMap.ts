@@ -18,6 +18,8 @@ import {
   resolveMapPoiCategory,
 } from "@/lib/mapPoiCategory";
 import { expandPlanDaysToExpected } from "@/lib/daySequence";
+import { activityHasRenderableBody, isDaypartSlotLabel, sanitizeActivityTitle } from "@/lib/textSanitize";
+import { parseHmClock } from "@/lib/activityTime";
 import { finalizeItineraryMapCoords } from "@/lib/itineraryMapModel";
 import { enforceTravelPace } from "@/lib/paceGuard";
 import { dropSameDayFarPois } from "@/lib/planValidation";
@@ -318,6 +320,7 @@ function toActivity(
     title: string;
     description?: string;
     bullets?: string[];
+    time?: string;
     arrivalTime?: string;
     departureTime?: string;
     estimatedCostEur?: number;
@@ -326,6 +329,8 @@ function toActivity(
     transport_type?: string;
     duration?: string;
     coordinates?: { lat: number; lng: number };
+    lat?: number;
+    lng?: number;
     imageUrl?: string;
     unsplashQuery?: string;
     tripAdvisorStyleDetails?: TripAdvisorStyleDetails;
@@ -348,21 +353,25 @@ function toActivity(
     bullets: act.bullets,
   });
   const description = formatActivityDescription(bullets) || undefined;
+  const name = sanitizeActivityTitle(act.title, description || act.description);
+  const startClock = parseHmClock(act.arrivalTime) ?? parseHmClock(act.time);
+  const lat = act.coordinates?.lat ?? act.lat;
+  const lng = act.coordinates?.lng ?? act.lng;
 
   return {
-    name: act.title,
+    name,
     description,
     bullets: bullets.length > 0 ? bullets : undefined,
-    arrivalTime: act.arrivalTime?.trim() || undefined,
-    departureTime: act.departureTime?.trim() || undefined,
+    arrivalTime: startClock,
+    departureTime: parseHmClock(act.departureTime),
     estimatedCostEur: cost,
-    priceLabel: cost != null ? `€${cost}` : undefined,
+    priceLabel: cost != null && cost > 0 ? `€${cost}` : undefined,
     timeSlot: act.timeSlot,
     type: act.category,
     transportType,
     transportDuration,
-    lat: act.coordinates?.lat,
-    lng: act.coordinates?.lng,
+    lat,
+    lng,
     imageUrl: act.imageUrl,
     unsplashQuery: act.unsplashQuery?.trim() || undefined,
     tripAdvisorStyleDetails: guide,
@@ -386,7 +395,15 @@ function slotFromTimeSlot(timeSlot: string | undefined): DaySlot {
 
 function joinSlotActivities(items: Activity[]): string {
   return items
-    .map((a) => (a.description ? `${a.name}: ${a.description}` : a.name))
+    .map((a) => {
+      const name = (a.name ?? "").trim();
+      const desc = (a.description ?? "").trim();
+      if (isDaypartSlotLabel(name) && (!desc || isDaypartSlotLabel(desc))) return "";
+      if (isDaypartSlotLabel(name)) return desc;
+      if (!desc || name.toLowerCase() === desc.toLowerCase()) return name;
+      if (isDaypartSlotLabel(desc)) return name;
+      return `${name}: ${desc}`;
+    })
     .filter(Boolean)
     .join("\n\n");
 }
@@ -428,23 +445,22 @@ function slotActivities(
           ? slotFromTimeSlot(act.timeSlot)
           : parseActivitySlot(clock, i, acts.length);
     const item = toActivity(act, poiGuideByName);
+    if (!item.name.trim()) continue;
+    if (
+      isDaypartSlotLabel(item.name) &&
+      !activityHasRenderableBody({ description: item.description, bullets: item.bullets })
+    ) {
+      continue;
+    }
     if (slot === "morning") morningActs.push(item);
     else if (slot === "afternoon") afternoonActs.push(item);
     else eveningActs.push(item);
   }
 
-  const join = (items: Activity[]) =>
-    items
-      .map((a) => (a.description ? `${a.name}: ${a.description}` : a.name))
-      .join("\n\n");
-
-  const morningText = join(morningActs);
-  const afternoonText = join(afternoonActs);
-
   return {
-    morning: morningText,
-    afternoon: afternoonText,
-    evening: join(eveningActs),
+    morning: joinSlotActivities(morningActs),
+    afternoon: joinSlotActivities(afternoonActs),
+    evening: joinSlotActivities(eveningActs),
     structured: {
       morning: sortActivitiesByTime(morningActs),
       afternoon: sortActivitiesByTime(afternoonActs),
@@ -514,7 +530,7 @@ export function tripPlanResponseToAiTripPlan(
   const seenTravelHacks = new Set<string>();
 
   for (const phase of data.itinerar ?? []) {
-    const city = phase.city.trim();
+    const phaseCity = phase.city.trim();
     const phaseLat = phase.lat;
     const phaseLng = phase.lng;
 
@@ -523,6 +539,7 @@ export function tripPlanResponseToAiTripPlan(
     );
 
     for (const day of phase.days ?? []) {
+      const city = (typeof day.city === "string" && day.city.trim()) || phaseCity;
       const slots = slotActivities(day.activities, poiGuideByName);
       const pinKey = (lat: number, lng: number) => `${lat.toFixed(4)}:${lng.toFixed(4)}`;
       const seenPins = new Set<string>();
@@ -577,8 +594,8 @@ export function tripPlanResponseToAiTripPlan(
               transportType: normalizeActivityTransportType(a.transport_type),
             }),
             description: a.description,
-            arrivalTime: a.arrivalTime,
-            departureTime: a.departureTime,
+            arrivalTime: parseHmClock(a.arrivalTime) ?? parseHmClock(a.time),
+            departureTime: parseHmClock(a.departureTime),
             estimatedCostEur: a.estimatedCostEur,
             imageUrl: a.imageUrl,
             unsplashQuery:

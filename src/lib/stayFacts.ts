@@ -2,7 +2,7 @@ import { lookupRegionCoords } from "@/lib/regionCoords";
 
 /**
  * Stay facts (catalog) — physics only: hub day-trips, long-access min nights.
- * Route sense (how many bases, when to add a coast) lives in worldRouteRules — do not grow this file with if (city / 18 days).
+ * Do not grow this file with if (city / 18 days).
  * Keep this file free of aiPlan / curatedRoutes imports (used while building blueprints).
  */
 

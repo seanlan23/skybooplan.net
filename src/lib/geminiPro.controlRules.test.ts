@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { tripPlanControlRules, tripPlanSystemPrompt, dayRangePromptBlock } from "@/lib/geminiPro";
+import { tripPlanControlRules, tripPlanSystemPrompt, dayRangePromptBlock, GEMINI_TRIP_PLAN_MAX_OUTPUT_TOKENS } from "@/lib/geminiPro";
 import type { GenerateTripPlanParams } from "@/lib/geminiPro.shared";
 
 function baseParams(
@@ -32,6 +32,12 @@ function baseParams(
   };
 }
 
+describe("trip plan output tokens", () => {
+  it("sets max_output_tokens to 8192", () => {
+    expect(GEMINI_TRIP_PLAN_MAX_OUTPUT_TOKENS).toBe(8192);
+  });
+});
+
 describe("tripPlanControlRules", () => {
   it("puts wishes and flight above full-day packing", () => {
     const block = tripPlanControlRules({
@@ -52,11 +58,14 @@ describe("tripPlanControlRules", () => {
     expect(block).toMatch(/BREZ arrivalTime\/departureTime|BREZ category airport/i);
   });
 
-  it("system prompt no longer forces every slot filled", () => {
+  it("system prompt requires morning, afternoon, evening and transport notes", () => {
     const system = tripPlanSystemPrompt(baseParams());
     expect(system).toMatch(/HIERARHIJA PRAVIL/);
-    expect(system).toMatch(/SMSEL POTI/);
-    expect(system).toMatch(/DVO-STOPENJSKI NAČRT|FAZA 1/i);
+    expect(system).not.toMatch(/SMSEL POTI|DVO-STOPENJSKI NAČRT|FAZA 1/i);
+    expect(system).toMatch(/experienced human travel consultant/);
+    expect(system).toMatch(/Never mix English terms or placeholder words/);
+    expect(system).toMatch(/10–11 hours door-to-door/);
+    expect(system).toMatch(/Never invent hotel/);
     expect(system).toMatch(/KAKOVOST NAČRTA/);
     expect(system).toMatch(/vse destinacije/);
     expect(system).toMatch(/prazni timeSlot-i PRED\/ZA letom so OBVEZNI/);
@@ -69,6 +78,20 @@ describe("tripPlanControlRules", () => {
     expect(system).toMatch(/wall of text|neformatiran odstavek/i);
     expect(system).toMatch(/weatherWidget/);
     expect(system).toMatch(/safetyWarning/);
+    expect(system).toMatch(/JSON SCHEMA \(mandatory/);
+    expect(system).toMatch(/DAY COUNT & DEPARTURE/);
+    expect(system).toMatch(/EXACTLY match the inclusive calendar days/);
+    expect(system).toMatch(/Day N \(the final day\) MUST ALWAYS be the departure day/);
+    expect(system).toMatch(/NO PLACEHOLDERS \/ NO TRUNCATION/);
+    expect(system).toMatch(/fully completed description \(minimum 25 words\)/);
+    expect(system).toMatch(/minimum 25 words/);
+    expect(system).toMatch(/TRAVEL DAY RULE/);
+    expect(system).toMatch(/Morning is reserved for travel\/transfer/);
+    expect(system).toMatch(/STRICT GENERATION & FORMATTING CONSTRAINTS/);
+    expect(system).toMatch(/no markdown code fences/);
+    expect(system).toMatch(/activities\.morning/);
+    expect(system).toMatch(/transportTip/);
+    expect(system).toMatch(/\(END_DATE − START_DATE\) \+ 1 = 16/);
     expect(system).not.toMatch(/Mae Klong|KURIRANA POT|Dan 1–3: Bangkok|Koh Lipe: NI neposrednega/i);
   });
 
@@ -95,12 +118,11 @@ describe("tripPlanControlRules", () => {
           end: 12,
           lastCity: "Phuket",
           visitedCities: ["Phuket"],
-          lockedRoute: "=== ZAKLENJENA MATRIKA BAZ ===\n- Dan 1–6 · Phuket",
         },
       }),
     );
     expect(system).toMatch(/RAZPON DNI ZA TA JSON/);
-    expect(system).toMatch(/FAZA 2|ZAKLENJENA MATRIKA BAZ/);
+    expect(system).not.toMatch(/FAZA 2|ZAKLENJENA MATRIKA BAZ/);
     expect(system).not.toMatch(/PRIHODOVNO LETALIŠČE \(OBVEZNO/);
   });
 });

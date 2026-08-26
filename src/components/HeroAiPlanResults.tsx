@@ -6,6 +6,7 @@ import { AiPlanSkeletonView } from "@/components/AiPlanSkeletonView";
 import type { AiPlannerContext, AiPlannerSubmit } from "@/components/AiPlannerPreview";
 import type { AiTripPlan, TripSkeleton } from "@/lib/aiPlan.functions";
 import type { TripFlightContext } from "@/lib/flightScheduling";
+import { inclusiveCalendarDayCount } from "@/lib/dateUtils";
 import { useI18n } from "@/lib/i18n";
 
 type HeroAiPlanResultsProps = {
@@ -72,14 +73,7 @@ export function HeroAiPlanResults({
 
   const tripDays =
     aiContext?.departDate && aiContext?.returnDate
-      ? Math.max(
-          1,
-          Math.round(
-            (new Date(`${aiContext.returnDate}T00:00:00Z`).getTime() -
-              new Date(`${aiContext.departDate}T00:00:00Z`).getTime()) /
-              86_400_000,
-          ) + 1,
-        )
+      ? (inclusiveCalendarDayCount(aiContext.departDate, aiContext.returnDate) ?? 7)
       : 7;
 
   const stayInfo = {

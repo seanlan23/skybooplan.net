@@ -76,6 +76,30 @@ describe("expandPlanDaysToExpected", () => {
     ).toBe(true);
   });
 
+  it("expands a 3-day stream stub to a 15-day calendar so 3/15 is not shipped", () => {
+    const plan = {
+      destinationName: "France",
+      contentLanguage: "sl",
+      days: [
+        day({ day: 1, city: "Paris", date: "2026-08-01" }),
+        day({ day: 2, city: "Paris", date: "2026-08-02" }),
+        day({ day: 3, city: "Blois", date: "2026-08-03" }),
+      ],
+    } as AiTripPlan;
+
+    expandPlanDaysToExpected(plan, {
+      expectedDays: 15,
+      language: "sl",
+      departDate: "2026-08-01",
+    });
+
+    expect(plan.days).toHaveLength(15);
+    expect(plan.days.map((d) => d.day)).toEqual(
+      [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+    );
+    expect(plan.days[14]?.date).toBe("2026-08-15");
+  });
+
   it("pads car/hotel days without camp evening copy", () => {
     const plan = {
       destinationName: "Spain",
@@ -135,6 +159,28 @@ describe("expandPlanDaysToExpected", () => {
     expect(plan.days[1]!.activities!.morning ?? []).toHaveLength(0);
     expect(plan.days[1]!.activities!.afternoon?.[0]?.name).toMatch(/lokalni ogled/i);
     expect(plan.days[1]!.title).toMatch(/prosti|lokalni|nadaljevanje/i);
+  });
+
+  it("trims extra days so the calendar is exactly N", () => {
+    const plan = {
+      destinationName: "Thailand",
+      days: [
+        day({ day: 1, city: "Bangkok", date: "2026-10-26" }),
+        day({ day: 2, city: "Bangkok", date: "2026-10-27" }),
+        day({ day: 3, city: "Phuket", date: "2026-10-28" }),
+        day({ day: 4, city: "Phuket", date: "2026-10-29" }),
+        day({ day: 5, city: "Phuket", date: "2026-10-30" }),
+      ],
+    } as AiTripPlan;
+
+    expandPlanDaysToExpected(plan, {
+      expectedDays: 4,
+      language: "sl",
+      departDate: "2026-10-26",
+    });
+
+    expect(plan.days).toHaveLength(4);
+    expect(plan.days.map((d) => d.day)).toEqual([1, 2, 3, 4]);
   });
 });
 

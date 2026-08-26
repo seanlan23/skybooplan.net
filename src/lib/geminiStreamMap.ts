@@ -9,8 +9,74 @@ import {
   normalizeWeatherWidget,
   enrichGeminiCatalogPlan,
 } from "@/lib/geminiPlanMap";
+import { parseHmClock } from "@/lib/activityTime";
+import { sanitizeActivityTitle } from "@/lib/textSanitize";
 
 type PartialResponse = DeepPartial<TripPlanResponse>;
+
+const SLOT_KEYS = [
+  ["morning", "dopoldan"],
+  ["afternoon", "popoldan"],
+  ["evening", "vecer"],
+] as const;
+
+/** Gemini structured output uses { morning, afternoon, evening }; coerce still uses arrays. */
+function flattenPartialActivities(raw: unknown): unknown[] {
+  if (Array.isArray(raw)) return raw;
+  if (!raw || typeof raw !== "object") return [];
+  const o = raw as Record<string, unknown>;
+  const out: unknown[] = [];
+  for (const [key, timeSlot] of SLOT_KEYS) {
+    const item = o[key];
+    if (item == null) continue;
+    const list = Array.isArray(item) ? item : [item];
+    for (const a of list) {
+      if (a && typeof a === "object") {
+        out.push({ ...a, timeSlot: (a as { timeSlot?: string }).timeSlot ?? timeSlot });
+      }
+    }
+  }
+  return out;
+}
+
+function transferToTransportation(
+  transfer: unknown,
+): TripPlanResponse["itinerar"][number]["days"][number]["transportation"] | undefined {
+  if (!transfer || typeof transfer !== "object") return undefined;
+  const t = transfer as {
+    type?: string;
+    from?: string;
+    to?: string;
+    duration?: string;
+    cost_eur?: number;
+    estimatedPrice?: number;
+  };
+  const from = t.from?.trim() ?? "";
+  const to = t.to?.trim() ?? "";
+  if (!from && !to) return undefined;
+  const raw = (t.type ?? "").toLowerCase();
+  const type: "flight" | "ferry" | "train" | "van" = /flight|let/.test(raw)
+    ? "flight"
+    : /ferry|trajekt/.test(raw)
+      ? "ferry"
+      : /train|vlak/.test(raw)
+        ? "train"
+        : "van";
+  return [
+    {
+      type,
+      from: from || "—",
+      to: to || "—",
+      duration: t.duration?.trim() || "1h",
+      estimatedPrice:
+        typeof t.estimatedPrice === "number"
+          ? t.estimatedPrice
+          : typeof t.cost_eur === "number"
+            ? t.cost_eur
+            : 0,
+    },
+  ];
+}
 
 const DEFAULT_POI = {
   highlights: ["Glavni ogled", "Lokalna kultura", "Fotografiranje"],
@@ -54,14 +120,43 @@ function coercePartialResponse(partial: PartialResponse): TripPlanResponse | nul
         .map((day) => {
           if (typeof day?.day_number !== "number" || !day.title?.trim()) return null;
 
-          const activities = (day.activities ?? [])
-            .map((act, idx) => {
-              if (!act?.title?.trim()) return null;
+          const activities = flattenPartialActivities(day.activities)
+            .map((raw, idx) => {
+              const act = raw as {
+                title?: string;
+                name?: string;
+                time?: string;
+                arrivalTime?: string;
+                departureTime?: string;
+                description?: string;
+                category?: string;
+                timeSlot?: string;
+                estimatedCostEur?: number;
+                cost_eur?: number;
+                transport_type?: TripPlanResponse["itinerar"][number]["days"][number]["activities"][number]["transport_type"];
+                duration?: string;
+                coordinates?: { lat?: number; lng?: number };
+                lat?: number;
+                lng?: number;
+                tripAdvisorStyleDetails?: TripPlanResponse["itinerar"][number]["days"][number]["activities"][number]["tripAdvisorStyleDetails"];
+                unsplashQuery?: string;
+                imageUrl?: string;
+              };
+              const description = act.description?.trim() || "";
+              const title = sanitizeActivityTitle(act.title?.trim() || act.name?.trim() || "", description);
+              if (!title) return null;
               const slots = ["dopoldan", "popoldan", "vecer"] as const;
+              const clock = parseHmClock(act.arrivalTime) ?? parseHmClock(act.time);
+              const cost =
+                typeof act.estimatedCostEur === "number"
+                  ? act.estimatedCostEur
+                  : typeof act.cost_eur === "number"
+                    ? act.cost_eur
+                    : undefined;
               return {
-                time: act.time?.trim() || act.arrivalTime?.trim() || "09:00",
-                title: act.title.trim(),
-                description: act.description?.trim() || act.title.trim(),
+                time: clock ?? "",
+                title,
+                description: description || title,
                 category: isMapCategory(act.category) ? act.category : "sightseeing",
                 timeSlot:
                   act.timeSlot === "dopoldan" ||
@@ -69,17 +164,17 @@ function coercePartialResponse(partial: PartialResponse): TripPlanResponse | nul
                   act.timeSlot === "vecer"
                     ? act.timeSlot
                     : slots[idx % slots.length]!,
-                // Do NOT invent 09:00/11:00 — that fights real flight times in the preview.
-                arrivalTime: act.arrivalTime?.trim() || act.time?.trim() || undefined,
-                departureTime: act.departureTime?.trim() || undefined,
-                estimatedCostEur:
-                  typeof act.estimatedCostEur === "number" ? act.estimatedCostEur : undefined,
+                arrivalTime: clock,
+                departureTime: parseHmClock(act.departureTime),
+                estimatedCostEur: cost,
                 transport_type: act.transport_type,
                 duration: act.duration?.trim(),
                 coordinates:
                   act.coordinates?.lat != null && act.coordinates?.lng != null
                     ? { lat: act.coordinates.lat, lng: act.coordinates.lng }
-                    : undefined,
+                    : act.lat != null && act.lng != null
+                      ? { lat: act.lat, lng: act.lng }
+                      : undefined,
                 tripAdvisorStyleDetails: act.tripAdvisorStyleDetails,
                 unsplashQuery: act.unsplashQuery?.trim(),
                 imageUrl: act.imageUrl,
@@ -87,18 +182,30 @@ function coercePartialResponse(partial: PartialResponse): TripPlanResponse | nul
             })
             .filter(Boolean) as TripPlanResponse["itinerar"][number]["days"][number]["activities"];
 
+          const transportation =
+            (Array.isArray(day.transportation) && day.transportation.length > 0
+              ? day.transportation
+              : transferToTransportation(day.transfer)) ?? undefined;
+
           return {
             day_number: day.day_number,
             date: day.date?.trim() || "",
             day_name: day.day_name?.trim() || day.title.trim(),
             title: day.title.trim(),
-            dailyBudget: typeof day.dailyBudget === "number" ? day.dailyBudget : 0,
+            city: typeof day.city === "string" ? day.city.trim() : undefined,
+            dailyBudget:
+              typeof day.dailyBudget === "number"
+                ? day.dailyBudget
+                : typeof (day as { daily_budget_per_person_eur?: number }).daily_budget_per_person_eur ===
+                    "number"
+                  ? (day as { daily_budget_per_person_eur?: number }).daily_budget_per_person_eur!
+                  : 0,
             drivingDistanceKm:
               typeof day.drivingDistanceKm === "number" ? day.drivingDistanceKm : 0,
             drivingDurationHours: day.drivingDurationHours?.trim() || "0h",
             travelHack: day.travelHack?.trim(),
             transportTip: day.transportTip?.trim(),
-            transportation: day.transportation,
+            transportation,
             activities,
           };
         })

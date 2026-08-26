@@ -6,7 +6,12 @@ import {
   fixSlotTimeMismatch,
   completeTruncatedHeadline,
   completeTruncatedPlaceName,
+  isPlaceholderOrTruncatedCopy,
+  activityHasRenderableBody,
+  isDaypartSlotLabel,
+  sanitizeActivityTitle,
   repairTruncatedCopy,
+  looksLikeCutStemSentence,
   stripTruncatedCopyFromPlan,
   rewriteActivityCityLeak,
   rewriteCountryFoodLeak,
@@ -171,6 +176,19 @@ describe("repairTruncatedCopy", () => {
     );
     expect(
       repairTruncatedCopy(
+        "Obiščite znameniti 5. avenijo v Playa del Carmen in se sprehodite do plaže.",
+      ),
+    ).toContain("znameniti 5. avenijo");
+    expect(looksLikeCutStemSentence("znameniti 5.")).toBe(true);
+    expect(looksLikeCutStemSentence("kolonialnega.")).toBe(true);
+    expect(looksLikeCutStemSentence("najstarejšo.")).toBe(true);
+    expect(looksLikeCutStemSentence("Kulinarične in kulturne.")).toBe(true);
+    expect(looksLikeCutStemSentence("Sprehod po Canal Walk in ogled centra.")).toBe(false);
+    expect(repairTruncatedCopy("Obiščite znameniti 5.")).not.toMatch(/znameniti 5\./);
+    expect(repairTruncatedCopy("Oglejte si srce kolonialnega.")).not.toMatch(/kolonialnega\./);
+    expect(repairTruncatedCopy("Obiščite najstarejšo.")).not.toMatch(/najstarejšo\./);
+    expect(
+      repairTruncatedCopy(
         "Odpravite se na Isla Mujeres s trajektom iz Puerto Juareza. Vožnja traja",
       ),
     ).toMatch(/Juareza\.$/);
@@ -226,6 +244,19 @@ describe("repairTruncatedCopy", () => {
     expect(completeTruncatedHeadline("Odhod iz Mexico City / mednarodni..")).toBe(
       "Odhod iz Mexico City / mednarodni let",
     );
+    expect(
+      completeTruncatedHeadline("Razgledna točka Top of.", "Rockefeller Center"),
+    ).toBe("Razgledna točka Top of the Rock");
+    expect(
+      completeTruncatedHeadline("Hollywood Boulevard in Walk of.", "Hollywood"),
+    ).toBe("Hollywood Boulevard in Walk of Fame");
+    expect(
+      completeTruncatedHeadline("Sprehod ob Canal.", "Canal Walk, Indianapolis"),
+    ).toBe("Sprehod ob Canal Walk");
+    expect(
+      completeTruncatedPlaceName("Indianapolis → St.", "St. Louis"),
+    ).toBe("Indianapolis → St. Louis.");
+    expect(repairTruncatedCopy("Vožnja proti.")).toBe("Vožnja.");
     expect(repairTruncatedCopy("Po vrnitvi v let")).toBe("");
     expect(repairTruncatedCopy("Sprehod po starem mestnem jedru in ogled palače...")).not.toMatch(
       /\.\.\.|…/,
@@ -268,6 +299,77 @@ describe("repairTruncatedCopy", () => {
     expect(plan.days[0]!.activities!.morning).toEqual([]);
     expect(plan.days[1]!.title).toMatch(/Labuan Bajo/);
     expect(plan.days[1]!.morning).toMatch(/vasi\.$/);
+  });
+
+  it("replaces a cut day title with the city name", () => {
+    const plan = {
+      days: [
+        {
+          day: 7,
+          city: "Chiang Mai",
+          title: "Kulinarične in kulturne.",
+        },
+      ],
+    };
+    expect(stripTruncatedCopyFromPlan(plan)).toBeGreaterThan(0);
+    expect(plan.days[0]!.title).toBe("Chiang Mai");
+  });
+
+  it("drops placeholder titles and leftover ellipsis copy", () => {
+    expect(isPlaceholderOrTruncatedCopy("TODO")).toBe(true);
+    expect(isPlaceholderOrTruncatedCopy("[PLACEHOLDER]")).toBe(true);
+    expect(isPlaceholderOrTruncatedCopy("Visit the museum...")).toBe(true);
+    expect(isPlaceholderOrTruncatedCopy("Sprehod po Canal Walk in ogled centra.")).toBe(
+      false,
+    );
+    expect(activityHasRenderableBody({ description: "" })).toBe(false);
+    expect(activityHasRenderableBody({ description: "TODO" })).toBe(false);
+    expect(
+      activityHasRenderableBody({
+        description: "Sprehod po Canal Walk in ogled centra zvečer.",
+      }),
+    ).toBe(true);
+    expect(activityHasRenderableBody({ bullets: ["Ena konkretna točka."] })).toBe(true);
+    expect(isDaypartSlotLabel("Večer")).toBe(true);
+    expect(isDaypartSlotLabel("Večer: Večer")).toBe(true);
+    expect(isDaypartSlotLabel("Evening: Evening")).toBe(true);
+    expect(isDaypartSlotLabel("Večerja v Maraisu")).toBe(false);
+    expect(sanitizeActivityTitle("Večer", "Večer")).toBe("");
+    expect(sanitizeActivityTitle("Evening: Evening", "Evening")).toBe("");
+    expect(
+      sanitizeActivityTitle(
+        "Wat Pho",
+        "Reclining Buddha hall and a local tip about the massage school next door.",
+      ),
+    ).toBe("Wat Pho");
+    expect(activityHasRenderableBody({ description: "Večer" })).toBe(false);
+    expect(activityHasRenderableBody({ description: "Večer: Večer" })).toBe(false);
+    expect(activityHasRenderableBody({ bullets: ["Večer"] })).toBe(false);
+
+    const plan = {
+      days: [
+        {
+          day: 2,
+          city: "Paris",
+          title: "Louvre",
+          activities: {
+            morning: [
+              { name: "TODO", description: "Coming soon..." },
+              {
+                name: "Louvre",
+                description:
+                  "Začni pri Denon krilu. Vstopnico kupi online dan prej in vstani v vrsti za vrhunska dela, ne za vsako sobo.",
+              },
+            ],
+            afternoon: [{ name: "Visit the gardens...", description: "TBD" }],
+            evening: [],
+          },
+        },
+      ],
+    };
+    expect(stripTruncatedCopyFromPlan(plan)).toBeGreaterThan(0);
+    expect(plan.days[0]!.activities!.morning.map((a) => a.name)).toEqual(["Louvre"]);
+    expect(plan.days[0]!.activities!.afternoon).toEqual([]);
   });
 
   it("finishes a cut departure title and drops stub activity copy", () => {
@@ -315,5 +417,35 @@ describe("repairTruncatedCopy", () => {
     expect(stripTruncatedCopyFromPlan(plan)).toBeGreaterThan(0);
     expect(plan.days[0]!.activities!.morning).toEqual([]);
     expect(plan.days[0]!.activities!.evening[0]!.name).toBe("Tečaj tajske kuhinje");
+  });
+
+  it("completes cut USA landmark titles from nearby copy", () => {
+    const plan = {
+      days: [
+        {
+          day: 3,
+          city: "New York",
+          title: "Manhattan",
+          activities: {
+            morning: [
+              {
+                name: "Top of.",
+                description: "Ogled z Rockefeller Center, Top of the Rock.",
+              },
+            ],
+            afternoon: [],
+            evening: [],
+          },
+        },
+        {
+          day: 8,
+          city: "St. Louis",
+          title: "Indianapolis → St.",
+        },
+      ],
+    };
+    expect(stripTruncatedCopyFromPlan(plan)).toBeGreaterThan(0);
+    expect(plan.days[0]!.activities!.morning[0]!.name).toBe("Top of the Rock");
+    expect(plan.days[1]!.title).toBe("Indianapolis → St. Louis.");
   });
 });

@@ -13,12 +13,21 @@ export type ActivityClockFields = {
 };
 
 function toMin(t: string): number | null {
-  const m = /^(\d{1,2}):(\d{2})$/.exec(t.trim());
-  if (!m) return null;
+  const parsed = parseHmClock(t);
+  if (!parsed) return null;
+  const [h, min] = parsed.split(":").map(Number);
+  return (h ?? 0) * 60 + (min ?? 0);
+}
+
+/** Gemini nested slots use `time: "HH:MM"` — reject day-part labels like "evening". */
+export function parseHmClock(raw: string | undefined | null): string | undefined {
+  if (!raw?.trim()) return undefined;
+  const m = /^(\d{1,2}):(\d{2})$/.exec(raw.trim());
+  if (!m) return undefined;
   const h = Number(m[1]);
   const min = Number(m[2]);
-  if (h > 23 || min > 59) return null;
-  return h * 60 + min;
+  if (h > 23 || min > 59) return undefined;
+  return `${String(h).padStart(2, "0")}:${m[2]}`;
 }
 
 /** True for check-in / airport arrival / transfer events — show one clock, never overnight nonsense. */

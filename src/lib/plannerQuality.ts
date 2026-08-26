@@ -407,14 +407,18 @@ VOŽNJE (samo avto/avtodom — NE velja za mednarodni let):
     : `
 PREVOZI (leti/trajekti/vlaki):
 - Dnevni “5 h vožnje” cap NE velja za mednarodni let.
+- TRAVEL DAY: dopoldne = prevoz/transfer; ogledi v novem mestu samo popoldne/zvečer po check-inu.
 - Medmesti: najprej zapiši hop (let/trajekt/vlak), šele nato oglede v novem mestu.
 - Zadnji dan = samo pravi odhod — ne žigosi vmesnega vračanja na hub kot mednarodni let.`;
 
   return `
 === KAKOVOST NAČRTA (vse destinacije — obvezno) ===
-DVE FAZI:
-1) Najprej visoka raven: mesta + število nočitev + prevozi med njimi.
-2) Šele nato podrobnosti po dnevih (ure, hrana, nasveti). Ne začenjaj z restavracijami, če skelet mest še ni smiseln.
+VRSTNI RED (glej TRAVEL DESIGNER zgoraj — ne preskakuj):
+1) Destinacija + točni datumi (sezona, dan svetlobe, prazniki, odpiralni časi).
+2) Geografski tok: enosmerni lok, čim manj vračanja.
+3) Dnevni ritem in energija (počitek po dolgem premiku; celodnevni izlet redko >10–11 h vrat–vrata).
+4) Šele nato aktivnosti, hrana, nasveti.
+5) Struktura nočitev = mesto + noči — brez izmišljenih hotelov.
 
 ${twoNight}
 
@@ -422,7 +426,7 @@ ${roadBlock}
 
 NASTANITVE:
 - PREPOVEDANO izmišljati imena hotelov/kampov (“Hotel Splendid”, “Camping X”).
-- hotels[] = samo mesto + število noči. UI/PDF odpre Booking.com z 2+ živimi opcijami.
+- hotels[] / accommodations[] = samo mesto + število noči. UI/PDF odpre Booking.com z 2+ živimi opcijami.
 - V travelHack smeš napisati KRATEK RAZLOG za filter (center / parking / zajtrk / cena) — ne naziv hotela.
 
 HRANA:
@@ -440,5 +444,6 @@ STIL (človeški planner, ne turistična brošura):
 
 SAMOPREGLED PRED JSON:
 - Predolge vožnje? Premalo časa v mestu? Generični stavki? Manjkajoči nasveti? Nerealističen tempo? Popravi v ISTEM odgovoru.
+- Vsak title in description je CEL stavek (PDF reže prosti tekst). description ≥ 25 besed. PREPOVEDANO placeholderji, nedokončani naslovi, "..." / "…", odrezane besede. transfer in accommodations sta izpolnjena kjer sodi.
 ===`.trim();
 }

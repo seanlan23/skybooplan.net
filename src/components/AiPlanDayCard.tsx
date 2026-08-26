@@ -27,7 +27,7 @@ import { formatDayCardTitle, sortActivitiesByTime } from "@/lib/dayPlanUi";
 import { formatStayDateRange } from "@/lib/islandStays";
 import { activityDescriptionBullets } from "@/lib/activityDescription";
 import { formatActivityClockLabel } from "@/lib/activityTime";
-import { sanitizeLegacyTemplateLeak } from "@/lib/textSanitize";
+import { sanitizeLegacyTemplateLeak, activityHasRenderableBody, isDaypartSlotLabel } from "@/lib/textSanitize";
 import type { ActivityMapFocus } from "@/components/TripMap";
 import {
   activityToPoiDetails,
@@ -101,6 +101,7 @@ function parseActivities(text?: string): Activity[] {
 function isPlaceholderSlotText(text?: string): boolean {
   const t = text?.trim();
   if (!t || t === "—" || t === "–" || t === "-") return true;
+  if (isDaypartSlotLabel(t)) return true;
   return /glavni dopoldanski ogled|morning sight or stroll|jutranji ogled\s*\/\s*sprehod/i.test(
     t,
   );
@@ -109,12 +110,21 @@ function isPlaceholderSlotText(text?: string): boolean {
 export function getSlotActivities(d: DayPlan, slot: "morning" | "afternoon" | "evening"): Activity[] {
   // If structured activities exist, trust empty slots (flight rewrite clears afternoon/evening).
   // Falling back to legacy day.afternoon resurrects "Siesta / bazen" after applyFlightContext.
+  // Title-only stubs (no description/bullets) are omitted — same as empty evening in PDF.
   if (d.activities) {
     return sortActivitiesByTime(
-      (d.activities[slot] ?? []).filter((a) => !isPlaceholderSlotText(a.name)),
+      (d.activities[slot] ?? []).filter(
+        (a) =>
+          !isPlaceholderSlotText(a.name) &&
+          activityHasRenderableBody({ description: a.description, bullets: a.bullets }),
+      ),
     );
   }
-  return parseActivities(d[slot]).filter((a) => !isPlaceholderSlotText(a.name));
+  return parseActivities(d[slot]).filter(
+    (a) =>
+      !isPlaceholderSlotText(a.name) &&
+      activityHasRenderableBody({ description: a.description, bullets: a.bullets }),
+  );
 }
 
 const VARIANT_CONF = {

@@ -31,14 +31,12 @@ import {
 import {
   alignBatchDays,
   mergeStreamedTripPlans,
-  maxPlanDayNumber,
+  contiguousCoveredDays,
   planLastCity,
   planVisitedCities,
-  streamBatchWindowReady,
-  streamPartialPastItinerary,
+  streamBatchShouldCut,
 } from "@/lib/geminiStreamBatches";
 import type { AiTripPlan } from "@/lib/aiPlan.functions";
-import { extractRouteMatrix, formatLockedRouteMatrix } from "@/lib/twoStagePlan";
 import { optionalSupabaseAuthRequest } from "@/lib/supabaseRequestAuth.server";
 import { enforceItineraryQuota, recordPlanGeneration } from "@/lib/quota.server";
 
@@ -213,7 +211,9 @@ export const Route = createFileRoute("/api/generate-itinerary")({
                   GEMINI_STREAM_HARD_MS,
                 );
                 const range = nextIncompleteDayRange(
-                  maxPlanDayNumber(accumulated?.days) || accumulated?.days.length || 0,
+                  contiguousCoveredDays(accumulated?.days) ||
+                    accumulated?.days.length ||
+                    0,
                   expectedDays,
                   size,
                 );
@@ -236,12 +236,6 @@ export const Route = createFileRoute("/api/generate-itinerary")({
                     end: range.end,
                     visitedCities: planVisitedCities(accumulated),
                     lastCity: planLastCity(accumulated),
-                    lockedRoute: accumulated
-                      ? formatLockedRouteMatrix(
-                          extractRouteMatrix(accumulated),
-                          (data.language ?? "sl").startsWith("sl"),
-                        )
-                      : undefined,
                   },
                 };
 
@@ -267,12 +261,7 @@ export const Route = createFileRoute("/api/generate-itinerary")({
                     });
                     if (!preview?.days.length) continue;
                     mergePush(alignBatchDays(preview, range), false);
-                    const gotMax = maxPlanDayNumber(accumulated?.days);
-                    if (
-                      streamBatchWindowReady(accumulated?.days, range) ||
-                      maxPlanDayNumber(preview.days) > range.end ||
-                      (gotMax >= range.end && streamPartialPastItinerary(partial))
-                    ) {
+                    if (streamBatchShouldCut(accumulated?.days, range, partial)) {
                       windowReady = true;
                       if (accumulated) {
                         applyFlightContextIfPresent(accumulated, data);
@@ -327,21 +316,20 @@ export const Route = createFileRoute("/api/generate-itinerary")({
                 noProgressStreak = 0;
               }
 
-              if (
-                accumulated &&
-                hasAcceptablePlanDayCoverage(accumulated.days.length, expectedDays)
-              ) {
+              if (accumulated?.days.length) {
                 const finalPlan = await repairCatalogPlanIfNeeded(
                   finalizeMergedStreamPlan(accumulated, data),
                   data,
                 );
-                await recordPlanGeneration(userId, quota.tier, request);
-                push({ type: "done", plan: finalPlan });
-                pipelineLog(
-                  "stream:generate-itinerary DONE",
-                  `${finalPlan.days.length} days`,
-                );
-                return;
+                if (hasAcceptablePlanDayCoverage(finalPlan.days.length, expectedDays)) {
+                  await recordPlanGeneration(userId, quota.tier, request);
+                  push({ type: "done", plan: finalPlan });
+                  pipelineLog(
+                    "stream:generate-itinerary DONE",
+                    `${finalPlan.days.length} days`,
+                  );
+                  return;
+                }
               }
 
               if (abortSignal.aborted) {

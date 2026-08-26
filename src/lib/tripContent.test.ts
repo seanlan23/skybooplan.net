@@ -150,6 +150,19 @@ describe("isWrongCityPoi", () => {
     expect(isWrongCityPoi("Louvre", "Mona Lisa", "Lyon")).toBe(true);
     expect(isWrongCityPoi("Louvre", "Mona Lisa", "Paris")).toBe(false);
   });
+
+  it("blocks Thailand landmarks that leaked onto the wrong city day", () => {
+    expect(
+      isWrongCityPoi("Savoey Seafood Restaurant (Patong)", "Večerja na plaži.", "Chiang Mai"),
+    ).toBe(true);
+    expect(
+      isWrongCityPoi("Hiša Jima Thompsona", "Popoldanski ogled svile.", "Koh Samui"),
+    ).toBe(true);
+    expect(isWrongCityPoi("Večerja v Yaowarat", "Kitajska četrt.", "Koh Samui")).toBe(true);
+    expect(isWrongCityPoi("Wat Pho", "Ležeči Buda.", "Bangkok")).toBe(false);
+    expect(isWrongCityPoi("Doi Suthep", "Songthaew do templja.", "Chiang Mai")).toBe(false);
+    expect(isWrongCityPoi("Wat Phra Yai", "Veliki Buda.", "Koh Samui")).toBe(false);
+  });
 });
 
 describe("isMorningOnlyPoi", () => {

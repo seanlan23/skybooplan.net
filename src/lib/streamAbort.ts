@@ -11,20 +11,27 @@ export function classifyStreamAbort(opts: {
   return "connection";
 }
 
-/** Safari (desktop) and every iOS WebKit browser freeze long fetches in the background. */
+/**
+ * Phone/tablet only. Desktop Safari/Chrome must not abort on a tab switch —
+ * that kills a live Gemini stream. iOS/Android freeze (or drop) background
+ * fetches, so those still abort + resume.
+ *
+ * Do NOT use `"ontouchend" in document`: desktop Safari and Chrome set it,
+ * which used to abort generation whenever you switched tabs on a Mac.
+ * iPadOS 13+ reports as Macintosh with maxTouchPoints > 1.
+ */
 export function streamNeedsForegroundGuard(
   ua?: string,
-  opts?: { ontouchend?: boolean },
+  opts?: { maxTouchPoints?: number },
 ): boolean {
   const n = ua ?? (typeof navigator !== "undefined" ? navigator.userAgent : "");
   if (/iP(hone|ad|od)/i.test(n)) return true;
-  const macTouch =
-    /Macintosh/i.test(n) &&
-    (opts?.ontouchend ??
-      (typeof document !== "undefined" && "ontouchend" in document));
-  if (macTouch) return true;
   if (/Android/i.test(n)) return true;
-  return /safari/i.test(n) && !/chrome|chromium|crios|android|fxios|edg|opr\//i.test(n);
+  if (!/Macintosh/i.test(n)) return false;
+  const points =
+    opts?.maxTouchPoints ??
+    (typeof navigator !== "undefined" ? navigator.maxTouchPoints : 0);
+  return points > 1;
 }
 
 /**
@@ -146,6 +153,9 @@ export function waitUntilDocumentVisible(signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
     const done = () => {
       document.removeEventListener("visibilitychange", onVis);
+      if (typeof window !== "undefined") {
+        window.removeEventListener("pageshow", onVis);
+      }
       signal?.removeEventListener("abort", onAbort);
     };
     const onVis = () => {
@@ -159,6 +169,9 @@ export function waitUntilDocumentVisible(signal?: AbortSignal): Promise<void> {
       reject(new DOMException("Aborted", "AbortError"));
     };
     document.addEventListener("visibilitychange", onVis);
+    if (typeof window !== "undefined") {
+      window.addEventListener("pageshow", onVis);
+    }
     if (signal) {
       if (signal.aborted) {
         onAbort();
@@ -166,5 +179,6 @@ export function waitUntilDocumentVisible(signal?: AbortSignal): Promise<void> {
       }
       signal.addEventListener("abort", onAbort, { once: true });
     }
+    if (document.visibilityState === "visible") onVis();
   });
 }

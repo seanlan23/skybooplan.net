@@ -13,6 +13,28 @@ export function haversineKm(a: [number, number], b: [number, number]): number {
   return 2 * R * Math.asin(Math.sqrt(s));
 }
 
+/** Typical road km ≈ 1.2× great-circle. */
+const ROAD_KM_FACTOR = 1.2;
+
+/**
+ * Gemini / Mapbox sometimes store metres in a km field (65 km → 65000)
+ * or invent a continent-scale hop (Cancun→Playa as 4093). Prefer geography.
+ */
+export function normalizeStatedRoadKm(statedKm: number, geoKm: number): number {
+  const geo = Number.isFinite(geoKm) ? Math.max(0, geoKm) : 0;
+  const stated = Number.isFinite(statedKm) ? Math.max(0, statedKm) : 0;
+  if (geo < 2) return stated > 120 ? 0 : Math.round(stated);
+  const road = geo * ROAD_KM_FACTOR;
+  if (stated >= 800) {
+    const asKm = stated / 1000;
+    if (asKm >= geo * 0.35 && asKm <= geo * 3.5) return Math.round(asKm);
+  }
+  if (stated < road * 0.75 || stated > road * 2.2) {
+    return Math.round(road);
+  }
+  return Math.round(stated);
+}
+
 /** Flight / long-hop arc as [lng, lat][]. */
 export function buildGreatCircleCoords(
   from: [number, number],

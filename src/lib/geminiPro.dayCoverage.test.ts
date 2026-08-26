@@ -6,8 +6,12 @@ import {
 } from "@/lib/geminiPro.functions";
 
 describe("plan day coverage", () => {
-  it("counts MUC→BKK Sep 19–26 as 8 calendar days", () => {
+  it("counts MUC→BKK Sep 19–26 as 8 calendar days ((end − start) + 1)", () => {
     expect(tripDayCount("2026-09-19", "2026-09-26")).toBe(8);
+  });
+
+  it("counts MUC→BKK 26 Oct–10 Nov as 16 calendar days", () => {
+    expect(tripDayCount("2026-10-26", "2026-11-10")).toBe(16);
   });
 
   it("rejects a 1-day plan for an 8-day trip", () => {
@@ -15,8 +19,8 @@ describe("plan day coverage", () => {
     expect(incompletePlanDayCoverageMessage(1, 8)).toContain("1/8");
   });
 
-  it("allows one missing day only on short trips", () => {
-    expect(hasAcceptablePlanDayCoverage(3, 4)).toBe(true);
+  it("requires the exact calendar day count for every trip length", () => {
+    expect(hasAcceptablePlanDayCoverage(3, 4)).toBe(false);
     expect(hasAcceptablePlanDayCoverage(4, 4)).toBe(true);
   });
 

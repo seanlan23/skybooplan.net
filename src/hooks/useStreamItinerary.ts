@@ -22,7 +22,7 @@ import {
   streamNeedsForegroundGuard,
   waitUntilDocumentVisible,
 } from "@/lib/streamAbort";
-import { maxPlanDayNumber } from "@/lib/geminiStreamBatches";
+import { contiguousCoveredDays } from "@/lib/geminiStreamBatches";
 import { requestScreenWakeLock } from "@/hooks/useScreenWakeLock";
 
 function sanitizeStreamPlan(
@@ -321,7 +321,8 @@ export function useStreamItinerary() {
             return { plan: resolvedPlan, error: null };
           }
 
-          const gotMax = maxPlanDayNumber(lastPartialPlan?.days) || lastPartialPlan?.days.length || 0;
+          const gotMax =
+            contiguousCoveredDays(lastPartialPlan?.days) || lastPartialPlan?.days.length || 0;
           if (
             lastPartialPlan?.days?.length &&
             !hasAcceptablePlanDayCoverage(lastPartialPlan.days.length, expectedFromInput) &&
@@ -365,7 +366,8 @@ export function useStreamItinerary() {
             return { plan: null, error: null, cancelled: true };
           }
 
-          const gotMax = maxPlanDayNumber(lastPartialPlan?.days) || lastPartialPlan?.days.length || 0;
+          const gotMax =
+            contiguousCoveredDays(lastPartialPlan?.days) || lastPartialPlan?.days.length || 0;
           const canContinueHttp =
             Boolean(lastPartialPlan?.days?.length) &&
             !hasAcceptablePlanDayCoverage(lastPartialPlan!.days.length, expectedFromInput) &&

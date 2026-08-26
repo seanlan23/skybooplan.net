@@ -16,6 +16,7 @@ import {
   repairCatalogPlanIfNeeded,
 } from "@/lib/geminiProCatalog";
 import type { AiTripPlan } from "@/lib/aiPlan.functions";
+import { inclusiveCalendarDayCount } from "@/lib/dateUtils";
 import { DESTINATION_BY_IATA } from "@/lib/destinationCoords";
 import { sanitizeGroundDestinationPlace } from "@/lib/groundTransport";
 import { remapConfusedDestinationIata } from "@/lib/airportRank";
@@ -107,6 +108,7 @@ export const generateGeminiProTripInputSchema = z
     originPlace: z.string().trim().min(2).max(120).optional(),
     destinationPlace: z.string().trim().min(2).max(120).optional(),
     language: z.string().min(2).max(5).optional(),
+    currency: z.enum(["EUR", "USD"]).optional(),
     flightContext: z
       .object({
         outboundDepart: z.string().regex(/^\d{1,2}:\d{2}$/),
@@ -215,14 +217,8 @@ export type GenerateGeminiProTripResult = {
 
 export function tripDayCount(departDate: string, returnDate?: string): number {
   if (!returnDate) return 7;
-  try {
-    const start = new Date(`${departDate}T12:00:00`);
-    const end = new Date(`${returnDate}T12:00:00`);
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 7;
-    return Math.max(1, Math.round((end.getTime() - start.getTime()) / 86_400_000) + 1);
-  } catch {
-    return 7;
-  }
+  // Inclusive: (END_DATE − START_DATE) + 1. 26 Oct → 10 Nov = 16, not 15 nights.
+  return inclusiveCalendarDayCount(departDate, returnDate) ?? 7;
 }
 
 /**
@@ -234,9 +230,7 @@ export function hasAcceptablePlanDayCoverage(
   expectedDays: number,
 ): boolean {
   if (expectedDays <= 0) return gotDays > 0;
-  if (expectedDays === 1) return gotDays >= 1;
-  if (expectedDays >= 5) return gotDays >= expectedDays;
-  return gotDays >= Math.max(2, expectedDays - 1);
+  return gotDays >= expectedDays;
 }
 
 export function incompletePlanDayCoverageMessage(
@@ -341,6 +335,7 @@ export function buildGeminiTripPlanParams(data: GenerateGeminiProTripInput, days
     originPlace: data.originPlace,
     destinationPlace,
     language: data.language ?? "sl",
+    currency: data.currency,
     flightContext: data.flightContext,
   };
 }

@@ -40,6 +40,23 @@ export function formatLocalDateRange(
   return a || b;
 }
 
+/**
+ * Inclusive calendar days from START_DATE through END_DATE.
+ * 17 Oct → 31 Oct is 15 days (not 13 or 14 nights). UTC date parts avoid DST drift.
+ */
+export function inclusiveCalendarDayCount(
+  startDate: string,
+  endDate: string,
+): number | null {
+  const start = parseLocalDate(startDate);
+  const end = parseLocalDate(endDate);
+  if (!start || !end) return null;
+  const startUtc = Date.UTC(start.getFullYear(), start.getMonth(), start.getDate());
+  const endUtc = Date.UTC(end.getFullYear(), end.getMonth(), end.getDate());
+  const nights = Math.round(Math.abs(endUtc - startUtc) / 86_400_000);
+  return Math.max(1, nights + 1);
+}
+
 /** Returns YYYY-MM-DD shifted by `days`, preserving local date semantics. */
 export function addDays(input: string, days: number): string {
   const d = parseLocalDate(input);

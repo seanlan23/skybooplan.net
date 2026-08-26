@@ -50,6 +50,21 @@ const GEMINI_MODEL_FALLBACKS = [
   "gemini-flash-latest",
 ];
 
+/**
+ * Chat Completions: o-series / gpt-5 need `max_completion_tokens`.
+ * gpt-4o / gpt-4o-mini still use `max_tokens`.
+ */
+export function openaiOutputTokenFields(
+  model: string,
+  maxTokens: number,
+): { max_tokens: number } | { max_completion_tokens: number } {
+  const n = Math.max(1, Math.round(maxTokens));
+  if (/^(o[1-9]|gpt-5|gpt-4\.1)/i.test(model.trim())) {
+    return { max_completion_tokens: n };
+  }
+  return { max_tokens: n };
+}
+
 export type JsonGenerateOutcome<T> = {
   data: T | null;
   httpStatus?: number;
@@ -150,8 +165,8 @@ async function callOpenAi(
     },
     body: JSON.stringify({
       model,
-      temperature: 0.35,
-      max_tokens: maxTokens,
+      temperature: 0.3,
+      ...openaiOutputTokenFields(model, maxTokens),
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: system },
@@ -286,7 +301,7 @@ async function callGoogle(
           contents: user,
           config: {
             systemInstruction: system,
-            temperature: 0.35,
+            temperature: 0.3,
             maxOutputTokens: maxTokens,
             responseMimeType: "application/json",
             abortSignal: requestSignal,
@@ -359,7 +374,7 @@ export async function generateJson<T>(opts: GenerateJsonOptions): Promise<JsonGe
   const provider = opts.provider ?? resolveProvider(opts.role);
   const model = opts.model ?? resolveModel(opts.role, provider);
   const label = opts.label ?? `${provider}/${model}`;
-  const maxTokens = opts.maxTokens ?? (opts.role === "skeleton" ? 14_000 : 16_000);
+  const maxTokens = opts.maxTokens ?? 8192;
   const timeoutMs = opts.timeoutMs ?? 300_000;
   const envModelKey = opts.role === "skeleton" ? "SKELETON_MODEL" : "FULL_PLAN_MODEL";
   const explicitModel = opts.model ?? process.env[envModelKey]?.trim();

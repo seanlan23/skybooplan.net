@@ -38,7 +38,11 @@ const EN_TO_SL: Pair[] = [
   [/\bcampsite\b/gi, "kamp"],
   [/\bstart(?:ing)? (?:the )?day\b/gi, "začetek dneva"],
   [/\bcomfortable shoes\b/gi, "udobni čevlji"],
-  [/\blight clothes\b/gi, "lahka oblačila"],
+  [/\barrival hallu?\b/gi, "prihodni dvorani"],
+  [/\bopravi check-in\b/gi, "opravi prijavo"],
+  [/\bcheck-in\b/gi, "prijava"],
+  [/\bcheck-out\b/gi, "odjava"],
+  [/\bMunich\b/g, "München"],
 ];
 
 const EN_TO_DE: Pair[] = [

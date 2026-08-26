@@ -172,9 +172,9 @@ export default function TripComponent({
         <DestinationInsightBanner context={destCtx} loading={destLoading} flights={flights} />
       )}
 
-      <div className="rounded-2xl border border-sky-200 bg-white p-6 shadow-sm">
-        <div className="flex items-start justify-between flex-wrap gap-3">
-          <div>
+      <div className="rounded-2xl border border-sky-200 bg-white p-6 shadow-sm overflow-x-clip">
+        <div className="flex min-w-0 items-start justify-between flex-wrap gap-3">
+          <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 text-xs font-bold text-sky-600 uppercase tracking-wider">
               <Sparkles className="h-4 w-4" /> {t("aiplan.badge" as never)}
             </div>

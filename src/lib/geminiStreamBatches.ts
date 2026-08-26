@@ -82,6 +82,15 @@ export function maxPlanDayNumber(days: DayPlan[] | undefined): number {
   return days.reduce((max, d) => Math.max(max, d.day), 0);
 }
 
+/** Highest n such that days 1…n all exist. Ignores a premature last-day card (day 15 with only 1–3). */
+export function contiguousCoveredDays(days: Array<{ day: number }> | undefined): number {
+  if (!days?.length) return 0;
+  const have = new Set(days.map((d) => d.day));
+  let n = 0;
+  while (have.has(n + 1)) n += 1;
+  return n;
+}
+
 function dayHasStreamBody(day: DayPlan): boolean {
   const acts = day.activities;
   const n =
@@ -103,6 +112,21 @@ export function streamBatchWindowReady(
     if (!match || !dayHasStreamBody(match)) return false;
   }
   return true;
+}
+
+/**
+ * Cut the Gemini call only when the requested window is actually filled.
+ * A premature day 15 / hotels block must not abort days 1–4 (that shipped 3/15).
+ */
+export function streamBatchShouldCut(
+  accumulatedDays: DayPlan[] | undefined,
+  range: { start: number; end: number },
+  partial: unknown,
+): boolean {
+  if (streamBatchWindowReady(accumulatedDays, range)) return true;
+  return (
+    maxPlanDayNumber(accumulatedDays) >= range.end && streamPartialPastItinerary(partial)
+  );
 }
 
 /** Gemini finished itinerar[] and is now writing hotels/logistics we do not need for the next batch. */

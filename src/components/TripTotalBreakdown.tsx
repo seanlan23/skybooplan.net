@@ -39,7 +39,7 @@ export function TripTotalBreakdown({
   const showOvernight = Boolean(overnight && overnight.kind !== "none" && overnight.totalEur > 0);
 
   return (
-    <div className="mt-2 space-y-0.5 text-[11px] text-slate-500 leading-snug max-w-[240px] text-right">
+    <div className="mt-2 w-full space-y-0.5 text-[11px] text-slate-500 leading-snug text-pretty break-words sm:text-right">
       <p>{t(includesKey as never)}</p>
       <p>{t(excludesKey as never)}</p>
       {showOvernight ? (

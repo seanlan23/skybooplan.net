@@ -220,9 +220,9 @@ export function AiPlanSkeletonView({
         </button>
       </div>
 
-      <div className="rounded-2xl border border-sky-200 bg-white p-4 sm:p-6 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
-          <div>
+      <div className="rounded-2xl border border-sky-200 bg-white p-4 sm:p-6 shadow-sm overflow-x-clip">
+        <div className="flex min-w-0 flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
+          <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 text-xs font-bold text-sky-600 uppercase tracking-wider">
               <Sparkles className="h-4 w-4" /> {t("skeleton.badge" as never)}
             </div>
@@ -232,7 +232,7 @@ export function AiPlanSkeletonView({
             <PlannerChoicesSummary form={plannerForm} />
             <p className="mt-2 text-slate-600 max-w-2xl leading-relaxed">{skeleton.summary}</p>
           </div>
-          <div className="text-right shrink-0">
+          <div className="w-full min-w-0 text-right sm:w-60 sm:max-w-[15rem] sm:shrink-0">
             <div className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">
               {t("aiplan.total" as never)}
             </div>

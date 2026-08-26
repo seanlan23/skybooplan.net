@@ -1,4 +1,5 @@
 import { lookupDestination } from "@/lib/destinationCoords";
+import { getAirportHub, localizedAirportCity } from "@/lib/airportCatalog";
 import { haversineKm } from "@/lib/geoMath";
 import { planLangCopy } from "@/lib/planLangCopy";
 import {
@@ -138,7 +139,14 @@ export function isImplausibleLongHaulArrive(
   return arriveMin < earliestDestLocalMinutes(departMin, from, to) - 90;
 }
 
-/** Hours before outbound departure to be at the origin airport (check-in + security). */
+/** Hours before outbound departure to be at the origin airport (prijava + security). */
+function originAirportCityName(originIata: string, langCode: string): string {
+  const iata = originIata.toUpperCase();
+  const catalog = getAirportHub(iata);
+  if (catalog) return localizedAirportCity(catalog, langCode);
+  return lookupDestination(iata)?.name ?? iata;
+}
+
 export function originAirportLeadHours(depart: string): number {
   const depMin = parseHm(depart);
   if (depMin <= 9 * 60) return 3;
@@ -187,7 +195,7 @@ export function buildOriginDepartureHint(
 ): string {
   const hub = lookupDestination(originIata);
   const iata = originIata.toUpperCase();
-  const name = hub?.name ?? iata;
+  const name = originAirportCityName(iata, langCode);
   const dep = flights.outboundDepart;
   const leadPhrase = originAirportLeadPhrase(dep, langCode);
   const euParking =
@@ -205,7 +213,7 @@ export function buildOriginDepartureHint(
     : "";
 
   return planLangCopy(langCode, {
-    sl: `Odhod z domačega letališča ${name} (${iata}) ob ${dep}. Na mednarodni let pridi ${leadPhrase} (check-in, oddaja prtljage, varnostna kontrola).${parking}`,
+    sl: `Odhod z domačega letališča ${name} (${iata}) ob ${dep}. Na mednarodni let pridi ${leadPhrase} (prijava, oddaja prtljage, varnostna kontrola).${parking}`,
     en: `Home airport ${name} (${iata}), flight departs ${dep}. Arrive ${leadPhrase} (check-in, bags, security).${parking}`,
     de: `Heimatflughafen ${name} (${iata}), Abflug ${dep}. Sei ${leadPhrase} am Flughafen (Check-in, Gepäck, Sicherheitskontrolle).${parking}`,
     it: `Aeroporto di casa ${name} (${iata}), decollo ${dep}. Arriva ${leadPhrase} (check-in, bagagli, controlli).${parking}`,
@@ -220,9 +228,8 @@ export function buildOriginDepartureLogistics(
   flights: TripFlightContext,
   langCode = "sl",
 ): LogisticsActivity[] {
-  const hub = lookupDestination(originIata);
   const iata = originIata.toUpperCase();
-  const name = hub?.name ?? iata;
+  const name = originAirportCityName(iata, langCode);
   const dep = flights.outboundDepart;
   const leadPhrase = originAirportLeadPhrase(dep, langCode);
   // Structured clocks from boarding-pass — not LLM. Arrive leadH before depart.
@@ -242,7 +249,7 @@ export function buildOriginDepartureLogistics(
       }),
       type: "TRANSPORT",
       description: planLangCopy(langCode, {
-        sl: `Bodi na ${iata} ${leadPhrase} (${dep}) — check-in, prtljaga, varnost.`,
+        sl: `Bodi na ${iata} ${leadPhrase} (${dep}) — prijava, prtljaga, varnost.`,
         en: `Be at ${iata} ${leadPhrase} (${dep}) — check-in, bags, security.`,
         de: `Sei ${leadPhrase} (${dep}) am Flughafen ${iata} — Check-in, Gepäck, Sicherheit.`,
         it: `Sii a ${iata} ${leadPhrase} (${dep}) — check-in, bagagli, controlli.`,
@@ -562,7 +569,7 @@ export function buildArrivalLogistics(
       type: "TRANSPORT",
       arrivalTime: landHm,
       description: planLangCopy(lang, {
-        sl: `Polet pristane na destinaciji ob ${arriveLabel}. Po izhodu sledi kontrola, prevzem prtljage in orientacija v arrival hallu. ${airportHint}`,
+        sl: `Polet pristane na destinaciji ob ${arriveLabel}. Po izhodu sledi kontrola, prevzem prtljage in orientacija v prihodni dvorani. ${airportHint}`,
         en: `Your flight lands at ${arriveLabel}. Clear immigration, collect luggage, and orient yourself in arrivals. ${airportHint}`,
         de: `Dein Flug landet um ${arriveLabel}. Danach Einreise, Gepäck und Orientierung in der Ankunftshalle. ${airportHint}`,
         it: `Il volo atterra alle ${arriveLabel}. Poi controlli, ritiro bagagli e orientamento in arrivi. ${airportHint}`,
@@ -692,7 +699,7 @@ export function buildDepartureLogistics(
                 fr: `vol de l'après-midi à ${dep} — pas de visites; rendez le camping-car puis aéroport`,
               })
             : planLangCopy(lang, {
-                sl: `popoldanski let ob ${dep} — brez popoldanskih ogledov, po check-outu neposredno na letališče`,
+                sl: `popoldanski let ob ${dep} — brez popoldanskih ogledov, po odjavi neposredno na letališče`,
                 en: `afternoon flight at ${dep} — no afternoon sights; go straight to the airport after check-out`,
                 de: `Nachmittagsflug um ${dep} — keine Nachmittags-Sightseeing-Touren; nach Check-out direkt zum Flughafen`,
                 it: `volo pomeridiano alle ${dep} — niente visite; dopo il check-out vai in aeroporto`,
@@ -701,7 +708,7 @@ export function buildDepartureLogistics(
               })
           : depMin >= 21 * 60
             ? planLangCopy(lang, {
-                sl: `pozni večernji let ob ${dep} — po check-outu še skoraj cel dan na voljo; na letališče šele ~3 ure pred odletom`,
+                sl: `pozni večernji let ob ${dep} — po odjavi še skoraj cel dan na voljo; na letališče šele ~3 ure pred odletom`,
                 en: `late evening flight at ${dep} — nearly full day after check-out; head to airport ~3h before departure`,
                 de: `später Abendflug um ${dep} — nach Check-out fast den ganzen Tag Zeit; erst ~3 Stunden vor Abflug zum Flughafen`,
                 it: `volo serale tardi alle ${dep} — quasi tutta la giornata dopo il check-out; in aeroporto ~3 ore prima`,
@@ -727,7 +734,7 @@ export function buildDepartureLogistics(
         fr: "Retour du camping-car au loueur",
       })
     : planLangCopy(lang, {
-        sl: "Odhod iz hotela (check-out)",
+        sl: "Odhod iz hotela (odjava)",
         en: "Hotel check-out",
         de: "Hotel Check-out",
         it: "Check-out dall'hotel",
@@ -755,7 +762,7 @@ export function buildDepartureLogistics(
         })
     : overnight
       ? planLangCopy(lang, {
-          sl: `Check-out zvečer pred nočnim letom — ${leaveHint}. Prtljago vzemi s seboj.`,
+          sl: `Odjava zvečer pred nočnim letom — ${leaveHint}. Prtljago vzemi s seboj.`,
           en: `Check out in the evening before the overnight flight — ${leaveHint}. Take your bags with you.`,
           de: `Check-out am Abend vor dem Nachtflug — ${leaveHint}. Gepäck mitnehmen.`,
           it: `Check-out la sera prima del volo notturno — ${leaveHint}. Porta i bagagli.`,
@@ -764,7 +771,7 @@ export function buildDepartureLogistics(
         })
     : depMin <= 17 * 60
       ? planLangCopy(lang, {
-          sl: `Zjutraj zaključi check-out in se odpravi na letališče — ${leaveHint}.`,
+          sl: `Zjutraj zaključi odjavo in se odpravi na letališče — ${leaveHint}.`,
           en: `Check out in the morning and head to the airport — ${leaveHint}.`,
           de: `Morgens auschecken und zum Flughafen — ${leaveHint}.`,
           it: `La mattina fai il check-out e vai in aeroporto — ${leaveHint}.`,
@@ -772,7 +779,7 @@ export function buildDepartureLogistics(
           fr: `Le matin, faites le check-out et allez à l'aéroport — ${leaveHint}.`,
         })
       : planLangCopy(lang, {
-          sl: `Check-out pred odhodom na letališče — ${leaveHint}. Prtljago vzemi s seboj ali shrani na recepciji do transferja.`,
+          sl: `Odjava pred odhodom na letališče — ${leaveHint}. Prtljago vzemi s seboj ali shrani na recepciji do transferja.`,
           en: `Check out before the airport transfer — ${leaveHint}. Take bags with you or store them at reception until you leave.`,
           de: `Check-out vor dem Transfer zum Flughafen — ${leaveHint}. Gepäck mitnehmen oder bis zum Transfer an der Rezeption lassen.`,
           it: `Check-out prima del transfer in aeroporto — ${leaveHint}. Porta i bagagli o lasciali in reception fino alla partenza.`,
@@ -783,7 +790,7 @@ export function buildDepartureLogistics(
   const airportDesc =
     overnight
       ? planLangCopy(lang, {
-          sl: `Na letališču oddaj prtljago in opravi check-in. Nočni let ob ${dep} — pridi ~3 ure pred odletom, ne zjutraj na dan leta.`,
+          sl: `Na letališču oddaj prtljago in opravi prijavo. Nočni let ob ${dep} — pridi ~3 ure pred odletom, ne zjutraj na dan leta.`,
           en: `Check in and clear security. Overnight flight at ${dep} — arrive ~3h before, not on the morning of departure.`,
           de: `Am Flughafen Gepäck aufgeben und Check-in. Nachtflug um ${dep} — ~3 Stunden vorher da, nicht am Morgen des Abflugs.`,
           it: `In aeroporto: bagagli e check-in. Volo notturno alle ${dep} — arriva ~3 ore prima, non la mattina del volo.`,
@@ -792,7 +799,7 @@ export function buildDepartureLogistics(
         })
     : depMin <= 13 * 60
       ? planLangCopy(lang, {
-          sl: `Na letališču oddaj prtljago, opravi check-in in varnostni pregled. Zgodnji/popoldanski odhod — danes ni časa za dodatne oglede v mestu.`,
+          sl: `Na letališču oddaj prtljago, opravi prijavo in varnostni pregled. Zgodnji/popoldanski odhod — danes ni časa za dodatne oglede v mestu.`,
           en: `Check in and clear security. Early/midday departure — no extra city sightseeing today.`,
           de: `Am Flughafen Gepäck aufgeben, Check-in und Sicherheitskontrolle. Früher/mittäglicher Abflug — heute keine Extra-Sightseeing-Touren in der Stadt.`,
           it: `In aeroporto: bagagli, check-in e controlli. Partenza mattutina/mezzogiorno — niente visite in città oggi.`,
@@ -801,7 +808,7 @@ export function buildDepartureLogistics(
         })
       : depMin <= 17 * 60
         ? planLangCopy(lang, {
-            sl: `Na letališču oddaj prtljago in opravi check-in. Popoldanski odhod — brez dodatnih ogledov po prevozu.`,
+            sl: `Na letališču oddaj prtljago in opravi prijavo. Popoldanski odhod — brez dodatnih ogledov po prevozu.`,
             en: `Check in and clear security. Afternoon departure — no sights after transfer.`,
             de: `Am Flughafen Gepäck aufgeben und Check-in. Nachmittagsflug — nach dem Transfer keine Sightseeing-Touren mehr.`,
             it: `In aeroporto: bagagli e check-in. Partenza pomeridiana — niente visite dopo il transfer.`,
@@ -810,7 +817,7 @@ export function buildDepartureLogistics(
           })
         : depMin >= 21 * 60
           ? planLangCopy(lang, {
-              sl: `Na letališču oddaj prtljago in opravi check-in. Pozni odhod ob ${dep} — na letališče pridi ~3 ure pred odletom, ne popoldne.`,
+              sl: `Na letališču oddaj prtljago in opravi prijavo. Pozni odhod ob ${dep} — na letališče pridi ~3 ure pred odletom, ne popoldne.`,
               en: `Check in and clear security. Late departure at ${dep} — arrive at airport ~3h before, not mid-afternoon.`,
               de: `Am Flughafen Gepäck aufgeben und Check-in. Später Abflug um ${dep} — ~3 Stunden vorher am Flughafen, nicht am Nachmittag.`,
               it: `In aeroporto: bagagli e check-in. Partenza tardi alle ${dep} — arriva ~3 ore prima, non nel pomeriggio.`,
@@ -818,7 +825,7 @@ export function buildDepartureLogistics(
               fr: `À l'aéroport : bagages et check-in. Départ tard à ${dep} — arrivez ~3 h avant, pas l'après-midi.`,
             })
           : planLangCopy(lang, {
-              sl: `Na letališču oddaj prtljago in opravi check-in. Večernji odhod ob ${dep} — največ 1 lahek dopoldanski ogled, na letališču ~3 ure prej.`,
+              sl: `Na letališču oddaj prtljago in opravi prijavo. Večernji odhod ob ${dep} — največ 1 lahek dopoldanski ogled, na letališču ~3 ure prej.`,
               en: `Check in and clear security. Evening departure at ${dep} — at most one light morning stop; at airport ~3h early.`,
               de: `Am Flughafen Gepäck aufgeben und Check-in. Abendflug um ${dep} — höchstens ein leichter Vormittags-Stopp; ~3 Stunden früher am Flughafen.`,
               it: `In aeroporto: bagagli e check-in. Partenza serale alle ${dep} — al massimo una visita leggera al mattino; in aeroporto ~3 ore prima.`,
@@ -860,7 +867,7 @@ export function buildDepartureLogistics(
     },
     {
       name: planLangCopy(lang, {
-        sl: "Prihod na letališče in check-in",
+        sl: "Prihod na letališče in prijava",
         en: "Airport check-in",
         de: "Check-in am Flughafen",
         it: "Check-in in aeroporto",

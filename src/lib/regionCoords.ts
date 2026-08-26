@@ -204,6 +204,23 @@ const REGION_COORDS: Record<string, { lat: number; lng: number }> = {
   "los angeles": { lat: 34.052, lng: -118.244 },
   cancún: { lat: 21.161, lng: -86.851 },
   cancun: { lat: 21.161, lng: -86.851 },
+  "playa del carmen": { lat: 20.629, lng: -87.073 },
+  playacar: { lat: 20.629, lng: -87.073 },
+  tulum: { lat: 20.212, lng: -87.465 },
+  merida: { lat: 20.967, lng: -89.623 },
+  mérida: { lat: 20.967, lng: -89.623 },
+  cozumel: { lat: 20.423, lng: -86.922 },
+  "isla mujeres": { lat: 21.232, lng: -86.731 },
+  holbox: { lat: 21.524, lng: -87.378 },
+  "isla holbox": { lat: 21.524, lng: -87.378 },
+  campeche: { lat: 19.845, lng: -90.524 },
+  bacalar: { lat: 18.677, lng: -88.395 },
+  /** Spain (Castile) — Yucatán uses lookupOvernightCoords + peer stays. */
+  valladolid: { lat: 41.652, lng: -4.724 },
+  "valladolid yucatan": { lat: 20.69, lng: -88.201 },
+  "valladolid mexico": { lat: 20.69, lng: -88.201 },
+  "chichen itza": { lat: 20.684, lng: -88.568 },
+  "chichén itzá": { lat: 20.684, lng: -88.568 },
   bali: { lat: -8.34, lng: 115.092 },
   santorini: { lat: 36.393, lng: 25.461 },
   oia: { lat: 36.462, lng: 25.375 },
@@ -261,8 +278,39 @@ export function lookupRegionCoords(city: string): { lat: number; lng: number } |
   // Substring match against known hubs (longest key first).
   const keys = Object.keys(REGION_COORDS).sort((a, b) => b.length - a.length);
   for (const k of keys) {
-    if (k.length < 4) continue;
-    if (key.includes(k) || k.includes(key)) return REGION_COORDS[k]!;
+    if (k.length < 5) continue;
+    if (key.includes(k)) return REGION_COORDS[k]!;
+    // Avoid "lima" ⊂ longer names; only allow catalog key containing the query when the query is specific.
+    if (key.length >= 8 && k.includes(key)) return REGION_COORDS[k]!;
+  }
+  return null;
+}
+
+const YUCATAN_PEER =
+  /cancun|cancún|playa|tulum|merida|mérida|valladolid|chetumal|bacalar|cozumel|holbox|yucatan|yucatán|quintana|mexico|méxico/i;
+
+const VALLADOLID_MX = { lat: 20.69, lng: -88.201 };
+
+/** Overnight city for distance math — disambiguates Valladolid (MX vs ES) via peer stays. */
+export function lookupOvernightCoords(
+  city: string,
+  opts?: { lat?: number; lng?: number; peerCities?: string[] },
+): { lat: number; lng: number } | null {
+  const raw = city.trim();
+  if (/^valladolid\b/i.test(raw) && (opts?.peerCities ?? []).some((c) => YUCATAN_PEER.test(c))) {
+    return VALLADOLID_MX;
+  }
+  const looked = lookupRegionCoords(raw);
+  if (looked) return looked;
+  if (
+    typeof opts?.lat === "number" &&
+    typeof opts?.lng === "number" &&
+    Number.isFinite(opts.lat) &&
+    Number.isFinite(opts.lng) &&
+    Math.abs(opts.lat) > 0.01 &&
+    Math.abs(opts.lng) > 0.01
+  ) {
+    return { lat: opts.lat, lng: opts.lng };
   }
   return null;
 }

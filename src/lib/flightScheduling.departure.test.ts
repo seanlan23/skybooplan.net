@@ -60,9 +60,9 @@ describe("buildDepartureLogistics hotel clocks", () => {
       locale,
       { accommodationMode: "hotel" },
     );
-    const checkout = acts.find((a) => /check-out/i.test(a.name));
+    const checkout = acts.find((a) => /check-out|odjava|odhod iz hotela/i.test(a.name));
     expect(checkout?.description).not.toMatch(/Zjutraj/i);
-    expect(checkout?.description).toMatch(/Check-out pred odhodom/i);
+    expect(checkout?.description).toMatch(/Odjava pred odhodom/i);
   });
 
   it("does not call a 01:30 red-eye a morning checkout", () => {
@@ -79,7 +79,7 @@ describe("buildDepartureLogistics hotel clocks", () => {
       locale,
       { accommodationMode: "hotel" },
     );
-    const checkout = acts.find((a) => /check-out/i.test(a.name));
+    const checkout = acts.find((a) => /check-out|odjava|odhod iz hotela/i.test(a.name));
     expect(checkout?.arrivalTime).toBe("21:30");
     expect(checkout?.description).not.toMatch(/Zjutraj/i);
     expect(checkout?.description).toMatch(/zvečer|nočn/i);

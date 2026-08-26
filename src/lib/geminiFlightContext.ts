@@ -38,7 +38,7 @@ import {
   dedupePlanDaysByNumber,
   planCalendarDayCount,
 } from "@/lib/geminiPlanMap";
-import { repairPlanDaySequence, resyncPlanDayDates } from "@/lib/daySequence";
+import { repairPlanDaySequence, resyncPlanDayDates, trimPlanDaysToExpected } from "@/lib/daySequence";
 import { normalizePlanLangCode } from "@/lib/planLanguages";
 import { planLangCopy } from "@/lib/planLangCopy";
 import { lookupRegionCoords } from "@/lib/regionCoords";
@@ -1198,6 +1198,9 @@ export function applyFlightContextToGeminiPlan(
     plan,
     opts?.departDate ?? plan.days.find((d) => d.day === 1)?.date,
   );
+  if (opts?.expectedDays && opts.expectedDays > 0) {
+    trimPlanDaysToExpected(plan, opts.expectedDays);
+  }
   const calendarDays = planCalendarDayCount(plan.days);
   if (!calendarDays) return;
   // Stream batches are 6 days. Stamping "international departure" on whatever
@@ -1252,7 +1255,7 @@ export function applyFlightContextToGeminiPlan(
         type: "TRANSPORT",
         transportType: "flight",
         description: planLangCopy(lang, {
-          sl: `Še v letu proti destinaciji — dan ${day.day} od ${totalDays}. Po pristanku (dan ${arrivalDay}, ${arriveShort}) sledi check-in.`,
+          sl: `Še v letu proti destinaciji — dan ${day.day} od ${totalDays}. Po pristanku (dan ${arrivalDay}, ${arriveShort}) sledi prijava.`,
           en: `Still en route — day ${day.day} of ${totalDays}. Landing day ${arrivalDay} at ${arriveShort}; then check-in.`,
           de: `Noch im Flug — Tag ${day.day} von ${totalDays}. Landung an Tag ${arrivalDay} um ${arriveShort}; danach Check-in.`,
           it: `Ancora in volo — giorno ${day.day} di ${totalDays}. Atterraggio il giorno ${arrivalDay} alle ${arriveShort}; poi check-in.`,

@@ -206,7 +206,19 @@ export function expandPlanDaysToExpected(
     language: lang,
     departDate: opts.departDate,
   });
+  trimPlanDaysToExpected(plan, expected);
   return { inserted: [...inserted, ...repaired.inserted] };
+}
+
+/** Drop Gemini extras beyond N so Day N stays the departure day. */
+export function trimPlanDaysToExpected(
+  plan: AiTripPlan,
+  expectedDays: number,
+): number {
+  if (!plan.days?.length || expectedDays <= 0) return 0;
+  const before = plan.days.length;
+  plan.days = plan.days.filter((d) => d.day <= expectedDays);
+  return before - plan.days.length;
 }
 
 /**

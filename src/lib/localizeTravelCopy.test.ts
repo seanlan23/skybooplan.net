@@ -22,4 +22,16 @@ describe("localizeTravelCopy", () => {
   it("runs through sanitizeForLang for sl plans", () => {
     expect(sanitizeForLang("Departure from Mežica", "sl")).toBe("Odhod iz Mežica");
   });
+
+  it("rewrites leaked English airport jargon in Slovenian copy", () => {
+    expect(localizeTravelCopy("Orientacija v arrival hallu.", "sl")).toBe(
+      "Orientacija v prihodni dvorani.",
+    );
+    expect(localizeTravelCopy("Na letališču opravi check-in.", "sl")).toBe(
+      "Na letališču opravi prijavo.",
+    );
+    expect(localizeTravelCopy("Na letališču Munich (MUC)", "sl")).toBe(
+      "Na letališču München (MUC)",
+    );
+  });
 });

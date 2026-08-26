@@ -375,4 +375,21 @@ describe("car road trip inFlightDay", () => {
     expect(d3?.inFlightDay).toBeFalsy();
     expect(d3?.title).toMatch(/vrtovi/i);
   });
+
+  it("does not serialize empty evening as Večer: Večer", () => {
+    const plan = tripPlanResponseToAiTripPlan(
+      minimalPlan([
+        {
+          time: "20:00",
+          title: "Večer",
+          description: "Večer",
+          category: "activity",
+          timeSlot: "vecer",
+        },
+      ]),
+    );
+    expect(plan.days[0]!.evening).toBe("");
+    expect(plan.days[0]!.activities.evening).toEqual([]);
+    expect(plan.days[0]!.evening).not.toMatch(/Večer:\s*Večer/);
+  });
 });

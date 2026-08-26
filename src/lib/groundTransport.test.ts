@@ -15,6 +15,8 @@ describe("lastDayReturnPromptBlock", () => {
     });
     expect(block).toMatch(/STROGI JSON/);
     expect(block).toMatch(/BREZ HH:MM|PREPOVEDANO.*airport/i);
+    expect(block).toMatch(/MUST ALWAYS be the departure day/);
+    expect(block).toMatch(/international return flight home/);
     expect(block).not.toMatch(/Obvezno: aktivnost category airport z natančno uro/);
   });
 });

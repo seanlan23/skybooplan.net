@@ -114,6 +114,8 @@ const POI_COORDS: Record<string, { lat: number; lng: number }> = {
   "parliament|hill": { lat: 45.424, lng: -75.699 },
   "byward|market": { lat: 45.427, lng: -75.693 },
   "niagara|falls": { lat: 43.096, lng: -79.037 },
+  "chichen|itza": { lat: 20.684, lng: -88.568 },
+  "chichenitza": { lat: 20.684, lng: -88.568 },
   "sunset|crater": { lat: 35.364, lng: -111.501 },
   "cadillac|ranch": { lat: 35.187, lng: -101.987 },
   // Thailand

@@ -7,8 +7,10 @@ import {
 } from "@/lib/geminiPro.functions";
 import {
   alignBatchDays,
+  contiguousCoveredDays,
   mergeStreamedTripPlans,
   planVisitedCities,
+  streamBatchShouldCut,
   streamBatchWindowReady,
   streamPartialPastItinerary,
 } from "@/lib/geminiStreamBatches";
@@ -67,6 +69,16 @@ describe("stream day batches", () => {
     expect(nextIncompleteDayRange(2, 16)).toEqual({ start: 3, end: 6 });
   });
 
+  it("does not treat a premature day 15 as full coverage of a 15-day trip", () => {
+    expect(contiguousCoveredDays([{ day: 1 }, { day: 2 }, { day: 3 }, { day: 15 }])).toBe(3);
+    expect(
+      nextIncompleteDayRange(
+        contiguousCoveredDays([{ day: 1 }, { day: 2 }, { day: 3 }, { day: 15 }]),
+        15,
+      ),
+    ).toEqual({ start: 4, end: 7 });
+  });
+
   it("shrinks the window when the hard cap would otherwise skip the rest", () => {
     expect(streamBatchSizeWithTimeLeft(16, 0, 280_000)).toBe(4);
     expect(streamBatchSizeWithTimeLeft(16, 200_000, 280_000)).toBe(3);
@@ -99,6 +111,20 @@ describe("streamBatchWindowReady", () => {
       true,
     );
     expect(streamPartialPastItinerary({ hotels: [{ name: "X" }] })).toBe(true);
+  });
+
+  it("does not cut days 1–4 because Gemini already wrote day 15", () => {
+    const range = { start: 1, end: 4 };
+    const stub = [1, 2, 3].map((n) =>
+      day({ day: n, morning: "Ogled", afternoon: "Kosilo", evening: "Večerja" }),
+    );
+    expect(
+      streamBatchShouldCut(stub, range, { hotels: [{ name: "X" }], itinerar: stub }),
+    ).toBe(false);
+    const full = [1, 2, 3, 4].map((n) =>
+      day({ day: n, morning: "Ogled", afternoon: "Kosilo", evening: "Večerja" }),
+    );
+    expect(streamBatchShouldCut(full, range, { hotels: [{ name: "X" }] })).toBe(true);
   });
 });
 

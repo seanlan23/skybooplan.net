@@ -160,6 +160,7 @@ export function lastDayReturnPromptBlock(params: {
   if (mode === "car" || mode === "motorhome") {
     const vehicle = mode === "motorhome" ? "avtodomom" : "avtom";
     return `ZADNJI DAN — POVRATEK DOMOV (obvezno, ${mode === "motorhome" ? "AVTODOM" : "AVTO"}):
+- Day N (zadnji koledarski dan) MUST ALWAYS be the departure day: vožnja NAZAJ na "${origin}".
 - Striktno: potnik potuje z ${vehicle} od "${origin}" — zadnji dan je vožnja NAZAJ na "${origin}", NE mednarodni let z letališča!
 - Zadnji dan JSON: day.city MORA biti "${origin}" (ne Munich/Zagreb/Nîmes/Barcelona z naslovom „vožnja domov“).
 - Če bi vožnja do "${origin}" ≥7 h: nočitev vmes na predzadnjem dnevu — PREPOVEDANO 10–12 h zadnji dan.
@@ -171,6 +172,7 @@ export function lastDayReturnPromptBlock(params: {
 
   if (mode === "train") {
     return `ZADNJI DAN — POVRATEK DOMOV (obvezno, VLAK):
+- Day N (zadnji koledarski dan) MUST ALWAYS be the departure day: vlak NAZAJ na "${origin}".
 - Striktno: potnik se vrača z vlakom na "${origin}" — NE z mednarodnega letala!
 - Zadnji dan(i): vlak/postaje proti domu; transportation[] type "train".
 - trip_metadata.return_flight_eu NE izpolnjuj.`;
@@ -178,7 +180,9 @@ export function lastDayReturnPromptBlock(params: {
 
   const airport = params.returnFromIata ?? params.destinationIata ?? "izhodno letališče";
   return `ZADNJI DAN — STROGI JSON (LET — aplikacija vstavi logistiko):
+- Day N (zadnji koledarski dan) MUST ALWAYS be the departure day: hotel check-out, airport transfer, international return flight home.
 - activities[] na zadnjem dnevu: samo lahki ogledi/hrana PRED odhodom (title, description, category, timeSlot, coords). BREZ HH:MM.
+- PREPOVEDANO: Day N kot poln ogledni dan v novem mestu/regiji.
 - PREPOVEDANO v activities[]: check-out, prevoz na letališče, airport check-in, mednarodni let, category "airport", izmišljene ure.
 - Aplikacija sama vstavi check-out → transfer → letališče → mednarodni let iz IZBRANI LET (boarding-pass).
 - Ne dodajaj novih mest/oddaljenih regij; noč pred odhodom blizu izhodnega letališča (${airport}).

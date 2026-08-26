@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   ALLOWED_PLAN_LANGS,
   normalizePlanLangCode,
+  planLanguageEnglishName,
   STRICT_LLM_LANGUAGE_RULE,
 } from "@/lib/planLanguages";
 import { languageWritingRule } from "@/lib/tripLocale";
@@ -20,7 +21,15 @@ describe("planLanguages", () => {
     expect(normalizePlanLangCode("fr")).toBe("en");
   });
 
+  it("names languages in English for filled LLM constraints", () => {
+    expect(planLanguageEnglishName("sl")).toBe("Slovenian");
+    expect(planLanguageEnglishName("de")).toBe("German");
+    expect(planLanguageEnglishName("en")).toBe("English");
+    expect(planLanguageEnglishName("it")).toBe("English");
+  });
+
   it("strict LLM rule allows only en/sl/de", () => {
+    expect(STRICT_LLM_LANGUAGE_RULE).toMatch(/Never mix English terms or placeholder words/);
     expect(STRICT_LLM_LANGUAGE_RULE).toMatch(/Never mix languages/i);
     expect(STRICT_LLM_LANGUAGE_RULE).toMatch(/languageCode/i);
     expect(STRICT_LLM_LANGUAGE_RULE).toMatch(/en, sl, de/);

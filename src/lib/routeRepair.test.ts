@@ -5,7 +5,6 @@ import {
   logisticsRepairPrompt,
   mergeRepairedDays,
 } from "@/lib/routeRepair";
-import { worldRouteRulesMentionsDestination } from "@/lib/worldRouteRules";
 
 const day = (overrides: Partial<DayPlan>): DayPlan => ({
   day: 1,
@@ -54,8 +53,7 @@ describe("logisticsRepairPrompt", () => {
     );
     expect(user).toMatch(/Koh Lipe has 2 hotel nights/);
     expect(user).toMatch(/280km hop/);
-    expect(worldRouteRulesMentionsDestination(system)).toBe(false);
-    expect(system).not.toMatch(/Dan 1–3: Bangkok|KURIRANA POT/i);
+    expect(system).not.toMatch(/Dan 1–3: Bangkok|KURIRANA POT|SMSEL POTI/i);
   });
 });
 

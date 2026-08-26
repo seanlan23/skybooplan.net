@@ -61,6 +61,7 @@ import {
 import { dailyMealsBudgetEur, getPriceTier } from "@/lib/tripLocale";
 import { resolveDayBudgetCountry } from "@/lib/countryDailyBudget";
 import { DESTINATION_BY_IATA } from "@/lib/destinationCoords";
+import { inclusiveCalendarDayCount } from "@/lib/dateUtils";
 import { normalizePlanLangCode, STRICT_LLM_LANGUAGE_RULE } from "@/lib/planLanguages";
 import {
   currencyWritingRule,
@@ -534,9 +535,9 @@ const LANG_MAP: Record<string, string> = {
 
 function daysBetween(a: string, b?: string) {
   if (!b) return 5;
-  const d1 = new Date(`${a}T00:00:00Z`).getTime();
-  const d2 = new Date(`${b}T00:00:00Z`).getTime();
-  return Math.max(1, Math.min(21, Math.round((d2 - d1) / 86_400_000)));
+  const n = inclusiveCalendarDayCount(a, b);
+  if (n == null) return 5;
+  return Math.max(1, Math.min(21, n));
 }
 
 function isoDateAtOffset(base: string, offset: number) {
@@ -810,7 +811,7 @@ function buildSchedulingHint(paceLabel: string, nDays: number) {
     totalDays: nDays,
     rules: [
       "Every calendar day needs 2–4 unique named real POIs — zero blank days or generic titles",
-      "Inter-city travel days: transport in morning + real afternoon/evening sights in destination",
+      "Inter-city travel days: morning reserved for travel/transfer; new-city sightseeing only after hotel check-in (afternoon/evening)",
       "Major sights often need half-day or full-day — do not pack four big sights on one day",
       "Include visitDuration on each highlight (2h, pol dneva, cel dan)",
       "Descriptions 120–280 chars — unique practical tips, timing must match slot (no sunset label in morning)",
@@ -1911,7 +1912,7 @@ export const generateAiPlan = createServerFn({ method: "POST" })
             user: userMessage,
             trace: (msg) => trace(`batch ${batch.start}-${batch.end}: ${msg}`),
             label: `full plan days ${batch.start}-${batch.end}`,
-            maxTokens: 16_000,
+            maxTokens: 8192,
             timeoutMs: 300_000,
           });
 
@@ -2871,7 +2872,7 @@ export function buildSkeletonDayPlans(
                   name: locale.slo ? "Mednarodni let" : "International flight",
                   type: "TRANSPORT" as const,
                   description: locale.slo
-                    ? `Še v letu proti destinaciji — dan ${d} od ${nDays}. Po pristanku (dan ${arrivalDayNum}) sledi check-in in ogledi.`
+                    ? `Še v letu proti destinaciji — dan ${d} od ${nDays}. Po pristanku (dan ${arrivalDayNum}) sledi prijava in ogledi.`
                     : `Still en route — trip day ${d} of ${nDays}. After landing (day ${arrivalDayNum}), check-in and sights begin.`,
                 },
               ];
@@ -3037,7 +3038,7 @@ export function buildSkeletonDayPlans(
             name: locale.slo ? "Mednarodni let" : "International flight",
             type: "TRANSPORT",
             description: locale.slo
-              ? `Še v letu proti destinaciji — dan ${d} od ${nDays}. Po pristanku (dan ${arrivalDayNum}) sledi check-in in ogledi.`
+              ? `Še v letu proti destinaciji — dan ${d} od ${nDays}. Po pristanku (dan ${arrivalDayNum}) sledi prijava in ogledi.`
               : `Still en route — trip day ${d} of ${nDays}. After landing (day ${arrivalDayNum}), check-in and sights begin.`,
           },
         ],
@@ -3708,7 +3709,7 @@ ${languageWritingRule(langCode)}
 Rules:
 - highlights MUST cover EVERY day from startDay to endDay — 2–4 unique POIs per day, zero blank days
 - Vary count by visit time: major sight = pol dneva/cel dan (often alone); light days still need afternoon + evening
-- Inter-city travel on startDay: morning transport + real afternoon/evening sights in destination city
+- Inter-city travel on startDay: morning reserved for travel/transfer; sightseeing in the new city only afternoon/evening after hotel check-in
 - If region.collapsedStay: spread beaches/boats across the multi-night stay — still cover each day
 - Fill dayGaps up to target — unique POI per highlight
 - NEVER repeat a sight from usedHighlightNames — pick a different POI for that day (no Griffith Observatory twice under a different name)
@@ -3813,7 +3814,7 @@ async function fillOneRegion(
     user: JSON.stringify(payload),
     trace,
     label: `fill ${region.city} d${region.startDay}-${region.endDay}`,
-    maxTokens: 8_000,
+    maxTokens: 8192,
     timeoutMs: 300_000,
   });
 
@@ -4166,7 +4167,7 @@ export const generateAiPlanSkeleton = createServerFn({ method: "POST" })
             user: buildSkeletonUserMessage({ ...skeletonBase, coverageRepair }),
             trace,
             label: attempt === 0 ? "skeleton" : "skeleton repair",
-            maxTokens: 14_000,
+            maxTokens: 8192,
             timeoutMs: 300_000,
           },
           geminiMeta,

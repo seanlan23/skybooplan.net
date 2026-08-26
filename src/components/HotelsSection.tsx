@@ -56,6 +56,30 @@ function BookingLink({
   );
 }
 
+function HotelStayPrice({ stayTotal, nights }: { stayTotal: number; nights: number }) {
+  const { t } = useI18n();
+  if (stayTotal <= 0) {
+    return <div className="text-base font-bold text-slate-900">—</div>;
+  }
+  const nightly = perNightPrice(stayTotal, nights);
+  return (
+    <div>
+      <div className="text-base font-bold text-slate-900">
+        €{nightly}
+        <span className="text-xs font-normal text-slate-500">{t("aiplan.perNight" as never)}</span>
+      </div>
+      {nights > 1 ? (
+        <div className="text-[11px] font-normal leading-tight text-slate-500">
+          {interpolate(t("aiplan.stayTotal" as never), {
+            price: String(stayTotal),
+            n: String(nights),
+          })}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function BookingCta({
   href,
   label,
@@ -430,12 +454,7 @@ export function HotelsSection({
                         {checkOut ? ` – ${fmtDate(checkOut)}` : ""}
                       </div>
                       <div className="mt-2 flex items-end justify-between gap-2">
-                        <div className="text-base font-bold text-slate-900">
-                          {h.price > 0 ? `€${h.price}` : "—"}
-                          <span className="text-xs font-normal text-slate-500">
-                            {t("aiplan.perNight" as never)}
-                          </span>
-                        </div>
+                        <HotelStayPrice stayTotal={h.price} nights={nights} />
                         <span className="inline-flex items-center gap-1 rounded-md bg-sky-600 px-2.5 py-1.5 text-xs font-semibold text-white">
                           {t("aiplan.book" as never)}
                           <ExternalLink className="h-3 w-3" />
@@ -638,7 +657,6 @@ export function HotelsSection({
                       nflt,
                       lang,
                     });
-                    const nightly = perNightPrice(h.price, nights);
                     return (
                       <BookingLink
                         key={h.id}
@@ -667,14 +685,7 @@ export function HotelsSection({
                             {checkOut ? ` – ${fmtDate(checkOut)}` : ""}
                           </div>
                           <div className="mt-2 flex items-end justify-between gap-2">
-                            <div className="text-base font-bold text-slate-900">
-                              {h.price > 0 ? `€${h.price}` : "—"}
-                              <span className="text-xs font-normal text-slate-500">
-                                {nightly > 0 && nights > 1
-                                  ? ` · €${nightly}${t("aiplan.perNight" as never)}`
-                                  : t("aiplan.perNight" as never)}
-                              </span>
-                            </div>
+                            <HotelStayPrice stayTotal={h.price} nights={nights} />
                             <span className="inline-flex items-center gap-1 rounded-md bg-[#0071c2] px-2.5 py-1.5 text-xs font-semibold text-white">
                               {t("aiplan.book" as never)}
                               <ExternalLink className="h-3 w-3" />

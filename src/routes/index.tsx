@@ -79,7 +79,7 @@ import { computeTripTotalBudgetEur } from "@/lib/tripBudget";
 import { isClassicRoundTrip } from "@/lib/flightSearch";
 import { formatPlannerInterests } from "@/lib/plannerInterests";
 import { Button } from "@/components/ui/button";
-import { addDays } from "@/lib/dateUtils";
+import { addDays, inclusiveCalendarDayCount } from "@/lib/dateUtils";
 import { inferArriveDayOffset, parseMakeFlightRoute, type MakeSearchFlight } from "@/lib/makeSearch";
 import { parsePostankiLeg } from "@/lib/returnFlightSummary";
 import { resolveHeroSearchData } from "@/lib/heroSearchPoll";
@@ -2117,14 +2117,7 @@ function Landing() {
                 <AiPlanLoader
                   tripDays={
                     aiContext?.departDate && aiContext?.returnDate
-                      ? Math.max(
-                          1,
-                          Math.round(
-                            (new Date(`${aiContext.returnDate}T00:00:00Z`).getTime() -
-                              new Date(`${aiContext.departDate}T00:00:00Z`).getTime()) /
-                              86_400_000,
-                          ) + 1,
-                        )
+                      ? (inclusiveCalendarDayCount(aiContext.departDate, aiContext.returnDate) ?? 7)
                       : 7
                   }
                   startedAt={aiGenStartedAt}
@@ -2146,14 +2139,7 @@ function Landing() {
                   pax={aiContext?.pax ?? 1}
                   tripDays={
                     aiContext?.departDate && aiContext?.returnDate
-                      ? Math.max(
-                          1,
-                          Math.round(
-                            (new Date(`${aiContext.returnDate}T00:00:00Z`).getTime() -
-                              new Date(`${aiContext.departDate}T00:00:00Z`).getTime()) /
-                              86_400_000,
-                          ),
-                        )
+                      ? (inclusiveCalendarDayCount(aiContext.departDate, aiContext.returnDate) ?? 7)
                       : 7
                   }
                   genStartedAt={aiGenStartedAt}

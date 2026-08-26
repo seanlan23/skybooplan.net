@@ -197,6 +197,9 @@ describe("normalizePlanForPdf", () => {
   it("does not show Morning/Afternoon timeSlot as activity clock badges", () => {
     expect(isPdfDaypartToken("Morning")).toBe(true);
     expect(isPdfDaypartToken("14:30")).toBe(false);
+    expect(isPdfDaypartToken("Večer")).toBe(true);
+    expect(isPdfDaypartToken("Večer: Večer")).toBe(true);
+    expect(isPdfDaypartToken("Evening: Evening")).toBe(true);
 
     const model = normalizePlanForPdf({
       title: "MUC → CDG",
@@ -394,6 +397,164 @@ describe("normalizePlanForPdf", () => {
       },
     });
     expect(germanIp.insurance?.insurers).toMatch(/ADAC/);
+  });
+
+  it("repairs truncated activity titles and drops English PDF chrome", () => {
+    const model = normalizePlanForPdf({
+      title: "MUC → JFK",
+      destination: "Združene države Amerike",
+      start_date: "2026-07-24",
+      end_date: "2026-08-11",
+      language: "sl",
+      itinerary: {
+        summary: "Potovanje po ZDA.",
+        days: [
+          {
+            day: 2,
+            city: "New York",
+            title: "Manhattan",
+            activities: {
+              morning: [
+                {
+                  name: "Top of.",
+                  description: "Ogled z Rockefeller Center.",
+                },
+              ],
+              afternoon: [],
+              evening: [],
+            },
+          },
+        ],
+      },
+    });
+    expect(model.labels.navigate).toBe("Navigiraj");
+    expect(model.days[0]!.slots[0]!.items[0]!.title).toBe("Top of the Rock");
+  });
+
+  it("drops placeholder and ellipsis activities from the PDF model", () => {
+    const model = normalizePlanForPdf({
+      title: "MUC → CDG",
+      destination: "Pariz",
+      start_date: "2026-07-24",
+      end_date: "2026-07-28",
+      language: "sl",
+      itinerary: {
+        summary: "Kratek izlet v Pariz.",
+        days: [
+          {
+            day: 2,
+            city: "Paris",
+            title: "Pariz",
+            activities: {
+              morning: [
+                { name: "TODO", description: "Coming soon..." },
+                {
+                  name: "Jutranji sprehod ob Seni in ogled Notre-Dame",
+                  description:
+                    "Začni pri Notre-Dame parvisu. Nato preči Senno do Sainte-Chapelle in kupi časovno okno, da se izogneš vrsti pred vstopom.",
+                },
+              ],
+              afternoon: [{ name: "Visit the gardens...", description: "TBD" }],
+              evening: [],
+            },
+          },
+        ],
+      },
+    });
+    const titles = model.days[0]!.slots.flatMap((s) => s.items.map((i) => i.title));
+    expect(titles).toContain("Jutranji sprehod ob Seni in ogled Notre-Dame");
+    expect(titles.some((t) => /TODO|Visit the gardens/i.test(t))).toBe(false);
+  });
+
+  it("omits evening when there is a title but no description", () => {
+    const model = normalizePlanForPdf({
+      title: "MUC → CDG",
+      destination: "Pariz",
+      start_date: "2026-07-24",
+      end_date: "2026-07-28",
+      language: "sl",
+      itinerary: {
+        summary: "Kratek izlet v Pariz.",
+        days: [
+          {
+            day: 2,
+            city: "Paris",
+            title: "Pariz",
+            activities: {
+              morning: [
+                {
+                  name: "Jutranji sprehod ob Seni in ogled Notre-Dame",
+                  description:
+                    "Začni pri Notre-Dame parvisu. Nato preči Senno do Sainte-Chapelle in kupi časovno okno.",
+                },
+              ],
+              afternoon: [],
+              evening: [{ name: "Večerja v Maraisu" }],
+            },
+          },
+        ],
+      },
+    });
+    expect(model.days[0]!.slots.map((s) => s.label)).toEqual(["Dopoldan"]);
+    expect(model.days[0]!.slots.flatMap((s) => s.items.map((i) => i.title))).not.toContain(
+      "Večerja v Maraisu",
+    );
+  });
+
+  it("omits empty evening fallbacks that would print Večer: Večer", () => {
+    const fromStructured = normalizePlanForPdf({
+      title: "MUC → CDG",
+      destination: "Pariz",
+      start_date: "2026-10-17",
+      end_date: "2026-10-31",
+      language: "sl",
+      itinerary: {
+        summary: "Petnajstdnevni izlet v Pariz.",
+        days: [
+          {
+            day: 2,
+            city: "Paris",
+            title: "Pariz",
+            activities: {
+              morning: [
+                {
+                  name: "Jutranji sprehod ob Seni in ogled Notre-Dame",
+                  description:
+                    "Začni pri Notre-Dame parvisu. Nato preči Senno do Sainte-Chapelle in kupi časovno okno.",
+                },
+              ],
+              afternoon: [],
+              evening: [{ name: "Večer", description: "Večer" }],
+            },
+          },
+        ],
+      },
+    });
+    expect(fromStructured.days[0]!.slots.map((s) => s.label)).toEqual(["Dopoldan"]);
+    expect(JSON.stringify(fromStructured.days[0]!.slots)).not.toMatch(/Večer:\s*Večer/);
+
+    const fromLegacyBlob = normalizePlanForPdf({
+      title: "MUC → CDG",
+      destination: "Pariz",
+      start_date: "2026-10-17",
+      end_date: "2026-10-31",
+      language: "sl",
+      itinerary: {
+        summary: "Petnajstdnevni izlet v Pariz.",
+        days: [
+          {
+            day: 2,
+            city: "Paris",
+            title: "Pariz",
+            evening: "Večer: Večer",
+          },
+        ],
+      },
+    });
+    expect(fromLegacyBlob.days[0]!.slots.some((s) => s.label === "Večer")).toBe(false);
+    expect(
+      fromLegacyBlob.days[0]!.slots.flatMap((s) => s.items.map((i) => i.title)),
+    ).not.toContain("Večer: Večer");
   });
 });
 

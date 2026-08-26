@@ -52,7 +52,7 @@ export function ItineraryRouteOverview({
 
   return (
     <div
-      className={`mt-2 -mx-1 overflow-x-auto pb-0.5 ${className}`}
+      className={`mt-2 -mx-1 max-w-full min-w-0 overflow-x-auto pb-0.5 ${className}`}
       aria-label={t("routeOverview.aria" as never)}
     >
       <div className="flex min-w-max items-center gap-1.5 px-1 text-xs font-medium text-slate-700">

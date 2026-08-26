@@ -37,6 +37,7 @@ describe("hotel result filters", () => {
 
   it("computes per-night from stay total", () => {
     expect(perNightPrice(200, 2)).toBe(100);
+    expect(perNightPrice(724, 3)).toBe(241);
   });
 
   it("does not empty the list when amenity data is missing", () => {

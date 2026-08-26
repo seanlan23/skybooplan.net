@@ -1,6 +1,6 @@
 import type { Activity, AiTripPlan, DayPlan, DayTransportLeg } from "@/lib/aiPlan.functions";
-import { haversineKm } from "@/lib/geoMath";
-import { lookupRegionCoords, allRegionCityCoords } from "@/lib/regionCoords";
+import { haversineKm, normalizeStatedRoadKm } from "@/lib/geoMath";
+import { lookupRegionCoords, lookupOvernightCoords, allRegionCityCoords } from "@/lib/regionCoords";
 import {
   HARD_DRIVE_HOURS,
   STRIP_SIGHTS_DRIVE_HOURS,
@@ -8,8 +8,6 @@ import {
   slowBorderNote,
 } from "@/lib/plannerQuality";
 
-/** Typical EU motorway km ≈ 1.2× great-circle. */
-const ROAD_KM_FACTOR = 1.2;
 /** Optimistic average including borders — durations below this are fiction. */
 const FAST_KMH = 95;
 /** Realistic mixed motorway average for the card. */
@@ -121,19 +119,18 @@ function countryFromPlaceLabel(place: string): string | null {
   return CITY_COUNTRY[cityKey(t)] ?? null;
 }
 
-function coordsForPlace(place: string, fallback?: { lat?: number; lng?: number } | null) {
-  const looked = lookupRegionCoords(place);
+function coordsForPlace(
+  place: string,
+  fallback?: { lat?: number; lng?: number } | null,
+  peerCities?: string[],
+) {
+  const looked = lookupOvernightCoords(place, {
+    lat: fallback?.lat,
+    lng: fallback?.lng,
+    peerCities,
+  });
   if (looked) return looked;
-  if (
-    fallback &&
-    typeof fallback.lat === "number" &&
-    typeof fallback.lng === "number" &&
-    Number.isFinite(fallback.lat) &&
-    Number.isFinite(fallback.lng)
-  ) {
-    return { lat: fallback.lat, lng: fallback.lng };
-  }
-  return null;
+  return lookupRegionCoords(place);
 }
 
 export function parseDriveHours(raw: string | undefined): number | null {
@@ -272,11 +269,8 @@ export function estimateRoadStageHours(
   let roadKm = Math.max(0, opts?.statedKm ?? 0);
   if (fromC && toC) {
     const hv = haversineKm([fromC.lng, fromC.lat], [toC.lng, toC.lat]);
-    if (hv >= 40) {
-      const est = Math.round(hv * ROAD_KM_FACTOR);
-      if (roadKm < est * 0.75) roadKm = est;
-      // Gemini often invents 700–900 km for a 250 km hop — trust geography.
-      else if (roadKm > est * 1.45) roadKm = est;
+    if (hv >= 8) {
+      roadKm = normalizeStatedRoadKm(roadKm, hv);
     }
   }
   if (roadKm < MIN_REPAIR_ROAD_KM) return null;
@@ -365,6 +359,44 @@ export function repairImplausibleDriveTimes(plan: AiTripPlan): number {
         .replace(/\d+(?:[.,]\d+)?\s*h(?:\s*\d+\s*m(?:in)?)?/gi, label);
     }
     fixed += 1;
+  }
+  return fixed;
+}
+
+/**
+ * Recalculate inter-city drivingDistanceKm from overnight coordinates.
+ * Fixes Gemini/Mapbox metres-as-km (Cancun→Playa 4093 instead of ~65).
+ */
+export function repairCityHopDrivingDistances(plan: AiTripPlan): number {
+  const days = [...(plan.days ?? [])].sort((a, b) => a.day - b.day);
+  const peers = days.map((d) => d.city ?? d.focusName ?? "");
+  let fixed = 0;
+  for (let i = 1; i < days.length; i++) {
+    const prev = days[i - 1]!;
+    const day = days[i]!;
+    if (dayHasFlightLeg(day) && !primaryCarLeg(day)) continue;
+    const from = (prev.city || prev.focusName || "").trim();
+    const to = (day.city || day.focusName || "").trim();
+    if (!from || !to || placesMatch(from, to)) {
+      if ((day.drivingDistanceKm ?? 0) > 250) {
+        day.drivingDistanceKm = 0;
+        fixed += 1;
+      }
+      continue;
+    }
+    const fromC = coordsForPlace(from, prev, peers);
+    const toC = coordsForPlace(to, day, peers);
+    if (!fromC || !toC) continue;
+    const geo = haversineKm([fromC.lng, fromC.lat], [toC.lng, toC.lat]);
+    const next = normalizeStatedRoadKm(day.drivingDistanceKm ?? 0, geo);
+    if (Math.abs(next - (day.drivingDistanceKm ?? 0)) >= 1) {
+      const hours = Math.max(0.4, next / 80);
+      const h = Math.floor(hours);
+      const m = Math.round((hours - h) * 60);
+      const label = m > 0 ? `${h}h ${m}m` : `${Math.max(1, h)}h`;
+      applyDurationToDay(day, label, next);
+      fixed += 1;
+    }
   }
   return fixed;
 }

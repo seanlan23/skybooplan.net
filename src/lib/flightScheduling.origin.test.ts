@@ -26,7 +26,7 @@ describe("origin airport departure hints", () => {
       outboundArriveDayOffset: 1,
     });
     expect(acts[0]!.name).toMatch(/MXP|Milan/i);
-    expect(acts[0]!.description).toMatch(/check-in|varnost/i);
+    expect(acts[0]!.description).toMatch(/prijava|varnost/i);
     expect(acts[0]!.description).toMatch(/2–3 ure pred odletom/i);
     expect(acts[0]!.description).not.toMatch(/uri pred|2\. 5|3–3/i);
     expect(acts).toHaveLength(2);

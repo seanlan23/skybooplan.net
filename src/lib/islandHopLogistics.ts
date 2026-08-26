@@ -472,7 +472,7 @@ export function ensureGroundToAirportWindow(plan: AiTripPlan, language?: string)
         : "Sei 1 Stunde vor Abflug am Flughafen (Inlandsflug)",
     });
     const description = planLangCopy(lang, {
-      sl: "Notranji let: check-in in varnost ~1 uro pred odletom (ne 3 ure kot na mednarodnem).",
+      sl: "Notranji let: prijava in varnost ~1 uro pred odletom (ne 3 ure kot na mednarodnem).",
       en: "Domestic hop: check-in and security ~1 hour before departure (not the 3h international buffer).",
       de: "Inlandsflug: Check-in und Sicherheit ~1 Stunde vor Abflug (nicht 3 Std. wie international).",
     });

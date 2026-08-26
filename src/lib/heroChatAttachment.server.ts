@@ -27,6 +27,7 @@ async function extractPdfTextWithGemini(
           ],
         },
       ],
+      config: { maxOutputTokens: 8192 },
     });
     const text = response.text?.trim();
     return text || null;

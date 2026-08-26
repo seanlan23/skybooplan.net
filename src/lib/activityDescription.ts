@@ -2,6 +2,11 @@
  * Structured activity copy — bullets owned by coerce/render, not free-form essays.
  * Fixes middle-day walls of text (e.g. Katoomba evening) in UI + PDF.
  */
+import {
+  isOrdinalPeriod,
+  lastSentenceEndIndex,
+  looksLikeCutStemSentence,
+} from "@/lib/textSanitize";
 
 export const MAX_ACTIVITY_BULLETS = 4;
 export const MAX_ACTIVITY_BULLET_CHARS = 140;
@@ -12,11 +17,35 @@ function clipBullet(line: string): string {
   const t = line.replace(/\s+/g, " ").trim();
   if (t.length <= MAX_ACTIVITY_BULLET_CHARS) return t;
   const chunk = t.slice(0, MAX_ACTIVITY_BULLET_CHARS - 1).trim();
-  const breakAt = Math.max(chunk.lastIndexOf(". "), chunk.lastIndexOf(", "), chunk.lastIndexOf(" "));
+  const ordinalSafeDot = lastSentenceEndIndex(chunk);
+  const dotSpace = ordinalSafeDot > 0 && chunk[ordinalSafeDot + 1] === " " ? ordinalSafeDot : -1;
+  const breakAt = Math.max(dotSpace, chunk.lastIndexOf(", "), chunk.lastIndexOf(" "));
   const cut = (breakAt > 40 ? chunk.slice(0, breakAt) : chunk).trim();
-  // Never end on a half-word — PDF/UI used to print "Puerto Juare" / "Vožnja tr".
-  const safe = cut.replace(/\s+\S{1,12}$/u, "").trim() || cut.replace(/\s+\S+$/u, "").trim() || cut;
+  const stripped = cut.replace(/\s+\S{1,12}$/u, "").trim();
+  const safe =
+    stripped && !looksLikeCutStemSentence(`${stripped}.`)
+      ? stripped
+      : cut.replace(/\s+\S+$/u, "").trim() || cut;
+  if (looksLikeCutStemSentence(safe)) return cut;
   return /[.!?…]$/u.test(safe) ? safe : `${safe}…`;
+}
+
+function splitSentences(text: string): string[] {
+  const out: string[] = [];
+  let start = 0;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (ch !== "." && ch !== "!" && ch !== "?" && ch !== "…") continue;
+    if (ch === "." && isOrdinalPeriod(text, i)) continue;
+    const next = text[i + 1];
+    if (next && next !== " " && next !== "\n") continue;
+    const piece = text.slice(start, i + 1).trim();
+    if (piece && !looksLikeCutStemSentence(piece)) out.push(piece);
+    start = i + 1;
+  }
+  const tail = text.slice(start).trim();
+  if (tail && !looksLikeCutStemSentence(tail)) out.push(tail);
+  return out;
 }
 
 function cleanBulletLine(line: string): string {
@@ -51,7 +80,7 @@ export function normalizeActivityBullets(input: {
   }
 
   const single = lines[0] ?? text;
-  const sentenceHits = single.match(/[^.!?…]+[.!?…]+/g)?.map((s) => s.trim()).filter(Boolean);
+  const sentenceHits = splitSentences(single);
   if (
     sentenceHits &&
     sentenceHits.length >= 2 &&
@@ -103,7 +132,7 @@ export function coerceActivityDescriptionFields(a: Record<string, unknown>): voi
   const desc = typeof a.description === "string" ? a.description : "";
   const bullets = normalizeActivityBullets({ description: desc, bullets: bulletsRaw });
   a.bullets = bullets;
-  a.description = formatActivityDescription(bullets) || desc.trim() || "Details on site.";
+  a.description = formatActivityDescription(bullets) || desc.trim();
 }
 
 /** Same helper for UI day cards + PDF (already-normalized descriptions still work). */

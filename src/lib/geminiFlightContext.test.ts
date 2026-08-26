@@ -2810,7 +2810,7 @@ describe("applyFlightContextToGeminiPlan", () => {
     const last = plan.days.find((d) => d.day === 4)!;
     const prevEve = prev.activities?.evening ?? [];
     expect(prevEve.some((a) => /Finns/i.test(a.name))).toBe(true);
-    const checkout = prevEve.find((a) => /check-out/i.test(a.name));
+    const checkout = prevEve.find((a) => /check-out|odjava|odhod iz hotela/i.test(a.name));
     expect(checkout?.arrivalTime).toBe("21:30");
     expect(checkout?.description ?? "").not.toMatch(/Zjutraj/i);
     expect(JSON.stringify(last.activities?.morning ?? [])).toMatch(/01:30/);
