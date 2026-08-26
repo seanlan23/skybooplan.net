@@ -690,6 +690,8 @@ export const GEMINI_TRIP_PLAN_MODEL =
 /** Per-call output cap. 8192 truncated 3-slot days before JSON closed. */
 export const GEMINI_TRIP_PLAN_MAX_OUTPUT_TOKENS = 16384;
 export const GEMINI_TRIP_PLAN_TEMPERATURE = 0.3;
+/** 2.5 Flash default thinking burns the stall window with zero JSON tokens. */
+export const GEMINI_TRIP_PLAN_THINKING_BUDGET = 0;
 
 const google = createGoogleGenerativeAI({
   apiKey: geminiApiKey() ?? undefined,
@@ -701,6 +703,10 @@ const tripPlanGenerationConfig = {
   providerOptions: {
     google: {
       maxOutputTokens: GEMINI_TRIP_PLAN_MAX_OUTPUT_TOKENS,
+      thinkingConfig: {
+        thinkingBudget: GEMINI_TRIP_PLAN_THINKING_BUDGET,
+        includeThoughts: false,
+      },
     },
   },
 } as const;
@@ -839,6 +845,8 @@ ${unifiedTripPlanSystemRules({
   language: lang,
   displayCurrency,
   interests,
+  emitStart: span.start,
+  emitEnd: span.end,
 })}
 
 ${dayRangePromptBlock(params)}

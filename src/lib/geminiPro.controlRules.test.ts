@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { tripPlanControlRules, tripPlanSystemPrompt, dayRangePromptBlock, GEMINI_TRIP_PLAN_MAX_OUTPUT_TOKENS, extractGeneratedObject } from "@/lib/geminiPro";
+import { tripPlanControlRules, tripPlanSystemPrompt, dayRangePromptBlock, GEMINI_TRIP_PLAN_MAX_OUTPUT_TOKENS, GEMINI_TRIP_PLAN_THINKING_BUDGET, extractGeneratedObject } from "@/lib/geminiPro";
 import type { GenerateTripPlanParams } from "@/lib/geminiPro.shared";
 
 function baseParams(
@@ -35,6 +35,10 @@ function baseParams(
 describe("trip plan output tokens", () => {
   it("sets max_output_tokens high enough for a 4-day nested-slot batch", () => {
     expect(GEMINI_TRIP_PLAN_MAX_OUTPUT_TOKENS).toBe(16384);
+  });
+
+  it("disables Gemini 2.5 thinking so the first JSON tokens are not delayed past the stall window", () => {
+    expect(GEMINI_TRIP_PLAN_THINKING_BUDGET).toBe(0);
   });
 
   it("recovers a truncated Gemini object from the AI SDK error payload", () => {
@@ -128,6 +132,7 @@ describe("tripPlanControlRules", () => {
       }),
     );
     expect(system).toMatch(/RAZPON DNI ZA TA JSON/);
+    expect(system).toMatch(/THIS JSON CALL ONLY: emit day_number 7…12/);
     expect(system).not.toMatch(/FAZA 2|ZAKLENJENA MATRIKA BAZ/);
     expect(system).not.toMatch(/PRIHODOVNO LETALIŠČE \(OBVEZNO/);
   });

@@ -17,14 +17,27 @@ export function unifiedTripPlanSystemRules(opts: {
   language?: string;
   displayCurrency: "EUR" | "USD";
   interests?: string;
+  /** This Gemini call’s day_number window (stream batches). Defaults to the full trip. */
+  emitStart?: number;
+  emitEnd?: number;
 }): string {
   const n =
     inclusiveCalendarDayCount(opts.startDate, opts.endDate) ??
     Math.max(1, opts.totalDays);
+  const emitStart = Math.max(1, opts.emitStart ?? 1);
+  const emitEnd = Math.min(n, Math.max(emitStart, opts.emitEnd ?? n));
+  const thisCount = emitEnd - emitStart + 1;
+  const isPartialCall = emitStart > 1 || emitEnd < n;
   const langCode = normalizePlanLangCode(opts.language);
   const langName = planLanguageEnglishName(langCode);
   const interests = opts.interests?.trim() || "none specified";
   const money = opts.displayCurrency === "USD" ? "USD ($)" : "EUR (€)";
+  const emitRule = isPartialCall
+    ? `- THIS JSON CALL ONLY: emit day_number ${emitStart}…${emitEnd} — exactly ${thisCount} day{} objects. The full trip is ${n} days; do not write the other days in this response.`
+    : `- Emit day_number 1…${n}.`;
+  const exactDaysRule = isPartialCall
+    ? `2. This JSON: exactly ${thisCount} day objects (day_number ${emitStart}–${emitEnd}). The whole trip is ${n} calendar days; Day ${n} is the departure day of the trip (include it only if this window covers Day ${n}).`
+    : `2. Exactly ${n} Days: Day 1 is flight arrival/start (or journey start on ground trips), Day ${n} is strictly hotel check-out, transfer to airport and return international flight (or drive/train home on ground trips).`;
 
   return `You are a senior travel designer working for a professional independent travel agency. You create realistic, well-paced and logistically sound day-by-day travel itineraries for any destination in the world.
 
@@ -36,8 +49,8 @@ DAY COUNT (math, not nights):
 - START_DATE = ${opts.startDate}. END_DATE = ${opts.endDate}.
 - Total calendar days N = (END_DATE − START_DATE) + 1 = ${n}.
 - The complete itinerary must EXACTLY match the inclusive calendar days from START_DATE through END_DATE.
-- Emit day_number 1…${n} (unless this call is a continuation batch with a narrower window).
-- Never add extra days. Never omit Day ${n}. Never stop at N−1.
+${emitRule}
+- Never add extra days beyond ${n}. Never omit Day ${n} from the finished trip. Never stop the whole trip at N−1.
 
 DAY COUNT & DEPARTURE:
 - Day N (the final day) MUST ALWAYS be the departure day (hotel check-out, airport transfer, international return flight home — or drive/train home on ground trips).
@@ -66,8 +79,8 @@ ${ITINERARY_JSON_SCHEMA_RULE}
 
 STRICT GENERATION & FORMATTING CONSTRAINTS:
 1. Target Language: ${langName} (${langCode}) (The entire output must be 100% in this language).
-2. Exactly ${n} Days: Day 1 is flight arrival/start (or journey start on ground trips), Day ${n} is strictly hotel check-out, transfer to airport and return international flight (or drive/train home on ground trips).
-3. Complete Content: Every single day MUST contain fully fleshed-out morning, afternoon, and evening activities with realistic times and full descriptions. No placeholders or cut-off sentences. Do not invent boarding-pass clocks.
+${exactDaysRule}
+3. Complete Content: Every day in THIS JSON MUST contain fully fleshed-out morning, afternoon, and evening activities with realistic times and full descriptions. No placeholders or cut-off sentences. Do not invent boarding-pass clocks.
 4. Output Format: Return strictly valid, parseable JSON matching the provided schema, with no markdown code fences or conversational intro/outro text.
 
 LOGISTICS:
