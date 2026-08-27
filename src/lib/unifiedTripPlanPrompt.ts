@@ -75,7 +75,8 @@ NO PLACEHOLDERS / NO TRUNCATION:
 
 STRUCTURED JSON — every calendar day MUST include:
 - activities.morning, activities.afternoon, activities.evening — all three keys present, each a complete object { title, description, category, estimatedCostEur }.
-- transportTip — city-locked transport notes for THAT day (apps, A→B, ferries, warnings). Never reuse Chiang Mai tips on Phuket or BTS Skytrain on Koh Samui.
+- transportTip — city-locked transport notes for THAT day (apps, A→B, ferries). Never reuse Chiang Mai tips on Phuket or BTS Skytrain on Koh Samui.
+- local_tips — REQUIRED string every day: water/hydration, food hygiene, scams, transit etiquette / temple dress / tipping for THAT city. Not a copy of travelHack or transportTip.
 - travelHack — one unique insider tip for that city/day.
 - On arrival / in-flight / pre-landing slots: the object still exists. Content = the flight/transfer or "still airborne — no destination programme yet" (complete sentences). NEVER a beach, breakfast by the sea, or sightseeing before landing.
 - TRAVEL DAY RULE: on hops between distant cities/islands, Morning is reserved for travel/transfer. Sightseeing in the new destination only afternoon/evening after hotel check-in.

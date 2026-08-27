@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   arrivalDaySlot,
   inboundArriveForDisplay,
+  lastDayArriveForDisplay,
+  isLeakedOriginMorningArrive,
   earliestDestLocalMinutes,
   isImplausibleLongHaulArrive,
   isAfternoonDeparture,
@@ -140,6 +142,22 @@ describe("inboundArriveForDisplay", () => {
 
   it("drops a ~24h wrap (19:50 → 19:30)", () => {
     expect(inboundArriveForDisplay("19:50", "19:30")).toBeUndefined();
+  });
+});
+
+describe("lastDayArriveForDisplay", () => {
+  it("drops a leaked MUC 06:45 morning clock on an NRT morning departure", () => {
+    expect(lastDayArriveForDisplay("10:50", "06:45")).toBeUndefined();
+    expect(isLeakedOriginMorningArrive("10:50", "06:45")).toBe(true);
+  });
+
+  it("keeps a same-day Europe afternoon landing from Narita", () => {
+    expect(lastDayArriveForDisplay("10:50", "16:20")).toBe("16:20");
+  });
+
+  it("keeps an overnight HKT afternoon departure landing next morning", () => {
+    expect(lastDayArriveForDisplay("15:30", "06:00")).toBe("06:00");
+    expect(isLeakedOriginMorningArrive("15:30", "06:00")).toBe(false);
   });
 });
 

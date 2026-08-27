@@ -234,11 +234,89 @@ export function looksLikeCutStemSentence(text: string): boolean {
   if (/\s+in\s+\S{3,14}\.\s*$/i.test(last) && words.length <= 6) return true;
   if (
     words.length <= 5 &&
-    /(ega|imi|emu|išo|jšo|ožjo|ejšo|ajšo)$/i.test(lastWord)
+    /(ega|imi|emu|ove|ovi|eva|išo|jšo|ožjo|ejšo|ajšo)$/i.test(lastWord)
+  ) {
+    return true;
+  }
+  // "Zlatni." — cut adjective leftover, not a finished place name.
+  if (words.length <= 2 && /ni$/i.test(lastWord) && lastWord.length <= 8) {
+    return true;
+  }
+  // "otok." / "Narodnemu parku." — leftover noun after a mid-title cut.
+  // Do not flag a finished phrase like "Izlet na otok."
+  if (words.length === 1 && /^(otok|parku|gradu|plaži|mostu|cerkvi)$/i.test(lastWord)) {
+    return true;
+  }
+  if (
+    words.length === 2 &&
+    /^(otok|parku)$/i.test(lastWord) &&
+    /(emu|ega|ove|ovi|ni)$/i.test(words[0] ?? "")
   ) {
     return true;
   }
   return false;
+}
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/** Never slice a title/sentence in the middle of a word. */
+export function clipAtWordBoundary(text: string, maxChars: number): string {
+  const t = text.trim();
+  if (!t || maxChars <= 0 || t.length <= maxChars) return t;
+  const slice = t.slice(0, maxChars);
+  const sp = slice.lastIndexOf(" ");
+  if (sp >= Math.floor(maxChars * 0.45)) {
+    return slice.slice(0, sp).replace(/[,:;–—-]+$/u, "").trim();
+  }
+  const firstSpace = t.indexOf(" ");
+  return firstSpace === -1 ? t : t.slice(0, firstSpace);
+}
+
+/**
+ * If Gemini cut a headline ("Zlatni.", "Dioklecijanove") but the full name
+ * still sits in the description, finish the title on a word boundary.
+ */
+export function expandHeadlineFromContext(title: string, hint = ""): string {
+  const raw = title.trim();
+  const stem = raw.replace(/[.!?…]+$/u, "").trim();
+  if (stem.length < 3 || !hint.trim()) return raw;
+  // Skip a leading copy of the title so we don't glue the day city onto a stub
+  // ("Obisk trž" + "Obisk trž Chiang Mai" must stay truncated, not "Obisk trž Chiang").
+  let body = hint.trim();
+  try {
+    const prefix = new RegExp(`^${escapeRegExp(stem)}[.!?…]*\\s*`, "iu");
+    body = body.replace(prefix, "").trim();
+  } catch {
+    return raw;
+  }
+  if (!body) return raw;
+  let extra = "";
+  try {
+    const re = new RegExp(
+      `${escapeRegExp(stem)}((?:\\s+[^\\s.!?,;:]{1,40}){0,5})`,
+      "iu",
+    );
+    extra = body.match(re)?.[1]?.trim() ?? "";
+  } catch {
+    return raw;
+  }
+  if (!extra) return raw;
+  const extraWords: string[] = [];
+  for (const w of extra.split(/\s+/).filter(Boolean)) {
+    if (
+      /^(ki|kjer|in|je|so|z|s|na|v|po|pri|do|za|ob|iz|se|si|da|ter|and|or|the|a|an|with|that|which)$/i.test(
+        w,
+      )
+    ) {
+      break;
+    }
+    extraWords.push(w);
+    if (extraWords.length >= 4) break;
+  }
+  if (!extraWords.length) return raw;
+  return `${stem} ${extraWords.join(" ")}`.replace(/\s+/g, " ").trim();
 }
 
 export function repairTruncatedCopy(text: string): string {
@@ -340,10 +418,10 @@ function repairTruncatedLine(line: string): string {
       t,
     ) &&
     t.length > 12;
-  // "ulicah Hol" — not "Tulum" / "Pueblo" (5+ letters, likely a real place).
+  // "ulicah Hol" — 2–3 letter Title-Case stubs, not real 4-letter places (Krka, Brač).
   const shortCapStub =
     noStop &&
-    /^[A-ZÁÉÍÓÚÄÖÜČŠŽ][a-záéíóúäöüčšž]{1,3}$/u.test(lastWord) &&
+    /^[A-ZÁÉÍÓÚÄÖÜČŠŽ][a-záéíóúäöüčšž]{1,2}$/u.test(lastWord) &&
     t.length > lastWord.length + 12;
   // "pripravijo va" / "zadnjem raz" — Gemini cut a lowercase stem.
   const shortLowerStub =
@@ -492,7 +570,8 @@ export function completeTruncatedHeadline(text: string, hint = ""): string {
   if (/\bCanal\.?$/i.test(t) && /Canal Walk|Indianapolis/i.test(blob)) {
     t = t.replace(/\bCanal\.?$/i, "Canal Walk");
   }
-  return t;
+  const expanded = expandHeadlineFromContext(t, hint);
+  return expanded || t;
 }
 
 /** Finish "v Labuan." when the day city is Labuan Bajo — do not invent a new place. */
@@ -571,12 +650,15 @@ export function isDaypartSlotLabel(raw: string | undefined | null): boolean {
  */
 export function sanitizeActivityTitle(title: string, description?: string): string {
   const t = title.trim();
-  if (t && !isDaypartSlotLabel(t) && !isPlaceholderOrTruncatedCopy(t)) return t;
   const desc = (description ?? "").trim();
+  if (t && !isDaypartSlotLabel(t) && !isPlaceholderOrTruncatedCopy(t)) {
+    const done = completeTruncatedHeadline(t, desc);
+    return done.trim() || t;
+  }
   if (!desc || isDaypartSlotLabel(desc) || isPlaceholderOrTruncatedCopy(desc)) return "";
   const first = desc.split(/[.!?]/)[0]?.trim() ?? "";
   if (first.length >= 8 && !isDaypartSlotLabel(first) && !isPlaceholderOrTruncatedCopy(first)) {
-    return first.slice(0, 80);
+    return clipAtWordBoundary(completeTruncatedHeadline(first, desc), 90);
   }
   return "";
 }
@@ -603,6 +685,7 @@ export function stripTruncatedCopyFromPlan(plan: {
     travelHack?: string;
     transportationTips?: string;
     localWarnings?: string;
+    localTips?: string;
     title?: string;
     city?: string;
     focusName?: string;
@@ -615,10 +698,15 @@ export function stripTruncatedCopyFromPlan(plan: {
   }>;
 }): number {
   let fixed = 0;
-  const fixStr = (raw: string | undefined, assign: (v: string) => void, place?: string) => {
+  const fixStr = (
+    raw: string | undefined,
+    assign: (v: string) => void,
+    hint?: string,
+    city?: string,
+  ) => {
     if (typeof raw !== "string" || !raw) return;
-    let next = isSlotStub(raw) ? "" : completeTruncatedHeadline(raw, place ?? "");
-    if (place && next) next = completeTruncatedPlaceName(next, place);
+    let next = isSlotStub(raw) ? "" : completeTruncatedHeadline(raw, hint ?? "");
+    if (city && next) next = completeTruncatedPlaceName(next, city);
     if (next) next = repairTruncatedCopy(next);
     if (next !== raw) {
       assign(next);
@@ -628,6 +716,9 @@ export function stripTruncatedCopyFromPlan(plan: {
 
   for (const day of plan.days ?? []) {
     const place = (day.city || day.focusName || "").trim();
+    const titleHint = [place, day.morning, day.afternoon, day.evening]
+      .filter(Boolean)
+      .join(" ");
     const titleBefore = day.title;
     for (const key of [
       "title",
@@ -637,10 +728,16 @@ export function stripTruncatedCopyFromPlan(plan: {
       "travelHack",
       "transportationTips",
       "localWarnings",
+      "localTips",
     ] as const) {
-      fixStr(day[key], (v) => {
-        day[key] = v;
-      }, key === "title" ? place : undefined);
+      fixStr(
+        day[key],
+        (v) => {
+          day[key] = v;
+        },
+        key === "title" ? titleHint : undefined,
+        key === "title" ? place : undefined,
+      );
     }
     if (titleBefore?.trim() && !(day.title ?? "").trim() && place) {
       day.title = place;
@@ -826,6 +923,7 @@ export function dedupeCrossDayBoilerplate(plan: {
   days: Array<{
     transportationTips?: string;
     travelHack?: string;
+    localTips?: string;
     activities?: {
       morning?: Array<{ description?: string; bullets?: string[] }>;
       afternoon?: Array<{ description?: string; bullets?: string[] }>;
@@ -871,6 +969,7 @@ export function dedupeCrossDayBoilerplate(plan: {
   for (const day of plan.days) {
     if (day.transportationTips) day.transportationTips = scrub(day.transportationTips) ?? "";
     if (day.travelHack) day.travelHack = scrub(day.travelHack) ?? "";
+    if (day.localTips) day.localTips = scrub(day.localTips) ?? "";
     if (!day.activities) continue;
     for (const slot of ["morning", "afternoon", "evening"] as const) {
       for (const act of day.activities[slot] ?? []) {

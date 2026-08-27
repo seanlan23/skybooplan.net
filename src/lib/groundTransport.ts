@@ -1,5 +1,12 @@
 import type { AiTripPlan, DayPlan, GroundJourney, GroundJourneyStop, GroundTransportMode } from "@/lib/aiPlan.functions";
 import { translate, type Lang } from "@/lib/i18n";
+import {
+  HARD_DRIVE_HOURS,
+  HARD_DRIVE_KM,
+  LAST_DAY_HOME_MAX_HOURS,
+  TARGET_DRIVE_HOURS,
+  TARGET_DRIVE_KM,
+} from "@/lib/plannerQuality";
 
 export type { GroundJourney, GroundJourneyStop, GroundTransportMode };
 
@@ -19,8 +26,19 @@ export function isGroundTransportMode(value: unknown): value is GroundTransportM
   return value === "car" || value === "motorhome" || value === "train";
 }
 
-export function usesRoadRouting(mode?: GroundTransportMode): boolean {
-  return mode === "car" || mode === "motorhome";
+/**
+ * Universal car + camper roundtrip pacing (own vehicle: start = end at home).
+ * Destination names in the example are illustrations — the model picks real cities.
+ */
+export function ownVehicleRoundtripRulesPrompt(): string {
+  return `
+CESTNI KROG — AVTO IN AVTODOM (univerzalno, izhodišče = cilj poti):
+- Dnevna etapa: ${TARGET_DRIVE_KM}–${HARD_DRIVE_KM} km (cilj ≤${TARGET_DRIVE_KM} km), z vmesnimi postanki največ 6–${HARD_DRIVE_HOURS} ur. Čista vožnja cilj ≤${TARGET_DRIVE_HOURS} h, trdo max ${HARD_DRIVE_HOURS} h / ${HARD_DRIVE_KM} km.
+- PREPOVEDANO nerealne enodnevne etape 1500–2200 km (ali 10–16 h) brez nočitve. Če je Google >${TARGET_DRIVE_HOURS} h ALI razdalja >${HARD_DRIVE_KM} km ALI 2+ počasni kopenski meji: obvezna nočitev vmes ŽE V SKELETU.
+- Pri lastnem vozilu pravilo “nad 500 km = let” NE VELJA — vedno vožnja z nočitvami, nikoli notranji let namesto etape.
+- Outbound in inbound tvorita logičen krog (druga cesta nazaj) ALI povratek vstavi tranzitne baze z 1 nočitvijo na vsakem hopu v limitu. PREPOVEDANO isto avtocesto 1500 km v enem JSON dnevu.
+- Primer razporeda (model izbere konkretna mesta na poti): zadnja destinacijska baza → vmesna obala/regija (1 noč) → naslednja vmesna baza (1 noč) → dom. Ne stisniti cele razdalje v Day N.
+- Day N = SAMO zadnja zmerna etapa do izhodišča (≤${LAST_DAY_HOME_MAX_HOURS} h, raje 4 h). Če je predzadnja baza še ≥${LAST_DAY_HOME_MAX_HOURS}–6 h od doma, dodaj nočitev vmes na dnevu N−1.`;
 }
 
 /** Mapbox geocodes “Balkan” to Balkan Province, Turkmenistan (TM). */
@@ -111,7 +129,7 @@ PREVOZ DO DESTINACIJE — AVTODOM (obvezno):
 - Potnik potuje iz "${origin}" do "${dest}" z avtodomom (ne z letalom za ta del poti).
 - Prvi dni morajo pokrivati celotno pot od doma do destinacije z realističnimi postanki (npr. "Postanek v Milanu", "Nočitev v Münchenu").
 - Vsak dan poti: drivingDistanceKm, drivingDurationHours, smiselne postanke ali kratki ogledi ob poti.
-- ENA etapa: cilj ≤5 h čiste vožnje, trdo max 7 h. Če je Google >5 h ALI 2+ meji iz tabele počasnih meja (HR–BA–ME–AL, US–MX, TH–KH/LA/MY…): nočitev vmes. PREPOVEDANO 8h+ kot en dan.
+${ownVehicleRoundtripRulesPrompt()}
 - Za avtodom: kampiri/RV parki ob poti, ne hoteli v centru mest.
 - Proračun: v dailyBudget vključni DELEŽ cestnin/vinjet, goriva in kampa (deljeno na potnike) — IT/FR avtoceste so drage.
 - Po prihodu na destinacijo nadaljuj z glavnim programom na cilju.
@@ -119,7 +137,7 @@ ${westernBalkansRoadTripPrompt(dest)}
 
 POVRATEK DOMOV — AVTODOM (obvezno, zadnji dnevi):
 - Potnik se NE vrača z mednarodnega letala! Celotno potovanje je z avtodomom iz "${origin}" do "${dest}" in nazaj.
-- Zadnji dan (ali zadnja 1–3 dni, glede na razdaljo) mora biti vožnja NAZAJ do izhodišča "${origin}" z realističnimi postanki, drivingDistanceKm in drivingDurationHours. day.city zadnjega dne = "${origin}". Če etapa ≥7 h: nočitev vmes (ne 12 h / 900 km).
+- Zadnji dan (ali zadnja 1–3 dni, glede na razdaljo) mora biti vožnja NAZAJ do izhodišča "${origin}" z realističnimi postanki, drivingDistanceKm in drivingDurationHours. day.city zadnjega dne = "${origin}". Day N = samo zadnja zmerna etapa (≤${LAST_DAY_HOME_MAX_HOURS} h); če je predzadnja baza dlje, nočitev vmes (ne 12 h / 1500 km).
 - Na zadnjem dnevu NE načrtuj mednarodnega leta, category airport za odlet v EU, prevoza na letališče ali trip_metadata.return_flight_eu.
 - transportation[] zadnjega dne: vožnja z avtodomom proti domu — ne flight.`;
   }
@@ -130,7 +148,8 @@ PREVOZ DO DESTINACIJE — AVTO (obvezno):
 - Potnik potuje iz "${origin}" do "${dest}" z avtom (ne z letalom za ta del poti).
 - Prvi dni morajo pokrivati celotno pot od doma do destinacije z realističnimi postanki (npr. "Postanek v Milanu", "Nočitev v Münchenu").
 - Vsak dan poti: drivingDistanceKm, drivingDurationHours, smiselne postanke ali kratki ogledi ob poti.
-- ENA etapa: cilj ≤5 h čiste vožnje, trdo max 7 h. Če je Google >5 h ALI razdalja >400 km ALI 2+ počasni kopenski meji: obvezna nočitev vmes. PREPOVEDANO 8h+ (ali 10–16 h z mejami) kot en dan. PREPOVEDANO kosilo/muzej/ogled v ciljnem mestu isti dan po ≥6 h vožnji.
+${ownVehicleRoundtripRulesPrompt()}
+- PREPOVEDANO kosilo/muzej/ogled v ciljnem mestu isti dan po ≥6 h vožnji.
 - NOČITVE: vsak večer hotel v mestu (Booking.com). hotels[] = samo city + nights — PREPOVEDANO izmišljati imena hotelov. UI odpre 2+ živi opciji. PREPOVEDANO: kamp, RV park, campground, sosta ali "spanje v avtu" kot namestitev.
 - PRVA NOČ: če je cilj še daleč (>500 km, npr. Albanija, Črna gora, Grčija, Španija), PREPOVEDANO hotel v mestu ≤4 h / ≤350 km od "${origin}" (npr. Dunaj→Zagreb na poti v Albanijo). To je kava ob avtocesti, ne nočitev.
 - transportation[] na dneh poti: type "car" (vožnja) — PREPOVEDANO type "flight" ali type "van" za cestne etape.
@@ -142,7 +161,7 @@ POVRATEK DOMOV — AVTO (obvezno, zadnji dnevi):
 - Potnik se NE vrača z mednarodnega letala! Celotno potovanje je z avtom iz "${origin}" do "${dest}" in nazaj.
 - ČAS VOŽNJE mora biti realističen: avtocesta ~80 km/h povprečno (meje, počivališča). Primer: Győr→Zagreb ≈ 320 km / 3h 15min–4h — NIKOLI 1h 45min. Če je etapa >250 km, drivingDurationHours ≥ 3h. Počasne kopenske meje (HR–ME, ME–AL, US–MX, TH–KH…): prištej extra ure iz tabele, ne samo zemljevid.
 - Zadnja PLAČANA hotelska nočitev je tam, od koder je vožnja domov še predolga za isti dan. PREPOVEDANO: hotel v izhodišču "${origin}" in PREPOVEDANO hotel v mestu, ki je ~2–3 h vožnje od doma, na zadnjih 1–2 dneh (npr. Ljubljana, če je dom Maribor; Nürnberg, če je dom München; Gradec, če je dom Dunaj). Zagreb hotel na povratku SAMO če si prišel prejšnji večer (Kotor/Split) — NE isti dan iz Berata/Tirane. Če je Zagreb→Dunaj ~4 h in si v Zagrebu že spal: isti dan vožnja domov — NE nočitev v Gradcu. Zadnji koledarski dan = vožnja domov, spanje doma, estimatedCostEur hotela = 0. day.city zadnjega dne = "${origin}" — ne Munich/Zagreb/Nîmes z naslovom povratka.
-- Zadnji dan (ali zadnja 1–3 dni, glede na razdaljo) mora biti vožnja NAZAJ do izhodišča "${origin}" z realističnimi postanki, drivingDistanceKm in drivingDurationHours. Če etapa domov ≥7 h: nočitev vmes, ne 10–12 h JSON dan.
+- Zadnji dan (ali zadnja 1–3 dni, glede na razdaljo) mora biti vožnja NAZAJ do izhodišča "${origin}" z realističnimi postanki, drivingDistanceKm in drivingDurationHours. Day N = samo zadnja zmerna etapa (≤${LAST_DAY_HOME_MAX_HOURS} h); če je predzadnja baza dlje, nočitev vmes, ne 10–16 h / 1500 km JSON dan.
 - Na zadnjem dnevu NE načrtuj mednarodnega leta, category airport za odlet v EU, prevoza na letališče ali trip_metadata.return_flight_eu.
 - transportation[] zadnjega dne: type "car" proti domu — ne flight. Ne izmišljuj novega turističnega mesta (npr. Rijeka), če ni na najkrajši poti domov.`;
 }
@@ -163,8 +182,9 @@ export function lastDayReturnPromptBlock(params: {
 - Day N (zadnji koledarski dan) MUST ALWAYS be the departure day: vožnja NAZAJ na "${origin}".
 - Striktno: potnik potuje z ${vehicle} od "${origin}" — zadnji dan je vožnja NAZAJ na "${origin}", NE mednarodni let z letališča!
 - Zadnji dan JSON: day.city MORA biti "${origin}" (ne Munich/Zagreb/Nîmes/Barcelona z naslovom „vožnja domov“).
-- Če bi vožnja do "${origin}" ≥7 h: nočitev vmes na predzadnjem dnevu — PREPOVEDANO 10–12 h zadnji dan.
-- Zadnji dan: check-out v tujini (če je treba), nato vožnja domov z realističnim drivingDistanceKm in drivingDurationHours (avtocesta ~80 km/h, ne izmišljuj 1–2h za 300 km). PREPOVEDANO zadnji dan iz Berata/Tirane/Sarande — to je 14+ ur.
+- Day N = SAMO zadnja zmerna etapa (≤${LAST_DAY_HOME_MAX_HOURS} h). Outbound+inbound = krog ALI vmesne tranzitne nočitve — PREPOVEDANO 1500–2200 km v enem dnevu.
+- Če bi vožnja do "${origin}" ≥${LAST_DAY_HOME_MAX_HOURS} h ALI >${HARD_DRIVE_KM} km: nočitev vmes na predzadnjem dnevu — PREPOVEDANO 10–16 h / 1500 km zadnji dan.
+- Zadnji dan: check-out v tujini (če je treba), nato SAMO zadnja zmerna etapa domov (≤${LAST_DAY_HOME_MAX_HOURS} h, avtocesta ~80 km/h, ne izmišljuj 1–2h za 300 km). PREPOVEDANO zadnji dan iz oddaljene obale/prestolnice 800–2000 km stran.
 - PREPOVEDANO: hotel/nočitev z estimatedCostEur > 0 v "${origin}" ali v mestu ~2–3 h od izhodišča na zadnjih dneh (Gradec, če je dom Dunaj) — spanje je doma. Ne dodajaj turistične nočitve v Gradcu, če je Zagreb→dom ~4 h.
 - Prepovedano na zadnjem dnevu: mednarodni let, aktivnost category airport za odlet v EU, prevoz na letališče za povratek domov.
 - trip_metadata.return_flight_eu NE izpolnjuj — potnik se vrne z ${vehicle}.`;
@@ -179,14 +199,12 @@ export function lastDayReturnPromptBlock(params: {
   }
 
   const airport = params.returnFromIata ?? params.destinationIata ?? "izhodno letališče";
-  return `ZADNJI DAN — STROGI JSON (LET — aplikacija vstavi logistiko):
+  return `ZADNJI DAN — STROGI JSON (LET — vpiši logistiko iz IZBRANI LET):
 - Day N (zadnji koledarski dan) MUST ALWAYS be the departure day: hotel check-out, airport transfer, international return flight home.
-- activities[] na zadnjem dnevu: samo lahki ogledi/hrana PRED odhodom (title, description, category, timeSlot, coords). BREZ HH:MM.
+- V JSON vpiši check-out → transfer → letališče → mednarodni let z urami iz IZBRANI LET. Aplikacija tega JSON-a ne prepisuje.
 - PREPOVEDANO: Day N kot poln ogledni dan v novem mestu/regiji.
-- PREPOVEDANO v activities[]: check-out, prevoz na letališče, airport check-in, mednarodni let, category "airport", izmišljene ure.
-- Aplikacija sama vstavi check-out → transfer → letališče → mednarodni let iz IZBRANI LET (boarding-pass).
 - Ne dodajaj novih mest/oddaljenih regij; noč pred odhodom blizu izhodnega letališča (${airport}).
-- trip_metadata.return_flight_eu: samo če so ure v IZBRANI LET — kopiraj jih, ne izmišljuj. Če IZBRANI LET manjka, pusti prazno (aplikacija dopolni).`;
+- trip_metadata.return_flight_eu: kopiraj ure iz IZBRANI LET, ne izmišljuj.`;
 }
 
 export function isJourneyDay(day: DayPlan, plan: AiTripPlan): boolean {

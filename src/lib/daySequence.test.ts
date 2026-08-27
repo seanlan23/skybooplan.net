@@ -25,7 +25,7 @@ function day(partial: Partial<DayPlan> & { day: number }): DayPlan {
 }
 
 describe("repairPlanDaySequence", () => {
-  it("inserts missing day 5 between 4 and 6", () => {
+  it("does not invent a placeholder for a missing day number", () => {
     const plan = {
       destinationName: "Thailand",
       days: [
@@ -39,14 +39,13 @@ describe("repairPlanDaySequence", () => {
     } as AiTripPlan;
 
     const { inserted } = repairPlanDaySequence(plan, { language: "sl" });
-    expect(inserted).toContain(5);
-    expect(plan.days.map((d) => d.day)).toEqual([1, 2, 3, 4, 5, 6, 7]);
-    expect(plan.days.find((d) => d.day === 5)?.title).toMatch(/Ayutthaya|Chiang Mai/i);
+    expect(inserted).toEqual([]);
+    expect(plan.days.map((d) => d.day)).toEqual([1, 2, 3, 4, 6, 7]);
   });
 });
 
 describe("expandPlanDaysToExpected", () => {
-  it("expands 6 motorhome day cards to a full 10-day calendar", () => {
+  it("does not invent extra motorhome days when Gemini under-emits", () => {
     const plan = {
       destinationName: "Italy",
       groundTransportMode: "motorhome",
@@ -67,13 +66,9 @@ describe("expandPlanDaysToExpected", () => {
       departDate: "2026-08-01",
     });
 
-    expect(inserted.length).toBe(4);
-    expect(plan.days).toHaveLength(10);
-    expect(plan.days.map((d) => d.day)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-    expect(plan.days[9]?.date).toBe("2026-08-10");
-    expect(
-      plan.days.some((d) => d.activities?.evening?.[0]?.name?.match(/kamp|camp/i)),
-    ).toBe(true);
+    expect(inserted).toEqual([]);
+    expect(plan.days).toHaveLength(6);
+    expect(JSON.stringify(plan)).not.toMatch(/prosti \/ lokalni dan/i);
   });
 
   it("does not pad a hotel stream stub with empty calendar fillers", () => {
@@ -100,7 +95,7 @@ describe("expandPlanDaysToExpected", () => {
     expect(blob).not.toMatch(/Popoldanski ogled v mestu/i);
   });
 
-  it("pads car/hotel days without camp evening copy", () => {
+  it("does not pad car days with invented calendar fillers", () => {
     const plan = {
       destinationName: "Spain",
       groundTransportMode: "car",
@@ -117,11 +112,7 @@ describe("expandPlanDaysToExpected", () => {
       departDate: "2026-07-01",
     });
 
-    expect(plan.days).toHaveLength(4);
-    for (const d of plan.days) {
-      const eve = d.activities?.evening?.[0]?.name ?? "";
-      expect(eve).not.toMatch(/kamp|camp/i);
-    }
+    expect(plan.days).toHaveLength(2);
   });
 
   it("does not clone identical activity trees when padding stay nights", () => {
@@ -154,8 +145,7 @@ describe("expandPlanDaysToExpected", () => {
     });
 
     expect(plan.days).toHaveLength(1);
-    const d1 = plan.days[0]!.activities!.morning[0]!.name;
-    expect(d1).toMatch(/Casco/i);
+    expect(String(plan.days[0]?.activities?.morning?.[0]?.name ?? "")).toMatch(/Casco/i);
     expect(JSON.stringify(plan)).not.toMatch(/prosti \/ lokalni dan/i);
   });
 

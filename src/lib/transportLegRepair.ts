@@ -149,6 +149,7 @@ export function repairTransportLegs(
     dayNumber: number;
     city: string;
     destinationIata?: string;
+    originIata?: string;
     previousCity?: string;
     groundTransportMode?: GroundTransportMode;
     activities?: {
@@ -166,6 +167,8 @@ export function repairTransportLegs(
   const isArrival = ctx.dayNumber === 1;
   const prevCity = ctx.previousCity?.trim();
   const roadTrip = isRoadGroundMode(ctx.groundTransportMode);
+  const originIata = ctx.originIata?.trim().toUpperCase();
+  const destIata = ctx.destinationIata?.trim().toUpperCase();
 
   const repaired = legs.flatMap((leg) => {
     leg = repairNarrativeMotorhomeLeg(leg, { city: ctx.city, previousCity: prevCity });
@@ -191,15 +194,34 @@ export function repairTransportLegs(
       leg = { ...leg, from: ctx.city };
     }
 
+    if (
+      isArrival &&
+      leg.type === "flight" &&
+      originIata &&
+      destIata &&
+      originIata !== destIata &&
+      extractIata(leg.from) === destIata &&
+      extractIata(leg.to) === originIata
+    ) {
+      leg = { ...leg, from: leg.to, to: leg.from };
+    }
     const fromIata = extractIata(leg.from);
     const toIata = extractIata(leg.to);
-    if (
-      leg.type === "flight" &&
-      fromIata &&
-      toIata &&
-      fromIata === toIata
-    ) {
+    if (leg.type === "flight" && fromIata && toIata && fromIata === toIata) {
       return [];
+    }
+    // Airport → hotel labeled as a flight: dest IATA on one side, no second airport.
+    if (leg.type === "flight" && !(fromIata && toIata && fromIata !== toIata)) {
+      const destAirportOnly =
+        Boolean(destIata) &&
+        ((fromIata === destIata && !toIata) || (toIata === destIata && !fromIata));
+      const samePlace = placesMatch(leg.from, leg.to);
+      if (destAirportOnly || samePlace) {
+        if (isArrival) {
+          return [{ ...leg, type: "van", from: airport, to: center }];
+        }
+        return [];
+      }
     }
 
     // Fake “flight” titles that are really hotel/airport logistics.

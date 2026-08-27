@@ -66,7 +66,8 @@ ${ITINERARY_JSON_SCHEMA_RULE}`;
 /** Appended so the brief cannot override Duffel clocks, JSON schema, or Booking.com hotels. */
 const SKYBOOPLAN_CONSTRAINTS = `SKYBOOPLAN (do not override):
 - Return only the required JSON schema — not a freeform essay itinerary.
-- DAY COUNT & DEPARTURE: the complete itinerary must EXACTLY match the inclusive calendar days between START_DATE and END_DATE. Day N (the final day) MUST ALWAYS be the departure day (hotel check-out, airport transfer, international return flight home — or drive/train home on ground trips). Never add extra days. Never omit Day N. Never treat Day N as a full sightseeing day in a new city. Checkout / Grab / airport check-in clocks bind to the selected international departure — never reuse them on a same-day domestic hop. If the last night is not at the hub and the international board is morning/midday, sleep at the hub the night before.
+- DAY COUNT & DEPARTURE: the complete itinerary must EXACTLY match the inclusive calendar days between START_DATE and END_DATE. Day N (the final day) MUST ALWAYS be the departure day (hotel check-out, airport transfer, international return flight home — or drive/train home on ground trips). Never add extra days. Never omit Day N. Never treat Day N as a full sightseeing day in a new city. Checkout / Grab / airport check-in clocks bind to the selected international departure — never reuse them on a same-day domestic hop. If the last night is not at the hub and the international board is morning/midday, sleep at the hub the night before. RED-EYE RETURN (board 00:00–05:59): check-out and airport transfer MUST sit in the evening of day N−1 (~22:30). Day N is only the overnight flight plus afternoon landing at home — never a second evening airport transfer on Day N.
+- days[].transfer / transportation[] ONLY when the overnight city changes (new base, from !== to). Same-city day trips (island/bay excursions) are activities, never FLIGHT/VAN/FERRY banners.
 - NO PLACEHOLDERS / NO TRUNCATION: every emitted activity (morning, afternoon, evening) must have a fully completed description (minimum 25 words). NEVER output placeholders, unfinished titles, or sentences ending with '...' or cut off mid-word. JSON keys morning/afternoon/evening are always present; before landing the slot describes the flight/wait — not a fake beach. Never emit generic fillers ("Popoldanski ogled v mestu…", "Večer v soseski, kjer spiš…", "Središče in trg v mestu…"). Named POIs only.
 - TRAVEL DAY RULE: on hops between distant cities/islands, Morning is reserved for travel/transfer. Sightseeing activities in the new destination can only be scheduled in the afternoon/evening after hotel check-in. Do not invent check-in clocks or hotel names.
 - STRICT GENERATION & FORMATTING CONSTRAINTS: 100% target language; exactly N inclusive calendar days; Day 1 = flight arrival/start; Day N = hotel check-out, airport transfer, return international flight (or drive/train home on ground trips); fully fleshed morning/afternoon/evening on sightseeing days; no placeholders or cut-off sentences; return strictly valid parseable JSON — no markdown code fences or conversational intro/outro.
@@ -127,7 +128,13 @@ export function dayCountAndDepartureRule(fields: TravelBriefFields): string {
     : "hotel check-out, airport transfer, international return flight home — the app stamps ticket clocks; do not invent HH:MM";
   return `DAY COUNT & DEPARTURE RULE:
 Total days in the output must EXACTLY match the number of days between ${span}. Day ${nText} (the final day) MUST ALWAYS be the departure day (${lastDayWhat}). Do not add extra days. Do not omit Day ${nText}. Do not plan Day ${nText} as a full sightseeing day in a new city.
-If this response is a continuation batch, emit ONLY the requested day_number range — the merged itinerary must still be exactly ${nText} days, and the final batch must include Day ${nText} as departure.`;
+${
+  isGroundMainTransport(fields.mainTransport)
+    ? ""
+    : `RED-EYE RETURN (board 00:00–05:59): check-out and airport transfer MUST sit in the evening of day ${n != null ? n - 1 : "N-1"} (~22:30). Day ${nText} is only the overnight flight plus afternoon landing at home — never a second evening airport transfer on Day ${nText}.
+days[].transfer / transportation[] ONLY when the overnight city changes (new base, from !== to). Same-city day trips are activities, never FLIGHT/VAN/FERRY banners.
+`
+}If this response is a continuation batch, emit ONLY the requested day_number range — the merged itinerary must still be exactly ${nText} days, and the final batch must include Day ${nText} as departure.`;
 }
 
 export const NO_PLACEHOLDERS_NO_TRUNCATION_RULE = `NO PLACEHOLDERS / NO TRUNCATION:
@@ -233,7 +240,7 @@ ${TRAVEL_DAY_RULE}
 ${strictGenerationAndFormattingConstraints(fields)}
 - Strictly include all mandatory places listed above.
 - Adapt the entire logistics, daily distances, overnight stops and activity intensity to the chosen main transport mode (${fields.mainTransport}) and the additional wishes.
-- For car or motorhome trips, plan realistic daily driving distances and suitable overnight locations.
+- For car or motorhome trips, plan realistic daily stages (500–700 km, max 6–7 h with stops). Own-vehicle roundtrips must loop home with overnight transit bases — never a 1500–2200 km day. Day N is only the last 4–5 h hop home.
 - For multi-city flight trips, include logical flight connections and enough recovery time after flights.
 - Follow all system rules strictly.
 - Produce a realistic, logistically sound and complete itinerary with no truncated text.`;

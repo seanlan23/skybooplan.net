@@ -8,13 +8,8 @@ import {
   TRIP_WISH_TAGS,
   normalizeIata,
   normalizeTripPlanPax,
-  tripPlanSchema,
   type GenerateTripPlanParams,
 } from "@/lib/geminiPro.shared";
-import {
-  buildCatalogPlanFromResponse,
-  repairCatalogPlanIfNeeded,
-} from "@/lib/geminiProCatalog";
 import type { AiTripPlan } from "@/lib/aiPlan.functions";
 import { inclusiveCalendarDayCount } from "@/lib/dateUtils";
 import { DESTINATION_BY_IATA } from "@/lib/destinationCoords";
@@ -371,48 +366,15 @@ export const generateGeminiProTrip = createServerFn({ method: "POST" })
     }
 
     try {
-      const { generateTripPlan } = await pipelineStep("import geminiPro", () =>
-        import("@/lib/geminiPro"),
+      const { generateItinerary } = await pipelineStep("import generateItinerary", () =>
+        import("@/lib/generateItinerary"),
       );
-
-      const days = tripDayCount(data.departDate, data.returnDate);
-      const raw = await pipelineStep("generateTripPlan (Gemini)", () =>
-        generateTripPlan(buildGeminiTripPlanParams(data, days)),
+      const built = await pipelineStep("generateItinerary (Gemini)", () =>
+        generateItinerary(data),
       );
-
-      pipelineLog("schema safeParse START");
-      let parsed: ReturnType<typeof tripPlanSchema.safeParse>;
-      try {
-        parsed = tripPlanSchema.safeParse(raw);
-      } catch (parseErr) {
-        console.error("generateGeminiProTrip: schema parse threw:", parseErr);
-        return {
-          plan: null,
-          error: "Načrt ni bil pretvorjen v veljavno strukturo (parse napaka).",
-        };
-      }
-      pipelineLog(
-        "schema safeParse DONE",
-        parsed.success ? "ok" : `fail: ${parsed.error.issues.length} issues`,
-      );
-
-      if (!parsed.success) {
-        console.error("generateGeminiProTrip: schema validation failed", parsed.error.flatten());
-        return {
-          plan: null,
-          error: "Načrt ni bil generiran v veljavni obliki (manjkajo mesto ali koordinate).",
-        };
-      }
-
-      const built = buildCatalogPlanFromResponse(parsed.data, data);
-      if (built.error || !built.plan) {
-        return { plan: null, error: built.error ?? "Načrt ni bil generiran." };
-      }
-
-      await repairCatalogPlanIfNeeded(built.plan, data);
 
       pipelineLog("handler DONE", `${Math.round(performance.now() - pipelineStart)}ms total`);
-      return { plan: built.plan, error: null };
+      return built;
     } catch (err) {
       pipelineLog("handler FAIL", `${Math.round(performance.now() - pipelineStart)}ms total`);
       console.error("generateGeminiProTrip:", err);

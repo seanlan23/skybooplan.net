@@ -19,6 +19,71 @@ function toMin(t: string): number | null {
   return (h ?? 0) * 60 + (min ?? 0);
 }
 
+/** First HH:MM in a clock or range ("21:10 – 17:55 (+1)"). */
+export function firstClockMinutes(raw: string | undefined | null): number | null {
+  if (!raw?.trim()) return null;
+  const exact = parseHmClock(raw.trim());
+  if (exact) return toMin(exact);
+  const m = raw.match(/\b(\d{1,2}):(\d{2})\b/);
+  if (!m) return null;
+  return toMin(`${m[1]}:${m[2]}`) ?? null;
+}
+
+/** Window start for sorting — never the landing/end clock. */
+export function activityStartMinutes(
+  activity: ActivityClockFields & { time?: string | null },
+): number | null {
+  return firstClockMinutes(activity.arrivalTime) ?? firstClockMinutes(activity.time);
+}
+
+export type DaypartSlot = "morning" | "afternoon" | "evening";
+
+export function daypartFromMinutes(min: number): DaypartSlot {
+  if (min >= 17 * 60) return "evening";
+  if (min >= 12 * 60) return "afternoon";
+  return "morning";
+}
+
+const SLOT_FALLBACK_MIN: Record<DaypartSlot, number> = {
+  morning: 8 * 60,
+  afternoon: 14 * 60,
+  evening: 19 * 60,
+};
+
+/**
+ * Re-bucket a day's activities by start clock (00:00–23:59).
+ * Timed items move to morning / afternoon / evening; untimed keep their slot.
+ */
+export function sortDayActivitiesByClock<T extends ActivityClockFields & { time?: string | null }>(
+  slots: { morning?: T[]; afternoon?: T[]; evening?: T[] },
+): { morning: T[]; afternoon: T[]; evening: T[] } {
+  type Row = { a: T; i: number; from: DaypartSlot; min: number | null };
+  const rows: Row[] = [];
+  for (const from of ["morning", "afternoon", "evening"] as const) {
+    (slots[from] ?? []).forEach((a, i) => {
+      rows.push({ a, i, from, min: activityStartMinutes(a) });
+    });
+  }
+  const order: Record<DaypartSlot, number> = { morning: 0, afternoon: 1, evening: 2 };
+  rows.sort((x, y) => {
+    const xm = x.min ?? SLOT_FALLBACK_MIN[x.from];
+    const ym = y.min ?? SLOT_FALLBACK_MIN[y.from];
+    if (xm !== ym) return xm - ym;
+    if (x.from !== y.from) return order[x.from] - order[y.from];
+    return x.i - y.i;
+  });
+  const out: { morning: T[]; afternoon: T[]; evening: T[] } = {
+    morning: [],
+    afternoon: [],
+    evening: [],
+  };
+  for (const row of rows) {
+    const slot = row.min != null ? daypartFromMinutes(row.min) : row.from;
+    out[slot].push(row.a);
+  }
+  return out;
+}
+
 /** Gemini nested slots use `time: "HH:MM"` — reject day-part labels like "evening". */
 export function parseHmClock(raw: string | undefined | null): string | undefined {
   if (!raw?.trim()) return undefined;

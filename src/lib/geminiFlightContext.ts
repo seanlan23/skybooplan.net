@@ -4,6 +4,7 @@ import {
   clearActivityStructuredClocks,
   isFlightRangeActivity,
   normalizeActivityClocks,
+  sortDayActivitiesByClock,
   stripProseClocksExcept,
 } from "@/lib/activityTime";
 import {
@@ -29,6 +30,7 @@ import {
   departureLogisticsOffsetsMin,
   originAirportLeadHours,
   inboundArriveForDisplay,
+  lastDayArriveForDisplay,
   type LogisticsActivity,
   type TripFlightContext,
 } from "@/lib/flightScheduling";
@@ -46,6 +48,7 @@ import { buildReturnFlightSummary } from "@/lib/returnFlightSummary";
 import { resolveTripLocale } from "@/lib/tripLocale";
 import { applyItineraryGuards } from "@/lib/itineraryGuards";
 import { stripArrivalLabelSpam } from "@/lib/textSanitize";
+import { distributeDaytimeReturnActivities } from "@/lib/redEyeDeparture";
 
 /** Same-day ground/rail return to ticket hub (Lyon→Paris). Never LA→NY “budget transfer”. */
 const MAX_SAME_DAY_GROUND_HUB_HOP_KM = 750;
@@ -102,6 +105,25 @@ function flattenDayActivities(day: DayPlan): Activity[] {
   const a = day.activities;
   if (!a) return [];
   return [...(a.morning ?? []), ...(a.afternoon ?? []), ...(a.evening ?? [])];
+}
+
+const ORIGIN_FLIGHT_NAME_RE =
+  /mednarodni let|international flight|internationaler flug|volo internazionale|vuelo internacional|vol international/i;
+
+/** Day 1 origin: evening boards (21:10) live in the evening slot, not morning. */
+function slotInFlightDayActivities(
+  originActs: Activity[],
+  flightAct: Activity,
+  outboundDepart: string,
+): NonNullable<DayPlan["activities"]> {
+  const depMin = parseHmSafe(outboundDepart);
+  const airportOnly = originActs.filter((a) => !ORIGIN_FLIGHT_NAME_RE.test(a.name));
+  const items = depMin >= 17 * 60 ? [flightAct] : [...airportOnly, flightAct];
+  return sortDayActivitiesByClock({
+    morning: items,
+    afternoon: [],
+    evening: [],
+  });
 }
 
 function normalizeCityToken(name: string): string {
@@ -658,6 +680,7 @@ function mergeDepartureDay(
   day: DayPlan,
   flights: TripFlightContext,
   logistics: LogisticsActivity[],
+  opts?: { originIata?: string; language?: string },
 ): DayPlan["activities"] {
   const logisticsActs = logistics.map(logisticsToActivity);
   if (isOvernightDeparture(flights)) {
@@ -667,8 +690,16 @@ function mergeDepartureDay(
       evening: [],
     };
   }
-  if (isTightDeparture(flights) || isEarlyDeparture(flights) || isAfternoonDeparture(flights)) {
-    return { morning: logisticsActs, afternoon: [], evening: [] };
+  if (
+    isTightDeparture(flights) ||
+    isEarlyDeparture(flights) ||
+    isAfternoonDeparture(flights) ||
+    isEveningDeparture(flights)
+  ) {
+    return distributeDaytimeReturnActivities(logisticsActs, flights, {
+      originIata: opts?.originIata,
+      language: opts?.language,
+    });
   }
   const sights = flattenDayActivities(day)
     .filter((a) => {
@@ -690,18 +721,15 @@ function mergeDepartureDay(
     })
     .map(stripSightClocks);
   if (isLateNightDeparture(flights)) {
-    return {
-      morning: sights.slice(0, 2),
-      afternoon: sights.slice(2, 4),
-      evening: logisticsActs,
-    };
-  }
-  if (isEveningDeparture(flights)) {
-    return {
-      morning: sights.slice(0, 1),
-      afternoon: logisticsActs,
-      evening: [],
-    };
+    const logisticsSlots = distributeDaytimeReturnActivities(logisticsActs, flights, {
+      originIata: opts?.originIata,
+      language: opts?.language,
+    });
+    return sortDayActivitiesByClock({
+      morning: [...sights.slice(0, 2), ...logisticsSlots.morning],
+      afternoon: [...sights.slice(2, 4), ...logisticsSlots.afternoon],
+      evening: logisticsSlots.evening,
+    });
   }
   return {
     morning: sights.slice(0, 1),
@@ -735,9 +763,18 @@ function patchAirportActivityTimes(
 ): NonNullable<DayPlan["activities"]> {
   const depMin = parseHmSafe(depart);
   const offsets = departureLogisticsOffsetsMin(destIata);
-  const checkoutAt = hmFromMinutes(depMin - offsets.checkoutMin);
+  let checkoutAt = hmFromMinutes(depMin - offsets.checkoutMin);
   const transferAt = hmFromMinutes(depMin - offsets.transferMin);
   const airportAt = hmFromMinutes(depMin - offsets.airportMin);
+  // 20:00–20:59 return: show checkout at 17:00 when the computed clock is 16:xx.
+  if (
+    depMin >= 20 * 60 &&
+    depMin < 21 * 60 &&
+    parseHmSafe(checkoutAt) >= 16 * 60 &&
+    parseHmSafe(checkoutAt) < 17 * 60
+  ) {
+    checkoutAt = "17:00";
+  }
   const depNorm = normalizeHmToken(depart);
   const arrNorm = arrive ? normalizeHmToken(arrive) : "";
 
@@ -748,6 +785,13 @@ function patchAirportActivityTimes(
         /notranji\s*let|domestic\s*(air|flight)|inlandsflug|volo domestico|vuelo doméstic|vol intérieur/i.test(
           a.name,
         ) && !/mednarodni|international (return )?flight/i.test(a.name);
+      const isHomeLanding =
+        /pristanek|landing (at home|in )|ankunft (zu hause|in )|arrivée (à la maison|à )/i.test(
+          a.name,
+        );
+      if (isHomeLanding) {
+        return normalizeActivityClocks(a);
+      }
       const isIntlFlight =
         !isDomesticHop &&
         (a.transportType === "flight" ||
@@ -933,6 +977,17 @@ export function flightContextPromptBlock(
         }),
       );
     }
+    const [hh, mm] = flights.inboundDepart.split(":").map(Number);
+    const depMin = (hh ?? 0) * 60 + (mm ?? 0);
+    if (depMin < 6 * 60) {
+      lines.push(
+        planLangCopy(lang, {
+          sl: `- NOČNI POVRATEK (${flights.inboundDepart}, 00:00–05:59): odjava iz hotela in prevoz na letališče sta v VEČERNEM sklopu dneva ${totalDays - 1} (~22:30). Dan ${totalDays} = samo nočni let + popoldanski pristanek doma — PREPOVEDANO ponovni večerni transfer na koncu zadnjega dne.`,
+          en: `- RED-EYE RETURN (${flights.inboundDepart}, 00:00–05:59): hotel check-out and airport transfer MUST be in the EVENING of day ${totalDays - 1} (~22:30). Day ${totalDays} = overnight flight + afternoon landing at home only — FORBIDDEN to repeat an evening airport transfer at the end of the last day.`,
+          de: `- NACHT-RÜCKFLUG (${flights.inboundDepart}, 00:00–05:59): Check-out und Flughafentransfer am ABEND von Tag ${totalDays - 1} (~22:30). Tag ${totalDays} = nur Nachtflug + Nachmittagsankunft zu Hause — KEIN erneuter Abendtransfer am letzten Tag.`,
+        }),
+      );
+    }
   }
 
   for (const [key, value] of Object.entries(scheduling)) {
@@ -946,14 +1001,14 @@ export function flightContextPromptBlock(
       de: `- PRIORITÄT VOR „vollem Tag“: leere Slots VOR/NACH Flügen an Ankunfts-/Abflugtag sind PFLICHT. VERBOTEN: Frühstück, Siesta, Strand oder Vormittags-Aktivitäten am Ziel vor der Landung.`,
     }),
     planLangCopy(lang, {
-      sl: `- URE (LAST KODE): NE izmišljuj HH:MM za check-out/transfer/letališče/mednarodni let — aplikacija jih vstavi. Na dan 1: prihod na odhodno letališče = odhod − buffer. Na zadnjem dnevu: check-out < transfer < letališče < let.`,
-      en: `- CLOCKS (CODE-OWNED): do NOT invent HH:MM for checkout/transfer/airport/international flight — the app injects them. Day-1 origin airport = depart − buffer. Last day: checkout < transfer < airport < flight.`,
-      de: `- UHRZEITEN (CODE): KEINE HH:MM für Check-out/Transfer/Flughafen/internationalen Flug erfinden — die App setzt sie. Tag 1: Ankunft Abflughafen = Abflug − Puffer. Letzter Tag: Check-out < Transfer < Flughafen < Flug.`,
+      sl: `- URE (LAST KODE): v JSON vpiši HH:MM za check-out/transfer/letališče/mednarodni let NATANKO iz IZBRANI LET. Aplikacija JSON ne prepisuje. Na dan 1: prihod na odhodno letališče = odhod − buffer. Na zadnjem dnevu: check-out < transfer < letališče < let.`,
+      en: `- CLOCKS (TICKET-OWNED): write HH:MM for checkout/transfer/airport/international flight EXACTLY from the selected ticket. The app will not rewrite this JSON. Day-1 origin airport = depart − buffer. Last day: checkout < transfer < airport < flight.`,
+      de: `- UHRZEITEN (TICKET): HH:MM für Check-out/Transfer/Flughafen/internationalen Flug GENAU aus dem gewählten Ticket. Die App ändert dieses JSON nicht. Tag 1: Ankunft Abflughafen = Abflug − Puffer. Letzter Tag: Check-out < Transfer < Flughafen < Flug.`,
     }),
     planLangCopy(lang, {
-      sl: `- STROGI JSON (dan prihoda + zadnji dan): activities[] samo sightseeing/food/nature (title, bullets ali kratke "- " vrstice, category, timeSlot, coords). IZPUSTI arrivalTime/departureTime. IZPUSTI category airport, check-out, transfer, mednarodni let. PREPOVEDAN en dolg odstavek.`,
-      en: `- STRICT JSON (arrival day + last day): activities[] = sightseeing/food/nature only (title, bullets or short "- " lines, category, timeSlot, coords). OMIT arrivalTime/departureTime. OMIT category airport, checkout, transfer, international flight rows. FORBIDDEN: one long unformatted paragraph.`,
-      de: `- STRICT JSON (Ankunftstag + letzter Tag): activities[] nur sightseeing/food/nature (title, description, category, timeSlot, coords). arrivalTime/departureTime WEGLASSEN. Keine category airport / Check-out / Transfer / internationaler Flug.`,
+      sl: `- STROGI JSON (dan prihoda + zadnji dan): vpiši let/transfer z urami iz IZBRANI LET plus sightseeing/food PO pristanku (pred odhodom). Aplikacija JSON ne prepisuje.`,
+      en: `- STRICT JSON (arrival day + last day): write the selected-ticket flight/transfer clocks plus sightseeing/food after landing (before departure). The app will not rewrite this JSON.`,
+      de: `- STRICT JSON (Ankunftstag + letzter Tag): Flug/Transfer-Uhren aus dem Ticket plus sightseeing/food nach der Landung. Die App ändert dieses JSON nicht.`,
     }),
     planLangCopy(lang, {
       sl: `- GEO: nikoli enodnevni izlet med nedosežnimi PH otoki (npr. Boracay ↔ Malapascua). Ostani na lokalnih plažah/otokih tega dne.`,
@@ -1082,7 +1137,7 @@ function isCodeLogisticsActivity(a: Activity): boolean {
   if (a.transportType === "flight" || isFlightRangeActivity(a)) return true;
   if (a.type === "STAY") return true;
   const name = a.name ?? "";
-  return /check-?out|check-?in|prihod v hotel|prihod v kamp|hotel arrival|arrival at camp|ankunft im hotel|ankunft auf dem camp|airport transfer|prevoz na letališč|prevoz do hotela|transfer to hotel|transfer zum hotel|transfer all'hotel|traslado al hotel|transfert à l'hôtel|prevoz do najema|transfer to rv|flughafentransfer|prihod na letališče|arrive at .+ airport|airport arrival|ankunft am flughafen|arrivo in aeroporto|llegada al aeropuerto|arrivée à l'aéroport|international (return )?flight|mednarodni (povratni )?let|odhod:|departure:|abflug:|partenza:|salida:|security|varnostni|hotel check-out|vrnitev avtodoma|train |vlak |domestic (transfer|flight)|notranji (prevoz|let)|transfert|traslado/i.test(
+  return /check-?out|check-?in|prihod v hotel|prihod v kamp|hotel arrival|arrival at camp|ankunft im hotel|ankunft auf dem camp|airport transfer|prevoz na letališč|prevoz do hotela|transfer to hotel|transfer zum hotel|transfer all'hotel|traslado al hotel|transfert à l'hôtel|prevoz do najema|transfer to rv|flughafentransfer|prihod na letališče|arrive at .+ airport|airport arrival|ankunft am flughafen|arrivo in aeroporto|llegada al aeropuerto|arrivée à l'aéroport|international (return )?flight|mednarodni (povratni )?let|pristanek|landing (at home|in )|odhod:|departure:|abflug:|partenza:|salida:|security|varnostni|hotel check-out|vrnitev avtodoma|train |vlak |domestic (transfer|flight)|notranji (prevoz|let)|transfert|traslado/i.test(
     name,
   );
 }
@@ -1139,6 +1194,7 @@ function normalizeDayActivityClocks(day: DayPlan): void {
       return next;
     });
   }
+  day.activities = sortDayActivitiesByClock(day.activities);
 }
 
 function patchArrivalDayTitle(
@@ -1256,6 +1312,7 @@ function overwriteGeminiFlightClocksWithDuffel(
     day.travelHack = stripDayText(day.travelHack);
     day.transportationTips = stripDayText(day.transportationTips);
     day.localWarnings = stripDayText(day.localWarnings);
+    day.localTips = stripDayText(day.localTips);
     day.morning = stripDayText(day.morning) ?? "";
     day.afternoon = stripDayText(day.afternoon) ?? "";
     day.evening = stripDayText(day.evening) ?? "";
@@ -1299,7 +1356,7 @@ function overwriteGeminiFlightClocksWithDuffel(
         patchAirportActivityTimes(
           last.activities,
           flights.inboundDepart,
-          inboundArriveForDisplay(flights.inboundDepart, flights.inboundArrive),
+          lastDayArriveForDisplay(flights.inboundDepart, flights.inboundArrive),
           plan.destinationIata,
         ),
         owned,
@@ -1409,11 +1466,10 @@ export function applyFlightContextToGeminiPlan(
         if (hint) day.travelHack = hint;
       }
       // Wipe Gemini junk (Phuket breakfast + Munich airport mixed into one day).
-      day.activities = {
-        morning: [...originActs, flightAct].slice(0, 5),
-        afternoon: [],
-        evening: [],
-      };
+      day.activities =
+        day.day === 1
+          ? slotInFlightDayActivities(originActs, flightAct, flights.outboundDepart)
+          : { morning: [flightAct], afternoon: [], evening: [] };
       // Clear legacy slot strings — AiPlanDayCard used to fall back to these.
       day.morning = "";
       day.afternoon = "";
@@ -1480,21 +1536,22 @@ export function applyFlightContextToGeminiPlan(
           logisticsToActivity,
         );
         // Keep full origin (airport + flight) + destination arrival logistics — never slice off hotel check-in.
-        activities = {
-          ...activities,
+        activities = sortDayActivitiesByClock({
           morning: [...originActs, ...(activities.morning ?? [])].slice(0, 8),
-        };
+          afternoon: activities.afternoon ?? [],
+          evening: activities.evening ?? [],
+        });
         const hint = buildOriginDepartureHint(originIata, flights, lang);
         if (hint && !day.travelHack?.includes(flights.outboundDepart)) {
           day.travelHack = day.travelHack ? `${hint} ${day.travelHack}` : hint;
         }
       }
 
-      // Same-day evening arrival: keep only origin-airport morning logistics, never destination fillers.
+      // Same-day evening arrival: drop destination fillers, keep origin clocks in morning/afternoon.
       if (arrivalDaySlot(flights) === "evening") {
         activities = {
           morning: (activities.morning ?? []).filter((a) => !isPreLandingDestinationFiller(a)),
-          afternoon: [],
+          afternoon: (activities.afternoon ?? []).filter((a) => !isPreLandingDestinationFiller(a)),
           evening: activities.evening ?? [],
         };
       } else if (arrivalDaySlot(flights) === "afternoon") {
@@ -1661,7 +1718,10 @@ export function applyFlightContextToGeminiPlan(
       const logistics = buildDepartureLogistics(day.city || plan.destinationName, flights, locale, {
         accommodationMode: plan.accommodationMode,
       });
-      const merged = mergeDepartureDay(day, flights, logistics) ?? {
+      const merged = mergeDepartureDay(day, flights, logistics, {
+        originIata,
+        language: lang,
+      }) ?? {
         morning: [],
         afternoon: [],
         evening: [],
@@ -1790,7 +1850,7 @@ export function applyFlightContextToGeminiPlan(
         patchAirportActivityTimes(
           merged,
           flights.inboundDepart,
-          inboundArriveForDisplay(flights.inboundDepart, flights.inboundArrive),
+          lastDayArriveForDisplay(flights.inboundDepart, flights.inboundArrive),
           plan.destinationIata,
         ),
         [
@@ -1818,4 +1878,7 @@ export function applyFlightContextToGeminiPlan(
     totalDays,
     planComplete,
   });
+  for (const day of plan.days) {
+    if (day.activities) day.activities = sortDayActivitiesByClock(day.activities);
+  }
 }

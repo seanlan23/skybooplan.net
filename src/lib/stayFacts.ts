@@ -62,12 +62,14 @@ export function stayFactsPromptBlock(slo: boolean): string {
       "- Ayutthaya: SAMO dnevni izlet iz Bangkoka (vlak ~1,5 h). PREPOVEDANO hotel / nočitev v Ayutthayi — spi v Bangkoku.",
       "- Koh Lipe: če je na poti, ≥4 nočitve (pristop 6–8 h). PREPOVEDANO 1–2 noči; raje izpusti otok, kot da greš samo čez vikend.",
       "- Krabi / Ao Nang pred Koh Lipe: ≥3 nočitve (Railay, Phra Nang, Phi Phi). PREPOVEDANO 1 noč v Krabiju in 7 noči na Lipeju.",
+      "- Isla Mujeres: če je na poti, takoj po prihodu v Cancún ALI zadnja baza pred odhodom (trajekt ~20 min). PREPOVEDANO vmes v celinsko obalo (Cancún → Isla Mujeres → Playa del Carmen → Tulum).",
     ].join("\n");
   }
   return [
     "- Ayutthaya: Bangkok day trip only (train ~1.5h). Never overnight there — sleep in Bangkok.",
     "- Koh Lipe: if included, ≥4 nights (6–8h access). Never 1–2 nights; skip the island rather than a weekend hop.",
     "- Krabi / Ao Nang before Koh Lipe: ≥3 nights (Railay, Phra Nang, Phi Phi). Never 1 night in Krabi and 7 on Lipe.",
+    "- Isla Mujeres: if included, overnight right after Cancún arrival OR as the last base before departure (~20 min ferry). Never splice it into the mainland coast (Cancún → Isla Mujeres → Playa del Carmen → Tulum).",
   ].join("\n");
 }
 

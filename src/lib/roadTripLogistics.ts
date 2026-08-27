@@ -2,7 +2,8 @@ import type { Activity, AiTripPlan, DayPlan, DayTransportLeg } from "@/lib/aiPla
 import { haversineKm, normalizeStatedRoadKm } from "@/lib/geoMath";
 import { lookupRegionCoords, lookupOvernightCoords, allRegionCityCoords } from "@/lib/regionCoords";
 import {
-  HARD_DRIVE_HOURS,
+  HARD_DRIVE_KM,
+  LAST_DAY_HOME_MAX_HOURS,
   STRIP_SIGHTS_DRIVE_HOURS,
   borderPenaltyHours,
   slowBorderNote,
@@ -593,8 +594,9 @@ export function splitOverlongDriveStages(plan: AiTripPlan): number {
     });
     if (i === days.length - 1) continue;
     const hours = est?.hours ?? statedHoursForDay(day) ?? 0;
-    // 6h+ is already a drive-only day; rewrite the overnight instead of annotating.
-    if (hours < STRIP_SIGHTS_DRIVE_HOURS) continue;
+    const km = est?.roadKm ?? day.drivingDistanceKm ?? 0;
+    // 6h+ or >700 km: rewrite the overnight instead of annotating.
+    if (hours < STRIP_SIGHTS_DRIVE_HOURS && km <= HARD_DRIVE_KM) continue;
     const wp = findOvernightWaypoint(from, to);
     if (!wp) continue;
     if (cityKey(wp.city) === cityKey(to) || cityKey(wp.city) === cityKey(from)) continue;
@@ -653,61 +655,91 @@ export function forceLastRoadDayHome(plan: AiTripPlan): number {
   if (days.length < 2) return 0;
   const last = days[days.length - 1]!;
   const city = (last.city ?? last.focusName ?? "").trim();
-  if (city && placesMatch(city, origin)) return 0;
-  const sl = !(plan.contentLanguage && !plan.contentLanguage.startsWith("sl"));
-  const oc = coordsForPlace(origin) ?? lookupRegionCoords(origin);
-  last.city = origin;
-  if (oc) {
-    last.lat = oc.lat;
-    last.lng = oc.lng;
-  }
-  last.title = sl ? `Povratek v ${origin}` : `Return to ${origin}`;
-  last.inFlightDay = false;
-  stripDayToDriveOnly(last);
-  const prev = days[days.length - 2];
-  const from = (prev?.city ?? "").trim();
-  if (from && !placesMatch(from, origin)) {
-    const hop = estimateRoadStageHours(from, origin, {
-      date: last.date,
-      fromDay: prev,
-      toDay: last,
-    });
-    if (hop) {
-      applyDurationToDay(last, formatDriveHours(hop.hours), hop.roadKm);
-      last.transportation = [
-        { type: "car", from, to: origin, duration: last.drivingDurationHours },
-      ];
-      if (hop.hours >= HARD_DRIVE_HOURS && prev) {
-        const wp = findOvernightWaypoint(from, origin);
-        if (wp && cityKey(prev.city ?? "") !== cityKey(wp.city) && !placesMatch(prev.city ?? "", origin)) {
-          prev.city = wp.city;
-          prev.lat = wp.lat;
-          prev.lng = wp.lng;
-          prev.title = sl ? `Nočitev v ${wp.city}` : `Overnight in ${wp.city}`;
-          stripDayToDriveOnly(prev);
-          const a = estimateRoadStageHours(from, wp.city, {
-            fromDay: days[days.length - 3],
-            toDay: prev,
-          });
-          if (a) applyDurationToDay(prev, formatDriveHours(a.hours), a.roadKm);
-          const b = estimateRoadStageHours(wp.city, origin, {
-            fromDay: prev,
-            toDay: last,
-          });
-          if (b) {
-            applyDurationToDay(last, formatDriveHours(b.hours), b.roadKm);
-            last.transportation = [
-              {
-                type: "car",
-                from: wp.city,
-                to: origin,
-                duration: last.drivingDurationHours,
-              },
-            ];
-          }
-        }
+  let n = 0;
+  if (!(city && placesMatch(city, origin))) {
+    const sl = !(plan.contentLanguage && !plan.contentLanguage.startsWith("sl"));
+    const oc = coordsForPlace(origin) ?? lookupRegionCoords(origin);
+    last.city = origin;
+    if (oc) {
+      last.lat = oc.lat;
+      last.lng = oc.lng;
+    }
+    last.title = sl ? `Povratek v ${origin}` : `Return to ${origin}`;
+    last.inFlightDay = false;
+    stripDayToDriveOnly(last);
+    n += 1;
+    const prev = days[days.length - 2];
+    const from = (prev?.city ?? "").trim();
+    if (from && !placesMatch(from, origin)) {
+      const hop = estimateRoadStageHours(from, origin, {
+        date: last.date,
+        fromDay: prev,
+        toDay: last,
+      });
+      if (hop) {
+        applyDurationToDay(last, formatDriveHours(hop.hours), hop.roadKm);
+        last.transportation = [
+          { type: "car", from, to: origin, duration: last.drivingDurationHours },
+        ];
       }
     }
+  }
+  return n + splitLastHomeHopIfOverlong(plan);
+}
+
+/** Day N must stay a moderate hop home — park a transit overnight on N−1 if needed. */
+function splitLastHomeHopIfOverlong(plan: AiTripPlan): number {
+  const origin = originCity(plan);
+  if (!origin) return 0;
+  const days = plan.days ?? [];
+  if (days.length < 2) return 0;
+  const last = days[days.length - 1]!;
+  const prev = days[days.length - 2];
+  const from = (prev?.city ?? "").trim();
+  if (!prev || !from || placesMatch(from, origin)) return 0;
+  const hop = estimateRoadStageHours(from, origin, {
+    date: last.date,
+    statedKm: last.drivingDistanceKm,
+    fromDay: prev,
+    toDay: last,
+  });
+  if (!hop) return 0;
+  if (hop.hours < LAST_DAY_HOME_MAX_HOURS && hop.roadKm <= HARD_DRIVE_KM) {
+    return 0;
+  }
+  const sl = !(plan.contentLanguage && !plan.contentLanguage.startsWith("sl"));
+  const wp = findOvernightWaypoint(from, origin);
+  if (!wp || cityKey(prev.city ?? "") === cityKey(wp.city) || placesMatch(prev.city ?? "", origin)) {
+    applyDurationToDay(last, formatDriveHours(hop.hours), hop.roadKm);
+    last.transportation = [
+      { type: "car", from, to: origin, duration: last.drivingDurationHours },
+    ];
+    return 0;
+  }
+  prev.city = wp.city;
+  prev.lat = wp.lat;
+  prev.lng = wp.lng;
+  prev.title = sl ? `Nočitev v ${wp.city}` : `Overnight in ${wp.city}`;
+  stripDayToDriveOnly(prev);
+  const a = estimateRoadStageHours(from, wp.city, {
+    fromDay: days[days.length - 3],
+    toDay: prev,
+  });
+  if (a) applyDurationToDay(prev, formatDriveHours(a.hours), a.roadKm);
+  const b = estimateRoadStageHours(wp.city, origin, {
+    fromDay: prev,
+    toDay: last,
+  });
+  if (b) {
+    applyDurationToDay(last, formatDriveHours(b.hours), b.roadKm);
+    last.transportation = [
+      {
+        type: "car",
+        from: wp.city,
+        to: origin,
+        duration: last.drivingDurationHours,
+      },
+    ];
   }
   return 1;
 }

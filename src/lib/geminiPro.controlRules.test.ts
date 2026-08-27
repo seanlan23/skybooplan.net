@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { tripPlanControlRules, tripPlanSystemPrompt, dayRangePromptBlock, GEMINI_TRIP_PLAN_MAX_OUTPUT_TOKENS, GEMINI_TRIP_PLAN_THINKING_BUDGET, GEMINI_TRIP_PLAN_MODEL, resolveTripPlanModel, extractGeneratedObject } from "@/lib/geminiPro";
+import { tripPlanControlRules, tripPlanSystemPrompt, dayRangePromptBlock, GEMINI_TRIP_PLAN_MAX_OUTPUT_TOKENS, GEMINI_TRIP_PLAN_TEMPERATURE, GEMINI_TRIP_PLAN_THINKING_BUDGET, GEMINI_TRIP_PLAN_MODEL, resolveTripPlanModel, extractGeneratedObject } from "@/lib/geminiPro";
 import type { GenerateTripPlanParams } from "@/lib/geminiPro.shared";
 
 function baseParams(
@@ -33,8 +33,9 @@ function baseParams(
 }
 
 describe("trip plan output tokens", () => {
-  it("sets max_output_tokens high enough for a 4-day nested-slot batch", () => {
-    expect(GEMINI_TRIP_PLAN_MAX_OUTPUT_TOKENS).toBe(16384);
+  it("sets max_output_tokens to the one-shot structured-output cap", () => {
+    expect(GEMINI_TRIP_PLAN_MAX_OUTPUT_TOKENS).toBe(32768);
+    expect(GEMINI_TRIP_PLAN_TEMPERATURE).toBe(0.3);
   });
 
   it("disables Gemini 2.5 thinking so the first JSON tokens are not delayed past the stall window", () => {
@@ -72,7 +73,10 @@ describe("tripPlanControlRules", () => {
     expect(block).toMatch(/TEMPO MIREN/);
     expect(block).toMatch(/fleksibilno/);
     expect(block).toMatch(/STROGI JSON/);
-    expect(block).toMatch(/BREZ arrivalTime\/departureTime|BREZ category airport/i);
+    expect(block).toMatch(/mesto NOČITVE/);
+    expect(block).toMatch(/enodnevni skok/);
+    expect(block).toMatch(/NATANČNO število nočitev/);
+    expect(block).toMatch(/enodnevni izlet/);
   });
 
   it("system prompt requires morning, afternoon, evening and transport notes", () => {
@@ -111,12 +115,21 @@ describe("tripPlanControlRules", () => {
     expect(system).toMatch(/no markdown code fences/);
     expect(system).toMatch(/activities\.morning/);
     expect(system).toMatch(/transportTip/);
+    expect(system).toMatch(/Phuket \(HKT\) → Krabi \/ Ao Nang/);
+    expect(system).toMatch(/Koh Lanta has NO airport/);
+    expect(system).toMatch(/Krabi \(KBV\)/);
+    expect(system).toMatch(/ONLY when the overnight city changes/);
+    expect(system).toMatch(/Cancún → Isla Mujeres → Playa del Carmen → Tulum/);
     expect(system).toMatch(/\(END_DATE − START_DATE\) \+ 1 = 16/);
     expect(system).not.toMatch(/Mae Klong|KURIRANA POT|Dan 1–3: Bangkok|Koh Lipe: NI neposrednega/i);
     expect(system).toMatch(/Popoldanski ogled v mestu \{city\}/);
+    expect(system).toMatch(/PRVO bazo/);
+    expect(system).toMatch(/1–2 “polna dneva” na hub/);
+    expect(system).toMatch(/1 noč\(i\) Phuket/);
+    expect(system).not.toMatch(/Notranji leti so dovoljeni šele ko potnik zapusti bazo prihoda po vsaj 1–2 polnih dneh tam/);
   });
 
-  it("suggests a balanced 15-day Thailand route when the user did not spell nights", () => {
+  it("does not inject a curated destination template into the live prompt", () => {
     const system = tripPlanSystemPrompt(
       baseParams({
         destinationIata: "BKK",
@@ -134,10 +147,8 @@ describe("tripPlanControlRules", () => {
         },
       }),
     );
-    expect(system).toMatch(/PREDLOG POTI/i);
-    expect(system).toMatch(/Chiang Mai/i);
-    expect(system).toMatch(/Dan 1–[34]: Bangkok/i);
-    expect(system).not.toMatch(/Dan 1–[5-9]: Bangkok/);
+    expect(system).toMatch(/SMSEL POTI|ROUTE SENSE/);
+    expect(system).not.toMatch(/Dan 1–[34]: Bangkok/i);
     expect(system).toMatch(/Popoldanski ogled v mestu \{city\}/);
   });
 

@@ -8,5 +8,11 @@ describe("DISTANCE_TRANSPORT_RULES", () => {
     expect(DISTANCE_TRANSPORT_RULES).toContain("Ljubljana");
     expect(DISTANCE_TRANSPORT_RULES).toContain("Zadar");
     expect(DISTANCE_TRANSPORT_RULES).toContain("NEVER a flight");
+    expect(DISTANCE_TRANSPORT_RULES).toMatch(/Phuket \(HKT\) → Krabi \/ Ao Nang/);
+    expect(DISTANCE_TRANSPORT_RULES).toMatch(/NEVER a flight \(HKT–KBV/);
+    expect(DISTANCE_TRANSPORT_RULES).toMatch(/Koh Lanta has NO airport/);
+    expect(DISTANCE_TRANSPORT_RULES).toMatch(/Krabi \(KBV\)/);
+    expect(DISTANCE_TRANSPORT_RULES).toMatch(/ONLY when the overnight city changes/);
+    expect(DISTANCE_TRANSPORT_RULES).toMatch(/never splice it into the middle of the mainland coast/i);
   });
 });

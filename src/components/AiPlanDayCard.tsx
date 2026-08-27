@@ -660,6 +660,11 @@ export function AiPlanDayCard({
     : day.transportationTips
       ? sanitizeLegacyTemplateLeak(day.transportationTips)
       : "";
+  const localTipsText = kwaiDay
+    ? ""
+    : day.localTips
+      ? sanitizeLegacyTemplateLeak(day.localTips)
+      : "";
   const localWarningsText = kwaiDay
     ? bangkokKwaiDayTripBookingTip(slo)
     : day.localWarnings
@@ -880,6 +885,18 @@ export function AiPlanDayCard({
             <p className="text-sm text-sky-900">
               <span className="font-bold">{t("aiplan.travelHack" as never)}:</span>{" "}
               {travelHackText}
+            </p>
+          </div>
+        )}
+
+        {localTipsText && (
+          <div className="flex items-start gap-3 rounded-r-lg border-l-4 border-amber-500 bg-amber-50 px-4 py-3">
+            <span aria-hidden className="text-lg leading-none">
+              🛡️
+            </span>
+            <p className="whitespace-pre-line text-sm text-amber-950">
+              <span className="font-bold">{t("aiplan.localTips" as never)}:</span>{" "}
+              {localTipsText}
             </p>
           </div>
         )}

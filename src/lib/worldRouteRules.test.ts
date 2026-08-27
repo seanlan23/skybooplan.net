@@ -23,7 +23,8 @@ describe("worldRouteRulesPromptBlock", () => {
     expect(sl).toMatch(/POI/i);
     expect(sl).toMatch(/Dve oddaljeni državi|en dan samo prevoz/i);
     expect(en).toMatch(/Bases first/i);
-    expect(en).toMatch(/NEW base/i);
+    expect(sl).toMatch(/Otok ob prihodnem letališču|kratek trajekt/i);
+    expect(en).toMatch(/short-ferry island|mainland coastal drive/i);
     expect(worldRouteRulesMentionsDestination(sl)).toBe(false);
     expect(worldRouteRulesMentionsDestination(en)).toBe(false);
   });

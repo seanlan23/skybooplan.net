@@ -68,6 +68,8 @@ describe("buildTravelBriefUserBlock", () => {
     expect(text).toMatch(/EXACTLY match the number of days between START_DATE \(2026-10-26\) and END_DATE \(2026-11-10\) inclusive: 16/);
     expect(text).toMatch(/Day 16 \(the final day\) MUST ALWAYS be the departure day/);
     expect(text).toMatch(/hotel check-out, airport transfer, international return flight home/);
+    expect(text).toMatch(/RED-EYE RETURN/);
+    expect(text).toMatch(/days\[\]\.transfer/);
     expect(text).toMatch(/Inclusive calendar days: 16/);
     expect(text).not.toMatch(/\[START_DATE\]|\[END_DATE\]/);
     expect(text).toMatch(/NO PLACEHOLDERS \/ NO TRUNCATION/);

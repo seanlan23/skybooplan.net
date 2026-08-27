@@ -1,6 +1,7 @@
 import type { Activity, AiTripPlan, DayPlan } from "@/lib/aiPlan.functions";
 import { planLangCopy } from "@/lib/planLangCopy";
 import { normalizePlanLangCode } from "@/lib/planLanguages";
+import { canonicalStayCity, stayCityMentioned } from "@/lib/userStayPlan";
 
 /**
  * Island pairs that cannot be done as a same-day outing (sea + flights + ferries).
@@ -124,6 +125,103 @@ export function dropDuplicatePhiPhiDayTrips(plan: AiTripPlan, language?: string)
   return n;
 }
 
+const DAY_TRIP_CUE_RE =
+  /day\s*trip|celodnevni izlet|izlet na|izlet z (ladj|gliser|čoln|colnom|speedboat)|speedboat|gliser|excursion|escursione|ausflug|excursi[oó]n|boat tour|island hop|same[- ]day (trip|visit|outing)/i;
+
+function overnightStayCities(plan: AiTripPlan): Map<string, number> {
+  const counts = new Map<string, number>();
+  const days = [...(plan.days ?? [])].sort((a, b) => a.day - b.day);
+  let runCity = "";
+  let run = 0;
+  const flush = () => {
+    if (!runCity || run <= 0) return;
+    counts.set(runCity, Math.max(counts.get(runCity) ?? 0, run));
+  };
+  for (const day of days) {
+    if (day.inFlightDay) continue;
+    const city = canonicalStayCity(day.city ?? day.focusName ?? "");
+    if (!city) continue;
+    if (city === runCity) run += 1;
+    else {
+      flush();
+      runCity = city;
+      run = 1;
+    }
+  }
+  flush();
+  return counts;
+}
+
+function isTransferTowardStay(day: DayPlan, next: DayPlan | undefined, stayCity: string): boolean {
+  if (next && stayCityMentioned(`${next.city ?? ""} ${next.focusName ?? ""}`, stayCity)) {
+    return true;
+  }
+  for (const leg of day.transportation ?? []) {
+    if (stayCityMentioned(`${leg.to ?? ""} ${leg.from ?? ""}`, stayCity) && stayCityMentioned(leg.to ?? "", stayCity)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * No preview day-trip (boat/flight) to a place where the traveler already has
+ * a multi-night stay. Transfer days that actually move to that base stay intact.
+ */
+export function dropDayTripsToOvernightStays(plan: AiTripPlan, language?: string): number {
+  const lang = normalizePlanLangCode(language ?? plan.contentLanguage ?? "en");
+  const stays = [...overnightStayCities(plan).entries()].filter(([, n]) => n >= 2);
+  if (!stays.length) return 0;
+  let n = 0;
+  const days = [...(plan.days ?? [])].sort((a, b) => a.day - b.day);
+  for (let i = 0; i < days.length; i++) {
+    const day = days[i]!;
+    if (day.inFlightDay || !day.activities) continue;
+    const here = `${day.city ?? ""} ${day.focusName ?? ""}`;
+    const next = days[i + 1];
+    for (const [stayCity] of stays) {
+      if (stayCityMentioned(here, stayCity)) continue;
+      if (isTransferTowardStay(day, next, stayCity)) continue;
+      for (const slot of ["morning", "afternoon", "evening"] as const) {
+        const list = day.activities[slot];
+        if (!list?.length) continue;
+        day.activities[slot] = list.map((a) => {
+          const blob = `${a.name} ${a.description ?? ""}`;
+          if (!stayCityMentioned(blob, stayCity)) return a;
+          const dayTrip =
+            DAY_TRIP_CUE_RE.test(blob) ||
+            /ladja|čoln|boat|ferry|trajekt|gliser|speedboat|let na |flight to /i.test(blob);
+          if (!dayTrip) return a;
+          if (a.type === "TRANSPORT" && isTransferTowardStay(day, next, stayCity)) return a;
+          n += 1;
+          const city = (day.city || day.focusName || "").trim() || stayCity;
+          return {
+            ...a,
+            name: planLangCopy(lang, {
+              sl: `Lokalni ogled ${city}`,
+              en: `Local sights in ${city}`,
+              de: `Lokales Programm in ${city}`,
+              it: `Visite locali a ${city}`,
+              es: `Visitas locales en ${city}`,
+              fr: `Visites locales à ${city}`,
+            }),
+            description: planLangCopy(lang, {
+              sl: `${city}: lokalne znamenitosti, staro mestno jedro in bližnje plaže. Ne enodnevni izlet na ${stayCity} — tam že imaš večdnevno bivanje.`,
+              en: `${city}: local sights, old town and nearby beaches. Not a day trip to ${stayCity} — you already stay there overnight.`,
+              de: `${city}: lokale Sehenswürdigkeiten, Altstadt und Strände in der Nähe. Kein Tagesausflug nach ${stayCity} — dort übernachtest du bereits mehrere Nächte.`,
+              it: `${city}: attrazioni locali, centro storico e spiagge vicine. Non un'escursione di un giorno a ${stayCity} — lì soggiorni già più notti.`,
+              es: `${city}: sitios locales, casco antiguo y playas cercanas. No una excursión de un día a ${stayCity} — allí ya te quedas varias noches.`,
+              fr: `${city} : visites locales, vieille ville et plages proches. Pas d'excursion d'une journée à ${stayCity} — vous y séjournez déjà plusieurs nuits.`,
+            }),
+            type: a.type === "TRANSPORT" ? "SIGHT" : a.type || "SIGHT",
+          };
+        });
+      }
+    }
+  }
+  return n;
+}
+
 /** Drop / rewrite same-day hops that are geographically impossible. */
 export function scrubImpossibleIslandDayTrips(
   plan: AiTripPlan,
@@ -159,4 +257,5 @@ export function scrubImpossibleIslandDayTrips(
     }
   }
   dropDuplicatePhiPhiDayTrips(plan, language);
+  dropDayTripsToOvernightStays(plan, language);
 }

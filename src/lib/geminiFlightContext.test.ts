@@ -121,7 +121,7 @@ describe("flightContextPromptBlock", () => {
     expect(block).toContain('departure_time = "15:30"');
     expect(block).toContain("PRIORITETA NAD");
     expect(block).toMatch(/STROGI JSON/);
-    expect(block).toMatch(/IZPUSTI arrivalTime\/departureTime|OMIT arrivalTime/i);
+    expect(block).toMatch(/Aplikacija JSON ne prepisuje|will not rewrite this JSON/i);
   });
 
   it("uses German scaffolding when language is de", () => {
@@ -158,12 +158,20 @@ describe("applyFlightContextToGeminiPlan", () => {
 
     expect(plan.days[0]?.inFlightDay).toBe(true);
     expect(plan.days[0]?.title).toMatch(/Odhod|let/i);
-    const day1Names = (plan.days[0]?.activities?.morning ?? []).map((a) => a.name);
-    expect(day1Names.join(" | ")).toMatch(/Odhod|MUC/i);
-    expect(day1Names.join(" | ")).toMatch(/Mednarodni let/i);
+    const day1All = [
+      ...(plan.days[0]?.activities?.morning ?? []),
+      ...(plan.days[0]?.activities?.afternoon ?? []),
+      ...(plan.days[0]?.activities?.evening ?? []),
+    ];
+    const day1Names = day1All.map((a) => a.name);
+    expect(day1Names.join(" | ")).toMatch(/Odhod|MUC|Mednarodni let/i);
     expect(day1Names.some((n) => /Zajtrk|Siesta|plaž/i.test(n))).toBe(false);
+    expect(plan.days[0]?.activities?.morning ?? []).toEqual([]);
     expect(plan.days[0]?.activities?.afternoon ?? []).toEqual([]);
-    expect(plan.days[0]?.activities?.evening ?? []).toEqual([]);
+    expect((plan.days[0]?.activities?.evening ?? []).some((a) => a.arrivalTime === "21:10")).toBe(
+      true,
+    );
+    expect(JSON.stringify(day1All)).not.toMatch(/Prihod na letališče/i);
 
     const arrival = plan.days[1];
     expect(arrival?.inFlightDay).toBeFalsy();
@@ -179,6 +187,81 @@ describe("applyFlightContextToGeminiPlan", () => {
     expect(lastText).toContain("15:30");
     expect(lastText).toContain("06:00");
     expect(lastText).not.toContain("23:00");
+  });
+
+  it("orders last-day NRT checkout → flight in the morning and MUC landing in the afternoon", () => {
+    const plan = basePlan({
+      destinationName: "Tokyo",
+      destinationIata: "NRT",
+      originIata: "MUC",
+    });
+    applyFlightContextToGeminiPlan(
+      plan,
+      {
+        outboundDepart: "06:45",
+        outboundArrive: "15:20",
+        outboundArriveDayOffset: 1,
+        inboundDepart: "10:50",
+        inboundArrive: "16:20",
+      },
+      { originIata: "MUC", destinationIata: "NRT", language: "sl", expectedDays: 3 },
+    );
+
+    const last = plan.days[2]!;
+    const morning = last.activities?.morning ?? [];
+    const afternoon = last.activities?.afternoon ?? [];
+    const evening = last.activities?.evening ?? [];
+    const morningNames = morning.map((a) => a.name).join(" | ");
+    expect(morningNames).toMatch(/odjava|check-out/i);
+    expect(morningNames).toMatch(/prevoz na letališč/i);
+    expect(morningNames).toMatch(/mednarodni povratni let/i);
+    expect(morningNames).not.toMatch(/pristanek/i);
+    expect(JSON.stringify(morning)).not.toMatch(/06:45/);
+    expect(afternoon.some((a) => /pristanek/i.test(a.name))).toBe(true);
+    expect(JSON.stringify(afternoon)).toMatch(/16:20/);
+    expect(JSON.stringify(evening)).not.toMatch(/06:45/);
+  });
+
+  it("does not keep a leaked 06:45 morning landing on an NRT 10:50 return", () => {
+    const plan = basePlan({
+      destinationName: "Tokyo",
+      destinationIata: "NRT",
+      originIata: "MUC",
+      days: [
+        ...basePlan().days.slice(0, 2),
+        {
+          ...basePlan().days[2]!,
+          activities: {
+            morning: [
+              {
+                name: "Pristanek v Münchnu",
+                type: "TRANSPORT",
+                description: "Pristanek ob 06:45.",
+                arrivalTime: "06:45",
+              },
+            ],
+            afternoon: [],
+            evening: [],
+          },
+        },
+      ],
+    });
+    applyFlightContextToGeminiPlan(
+      plan,
+      {
+        outboundDepart: "06:45",
+        outboundArrive: "15:20",
+        outboundArriveDayOffset: 1,
+        inboundDepart: "10:50",
+        inboundArrive: "06:45",
+      },
+      { originIata: "MUC", destinationIata: "NRT", language: "sl", expectedDays: 3 },
+    );
+    const last = plan.days[2]!;
+    const blob = JSON.stringify(last.activities);
+    expect(blob).toMatch(/10:50/);
+    expect(blob).not.toMatch(/06:45/);
+    expect(JSON.stringify(last.activities?.morning ?? [])).not.toMatch(/pristanek/i);
   });
 
   it("Duffel clocks overwrite Gemini VIE→NRT 21:05 leftover everywhere", () => {
@@ -332,7 +415,8 @@ describe("applyFlightContextToGeminiPlan", () => {
     expect(blob).toMatch(/09:15/);
     expect(plan.days[0]?.inFlightDay).toBe(true);
     expect(plan.days[0]?.transportation).toBeUndefined();
-    expect(plan.days[0]?.activities?.evening ?? []).toEqual([]);
+    expect(JSON.stringify(plan.days[0]?.activities)).toMatch(/19:15/);
+    expect(plan.days[0]?.activities?.morning ?? []).toEqual([]);
     const dinner = plan.days[2]?.activities?.evening?.find((a) => /Monjayaki/i.test(a.name));
     expect(dinner?.arrivalTime).toBe("19:00");
     expect(dinner?.description).toContain("19:00");
@@ -928,14 +1012,32 @@ describe("applyFlightContextToGeminiPlan", () => {
     expect(day1).toMatch(/12:40/);
     expect(day1).toMatch(/18:15/);
     // Origin depart logistics must not be rewritten to landing time only.
-    const originMorning = plan.days[0]?.activities?.morning ?? [];
-    const originOwned = originMorning.filter((a) =>
+    const originAll = [
+      ...(plan.days[0]?.activities?.morning ?? []),
+      ...(plan.days[0]?.activities?.afternoon ?? []),
+      ...(plan.days[0]?.activities?.evening ?? []),
+    ];
+    const originOwned = originAll.filter((a) =>
       /Na letališč|Mednarodni let|Check-in/i.test(a.name),
     );
     expect(originOwned.some((a) => a.arrivalTime === "12:40")).toBe(true);
     expect(originOwned.map((a) => `${a.description ?? ""} ${a.arrivalTime ?? ""}`).join(" ")).not.toMatch(
       /ob 18:15/,
     );
+
+    const last = plan.days[2]!;
+    const lastChrono = [
+      ...(last.activities?.morning ?? []),
+      ...(last.activities?.afternoon ?? []),
+      ...(last.activities?.evening ?? []),
+    ];
+    expect(lastChrono[0]?.name).toMatch(/odjava|check-out|odhod iz hotela/i);
+    expect(lastChrono[0]?.arrivalTime).toBe("17:00");
+    expect(lastChrono.some((a) => a.arrivalTime === "20:50")).toBe(true);
+    const checkoutIdx = lastChrono.findIndex((a) => /odjava|check-out|odhod iz hotela/i.test(a.name));
+    const flightIdx = lastChrono.findIndex((a) => a.arrivalTime === "20:50");
+    expect(checkoutIdx).toBeGreaterThanOrEqual(0);
+    expect(flightIdx).toBeGreaterThan(checkoutIdx);
   });
 
   it("keeps destination hotel check-in on same-day morning arrival (not sliced off)", () => {
@@ -2150,7 +2252,7 @@ describe("applyFlightContextToGeminiPlan", () => {
     const afternoon = day1.activities?.afternoon ?? [];
     const evening = day1.activities?.evening ?? [];
     // Code-owned origin rows keep MUC boarding-pass clocks — never NYC land time.
-    const originOwned = morning.filter((x) =>
+    const originOwned = [...morning, ...afternoon, ...evening].filter((x) =>
       /at .+ airport|arrive at .+ airport|international flight\s*\(muc\)/i.test(x.name),
     );
     expect(originOwned.length).toBeGreaterThanOrEqual(2);
@@ -2360,6 +2462,7 @@ describe("applyFlightContextToGeminiPlan", () => {
     const lastActs = [
       ...(plan.days[1]!.activities?.morning ?? []),
       ...(plan.days[1]!.activities?.afternoon ?? []),
+      ...(plan.days[1]!.activities?.evening ?? []),
     ];
     const checkout = lastActs.find((a) => /check-out|odhod iz hotela/i.test(a.name));
     const transfer = lastActs.find((a) => /prevoz na letališč/i.test(a.name));

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { coerceTripPlanPayload, parseCoercedTripPlan } from "@/lib/geminiPro.shared";
 
 describe("coerceTripPlanPayload", () => {
-  it("fills transport_type, duration, transportation, and empty pois", () => {
+  it("fills transport_type and duration without inventing a transfer banner", () => {
     const raw = {
       trip_metadata: {
         destination: "Thailand",
@@ -64,11 +64,11 @@ describe("coerceTripPlanPayload", () => {
     expect(parsed.success).toBe(true);
     if (!parsed.success) return;
     const phase = parsed.data.itinerar[0]!;
-    expect(phase.pois.length).toBeGreaterThan(0);
+    expect(phase.pois).toEqual([]);
     const airport = phase.days[0]!.activities[0]!;
     expect(airport.transport_type).toBe("flight");
     expect(airport.duration).toBeTruthy();
-    expect(phase.days[0]!.transportation?.length).toBeGreaterThan(0);
+    expect(phase.days[0]!.transportation).toBeUndefined();
   });
 
   it("accepts sightseeing without arrivalTime/departureTime (flight-day strict JSON)", () => {
@@ -127,7 +127,7 @@ describe("coerceTripPlanPayload", () => {
     expect(act.departureTime).toBeUndefined();
   });
 
-  it("coerces middle-day wall-of-text description into bullets", () => {
+  it("keeps a complete description instead of clipping it into bullets", () => {
     const wall =
       "For dinner in Katoomba head to a cozy bistro near Echo Point and order seasonal Blue Mountains produce with a local wine pairing while watching the mist roll in over the Jamison Valley as the sun sets behind the Three Sisters sandstone cliffs which look spectacular at dusk especially if you walk the short path from the visitor centre first and then grab dessert at the bakery that stays open late for hikers returning from Wentworth Falls after a long day on the trails.";
     const raw = {
@@ -180,11 +180,8 @@ describe("coerceTripPlanPayload", () => {
       itinerar: Array<{ days: Array<{ activities: Array<{ description: string; bullets?: string[] }> }> }>;
     };
     const act = coerced.itinerar[0]!.days[0]!.activities[0]!;
-    expect(act.bullets?.length).toBeGreaterThanOrEqual(2);
-    expect(act.bullets!.every((b) => b.length <= 140)).toBe(true);
-    expect(act.description).toMatch(/^- /m);
-    expect(act.description).toContain("\n");
-    expect(act.description.includes(wall)).toBe(false);
+    expect(act.description).toBe(wall);
+    expect(act.description).toContain("Wentworth Falls");
 
     const parsed = parseCoercedTripPlan(coerced);
     expect(parsed.success).toBe(true);

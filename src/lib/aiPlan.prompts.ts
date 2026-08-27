@@ -44,7 +44,7 @@ The user message is JSON trip parameters. Return ONE JSON object only.
 
 Rules:
 - Works for ANY country/city — adapt sights, transport, and prices to destinationCountry in user JSON
-- Road trips (car/motorhome) only: no driving stage over 5h; if longer, insert an overnight. Slow land borders (HR–BA–ME–AL, US–MX, TH–KH/LA/MY) add extra hours in peak season — internal Schengen = 0
+- Road trips (car/motorhome) only: daily stage 500–700 km / max 6–7 h with stops (pure driving ≤5 h). FORBIDDEN 1500–2200 km in one day — insert overnight transit bases. Own-vehicle roundtrip: outbound+inbound form a loop OR the return has 1-night hops; Day N is only the last 4–5 h home. Slow land borders (HR–BA–ME–AL, US–MX, TH–KH/LA/MY) add extra hours in peak season — internal Schengen = 0
 - For totalDays >= 7: prefer 2 nights in major cities (Paris, Kyoto, Split, Kotor, Cape Town, NYC…). No hit-and-run 1-night sightseeing stays unless the city is pure transit
 - NEVER invent hotel or campground names — hotels[] is city + nights only; Booking.com shows live options
 - Food highlights: name a real venue or omit the meal
@@ -126,6 +126,7 @@ The user message is JSON trip parameters. Return ONE JSON object only.
     "transport": { "type": "", "duration": "", "cost": "", "description": "" },
     "travelHack": "insider tip",
     "transportationTips": "how to get around",
+    "localTips": "water, food hygiene, scams, transit etiquette",
     "localWarnings": "scams, dress codes",
     "transportation": [{ "type": "flight", "from": "Bangkok BKK", "to": "Chiang Mai CNX", "duration": "1h 10min", "estimatedPrice": 45 }],
     "dailyBudgetEur": number
@@ -144,14 +145,15 @@ Task types (from user JSON):
 
 Rules:
 - Output exactly (generateDays.end - generateDays.start + 1) day objects
-- Every day MUST fill morning, afternoon, evening and transportationTips. Arrival/in-flight slots describe the flight — do not omit keys
-- Road (car/motorhome): ≤5h driving per day or overnight in between. Not for international flights
+- Every day MUST fill morning, afternoon, evening, transportationTips and localTips. Arrival/in-flight slots describe the flight — do not omit keys
+- Road (car/motorhome): 500–700 km / max 6–7 h with stops per day or overnight in between. FORBIDDEN 1500–2200 km one-day hops. Day N = last moderate hop home (≤5 h). Not for international flights
 - Major-city stays: 2 nights when the trip is 7+ days
 - NEVER invent hotel names; Booking.com is the lodging UI
 - FORBIDDEN activity names/copy worldwide: “Jutranji sprehod”, “kava pred ogledom”, “Check-in, osvežitev”, “Check-in in varnostni pregled”, “brez hitenja”, “če imaš še energijo”, “Večerja in koktajli v elegantnem baru”, “Dinner and cocktails in an elegant bar” (and EN/DE equivalents)
 - Inter-city travel days: Morning is reserved for travel/transfer. Sightseeing in the new destination only afternoon/evening after hotel check-in — or leave evening empty
 - Each activity: name + priceLabel + 2–3 sentence description (unique, practical) — timing in text must match the slot (no sunset label in morning)
 - MANDATORY travelHack per day: unique, location-specific insider tip — NEVER repeat the same hack on two days
+- MANDATORY localTips / local_tips per day: water & hydration, food hygiene, scams, transit etiquette / temple dress / tipping for THAT city — never the same paragraph two days
 - transportationTips ONLY if concrete for THAT city THAT day (named mode, pass, or A→B). Omit the field rather than a universal “use transit / taxi” paragraph
 - Do NOT repeat the identical Grab/tuk-tuk/"če imaš še energijo" sentence across days
 - Day numbers must be contiguous with no gaps (never skip day 5 after day 4)

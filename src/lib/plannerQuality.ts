@@ -5,8 +5,16 @@
 
 import type { AiTripPlan } from "@/lib/aiPlan.functions";
 
+/** Pure driving target (no long stops). */
 export const TARGET_DRIVE_HOURS = 5;
+/** Hard cap including rest stops — never a single JSON day beyond this. */
 export const HARD_DRIVE_HOURS = 7;
+/** Comfortable daily road distance; stay near this, never invent 1500 km days. */
+export const TARGET_DRIVE_KM = 500;
+/** Absolute daily road distance cap (with stops). */
+export const HARD_DRIVE_KM = 700;
+/** Last calendar day is only the final hop home. */
+export const LAST_DAY_HOME_MAX_HOURS = 5;
 /** Strip museums/walks when a road stage is still over this. */
 export const STRIP_SIGHTS_DRIVE_HOURS = 6;
 export const TWO_NIGHT_MIN_TRIP_DAYS = 7;
@@ -376,10 +384,11 @@ export function annotateOverlongDriveStages(plan: AiTripPlan): number {
         .replace(",", ".")
         .match(/(\d+(?:\.\d+)?)/)?.[1] ?? 0,
     );
-    if (hours < TARGET_DRIVE_HOURS + 0.25) continue;
+    const km = Number(day.drivingDistanceKm ?? 0);
+    if (hours < TARGET_DRIVE_HOURS + 0.25 && km <= HARD_DRIVE_KM) continue;
     const note = sl
-      ? `Ta etapa je ~${hours.toFixed(1)} h vožnje (cilj ≤${TARGET_DRIVE_HOURS} h). Naslednjič razdeli z nočitvijo vmes.`
-      : `This stage is ~${hours.toFixed(1)} h driving (target ≤${TARGET_DRIVE_HOURS} h). Split with an overnight next time.`;
+      ? `Ta etapa je ~${hours.toFixed(1)} h / ${Math.round(km)} km (cilj ≤${TARGET_DRIVE_HOURS} h in ≤${HARD_DRIVE_KM} km). Naslednjič razdeli z nočitvijo vmes.`
+      : `This stage is ~${hours.toFixed(1)} h / ${Math.round(km)} km (target ≤${TARGET_DRIVE_HOURS} h and ≤${HARD_DRIVE_KM} km). Split with an overnight next time.`;
     const before = day.transportationTips ?? "";
     day.transportationTips = appendUnique(day.transportationTips, note);
     if (day.transportationTips !== before) n += 1;
@@ -390,18 +399,22 @@ export function annotateOverlongDriveStages(plan: AiTripPlan): number {
 export function plannerQualityPromptBlock(opts: {
   road: boolean;
   totalDays: number;
+  /** User listed nights-per-city in wishes — do not steal/pad nights. */
+  lockUserStayPlan?: boolean;
 }): string {
-  const twoNight =
-    opts.totalDays >= TWO_NIGHT_MIN_TRIP_DAYS
+  const twoNight = opts.lockUserStayPlan
+    ? `- NOČITVE: uporabnikov razpored mest/noči je ZAKLENJEN. PREPOVEDANO “ukrasti noč” sosedu, dvigovati 1-nočne baze na 2, ali dodajati noči na prvo bazo. hotels[] = natanko želje.`
+    : opts.totalDays >= TWO_NIGHT_MIN_TRIP_DAYS
       ? `- NOČITVE: v pomembnejših mestih (Paris, Rim, Kyoto, Split, Kotor, Berat, Cape Town, NYC…) 2 noči ALI izpusti mesto. PREPOVEDANO 1 noč + sprehod na ${opts.totalDays}-dnevni poti (Rim, Kotor, Pariz…). Aplikacija ukrade noč sosedu z 3+ nočitvami — ti raje že v skeletu daj 2 noči.`
       : `- NOČITVE: na kratki poti je 1 noč v mestu OK — ne siliti 2 noči na račun cilja.`;
 
   const roadBlock = opts.road
     ? `
 VOŽNJE (samo avto/avtodom — NE velja za mednarodni let):
-- ENA dnevna etapa ≤ ${TARGET_DRIVE_HOURS} h čiste vožnje. Trdo max ${HARD_DRIVE_HOURS} h.
-- PREPOVEDANO JSON dan z 8–12 h vožnje (Avignon→Nice, Nice→Beaune, Tirana→Dubrovnik, Barcelona→Madrid, zadnji dan 10 h). Če etapa ≥${HARD_DRIVE_HOURS} h: nočitev v vmesnem mestu ŽE V SKELETU — koda bo day.city prestavila (npr. Marseille, Lyon, Zaragoza, Shkodër), ne samo pripisala opozorilo.
-- Zadnji dan: day.city = izhodišče potnika. PREPOVEDANO Munich/Zagreb/Nîmes z naslovom „vožnja domov“.
+- ENA dnevna etapa: ${TARGET_DRIVE_KM}–${HARD_DRIVE_KM} km, ≤${TARGET_DRIVE_HOURS} h čiste vožnje, z vmesnimi postanki največ ${HARD_DRIVE_HOURS} h. Trdo max ${HARD_DRIVE_KM} km / ${HARD_DRIVE_HOURS} h.
+- PREPOVEDANO nerealne enodnevne etape 1500–2200 km ali 8–16 h vožnje brez nočitve. Če etapa ≥${HARD_DRIVE_HOURS} h ALI >${HARD_DRIVE_KM} km: nočitev v vmesnem mestu ŽE V SKELETU — koda bo day.city prestavila, ne samo pripisala opozorilo.
+- Lastno vozilo (izhodišče = cilj poti): outbound in inbound tvorita logičen krog ALI povratek vstavi tranzitne baze z 1 nočitvijo (vsak hop v limitu). PREPOVEDANO isto avtocesto 1500 km v enem dnevu nazaj.
+- Zadnji dan: day.city = izhodišče; SAMO zadnja zmerna etapa domov (≤${LAST_DAY_HOME_MAX_HOURS} h). Če je predzadnja baza dlje, nočitev vmes na N−1.
 - Počasne kopenske meje (tabela, velja povsod): HR–BA, BA–ME, ME–AL, HR–ME, AL–HR, US–MX, TH–KH/LA/MY. Junij–september (in US–MX prazniki): prištej extra ure. Notranji Schengen = 0.
 - PREPOVEDANO muzej/sprehod/kosilo v ciljnem mestu isti dan po ≥${STRIP_SIGHTS_DRIVE_HOURS} h vožnje — samo prijava.`
     : `
@@ -435,7 +448,8 @@ HRANA:
 
 PRAKTIČNO (vsak dan kjer sodi):
 - Parking, odpiralni čas, sezona, varnost, kje kupiti karto, kateri izhod metroja — konkretno za TO mesto TA dan.
-- travelHack = 1 insider nasvet (cena, ura, prevara, bližnjica). transportationTips samo če je konkreten A→B.
+- travelHack = 1 insider nasvet (cena, ura, bližnjica). transportationTips samo če je konkreten A→B.
+- local_tips vsak dan: voda/hidracija, hrana/higiena, prevare, bonton na prevozu in v svetiščih, napitnine — za TO mesto.
 
 STIL (človeški planner, ne turistična brošura):
 - Piši kot izkušen lokalni kolega: kratko, konkretno, uporabno. Drugačen nasvet vsak dan.

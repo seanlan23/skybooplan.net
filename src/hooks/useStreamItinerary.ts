@@ -6,7 +6,6 @@ import {
   tripDayCount,
   type GenerateGeminiProTripInput,
 } from "@/lib/geminiPro.functions";
-import { applyFlightContextIfPresent } from "@/lib/geminiProCatalog";
 import { supabaseAuthHeaders } from "@/lib/supabaseAuthHeaders";
 import {
   consumeNdjsonBuffer,
@@ -22,18 +21,7 @@ import {
   streamNeedsForegroundGuard,
   waitUntilDocumentVisible,
 } from "@/lib/streamAbort";
-import { contiguousCoveredDays } from "@/lib/geminiStreamBatches";
 import { requestScreenWakeLock } from "@/hooks/useScreenWakeLock";
-
-function sanitizeStreamPlan(
-  plan: AiTripPlan,
-  input: GenerateGeminiProTripInput,
-): AiTripPlan {
-  if (!input.flightContext || input.groundTransportMode) return plan;
-  const next = structuredClone(plan);
-  applyFlightContextIfPresent(next, input);
-  return next;
-}
 
 function isAbortError(err: unknown): boolean {
   if (err instanceof DOMException && err.name === "AbortError") return true;
@@ -60,8 +48,6 @@ const CLIENT_STREAM_IDLE_MS = 240_000;
 /** Mobile WebKit often drops keepalive bytes; fail over sooner and resume. */
 const MOBILE_STREAM_IDLE_MS = 90_000;
 const MAX_CONNECTION_RETRIES = 2;
-/** Fresh 280s serverless slices until 9–16 day plans are full (6/13). */
-const MAX_HTTP_CONTINUATIONS = 3;
 
 export type StreamItineraryStatus = "idle" | "streaming" | "done" | "error";
 
@@ -155,11 +141,11 @@ export function useStreamItinerary() {
       setStreamedDayCount(0);
 
       let resolvedPlan: AiTripPlan | null = null;
-      let lastPartialPlan: AiTripPlan | null = null;
+      const lastPartial = { plan: null as AiTripPlan | null };
       let streamError: string | null = null;
 
       const persistPreview = (plan: AiTripPlan) => {
-        lastPartialPlan = plan;
+        lastPartial.plan = plan;
         previewRef.current = plan;
         patchSessionAiPlan(plan);
       };
@@ -175,6 +161,7 @@ export function useStreamItinerary() {
       };
 
       const finishWithPartial = (warn: string) => {
+        const lastPartialPlan = lastPartial.plan;
         if (!lastPartialPlan?.days?.length) return null;
         if (
           !hasAcceptablePlanDayCoverage(lastPartialPlan.days.length, expectedFromInput)
@@ -209,7 +196,7 @@ export function useStreamItinerary() {
           return "continue";
         }
         if (event.type === "done") {
-          const plan = sanitizeStreamPlan(event.plan, input);
+          const plan = event.plan;
           persistPreview(plan);
           setPreviewPlan(plan);
           setStreamedDayCount(plan.days.length);
@@ -229,10 +216,6 @@ export function useStreamItinerary() {
         return "stop";
       };
 
-      let resumePlan: AiTripPlan | null = null;
-      let prevMaxDay = 0;
-
-      for (let continuation = 0; continuation <= MAX_HTTP_CONTINUATIONS; continuation++) {
       for (let attempt = 0; attempt <= MAX_CONNECTION_RETRIES; attempt++) {
         if (!isCurrent() || userAbortRef.current) {
           if (isCurrent()) setStatus("idle");
@@ -246,7 +229,7 @@ export function useStreamItinerary() {
           streamNeedsForegroundGuard() ? MOBILE_STREAM_IDLE_MS : CLIENT_STREAM_IDLE_MS,
         );
         const detachBackgroundAbort = abortFetchWhenBackgrounded(() => {
-          const plan = lastPartialPlan ?? previewRef.current;
+          const plan = lastPartial.plan ?? previewRef.current;
           if (plan?.days?.length) persistPreview(plan);
           if (!controller.signal.aborted) controller.abort();
         });
@@ -271,13 +254,10 @@ export function useStreamItinerary() {
             await waitUntilDocumentVisible(controller.signal);
           }
           idleWatch.bump();
-          const payload = resumePlan
-            ? { ...input, resumePlan, attachment: undefined }
-            : input;
           const res = await fetch("/api/generate-itinerary", {
             method: "POST",
             headers: await supabaseAuthHeaders({ "Content-Type": "application/json" }),
-            body: JSON.stringify(payload),
+            body: JSON.stringify(input),
             signal: controller.signal,
           });
 
@@ -321,21 +301,7 @@ export function useStreamItinerary() {
             return { plan: resolvedPlan, error: null };
           }
 
-          const gotMax =
-            contiguousCoveredDays(lastPartialPlan?.days) || lastPartialPlan?.days.length || 0;
-          if (
-            lastPartialPlan?.days?.length &&
-            !hasAcceptablePlanDayCoverage(lastPartialPlan.days.length, expectedFromInput) &&
-            gotMax > prevMaxDay &&
-            continuation < MAX_HTTP_CONTINUATIONS
-          ) {
-            prevMaxDay = gotMax;
-            resumePlan = lastPartialPlan;
-            streamError = null;
-            break;
-          }
-
-          if (lastPartialPlan?.days?.length) {
+          if (lastPartial.plan?.days?.length) {
             return (
               finishWithPartial(
                 streamError
@@ -364,21 +330,6 @@ export function useStreamItinerary() {
           if (kind === "user") {
             if (isCurrent()) setStatus("idle");
             return { plan: null, error: null, cancelled: true };
-          }
-
-          const gotMax =
-            contiguousCoveredDays(lastPartialPlan?.days) || lastPartialPlan?.days.length || 0;
-          const canContinueHttp =
-            Boolean(lastPartialPlan?.days?.length) &&
-            !hasAcceptablePlanDayCoverage(lastPartialPlan!.days.length, expectedFromInput) &&
-            gotMax > prevMaxDay &&
-            continuation < MAX_HTTP_CONTINUATIONS;
-
-          if ((kind === "idle" || kind === "connection" || isTransientDisconnect(err)) && canContinueHttp) {
-            prevMaxDay = gotMax;
-            resumePlan = lastPartialPlan;
-            streamError = null;
-            break;
           }
 
           if (kind === "idle") {
@@ -412,7 +363,7 @@ export function useStreamItinerary() {
             continue;
           }
 
-          if (lastPartialPlan?.days?.length) {
+          if (lastPartial.plan?.days?.length) {
             const warn =
               err instanceof Error
                 ? `Povezava prekinjena (${err.message}) — prikazan je delni načrt.`
@@ -436,19 +387,9 @@ export function useStreamItinerary() {
         }
       }
 
-      if (
-        resumePlan &&
-        lastPartialPlan?.days?.length &&
-        !hasAcceptablePlanDayCoverage(lastPartialPlan.days.length, expectedFromInput) &&
-        continuation < MAX_HTTP_CONTINUATIONS
-      ) {
-        continue;
-      }
-
       setError("error.planInterrupted");
       setStatus("error");
       return { plan: null, error: "error.planInterrupted" };
-      }
     },
     [abort],
   );

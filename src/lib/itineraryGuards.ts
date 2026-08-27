@@ -21,6 +21,7 @@ import {
 import { applyIslandHopLogistics } from "@/lib/islandHopLogistics";
 import { enrichIslandAirportTransfers } from "@/lib/islandAirportTransfers";
 import { scrubImpossibleIslandDayTrips } from "@/lib/islandHopGuard";
+import { applyUserStayPlan, hasExplicitStayPlan } from "@/lib/userStayPlan";
 import { isSmallIsland } from "@/lib/islandStays";
 import { scrubBangkokSightsOnIslandTransferDays } from "@/lib/bangkokMustSee";
 import { alignSummaryTripLength } from "@/lib/planTeaser";
@@ -898,7 +899,7 @@ export function stripWrongCityDayActivities(plan: AiTripPlan): number {
         removed += 1;
       }
     }
-    for (const tipKey of ["transportationTips", "travelHack", "localWarnings"] as const) {
+    for (const tipKey of ["transportationTips", "travelHack", "localWarnings", "localTips"] as const) {
       const text = day[tipKey];
       if (text && isWrongCityPoi(text, "", city)) {
         day[tipKey] = "";
@@ -935,6 +936,9 @@ export function scrubForbiddenTemplateCopy(plan: AiTripPlan): number {
     });
     clean(day.transportationTips, (v) => {
       day.transportationTips = v;
+    });
+    clean(day.localTips, (v) => {
+      day.localTips = v;
     });
     if (!day.activities) continue;
     for (const slot of SLOTS) {
@@ -1171,6 +1175,7 @@ export function repairIncompleteLogisticsCopy(plan: AiTripPlan): number {
     day.transportationTips = scrub(day.transportationTips) ?? day.transportationTips;
     day.travelHack = scrub(day.travelHack) ?? day.travelHack;
     day.localWarnings = scrub(day.localWarnings) ?? day.localWarnings;
+    day.localTips = scrub(day.localTips) ?? day.localTips;
     if (!day.activities) continue;
     for (const slot of SLOTS) {
       for (const a of day.activities[slot] ?? []) {
@@ -2079,7 +2084,12 @@ export function applyItineraryGuards(
   templateScrub: number;
   duplicatePois: number;
 } {
-  linearizeOvernightArc(plan);
+  const lockStay = hasExplicitStayPlan(plan.wishes);
+  if (lockStay) {
+    applyUserStayPlan(plan, { arrivalDay: opts?.arrivalDay });
+  } else {
+    linearizeOvernightArc(plan);
+  }
   applyIslandHopLogistics(plan, opts?.language ?? plan.contentLanguage);
   relabelHubDayTripOvernights(plan.days ?? [], opts?.language ?? plan.contentLanguage);
   enrichIslandAirportTransfers(plan, {
@@ -2123,7 +2133,8 @@ export function applyItineraryGuards(
   stripDriveStatsOnAirDays(plan);
   const lastDayHome = forceLastRoadDayHome(plan);
   const splitDrives = splitOverlongDriveStages(plan);
-  const stealNights = stealNightForHitAndRun(plan);
+  const stealNights = lockStay ? 0 : stealNightForHitAndRun(plan);
+  if (lockStay) applyUserStayPlan(plan, { arrivalDay: opts?.arrivalDay });
   stripSightseeingOnBrutalDriveDays(plan);
   const overlongDrives = annotateOverlongDriveStages(plan);
   const hitAndRun = annotateHitAndRunStays(plan);

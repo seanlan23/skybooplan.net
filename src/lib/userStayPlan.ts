@@ -131,23 +131,38 @@ export function parseStayPlanFromWishes(wishes: string): Array<{ city: string; n
 export function staySegmentsToDayPlan(
   segments: Array<{ city: string; nights: number }>,
   totalDays: number,
+  opts?: { arrivalDay?: number },
 ): UserStaySegment[] {
   if (segments.length === 0 || totalDays <= 0) return [];
-  let day = 1;
+  const arrivalDay = Math.max(1, opts?.arrivalDay ?? 1);
+  // Last calendar day is departure (checkout), not an extra overnight.
+  const lastHotelDay = Math.max(arrivalDay, totalDays - 1);
+  let day = arrivalDay;
   const result: UserStaySegment[] = [];
   for (const seg of segments) {
-    if (day > totalDays) break;
+    if (day > lastHotelDay) break;
     const span = Math.max(1, seg.nights);
     const startDay = day;
-    const endDay = Math.min(totalDays, day + span - 1);
-    result.push({ city: seg.city, nights: endDay - startDay + 1, startDay, endDay });
+    const endDay = Math.min(lastHotelDay, day + span - 1);
+    result.push({
+      city: seg.city,
+      nights: endDay - startDay + 1,
+      startDay,
+      endDay,
+    });
     day = endDay + 1;
   }
-  // Stretch / assign leftover days to the last stop (return buffer).
-  if (result.length && day <= totalDays) {
-    const last = result[result.length - 1]!;
-    last.endDay = totalDays;
-    last.nights = last.endDay - last.startDay + 1;
+  // Surplus hotel days: last stay only — never pad the opening base.
+  if (result.length && day <= lastHotelDay) {
+    if (result.length === 1) {
+      const only = result[0]!;
+      only.endDay = lastHotelDay;
+      only.nights = only.endDay - only.startDay + 1;
+    } else {
+      const last = result[result.length - 1]!;
+      last.endDay = lastHotelDay;
+      last.nights = last.endDay - last.startDay + 1;
+    }
   }
   return result;
 }
@@ -156,16 +171,18 @@ export function staySegmentsToDayPlan(
 export function buildUserStayPlanPromptBlock(
   wishes: string | undefined,
   totalDays: number,
+  opts?: { arrivalDay?: number },
 ): string | undefined {
   if (!hasExplicitStayPlan(wishes)) return undefined;
   const parsed = parseStayPlanFromWishes(wishes ?? "");
-  const plan = staySegmentsToDayPlan(parsed, totalDays);
+  const plan = staySegmentsToDayPlan(parsed, totalDays, opts);
   if (plan.length < 2) {
     return `
-=== UPORABNIKOV RAZPORED (ABSOLUTNA PREDNOST) ===
+=== UPORABNIKOV RAZPORED (ABSOLUTNA PREDNOST — STROGA OMEJITEV) ===
 Uporabnik je v željah natančno navedel mesta in število dni/noči.
-PREPOVEDANO: ignorirati ta razpored in uporabiti "tipično" Phuket/Andaman kurirano pot (Koh Lipe ipd.), če uporabnik tega NI prosil.
-Razporedi itinerar[] faze in days[].city NATANKO po njegovem besedilu želja.
+PREPOVEDANO: ignorirati ta razpored, dodajati nočitve na prvo bazo ali uporabiti "tipično" kurirano pot, če uporabnik tega NI prosil.
+Razporedi itinerar[] faze, hotels[] in days[].city NATANKO po njegovem besedilu želja.
+PREPOVEDANO: enodnevni izlet (gliser/ladja/let) na kraj, kjer ima potnik že večdnevno bivanje.
 ===`;
   }
 
@@ -177,18 +194,110 @@ Razporedi itinerar[] faze in days[].city NATANKO po njegovem besedilu želja.
     )
     .join("\n");
 
+  const nightLines = parsed.map((s) => `  • ${s.nights} noč(i) ${s.city}`).join("\n");
+
   return `
-=== UPORABNIKOV RAZPORED BAZ (ABSOLUTNA PREDNOST — pred kurirano potjo) ===
-Uporabnik je SAM določil vrstni red in število dni. To NI predlog — to je OBVEZEN blueprint.
+=== UPORABNIKOV RAZPORED BAZ (ABSOLUTNA PREDNOST — STROGA OMEJITEV, pred kurirano potjo) ===
+Uporabnik je SAM določil vrstni red in število nočitev. To NI predlog — to je OBVEZEN blueprint.
+
+Nočitve (NATANKO ta števila — hotels[] MORAJU ujemati):
+${nightLines}
 
 regionBlueprint (itinerar[] faze + days[].city MORATA slediti):
 ${lines}
 
 Pravila:
-- PREPOVEDANO zamenjati ta razpored s kurirano potjo (npr. Phuket→Krabi→Koh Lipe), če uporabnik ni prosil za ta mesta.
+- PREPOVEDANO zamenjati ta razpored s kurirano potjo, če uporabnik ni prosil za ta mesta.
+- PREPOVEDANO spreminjati število nočitev. PREPOVEDANO dodajati dni/noči na PRVO bazo (npr. 1 noč Phuket NE sme postati 2–3 noči “za aklimatizacijo”).
+- Dan 1 = let in zadnji dan = odhod NISTA dodatni nočitvi na začetni bazi.
+- Če vsota noči < koledarskih hotelskih noči, buffer SAMO na ZADNJI bazi (odhod) — nikoli na prvi.
 - Vsak dan v razponu mora imeti city = mesto iz vrstice zgoraj (Patong šteje kot baza na Phuketu — city "Patong" ali "Phuket (Patong)").
-- Med fazami obvezno transportation[] (kombi/trajekt/let) z realnimi časi — SAMO na dnevu premika, ne na prejšnjem dnevu bivanja.
-- pois[] faze smejo vsebovati samo znamenitosti TE baze — ne trajekta/aktivnosti naslednje baze (npr. Ao Nang faza NE sme imeti “Koh Phi Phi” POI, dokler ni dan odhoda na Phi Phi).
-- Če vsota noči ≠ ${totalDays}, prilagodi SAMO zadnjo bazo (buffer za odhod), ne spreminjaj vrstnega reda.
+- Med fazami obvezno transportation[] (kombi/trajekt/let) z realnimi časi — SAMO na dnevu premika.
+- PREPOVEDANO enodnevni izlet z ladjo/gliserjem/letom na kraj ali otok, kjer ima potnik že samostojno VEČDNEVNO bivanje (npr. če je Koh Phi Phi baza za več noči, NI izleta na Phi Phi iz Phuketa ali Ao Nanga). Čas na začetni bazi = lokalne znamenitosti te baze (tempelj/staro mestno jedro/lokalne plaže), ne “preview” kasnejšega otoka.
+- pois[] faze smejo vsebovati samo znamenitosti TE baze.
 ===`;
+}
+
+function dayNum(day: { day?: number }, index: number): number {
+  return typeof day.day === "number" && day.day >= 1 ? day.day : index + 1;
+}
+
+/** Canonical overnight city (Patronka → Patong, Phi Phi → Koh Phi Phi). */
+export function canonicalStayCity(name: string): string {
+  const cleaned = name.trim();
+  if (!cleaned) return "";
+  for (const { test, city } of PLACE_ALIASES) {
+    if (test.test(cleaned)) return city;
+  }
+  return cleaned;
+}
+
+/** True when free text names this stay city (incl. aliases like Patronka → Patong). */
+export function stayCityMentioned(text: string, city: string): boolean {
+  const blob = text.toLowerCase();
+  const target = city.toLowerCase();
+  if (!blob || !target) return false;
+  if (blob.includes(target)) return true;
+  for (const { test, city: alias } of PLACE_ALIASES) {
+    if (alias.toLowerCase() !== target) continue;
+    if (test.test(text)) return true;
+  }
+  if (/phi phi/i.test(city) && /maya bay/i.test(text)) return true;
+  return false;
+}
+
+type StayPlanDay = {
+  day?: number;
+  city?: string;
+  focusName?: string;
+  inFlightDay?: boolean;
+};
+
+type StayPlanHotels = Array<{
+  city: string;
+  nights?: number;
+  from_date?: string;
+  to_date?: string;
+}>;
+
+/**
+ * Stamp days[].city + hotels[] from an explicit wish-list stay plan.
+ * Does not rewrite in-flight days. Last calendar day keeps the last stay (checkout).
+ */
+export function applyUserStayPlan(
+  plan: { days?: StayPlanDay[]; hotels?: StayPlanHotels; wishes?: string },
+  opts?: { arrivalDay?: number },
+): boolean {
+  const wishes = plan.wishes ?? "";
+  if (!hasExplicitStayPlan(wishes)) return false;
+  const days = plan.days ?? [];
+  if (!days.length) return false;
+  const totalDays = Math.max(
+    days.length,
+    ...days.map((d, i) => dayNum(d, i)),
+  );
+  const parsed = parseStayPlanFromWishes(wishes);
+  const segs = staySegmentsToDayPlan(parsed, totalDays, {
+    arrivalDay: opts?.arrivalDay,
+  });
+  if (segs.length < 2) return false;
+
+  const lastSeg = segs[segs.length - 1]!;
+  for (let i = 0; i < days.length; i++) {
+    const d = days[i]!;
+    if (d.inFlightDay) continue;
+    const n = dayNum(d, i);
+    const hit = segs.find((s) => n >= s.startDay && n <= s.endDay) ?? (n >= lastSeg.endDay ? lastSeg : undefined);
+    if (!hit) continue;
+    d.city = hit.city;
+    if (d.focusName && d.focusName !== hit.city) {
+      d.focusName = hit.city;
+    }
+  }
+
+  plan.hotels = segs.map((s) => ({
+    city: s.city,
+    nights: s.nights,
+  }));
+  return true;
 }

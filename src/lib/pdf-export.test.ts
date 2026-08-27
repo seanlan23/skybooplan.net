@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { isPdfDaypartToken, normalizePlanForPdf, sanitizePdfText, buildPdfDownloadFileName } from "@/lib/pdf-export";
+import { isPdfDaypartToken, normalizePlanForPdf, sanitizePdfText, buildPdfDownloadFileName, pdfDayHeading, isPdfBaseTransferLeg, resolvePdfReturnFromIata } from "@/lib/pdf-export";
+import { isoAddDays } from "@/lib/overnightHotelStays";
 
 describe("sanitizePdfText", () => {
   it("strips emoji that break jsPDF custom fonts", () => {
@@ -79,6 +80,134 @@ describe("normalizePlanForPdf", () => {
     expect(day.slots[0]!.items[0]!.time).toBe("08:00 – 09:20");
     expect(model.totalBudgetEur).toBe(2400);
     expect(model.coverImageUrl).toBeUndefined();
+  });
+
+  it("maps day.localTips onto the yellow local-tips PDF callout", () => {
+    const model = normalizePlanForPdf({
+      title: "MUC → NRT",
+      destination: "Tokyo",
+      start_date: "2026-10-26",
+      end_date: "2026-11-09",
+      language: "sl",
+      itinerary: {
+        days: [
+          {
+            day: 5,
+            date: "2026-10-30",
+            title: "Akihabara",
+            city: "Tokyo",
+            transportationTips: "Tokyo Metro in JR.",
+            localTips:
+              "Voda iz pipe v Tokiu je pitna. Na Yamanote pazite na žeparje. V templju pokrij ramena; napitnine niso pričakovane.",
+            activities: {
+              evening: [
+                {
+                  name: "Večerja v Akihabari",
+                  description: "Večerja in obisk igralnice v Akihabari.",
+                  estimatedCostEur: 30,
+                },
+              ],
+            },
+          },
+        ],
+      },
+    });
+    expect(model.days[0]!.localTips).toMatch(/voda iz pipe|žeparje/i);
+    expect(model.days[0]!.transportTips).toMatch(/Tokyo Metro/i);
+    expect(model.labels.localTips).toBe("Nasveti lokalcev & varnost");
+  });
+
+  it("orients day-1 international flight origin → destination and hides airport–hotel FLIGHT", () => {
+    const model = normalizePlanForPdf({
+      title: "VIE → CUN",
+      destination: "Cancún",
+      start_date: "2026-08-18",
+      end_date: "2026-08-28",
+      language: "sl",
+      itinerary: {
+        originIata: "VIE",
+        destinationIata: "CUN",
+        days: [
+          {
+            day: 1,
+            date: "2026-08-18",
+            title: "Prihod v Cancún",
+            city: "Cancún",
+            transportation: [
+              {
+                type: "flight",
+                from: "Cancún (CUN)",
+                to: "Dunaj (VIE)",
+                duration: "12h",
+                estimatedPrice: 620,
+              },
+              {
+                type: "flight",
+                from: "Cancún (CUN)",
+                to: "Hotel zona Cancún",
+                duration: "45min",
+                estimatedPrice: 35,
+              },
+            ],
+            activities: {
+              morning: [],
+              afternoon: [],
+              evening: [],
+            },
+          },
+        ],
+      },
+    });
+
+    const day1 = model.days[0]!;
+    expect(day1.transportation).toHaveLength(1);
+    expect(day1.transportation[0]!.type.toLowerCase()).toBe("flight");
+    expect(day1.transportation[0]!.from).toMatch(/Dunaj \(VIE\)/i);
+    expect(day1.transportation[0]!.to).toMatch(/Cancún \(CUN\)/i);
+  });
+
+  it("orients day-1 Suvarnabhumi → München and drops the airport–hotel van", () => {
+    const model = normalizePlanForPdf({
+      title: "MUC → BKK",
+      destination: "Bangkok",
+      start_date: "2026-10-26",
+      end_date: "2026-11-10",
+      language: "sl",
+      itinerary: {
+        originIata: "MUC",
+        destinationIata: "BKK",
+        days: [
+          {
+            day: 1,
+            date: "2026-10-26",
+            title: "Prihod v Bangkok",
+            city: "Bangkok",
+            transportation: [
+              {
+                type: "van",
+                from: "Suvarnabhumi",
+                to: "München",
+                duration: "11h",
+                estimatedPrice: 0,
+              },
+              {
+                type: "van",
+                from: "Suvarnabhumi",
+                to: "Bangkok",
+                duration: "45min",
+                estimatedPrice: 25,
+              },
+            ],
+            activities: { morning: [], afternoon: [], evening: [] },
+          },
+        ],
+      },
+    });
+    const day1 = model.days[0]!;
+    expect(day1.transportation).toHaveLength(1);
+    expect(day1.transportation[0]!.type.toLowerCase()).toBe("flight");
+    expect(day1.transportation[0]!.from).toMatch(/München|Munich/i);
+    expect(day1.transportation[0]!.to).toMatch(/Suvarnabhumi/i);
   });
 
   it("adds international tickets into the grand total and labels the split", () => {
@@ -172,6 +301,66 @@ describe("normalizePlanForPdf", () => {
       },
     });
     expect(model.days[0]!.slots[0]!.items[0]!.time).toBe("21:10 – 17:55 (+1)");
+  });
+
+  it("sorts mixed-slot activities strictly by clock within the day", () => {
+    const model = normalizePlanForPdf({
+      title: "MUC → HKT",
+      destination: "Phuket",
+      start_date: "2026-10-26",
+      end_date: "2026-11-10",
+      language: "sl",
+      itinerary: {
+        days: [
+          {
+            day: 1,
+            title: "Odhod",
+            city: "Munich",
+            activities: {
+              morning: [
+                {
+                  name: "Mednarodni let",
+                  arrivalTime: "21:10",
+                  departureTime: "17:55",
+                  description: "Nočni let iz Münchna.",
+                },
+              ],
+              afternoon: [],
+              evening: [],
+            },
+          },
+          {
+            day: 16,
+            title: "Povratek",
+            city: "Phuket",
+            activities: {
+              morning: [
+                {
+                  name: "Mednarodni povratni let",
+                  arrivalTime: "20:50",
+                  description: "Polet proti Münchnu zvečer.",
+                },
+              ],
+              afternoon: [
+                {
+                  name: "Odhod iz hotela (odjava)",
+                  arrivalTime: "17:00",
+                  description: "Popoldanska odjava pred letom.",
+                },
+              ],
+              evening: [],
+            },
+          },
+        ],
+      },
+    });
+    const day1Items = model.days[0]!.slots.flatMap((s) => s.items);
+    expect(day1Items[0]!.time).toMatch(/^21:10/);
+    expect(model.days[0]!.slots[0]!.label.toLowerCase()).toMatch(/večer|evening/i);
+    const lastItems = model.days[1]!.slots.flatMap((s) => s.items);
+    expect(lastItems[0]!.title).toMatch(/odjava/i);
+    expect(lastItems[0]!.time).toBe("17:00");
+    expect(lastItems[lastItems.length - 1]!.time).toMatch(/^20:50/);
   });
 
   it("falls back to legacy items[] when activities are missing", () => {
@@ -388,8 +577,42 @@ describe("normalizePlanForPdf", () => {
         ],
       },
     });
-    expect(model.hotels).toEqual([]);
+    expect(model.hotels.map((h) => h.text).join(" ")).toMatch(/Venice.*1 noč/);
+    expect(model.hotels.every((h) => !h.url)).toBe(true);
     expect(model.days.every((d) => !d.bookingUrl)).toBe(true);
+  });
+
+  it("prints NAMESTITVE camp stops for motorhome road trips", () => {
+    const model = normalizePlanForPdf({
+      title: "Hrvaška z avtodomom",
+      destination: "Hrvaška",
+      start_date: "2026-08-01",
+      end_date: "2026-08-08",
+      language: "sl",
+      itinerary: {
+        accommodationMode: "motorhome",
+        groundTransportMode: "motorhome",
+        hotels: [],
+        days: [
+          { day: 1, date: "2026-08-01", city: "Istra", title: "Istra" },
+          { day: 2, date: "2026-08-02", city: "Istra", title: "Istra" },
+          { day: 3, date: "2026-08-03", city: "Brač", title: "Brač" },
+          { day: 4, date: "2026-08-04", city: "Brač", title: "Brač" },
+          { day: 5, date: "2026-08-05", city: "Omiš", title: "Omiš" },
+          { day: 6, date: "2026-08-06", city: "Omiš", title: "Omiš" },
+          { day: 7, date: "2026-08-07", city: "Zagreb", title: "Zagreb" },
+          { day: 8, date: "2026-08-08", city: "Zagreb", title: "Povratek" },
+        ],
+      },
+    });
+    expect(model.labels.stays).toMatch(/Namestitve/i);
+    expect(model.hotels.map((h) => h.text)).toEqual([
+      expect.stringMatching(/Istra.*2 noči/),
+      expect.stringMatching(/Brač.*2 noči/),
+      expect.stringMatching(/Omiš.*2 noči/),
+      expect.stringMatching(/Zagreb.*1 noč/),
+    ]);
+    expect(model.hotels.every((h) => !h.url)).toBe(true);
   });
 
   it("puts curated travel insurance on the PDF after the overview", () => {
@@ -446,7 +669,7 @@ describe("normalizePlanForPdf", () => {
     expect(germanIp.insurance?.insurers).toMatch(/ADAC/);
   });
 
-  it("repairs truncated activity titles and drops English PDF chrome", () => {
+  it("keeps complete activity titles instead of clipping them mid-word", () => {
     const model = normalizePlanForPdf({
       title: "MUC → JFK",
       destination: "Združene države Amerike",
@@ -463,8 +686,8 @@ describe("normalizePlanForPdf", () => {
             activities: {
               morning: [
                 {
-                  name: "Top of.",
-                  description: "Ogled z Rockefeller Center.",
+                  name: "Wat Phra Kaew",
+                  description: "Ogled templja z zlatimi strehami in pogledom na reko.",
                 },
               ],
               afternoon: [],
@@ -475,7 +698,8 @@ describe("normalizePlanForPdf", () => {
       },
     });
     expect(model.labels.navigate).toBe("Navigiraj");
-    expect(model.days[0]!.slots[0]!.items[0]!.title).toBe("Top of the Rock");
+    expect(model.days[0]!.slots[0]!.items[0]!.title).toBe("Wat Phra Kaew");
+    expect(model.days[0]!.slots[0]!.items[0]!.description).toMatch(/pogledom na reko/);
   });
 
   it("drops placeholder and ellipsis activities from the PDF model", () => {
@@ -602,6 +826,243 @@ describe("normalizePlanForPdf", () => {
     expect(
       fromLegacyBlob.days[0]!.slots.flatMap((s) => s.items.map((i) => i.title)),
     ).not.toContain("Večer: Večer");
+  });
+
+  it("uses the model day.title instead of Dan N in the day band", () => {
+    const model = normalizePlanForPdf({
+      title: "Bali",
+      destination: "Bali",
+      start_date: "2026-07-24",
+      language: "sl",
+      itinerary: {
+        days: [
+          {
+            day: 1,
+            date: "2026-07-24",
+            title: "Riževe terase in Ubud",
+            city: "Ubud",
+          },
+          {
+            day: 2,
+            date: "2026-07-25",
+            title: "Dan 2",
+            city: "Nusa Lembongan",
+          },
+        ],
+      },
+    });
+    expect(model.days[0]?.title).toBe("Riževe terase in Ubud");
+    expect(model.days[1]?.title).toBe("Nusa Lembongan");
+    expect(model.days.map((d) => d.title).join(" ")).not.toMatch(/\bDan\s+\d+\b/);
+  });
+
+  it("splits NAMESTITVE by overnight bases instead of one gateway-city row", () => {
+    const start = "2026-07-24";
+    const model = normalizePlanForPdf({
+      title: "Bali",
+      destination: "Bali",
+      start_date: start,
+      end_date: "2026-08-07",
+      language: "sl",
+      itinerary: {
+        originPlace: "München",
+        hotels: [
+          { city: "Seminyak", nights: 3 },
+          { city: "Ubud", nights: 2 },
+          { city: "Nusa Lembongan", nights: 2 },
+          { city: "Amed", nights: 2 },
+          { city: "Lovina", nights: 2 },
+          { city: "Canggu", nights: 3 },
+        ],
+        days: Array.from({ length: 15 }, (_, i) => ({
+          day: i + 1,
+          date: isoAddDays("2026-07-24", i),
+          title: `Dan ${i + 1}`,
+          city: "Denpasar",
+        })),
+      },
+    });
+
+    expect(model.hotels.map((h) => h.text)).toEqual([
+      expect.stringMatching(/Seminyak.*3 noči/),
+      expect.stringMatching(/Ubud.*2 noči/),
+      expect.stringMatching(/Nusa Lembongan.*2 noči/),
+      expect.stringMatching(/Amed.*2 noči/),
+      expect.stringMatching(/Lovina.*2 noči/),
+      expect.stringMatching(/Canggu.*3 noči/),
+    ]);
+    expect(model.hotels.map((h) => h.text).join(" ")).not.toMatch(/Denpasar.*14 noči/);
+    expect(model.days[3]?.city).toBe("Ubud");
+    expect(model.days[5]?.city).toBe("Nusa Lembongan");
+    expect(model.days[3]?.title).toBe("Ubud");
+  });
+
+  it("hides same-city outing banners and keeps a real base-change hop", () => {
+    const model = normalizePlanForPdf({
+      title: "MUC → YYZ",
+      destination: "Kanada",
+      start_date: "2026-07-24",
+      language: "sl",
+      itinerary: {
+        originIata: "MUC",
+        destinationIata: "YYZ",
+        days: [
+          {
+            day: 13,
+            date: "2026-08-05",
+            title: "Vancouver",
+            city: "Vancouver",
+            transportation: [{ type: "train", from: "Vancouver", to: "Vancouver", duration: "2h" }],
+          },
+          {
+            day: 14,
+            date: "2026-08-06",
+            title: "Ogledi v Vancouverju",
+            city: "Vancouver",
+            transportation: [
+              { type: "train", from: "Vancouver", to: "Grouse Mountain", duration: "45min" },
+              { type: "van", from: "Vancouver", to: "YVR", duration: "30min" },
+            ],
+          },
+        ],
+      },
+    });
+    expect(model.days[0]?.transportation).toEqual([]);
+    expect(model.days[1]?.transportation).toEqual([]);
+  });
+
+  it("keeps an intercity hop and a last-day flight home", () => {
+    const model = normalizePlanForPdf({
+      title: "MUC → YYZ",
+      destination: "Kanada",
+      start_date: "2026-07-24",
+      language: "sl",
+      itinerary: {
+        originIata: "MUC",
+        destinationIata: "YYZ",
+        days: [
+          {
+            day: 8,
+            date: "2026-07-31",
+            title: "Toronto",
+            city: "Toronto",
+          },
+          {
+            day: 9,
+            date: "2026-08-01",
+            title: "Let v Vancouver",
+            city: "Vancouver",
+            transportation: [{ type: "flight", from: "YYZ", to: "YVR", duration: "5h" }],
+          },
+          {
+            day: 14,
+            date: "2026-08-06",
+            title: "Odhod",
+            city: "Vancouver",
+            transportation: [{ type: "flight", from: "YVR", to: "MUC", duration: "10h" }],
+          },
+        ],
+      },
+    });
+    expect(model.days[1]?.transportation[0]).toMatchObject({ from: "YYZ", to: "YVR" });
+    expect(model.days[2]?.transportation[0]).toMatchObject({ from: "YVR", to: "MUC" });
+  });
+
+  it("prints open-jaw return from the last overnight hub, not the arrival IATA", () => {
+    const model = normalizePlanForPdf({
+      title: "MUC → YYZ",
+      destination: "Kanada",
+      start_date: "2026-07-24",
+      end_date: "2026-08-07",
+      language: "sl",
+      pax: 2,
+      itinerary: {
+        originIata: "MUC",
+        destinationIata: "YYZ",
+        originPlace: "München",
+        flightEur: 1200,
+        flights: [
+          { from: "MUC", to: "YYZ", date: "2026-07-24", airline: "10:00" },
+          { from: "YYZ", to: "MUC", date: "2026-08-07", airline: "16:00" },
+        ],
+        days: [
+          { day: 1, date: "2026-07-24", title: "Prihod", city: "Toronto" },
+          { day: 10, date: "2026-08-02", title: "Vancouver", city: "Vancouver" },
+          { day: 14, date: "2026-08-06", title: "Zadnji dan", city: "Vancouver" },
+          { day: 15, date: "2026-08-07", title: "Odhod", city: "Vancouver" },
+        ],
+      },
+    });
+    expect(model.flights.some((f) => /MUC\s*→\s*YYZ/.test(f))).toBe(true);
+    expect(model.flights.some((f) => /YVR\s*→\s*MUC/.test(f))).toBe(true);
+    expect(model.flights.join(" ")).not.toMatch(/YYZ\s*→\s*MUC/);
+  });
+});
+
+describe("pdfDayHeading", () => {
+  it("keeps a real title and falls back from Dan N to the overnight city", () => {
+    expect(pdfDayHeading("Snorkljanje pri Nusa Lembongan", "Nusa Lembongan")).toBe(
+      "Snorkljanje pri Nusa Lembongan",
+    );
+    expect(pdfDayHeading("Dan 4", "Amed")).toBe("Amed");
+    expect(pdfDayHeading("Day 1", "Seminyak")).toBe("Seminyak");
+  });
+});
+
+describe("isPdfBaseTransferLeg", () => {
+  it("drops same-base outings and keeps a hop between two cities", () => {
+    expect(
+      isPdfBaseTransferLeg(
+        { type: "train", from: "Vancouver", to: "Grouse Mountain" },
+        { dayCity: "Vancouver", prevCity: "Vancouver" },
+      ),
+    ).toBe(false);
+    expect(
+      isPdfBaseTransferLeg(
+        { type: "flight", from: "YYZ", to: "YVR" },
+        { dayCity: "Vancouver", prevCity: "Toronto" },
+      ),
+    ).toBe(true);
+    expect(
+      isPdfBaseTransferLeg(
+        { type: "flight", from: "MNL", to: "ENI" },
+        { dayCity: "El Nido", prevCity: "Manila" },
+      ),
+    ).toBe(true);
+    expect(
+      isPdfBaseTransferLeg(
+        { type: "flight", from: "Cancún (CUN)", to: "Hotel zona Cancún" },
+        { dayCity: "Cancún" },
+      ),
+    ).toBe(false);
+    expect(
+      isPdfBaseTransferLeg(
+        { type: "ferry", from: "Phuket", to: "Koh Phi Phi" },
+        { dayCity: "Phuket", prevCity: "Phuket" },
+      ),
+    ).toBe(false);
+    expect(
+      isPdfBaseTransferLeg(
+        { type: "van", from: "Suvarnabhumi", to: "Bangkok" },
+        { dayNumber: 1, originIata: "MUC", destinationIata: "BKK", dayCity: "Bangkok" },
+      ),
+    ).toBe(false);
+  });
+});
+
+describe("resolvePdfReturnFromIata", () => {
+  it("uses the last overnight hub instead of the arrival ticket city", () => {
+    expect(
+      resolvePdfReturnFromIata({
+        originIata: "MUC",
+        destinationIata: "YYZ",
+        days: [
+          { city: "Toronto" },
+          { city: "Vancouver" },
+          { city: "Vancouver" },
+        ],
+      }),
+    ).toBe("YVR");
   });
 });
 

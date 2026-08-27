@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   collectOvernightHotelStays,
+  collectOvernightHotelStaysFromHints,
   isoAddDays,
   overnightStayBookingUrl,
   shouldShowDayHotels,
+  stampOvernightCitiesFromHotels,
 } from "@/lib/overnightHotelStays";
 
 describe("collectOvernightHotelStays", () => {
@@ -31,17 +33,53 @@ describe("collectOvernightHotelStays", () => {
     ]);
   });
 
-  it("does not emit hotels for motorhome plans", () => {
+  it("emits camp overnight rows for motorhome plans", () => {
     expect(
       collectOvernightHotelStays({
         accommodationMode: "motorhome",
+        groundTransportMode: "motorhome",
         start_date: "2026-08-01",
         days: [
-          { day: 1, date: "2026-08-01", city: "Venice" },
-          { day: 2, date: "2026-08-02", city: "Venice" },
+          { day: 1, date: "2026-08-01", city: "Istra" },
+          { day: 2, date: "2026-08-02", city: "Istra" },
+          { day: 3, date: "2026-08-03", city: "Brač" },
+          { day: 4, date: "2026-08-04", city: "Brač" },
+          { day: 5, date: "2026-08-05", city: "Omiš" },
+          { day: 6, date: "2026-08-06", city: "Omiš" },
+          { day: 7, date: "2026-08-07", city: "Zagreb" },
+          { day: 8, date: "2026-08-08", city: "Zagreb" },
         ],
       }),
-    ).toEqual([]);
+    ).toEqual([
+      {
+        city: "Istra",
+        checkIn: "2026-08-01",
+        checkOut: "2026-08-03",
+        nights: 2,
+        firstDay: 1,
+      },
+      {
+        city: "Brač",
+        checkIn: "2026-08-03",
+        checkOut: "2026-08-05",
+        nights: 2,
+        firstDay: 3,
+      },
+      {
+        city: "Omiš",
+        checkIn: "2026-08-05",
+        checkOut: "2026-08-07",
+        nights: 2,
+        firstDay: 5,
+      },
+      {
+        city: "Zagreb",
+        checkIn: "2026-08-07",
+        checkOut: "2026-08-08",
+        nights: 1,
+        firstDay: 7,
+      },
+    ]);
   });
 
   it("counts N-1 nights for a single-city hotel trip", () => {
@@ -195,5 +233,65 @@ describe("overnightStayBookingUrl", () => {
     expect(booking.searchParams.get("checkin")).toBe("2026-08-26");
     expect(booking.searchParams.get("checkout")).toBe("2026-08-28");
     expect(booking.searchParams.get("group_adults")).toBe("2");
+  });
+});
+
+describe("stampOvernightCitiesFromHotels", () => {
+  it("rewrites a collapsed gateway city from hotels[] night counts", () => {
+    const days = Array.from({ length: 8 }, (_, i) => ({
+      day: i + 1,
+      date: isoAddDays("2026-07-24", i),
+      city: "Denpasar",
+    }));
+    const stamped = stampOvernightCitiesFromHotels(days, [
+      { city: "Seminyak", nights: 3 },
+      { city: "Ubud", nights: 2 },
+      { city: "Nusa Lembongan", nights: 2 },
+    ]);
+    expect(stamped).toBe(true);
+    expect(days.slice(0, 7).map((d) => d.city)).toEqual([
+      "Seminyak",
+      "Seminyak",
+      "Seminyak",
+      "Ubud",
+      "Ubud",
+      "Nusa Lembongan",
+      "Nusa Lembongan",
+    ]);
+    expect(days[7]?.city).toBe("Denpasar");
+  });
+
+  it("does not rewrite when overnight days already span multiple cities", () => {
+    const days = [
+      { day: 1, date: "2026-07-24", city: "Ubud" },
+      { day: 2, date: "2026-07-25", city: "Ubud" },
+      { day: 3, date: "2026-07-26", city: "Amed" },
+      { day: 4, date: "2026-07-27", city: "Amed" },
+    ];
+    expect(
+      stampOvernightCitiesFromHotels(days, [
+        { city: "Seminyak", nights: 2 },
+        { city: "Ubud", nights: 1 },
+      ]),
+    ).toBe(false);
+    expect(days.map((d) => d.city)).toEqual(["Ubud", "Ubud", "Amed", "Amed"]);
+  });
+});
+
+describe("collectOvernightHotelStaysFromHints", () => {
+  it("chains stay rows from hotels[] when days collapsed", () => {
+    const stays = collectOvernightHotelStaysFromHints(
+      [
+        { city: "Seminyak", nights: 3 },
+        { city: "Ubud", nights: 2 },
+        { city: "Nusa Lembongan", nights: 2 },
+      ],
+      "2026-07-24",
+    );
+    expect(stays.map((s) => `${s.city}:${s.nights}:${s.checkIn}:${s.checkOut}`)).toEqual([
+      "Seminyak:3:2026-07-24:2026-07-27",
+      "Ubud:2:2026-07-27:2026-07-29",
+      "Nusa Lembongan:2:2026-07-29:2026-07-31",
+    ]);
   });
 });

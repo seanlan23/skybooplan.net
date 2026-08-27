@@ -113,12 +113,15 @@ const BEACH_ANCHORS: Record<string, InterestAnchorConfig> = {
   },
   MX: {
     routeTemplate: [
-      ["Cancún", 0],
+      ["Cancún", 1],
+      ["Isla Mujeres", 0],
+      ["Playa del Carmen", 0],
       ["Tulum", 0],
-      ["Isla Holbox", 0],
+      ["Cancún", 1],
     ],
-    mustIncludeHighlights: ["Tulum beach", "Playa del Carmen", "Isla Holbox"],
-    steer: "Dream beaches — Riviera Maya + optional Holbox.",
+    mustIncludeHighlights: ["Isla Mujeres", "Tulum beach", "Playa del Carmen"],
+    steer:
+      "Riviera Maya: Isla Mujeres takoj po prihodu v Cancún ALI čisto na koncu pred odhodom — nikoli vmes v Cancún → Playa del Carmen → Tulum → Valladolid. Holbox samo z dovolj nočmi, ne v sredini obale.",
   },
   HR: {
     routeTemplate: [

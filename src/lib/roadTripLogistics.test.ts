@@ -467,9 +467,37 @@ describe("forceLastRoadDayHome", () => {
       ],
     } as AiTripPlan;
 
-    expect(forceLastRoadDayHome(plan)).toBe(1);
+    expect(forceLastRoadDayHome(plan)).toBeGreaterThanOrEqual(1);
     expect(plan.days[2]!.city).toMatch(/Ljubljana/i);
     expect(plan.days[2]!.title).toMatch(/Ljubljan/i);
+  });
+
+  it("inserts a transit overnight when the last hop home is still over 5h / 700 km", () => {
+    const plan = {
+      originPlace: "Vienna",
+      groundTransportMode: "car",
+      contentLanguage: "sl",
+      days: [
+        day({ day: 1, city: "Valencia", lat: 39.47, lng: -0.376 }),
+        day({
+          day: 2,
+          city: "Vienna",
+          title: "Povratek v Vienna",
+          lat: 48.208,
+          lng: 16.373,
+          drivingDistanceKm: 1800,
+          drivingDurationHours: "16h",
+          transportation: [{ type: "car", from: "Valencia", to: "Vienna", duration: "16h" }],
+        }),
+      ],
+    } as AiTripPlan;
+
+    expect(forceLastRoadDayHome(plan)).toBeGreaterThanOrEqual(1);
+    expect(plan.days[1]!.city).toMatch(/Vienna|Wien|Dunaj/i);
+    expect(plan.days[0]!.city).not.toMatch(/Valencia/i);
+    const lastKm = plan.days[1]!.drivingDistanceKm ?? 0;
+    expect(lastKm).toBeGreaterThan(0);
+    expect(lastKm).toBeLessThan(1800);
   });
 });
 

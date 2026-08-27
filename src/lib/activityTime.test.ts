@@ -5,6 +5,7 @@ import {
   formatActivityClockRange,
   normalizeActivityClocks,
   parseHmClock,
+  sortDayActivitiesByClock,
   stripProseClocksExcept,
 } from "@/lib/activityTime";
 
@@ -98,5 +99,28 @@ describe("stripProseClocksExcept", () => {
     });
     expect(a.arrivalTime).toBeUndefined();
     expect(a.departureTime).toBeUndefined();
+  });
+});
+
+describe("sortDayActivitiesByClock", () => {
+  it("re-buckets by start clock from 00:00 to 23:59", () => {
+    const out = sortDayActivitiesByClock({
+      morning: [{ name: "Evening flight", arrivalTime: "21:10" }],
+      afternoon: [{ name: "Checkout", arrivalTime: "17:00" }],
+      evening: [{ name: "Museum", arrivalTime: "10:00" }],
+    });
+    expect(out.morning.map((a) => a.name)).toEqual(["Museum"]);
+    expect(out.afternoon.map((a) => a.name)).toEqual([]);
+    expect(out.evening.map((a) => a.name)).toEqual(["Checkout", "Evening flight"]);
+  });
+
+  it("keeps untimed items in their original slot after timed ones at that daypart", () => {
+    const out = sortDayActivitiesByClock({
+      morning: [{ name: "Walk" }],
+      afternoon: [{ name: "Lunch", arrivalTime: "13:00" }],
+      evening: [],
+    });
+    expect(out.morning.map((a) => a.name)).toEqual(["Walk"]);
+    expect(out.afternoon.map((a) => a.name)).toEqual(["Lunch"]);
   });
 });

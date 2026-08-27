@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ITINERARY_JSON_SCHEMA_RULE, liftFlatItineraryToItinerar } from "@/lib/itineraryJsonSchema";
 import { parseCoercedTripPlan } from "@/lib/geminiPro.shared";
-import { tripPlanSystemPrompt } from "@/lib/geminiPro";
+import { itineraryHacksAndTransportRules, tripPlanSystemPrompt } from "@/lib/geminiPro";
 import type { GenerateTripPlanParams } from "@/lib/geminiPro.shared";
 
 describe("itinerary JSON schema contract", () => {
@@ -11,6 +11,8 @@ describe("itinerary JSON schema contract", () => {
     expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/"total_budget_eur"/);
     expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/"day_number"/);
     expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/"transfer"/);
+    expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/ONLY when the overnight city changes/);
+    expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/FORBIDDEN: transfer\/transportation\[\] for same-city day trips/);
     expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/"cost_eur"/);
     expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/"daily_budget_per_person_eur"/);
     expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/"accommodations"/);
@@ -23,7 +25,13 @@ describe("itinerary JSON schema contract", () => {
     expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/strictly valid, parseable JSON/);
     expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/no markdown code fences/);
     expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/conversational intro\/outro/);
-    expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/NEVER '\.\.\.' or cut off mid-word|placeholders, unfinished titles/);
+    expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/OVERNIGHT town\/area|OVERNIGHT city/);
+    expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/"local_tips"/);
+    expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/REQUIRED \(type: string\) every day/);
+    expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/Water & hydration/);
+    expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/Safety & scams/);
+    expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/nights per city in wishes/);
+    expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/multi-night stay/);
   });
 
   it("lifts a flat schema into itinerar[] so PDF can read slots", () => {
@@ -123,6 +131,83 @@ describe("itinerary JSON schema contract", () => {
     const parsed = parseCoercedTripPlan(lifted);
     expect(parsed.success).toBe(true);
   });
+
+  it("keeps the overnight city when a middle day flickers to another hub without a hop", () => {
+    const slot = (title: string) => ({
+      title,
+      description: "A complete visitor briefing with how to get there and one local tip.",
+      cost_eur: 10,
+    });
+    const lifted = liftFlatItineraryToItinerar({
+      trip_title: "Stay",
+      overview: "Overnight city must stay consistent during a stay.",
+      days: [
+        {
+          day_number: 10,
+          date: "2026-11-04",
+          city: "Phuket",
+          title: "Beaches",
+          daily_budget_per_person_eur: 55,
+          activities: { morning: slot("Morning"), afternoon: slot("Afternoon"), evening: slot("Dinner") },
+        },
+        {
+          day_number: 11,
+          date: "2026-11-05",
+          city: "Bangkok",
+          title: "Wrong hub",
+          daily_budget_per_person_eur: 55,
+          activities: { morning: slot("Morning"), afternoon: slot("Afternoon"), evening: slot("Dinner") },
+        },
+        {
+          day_number: 12,
+          date: "2026-11-06",
+          city: "Phuket",
+          title: "Beaches again",
+          daily_budget_per_person_eur: 55,
+          activities: { morning: slot("Morning"), afternoon: slot("Afternoon"), evening: slot("Dinner") },
+        },
+      ],
+    }) as { itinerar: Array<{ days: Array<{ day_number: number; city: string }> }> };
+
+    const days = lifted.itinerar.flatMap((p) => p.days);
+    const d11 = days.find((d) => d.day_number === 11);
+    expect(d11?.city).toBe("Phuket");
+  });
+
+  it("stamps overnight towns from hotels[] when every day copied the gateway city", () => {
+    const slot = (title: string) => ({
+      title,
+      description: "A complete visitor briefing with how to get there and one local tip.",
+      cost_eur: 10,
+    });
+    const day = (n: number, date: string) => ({
+      day_number: n,
+      date,
+      city: "Denpasar",
+      daily_budget_per_person_eur: 70,
+      activities: { morning: slot("Morning"), afternoon: slot("Afternoon"), evening: slot("Dinner") },
+    });
+    const lifted = liftFlatItineraryToItinerar({
+      trip_title: "Island hop",
+      overview: "Overnight city must be the stay town, not the arrival airport city.",
+      days: [
+        day(1, "2026-07-24"),
+        day(2, "2026-07-25"),
+        day(3, "2026-07-26"),
+        day(4, "2026-07-27"),
+        day(5, "2026-07-28"),
+        day(6, "2026-07-29"),
+      ],
+      hotels: [
+        { city: "Seminyak", nights: 2 },
+        { city: "Ubud", nights: 2 },
+        { city: "Amed", nights: 1 },
+      ],
+    }) as { itinerar: Array<{ days: Array<{ day_number: number; city: string; title: string }> }> };
+
+    const cities = lifted.itinerar.flatMap((p) => p.days).map((d) => d.city);
+    expect(cities.slice(0, 5)).toEqual(["Seminyak", "Seminyak", "Ubud", "Ubud", "Amed"]);
+  });
 });
 
 describe("tripPlanSystemPrompt JSON contract", () => {
@@ -148,6 +233,10 @@ describe("tripPlanSystemPrompt JSON contract", () => {
     expect(system).toMatch(/freeform itinerary essay/i);
     expect(system).toMatch(/minimum 25 words/);
     expect(system).toMatch(/weatherWidget/);
-    expect(system).toMatch(/safetyWarning/);
+    expect(system).toMatch(/local_tips/);
+    expect(system).toMatch(/Water & hydration/);
+    expect(itineraryHacksAndTransportRules("EUR")).toMatch(/days\[\]\.local_tips/);
+    expect(itineraryHacksAndTransportRules("EUR")).toMatch(/Voda in hidracija/);
+    expect(itineraryHacksAndTransportRules("EUR")).toMatch(/ponarejeni taksimetri/);
   });
 });

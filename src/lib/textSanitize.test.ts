@@ -4,8 +4,10 @@ import {
   fixMotorhomeCopyErrors,
   fixPoiNameForSlot,
   fixSlotTimeMismatch,
+  clipAtWordBoundary,
   completeTruncatedHeadline,
   completeTruncatedPlaceName,
+  expandHeadlineFromContext,
   isPlaceholderOrTruncatedCopy,
   activityHasRenderableBody,
   isDaypartSlotLabel,
@@ -254,6 +256,29 @@ describe("repairTruncatedCopy", () => {
       completeTruncatedHeadline("Sprehod ob Canal.", "Canal Walk, Indianapolis"),
     ).toBe("Sprehod ob Canal Walk");
     expect(
+      completeTruncatedHeadline(
+        "Narodnemu parku.",
+        "Zjutraj se boste odpeljali proti Narodnemu parku Krka, ki je znan po slapovih.",
+      ),
+    ).toBe("Narodnemu parku Krka");
+    expect(
+      completeTruncatedHeadline("Zlatni.", "Kopanje pri plaži Zlatni Rat na Braču."),
+    ).toBe("Zlatni Rat");
+    expect(
+      completeTruncatedHeadline(
+        "Dioklecijanove",
+        "Ogled Dioklecijanove palače in starega mestnega jedra.",
+      ),
+    ).toBe("Dioklecijanove palače");
+    expect(
+      completeTruncatedHeadline("otok.", "Trajekt na otok Brač in dnevni izlet."),
+    ).toBe("otok Brač");
+    expect(clipAtWordBoundary("Narodnemu parku Krka in slapovi Skradinski buk", 22)).toBe(
+      "Narodnemu parku Krka",
+    );
+    expect(clipAtWordBoundary("Dioklecijanove", 8)).toBe("Dioklecijanove");
+    expect(expandHeadlineFromContext("Zlatni.", "no matching body")).toBe("Zlatni.");
+    expect(
       completeTruncatedPlaceName("Indianapolis → St.", "St. Louis"),
     ).toBe("Indianapolis → St. Louis.");
     expect(repairTruncatedCopy("Vožnja proti.")).toBe("Vožnja.");
@@ -303,6 +328,22 @@ describe("repairTruncatedCopy", () => {
     expect(plan.days[0]!.activities!.morning).toEqual([]);
     expect(plan.days[1]!.title).toMatch(/Labuan Bajo/);
     expect(plan.days[1]!.morning).toMatch(/vasi\.$/);
+  });
+
+  it("completes cut day titles from the day's copy instead of leaving a stem", () => {
+    const plan = {
+      days: [
+        {
+          day: 3,
+          city: "Šibenik",
+          title: "Narodnemu parku.",
+          morning:
+            "Zjutraj se boste odpeljali proti Narodnemu parku Krka, ki je znan po slapovih.",
+        },
+      ],
+    };
+    expect(stripTruncatedCopyFromPlan(plan)).toBeGreaterThan(0);
+    expect(plan.days[0]!.title).toBe("Narodnemu parku Krka");
   });
 
   it("replaces a cut day title with the city name", () => {

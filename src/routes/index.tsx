@@ -42,7 +42,6 @@ import { searchFlights, type DuffelFlight } from "@/lib/flights.functions";
 import { airportConfusionHint } from "@/lib/airportRank";
 import {
   generateAiPlan,
-  generateAiPlanSkeleton,
   type AiTripPlan,
   type TripSkeleton,
 } from "@/lib/aiPlan.functions";
@@ -51,7 +50,6 @@ import { requestScreenWakeLock, useScreenWakeLock } from "@/hooks/useScreenWakeL
 import { usePlanPhotoEnrichment } from "@/hooks/usePlanPhotoEnrichment";
 import { mergePlanPhotos } from "@/lib/unsplashPhotos";
 import {
-  tripDayCount,
   type GenerateGeminiProTripInput,
 } from "@/lib/geminiPro.functions";
 import {
@@ -68,7 +66,6 @@ import { useAuth } from "@/hooks/use-auth";
 import { resolveErrorMessage, translate, useI18n } from "@/lib/i18n";
 import { normalizePlanLangCode } from "@/lib/planLanguages";
 import { normalizePlanCurrency } from "@/lib/planCurrency";
-import { applyFlightContextToGeminiPlan } from "@/lib/geminiFlightContext";
 import { flightContextFromLegs } from "@/lib/flightScheduling";
 import {
   heroFlightPartyTotalEur,
@@ -360,7 +357,6 @@ function Landing() {
   const queryClient = useQueryClient();
   const searchFn = useServerFn(searchFlights);
   const planFn = useServerFn(generateAiPlan);
-  const skeletonFn = useServerFn(generateAiPlanSkeleton);
   const streamItinerary = useStreamItinerary();
   useScreenWakeLock(aiLoading || streamItinerary.isStreaming);
   const { location: userLocation } = useUserLocation();
@@ -395,23 +391,6 @@ function Landing() {
   const commitAiPlan = useCallback((plan: AiTripPlan) => {
     const photos = previewPhotoPlanRef.current;
     const withPhotos = photos ? mergePlanPhotos(plan, photos) : plan;
-    const flights = aiFlightsRef.current;
-    if (flights?.outboundArrive) {
-      // Client safety net: never show Gemini-invented 12:00 when boarding pass says 17:55.
-      const next: AiTripPlan = structuredClone(withPhotos);
-      applyFlightContextToGeminiPlan(next, flights, {
-        originIata: aiOriginRef.current,
-        // Prefer locked plan language over live UI picker.
-        language: next.contentLanguage ?? aiLangRef.current,
-        expectedDays: tripDayCount(
-          aiDatesRef.current.departDate,
-          aiDatesRef.current.returnDate,
-        ),
-        departDate: aiDatesRef.current.departDate,
-      });
-      setAiPlan(stampFlightTotalOnPlan(next, aiFlightTotalRef.current));
-      return;
-    }
     setAiPlan(stampFlightTotalOnPlan(withPhotos, aiFlightTotalRef.current));
   }, []);
 
@@ -1431,7 +1410,7 @@ function Landing() {
       }
       let pendingWindow: Window | null = null;
       try {
-        const { generatePlanPdf, offerPdfDownload, openPendingPdfWindow } = await import(
+        const { generatePlanPdf, offerPdfDownload, openPendingPdfWindow, resolvePdfReturnFromIata } = await import(
           "@/lib/pdf-export"
         );
         pendingWindow = openPendingPdfWindow();
@@ -1453,6 +1432,17 @@ function Landing() {
         } catch (costErr) {
           console.warn("[pdf] cost summary skipped", costErr);
         }
+        const pdfReturnFrom =
+          resolvePdfReturnFromIata({
+            days: planForPdf.days,
+            originIata: planForPdf.originIata ?? aiContext?.from,
+            destinationIata: planForPdf.destinationIata ?? aiContext?.to,
+            returnFromIata: aiContext?.returnFromIata,
+            returnFlightFrom: planForPdf.returnFlightEu?.fromAirport,
+            originPlace: planForPdf.originPlace ?? aiContext?.originPlace,
+          }) ||
+          aiContext?.returnFromIata ||
+          aiContext?.to;
         const pdfFlights =
           costPdf && costPdf.flightEur > 0
             ? [
@@ -1466,10 +1456,10 @@ function Landing() {
                       },
                     ]
                   : []),
-                ...(aiContext?.flights?.inboundDepart && aiContext?.from && aiContext?.to
+                ...(aiContext?.flights?.inboundDepart && aiContext?.from && pdfReturnFrom
                   ? [
                       {
-                        from: aiContext.returnFromIata || aiContext.to,
+                        from: pdfReturnFrom,
                         to: aiContext.from,
                         date: endDate ?? undefined,
                         airline: aiContext.flights.inboundDepart,
@@ -1652,7 +1642,6 @@ function Landing() {
         ctx.pax,
       );
 
-      if (safeForm.plannerStyle !== "catalog") {
         const clientStartedAt = performance.now();
         console.log("[GeminiPro] client: starting stream generation…", {
           from: ctx.from,
@@ -1676,6 +1665,8 @@ function Landing() {
         const streamInput: GenerateGeminiProTripInput = {
           originIata: ctx.from,
           destinationIata: ctx.to,
+          destinationPlace: ctx.destinationPlace,
+          originPlace: ctx.originPlace,
           returnFromIata: ctx.returnFromIata,
           departDate: ctx.departDate,
           returnDate: ctx.returnDate || undefined,
@@ -1693,7 +1684,7 @@ function Landing() {
           language: ctx.language || lang,
           currency: planCurrency,
           flightContext: ctx.flights,
-        };
+        } as GenerateGeminiProTripInput;
 
         const { plan, error: streamError, cancelled } = await streamItinerary.start(streamInput);
         if (planJob !== planJobRef.current) return;
@@ -1719,83 +1710,7 @@ function Landing() {
           setAiError(t("error.planInvalidFormat"));
         }
         return;
-      }
 
-      const wishes = buildWishes(safeForm);
-      const clientStartedAt = performance.now();
-      console.log("[AiPlan] client: starting skeleton generation…", {
-        from: ctx.from,
-        to: ctx.to,
-        departDate: ctx.departDate,
-        returnDate: ctx.returnDate,
-        mode: modeOverride ?? "trip",
-      });
-      const res = await skeletonFn({
-        data: {
-          destinationIata: ctx.to,
-          originIata: ctx.from,
-          returnFromIata: ctx.returnFromIata,
-          departDate: ctx.departDate,
-          returnDate: ctx.returnDate || undefined,
-          pax: ctx.pax,
-          language: ctx.language || "en",
-          currency: planCurrency,
-          pace: safeForm.pace,
-          wishes,
-          priorities: safeForm.tags,
-          customPrompt: safeForm.customPrompt,
-          mode: modeOverride ?? "trip",
-          flightContext: ctx.flights,
-          pickedAttractionIds: safeForm.pickedAttractionIds,
-        },
-      });
-      console.log(
-        `[AiPlan] client: skeleton responded in ${Math.round(performance.now() - clientStartedAt)}ms`,
-        { error: res.error, regions: res.skeleton?.regions.length ?? 0 },
-      );
-      if (res.debug?.length) {
-        console.group("[AiPlan:Skeleton] server trace");
-        res.debug.forEach((line) => console.log(`[AiPlan:Skeleton] ${line}`));
-        console.groupEnd();
-      }
-
-      if (res.error) {
-        setAiError(res.error);
-        setSavedPlanId(null);
-        return;
-      }
-      if (!res.skeleton) {
-        setAiError(t("error.planInvalidFormat"));
-        setSavedPlanId(null);
-        return;
-      }
-
-      setAiLoading(false);
-      setAiExpandingFull(true);
-      try {
-        const { plan: fullPlan, error: expandError } = await expandSkeletonToFullPlan(
-          res.skeleton,
-          safeForm,
-          ctx,
-        );
-        if (expandError) {
-          setAiError(expandError);
-          setAiSkeleton(res.skeleton);
-        } else if (fullPlan) {
-          commitAiPlan(fullPlan);
-          setAiSkeleton(null);
-          setSavedPlanId(null);
-          await persistPlanToTrips(fullPlan, ctx);
-        }
-      } catch (e) {
-        console.error(e);
-        setAiError(t("error.planGenerationFailed"));
-        setAiSkeleton(res.skeleton);
-      } finally {
-        setAiExpandingFull(false);
-        setAiGenStartedAt(null);
-      }
-      return;
     } catch (e) {
       console.error(e);
       setAiError(t("error.planGenerationFailed"));

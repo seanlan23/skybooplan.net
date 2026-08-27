@@ -93,6 +93,31 @@ export function inboundArriveForDisplay(
   return arr;
 }
 
+/**
+ * Morning takeoff + ~20h wrap to a next-morning clock is almost always the
+ * origin outbound time (e.g. MUC 06:45) pasted onto the return, not a real landing.
+ */
+export function isLeakedOriginMorningArrive(depart?: string, arrive?: string): boolean {
+  const depHm = depart?.trim();
+  const arrHm = arrive?.trim();
+  if (!depHm || !arrHm) return false;
+  const dep = parseHm(depHm);
+  const arr = parseHm(arrHm);
+  const wrapMin = (arr - dep + 24 * 60) % (24 * 60);
+  return dep >= 6 * 60 && dep < 14 * 60 && arr < 10 * 60 && wrapMin > 16 * 60;
+}
+
+/** Return-leg arrival shown on the last itinerary day (drops leaked origin-morning clocks). */
+export function lastDayArriveForDisplay(
+  depart?: string,
+  arrive?: string,
+): string | undefined {
+  const shown = inboundArriveForDisplay(depart, arrive);
+  if (!shown) return undefined;
+  if (isLeakedOriginMorningArrive(depart, shown)) return undefined;
+  return shown;
+}
+
 const LONG_HAUL_KM = 4000;
 const JET_KMH = 800;
 
@@ -222,7 +247,7 @@ export function buildOriginDepartureHint(
   });
 }
 
-/** Day-1 morning steps at the outbound airport before the international leg. */
+/** Day-1 origin-airport steps before the international leg (slotted by depart clock). */
 export function buildOriginDepartureLogistics(
   originIata: string,
   flights: TripFlightContext,
@@ -318,7 +343,7 @@ export function buildFlightSchedulingPayload(
     const depMin = parseHm(flights.inboundDepart);
     if (depMin < 6 * 60) {
       scheduling.lastDay =
-        `Return departs ${flights.inboundDepart} (overnight) — day ${totalDays} is airport transfer only; full Hanoi sightseeing on day ${totalDays - 1}`;
+        `Return departs ${flights.inboundDepart} (overnight 00:00–05:59) — hotel check-out and airport transfer on the EVENING of day ${totalDays - 1} (~22:30). Day ${totalDays} is only the night flight and afternoon landing at home; no evening airport transfer on the last day.`;
     } else if (depMin <= 9 * 60) {
       scheduling.lastDay =
         `Return departs ${flights.inboundDepart} — day ${totalDays} is airport transfer only; sights end day ${totalDays - 1}`;
@@ -488,7 +513,7 @@ export function isAfternoonDeparture(flights?: TripFlightContext): boolean {
   return depMin > 14 * 60 + 30 && depMin <= 17 * 60;
 }
 
-/** Return 17:00–20:59 — one light morning sight; airport transfer mid-afternoon. */
+/** Return 17:01–20:59 — afternoon/evening checkout then airport; no morning sights. */
 export function isEveningDeparture(flights?: TripFlightContext): boolean {
   if (!flights?.inboundDepart) return false;
   const depMin = parseHm(flights.inboundDepart);
@@ -655,7 +680,7 @@ export function buildDepartureLogistics(
   const motorhome = opts?.accommodationMode === "motorhome";
   const dep = flights.inboundDepart ?? "12:00";
   const depMin = parseHm(dep);
-  const inboundArrive = inboundArriveForDisplay(dep, flights.inboundArrive);
+  const inboundArrive = lastDayArriveForDisplay(dep, flights.inboundArrive);
   const offsets = departureLogisticsOffsetsMin(locale.destinationIata);
   const leaveHours = offsets.leaveHours;
 
@@ -716,12 +741,12 @@ export function buildDepartureLogistics(
                 fr: `vol tard le soir à ${dep} — presque toute la journée après check-out; aéroport ~3 h avant`,
               })
             : planLangCopy(lang, {
-                sl: "večernji let — največ 1 lahek dopoldanski ogled, na letališče ~3 ure pred odletom",
-                en: "evening flight — at most 1 light morning sight; at airport ~3h before departure",
-                de: "Abendflug — höchstens 1 leichter Vormittags-Stopp; ~3 Stunden vor Abflug am Flughafen",
-                it: "volo serale — al massimo 1 visita leggera al mattino; in aeroporto ~3 ore prima",
-                es: "vuelo de tarde/noche — como máximo 1 visita ligera por la mañana; aeropuerto ~3 h antes",
-                fr: "vol du soir — au plus 1 visite légère le matin; aéroport ~3 h avant",
+                sl: `večernji let ob ${dep} — odjava popoldan/zvečer (~17:00), nato prevoz na letališče; brez dopoldanskih ogledov`,
+                en: `evening flight at ${dep} — afternoon/evening check-out (~17:00), then airport; no morning sightseeing`,
+                de: `Abendflug um ${dep} — Check-out nachmittags/abends (~17:00), dann Flughafen; kein Vormittagsprogramm`,
+                it: `volo serale alle ${dep} — check-out pomeriggio/sera (~17:00), poi aeroporto; niente visite al mattino`,
+                es: `vuelo de tarde/noche a las ${dep} — check-out por la tarde (~17:00), luego aeropuerto; sin visitas por la mañana`,
+                fr: `vol du soir à ${dep} — check-out après-midi/soir (~17:00), puis aéroport ; pas de visites le matin`,
               });
 
   const checkoutName = motorhome

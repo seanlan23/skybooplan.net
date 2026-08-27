@@ -7,10 +7,9 @@ import {
   type GeminiPlanMapOpts,
   normalizeSafetyWarning,
   normalizeWeatherWidget,
-  enrichGeminiCatalogPlan,
 } from "@/lib/geminiPlanMap";
 import { parseHmClock } from "@/lib/activityTime";
-import { sanitizeActivityTitle } from "@/lib/textSanitize";
+import { sameTransferBase } from "@/lib/baseTransfer";
 
 type PartialResponse = DeepPartial<TripPlanResponse>;
 
@@ -53,7 +52,7 @@ function transferToTransportation(
   };
   const from = t.from?.trim() ?? "";
   const to = t.to?.trim() ?? "";
-  if (!from && !to) return undefined;
+  if (!from || !to || sameTransferBase(from, to)) return undefined;
   const raw = (t.type ?? "").toLowerCase();
   const type: "flight" | "ferry" | "train" | "van" = /flight|let/.test(raw)
     ? "flight"
@@ -78,14 +77,6 @@ function transferToTransportation(
   ];
 }
 
-const DEFAULT_POI = {
-  highlights: ["Glavni ogled", "Lokalna kultura", "Fotografiranje"],
-  proTip: "Načrtuj vsaj uro za obisk te lokacije.",
-  bestTimeOfDay: "Zgodaj dopoldan",
-  rating: 4.3,
-  reviewSummary: "Priljubljena postojanka med popotniki na tej poti.",
-} as const;
-
 function isMapCategory(value: unknown): value is (typeof MAP_POI_CATEGORIES)[number] {
   return typeof value === "string" && (MAP_POI_CATEGORIES as readonly string[]).includes(value);
 }
@@ -98,7 +89,8 @@ function coercePartialResponse(partial: PartialResponse): TripPlanResponse | nul
       : "");
   const itinerar = (partial.itinerar ?? [])
     .map((phase) => {
-      const city = phase?.city?.trim() || fallbackCity;
+      if (!phase) return null;
+      const city = phase.city?.trim() || fallbackCity;
       if (!city) return null;
 
       const pois = (phase.pois ?? [])
@@ -111,9 +103,9 @@ function coercePartialResponse(partial: PartialResponse): TripPlanResponse | nul
             description: poi.description?.trim() || poi.name.trim(),
             lat: poi.lat,
             lng: poi.lng,
-            tripAdvisorStyleDetails: poi.tripAdvisorStyleDetails ?? { ...DEFAULT_POI },
+            tripAdvisorStyleDetails: poi.tripAdvisorStyleDetails,
             unsplashQuery: poi.unsplashQuery?.trim() || poi.name.trim(),
-            imageUrl: poi.imageUrl,
+            imageUrl: (poi as { imageUrl?: string }).imageUrl,
           };
         })
         .filter(Boolean) as TripPlanResponse["itinerar"][number]["pois"];
@@ -149,7 +141,7 @@ function coercePartialResponse(partial: PartialResponse): TripPlanResponse | nul
                 imageUrl?: string;
               };
               const description = act.description?.trim() || "";
-              const title = sanitizeActivityTitle(act.title?.trim() || act.name?.trim() || "", description);
+              const title = (act.title?.trim() || act.name?.trim() || "");
               if (!title) return null;
               const slots = ["dopoldan", "popoldan", "vecer"] as const;
               const clock = parseHmClock(act.arrivalTime) ?? parseHmClock(act.time);
@@ -211,6 +203,7 @@ function coercePartialResponse(partial: PartialResponse): TripPlanResponse | nul
             drivingDurationHours: day.drivingDurationHours?.trim() || "0h",
             travelHack: day.travelHack?.trim(),
             transportTip: day.transportTip?.trim(),
+            local_tips: day.local_tips?.trim(),
             transportation,
             activities,
           };
@@ -241,7 +234,9 @@ function coercePartialResponse(partial: PartialResponse): TripPlanResponse | nul
       season_warning: partial.trip_metadata?.season_warning?.trim() || "",
       currency: partial.trip_metadata?.currency?.trim() || "EUR",
       visa_required: partial.trip_metadata?.visa_required ?? false,
-      return_flight_eu: partial.trip_metadata?.return_flight_eu,
+      return_flight_eu: partial.trip_metadata?.return_flight_eu as
+        | TripPlanResponse["trip_metadata"]["return_flight_eu"]
+        | undefined,
     },
     safetyWarning: normalizeSafetyWarning(partial.safetyWarning) ?? null,
     weatherWidget: normalizeWeatherWidget(partial.weatherWidget, partial.weatherSummary),
@@ -255,7 +250,7 @@ function coercePartialResponse(partial: PartialResponse): TripPlanResponse | nul
       finance: partial.logistics_and_tips?.finance?.trim() || "",
       internet: partial.logistics_and_tips?.internet?.trim() || "",
     },
-    hotels: partial.hotels ?? [],
+    hotels: (partial.hotels ?? []).filter(Boolean) as TripPlanResponse["hotels"],
     travel_requirements: partial.travel_requirements as TripPlanResponse["travel_requirements"],
   };
 }
@@ -269,17 +264,6 @@ export function partialTripPlanToPreviewPlan(
   if (!coerced) return null;
   try {
     const plan = tripPlanResponseToAiTripPlan(coerced, opts);
-    // Streaming emits many partials per day — full enrich blocks the event loop and
-    // makes long trips look "stuck" at 2/N. Final `done` path still enriches.
-    if (opts.enrich !== false && opts.budget && opts.pax) {
-      enrichGeminiCatalogPlan(plan, {
-        budget: opts.budget,
-        pax: opts.pax,
-        wishesText: opts.wishesText,
-        language: opts.language,
-        pace: opts.pace,
-      });
-    }
     return plan;
   } catch (err) {
     console.warn("[geminiStreamMap] preview mapping failed:", err);

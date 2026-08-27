@@ -52,4 +52,18 @@ describe("interestAnchors", () => {
   it("returns undefined without beaches priority", () => {
     expect(resolveInterestBlueprint(15, "BKK", ["sights"], mockTemplate)).toBeUndefined();
   });
+
+  it("puts Isla Mujeres first after Cancún on the Mexico beach template", () => {
+    const anchor = getInterestAnchor("MX", "beaches");
+    expect(anchor?.mustIncludeHighlights.some((h) => /isla mujeres/i.test(h))).toBe(true);
+    expect(anchor?.routeTemplate[0]?.[0]).toMatch(/cancún/i);
+    expect(anchor?.routeTemplate[1]?.[0]).toMatch(/isla mujeres/i);
+    expect(anchor?.steer).toMatch(/takoj po prihodu|čisto na koncu/i);
+
+    const payload = buildInterestAnchorPayload("CUN", ["beaches"]);
+    expect(payload?.beaches?.country).toBe("MX");
+    expect(payload?.beaches?.routeTemplate.some(([city]) => /isla mujeres/i.test(city))).toBe(
+      true,
+    );
+  });
 });

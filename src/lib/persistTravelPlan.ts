@@ -101,9 +101,9 @@ export function slimPlanForDb(plan: AiTripPlan): AiTripPlan {
 
 function slimActivityCore(a: Activity): Activity {
   return {
-    name: clip(a.name, 180) ?? "",
+    name: clip(a.name, 400) ?? "",
     type: a.type,
-    description: clip(a.description, 500),
+    description: clip(a.description, 4000),
     priceLabel: clip(a.priceLabel, 40),
     estimatedCostEur: a.estimatedCostEur,
     arrivalTime: a.arrivalTime,
@@ -143,13 +143,14 @@ export function corePlanForDb(plan: AiTripPlan): AiTripPlan {
     safetyWarning: safeJsonClone(plan.safetyWarning) ?? undefined,
     travelRequirements: safeJsonClone(plan.travelRequirements),
     groundJourney: safeJsonClone(plan.groundJourney),
+    hotels: safeJsonClone(plan.hotels),
     days: (plan.days ?? []).map((d): DayPlan => ({
       day: d.day,
       date: d.date ?? "",
       dateEnd: d.dateEnd,
-      city: clip(d.city, 80) ?? "",
-      title: clip(d.title, 160) ?? "",
-      focusName: clip(d.focusName, 80) ?? "",
+      city: clip(d.city, 120) ?? "",
+      title: clip(d.title, 400) ?? "",
+      focusName: clip(d.focusName, 160) ?? "",
       lat: Number.isFinite(d.lat) ? d.lat : 0,
       lng: Number.isFinite(d.lng) ? d.lng : 0,
       dailyBudgetEur: Number.isFinite(d.dailyBudgetEur) ? d.dailyBudgetEur : 0,
@@ -158,6 +159,7 @@ export function corePlanForDb(plan: AiTripPlan): AiTripPlan {
       transportationTips: clip(d.transportationTips, 280) ?? "",
       travelHack: clip(d.travelHack, 280) ?? "",
       localWarnings: clip(d.localWarnings, 200) ?? "",
+      localTips: clip(d.localTips, 1600) ?? "",
       morning: "",
       afternoon: "",
       evening: "",
@@ -183,8 +185,8 @@ export function serializePlanForDb(plan: AiTripPlan): Json {
     days: (plan.days ?? []).map((d) => ({
       day: d.day,
       date: typeof d.date === "string" ? d.date : "",
-      city: typeof d.city === "string" ? d.city.slice(0, 80) : "",
-      title: typeof d.title === "string" ? d.title.slice(0, 160) : "",
+      city: typeof d.city === "string" ? d.city.slice(0, 120) : "",
+      title: typeof d.title === "string" ? d.title.slice(0, 400) : "",
     })),
   };
 }

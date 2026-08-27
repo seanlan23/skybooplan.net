@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { AiTripPlan } from "@/lib/aiPlan.functions";
-import { scrubImpossibleIslandDayTrips } from "@/lib/islandHopGuard";
+import {
+  dropDayTripsToOvernightStays,
+  scrubImpossibleIslandDayTrips,
+} from "@/lib/islandHopGuard";
 
 function phPlan(): AiTripPlan {
   return {
@@ -93,5 +96,63 @@ describe("scrubImpossibleIslandDayTrips", () => {
     expect(plan.days[1]!.activities!.morning[0]!.name).toMatch(/Hong Island/i);
     expect(plan.days[1]!.activities!.afternoon[0]!.name).toMatch(/Hong Island/i);
     expect(plan.days[1]!.activities!.evening[0]!.name).toMatch(/Seafood/i);
+  });
+
+  it("rewrites a speedboat day trip to an island that already has a multi-night stay", () => {
+    const plan = {
+      destinationName: "Thailand",
+      contentLanguage: "sl",
+      days: [
+        {
+          day: 2,
+          city: "Phuket",
+          title: "Phi Phi z gliserjem",
+          activities: {
+            morning: [
+              {
+                name: "Celodnevni izlet z gliserjem na Koh Phi Phi",
+                type: "ACTIVITY",
+                description: "Speedboat iz Phuketa na Maya Bay.",
+              },
+            ],
+            afternoon: [],
+            evening: [],
+          },
+        },
+        {
+          day: 3,
+          city: "Ao Nang",
+          title: "Transfer na Phi Phi",
+          activities: {
+            morning: [
+              {
+                name: "Trajekt Ao Nang → Koh Phi Phi",
+                type: "TRANSPORT",
+                description: "Premik na bazo Koh Phi Phi.",
+              },
+            ],
+            afternoon: [],
+            evening: [],
+          },
+          transportation: [{ type: "ferry", from: "Ao Nang", to: "Koh Phi Phi", duration: "2h" }],
+        },
+        {
+          day: 4,
+          city: "Koh Phi Phi",
+          title: "Phi Phi 1",
+          activities: { morning: [], afternoon: [], evening: [] },
+        },
+        {
+          day: 5,
+          city: "Koh Phi Phi",
+          title: "Phi Phi 2",
+          activities: { morning: [], afternoon: [], evening: [] },
+        },
+      ],
+    } as AiTripPlan;
+    expect(dropDayTripsToOvernightStays(plan, "sl")).toBeGreaterThan(0);
+    expect(plan.days[0]!.activities!.morning[0]!.name).toMatch(/Lokalni ogled Phuket/i);
+    expect(plan.days[0]!.activities!.morning[0]!.description).toMatch(/večdnevno bivanje/i);
+    expect(plan.days[1]!.activities!.morning[0]!.name).toMatch(/Trajekt/i);
   });
 });

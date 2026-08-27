@@ -316,4 +316,44 @@ describe("repairTransportLegs", () => {
     );
     expect(legs ?? []).toHaveLength(0);
   });
+
+  it("flips day-1 dest→origin flight and demotes airport→hotel FLIGHT to a van", () => {
+    const legs = repairTransportLegs(
+      [
+        {
+          type: "flight",
+          from: "Cancún (CUN)",
+          to: "Dunaj (VIE)",
+          duration: "12h",
+          estimatedPrice: 620,
+        },
+        {
+          type: "flight",
+          from: "Cancún (CUN)",
+          to: "Hotel zona Cancún",
+          duration: "45min",
+          estimatedPrice: 35,
+        },
+      ],
+      {
+        dayNumber: 1,
+        city: "Cancún",
+        originIata: "VIE",
+        destinationIata: "CUN",
+        activities: {
+          morning: [{ name: "Pristanek na letališču Cancún", type: "TRANSPORT" }],
+          afternoon: [],
+          evening: [],
+        },
+      },
+    );
+
+    expect(legs).toHaveLength(2);
+    expect(legs![0]!.type).toBe("flight");
+    expect(legs![0]!.from).toMatch(/Dunaj \(VIE\)/i);
+    expect(legs![0]!.to).toMatch(/Cancún \(CUN\)/i);
+    expect(legs![1]!.type).toBe("van");
+    expect(legs![1]!.from).not.toMatch(/VIE/i);
+    expect(legs![1]!.to).toMatch(/Cancún/i);
+  });
 });

@@ -10,17 +10,29 @@ import {
   stripPlanTeaser,
 } from "@/lib/planTeaser";
 import type { AiTripPlan } from "@/lib/aiPlan.functions";
-import { normalizePlanLangCode } from "@/lib/planLanguages";
+import { DAY_TITLE_PREFIXES, normalizePlanLangCode } from "@/lib/planLanguages";
 import { activityDescriptionBullets } from "@/lib/activityDescription";
-import { formatActivityClockLabel } from "@/lib/activityTime";
+import { formatActivityClockLabel, sortDayActivitiesByClock } from "@/lib/activityTime";
 import { enrichMotorhomePlanTips } from "@/lib/motorhomePlanTips";
 import { resyncPlanDayDates } from "@/lib/daySequence";
-import { fixMotorhomeCopyErrors, activityHasRenderableBody, isDaypartSlotLabel, isPlaceholderOrTruncatedCopy, sanitizeForLang, stripTruncatedCopyFromPlan } from "@/lib/textSanitize";
+import { fixMotorhomeCopyErrors, activityHasRenderableBody, isDaypartSlotLabel, isPlaceholderOrTruncatedCopy, sanitizeForLang } from "@/lib/textSanitize";
 import {
   collectOvernightHotelStays,
+  collectOvernightHotelStaysFromHints,
+  hotelHintsHaveMultipleBases,
+  overnightPlacesMatch,
   overnightStayBookingUrl,
+  stampOvernightCitiesFromHotels,
+  type HotelStayHint,
+  type OvernightDay,
 } from "@/lib/overnightHotelStays";
+import { DESTINATION_BY_IATA, lookupDestination } from "@/lib/destinationCoords";
 import { resolveTravelRequirements, type TravelRequirements } from "@/lib/travelRequirements";
+import {
+  isBaseTransferLeg,
+  orientArrivalTransferLeg,
+  resolveTransferHub,
+} from "@/lib/baseTransfer";
 
 /**
  * Served from /public/fonts so Nitro/Vercel always can fetch them.
@@ -41,7 +53,20 @@ export type PlanItinerary = {
   flightTotalEur?: number;
   days?: Array<Record<string, unknown>>;
   flights?: Array<{ from?: string; to?: string; date?: string; airline?: string; price?: string }>;
-  hotels?: Array<{ name?: string; area?: string; nights?: number; price?: string }>;
+  originIata?: string;
+  destinationIata?: string;
+  returnFromIata?: string;
+  returnFlightEu?: { fromAirport?: string; toAirport?: string };
+  hotels?: Array<{
+    name?: string;
+    city?: string;
+    area?: string;
+    nights?: number;
+    price?: string;
+    from_date?: string;
+    to_date?: string;
+    note?: string;
+  }>;
   budget?: { total?: string; currency?: string; breakdown?: Record<string, string | number> };
   packing?: string[];
 };
@@ -82,6 +107,7 @@ type PdfDay = {
   city?: string;
   dailyBudgetEur?: number;
   transportTips?: string;
+  localTips?: string;
   transportation: Array<{
     type: string;
     from: string;
@@ -124,6 +150,7 @@ type PdfLabels = {
   afternoon: string;
   evening: string;
   transport: string;
+  localTips: string;
   budget: string;
   budgetForPax: (n: number) => string;
   dailyBudget: string;
@@ -143,6 +170,9 @@ const BRAND_MID = { r: 30, g: 58, b: 95 }; // deep sky-navy for cover wash
 const SKY = { r: 14, g: 165, b: 233 }; // #0EA5E9
 const SKY_DARK = { r: 2, g: 132, b: 199 }; // #0284C7
 const SKY_LIGHT = { r: 125, g: 211, b: 252 }; // #7DD3FC
+const AMBER = { r: 245, g: 158, b: 11 }; // amber-500
+const AMBER_BG = { r: 255, g: 251, b: 235 }; // amber-50
+const AMBER_INK = { r: 120, g: 53, b: 15 }; // amber-900
 const INK = { r: 30, g: 41, b: 59 };
 const MUTED = { r: 100, g: 116, b: 139 };
 const RULE = { r: 226, g: 232, b: 240 };
@@ -152,8 +182,6 @@ const CARD = { r: 248, g: 250, b: 252 }; // slate-50 soft panels
 const WHITE = { r: 255, g: 255, b: 255 };
 const FONT = "DejaVuSans";
 const COVER_H = 268;
-/** PDF stays scannable — fewer bullets than the live UI. */
-const PDF_MAX_BULLETS = 2;
 
 /** Paper-plane mark from LogoMark (SVG 48×48 → PDF triangles). */
 function drawLogoMark(
@@ -229,6 +257,163 @@ function isPdfLogisticsTitle(title: string): boolean {
   return /^(arrive at .+ airport|at .+ airport|na letališču|prihod na letališče|am flughafen|check-in and security|check-in in varnostni|international flight|mednarodni let|airport arrival|airport check-in)\b/i.test(
     title.trim(),
   );
+}
+
+const ORDINAL_DAY_TITLE_RE = new RegExp(
+  `^(?:${DAY_TITLE_PREFIXES.join("|")})\\s*\\d+(?:\\s*[–\\-—]\\s*\\d+)?$`,
+  "i",
+);
+
+/** True when the model title is only "Dan 1" / "Day 2" — the PDF badge already shows the number. */
+export function isOrdinalPdfDayTitle(title: string): boolean {
+  return ORDINAL_DAY_TITLE_RE.test(title.trim());
+}
+
+/** Day-band heading: real `day.title`, else overnight city. Never a leftover "Dan N". */
+export function pdfDayHeading(title: string | undefined, city: string | undefined): string {
+  const t = (title ?? "").trim();
+  if (t && !isOrdinalPdfDayTitle(t)) return t;
+  return (city ?? "").trim();
+}
+
+function pdfExtractIataToken(label: string): string | null {
+  const m = label.toUpperCase().match(/\b([A-Z]{3})\b/);
+  return m?.[1] ?? null;
+}
+
+function pdfExtractKnownIata(label: string): string | null {
+  const code = pdfExtractIataToken(label);
+  if (!code) return null;
+  return DESTINATION_BY_IATA[code] ? code : null;
+}
+
+function iatasFromPdfTitle(title: string): { origin?: string; dest?: string } {
+  const m = title.toUpperCase().match(/\b([A-Z]{3})\s*(?:→|->|–|-)\s*([A-Z]{3})\b/);
+  return m ? { origin: m[1], dest: m[2] } : {};
+}
+
+/** Hub IATA for a city/airport label (Vancouver → YVR). First match if a name maps to two hubs. */
+export function lookupPdfHubIata(place: string | undefined): string | null {
+  const raw = (place ?? "").trim();
+  if (!raw) return null;
+  const resolved = resolveTransferHub(raw);
+  if (resolved && DESTINATION_BY_IATA[resolved]) return resolved;
+  const direct = pdfExtractKnownIata(raw);
+  if (direct) return direct;
+  let found: string | null = null;
+  for (const [iata, meta] of Object.entries(DESTINATION_BY_IATA)) {
+    if (!overnightPlacesMatch(meta.name, raw)) continue;
+    if (found && found !== iata) return found;
+    found = iata;
+  }
+  return found ?? resolved;
+}
+
+function pdfSameBase(a: string, b: string): boolean {
+  const na = a.trim();
+  const nb = b.trim();
+  if (!na || !nb) return true;
+  if (overnightPlacesMatch(na, nb)) return true;
+  const ia = lookupPdfHubIata(na);
+  const ib = lookupPdfHubIata(nb);
+  if (ia && ib && ia === ib) return true;
+  if (ia) {
+    const name = lookupDestination(ia)?.name;
+    if (name && overnightPlacesMatch(name, nb)) return true;
+  }
+  if (ib) {
+    const name = lookupDestination(ib)?.name;
+    if (name && overnightPlacesMatch(name, na)) return true;
+  }
+  return false;
+}
+
+/**
+ * Gray PDF transfer banner: only a real hop between two overnight bases
+ * (or day-1 / last-day international origin ↔ destination). Not a day trip.
+ */
+export function isPdfBaseTransferLeg(
+  leg: { type?: string; from?: string; to?: string },
+  opts?: {
+    dayCity?: string;
+    prevCity?: string;
+    dayNumber?: number;
+    originIata?: string;
+    destinationIata?: string;
+    isLastDay?: boolean;
+  },
+): boolean {
+  return isBaseTransferLeg(leg, opts);
+}
+
+/** Day-1 international hop must read origin → destination, never the reverse. */
+export function orientPdfArrivalFlightLeg(
+  leg: { type: string; from: string; to: string; duration?: string; price?: string },
+  opts: { dayNumber: number; originIata?: string; destinationIata?: string },
+): { type: string; from: string; to: string; duration?: string; price?: string } {
+  return orientArrivalTransferLeg(leg, opts);
+}
+
+/** Open-jaw return origin: last overnight hub, not the arrival-ticket IATA. */
+export function resolvePdfReturnFromIata(input: {
+  days?: Array<{
+    city?: string;
+    title?: string;
+    transportation?: Array<{ from?: string; to?: string; type?: string }>;
+  }>;
+  originIata?: string;
+  destinationIata?: string;
+  returnFromIata?: string;
+  returnFlightFrom?: string;
+  originPlace?: string;
+}): string | undefined {
+  const origin = input.originIata?.trim().toUpperCase();
+  const dest = input.destinationIata?.trim().toUpperCase();
+  const days = input.days ?? [];
+
+  for (let i = days.length - 1; i >= 0; i--) {
+    const d = days[i]!;
+    const city = (d.city ?? "").trim();
+    if (!city) continue;
+    if (origin && pdfSameBase(city, origin)) continue;
+    if (input.originPlace && pdfSameBase(city, input.originPlace)) continue;
+
+    for (const leg of d.transportation ?? []) {
+      const fromIata = lookupPdfHubIata(leg.from ?? "");
+      const toIata = lookupPdfHubIata(leg.to ?? "");
+      if (fromIata && toIata && origin && toIata === origin && fromIata !== origin) {
+        return fromIata;
+      }
+    }
+
+    const fromCity = lookupPdfHubIata(city);
+    if (fromCity && fromCity !== origin) return fromCity;
+    break;
+  }
+
+  const hinted = (input.returnFromIata || input.returnFlightFrom || "").trim().toUpperCase();
+  if (/^[A-Z]{3}$/.test(hinted) && DESTINATION_BY_IATA[hinted]) return hinted;
+  if (dest && DESTINATION_BY_IATA[dest]) return dest;
+  return undefined;
+}
+
+function rewritePdfReturnFlightEndpoints(
+  from: string,
+  to: string,
+  exitIata: string | undefined,
+  destIata: string | undefined,
+  originIata: string | undefined,
+): { from: string; to: string } {
+  if (!exitIata || !originIata) return { from, to };
+  const toCode = lookupPdfHubIata(to);
+  const fromCode = lookupPdfHubIata(from);
+  if (toCode !== originIata.toUpperCase()) return { from, to };
+  const fromIsArrivalHub =
+    Boolean(destIata) &&
+    (fromCode === destIata!.toUpperCase() || pdfSameBase(from, destIata!));
+  if (!fromIsArrivalHub) return { from, to };
+  if (fromCode === exitIata) return { from, to };
+  return { from: exitIata, to: originIata.toUpperCase() };
 }
 
 function roadBudgetCaption(model: NormalizedPdfPlan): string {
@@ -415,6 +600,7 @@ function labelsFor(lang: PlanForPdf["language"], sampleText: string): PdfLabels 
       afternoon: "Popoldan",
       evening: "Večer",
       transport: "Prevoz",
+      localTips: "Nasveti lokalcev & varnost",
       budget: "Proračun",
       budgetForPax: (n) =>
         n <= 1 ? "Skupaj (ocena na destinaciji — hoteli posebej)" : `Skupaj za ${n} oseb (ocena na destinaciji — hoteli posebej)`,
@@ -438,6 +624,7 @@ function labelsFor(lang: PlanForPdf["language"], sampleText: string): PdfLabels 
       afternoon: "Pomeriggio",
       evening: "Sera",
       transport: "Trasporto",
+      localTips: "Consigli locali e sicurezza",
       budget: "Budget",
       budgetForPax: (n) =>
         n <= 1
@@ -463,6 +650,7 @@ function labelsFor(lang: PlanForPdf["language"], sampleText: string): PdfLabels 
       afternoon: "Nachmittag",
       evening: "Abend",
       transport: "Transport",
+      localTips: "Lokale Tipps & Sicherheit",
       budget: "Budget",
       budgetForPax: (n) =>
         n <= 1
@@ -488,6 +676,7 @@ function labelsFor(lang: PlanForPdf["language"], sampleText: string): PdfLabels 
       afternoon: "Tarde",
       evening: "Noche",
       transport: "Transporte",
+      localTips: "Consejos locales y seguridad",
       budget: "Presupuesto",
       budgetForPax: (n) =>
         n <= 1
@@ -513,6 +702,7 @@ function labelsFor(lang: PlanForPdf["language"], sampleText: string): PdfLabels 
       afternoon: "Après-midi",
       evening: "Soir",
       transport: "Transport",
+      localTips: "Conseils locaux et sécurité",
       budget: "Budget",
       budgetForPax: (n) =>
         n <= 1
@@ -537,6 +727,7 @@ function labelsFor(lang: PlanForPdf["language"], sampleText: string): PdfLabels 
     afternoon: "Afternoon",
     evening: "Evening",
     transport: "Transport",
+    localTips: "Local tips & safety",
     budget: "Budget",
     budgetForPax: (n) =>
       n <= 1
@@ -578,12 +769,22 @@ export function sanitizePdfText(input: unknown): string {
     .trim();
 }
 
-function clipAtWordBoundary(text: string, maxChars: number): string {
-  const t = text.trim();
-  if (t.length <= maxChars) return t;
-  const cut = t.slice(0, maxChars);
-  const sp = cut.lastIndexOf(" ");
-  return (sp > 16 ? cut.slice(0, sp) : cut).replace(/[.…]+$/u, "").trim();
+function wrapByWords(text: string, maxChars: number): string[] {
+  const words = text.split(/\s+/).filter(Boolean);
+  if (!words.length) return [];
+  const lines: string[] = [];
+  let cur = "";
+  for (const w of words) {
+    const next = cur ? `${cur} ${w}` : w;
+    if (maxChars > 0 && next.length > maxChars && cur) {
+      lines.push(cur);
+      cur = w;
+    } else {
+      cur = next;
+    }
+  }
+  if (cur) lines.push(cur);
+  return lines;
 }
 
 /** jsPDF throws on width <= 0 (long clock labels can eat the title column). */
@@ -592,9 +793,28 @@ function wrapPdfLines(doc: jsPDF, text: string, maxWidth: number): string[] {
   if (!cleaned) return [];
   const width = Number.isFinite(maxWidth) && maxWidth > 24 ? maxWidth : 24;
   try {
-    return doc.splitTextToSize(cleaned, width) as string[];
+    const lines: string[] = [];
+    for (const para of cleaned.split(/\n/)) {
+      const words = para.split(/\s+/).filter(Boolean);
+      if (!words.length) {
+        if (para === "") lines.push("");
+        continue;
+      }
+      let cur = "";
+      for (const w of words) {
+        const next = cur ? `${cur} ${w}` : w;
+        if (cur && doc.getTextWidth(next) > width) {
+          lines.push(cur);
+          cur = w;
+        } else {
+          cur = next;
+        }
+      }
+      if (cur) lines.push(cur);
+    }
+    return lines.length ? lines : wrapByWords(cleaned, 80);
   } catch {
-    return [clipAtWordBoundary(cleaned, 80)];
+    return wrapByWords(cleaned, 80);
   }
 }
 
@@ -792,11 +1012,6 @@ function scrubPdfItineraryLanguage(
   itin: PlanItinerary & Record<string, unknown>,
   lang: string,
 ) {
-  try {
-    stripTruncatedCopyFromPlan(itin);
-  } catch {
-    /* never block PDF */
-  }
   const scrub = (raw: unknown): string => {
     const t = typeof raw === "string" ? raw : "";
     if (!t) return t;
@@ -811,6 +1026,8 @@ function scrubPdfItineraryLanguage(
       "evening",
       "travelHack",
       "transportationTips",
+      "localTips",
+      "local_tips",
       "localWarnings",
     ] as const) {
       if (typeof day[key] === "string") day[key] = scrub(day[key]);
@@ -856,6 +1073,10 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
     }
   }
   const rawDays = Array.isArray(itin.days) ? itin.days : [];
+  const hotelHints: HotelStayHint[] = Array.isArray(itin.hotels)
+    ? (itin.hotels as HotelStayHint[])
+    : [];
+  stampOvernightCitiesFromHotels(rawDays as OvernightDay[], hotelHints);
   const sample = [textOf(itin.summary), ...rawDays.map((d) => textOf(d?.title))].join(" ");
   const contentLang = normalizePlanLangCode(
     (itin as { contentLanguage?: string }).contentLanguage ||
@@ -901,16 +1122,31 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
         })
       : [];
 
+    const chrono = sortDayActivitiesByClock({
+      morning: slotItems(d, "morning", labels),
+      afternoon: slotItems(d, "afternoon", labels),
+      evening: slotItems(d, "evening", labels),
+    });
     const slots: PdfDay["slots"] = [
-      { label: labels.morning, items: slotItems(d, "morning", labels) },
-      { label: labels.afternoon, items: slotItems(d, "afternoon", labels) },
-      { label: labels.evening, items: slotItems(d, "evening", labels) },
+      { label: labels.morning, items: chrono.morning },
+      { label: labels.afternoon, items: chrono.afternoon },
+      { label: labels.evening, items: chrono.evening },
     ].filter((s) => s.items.length > 0);
 
     // Fallback: legacy items[] or island stay blurb
     if (!slots.length) {
       const items = legacyItems(d, labels);
-      if (items.length) slots.push({ label: labels.daily, items });
+      if (items.length) {
+        const sorted = sortDayActivitiesByClock({
+          morning: items,
+          afternoon: [],
+          evening: [],
+        });
+        slots.push({
+          label: labels.daily,
+          items: [...sorted.morning, ...sorted.afternoon, ...sorted.evening],
+        });
+      }
     }
     if (!slots.length) {
       const island = d.islandStay as Record<string, unknown> | undefined;
@@ -938,10 +1174,12 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
       dayEnd,
       date: textOf(d.date) || undefined,
       dateEnd: textOf(d.dateEnd) || undefined,
-      title: fix(textOf(d.title) || labels.day(dayNum, dayEnd)),
+      title: fix(pdfDayHeading(textOf(d.title), city)),
       city: city || undefined,
       dailyBudgetEur:
-        typeof d.dailyBudgetEur === "number" && Number.isFinite(d.dailyBudgetEur)
+        typeof d.dailyBudgetEur === "number" &&
+        Number.isFinite(d.dailyBudgetEur) &&
+        d.dailyBudgetEur > 0
           ? d.dailyBudgetEur
           : undefined,
       transportTips: (() => {
@@ -951,9 +1189,58 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
           "";
         return tips ? fix(tips) : undefined;
       })(),
+      localTips: (() => {
+        const tips = textOf(d.localTips) || textOf(d.local_tips) || "";
+        return tips ? fix(tips) : undefined;
+      })(),
       transportation,
       slots: fixedSlots,
     };
+  });
+
+  const titleIatas = iatasFromPdfTitle(plan.title);
+  const originIata =
+    textOf((itin as { originIata?: string }).originIata) || titleIatas.origin || "";
+  const destIata =
+    textOf((itin as { destinationIata?: string }).destinationIata) ||
+    titleIatas.dest ||
+    "";
+
+  for (let i = 0; i < days.length; i++) {
+    const d = days[i]!;
+    d.transportation = d.transportation
+      .map((leg) =>
+        orientPdfArrivalFlightLeg(leg, {
+          dayNumber: d.day,
+          originIata,
+          destinationIata: destIata,
+        }),
+      )
+      .filter((leg) =>
+        isPdfBaseTransferLeg(leg, {
+          dayCity: d.city,
+          prevCity: days[i - 1]?.city,
+          dayNumber: d.day,
+          originIata,
+          destinationIata: destIata,
+          isLastDay: i === days.length - 1,
+        }),
+      );
+  }
+  const returnFlightFrom = textOf(
+    (itin as { returnFlightEu?: { fromAirport?: string } }).returnFlightEu?.fromAirport,
+  );
+  const exitIata = resolvePdfReturnFromIata({
+    days: days.map((d) => ({
+      city: d.city,
+      title: d.title,
+      transportation: d.transportation,
+    })),
+    originIata,
+    destinationIata: destIata,
+    returnFromIata: textOf((itin as { returnFromIata?: string }).returnFromIata),
+    returnFlightFrom,
+    originPlace: textOf((itin as { originPlace?: string }).originPlace),
   });
 
   const flights = Array.isArray(itin.flights)
@@ -961,8 +1248,15 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
         .map((raw) => {
           if (!raw || typeof raw !== "object") return "";
           const f = raw as Record<string, unknown>;
-          const from = textOf(f.from);
-          const to = textOf(f.to);
+          const rewritten = rewritePdfReturnFlightEndpoints(
+            textOf(f.from),
+            textOf(f.to),
+            exitIata,
+            destIata,
+            originIata,
+          );
+          const from = rewritten.from;
+          const to = rewritten.to;
           return [
             from && to ? `${from} → ${to}` : "",
             fmtDate(textOf(f.date) || null, contentLang),
@@ -1020,32 +1314,39 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
   }
 
   const originPlace = textOf((itin as { originPlace?: string }).originPlace);
-  const stays = motorhome
-    ? []
-    : collectOvernightHotelStays({
-        days: rawDays.map((raw, idx) => {
-          const d = (raw ?? {}) as Record<string, unknown>;
-          return {
-            day: typeof d.day === "number" ? d.day : idx + 1,
-            date: textOf(d.date) || undefined,
-            city: textOf(d.city) || textOf(d.focusName) || undefined,
-            inFlightDay: d.inFlightDay === true,
-          };
-        }),
-        start_date: plan.start_date,
-        originPlace,
-        groundTransportMode: textOf(
-          (itin as { groundTransportMode?: string }).groundTransportMode,
-        ),
-        accommodationMode: textOf(
-          (itin as { accommodationMode?: string }).accommodationMode,
-        ),
-      });
+  let stays = collectOvernightHotelStays({
+    days: rawDays.map((raw, idx) => {
+      const d = (raw ?? {}) as Record<string, unknown>;
+      return {
+        day: typeof d.day === "number" ? d.day : idx + 1,
+        date: textOf(d.date) || undefined,
+        city: textOf(d.city) || textOf(d.focusName) || undefined,
+        inFlightDay: d.inFlightDay === true,
+      };
+    }),
+    start_date: plan.start_date,
+    originPlace,
+    groundTransportMode: textOf(
+      (itin as { groundTransportMode?: string }).groundTransportMode,
+    ),
+    accommodationMode: textOf(
+      (itin as { accommodationMode?: string }).accommodationMode,
+    ),
+  });
+  const stayCities = new Set(stays.map((s) => s.city.trim().toLowerCase()));
+  if (
+    !motorhome &&
+    stayCities.size <= 1 &&
+    hotelHintsHaveMultipleBases(hotelHints)
+  ) {
+    const fromHints = collectOvernightHotelStaysFromHints(hotelHints, plan.start_date);
+    if (fromHints.length >= 2) stays = fromHints;
+  }
 
   const stayByFirstDay = new Map(stays.map((s) => [s.firstDay, s]));
   for (const d of days) {
     const stay = stayByFirstDay.get(d.day);
-    if (stay) {
+    if (stay && !motorhome) {
       d.bookingUrl = overnightStayBookingUrl(stay, {
         adults: pax,
         lang: contentLang,
@@ -1063,12 +1364,14 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
     ]
       .filter(Boolean)
       .join("  ·  "),
-    url: overnightStayBookingUrl(s, { adults: pax, lang: contentLang }),
+    url: motorhome
+      ? undefined
+      : overnightStayBookingUrl(s, { adults: pax, lang: contentLang }),
   }));
-  const hotels = motorhome
-    ? []
-    : stayHotels.length
-      ? stayHotels
+  const hotels = stayHotels.length
+    ? stayHotels
+    : motorhome
+      ? []
       : namedHotels.map((text) => ({ text }));
 
   const coverImageUrl =
@@ -1557,7 +1860,7 @@ async function renderPlanPdf(plan: PlanForPdf): Promise<{
         .join(" – ");
       const metaLine = [dateLabel, d.city].filter(Boolean).join("  ·  ");
 
-      drawDayBand(d.day, metaLine || model.labels.day(d.day, d.dayEnd), d.title);
+      drawDayBand(d.day, metaLine, d.title);
 
       for (const leg of d.transportation) {
         const line = [
@@ -1636,10 +1939,7 @@ async function renderPlanPdf(plan: PlanForPdf): Promise<{
             y += 12;
           }
           {
-            const lines = activityDescriptionBullets(it.description, it.bullets).slice(
-              0,
-              PDF_MAX_BULLETS,
-            );
+            const lines = activityDescriptionBullets(it.description, it.bullets);
             for (const line of lines) {
               setFont("normal", 9, MUTED);
               const bullet = `–  ${line}`;
@@ -1668,23 +1968,46 @@ async function renderPlanPdf(plan: PlanForPdf): Promise<{
         }
       }
 
-      if (d.dailyBudgetEur != null || d.transportTips) {
+      if (
+        (typeof d.dailyBudgetEur === "number" && d.dailyBudgetEur > 0) ||
+        d.localTips ||
+        d.transportTips
+      ) {
         ensureSpace(26);
         doc.setDrawColor(RULE.r, RULE.g, RULE.b);
         doc.setLineWidth(0.5);
         doc.line(margin, y, pageW - margin, y);
         y += 11;
       }
-      if (d.dailyBudgetEur != null) {
+      if (d.localTips) {
+        let cleaned = sanitizePdfText(`${model.labels.localTips}: ${d.localTips}`);
+        if (cleaned && !hasUnicodeFont) cleaned = asciiFallback(cleaned);
+        if (cleaned) {
+          setFont("normal", 8.5, AMBER_INK);
+          const lines = wrapPdfLines(doc, cleaned, contentW - 18);
+          const boxH = 10 + lines.length * 12;
+          ensureSpace(boxH + 8);
+          doc.setFillColor(AMBER_BG.r, AMBER_BG.g, AMBER_BG.b);
+          doc.roundedRect(margin, y - 6, contentW, boxH, 4, 4, "F");
+          doc.setFillColor(AMBER.r, AMBER.g, AMBER.b);
+          doc.rect(margin, y - 6, 4, boxH, "F");
+          for (const line of lines) {
+            safeText(line, margin + 12, y + 4);
+            y += 12;
+          }
+          y += 8;
+        }
+      }
+      if (d.transportTips) {
+        para(`${model.labels.transport}: ${d.transportTips}`, 8.5, MUTED, 2);
+      }
+      if (typeof d.dailyBudgetEur === "number" && d.dailyBudgetEur > 0) {
         para(
           `${model.labels.dailyBudget}: €${Math.round(d.dailyBudgetEur)} ${model.labels.dailyBudgetPerPerson}`,
           8.5,
           MUTED,
           2,
         );
-      }
-      if (d.transportTips) {
-        para(`${model.labels.transport}: ${d.transportTips}`, 8.5, MUTED, 2);
       }
 
       y += 16;

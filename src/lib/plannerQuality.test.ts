@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  HARD_DRIVE_KM,
+  LAST_DAY_HOME_MAX_HOURS,
   TARGET_DRIVE_HOURS,
   annotateHitAndRunStays,
   borderPenaltyHours,
@@ -36,11 +38,13 @@ describe("plannerQualityPromptBlock", () => {
     const road = plannerQualityPromptBlock({ road: true, totalDays: 12 });
     expect(road).toMatch(/vse destinacije/i);
     expect(road).not.toMatch(/Balkans product/i);
-    expect(road).toContain(String(TARGET_DRIVE_HOURS));
+    expect(road).toContain(String(HARD_DRIVE_KM));
+    expect(road).toContain(String(LAST_DAY_HOME_MAX_HOURS));
+    expect(road).toMatch(/krog|tranzitne baze/i);
     expect(road).toMatch(/US–MX|TH–KH/);
     expect(road).toMatch(/PREPOVEDANO izmišljati imena hotelov/);
     expect(road).toMatch(/2 noči/);
-    expect(road).toMatch(/8–12 h|day\.city = izhodišče/i);
+    expect(road).toMatch(/8–16 h|1500–2200|day\.city = izhodišče/i);
     expect(road).toMatch(/Uživajte/);
   });
 
@@ -48,6 +52,16 @@ describe("plannerQualityPromptBlock", () => {
     const air = plannerQualityPromptBlock({ road: false, totalDays: 16 });
     expect(air).toMatch(/NE velja za mednarodni let/);
     expect(air).toMatch(/zadnji dan/i);
+  });
+
+  it("locks night counts when the user spelled a stay plan", () => {
+    const locked = plannerQualityPromptBlock({
+      road: false,
+      totalDays: 16,
+      lockUserStayPlan: true,
+    });
+    expect(locked).toMatch(/ZAKLENJEN/);
+    expect(locked).not.toMatch(/ukrade noč sosedu z 3\+/);
   });
 });
 

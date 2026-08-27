@@ -31,7 +31,7 @@ const poiSchema = z.object({
   lng: wgsLng,
   /** Clean English Unsplash search term, e.g. "Burj Khalifa" not "Burj Kalifa". */
   unsplashQuery: z.string().min(1),
-  tripAdvisorStyleDetails: tripAdvisorStyleDetailsSchema,
+  tripAdvisorStyleDetails: tripAdvisorStyleDetailsSchema.optional(),
 });
 
 const DAY_TIME_SLOTS = ["dopoldan", "popoldan", "vecer"] as const;
@@ -116,8 +116,10 @@ const daySchema = z.object({
   drivingDurationHours: z.string().min(1),
   /** Unique, location-specific insider tip for this day — never repeat across days. */
   travelHack: z.string().min(15).optional(),
-  /** Daily transport guide: apps, A→B tips, ferries, local warnings for this day. */
+  /** Daily transport guide: apps, A→B tips, ferries for this day. */
   transportTip: z.string().min(20).optional(),
+  /** Local tips & safety for this day's city (water, food, scams, etiquette). */
+  local_tips: z.string().optional(),
   /** Internal flights, ferries, trains for this day — shown as premium transport cards. */
   transportation: z.array(transportLegSchema).optional(),
   activities: z.array(activitySchema),
@@ -266,16 +268,17 @@ export const tripPlanGeminiSchema = z.object({
         z.object({
           day_number: z.number().int().min(1),
           date: z.string().optional(),
-          title: z.string().optional(),
-          city: z.string().min(1).optional(),
+          title: z.string().min(1),
+          city: z.string().min(1),
           transportTip: z.string().optional(),
+          local_tips: z.string().min(1),
           dailyBudget: z.number().min(0).optional(),
-          daily_budget_per_person_eur: z.number().min(0).optional(),
+          daily_budget_per_person_eur: z.number().min(1),
           transfer: transferSchema.optional(),
           activities: z.object({
-            morning: geminiSlotSchema.optional(),
-            afternoon: geminiSlotSchema.optional(),
-            evening: geminiSlotSchema.optional(),
+            morning: geminiSlotSchema,
+            afternoon: geminiSlotSchema,
+            evening: geminiSlotSchema,
           }),
         }),
       ),
@@ -297,6 +300,9 @@ export const tripPlanGeminiSchema = z.object({
         name: z.string().optional(),
         city: z.string().min(1),
         nights: z.number().min(0).optional(),
+        from_date: z.string().optional(),
+        to_date: z.string().optional(),
+        note: z.string().optional(),
       }),
     )
     .optional(),
@@ -464,21 +470,7 @@ function inferDurationLabel(arrivalTime?: string, departureTime?: string): strin
   return "1h";
 }
 
-function defaultTripAdvisorDetails(name: string) {
-  return {
-    highlights: [`${name}`, "Local atmosphere"],
-    proTip: "Go early to avoid crowds and heat.",
-    bestTimeOfDay: "Morning",
-    rating: 4.5,
-    reviewSummary:
-      "Visitors enjoy this stop for its character, photos, and nearby food options.",
-  };
-}
-
-/**
- * Repair common Gemini omissions so schema validation succeeds.
- * Missing transport_type/duration and empty phase pois[] are the top failure modes.
- */
+/** Lift/flatten Gemini JSON so schema parse succeeds. Does not invent days or POIs. */
 export function coerceTripPlanPayload(raw: unknown): unknown {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return raw;
   const plan = liftFlatItineraryToItinerar(structuredClone(raw)) as Record<string, unknown>;
@@ -501,7 +493,6 @@ export function coerceTripPlanPayload(raw: unknown): unknown {
       if (!day || typeof day !== "object") continue;
       const d = day as Record<string, unknown>;
       const activities = Array.isArray(d.activities) ? d.activities : [];
-      let hasTransport = false;
 
       for (const act of activities) {
         if (!act || typeof act !== "object") continue;
@@ -511,7 +502,6 @@ export function coerceTripPlanPayload(raw: unknown): unknown {
         const title = typeof a.title === "string" ? a.title : "";
         const category = typeof a.category === "string" ? a.category : undefined;
         if (!isTransportishTitle(title, category)) continue;
-        hasTransport = true;
         if (!a.transport_type) a.transport_type = inferTransportType(title, category);
         if (typeof a.duration !== "string" || !a.duration.trim()) {
           a.duration = inferDurationLabel(
@@ -520,77 +510,22 @@ export function coerceTripPlanPayload(raw: unknown): unknown {
           );
         }
       }
-
-      if (hasTransport && (!Array.isArray(d.transportation) || d.transportation.length === 0)) {
-        d.transportation = activities
-          .filter((act) => {
-            if (!act || typeof act !== "object") return false;
-            const a = act as Record<string, unknown>;
-            const title = typeof a.title === "string" ? a.title : "";
-            const category = typeof a.category === "string" ? a.category : undefined;
-            return isTransportishTitle(title, category);
-          })
-          .map((act) => {
-            const a = act as Record<string, unknown>;
-            const title = String(a.title ?? "Transfer");
-            const arrow = title.split(/\s*[→\-–]\s*/);
-            const type = (a.transport_type as string) || inferTransportType(title, String(a.category ?? ""));
-            const legType =
-              type === "bus" || type === "taxi"
-                ? "van"
-                : type === "car" || type === "drive" || type === "driving" || type === "auto"
-                  ? "car"
-                  : type === "flight" || type === "ferry" || type === "train" || type === "van"
-                    ? type
-                    : "van";
-            return {
-              type: legType,
-              from: arrow[0]?.trim() || city,
-              to: arrow[1]?.trim() || city,
-              duration: String(a.duration ?? "1h"),
-              estimatedPrice: typeof a.estimatedCostEur === "number" ? a.estimatedCostEur : 0,
-            };
-          });
-      }
     }
 
-    const pois = Array.isArray(p.pois) ? p.pois : [];
-    if (pois.length === 0) {
-      const fromActivity = days
-        .flatMap((day) => {
-          if (!day || typeof day !== "object") return [];
-          const acts = (day as { activities?: unknown[] }).activities;
-          return Array.isArray(acts) ? acts : [];
-        })
-        .find((act) => {
-          if (!act || typeof act !== "object") return false;
-          const a = act as Record<string, unknown>;
-          const title = String(a.title ?? "");
-          return (
-            a.category === "sightseeing" ||
-            (a.coordinates && !isTransportishTitle(title, String(a.category ?? "")))
-          );
-        }) as Record<string, unknown> | undefined;
-
-      const coords = (fromActivity?.coordinates as { lat?: number; lng?: number } | undefined) ?? {};
-      const name =
-        (typeof fromActivity?.title === "string" && fromActivity.title.trim()) || city;
-      p.pois = [
-        {
-          name,
-          description:
-            (typeof fromActivity?.description === "string" && fromActivity.description) ||
-            `Key stop in ${city}.`,
-          lat: typeof coords.lat === "number" ? coords.lat : lat,
-          lng: typeof coords.lng === "number" ? coords.lng : lng,
-          unsplashQuery: name,
-          tripAdvisorStyleDetails: defaultTripAdvisorDetails(name),
-        },
-      ];
-    }
+    if (!Array.isArray(p.pois)) p.pois = [];
   }
 
   if (!Array.isArray(plan.hotels)) plan.hotels = [];
+  if (Array.isArray(plan.hotels)) {
+    for (const row of plan.hotels) {
+      if (!row || typeof row !== "object") continue;
+      const h = row as Record<string, unknown>;
+      const city = typeof h.city === "string" ? h.city.trim() : "";
+      const name = typeof h.name === "string" ? h.name.trim() : "";
+      if (!name && city) h.name = city;
+      if (!city && name) h.city = name;
+    }
+  }
   if (!plan.logistics_and_tips || typeof plan.logistics_and_tips !== "object") {
     plan.logistics_and_tips = {
       transport: { flights: "", ferries: "", city_transport: "" },

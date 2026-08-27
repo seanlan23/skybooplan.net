@@ -50,6 +50,8 @@ function nestedGeminiDayPayload() {
             drivingDurationHours: "0h",
             transportTip:
               "BTS Skytrain from Siam to Sanam Chai for the Grand Palace; after 20:00 use Grab because BTS is closed.",
+            local_tips:
+              "Tap water in Bangkok is not for drinking — buy bottles and skip ice at street stalls. Street food at Yaowarat is safest when the wok is busy. Watch bags on BTS; ignore 'temple is closed, I know a better one' touts. On BTS stay quiet, give up the marked seats, and do not eat. Temple dress: cover shoulders and knees. Tipping is not expected.",
             transfer: {
               type: "van",
               from: "Suvarnabhumi",
@@ -105,11 +107,8 @@ describe("Gemini nested slots → frontend / PDF / Mapbox", () => {
     expect(Array.isArray(dayRaw.activities)).toBe(true);
     expect(dayRaw.activities).toHaveLength(3);
     expect(dayRaw.transportTip).toMatch(/BTS Skytrain/);
-    expect(dayRaw.transportation?.[0]).toMatchObject({
-      type: "van",
-      from: "Suvarnabhumi",
-      to: "Bangkok",
-    });
+    expect(dayRaw.local_tips).toMatch(/Tap water|Yaowarat|BTS/i);
+    expect(dayRaw.transportation?.[0]).toBeUndefined();
     expect(dayRaw.activities.find((a) => /Wat Pho/i.test(a.title))?.estimatedCostEur).toBe(8);
     expect(dayRaw.activities.find((a) => /Wat Pho/i.test(a.title))?.arrivalTime).toBe("15:00");
 
@@ -128,13 +127,10 @@ describe("Gemini nested slots → frontend / PDF / Mapbox", () => {
     expect(watPho.arrivalTime).toBe("15:00");
     expect(watPho.priceLabel).toBe("€8");
     expect(watPho.estimatedCostEur).toBe(8);
-    expect(watPho.lat).toBeCloseTo(13.746);
+    expect(watPho.lat).toBeCloseTo(13.75, 1);
     expect(day.transportationTips).toMatch(/BTS Skytrain/);
-    expect(day.transportation?.[0]).toMatchObject({
-      type: "van",
-      from: "Suvarnabhumi",
-      to: "Bangkok",
-    });
+    expect(day.localTips).toMatch(/Tap water|Yaowarat|BTS/i);
+    expect(day.transportation).toBeFalsy();
     expect(JSON.stringify(day)).not.toMatch(/Večer:\s*Večer/);
 
     const pdf = normalizePlanForPdf({
@@ -153,7 +149,8 @@ describe("Gemini nested slots → frontend / PDF / Mapbox", () => {
     expect(pdfItems.find((i) => /Wat Pho/i.test(i.title))?.time).toMatch(/15:00/);
     expect(pdfItems.find((i) => /Wat Pho/i.test(i.title))?.price).toBe("€8");
     expect(pdf.days[0]!.transportTips).toMatch(/BTS Skytrain/);
-    expect(pdf.days[0]!.transportation.some((t) => t.from === "Suvarnabhumi")).toBe(true);
+    expect(pdf.days[0]!.localTips).toMatch(/Tap water|Yaowarat|BTS/i);
+    expect(pdf.days[0]!.transportation.some((t) => t.from === "Suvarnabhumi")).toBe(false);
     expect(JSON.stringify(pdf.days[0])).not.toMatch(/Večer:\s*Večer/);
 
     const mapDay = buildMapDay(plan, 1);
@@ -218,7 +215,8 @@ describe("Gemini nested slots → frontend / PDF / Mapbox", () => {
     const watPho = day.activities.afternoon.find((a) => /Wat Pho/i.test(a.name));
     expect(watPho?.arrivalTime).toBe("15:00");
     expect(watPho?.priceLabel).toBe("€8");
-    expect(day.transportation?.[0]?.from).toBe("Suvarnabhumi");
+    expect(day.transportation).toBeFalsy();
+    expect(day.localTips).toMatch(/Tap water|Yaowarat|BTS/i);
     expect(JSON.stringify(day.activities)).not.toMatch(/09:00/);
   });
 

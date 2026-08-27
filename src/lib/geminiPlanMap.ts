@@ -1,8 +1,4 @@
 import type { Activity, AiTripPlan, DayPlan, DayTransportLeg, ReturnFlightEu } from "@/lib/aiPlan.functions";
-import {
-  formatActivityDescription,
-  normalizeActivityBullets,
-} from "@/lib/activityDescription";
 import type {
   TripAdvisorStyleDetails,
   TripPlanResponse,
@@ -17,64 +13,29 @@ import {
   normalizeMapPoiCategory,
   resolveMapPoiCategory,
 } from "@/lib/mapPoiCategory";
-import { expandPlanDaysToExpected } from "@/lib/daySequence";
-import { activityHasRenderableBody, isDaypartSlotLabel, sanitizeActivityTitle } from "@/lib/textSanitize";
+import { activityHasRenderableBody, isDaypartSlotLabel } from "@/lib/textSanitize";
 import { parseHmClock } from "@/lib/activityTime";
-import { finalizeItineraryMapCoords } from "@/lib/itineraryMapModel";
-import { enforceTravelPace } from "@/lib/paceGuard";
-import { dropSameDayFarPois } from "@/lib/planValidation";
-import { dedupeCrossDayBoilerplate, dedupeSameDayActivities } from "@/lib/textSanitize";
 import { attachActivityCoordinates } from "@/lib/mapPoiResolver";
 import { stripMisplacedCityPois } from "@/lib/cityPoiGuard";
 import { lookupRegionCoords } from "@/lib/regionCoords";
 import { lookupPoiCoords } from "@/lib/tripGeo";
-import {
-  classifyDayBudgetKind,
-  computeTripTotalBudgetEur,
-  dayBudgetParams,
-  estimateDayBudgetEur,
-  applyMotorhomeBudgetCeil,
-  applyMotorhomeBudgetFloor,
-  normalizeMotorhomeDailyBudgetPerPerson,
-  applyHotelRestBudgetFloor,
-  applyCanadaBudgetFloor,
-  applyUsBudgetFloor,
-  applySafariBudgetFloor,
-  normalizeGeminiDailyBudgetPerPerson,
-  applyGlobalDayBudgetCeil,
-  applyValueDestinationDayBudgetCeil,
-  applyCountryDayBudgetCeil,
-  hasCountryMidDailyBudget,
-  scaleDailyBudgetsToTripCap,
-  isValueDestinationBudget,
-  sumListedActivityEur,
-} from "@/lib/tripBudget";
-import { applyRoadTollToDailyBudget } from "@/lib/roadTripCosts";
-import { resolveDayBudgetCountry } from "@/lib/countryDailyBudget";
+import { stampOvernightCitiesFromHotels } from "@/lib/overnightHotelStays";
+import { applyUserStayPlan } from "@/lib/userStayPlan";
 import { addDays } from "@/lib/dateUtils";
 import { sortActivitiesByTime } from "@/lib/dayPlanUi";
-import { enrichDayActivities } from "@/lib/dayEnrichers";
-import { applyBangkokKwaiDayTripToPlan } from "@/lib/bangkokKwaiDayTrip";
-import { reconcileWeekdayGatedActivities } from "@/lib/tripContent";
-import { resolveTripLocale } from "@/lib/tripLocale";
 import {
   detectAccommodationMode,
   detectHotelRestInterval,
-  isHotelRestDay,
 } from "@/lib/tripMode";
 import type { Lang } from "@/lib/i18n";
 import type { GroundTransportMode } from "@/lib/aiPlan.functions";
 import { repairTransportLegs } from "@/lib/transportLegRepair";
+import { isBaseTransferLeg, orientArrivalTransferLeg } from "@/lib/baseTransfer";
+import { applyRedEyeDepartureChronology } from "@/lib/redEyeDeparture";
+import { dropDayTripsToOvernightStays } from "@/lib/islandHopGuard";
 import { sanitizeReturnFlightSummary } from "@/lib/returnFlightSummary";
-import { enrichMotorhomePlanTips } from "@/lib/motorhomePlanTips";
 import { driveTypeLabel } from "@/lib/planLangCopy";
 import { normalizePlanLangCode } from "@/lib/planLanguages";
-import {
-  fixHotelCopyErrors,
-  fixMotorhomeCopyErrors,
-  sanitizeActivity,
-  sanitizeForLang,
-} from "@/lib/textSanitize";
 
 export type GeminiPlanMapOpts = {
   originIata?: string;
@@ -90,6 +51,10 @@ export type GeminiPlanMapOpts = {
   budget?: TripBudgetTier;
   pax?: number;
   pace?: "intensive" | "relaxed" | "calm";
+  inboundDepart?: string;
+  inboundArrive?: string;
+  /** Calendar day the outbound lands (1 + outboundArriveDayOffset). */
+  arrivalDay?: number;
 };
 
 function resolveIsoDayDate(raw: string, departDate: string | undefined, dayNumber: number): string {
@@ -179,6 +144,35 @@ function isDepartureLogisticsDay(day: DayPlan, totalDays: number): boolean {
 
 function isRoadGroundMode(mode?: GroundTransportMode): boolean {
   return mode === "car" || mode === "motorhome" || mode === "train";
+}
+
+function filterPlanBaseTransfers(
+  days: DayPlan[],
+  opts: { originIata?: string; destinationIata?: string },
+) {
+  for (let i = 0; i < days.length; i++) {
+    const d = days[i]!;
+    if (!d.transportation?.length) continue;
+    const next = d.transportation
+      .map((leg) =>
+        orientArrivalTransferLeg(leg, {
+          dayNumber: d.day,
+          originIata: opts.originIata,
+          destinationIata: opts.destinationIata,
+        }),
+      )
+      .filter((leg) =>
+        isBaseTransferLeg(leg, {
+          dayCity: d.city,
+          prevCity: days[i - 1]?.city,
+          dayNumber: d.day,
+          originIata: opts.originIata,
+          destinationIata: opts.destinationIata,
+          isLastDay: i === days.length - 1,
+        }),
+      );
+    d.transportation = next.length ? next : undefined;
+  }
 }
 
 function markDepartureLogisticsDay(
@@ -286,6 +280,7 @@ function resolveDayTransportation(
   previousCity: string,
   ctx: {
     dayNumber: number;
+    originIata?: string;
     destinationIata?: string;
     groundTransportMode?: GroundTransportMode;
     activities?: {
@@ -296,23 +291,35 @@ function resolveDayTransportation(
   },
 ): DayTransportLeg[] | undefined {
   const explicit = sanitizeTransportLegs(day.transportation as DayTransportLeg[] | undefined);
+  const hop = Boolean(previousCity && previousCity !== phaseCity);
   const base =
     explicit.length > 0
       ? explicit
-      : buildTransportLegsFromActivities(
-          day.activities ?? [],
-          previousCity || phaseCity,
-          phaseCity,
-        );
+      : hop
+        ? buildTransportLegsFromActivities(
+            day.activities ?? [],
+            previousCity || phaseCity,
+            phaseCity,
+          )
+        : [];
 
-  return repairTransportLegs(base.length > 0 ? base : undefined, {
+  const repaired = repairTransportLegs(base.length > 0 ? base : undefined, {
     dayNumber: ctx.dayNumber,
     city: phaseCity,
+    originIata: ctx.originIata,
     destinationIata: ctx.destinationIata,
     previousCity,
     activities: ctx.activities,
     groundTransportMode: ctx.groundTransportMode,
   });
+  if (!repaired?.length) return undefined;
+  return repaired.map((leg) =>
+    orientArrivalTransferLeg(leg, {
+      dayNumber: ctx.dayNumber,
+      originIata: ctx.originIata,
+      destinationIata: ctx.destinationIata,
+    }),
+  );
 }
 
 function toActivity(
@@ -348,12 +355,11 @@ function toActivity(
     normalizeActivityTransportType(act.transport_type) ??
     (act.category === "airport" ? "flight" : undefined);
   const transportDuration = act.duration?.trim() || undefined;
-  const bullets = normalizeActivityBullets({
-    description: act.description,
-    bullets: act.bullets,
-  });
-  const description = formatActivityDescription(bullets) || undefined;
-  const name = sanitizeActivityTitle(act.title, description || act.description);
+  const description = act.description?.trim() || undefined;
+  const name = (act.title ?? "").trim();
+  const bullets = Array.isArray(act.bullets)
+    ? act.bullets.filter((b): b is string => typeof b === "string" && b.trim().length > 0)
+    : undefined;
   const startClock = parseHmClock(act.arrivalTime) ?? parseHmClock(act.time);
   const lat = act.coordinates?.lat ?? act.lat;
   const lng = act.coordinates?.lng ?? act.lng;
@@ -361,7 +367,7 @@ function toActivity(
   return {
     name,
     description,
-    bullets: bullets.length > 0 ? bullets : undefined,
+    bullets: bullets && bullets.length > 0 ? bullets : undefined,
     arrivalTime: startClock,
     departureTime: parseHmClock(act.departureTime),
     estimatedCostEur: cost,
@@ -534,9 +540,12 @@ export function tripPlanResponseToAiTripPlan(
     const phaseLat = phase.lat;
     const phaseLng = phase.lng;
 
-    const poiGuideByName = new Map<string, TripAdvisorStyleDetails>(
-      (phase.pois ?? []).map((p) => [p.name.trim().toLowerCase(), p.tripAdvisorStyleDetails]),
-    );
+    const poiGuideByName = new Map<string, TripAdvisorStyleDetails>();
+    for (const p of phase.pois ?? []) {
+      if (p.tripAdvisorStyleDetails) {
+        poiGuideByName.set(p.name.trim().toLowerCase(), p.tripAdvisorStyleDetails);
+      }
+    }
 
     for (const day of phase.days ?? []) {
       const city = (typeof day.city === "string" && day.city.trim()) || phaseCity;
@@ -597,7 +606,7 @@ export function tripPlanResponseToAiTripPlan(
             arrivalTime: parseHmClock(a.arrivalTime) ?? parseHmClock(a.time),
             departureTime: parseHmClock(a.departureTime),
             estimatedCostEur: a.estimatedCostEur,
-            imageUrl: a.imageUrl,
+            imageUrl: (a as { imageUrl?: string }).imageUrl,
             unsplashQuery:
               a.unsplashQuery?.trim() ||
               poiUnsplashByName.get(a.title.trim().toLowerCase()),
@@ -616,7 +625,7 @@ export function tripPlanResponseToAiTripPlan(
           lng: poi.lng,
           category: "sightseeing",
           description: poi.description,
-          imageUrl: poi.imageUrl,
+          imageUrl: (poi as { imageUrl?: string }).imageUrl,
           unsplashQuery: poi.unsplashQuery?.trim(),
           tripAdvisorStyleDetails: poi.tripAdvisorStyleDetails,
         });
@@ -631,6 +640,7 @@ export function tripPlanResponseToAiTripPlan(
       const dayTransportation = resolveDayTransportation(day, city, previousCity, {
         dayNumber: day.day_number,
         destinationIata: opts?.destinationIata,
+        originIata: opts?.originIata,
         groundTransportMode: opts?.groundTransportMode,
         activities: slots.structured,
       });
@@ -660,20 +670,23 @@ export function tripPlanResponseToAiTripPlan(
         if (seenTransportTips.has(norm)) transportationTips = "";
         else seenTransportTips.add(norm);
       }
+      const localTipsRaw = (
+        day.local_tips ||
+        (day as { localTips?: string }).localTips ||
+        ""
+      ).trim();
+      const localTips = localTipsRaw;
       const planLangEarly = normalizePlanLangCode(opts?.language ?? "sl");
+      const visaCopy: Record<string, string> = {
+        sl: "Preveri vizne zahteve pred odhodom.",
+        de: "Vor der Abreise Visabestimmungen prüfen.",
+        it: "Verifica i requisiti del visto prima della partenza.",
+        fr: "Vérifiez les exigences de visa avant le départ.",
+        es: "Comprueba los requisitos de visado antes de salir.",
+      };
       const localWarnings =
         isFirstDay && meta?.visa_required
-          ? planLangEarly === "sl"
-            ? "Preveri vizne zahteve pred odhodom."
-            : planLangEarly === "de"
-              ? "Vor der Abreise Visabestimmungen prüfen."
-              : planLangEarly === "it"
-                ? "Verifica i requisiti del visto prima della partenza."
-                : planLangEarly === "fr"
-                  ? "Vérifiez les exigences de visa avant le départ."
-                  : planLangEarly === "es"
-                    ? "Comprueba los requisitos de visado antes de salir."
-                    : "Check visa requirements before departure."
+          ? (visaCopy[planLangEarly] ?? "Check visa requirements before departure.")
           : "";
 
       const landCenter =
@@ -692,7 +705,15 @@ export function tripPlanResponseToAiTripPlan(
             travelHack,
             transportationTips,
             localWarnings,
-            dailyBudgetEur: day.dailyBudget ?? 0,
+            localTips,
+            dailyBudgetEur:
+              (typeof day.daily_budget_per_person_eur === "number" &&
+              Number.isFinite(day.daily_budget_per_person_eur)
+                ? day.daily_budget_per_person_eur
+                : undefined) ??
+              (typeof day.dailyBudget === "number" && Number.isFinite(day.dailyBudget)
+                ? day.dailyBudget
+                : 0),
             drivingDistanceKm: day.drivingDistanceKm,
             drivingDurationHours: day.drivingDurationHours,
             transport:
@@ -721,6 +742,43 @@ export function tripPlanResponseToAiTripPlan(
   const uniqueDays = dedupePlanDaysByNumber(days);
   days.length = 0;
   days.push(...uniqueDays);
+
+  const hotels = (data.hotels ?? [])
+    .map((h) => {
+      const city = (h.city || h.name || "").trim();
+      if (!city) return null;
+      return {
+        city,
+        name: h.name?.trim() || undefined,
+        nights: typeof h.nights === "number" ? h.nights : undefined,
+        from_date: h.from_date,
+        to_date: h.to_date,
+        note: h.note,
+      };
+    })
+    .filter((h): h is NonNullable<typeof h> => Boolean(h));
+  stampOvernightCitiesFromHotels(days, hotels);
+
+  const stayPlan = {
+    days,
+    hotels,
+    wishes: opts?.wishesText,
+  };
+  if (applyUserStayPlan(stayPlan, { arrivalDay: opts?.arrivalDay })) {
+    hotels.length = 0;
+    hotels.push(...(stayPlan.hotels ?? []));
+  }
+
+  applyRedEyeDepartureChronology(days, {
+    inboundDepart: opts?.inboundDepart,
+    inboundArrive: opts?.inboundArrive,
+    language: opts?.language ?? "sl",
+    skip: Boolean(opts?.groundTransportMode),
+  });
+  filterPlanBaseTransfers(days, {
+    originIata: opts?.originIata,
+    destinationIata: opts?.destinationIata,
+  });
 
   const totalDays = planCalendarDayCount(days);
   for (const day of days) {
@@ -780,7 +838,7 @@ export function tripPlanResponseToAiTripPlan(
   const weatherWidget = normalizeWeatherWidget(data.weatherWidget, data.weatherSummary);
   const safetyWarning = normalizeSafetyWarning(data.safetyWarning);
 
-  return {
+  const plan: AiTripPlan = {
     destinationName: meta?.destination ?? "Potovanje",
     summary: rawSummary,
     contentLanguage: normalizePlanLangCode(lang),
@@ -800,7 +858,11 @@ export function tripPlanResponseToAiTripPlan(
     returnFlightEu,
     travelRequirements: mapTravelRequirementsFromJson(data.travel_requirements),
     travelPace: opts?.pace,
+    hotels: hotels.length > 0 ? hotels : undefined,
+    wishes: opts?.wishesText?.trim() || undefined,
   };
+  dropDayTripsToOvernightStays(plan, lang);
+  return plan;
 }
 
 function extractReturnFlightFromLastDay(
@@ -832,381 +894,6 @@ function extractReturnFlightFromLastDay(
     }
   }
   return undefined;
-}
-
-export function enrichGeminiCatalogPlan(
-  plan: AiTripPlan,
-  opts: {
-    budget: TripBudgetTier;
-    pax: number;
-    wishesText?: string;
-    language?: string;
-    departDate?: string;
-    returnDate?: string;
-    /** When set, pad/expand days[] to full trip length (motorhome often under-emits). */
-    expectedDays?: number;
-    pace?: "intensive" | "relaxed" | "calm";
-  },
-): void {
-  const tier = opts.budget === "budget" ? "budget" : opts.budget === "premium" ? "premium" : "mid";
-  plan.days = dedupePlanDaysByNumber(plan.days);
-  if (opts.pace) plan.travelPace = opts.pace;
-  const expectedDays =
-    opts.expectedDays && opts.expectedDays > 0
-      ? opts.expectedDays
-      : planCalendarDayCount(plan.days);
-  // Lock plan language once: tips, enrichers, and sanitize must all match contentLanguage
-  // (never a divergent UI locale mid-finalize).
-  const planLang = normalizePlanLangCode(plan.contentLanguage ?? opts.language ?? "sl");
-  plan.contentLanguage = planLang;
-
-  expandPlanDaysToExpected(plan, {
-    expectedDays,
-    language: planLang,
-    departDate: opts.departDate,
-  });
-  const totalDays = planCalendarDayCount(plan.days);
-  const travelers = Math.max(1, opts.pax);
-  const wishesText = opts.wishesText ?? "";
-
-  if (plan.groundTransportMode === "car") {
-    plan.accommodationMode = "hotel";
-    delete plan.hotelRestEveryNDays;
-  } else if (!plan.accommodationMode) {
-    plan.accommodationMode = detectAccommodationMode(wishesText);
-  }
-  if (plan.accommodationMode === "motorhome" && !plan.hotelRestEveryNDays) {
-    plan.hotelRestEveryNDays = detectHotelRestInterval(wishesText) ?? undefined;
-  }
-
-  // Car / motorhome: never keep FLIGHT badges on road day-trips (Gemini often mislabels drives).
-  if (plan.groundTransportMode === "car" || plan.groundTransportMode === "motorhome") {
-    for (const day of plan.days) {
-      if (day.transportation?.length) {
-        day.transportation = day.transportation.map((leg) =>
-          leg.type === "flight" ? { ...leg, type: "car" as const } : leg,
-        );
-      }
-      if (day.activities) {
-        for (const slot of ["morning", "afternoon", "evening"] as const) {
-          day.activities[slot] = day.activities[slot].map((a) =>
-            a.transportType === "flight"
-              ? { ...a, transportType: undefined }
-              : a,
-          );
-        }
-      }
-    }
-  }
-
-  const motorhome =
-    plan.groundTransportMode !== "car" &&
-    (plan.accommodationMode === "motorhome" ||
-      plan.groundTransportMode === "motorhome");
-  if (motorhome && plan.accommodationMode !== "motorhome") {
-    plan.accommodationMode = "motorhome";
-  }
-  const hotelRestInterval = plan.hotelRestEveryNDays;
-  const locale = resolveTripLocale(
-    plan.destinationIata ?? "",
-    plan.destinationName,
-    planLang,
-  );
-  const valueDest = isValueDestinationBudget(
-    locale.country,
-    `${plan.destinationName ?? ""} ${plan.destinationIata ?? ""}`,
-  );
-  const mealsFullDay = valueDest
-    ? tier === "premium"
-      ? 40
-      : tier === "mid"
-        ? 28
-        : 18
-    : tier === "premium"
-      ? 68
-      : tier === "mid"
-        ? 45
-        : 28;
-  const usedEveningVenues = new Set<string>();
-  const cityDayIndex = new Map<string, number>();
-  let priorScheduledText = "";
-
-  for (let i = 0; i < plan.days.length; i++) {
-    // Snap Gemini day centers onto curated land coords (avoids lake/jungle centroids).
-    const raw = plan.days[i]!;
-    const land =
-      lookupRegionCoords(raw.city ?? "") ??
-      lookupPoiCoords(raw.city ?? "") ??
-      lookupPoiCoords(raw.focusName ?? "");
-    if (land) {
-      plan.days[i] = { ...raw, lat: land.lat, lng: land.lng };
-    }
-
-    const day = plan.days[i]!;
-    const isArrival = day.day === 1;
-    const isDeparture = isDepartureLogisticsDay(day, totalDays);
-
-    if (day.activities && day.city && !isDeparture && !day.inFlightDay) {
-      const city = day.city;
-      const dayInRegion = (cityDayIndex.get(city) ?? 0) + 1;
-      cityDayIndex.set(city, dayInRegion);
-      const bangkokStayDays = plan.days.filter(
-        (d) => /bangkok/i.test(d.city ?? "") && !d.inFlightDay,
-      ).length;
-
-      const dayLabelText = [day.title, day.focusName, day.category]
-        .filter(Boolean)
-        .join(" ");
-      const prevCity = i > 0 ? (plan.days[i - 1]?.city ?? "").trim() : "";
-      const travelBlob = `${JSON.stringify(day.activities ?? {})} ${JSON.stringify(day.transportation ?? [])}`;
-      const inboundTravelDay =
-        Boolean(prevCity && prevCity.toLowerCase() !== city.trim().toLowerCase()) &&
-        /let |flight|trajekt|ferry|prevoz|transfer|kombi|van/i.test(travelBlob);
-      let enriched = enrichDayActivities(
-        {
-          morning: [...day.activities.morning],
-          afternoon: [...day.activities.afternoon],
-          evening: [...day.activities.evening],
-        },
-        city,
-        dayInRegion,
-        locale,
-        {
-          destinationIata: plan.destinationIata,
-          isTripDay1: isArrival,
-          isArrivalDay: isArrival,
-          isDepartureDay: isDeparture,
-          bangkokStayDays,
-          usedEveningVenues,
-          tripDate: day.date,
-          priorScheduledText,
-          motorhome,
-          paceLabel: plan.travelPace,
-          dayLabelText,
-          inboundTravelDay,
-        },
-      );
-      // Chatuchak / weekend markets — same gate as skeleton path.
-      enriched = reconcileWeekdayGatedActivities(
-        enriched,
-        opts.departDate,
-        day.day,
-        locale.langCode,
-      );
-      syncDayActivitySlots(day, enriched);
-      priorScheduledText += [
-        ...enriched.morning,
-        ...enriched.afternoon,
-        ...enriched.evening,
-      ]
-        .map((a) => `${a.name} ${a.description ?? ""}`)
-        .join(" ");
-    }
-
-    // After enrichers: drop Bangkok temples that Gemini (or pools) put on wrong cities.
-    plan.days[i] = attachActivityCoordinates(stripMisplacedCityPois(plan.days[i]!));
-    const finalDay = plan.days[i]!;
-
-    if (isDeparture) {
-      markDepartureLogisticsDay(finalDay, totalDays, plan.groundTransportMode);
-    }
-
-    const kind = classifyDayBudgetKind(finalDay.activities, {
-      isArrival,
-      isDeparture,
-      regionCity: finalDay.city,
-    });
-
-    let daily = estimateDayBudgetEur(
-      finalDay.activities,
-      undefined,
-      { ...dayBudgetParams(tier, kind, true, mealsFullDay), pax: travelers },
-    );
-
-    if (finalDay.dailyBudgetEur > 0) {
-      daily = motorhome
-        ? normalizeMotorhomeDailyBudgetPerPerson(
-            finalDay.dailyBudgetEur,
-            daily,
-            travelers,
-          )
-        : normalizeGeminiDailyBudgetPerPerson(
-            finalDay.dailyBudgetEur,
-            daily,
-            sumListedActivityEur(finalDay.activities),
-            travelers,
-          );
-    }
-
-    daily = applyUsBudgetFloor(
-      applyCanadaBudgetFloor(
-        applySafariBudgetFloor(daily, kind, finalDay.activities, { tier }),
-        kind,
-        finalDay.activities,
-        finalDay.city ?? "",
-        locale.country,
-      ),
-      kind,
-      finalDay.activities,
-      finalDay.city ?? "",
-      locale.country,
-    );
-
-    if (motorhome) {
-      daily = applyMotorhomeBudgetFloor(daily, kind, travelers);
-      if (
-        hotelRestInterval &&
-        isHotelRestDay(finalDay.day, hotelRestInterval, { totalDays })
-      ) {
-        daily = applyHotelRestBudgetFloor(daily, true, travelers);
-      }
-      daily = applyMotorhomeBudgetCeil(daily, kind);
-      // Country/value still win — AL motorhome must not sit at €100/pp.
-      const mhCountry = resolveDayBudgetCountry({
-        dayCity: finalDay.city,
-        destinationCountry: locale.country,
-        destinationName: plan.destinationName,
-        destinationIata: plan.destinationIata,
-      });
-      const mhPlace = {
-        country: mhCountry,
-        city: `${finalDay.city ?? ""} ${plan.destinationName ?? ""} ${plan.destinationIata ?? ""}`,
-      };
-      if (hasCountryMidDailyBudget(mhCountry)) {
-        daily = applyCountryDayBudgetCeil(daily, kind, tier, mhPlace);
-      }
-      daily = applyValueDestinationDayBudgetCeil(daily, kind, tier, mhPlace);
-    } else {
-      const dayCountry = resolveDayBudgetCountry({
-        dayCity: finalDay.city,
-        destinationCountry: locale.country,
-        destinationName: plan.destinationName,
-        destinationIata: plan.destinationIata,
-      });
-      const budgetPlace = {
-        country: dayCountry,
-        city: `${finalDay.city ?? ""} ${plan.destinationName ?? ""} ${plan.destinationIata ?? ""}`,
-      };
-      // Industry country mid (AL €50, HR €100, IT €130…) — prefer day-city country on road trips.
-      if (hasCountryMidDailyBudget(dayCountry)) {
-        daily = applyCountryDayBudgetCeil(daily, kind, tier, budgetPlace);
-      } else {
-        daily = applyGlobalDayBudgetCeil(daily, kind, tier);
-      }
-      // Value band still clips SE Asia / Balkans when Gemini invents WE prices.
-      daily = applyValueDestinationDayBudgetCeil(daily, kind, tier, budgetPlace);
-    }
-
-    // Cestnine/vinjete: after ceils so IT/FR highway days keep real toll share.
-    // Value destinations (AL/TH/…): fold tolls into the country envelope — never €100+ on Berat.
-    const roadMode =
-      motorhome ? "motorhome" : plan.groundTransportMode === "car" ? "car" : null;
-    if (roadMode) {
-      const tollCountry = resolveDayBudgetCountry({
-        dayCity: finalDay.city,
-        destinationCountry: locale.country,
-        destinationName: plan.destinationName,
-        destinationIata: plan.destinationIata,
-      });
-      const tollPlace = {
-        country: tollCountry,
-        city: `${finalDay.city ?? ""} ${plan.destinationName ?? ""} ${plan.destinationIata ?? ""}`,
-      };
-      daily = applyRoadTollToDailyBudget(daily, {
-        drivingDistanceKm: finalDay.drivingDistanceKm,
-        country: tollCountry,
-        pax: travelers,
-        mode: roadMode,
-      });
-      if (isValueDestinationBudget(tollCountry, tollPlace.city)) {
-        if (hasCountryMidDailyBudget(tollCountry)) {
-          daily = applyCountryDayBudgetCeil(daily, kind, tier, tollPlace);
-        }
-        daily = applyValueDestinationDayBudgetCeil(daily, kind, tier, tollPlace);
-      }
-    }
-
-    finalDay.dailyBudgetEur = daily;
-
-    // Force activity/title language (Gemini often leaks English into SL/DE plans).
-    const city = finalDay.city ?? "";
-    const lodgingFix = (s: string) =>
-      motorhome ? fixMotorhomeCopyErrors(s, city) : fixHotelCopyErrors(s);
-    finalDay.title = lodgingFix(
-      sanitizeForLang(finalDay.title ?? "", planLang, locale.country),
-    );
-    if (finalDay.travelHack?.trim()) {
-      finalDay.travelHack = lodgingFix(
-        sanitizeForLang(finalDay.travelHack, planLang, locale.country),
-      );
-    }
-    if (finalDay.transportationTips?.trim()) {
-      finalDay.transportationTips = lodgingFix(
-        sanitizeForLang(finalDay.transportationTips, planLang, locale.country),
-      );
-    }
-    if (finalDay.localWarnings?.trim()) {
-      finalDay.localWarnings = lodgingFix(
-        sanitizeForLang(finalDay.localWarnings, planLang, locale.country),
-      );
-    }
-    if (finalDay.activities) {
-      finalDay.activities = {
-        morning: finalDay.activities.morning.map((a) => {
-          const clean = sanitizeActivity(a, planLang, locale.country, city);
-          return {
-            ...clean,
-            name: lodgingFix(clean.name),
-            description: lodgingFix(clean.description ?? ""),
-          };
-        }),
-        afternoon: finalDay.activities.afternoon.map((a) => {
-          const clean = sanitizeActivity(a, planLang, locale.country, city);
-          return {
-            ...clean,
-            name: lodgingFix(clean.name),
-            description: lodgingFix(clean.description ?? ""),
-          };
-        }),
-        evening: finalDay.activities.evening.map((a) => {
-          const clean = sanitizeActivity(a, planLang, locale.country, city);
-          return {
-            ...clean,
-            name: lodgingFix(clean.name),
-            description: lodgingFix(clean.description ?? ""),
-          };
-        }),
-      };
-    }
-  }
-
-  // Bangkok full-day Kwai loop: overwrite mixed Gemini days, clear bogus 14h/300km drive card.
-  plan.days = applyBangkokKwaiDayTripToPlan(plan.days, locale).map((d) =>
-    attachActivityCoordinates(d),
-  );
-
-  // Trim only above industry mid × days (+12%); pass country so long IT trips aren't crushed.
-  scaleDailyBudgetsToTripCap(plan.days, tier, {
-    country: resolveDayBudgetCountry({
-      destinationCountry: locale.country,
-      destinationName: plan.destinationName,
-      destinationIata: plan.destinationIata,
-    }),
-  });
-  plan.totalBudgetEur = computeTripTotalBudgetEur(plan.days, travelers);
-  dedupeCrossDayBoilerplate(plan);
-  dedupeSameDayActivities(plan);
-  // Final pace trim after enrichers (calm/relaxed caps). Intensive / missing pace = no-op.
-  enforceTravelPace(plan, {
-    pace: plan.travelPace ?? opts.pace,
-    arrivalDay: 1,
-  });
-  dropSameDayFarPois(plan);
-  if (motorhome) {
-    enrichMotorhomePlanTips(plan, planLang);
-  }
-  // One map-coord pass: city centroids win; runway AI dumps stripped from sightseeing days.
-  finalizeItineraryMapCoords(plan);
 }
 
 export function isCatalogTripPlan(value: unknown): value is AiTripPlan {

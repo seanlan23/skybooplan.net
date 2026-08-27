@@ -5,6 +5,7 @@ import {
   enrichGroundTransportPlan,
   groundTransportPromptBlock,
   lastDayReturnPromptBlock,
+  ownVehicleRoundtripRulesPrompt,
 } from "@/lib/groundTransport";
 
 describe("lastDayReturnPromptBlock", () => {
@@ -14,9 +15,10 @@ describe("lastDayReturnPromptBlock", () => {
       returnFromIata: "YYZ",
     });
     expect(block).toMatch(/STROGI JSON/);
-    expect(block).toMatch(/BREZ HH:MM|PREPOVEDANO.*airport/i);
+    expect(block).toMatch(/IZBRANI LET/);
     expect(block).toMatch(/MUST ALWAYS be the departure day/);
     expect(block).toMatch(/international return flight home/);
+    expect(block).not.toMatch(/CESTNI KROG|1500–2200/);
     expect(block).not.toMatch(/Obvezno: aktivnost category airport z natančno uro/);
   });
 });
@@ -101,6 +103,9 @@ describe("car road trip hotels", () => {
     expect(block).toMatch(/hotel/i);
     expect(block).toMatch(/PREPOVEDANO[\s\S]*kamp/i);
     expect(block).not.toMatch(/Za avtodom: kampiri/);
+    expect(block).toMatch(/500–700 km|1500–2200/);
+    expect(block).toMatch(/logičen krog|tranzitne baze/);
+    expect(block).toMatch(/≤5 h|zadnja zmerna etapa/);
   });
 
   it("car return forbids origin-country hotels and fake short drives", () => {
@@ -113,6 +118,9 @@ describe("car road trip hotels", () => {
     });
     expect(last).toMatch(/spanje je doma/i);
     expect(last).toMatch(/day\.city MORA biti "Maribor, SI"/);
+    expect(last).toMatch(/zadnja zmerna etapa|1500–2200/);
+    expect(ownVehicleRoundtripRulesPrompt()).toMatch(/CESTNI KROG/);
+    expect(ownVehicleRoundtripRulesPrompt()).toMatch(/1500–2200/);
   });
 
   it("Albania car trip gets coast/border/Plitvice/Graz rules (not only multi-country Balkan)", () => {
@@ -142,5 +150,6 @@ describe("car road trip hotels", () => {
   it("motorhome prompt still asks for camps", () => {
     const block = groundTransportPromptBlock("motorhome", "Ljubljana", "Barcelona");
     expect(block).toMatch(/kampiri\/RV/);
+    expect(block).toMatch(/CESTNI KROG|1500–2200/);
   });
 });

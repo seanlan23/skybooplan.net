@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { FULL_PLAN_SYSTEM, SKELETON_SYSTEM } from "@/lib/aiPlan.prompts";
+import { SKELETON_SYSTEM } from "@/lib/aiPlan.prompts";
 import {
   buildArrivalLogistics,
   buildDepartureLogistics,
@@ -22,14 +22,15 @@ import {
   type LogisticsActivity,
   type TripFlightContext,
 } from "@/lib/flightScheduling";
+import { distributeDaytimeReturnActivities } from "@/lib/redEyeDeparture";
+import { sortDayActivitiesByClock } from "@/lib/activityTime";
 import { enrichDayActivities } from "@/lib/dayEnrichers";
 import {
   applyBangkokKwaiDayTripToPlan,
   bangkokKwaiDayTripTitle,
   slotsLookLikeKwaiDayTrip,
 } from "@/lib/bangkokKwaiDayTrip";
-import { applyItineraryGuards } from "@/lib/itineraryGuards";
-import { hasExplicitStayPlan } from "@/lib/userStayPlan";
+import { hasExplicitStayPlan, parseStayPlanFromWishes, staySegmentsToDayPlan } from "@/lib/userStayPlan";
 import {
   applyCanadaBudgetFloor,
   applyCountryDayBudgetCeil,
@@ -337,6 +338,8 @@ export type DayPlan = {
   travelHack: string;
   transportationTips: string;
   localWarnings: string;
+  /** Per-day local tips & safety (water, food, scams, etiquette) — yellow UI/PDF block. */
+  localTips?: string;
   dailyBudgetEur: number;
   /** Driving distance for the day (km) — from Gemini or Mapbox. */
   drivingDistanceKm?: number;
@@ -434,6 +437,17 @@ export type AiTripPlan = {
   groundJourney?: GroundJourney;
   /** User travel pace — used by final pace guard after enrichers. */
   travelPace?: "intensive" | "relaxed" | "calm";
+  /** Consecutive overnight bases (city + nights) — PDF NAMESTITVE. */
+  hotels?: Array<{
+    city: string;
+    name?: string;
+    nights?: number;
+    from_date?: string;
+    to_date?: string;
+    note?: string;
+  }>;
+  /** Free-text wishes — used to lock an explicit city/night stay plan. */
+  wishes?: string;
 };
 
 /** Phase A — city/region blocks shown in ~30s before day-by-day expansion. */
@@ -918,7 +932,16 @@ function resolveRegionBlueprint(
   wishes?: string,
   priorities?: string[],
   returnFromIata?: string,
+  arrivalDay?: number,
 ): RegionBlueprintBlock[] | undefined {
+  if (hasExplicitStayPlan(wishes)) {
+    const segs = staySegmentsToDayPlan(parseStayPlanFromWishes(wishes ?? ""), nDays, {
+      arrivalDay,
+    });
+    if (segs.length >= 2) {
+      return segs.map((s) => ({ city: s.city, startDay: s.startDay, endDay: s.endDay }));
+    }
+  }
   const tripIntent = extractTripIntent(wishes, {
     destinationIata,
     returnFromIata,
@@ -1649,6 +1672,7 @@ function normalizeDay(dayRaw: unknown, fallbackDay: number, departDate: string):
     travelHack: sanitizeOutdatedText(textValue(raw.travelHack)),
     transportationTips: sanitizeOutdatedText(textValue(raw.transportationTips)),
     localWarnings: sanitizeOutdatedText(textValue(raw.localWarnings)),
+    localTips: sanitizeOutdatedText(textValue(raw.localTips, textValue(raw.local_tips))),
     dailyBudgetEur: numberValue(raw.dailyBudgetEur, 0),
     lat: numberValue(raw.lat, 0),
     lng: numberValue(raw.lng, 0),
@@ -1735,306 +1759,24 @@ function parseJson<T>(raw: string): T | null {
 export const generateAiPlan = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => Input.parse(data))
   .handler(async ({ data }): Promise<GenerateAiPlanResult> => {
-    const IS_DEV = process.env.NODE_ENV !== "production";
-    const debugTrace: string[] = [];
-    const trace = (msg: string) => {
-      console.log(`[AiPlan] ${msg}`);
-      if (IS_DEV) debugTrace.push(msg);
-    };
-    const withDebug = (result: GenerateAiPlanResult): GenerateAiPlanResult =>
-      IS_DEV && debugTrace.length ? { ...result, debug: [...debugTrace] } : result;
-
-    if (!process.env.GEMINI_API_KEY) {
-      return withDebug({ plan: null, error: "GEMINI_API_KEY ni nastavljen" });
-    }
-
-    const nDays = daysBetween(data.departDate, data.returnDate || undefined);
-    const langCode = normalizePlanLangCode(data.language);
-    const displayCurrency = normalizePlanCurrency(data.currency);
-    sanitizeDisplayCurrency = displayCurrency;
-    const lang = LANG_MAP[langCode] ?? langCode;
-    const isStays = data.mode === "stays";
-    const paceLabel =
-      data.pace === "intensive" ? "intensive" : data.pace === "calm" ? "calm" : "relaxed";
-    const regionBlueprint = resolveRegionBlueprint(
-      nDays,
-      data.destinationIata,
-      data.wishes,
-      data.priorities,
-      data.returnFromIata,
-    );
-    const destHub = lookupDestination(data.destinationIata);
-    const { tripClimate, regionClimate } = buildTripClimate({
+    const { generateItinerary } = await import("@/lib/generateItinerary");
+    const result = await generateItinerary({
+      originIata: data.originIata,
       destinationIata: data.destinationIata,
+      destinationPlace: undefined,
+      returnFromIata: data.returnFromIata,
       departDate: data.departDate,
       returnDate: data.returnDate || undefined,
-      lang: langCode,
-      priorities: data.priorities,
-      wishes: data.wishes,
-      regionCities: regionBlueprint?.map((b) => b.city),
-    });
-    const { tripHints: tripAstronomy } = buildTripAstronomy({
-      departDate: data.departDate,
-      returnDate: data.returnDate || undefined,
-      lang: langCode,
-      lat: destHub?.lat,
-      lng: destHub?.lng,
-      destinationLabel: destHub?.name ?? data.destinationIata,
-      regionCities: regionBlueprint?.map((b) => b.city),
-    });
-
-    const mid = Math.ceil(nDays / 2);
-    const batchCount =
-      nDays <= BATCH_THRESHOLD_DAYS ? 1 : 2;
-
-    trace(
-      `start ${data.originIata}→${data.destinationIata}, ${nDays} days ` +
-        `(${batchCount} LLM batch${batchCount > 1 ? "es" : ""})`,
-    );
-
-    const makeBatches = () =>
-      nDays <= BATCH_THRESHOLD_DAYS
-        ? [{ start: 1, end: nDays, handoff: undefined as BatchHandoff | undefined }]
-        : [
-            { start: 1, end: mid, handoff: undefined as BatchHandoff | undefined },
-            { start: mid + 1, end: nDays, handoff: undefined as BatchHandoff | undefined },
-          ];
-
-    const buildRoutingRepair = (
-      violations: { rule: string; message: string }[],
-      startDay = 1,
-      endDay = nDays,
-    ): RoutingRepairPayload => ({
-      violations: violations.map((v) => v.message),
-      regenerateDays: { start: startDay, end: endDay },
-    });
-
-    const buildHandoff = (
-      days: DayPlan[],
-      planMeta: Omit<AiTripPlan, "days">,
-      nextStartDay: number,
-    ): BatchHandoff => {
-      const visitedCities: string[] = [];
-      let lastCityName = "";
-      for (const d of days) {
-        if (d.city && d.city.toLowerCase() !== lastCityName.toLowerCase()) {
-          visitedCities.push(d.city);
-          lastCityName = d.city;
-        }
-      }
-      const lastDay = days[days.length - 1];
-      const spentSoFar = days.reduce((sum, d) => sum + (d.dailyBudgetEur || 0), 0);
-      return {
-        visitedCities,
-        lastCity: lastDay.city,
-        lastFocusName: lastDay.focusName,
-        remainingBudgetEur: Math.max(0, numberValue(planMeta.totalBudgetEur, 0) - spentSoFar),
-      };
-    };
-
-    const violationsOnlySecondBatch = (
-      violations: { dayNumbers: number[] }[],
-      splitDay: number,
-    ) =>
-      violations.length > 0 &&
-      violations.every((v) => v.dayNumbers.every((d) => d > splitDay));
-
-    try {
-      const { validateItinerary, ROUTING_BLOCK_RULES } = await import("./planValidation");
-      let lastBlocking: { rule: string; message: string; dayNumbers: number[] }[] = [];
-      let savedFirstBatch: {
-        meta: Omit<AiTripPlan, "days">;
-        days: DayPlan[];
-      } | null = null;
-
-      for (let attempt = 0; attempt < 2; attempt++) {
-        const batches = makeBatches();
-        const retrySecondBatchOnly: boolean =
-          attempt > 0 &&
-          savedFirstBatch !== null &&
-          batchCount > 1 &&
-          violationsOnlySecondBatch(lastBlocking, mid);
-
-        if (attempt > 0) {
-          trace(
-            retrySecondBatchOnly
-              ? `retrying batch ${mid + 1}-${nDays} only (keeping days 1-${mid})`
-              : "retrying with routing repair instructions",
-          );
-        }
-
-        let meta: Omit<AiTripPlan, "days"> | null = retrySecondBatchOnly
-          ? savedFirstBatch!.meta
-          : null;
-        const allDays: DayPlan[] = retrySecondBatchOnly ? [...savedFirstBatch!.days] : [];
-        const routingRepair =
-          attempt > 0
-            ? buildRoutingRepair(
-                lastBlocking,
-                retrySecondBatchOnly ? mid + 1 : 1,
-                nDays,
-              )
-            : undefined;
-
-        if (retrySecondBatchOnly) {
-          batches[1].handoff = buildHandoff(allDays, meta!, mid + 1);
-        }
-
-        const startBatchIdx: number = retrySecondBatchOnly ? 1 : 0;
-
-        for (let i = startBatchIdx; i < batches.length; i++) {
-          const batch = batches[i]!;
-          const userMessage = buildTripUserMessage({
-            originIata: data.originIata,
-            destinationIata: data.destinationIata,
-            departDate: data.departDate,
-            returnDate: data.returnDate || undefined,
-            nDays,
-            startDay: batch.start,
-            endDay: batch.end,
-            pax: data.pax,
-            langCode,
-            displayCurrency,
-            paceLabel,
-            isStays,
-            wishes: data.wishes,
-            priorities: data.priorities,
-            customPrompt: data.customPrompt,
-            handoff: batch.handoff,
-            routingRepair:
-              routingRepair && (retrySecondBatchOnly ? i === 1 : i === 0)
-                ? routingRepair
-                : undefined,
-            flightContext: data.flightContext,
-            tripClimate,
-            regionClimate,
-            tripAstronomy,
-          });
-
-          const parsed = await geminiGenerateJson<Partial<AiTripPlan>>({
-            role: "full_plan",
-            system: FULL_PLAN_SYSTEM,
-            user: userMessage,
-            trace: (msg) => trace(`batch ${batch.start}-${batch.end}: ${msg}`),
-            label: `full plan days ${batch.start}-${batch.end}`,
-            maxTokens: 8192,
-            timeoutMs: 300_000,
-          });
-
-          if (!parsed) {
-            return withDebug({ plan: null, error: "Planer predolgo odgovarja, poskusi znova." });
-          }
-          if (!parsed?.days?.length) {
-            trace(`batch ${batch.start}-${batch.end}: parse failed — not valid JSON`);
-            return withDebug({ plan: null, error: "Plana trenutno ni mogoče ustvariti." });
-          }
-
-          if (!meta) {
-            meta = {
-              destinationName: sanitizeOutdatedText(textValue(parsed.destinationName, data.destinationIata)),
-              summary: sanitizeOutdatedText(textValue(parsed.summary, "")),
-              totalBudgetEur: numberValue(parsed.totalBudgetEur, 300),
-              centerLat: numberValue(parsed.centerLat, 0),
-              centerLng: numberValue(parsed.centerLng, 0),
-            };
-          }
-
-          const batchDays = parsed.days
-            .map((d, idx) => normalizeDay(d, batch.start + idx, data.departDate))
-            .filter((d) => d.day >= batch.start && d.day <= batch.end);
-
-          allDays.push(...batchDays);
-          trace(`batch ${batch.start}-${batch.end}: ${batchDays.length} days parsed`);
-
-          if (i + 1 < batches.length && batchDays.length && meta) {
-            batches[i + 1].handoff = buildHandoff(allDays, meta, batches[i + 1].start);
-          }
-
-          if (i === 0 && batches.length > 1 && batchDays.length >= mid && meta) {
-            savedFirstBatch = { meta: { ...meta }, days: [...batchDays] };
-          }
-        }
-
-        const normalizedDays = allDays
-          .sort((a, b) => a.day - b.day)
-          .filter((d, i, arr) => i === arr.findIndex((x) => x.day === d.day))
-          .slice(0, nDays);
-
-        if (normalizedDays.length < nDays) {
-          trace(`incomplete: got ${normalizedDays.length}/${nDays} days`);
-          return withDebug({ plan: null, error: "Plana trenutno ni mogoče ustvariti." });
-        }
-
-        const accommodationMode = detectAccommodationMode(data.wishes, data.customPrompt);
-        const hotelRestEveryNDays =
-          accommodationMode === "motorhome"
-            ? detectHotelRestInterval(data.wishes, data.customPrompt) ?? undefined
-            : undefined;
-
-        let plan: AiTripPlan = {
-          destinationName: meta!.destinationName,
-          summary: meta!.summary,
-          totalBudgetEur: meta!.totalBudgetEur,
-          centerLat: meta!.centerLat,
-          centerLng: meta!.centerLng,
-          days: normalizedDays,
-          originIata: data.originIata,
-          destinationIata: data.destinationIata,
-          accommodationMode,
-          hotelRestEveryNDays,
-        };
-
-        plan = await enrichCoordinates(plan, data.destinationIata, trace);
-
-        const violations = validateItinerary(plan);
-        const blocking = violations.filter((v) => ROUTING_BLOCK_RULES.has(v.rule));
-
-        if (blocking.length === 0) {
-          if (violations.length) console.warn("AI plan soft warnings:", violations);
-          // Same country/value budget ceils as the streaming catalog path (was skipped here).
-          const { enrichGeminiCatalogPlan } = await import("@/lib/geminiPlanMap");
-          enrichGeminiCatalogPlan(plan, {
-            budget: "standard",
-            pax: data.pax,
-            wishesText: [data.wishes, data.customPrompt].filter(Boolean).join("\n"),
-            language: langCode,
-            departDate: data.departDate,
-            returnDate: data.returnDate || undefined,
-            expectedDays: nDays,
-            pace: data.pace,
-          });
-          applyItineraryGuards(plan, {
-            arrivalDay: 1,
-            language: langCode,
-          });
-          trace(`complete: ${plan.days.length} days via LLM (attempt ${attempt + 1})`);
-          try {
-            const { bumpPublicPlansGenerated } = await import("@/lib/planStats.server");
-            await bumpPublicPlansGenerated();
-          } catch (err) {
-            console.warn("[AiPlan] public plan counter bump failed", err);
-          }
-          return withDebug({ plan, error: null, violations: violations.length ? violations : undefined });
-        }
-
-        lastBlocking = blocking;
-        trace(`routing blocked attempt ${attempt + 1}: ${blocking.map((b) => b.message).join("; ")}`);
-        if (attempt === 1) {
-          return withDebug({
-            plan: null,
-            error: "error.invalidItinerary",
-            errorCode: "INVALID_ITINERARY",
-            violations,
-          });
-        }
-      }
-
-      return withDebug({ plan: null, error: "Plana trenutno ni mogoče ustvariti." });
-    } catch (err) {
-      trace(`fatal: ${err instanceof Error ? err.message : String(err)}`);
-      console.error("AI plan failed:", err);
-      return withDebug({ plan: null, error: "Plana trenutno ni mogoče ustvariti." });
-    }
+      pax: { adults: Math.max(1, data.pax), childrenAges: [] },
+      budget: "standard",
+      wishTags: [],
+      customWishes: [data.wishes, data.customPrompt].filter(Boolean).join("\n") || undefined,
+      pace: data.pace,
+      language: data.language ?? "sl",
+      currency: data.currency,
+      flightContext: data.flightContext,
+    } as import("@/lib/generateItinerary").GenerateItineraryInput);
+    return result;
   });
 
 function extractHighlightsFromRaw(
@@ -2512,13 +2254,24 @@ function stripDepartureEveningSlot(
   flights?: TripFlightContext,
 ): { morning: Activity[]; afternoon: Activity[]; evening: Activity[] } {
   if (!flights?.inboundDepart) return activities;
+  if (isLateNightDeparture(flights)) return activities;
   if (
     isEveningDeparture(flights) ||
     isTightDeparture(flights) ||
     isAfternoonDeparture(flights) ||
     isEarlyDeparture(flights)
   ) {
-    return { ...activities, evening: [] };
+    return {
+      ...activities,
+      evening: activities.evening.filter(
+        (a) =>
+          a.type === "TRANSPORT" ||
+          a.type === "STAY" ||
+          /check-?out|odjava|let|flight|pristanek|landing|airport|letališč|prevoz/i.test(
+            `${a.name} ${a.type ?? ""}`,
+          ),
+      ),
+    };
   }
   return activities;
 }
@@ -2554,10 +2307,36 @@ function prependOriginDepartureActivities(
   const originActs = buildOriginDepartureLogistics(originIata, flights, langCode).map(
     logisticsToActivity,
   );
-  return {
-    ...activities,
-    morning: [...originActs, ...activities.morning].slice(0, 4),
-  };
+  const extra = originDayItems(originActs, flights.outboundDepart);
+  return sortDayActivitiesByClock({
+    morning: [...extra, ...activities.morning],
+    afternoon: activities.afternoon,
+    evening: activities.evening,
+  });
+}
+
+function originDayItems(originActs: Activity[], outboundDepart: string): Activity[] {
+  const m = outboundDepart.trim().match(/^(\d{1,2}):(\d{2})$/);
+  const depMin = m ? Number(m[1]) * 60 + Number(m[2]) : 0;
+  if (depMin < 17 * 60) return originActs;
+  const flightsOnly = originActs.filter((a) =>
+    /mednarodni let|international flight|internationaler flug|volo internazionale|vuelo internacional|vol international/i.test(
+      a.name,
+    ),
+  );
+  return flightsOnly.length ? flightsOnly : originActs;
+}
+
+function slotOriginInFlightDay(
+  originActs: Activity[],
+  outboundDepart: string | undefined,
+): { morning: Activity[]; afternoon: Activity[]; evening: Activity[] } {
+  const items = outboundDepart ? originDayItems(originActs, outboundDepart) : originActs;
+  return sortDayActivitiesByClock({
+    morning: items,
+    afternoon: [],
+    evening: [],
+  });
 }
 
 function day1OriginTravelHack(
@@ -2570,7 +2349,12 @@ function day1OriginTravelHack(
   return buildOriginDepartureHint(originIata, flights, langCode);
 }
 
+function tripHasPhiPhiOvernight(skeleton: TripSkeleton): boolean {
+  return skeleton.regions.some((r) => /phi phi/i.test(r.city));
+}
+
 function tripHasPhiPhiExcursion(skeleton: TripSkeleton): boolean {
+  if (tripHasPhiPhiOvernight(skeleton)) return true;
   for (const region of skeleton.regions) {
     for (const h of region.highlights ?? []) {
       if (isFullDayExcursion(h) && /phi phi|maya bay/i.test(`${h.name} ${h.description}`)) {
@@ -2582,11 +2366,18 @@ function tripHasPhiPhiExcursion(skeleton: TripSkeleton): boolean {
 }
 
 function logisticsToActivity(a: LogisticsActivity): Activity {
+  const isIntlFlight =
+    /\b(mednarodni (povratni )?let|international (return )?flight|volo internazionale|internationaler (rück)?flug|vuelo internacional|vol international)\b/i.test(
+      a.name,
+    );
   return {
     name: a.name,
     type: a.type,
     description: a.description,
     priceLabel: a.priceLabel,
+    ...(isIntlFlight ? { transportType: "flight" as const } : {}),
+    ...(a.arrivalTime ? { arrivalTime: a.arrivalTime } : {}),
+    ...(a.departureTime ? { departureTime: a.departureTime } : {}),
   };
 }
 
@@ -2660,38 +2451,34 @@ function mergeLastDayActivities(
   slots: { morning: Activity[]; afternoon: Activity[]; evening: Activity[] },
   logistics: LogisticsActivity[],
   flights: TripFlightContext,
+  extra?: { originIata?: string; language?: string },
 ): { morning: Activity[]; afternoon: Activity[]; evening: Activity[] } {
   const logisticsActs = logistics.map(logisticsToActivity);
 
-  if (isTightDeparture(flights) || isEarlyDeparture(flights) || isAfternoonDeparture(flights)) {
-    return {
-      morning: logisticsActs,
-      afternoon: [],
-      evening: [],
-    };
+  if (
+    isTightDeparture(flights) ||
+    isEarlyDeparture(flights) ||
+    isAfternoonDeparture(flights) ||
+    isEveningDeparture(flights)
+  ) {
+    return distributeDaytimeReturnActivities(logisticsActs, flights, extra);
   }
 
   const sights = [...slots.morning, ...slots.afternoon, ...slots.evening];
   if (isLateNightDeparture(flights)) {
-    return {
-      morning: sights.slice(0, 2),
-      afternoon: sights.slice(2, 4),
-      evening: logisticsActs,
-    };
-  }
-  if (isEveningDeparture(flights)) {
-    return {
-      morning: sights.slice(0, 1),
-      afternoon: logisticsActs,
-      evening: [],
-    };
+    const logisticsSlots = distributeDaytimeReturnActivities(logisticsActs, flights, extra);
+    return sortDayActivitiesByClock({
+      morning: [...sights.slice(0, 2), ...logisticsSlots.morning],
+      afternoon: [...sights.slice(2, 4), ...logisticsSlots.afternoon],
+      evening: logisticsSlots.evening,
+    });
   }
 
-  return {
+  return sortDayActivitiesByClock({
     morning: sights.slice(0, 1),
     afternoon: [...logisticsActs, ...sights.slice(1, 2)],
     evening: sights.slice(2, 3),
-  };
+  });
 }
 
 /** Shift region days when inbound lands day 2+ — days 1..offset-1 stay in-flight only. */
@@ -2879,6 +2666,13 @@ export function buildSkeletonDayPlans(
                   description: locale.slo
                     ? `Še v letu proti destinaciji — dan ${d} od ${nDays}. Po pristanku (dan ${arrivalDayNum}) sledi prijava in ogledi.`
                     : `Still en route — trip day ${d} of ${nDays}. After landing (day ${arrivalDayNum}), check-in and sights begin.`,
+                  ...(d === 1
+                    ? {
+                        arrivalTime: flights?.outboundDepart,
+                        departureTime: flights?.outboundArrive,
+                        transportType: "flight" as const,
+                      }
+                    : {}),
                 },
               ];
         days.push({
@@ -2895,11 +2689,7 @@ export function buildSkeletonDayPlans(
           morning: "",
           afternoon: "",
           evening: "",
-          activities: {
-            morning: originActs,
-            afternoon: [],
-            evening: [],
-          },
+          activities: slotOriginInFlightDay(originActs, flights?.outboundDepart),
           travelHack: day1OriginTravelHack(d, originIata, flights, langCode),
           transportationTips: "",
           localWarnings: "",
@@ -3037,19 +2827,27 @@ export function buildSkeletonDayPlans(
       | undefined;
 
     if (isInFlightTripDay(d, flights)) {
-      activities = {
-        morning: [
-          {
-            name: locale.slo ? "Mednarodni let" : "International flight",
-            type: "TRANSPORT",
-            description: locale.slo
-              ? `Še v letu proti destinaciji — dan ${d} od ${nDays}. Po pristanku (dan ${arrivalDayNum}) sledi prijava in ogledi.`
-              : `Still en route — trip day ${d} of ${nDays}. After landing (day ${arrivalDayNum}), check-in and sights begin.`,
-          },
-        ],
-        afternoon: [],
-        evening: [],
-      };
+      const originIata = opts?.originIata ?? skeleton.originIata;
+      if (d === 1 && originIata && flights?.outboundDepart) {
+        activities = slotOriginInFlightDay(
+          buildOriginDepartureLogistics(originIata, flights, langCode).map(logisticsToActivity),
+          flights.outboundDepart,
+        );
+      } else {
+        activities = {
+          morning: [
+            {
+              name: locale.slo ? "Mednarodni let" : "International flight",
+              type: "TRANSPORT",
+              description: locale.slo
+                ? `Še v letu proti destinaciji — dan ${d} od ${nDays}. Po pristanku (dan ${arrivalDayNum}) sledi prijava in ogledi.`
+                : `Still en route — trip day ${d} of ${nDays}. After landing (day ${arrivalDayNum}), check-in and sights begin.`,
+            },
+          ],
+          afternoon: [],
+          evening: [],
+        };
+      }
     } else if (d === arrivalDayNum) {
       activities = mergeDay1Activities(
         slots,
@@ -3104,16 +2902,9 @@ export function buildSkeletonDayPlans(
           laxRush ||
           isTightDeparture(flights) ||
           isEarlyDeparture(flights) ||
-          isAfternoonDeparture(flights);
-        const lateNight = isLateNightDeparture(flights);
-        const eveningDep = isEveningDeparture(flights);
-        let highlightsForLastDay = stripAllSights
-          ? []
-          : lateNight
-            ? dayHighlights
-            : eveningDep
-              ? dayHighlights.slice(0, 1)
-              : dayHighlights;
+          isAfternoonDeparture(flights) ||
+          isEveningDeparture(flights);
+        let highlightsForLastDay = stripAllSights ? [] : dayHighlights;
         highlightsForLastDay = filterDepartureDayHighlights(
           highlightsForLastDay,
           departIata,
@@ -3125,6 +2916,7 @@ export function buildSkeletonDayPlans(
             accommodationMode: skeleton.accommodationMode,
           }),
           flights,
+          { originIata: opts?.originIata, language: langCode },
         );
       }
     } else if (inboundTravelDay && prevRegionForDay && prevHop) {
@@ -3186,15 +2978,19 @@ export function buildSkeletonDayPlans(
 
     if (activities && !skipEnrichOnPureDeparture) {
       const dayInRegion = d - region.startDay + 1;
-      const phiPhiDoneBeforeDay = phiPhiExcursionDone &&
-        skeleton.regions.some((r) =>
-          (r.highlights ?? []).some(
-            (h) =>
-              h.day < d &&
-              isFullDayExcursion(h) &&
-              /phi phi|maya bay/i.test(`${h.name} ${h.description}`),
-          ),
-        );
+      const phiPhiStayElsewhere =
+        tripHasPhiPhiOvernight(skeleton) && !/phi phi/i.test(region.city);
+      const phiPhiDoneBeforeDay =
+        phiPhiStayElsewhere ||
+        (phiPhiExcursionDone &&
+          skeleton.regions.some((r) =>
+            (r.highlights ?? []).some(
+              (h) =>
+                h.day < d &&
+                isFullDayExcursion(h) &&
+                /phi phi|maya bay/i.test(`${h.name} ${h.description}`),
+            ),
+          ));
       const bangkokStayDays = skeleton.regions
         .filter((r) => /bangkok|krung thep|\bbkk\b/i.test(r.city))
         .reduce((sum, r) => sum + Math.max(1, r.endDay - r.startDay + 1), 0);
@@ -4059,6 +3855,7 @@ export const generateAiPlanSkeleton = createServerFn({ method: "POST" })
       data.wishes,
       data.priorities,
       data.returnFromIata,
+      arrivalTripDay(data.flightContext),
     );
     const destHub = lookupDestination(data.destinationIata);
     const { tripClimate, regionClimate } = buildTripClimate({
