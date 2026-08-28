@@ -124,6 +124,23 @@ describe("flightContextPromptBlock", () => {
     expect(block).toMatch(/Aplikacija JSON ne prepisuje|will not rewrite this JSON/i);
   });
 
+  it("forbids destination morning transfers on a red-eye return Day N", () => {
+    const block = flightContextPromptBlock(
+      {
+        outboundDepart: "21:10",
+        outboundArrive: "17:55",
+        outboundArriveDayOffset: 1,
+        inboundDepart: "02:30",
+        inboundArrive: "14:10",
+      },
+      16,
+      { originIata: "MUC", destinationIata: "NBO", language: "sl" },
+    );
+    expect(block).toMatch(/NOČNI POVRATEK/);
+    expect(block).toMatch(/NI dopoldanski odhod|NA DESTINACIJI/);
+    expect(block).toMatch(/NOČNI board na N−1|NI check-out\/transfer na destinaciji/);
+  });
+
   it("uses German scaffolding when language is de", () => {
     const block = flightContextPromptBlock(
       {

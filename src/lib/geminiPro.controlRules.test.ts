@@ -104,6 +104,8 @@ describe("tripPlanControlRules", () => {
     expect(system).toMatch(/DAY COUNT & DEPARTURE/);
     expect(system).toMatch(/EXACTLY match the inclusive calendar days/);
     expect(system).toMatch(/Day N \(the final day\) MUST ALWAYS be the departure day/);
+    expect(system).toMatch(/VEČDRŽAVNA & SAFARI|MULTI-COUNTRY & SAFARI/);
+    expect(system).toMatch(/FORBIDDEN: morning check-out|no morning dest/i);
     expect(system).toMatch(/NO PLACEHOLDERS \/ NO TRUNCATION/);
     expect(system).toMatch(/NO META-INSTRUCTIONS IN OUTPUT TEXT/);
     expect(system).toMatch(/Prtljago vzemi s seboj/);
@@ -156,6 +158,9 @@ describe("tripPlanControlRules", () => {
     expect(system).toMatch(/METROPOLA vs NOTRANJOST|tranzitna metropola/);
     expect(system).toMatch(/30 %/);
     expect(system).toMatch(/Chiang Mai/);
+    expect(system).toMatch(/VEČTEDENSKO \/ MULTI-COUNTRY \/ SAFARI/);
+    expect(system).toMatch(/največ 4 glavnih baz/);
+    expect(system).toMatch(/VEČDRŽAVNA & SAFARI|4–6 glavnih baz/);
   });
 
   it("continuation batches ask only for remaining day_numbers and leftover destinations", () => {

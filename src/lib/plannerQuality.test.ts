@@ -54,6 +54,8 @@ describe("plannerQualityPromptBlock", () => {
     expect(air).toMatch(/zadnji dan/i);
     expect(air).toMatch(/tranzitna metropola|30 %/);
     expect(air).toMatch(/Chiang Mai/);
+    expect(air).toMatch(/4–6 glavnih baz|zig-zag/);
+    expect(air).toMatch(/NI dopoldanskih odhodov|NOČNI board/);
   });
 
   it("locks night counts when the user spelled a stay plan", () => {
@@ -65,6 +67,7 @@ describe("plannerQualityPromptBlock", () => {
     expect(locked).toMatch(/ZAKLENJEN/);
     expect(locked).not.toMatch(/ukrade noč sosedu z 3\+/);
     expect(locked).toMatch(/premaga omejitev/);
+    expect(locked).not.toMatch(/največ 4–6 glavnih baz/);
   });
 });
 

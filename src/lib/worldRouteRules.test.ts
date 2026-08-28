@@ -27,6 +27,12 @@ describe("worldRouteRulesPromptBlock", () => {
     expect(en).toMatch(/Bases first/i);
     expect(sl).toMatch(/Otok ob prihodnem letališču|kratek trajekt/i);
     expect(en).toMatch(/short-ferry island|mainland coastal drive/i);
+    expect(sl).toMatch(/VEČDRŽAVNA & SAFARI|ENOSMERNA GEOGRAFSKA LINIJA/i);
+    expect(en).toMatch(/MULTI-COUNTRY & SAFARI|ONE-WAY GEOGRAPHIC LINE/i);
+    expect(sl).toMatch(/4–6 glavnih baz|zaporednih 1-nočnih/i);
+    expect(en).toMatch(/4–6 main bases|consecutive 1-night/i);
+    expect(sl).toMatch(/IZKLJUČNO pristanek|NI dopoldanskih odhodov/i);
+    expect(en).toMatch(/ONLY landing at the home airport|NO morning departures/i);
     expect(worldRouteRulesMentionsDestination(sl)).toBe(false);
     expect(worldRouteRulesMentionsDestination(en)).toBe(false);
   });

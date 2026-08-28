@@ -18,6 +18,18 @@ const POINTS_SL = [
   "Ne izmišljuj hotelov in restavracij. Ime kraja ali izpusti slot.",
 ];
 
+const MULTI_WEEK_SL = [
+  "ENOSMERNA GEOGRAFSKA LINIJA (brez zig-zag): večdnevna in večtedenska pot teče v ENI logični smeri (sever→jug ALI zahod→vzhod). PREPOVEDANO preskakovanje med oddaljenimi regijami — npr. sever→jug, nazaj na zahod, spet na jug. En lok, ne nihalo.",
+  "KVALITETA PRED KVANTITETO BAZ: za 14–21 koledarskih dni največ 4–6 glavnih baz. Vsaka baza 2–4 nočitve; 1 noč samo za čisti transfer. PREPOVEDANO veriga zaporednih 1-nočnih premikov skozi celotno potovanje (safari/več držav enako kot otoki).",
+  "KRONOLOGIJA POVRATNEGA DNEVA: dan N (zadnji koledarski dan) = IZKLJUČNO pristanek na domačem letališču in pot domov — ne destinacijski ogledi. Če je nočni let z odhodom na dan N−1 (board 00:00–05:59): na dan N NI dopoldanskih odhodov, odjav ali transferjev NA DESTINACIJI. Checkout + prevoz na letališče sta zvečer dneva N−1; dan N = let v zraku + popoldanski pristanek doma.",
+];
+
+const MULTI_WEEK_EN = [
+  "ONE-WAY GEOGRAPHIC LINE (no zig-zag): multi-day and multi-week trips run in ONE logical direction (north→south OR west→east). FORBIDDEN hopping distant regions — e.g. north→south, back west, then south again. One arc, not a pendulum.",
+  "QUALITY OVER QUANTITY OF BASES: for 14–21 calendar days, at most 4–6 main bases. Each base 2–4 nights; 1 night only for a pure transfer. FORBIDDEN a chain of consecutive 1-night hops through the whole trip (safari / multi-country same as islands).",
+  "RETURN-DAY CHRONOLOGY: Day N (last calendar day) = ONLY landing at the home airport and travel home — no destination sightseeing. If the overnight flight boarded on day N−1 (board 00:00–05:59): Day N has NO morning departures, check-outs, or transfers AT THE DESTINATION. Check-out + airport transfer sit on the evening of day N−1; Day N = airborne flight + afternoon landing at home.",
+];
+
 const POINTS_EN = [
   "Bases first, then days. Lock cities + night counts + transfers; only then fill morning/afternoon/evening.",
   "The number of bases grows with trip length, not one beach town. ~2–4 nights per base; 1 night only for a pure transfer. If ≥3 surplus nights remain, add a NEW base on the same heading — not a 5th night in the same resort.",
@@ -35,13 +47,23 @@ const POINTS_EN = [
 
 export function worldRouteRulesPromptBlock(slo: boolean): string {
   const points = slo ? POINTS_SL : POINTS_EN;
+  const multi = slo ? MULTI_WEEK_SL : MULTI_WEEK_EN;
   const title = slo
     ? "=== SMSEL POTI (ves svet — pred kuriranim seznamom mest) ==="
     : "=== ROUTE SENSE (worldwide — before any curated city list) ===";
   const lead = slo
     ? "Brez imen mest, razen če jih je napisal uporabnik ali jih vrne izbrani let. Karte in zemljevid ostanejo ista polja."
     : "No city names unless the user wrote them or the chosen flight implies them. Cards and the map keep the same fields.";
-  return [title, lead, ...points.map((p) => `- ${p}`)].join("\n");
+  const multiTitle = slo
+    ? "=== VEČDRŽAVNA & SAFARI PRAVILA (14+ dni — obvezno) ==="
+    : "=== MULTI-COUNTRY & SAFARI RULES (14+ days — mandatory) ===";
+  return [
+    title,
+    lead,
+    ...points.map((p) => `- ${p}`),
+    multiTitle,
+    ...multi.map((p) => `- ${p}`),
+  ].join("\n");
 }
 
 /** True if the block leaked a locked destination (regression guard). */

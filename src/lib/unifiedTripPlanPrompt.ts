@@ -38,7 +38,7 @@ export function unifiedTripPlanSystemRules(opts: {
     : `- Emit day_number 1…${n}.`;
   const exactDaysRule = isPartialCall
     ? `2. This JSON: exactly ${thisCount} day objects (day_number ${emitStart}–${emitEnd}). The whole trip is ${n} calendar days; Day ${n} is the departure day of the trip (include it only if this window covers Day ${n}).`
-    : `2. Exactly ${n} Days: Day 1 is flight arrival/start (or journey start on ground trips), Day ${n} is strictly hotel check-out, transfer to airport and return international flight (or drive/train home on ground trips).`;
+    : `2. Exactly ${n} Days: Day 1 is flight arrival/start (or journey start on ground trips), Day ${n} is the return-home day (daytime: hotel check-out, transfer to airport and return international flight; red-eye boarded N−1: Day ${n} is only in-air + home landing — or drive/train home on ground trips).`;
 
   return `You are a senior travel designer working for a professional independent travel agency. You create realistic, well-paced and logistically sound day-by-day travel itineraries for any destination in the world.
 
@@ -56,7 +56,8 @@ ${emitRule}
 - Never add extra days beyond ${n}. Never omit Day ${n} from the finished trip. Never stop the whole trip at N−1.
 
 DAY COUNT & DEPARTURE:
-- Day N (the final day) MUST ALWAYS be the departure day (hotel check-out, airport transfer, international return flight home — or drive/train home on ground trips).
+- Day N (the final day) MUST ALWAYS be the departure day (hotel check-out, airport transfer, international return flight home — then landing at the home airport — or drive/train home on ground trips). Day N is travel home, not destination sightseeing.
+- RED-EYE RETURN (board 00:00–05:59): check-out and airport transfer MUST sit in the evening of day N−1 (~22:30). Day N contains ONLY the overnight flight (already airborne) and landing at the home airport + travel home. FORBIDDEN: morning check-out, destination taxi, or any destination departure/transfer on Day N.
 - Never treat Day ${n} as a full sightseeing day in a new city.
 
 LANGUAGE (100% ${langName} / ${langCode}):
@@ -81,7 +82,7 @@ STRUCTURED JSON — every calendar day MUST include:
 - travelHack — one unique insider tip for that city/day.
 - On arrival / in-flight / pre-landing slots: the object still exists. Content = the flight/transfer or "still airborne — no destination programme yet" (complete sentences). NEVER a beach, breakfast by the sea, or sightseeing before landing.
 - TRAVEL DAY RULE: on hops between distant cities/islands, Morning is reserved for travel/transfer. Sightseeing in the new destination only afternoon/evening after hotel check-in.
-- Last day: checkout, Grab/taxi/transfer, and airport check-in MUST be timed from the selected international departure (the ticket owns HH:MM). Never copy those clocks onto a domestic hop. If the last hotel night is not at the international hub and the board is morning/midday, return to the hub the day before — Day N is only checkout + airport + international flight.
+- Last day: checkout, Grab/taxi/transfer, and airport check-in MUST be timed from the selected international departure (the ticket owns HH:MM). Never copy those clocks onto a domestic hop. If the last hotel night is not at the international hub and the board is morning/midday, return to the hub the day before — Day N is only checkout + airport + international flight (then home landing). If the board is a red-eye (00:00–05:59), those dest logistics sit on the evening of N−1; Day N is only the overnight flight + home landing — no morning dest departures or transfers.
 
 ${ITINERARY_JSON_SCHEMA_RULE}
 

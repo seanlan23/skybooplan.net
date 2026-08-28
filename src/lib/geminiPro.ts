@@ -167,7 +167,7 @@ export function tripPlanControlRules(params: {
   ${preArrival}
   • Na dan ${arrivalDay}: v JSON vpiši prihod/transfer z urami iz IZBRANI LET, nato samo lahki program PO pristanku. PREPOVEDANO plaža/zajtrk pred pristankom.
   • PREPOVEDANO: “Zajtrk ob morju”, “Tropska pavza”, bazen ali promenada, če let še ni pristal.
-  • Zadnji dan: check-out + transfer + mednarodni let z urami iz IZBRANI LET; pred tem samo lahki ogledi.`
+  • Zadnji dan: check-out + transfer + mednarodni let z urami iz IZBRANI LET (dnevni board). NOČNI board 00:00–05:59: checkout/transfer zvečer dneva N−1; dan N = SAMO let v zraku + pristanek doma — PREPOVEDANO dopoldanski odhod/transfer na destinaciji.`
       : `- Če ni izbranega leta: dan 1 = prihod v ${params.arrivalCity} (${params.destinationIata}), lahek program.`;
 
   const stayBlock = params.explicitStayPlan
@@ -299,13 +299,29 @@ function isRoadTripRequest(params: GenerateTripPlanParams): boolean {
 }
 
 /**
+ * Cap overnight hotel bases on flight trips so 14–21 day itineraries stay
+ * 4–6 main bases (quality over a chain of 1-night hops).
+ */
+export function flightTripMaxBases(days: number): number {
+  if (days <= 0) return 0;
+  if (days <= 9) return 2;
+  if (days <= 13) return 3;
+  if (days <= 16) return 4;
+  if (days <= 18) return 5;
+  return 6;
+}
+
+/**
  * Cap overnight bases so each camp lasts ≥2 nights (day trips from the same
  * base). Calendar days[] still cover the full trip (e.g. 11 days → max 5 camps).
+ * 14–21 day trips: at most 6 camps (multi-week max-bases rule).
  */
 export function motorhomeRoadTripMaxBases(days: number): number {
   if (days <= 0) return 0;
   if (days <= 2) return 1;
-  return Math.max(1, Math.floor(days / 2));
+  const raw = Math.max(1, Math.floor(days / 2));
+  if (days >= 14 && days <= 21) return Math.min(6, raw);
+  return raw;
 }
 
 /** Force Gemini to emit only one day_number window — used when streaming long trips in batches. */
@@ -494,13 +510,7 @@ function buildTripPlanPrompt(params: GenerateTripPlanParams): string {
     ? params.days
     : motorhome || roadTrip
       ? motorhomeRoadTripMaxBases(params.days)
-      : params.days <= 9
-        ? 2
-        : params.days <= 14
-          ? 3
-          : params.days <= 21
-            ? 4
-            : 4;
+      : flightTripMaxBases(params.days);
 
   const span = thisResponseDaySpan(params);
   const dayObjectsRule = span.isPartial
@@ -672,9 +682,9 @@ Obvezna logistična pravila za ta načrt:
         ? `Načrtuj največ ${maxBases} baz/kampov vzdolž enosmerne poti; ${dayObjectsRule} (več noči na isti bazi = več day{} — NE samo ${maxBases} day{}).`
         : carTrip || roadTrip
           ? `Načrtuj največ ${maxBases} hotelskih baz (mesta) vzdolž enosmerne poti; ${dayObjectsRule} (več noči v istem mestu = več day{} — NE samo ${maxBases} day{}). PREPOVEDANO: kamp/RV/sosta kot nočitev.`
-        : `Število in vrstni red mest izbereš ti glede na želje, let in ${params.days} dni.`
+        : `Načrtuj največ ${maxBases} glavnih baz vzdolž enosmerne poti${params.days >= 14 ? " (14–21 dni = 4–6)" : ""}. Vsaka baza 2–4 noči. PREPOVEDANO zig-zag in veriga zaporednih 1-nočnih premikov. ${dayObjectsRule}.`
   }
-- ${explicitStayPlan ? "Sledi uporabnikovemu vrstnemu redu mest (vrnitev na odhodni hub je dovoljena, če je v razporedu). PREPOVEDANO enodnevni izlet na otok/kraj z že načrtovanim večdnevnim bivanjem." : "Enosmerna geografska pot (en jasen lok); brez vračanja v že obiskana mesta."}
+- ${explicitStayPlan ? "Sledi uporabnikovemu vrstnemu redu mest (vrnitev na odhodni hub je dovoljena, če je v razporedu). PREPOVEDANO enodnevni izlet na otok/kraj z že načrtovanim večdnevnim bivanjem." : "Enosmerna geografska linija (sever→jug ALI zahod→vzhod); PREPOVEDANO zig-zag med oddaljenimi regijami in vračanje v zapuščeno območje."}
 ${arrivalDayRule}
 ${flightReturnLine}
 - Za vsako fazo obvezno izpolni city (angleško ime), lat in lng (centrum mesta${motorhome ? " ali kamp ob poti" : ""}).
@@ -879,7 +889,9 @@ ${
       ? `ROAD TRIP: največ ${motorhomeRoadTripMaxBases(params.days)} bazami/kampi. days[] = NATANKO ${params.days} koledarskih day{} ((END_DATE − START_DATE) + 1). PREPOVEDANO: ena baza na vsak dan. Vsaka baza NAJMANJ 2 noči (dnevni izleti); 1 noč samo transfer/hub.`
       : carTrip || roadTrip
         ? `ROAD TRIP: največ ${motorhomeRoadTripMaxBases(params.days)} hotelskimi bazami. days[] = NATANKO ${params.days} koledarskih day{} ((END_DATE − START_DATE) + 1).`
-        : `Število mest izberi glede na želje, let in ${params.days} dni ((END_DATE − START_DATE) + 1) — ne nategovati ene plaže.`;
+        : params.days >= 14
+          ? `VEČTEDENSKO / MULTI-COUNTRY / SAFARI: največ ${flightTripMaxBases(params.days)} glavnih baz (14–21 dni = 4–6). Vsaka baza 2–4 noči. PREPOVEDANO zig-zag in veriga zaporednih 1-nočnih premikov. days[] = NATANKO ${params.days} koledarskih day{} ((END_DATE − START_DATE) + 1) — ne nategovati ene plaže.`
+          : `Število mest izberi glede na želje, let in ${params.days} dni ((END_DATE − START_DATE) + 1) — ne nategovati ene plaže. Največ ${flightTripMaxBases(params.days)} glavnih baz; enosmerna linija, brez zig-zag.`;
 
   return `Si strokovni potovalni agent za aplikacijo skybooplan. Striktno sledi zahtevani JSON shemi.
 

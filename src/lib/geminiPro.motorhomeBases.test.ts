@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  flightTripMaxBases,
   motorhomeRoadTripMaxBases,
   tripPlanSystemPrompt,
 } from "@/lib/geminiPro";
@@ -29,6 +30,17 @@ function motorhomeParams(
   };
 }
 
+describe("flightTripMaxBases", () => {
+  it("caps 14–21 day flight trips at 4–6 hotel bases", () => {
+    expect(flightTripMaxBases(9)).toBe(2);
+    expect(flightTripMaxBases(13)).toBe(3);
+    expect(flightTripMaxBases(14)).toBe(4);
+    expect(flightTripMaxBases(16)).toBe(4);
+    expect(flightTripMaxBases(18)).toBe(5);
+    expect(flightTripMaxBases(21)).toBe(6);
+  });
+});
+
 describe("motorhomeRoadTripMaxBases", () => {
   it("forces ≥2 nights per camp instead of one stop per day", () => {
     expect(motorhomeRoadTripMaxBases(2)).toBe(1);
@@ -39,7 +51,8 @@ describe("motorhomeRoadTripMaxBases", () => {
   it("caps mid/long trips to about one camp per two nights", () => {
     expect(motorhomeRoadTripMaxBases(7)).toBe(3);
     expect(motorhomeRoadTripMaxBases(11)).toBe(5);
-    expect(motorhomeRoadTripMaxBases(14)).toBe(7);
+    expect(motorhomeRoadTripMaxBases(14)).toBe(6);
+    expect(motorhomeRoadTripMaxBases(21)).toBe(6);
   });
 });
 

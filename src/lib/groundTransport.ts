@@ -200,8 +200,9 @@ export function lastDayReturnPromptBlock(params: {
 
   const airport = params.returnFromIata ?? params.destinationIata ?? "izhodno letališče";
   return `ZADNJI DAN — STROGI JSON (LET — vpiši logistiko iz IZBRANI LET):
-- Day N (zadnji koledarski dan) MUST ALWAYS be the departure day: hotel check-out, airport transfer, international return flight home.
-- V JSON vpiši check-out → transfer → letališče → mednarodni let z urami iz IZBRANI LET. Aplikacija tega JSON-a ne prepisuje.
+- Day N (zadnji koledarski dan) MUST ALWAYS be the departure day: hotel check-out, airport transfer, international return flight home — then landing at the home airport. Day N = pot domov, ne destinacijski ogledi.
+- DNEVNI board (06:00+): v JSON vpiši check-out → transfer → letališče → mednarodni let z urami iz IZBRANI LET. Aplikacija tega JSON-a ne prepisuje.
+- NOČNI board (00:00–05:59 na koledarski dan N): checkout + dest transfer = večer dneva N−1 (~22:30). Dan N = IZKLJUČNO let v zraku + pristanek na domačem letališču in pot domov. PREPOVEDANO: dopoldanski odhod, odjava ali transfer NA DESTINACIJI.
 - PREPOVEDANO: Day N kot poln ogledni dan v novem mestu/regiji.
 - Ne dodajaj novih mest/oddaljenih regij; noč pred odhodom blizu izhodnega letališča (${airport}).
 - trip_metadata.return_flight_eu: kopiraj ure iz IZBRANI LET, ne izmišljuj.`;

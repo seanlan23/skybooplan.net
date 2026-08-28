@@ -70,6 +70,50 @@ describe("applyRedEyeDepartureChronology", () => {
     expect(JSON.stringify(last.activities!.evening ?? [])).not.toMatch(/Prevoz na letališče/i);
   });
 
+  it("strips destination morning checkout, transfers and sights on the red-eye return day", () => {
+    const days: DayPlan[] = [
+      day({
+        day: 14,
+        city: "Nairobi",
+        activities: {
+          morning: [],
+          afternoon: [],
+          evening: [{ name: "Večerja v Karatu", description: "Zadnja večerja." }],
+        },
+      }),
+      day({
+        day: 15,
+        city: "Nairobi",
+        activities: {
+          morning: [
+            { name: "Odhod iz hotela (odjava)", type: "STAY", description: "Zjutraj na destinaciji." },
+            { name: "Prevoz na letališče", type: "TRANSPORT", description: "Taxi na NBO." },
+            { name: "Zajtrk v Nairobi", type: "FOOD", description: "Dopoldanski odhod z destinacije." },
+          ],
+          afternoon: [{ name: "Nairobi National Museum", type: "SIGHT", description: "Ogled pred letom." }],
+          evening: [],
+        },
+      }),
+    ];
+
+    applyRedEyeDepartureChronology(days, {
+      inboundDepart: "02:15",
+      inboundArrive: "13:40",
+      language: "sl",
+    });
+
+    const last = days[1]!;
+    const lastBlob = JSON.stringify(last.activities);
+    expect(lastBlob).not.toMatch(/Zajtrk v Nairobi|National Museum/i);
+    expect(
+      (last.activities!.morning ?? []).every((a) =>
+        /let proti domu|nočni let|pristanek/i.test(a.name ?? ""),
+      ),
+    ).toBe(true);
+    expect(days[0]!.activities!.evening?.some((a) => /odjava|prevoz na letališč/i.test(a.name ?? ""))).toBe(true);
+    expect(lastBlob).toMatch(/pristanek/i);
+  });
+
   it("does not rewrite a 15:30 afternoon return", () => {
     const days: DayPlan[] = [
       day({ day: 1, city: "Bangkok" }),

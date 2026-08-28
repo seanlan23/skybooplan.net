@@ -18,6 +18,7 @@ describe("lastDayReturnPromptBlock", () => {
     expect(block).toMatch(/IZBRANI LET/);
     expect(block).toMatch(/MUST ALWAYS be the departure day/);
     expect(block).toMatch(/international return flight home/);
+    expect(block).toMatch(/NOČNI board|dopoldanski odhod/);
     expect(block).not.toMatch(/CESTNI KROG|1500–2200/);
     expect(block).not.toMatch(/Obvezno: aktivnost category airport z natančno uro/);
   });

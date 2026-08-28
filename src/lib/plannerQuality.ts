@@ -441,14 +441,21 @@ PREVOZI (leti/trajekti/vlaki):
 - Dnevni “5 h vožnje” cap NE velja za mednarodni let.
 - TRAVEL DAY: dopoldne = prevoz/transfer; ogledi v novem mestu samo popoldne/zvečer po check-inu.
 - Medmesti: najprej zapiši hop (let/trajekt/vlak), šele nato oglede v novem mestu.
-- Zadnji dan = samo pravi odhod — ne žigosi vmesnega vračanja na hub kot mednarodni let.
-- Zadnji dan: odjava, Grab/taxi in prijava na letališču se vežejo na uro MEDNARODNEGA odhoda. Notranji let prejšnji dan (če je treba spati na hubu pred jutranjim boardom) NE sme dobiti istih ur kot mednarodna vozovnica.`;
+- VEČTEDENSKO (14–21 dni): ${
+            opts.lockUserStayPlan
+              ? "uporabnikov razpored mest/noči je ZAKLENJEN — ne skrči baz."
+              : "največ 4–6 glavnih baz, vsaka 2–4 noči. PREPOVEDANO veriga zaporednih 1-nočnih premikov skozi celotno potovanje."
+          }
+- Enosmerna geografska linija: PREPOVEDANO zig-zag (sever→jug→zahod→spet jug).
+- Zadnji dan = samo pravi odhod — ne žigosi vmesnega vračanja na hub kot mednarodni let. Dan N = pristanek na domačem letališču in pot domov, ne destinacijski ogledi.
+- Zadnji dan: odjava, Grab/taxi in prijava na letališču se vežejo na uro MEDNARODNEGA odhoda. Notranji let prejšnji dan (če je treba spati na hubu pred jutranjim boardom) NE sme dobiti istih ur kot mednarodna vozovnica.
+- NOČNI board 00:00–05:59 na dan N: checkout/transfer zvečer N−1. Na dan N NI dopoldanskih odhodov ali transferjev NA DESTINACIJI.`;
 
   return `
 === KAKOVOST NAČRTA (vse destinacije — obvezno) ===
 VRSTNI RED (glej TRAVEL DESIGNER zgoraj — ne preskakuj):
 1) Destinacija + točni datumi (sezona, dan svetlobe, prazniki, odpiralni časi).
-2) Geografski tok: enosmerni lok, čim manj vračanja.
+2) Geografski tok: enosmerna linija (sever→jug ALI zahod→vzhod). PREPOVEDANO zig-zag med oddaljenimi regijami.
 3) Dnevni ritem in energija (počitek po dolgem premiku; celodnevni izlet redko >10–11 h vrat–vrata).
 4) Šele nato aktivnosti, hrana, nasveti.
 5) Struktura nočitev = mesto + noči — brez izmišljenih hotelov.

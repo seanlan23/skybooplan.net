@@ -43,6 +43,9 @@ function isReturnFlight(a: Activity): boolean {
 function isHomeLanding(a: Activity): boolean {
   return HOME_LANDING_RE.test(a.name ?? "");
 }
+function isReturnHomeKeep(a: Activity): boolean {
+  return isReturnFlight(a) || isHomeLanding(a);
+}
 function isPreFlightLogistics(a: Activity): boolean {
   return isCheckout(a) || isAirportTransfer(a) || isAirportCheckin(a);
 }
@@ -170,7 +173,8 @@ function homeLandingActivity(
 
 /**
  * Red-eye return (00:00–05:59): checkout + airport transfer belong on the previous
- * evening (~22:30). Last day is only the night flight + afternoon landing at home.
+ * evening (~22:30). Last day is only the night flight + afternoon landing at home —
+ * no destination morning check-out, taxi, or sightseeing.
  */
 export function applyRedEyeDepartureChronology(
   days: DayPlan[],
@@ -214,6 +218,10 @@ export function applyRedEyeDepartureChronology(
       kept.push(a);
     }
     setSlot(last, slot, kept);
+  }
+
+  for (const slot of ["morning", "afternoon", "evening"] as const) {
+    setSlot(last, slot, takeSlot(last, slot).filter(isReturnHomeKeep));
   }
 
   if (pulled.length === 0) {

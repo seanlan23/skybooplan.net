@@ -18,6 +18,7 @@ describe("itinerary JSON schema contract", () => {
     expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/"accommodations"/);
     expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/Never a freeform itinerary essay|never a freeform itinerary essay/i);
     expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/Day N is ALWAYS the departure day/);
+    expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/Red-eye boarded on N−1/);
     expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/EXACTLY the inclusive calendar days/);
     expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/minimum 25 words/);
     expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/morning = travel\/transfer only/);

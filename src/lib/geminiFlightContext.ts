@@ -982,9 +982,9 @@ export function flightContextPromptBlock(
     if (depMin < 6 * 60) {
       lines.push(
         planLangCopy(lang, {
-          sl: `- NOČNI POVRATEK (${flights.inboundDepart}, 00:00–05:59): odjava iz hotela in prevoz na letališče sta v VEČERNEM sklopu dneva ${totalDays - 1} (~22:30). Dan ${totalDays} = samo nočni let + popoldanski pristanek doma — PREPOVEDANO ponovni večerni transfer na koncu zadnjega dne.`,
-          en: `- RED-EYE RETURN (${flights.inboundDepart}, 00:00–05:59): hotel check-out and airport transfer MUST be in the EVENING of day ${totalDays - 1} (~22:30). Day ${totalDays} = overnight flight + afternoon landing at home only — FORBIDDEN to repeat an evening airport transfer at the end of the last day.`,
-          de: `- NACHT-RÜCKFLUG (${flights.inboundDepart}, 00:00–05:59): Check-out und Flughafentransfer am ABEND von Tag ${totalDays - 1} (~22:30). Tag ${totalDays} = nur Nachtflug + Nachmittagsankunft zu Hause — KEIN erneuter Abendtransfer am letzten Tag.`,
+          sl: `- NOČNI POVRATEK (${flights.inboundDepart}, 00:00–05:59): odjava iz hotela in prevoz na letališče sta v VEČERNEM sklopu dneva ${totalDays - 1} (~22:30). Dan ${totalDays} = IZKLJUČNO nočni let v zraku + popoldanski pristanek na domačem letališču — PREPOVEDANO dopoldanski odhod, odjava ali transfer NA DESTINACIJI in PREPOVEDANO ponovni večerni transfer na koncu zadnjega dne.`,
+          en: `- RED-EYE RETURN (${flights.inboundDepart}, 00:00–05:59): hotel check-out and airport transfer MUST be in the EVENING of day ${totalDays - 1} (~22:30). Day ${totalDays} = ONLY the overnight flight (already airborne) + afternoon landing at the home airport — FORBIDDEN morning check-out, destination taxi, or any destination departure/transfer on Day ${totalDays}, and FORBIDDEN to repeat an evening airport transfer at the end of the last day.`,
+          de: `- NACHT-RÜCKFLUG (${flights.inboundDepart}, 00:00–05:59): Check-out und Flughafentransfer am ABEND von Tag ${totalDays - 1} (~22:30). Tag ${totalDays} = NUR Nachtflug in der Luft + Nachmittagsankunft am Heimatflughafen — KEIN Vormittags-Check-out, kein Ziel-Taxi und kein erneuter Abendtransfer am letzten Tag.`,
         }),
       );
     }
@@ -1001,9 +1001,9 @@ export function flightContextPromptBlock(
       de: `- PRIORITÄT VOR „vollem Tag“: leere Slots VOR/NACH Flügen an Ankunfts-/Abflugtag sind PFLICHT. VERBOTEN: Frühstück, Siesta, Strand oder Vormittags-Aktivitäten am Ziel vor der Landung.`,
     }),
     planLangCopy(lang, {
-      sl: `- URE (LAST KODE): v JSON vpiši HH:MM za check-out/transfer/letališče/mednarodni let NATANKO iz IZBRANI LET. Aplikacija JSON ne prepisuje. Na dan 1: prihod na odhodno letališče = odhod − buffer. Na zadnjem dnevu: check-out < transfer < letališče < let.`,
-      en: `- CLOCKS (TICKET-OWNED): write HH:MM for checkout/transfer/airport/international flight EXACTLY from the selected ticket. The app will not rewrite this JSON. Day-1 origin airport = depart − buffer. Last day: checkout < transfer < airport < flight.`,
-      de: `- UHRZEITEN (TICKET): HH:MM für Check-out/Transfer/Flughafen/internationalen Flug GENAU aus dem gewählten Ticket. Die App ändert dieses JSON nicht. Tag 1: Ankunft Abflughafen = Abflug − Puffer. Letzter Tag: Check-out < Transfer < Flughafen < Flug.`,
+        sl: `- URE (LAST KODE): v JSON vpiši HH:MM za check-out/transfer/letališče/mednarodni let NATANKO iz IZBRANI LET. Aplikacija JSON ne prepisuje. Na dan 1: prihod na odhodno letališče = odhod − buffer. DNEVNI povratek: na zadnjem dnevu check-out < transfer < letališče < let. NOČNI board na N−1: na dan N NI check-out/transfer na destinaciji — samo let v zraku + pristanek doma.`,
+          en: `- CLOCKS (TICKET-OWNED): write HH:MM for checkout/transfer/airport/international flight EXACTLY from the selected ticket. The app will not rewrite this JSON. Day-1 origin airport = depart − buffer. Daytime return: last day checkout < transfer < airport < flight. Red-eye boarded N−1: Day N has NO dest checkout/transfer — only the overnight flight + home landing.`,
+          de: `- UHRZEITEN (TICKET): HH:MM für Check-out/Transfer/Flughafen/internationalen Flug GENAU aus dem gewählten Ticket. Die App ändert dieses JSON nicht. Tag 1: Ankunft Abflughafen = Abflug − Puffer. Tagesrückflug: letzter Tag Check-out < Transfer < Flughafen < Flug. Nachtflug an N−1: an Tag N KEIN Check-out/Transfer am Ziel — nur Nachtflug + Heimatankunft.`,
     }),
     planLangCopy(lang, {
       sl: `- STROGI JSON (dan prihoda + zadnji dan): vpiši let/transfer z urami iz IZBRANI LET plus sightseeing/food PO pristanku (pred odhodom). Aplikacija JSON ne prepisuje.`,

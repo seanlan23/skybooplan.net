@@ -46,7 +46,7 @@ Field mapping (same payload, do not emit a second itinerary):
 - trip_title → trip_metadata.destination (complete trip name)
 - overview → trip_metadata.season_warning (2–4 complete sentences)
 - total_budget_eur → root number (optional; app may recompute)
-- days[] length / day_number 1…N = EXACTLY the inclusive calendar days from START_DATE through END_DATE. Day N is ALWAYS the departure day
+- days[] length / day_number 1…N = EXACTLY the inclusive calendar days from START_DATE through END_DATE. Day N is ALWAYS the departure day (return home). Daytime board: checkout + airport + international flight. Red-eye boarded on N−1: Day N is only in-air + home landing — no morning dest checkout/transfers.
 - days[].day_number, date, title, city — title is a complete phrase
 - days[].transfer → days[].transportation[0] { type, from, to, duration, estimatedPrice = cost_eur } ONLY when the overnight city changes (new base). from and to MUST be different bases. Omit transfer on same-city days. FORBIDDEN: transfer/transportation[] for same-city day trips (island excursions, bay tours, Phi Phi / Phang Nga / Ang Thong style outings) — those stay as activities only
 - TRAVEL DAY: if city changes vs the previous overnight (distant city/island hop), morning = travel/transfer only; sightseeing in the new city only afternoon/evening after hotel check-in
