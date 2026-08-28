@@ -867,6 +867,13 @@ export function stripImplausibleLongHaulProgram(plan: AiTripPlan): number {
 export function stripWrongCityDayActivities(plan: AiTripPlan): number {
   let removed = 0;
   for (const day of plan.days ?? []) {
+    const hopsOvernight = (day.transportation ?? []).some((leg) => {
+      const from = (leg.from ?? "").trim();
+      const to = (leg.to ?? "").trim();
+      return Boolean(from && to && !sameStayCity(from, to));
+    });
+    // Sleep-city tag on a hop day can disagree with origin-city sights — keep both.
+    if (hopsOvernight) continue;
     const city = day.city || day.focusName || "";
     if (day.activities) {
       for (const slot of SLOTS) {

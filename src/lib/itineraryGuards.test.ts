@@ -396,6 +396,33 @@ describe("stripWrongCityDayActivities", () => {
     ].map((a) => a.name);
     expect(names).toEqual(["Wat Phra Yai"]);
   });
+
+  it("keeps origin-city sights on a hop day tagged with the sleep city", () => {
+    const plan = {
+      destinationName: "Thailand",
+      days: [
+        day({
+          day: 3,
+          city: "Chiang Mai",
+          transportation: [{ type: "flight", from: "Bangkok", to: "Chiang Mai" }],
+          activities: {
+            morning: [{ name: "Wat Pho", type: "SIGHT", description: "Ležeči Buda v Bangkoku." }],
+            afternoon: [{ name: "Yaowarat", type: "SIGHT", description: "Chinatown v Bangkoku." }],
+            evening: [
+              {
+                name: "Let v Chiang Mai",
+                type: "TRANSPORT",
+                description: "Večerni let iz Bangkoka.",
+              },
+            ],
+          },
+        }),
+      ],
+    } as AiTripPlan;
+    expect(stripWrongCityDayActivities(plan)).toBe(0);
+    expect(plan.days[0]!.activities!.morning[0]!.name).toMatch(/Wat Pho/i);
+    expect(plan.days[0]!.activities!.afternoon[0]!.name).toMatch(/Yaowarat/i);
+  });
 });
 
 describe("ensureCityChangeTransfer", () => {

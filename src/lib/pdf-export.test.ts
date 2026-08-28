@@ -951,7 +951,7 @@ describe("normalizePlanForPdf", () => {
     expect(model.days[3]?.title).toBe("Ubud");
   });
 
-  it("keeps a Bangkok sightseeing hop-day labelled Bangkok and splits NAMESTITVE by sleep nights", () => {
+  it("labels a late Bangkok→Chiang Mai hop-day as Chiang Mai and splits NAMESTITVE by sleep nights", () => {
     const model = normalizePlanForPdf({
       title: "MUC → BKK",
       destination: "Tajska",
@@ -993,7 +993,7 @@ describe("normalizePlanForPdf", () => {
         ],
       },
     });
-    expect(model.days[2]?.city).toMatch(/Bangkok/i);
+    expect(model.days[2]?.city).toMatch(/Chiang Mai/i);
     expect(model.hotels.map((h) => h.text)).toEqual([
       expect.stringMatching(/Bangkok.*2 noč.*26\.\s*okt.*28\.\s*okt/i),
       expect.stringMatching(/Chiang Mai.*3 noč.*28\.\s*okt.*31\.\s*okt/i),

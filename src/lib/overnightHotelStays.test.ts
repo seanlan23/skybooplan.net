@@ -167,7 +167,7 @@ describe("collectOvernightHotelStays", () => {
     expect(stays.find((s) => /boracay/i.test(s.city))?.nights).toBeGreaterThanOrEqual(2);
   });
 
-  it("counts sleep nights on a late hop while the day tag stays at the origin", () => {
+  it("stamps day.city to the sleep city on a late hop and splits NAMESTITVE by sleep nights", () => {
     const days = [
       {
         day: 1,
@@ -192,7 +192,7 @@ describe("collectOvernightHotelStays", () => {
       {
         day: 3,
         date: "2026-10-28",
-        city: "Chiang Mai",
+        city: "Bangkok",
         transportation: [{ type: "flight", from: "Bangkok", to: "Chiang Mai" }],
         activities: {
           morning: [{ name: "Wat Pho" }],
@@ -205,7 +205,7 @@ describe("collectOvernightHotelStays", () => {
       { day: 6, date: "2026-10-31", city: "Chiang Mai" },
     ];
     expect(syncDayCityToDaytimeProgram(days)).toBeGreaterThan(0);
-    expect(days[2]!.city).toBe("Bangkok");
+    expect(days[2]!.city).toBe("Chiang Mai");
     const stays = collectOvernightHotelStays({
       originPlace: "München",
       start_date: "2026-10-26",
@@ -263,6 +263,28 @@ describe("collectOvernightHotelStays", () => {
       "Osaka:2:2026-09-20:2026-09-22",
       "Tokyo:5:2026-09-22:2026-09-27",
     ]);
+  });
+
+  it("keeps El Nido as sleep city when the hop to-code is ENI", () => {
+    const days = [
+      { day: 1, date: "2026-10-04", city: "Manila" },
+      {
+        day: 2,
+        date: "2026-10-05",
+        city: "El Nido",
+        transportation: [{ type: "flight", from: "MNL", to: "ENI" }],
+        activities: {
+          morning: [{ name: "Notranji let MNL → El Nido", type: "TRANSPORT" }],
+          afternoon: [{ name: "Nacpan Beach" }],
+          evening: [{ name: "Dinner" }],
+        },
+      },
+      { day: 3, date: "2026-10-06", city: "El Nido" },
+      { day: 4, date: "2026-10-07", city: "El Nido" },
+    ];
+    syncDayCityToDaytimeProgram(days);
+    expect(days[1]!.city).toBe("El Nido");
+    expect(days[2]!.city).toBe("El Nido");
   });
 });
 

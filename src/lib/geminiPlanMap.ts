@@ -14,7 +14,7 @@ import {
   resolveMapPoiCategory,
 } from "@/lib/mapPoiCategory";
 import { activityHasRenderableBody, isDaypartSlotLabel } from "@/lib/textSanitize";
-import { parseHmClock } from "@/lib/activityTime";
+import { parseHmClock, sortDayActivitiesByClock } from "@/lib/activityTime";
 import { attachActivityCoordinates } from "@/lib/mapPoiResolver";
 import { stripMisplacedCityPois } from "@/lib/cityPoiGuard";
 import { lookupRegionCoords } from "@/lib/regionCoords";
@@ -420,15 +420,15 @@ function syncDayActivitySlots(
   day: DayPlan,
   slots: { morning: Activity[]; afternoon: Activity[]; evening: Activity[] },
 ): void {
-  day.activities = {
+  const chrono = sortDayActivitiesByClock({
     morning: sortActivitiesByTime(slots.morning),
     afternoon: sortActivitiesByTime(slots.afternoon),
     evening: sortActivitiesByTime(slots.evening),
-  };
-  const afternoonText = joinSlotActivities(slots.afternoon);
-  day.morning = joinSlotActivities(slots.morning);
-  day.afternoon = afternoonText;
-  day.evening = joinSlotActivities(slots.evening);
+  });
+  day.activities = chrono;
+  day.morning = joinSlotActivities(chrono.morning);
+  day.afternoon = joinSlotActivities(chrono.afternoon);
+  day.evening = joinSlotActivities(chrono.evening);
 }
 
 function slotActivities(

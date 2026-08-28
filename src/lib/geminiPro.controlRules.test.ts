@@ -84,6 +84,10 @@ describe("tripPlanControlRules", () => {
     expect(system).toMatch(/HIERARHIJA PRAVIL/);
     expect(system).toMatch(/SMSEL POTI|ROUTE SENSE/);
     expect(system).not.toMatch(/DVO-STOPENJSKI NAČRT|FAZA 1/i);
+    expect(system).toMatch(/CORE SYSTEM RULES/);
+    expect(system).toMatch(/ALWAYS the city where the traveller SLEEPS that night/);
+    expect(system).toMatch(/strictly increasing clock order/);
+    expect(system).toMatch(/EXACTLY once per day/);
     expect(system).toMatch(/experienced human travel consultant/);
     expect(system).toMatch(/Never mix English terms or placeholder words/);
     expect(system).toMatch(/10–11 hours door-to-door/);

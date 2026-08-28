@@ -26,8 +26,7 @@ describe("itinerary JSON schema contract", () => {
     expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/strictly valid, parseable JSON/);
     expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/no markdown code fences/);
     expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/conversational intro\/outro/);
-    expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/main programme|bulk of the day/);
-    expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/Wat Pho/);
+    expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/ALWAYS the overnight sleep city/);
     expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/Shinkansen Osaka→Tokyo|morning\/daytime hop/i);
     expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/"local_tips"/);
     expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/REQUIRED \(type: string\) every day/);

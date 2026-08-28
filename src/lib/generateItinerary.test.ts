@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { itineraryJsonToPlan } from "@/lib/generateItinerary";
+import { CORE_ITINERARY_SYSTEM_RULES, itineraryJsonToPlan } from "@/lib/generateItinerary";
 import type { GenerateItineraryInput } from "@/lib/generateItinerary";
 
 const SLOT =
@@ -19,6 +19,16 @@ function input(): GenerateItineraryInput {
     currency: "EUR",
   };
 }
+
+describe("CORE_ITINERARY_SYSTEM_RULES", () => {
+  it("exports the four live sleep-city / clock / leak / transfer rules", () => {
+    expect(CORE_ITINERARY_SYSTEM_RULES).toMatch(/CORE SYSTEM RULES/);
+    expect(CORE_ITINERARY_SYSTEM_RULES).toMatch(/SLEEPS that night/);
+    expect(CORE_ITINERARY_SYSTEM_RULES).toMatch(/strictly increasing clock order/);
+    expect(CORE_ITINERARY_SYSTEM_RULES).toMatch(/NO META-INSTRUCTIONS/);
+    expect(CORE_ITINERARY_SYSTEM_RULES).toMatch(/EXACTLY once per day/);
+  });
+});
 
 describe("itineraryJsonToPlan", () => {
   it("maps structured JSON onto DayPlan fields without inventing extra days", () => {

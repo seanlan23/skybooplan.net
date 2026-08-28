@@ -218,10 +218,8 @@ function overnightSleepCity(day: OvernightDay, next?: OvernightDay): string {
 }
 
 /**
- * On a hop after daytime sightseeing, day.city is the origin (Wat Pho day = Bangkok),
- * not the evening arrival city. Hub-return titles ("Nazaj v Cancún") keep the destination.
- * On a morning/daytime hop INTO a new base, day.city is the destination from that day on
- * (Shinkansen Osaka→Tokyo ⇒ Tokyo, including the following stay days).
+ * days[].city is the overnight SLEEP city. A base-change hop (train/flight)
+ * stamps this day and following stay days to hop.to — never leave them on the origin.
  */
 export function syncDayCityToDaytimeProgram(days: OvernightDay[]): number {
   let n = 0;
@@ -235,24 +233,6 @@ export function syncDayCityToDaytimeProgram(days: OvernightDay[]): number {
       (days[i + 1]?.city ?? days[i + 1]?.focusName ?? "").trim(),
     );
     const origin = placeNameForHopEnd(hopOriginCity(days, i, hop), (days[i - 1]?.city ?? "").trim());
-
-    if (daytimeSightsBeforeHop(day, hop)) {
-      const sightBlob = chronoActivities(day)
-        .filter((a) => actLabel(a) && !isMovementActivity(a))
-        .map(actLabel)
-        .join(" ");
-      const destBlob = `${day.title ?? ""} ${sightBlob}`;
-      if (overnightPlacesMatch(destBlob, hop.to) || overnightPlacesMatch(day.title ?? "", hop.to)) {
-        continue;
-      }
-      if (!origin) continue;
-      const current = (day.city ?? "").trim();
-      if (current && overnightPlacesMatch(current, origin)) continue;
-      stampDayCity(day, origin, dest);
-      n += 1;
-      continue;
-    }
-
     if (!dest) continue;
     const current = (day.city ?? "").trim();
     if (!current || !overnightPlacesMatch(current, dest)) {

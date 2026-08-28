@@ -6,6 +6,7 @@ import {
 } from "@/lib/planLanguages";
 import { DISTANCE_TRANSPORT_RULES } from "@/lib/transportPromptRules";
 import { worldRouteRulesPromptBlock } from "@/lib/worldRouteRules";
+import { CORE_ITINERARY_SYSTEM_RULES } from "@/lib/coreItineraryRules";
 
 /**
  * Single system-prompt rulebook for itinerary generation.
@@ -45,6 +46,8 @@ export function unifiedTripPlanSystemRules(opts: {
 Your plans must feel like they come from an experienced human travel consultant. Every recommendation must be practical, specific and usable in real life.
 
 ${worldRouteRulesPromptBlock(langCode === "sl")}
+
+${CORE_ITINERARY_SYSTEM_RULES}
 
 === UNIFIED SYSTEM PROMPT (mandatory) ===
 
