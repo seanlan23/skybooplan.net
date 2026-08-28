@@ -145,6 +145,27 @@ export function sanitizeLegacyTemplateLeak(text: string): string {
   );
 }
 
+/**
+ * Planner rules ("don't do a day trip to X") must never appear in user-facing copy.
+ */
+export function stripPlannerMetaCopy(text: string): string {
+  if (!text) return text;
+  let out = text
+    .replace(/[^.!?\n]*\bne\s+(?:delaj\s+)?(?:enodnevn[ei]\s+)?izlet(?:a)?[^.!?\n]*[.!?]?/gi, "")
+    .replace(/[^.!?\n]*\bnot\s+a\s+day\s+trip\s+to[^.!?\n]*[.!?]?/gi, "")
+    .replace(/[^.!?\n]*\bkein\s+tagesausflug[^.!?\n]*[.!?]?/gi, "")
+    .replace(/[^.!?\n]*\bnon\s+un['’]?escursione\s+di\s+un\s+giorno[^.!?\n]*[.!?]?/gi, "")
+    .replace(/[^.!?\n]*\bno\s+una\s+excursi[oó]n\s+de\s+un\s+d[ií]a[^.!?\n]*[.!?]?/gi, "")
+    .replace(/[^.!?\n]*\bpas\s+d['’]excursion\s+d['’]une\s+journ[eé]e[^.!?\n]*[.!?]?/gi, "")
+    .replace(/[^.!?\n]*tam že imaš večdnevno bivanje[^.!?\n]*[.!?]?/gi, "")
+    .replace(/[^.!?\n]*you already stay there overnight[^.!?\n]*[.!?]?/gi, "")
+    .replace(/\bPREPOVEDANO:?\s*/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .replace(/\s+([,.])/g, "$1")
+    .trim();
+  return out;
+}
+
 /** London transit cards leaked onto NYC (and other non-UK) days. */
 export function sanitizeTransitCardLeak(text: string): string {
   if (!text) return text;
@@ -1010,6 +1031,7 @@ export function sanitizeForLang(text: string, langCode: string, country?: string
   // Do NOT run fixMotorhomeCopyErrors here — it rewrites "hotel" → "campsite" and
   // poisoned normal hotel trips (Paris/Lyon PDFs). Motorhome paths call it explicitly.
   out = stripConcreteBangkokHotelBrands(out);
+  out = stripPlannerMetaCopy(out);
   out = localizeTravelCopy(out, langCode);
   if (langCode === "sl" || langCode.startsWith("sl")) {
     out = sanitizeSlText(out);

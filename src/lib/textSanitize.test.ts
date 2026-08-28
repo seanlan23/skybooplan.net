@@ -21,6 +21,7 @@ import {
   sanitizeLegacyTemplateLeak,
   sanitizeSlText,
   scrubInappropriatePoiCopy,
+  stripPlannerMetaCopy,
 } from "@/lib/textSanitize";
 
 describe("sanitizeSlText", () => {
@@ -31,6 +32,23 @@ describe("sanitizeSlText", () => {
   it("preserves activity bullet newlines", () => {
     const input = "- Prva točka\n- Druga točka\n- Tretja točka";
     expect(sanitizeSlText(input)).toBe(input);
+  });
+});
+
+describe("stripPlannerMetaCopy", () => {
+  it("removes leaked day-trip bans from activity text", () => {
+    expect(
+      stripPlannerMetaCopy(
+        "Ao Nang: lokalne plaže. Ne enodnevni izlet na Koh Phi Phi — tam že imaš večdnevno bivanje.",
+      ),
+    ).toBe("Ao Nang: lokalne plaže.");
+    expect(
+      stripPlannerMetaCopy("Local sights. Not a day trip to Koh Phi Phi — you already stay there overnight."),
+    ).toBe("Local sights.");
+    expect(stripPlannerMetaCopy("PREPOVEDANO: izlet na otok. Tempelj Wat")).toMatch(/Tempelj Wat/i);
+    expect(stripPlannerMetaCopy("Dopoldanski izlet na Ayutthaya z vlakom.")).toBe(
+      "Dopoldanski izlet na Ayutthaya z vlakom.",
+    );
   });
 });
 

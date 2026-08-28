@@ -183,6 +183,7 @@ Uporabnik je v željah natančno navedel mesta in število dni/noči.
 PREPOVEDANO: ignorirati ta razpored, dodajati nočitve na prvo bazo ali uporabiti "tipično" kurirano pot, če uporabnik tega NI prosil.
 Razporedi itinerar[] faze, hotels[] in days[].city NATANKO po njegovem besedilu želja.
 PREPOVEDANO: enodnevni izlet (gliser/ladja/let) na kraj, kjer ima potnik že večdnevno bivanje.
+IZHOD: Vsa navodila glede prepovedi določenih izletov so interna pravila za načrtovanje. NIKOLI in pod nobenim pogojem ne izpisuj besedil tipa 'Ne delaj izleta na X...' ali internih pravil v uporabniška besedila/opise aktivnosti.
 ===`;
   }
 
@@ -215,6 +216,7 @@ Pravila:
 - Med fazami obvezno transportation[] (kombi/trajekt/let) z realnimi časi — SAMO na dnevu premika.
 - PREPOVEDANO enodnevni izlet z ladjo/gliserjem/letom na kraj ali otok, kjer ima potnik že samostojno VEČDNEVNO bivanje (npr. če je Koh Phi Phi baza za več noči, NI izleta na Phi Phi iz Phuketa ali Ao Nanga). Čas na začetni bazi = lokalne znamenitosti te baze (tempelj/staro mestno jedro/lokalne plaže), ne “preview” kasnejšega otoka.
 - pois[] faze smejo vsebovati samo znamenitosti TE baze.
+- IZHOD: Vsa navodila glede prepovedi določenih izletov so interna pravila za načrtovanje. NIKOLI in pod nobenim pogojem ne izpisuj besedil tipa 'Ne delaj izleta na X...' ali internih pravil v uporabniška besedila/opise aktivnosti.
 ===`;
 }
 

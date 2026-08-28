@@ -73,6 +73,7 @@ describe("buildTravelBriefUserBlock", () => {
     expect(text).toMatch(/Inclusive calendar days: 16/);
     expect(text).not.toMatch(/\[START_DATE\]|\[END_DATE\]/);
     expect(text).toMatch(/NO PLACEHOLDERS \/ NO TRUNCATION/);
+    expect(text).toMatch(/NIKOLI in pod nobenim pogojem ne izpisuj/);
     expect(text).toMatch(/fully completed description \(minimum 25 words\)/);
     expect(text).toMatch(/NEVER output placeholders, unfinished titles/);
     expect(text).toMatch(/sentences ending with '\.\.\.'/);

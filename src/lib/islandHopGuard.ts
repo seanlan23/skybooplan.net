@@ -206,12 +206,12 @@ export function dropDayTripsToOvernightStays(plan: AiTripPlan, language?: string
               fr: `Visites locales à ${city}`,
             }),
             description: planLangCopy(lang, {
-              sl: `${city}: lokalne znamenitosti, staro mestno jedro in bližnje plaže. Ne enodnevni izlet na ${stayCity} — tam že imaš večdnevno bivanje.`,
-              en: `${city}: local sights, old town and nearby beaches. Not a day trip to ${stayCity} — you already stay there overnight.`,
-              de: `${city}: lokale Sehenswürdigkeiten, Altstadt und Strände in der Nähe. Kein Tagesausflug nach ${stayCity} — dort übernachtest du bereits mehrere Nächte.`,
-              it: `${city}: attrazioni locali, centro storico e spiagge vicine. Non un'escursione di un giorno a ${stayCity} — lì soggiorni già più notti.`,
-              es: `${city}: sitios locales, casco antiguo y playas cercanas. No una excursión de un día a ${stayCity} — allí ya te quedas varias noches.`,
-              fr: `${city} : visites locales, vieille ville et plages proches. Pas d'excursion d'une journée à ${stayCity} — vous y séjournez déjà plusieurs nuits.`,
+              sl: `${city}: lokalne znamenitosti, staro mestno jedro in bližnje plaže.`,
+              en: `${city}: local sights, old town and nearby beaches.`,
+              de: `${city}: lokale Sehenswürdigkeiten, Altstadt und Strände in der Nähe.`,
+              it: `${city}: attrazioni locali, centro storico e spiagge vicine.`,
+              es: `${city}: sitios locales, casco antiguo y playas cercanas.`,
+              fr: `${city} : visites locales, vieille ville et plages proches.`,
             }),
             type: a.type === "TRANSPORT" ? "SIGHT" : a.type || "SIGHT",
           };

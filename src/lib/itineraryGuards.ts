@@ -23,6 +23,7 @@ import { enrichIslandAirportTransfers } from "@/lib/islandAirportTransfers";
 import { scrubImpossibleIslandDayTrips } from "@/lib/islandHopGuard";
 import { applyUserStayPlan, hasExplicitStayPlan } from "@/lib/userStayPlan";
 import { paceMetropolisStays } from "@/lib/metropolisPacing";
+import { scrubLocalTipsOnPlan } from "@/lib/localTipsSanitize";
 import { isSmallIsland } from "@/lib/islandStays";
 import { scrubBangkokSightsOnIslandTransferDays } from "@/lib/bangkokMustSee";
 import { alignSummaryTripLength } from "@/lib/planTeaser";
@@ -2104,6 +2105,7 @@ export function applyItineraryGuards(
   dedupeSameDayActivities(plan);
   const wrongCity = stripWrongCityDayActivities(plan);
   const templateScrub = scrubForbiddenTemplateCopy(plan);
+  scrubLocalTipsOnPlan(plan);
   const genericMeals = stripGenericMealActivities(plan);
   if (plan.summary && plan.days?.length) {
     plan.summary = alignSummaryTripLength(plan.summary, plan.days.length);

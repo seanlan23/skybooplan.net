@@ -61,12 +61,13 @@ function transferToTransportation(
       : /train|vlak/.test(raw)
         ? "train"
         : "van";
+  const duration = t.duration?.trim();
   return [
     {
       type,
       from: from || "—",
       to: to || "—",
-      duration: t.duration?.trim() || "1h",
+      ...(duration ? { duration } : {}),
       estimatedPrice:
         typeof t.estimatedPrice === "number"
           ? t.estimatedPrice

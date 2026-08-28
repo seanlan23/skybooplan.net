@@ -15,7 +15,7 @@ import { activityDescriptionBullets } from "@/lib/activityDescription";
 import { formatActivityClockLabel, sortDayActivitiesByClock } from "@/lib/activityTime";
 import { enrichMotorhomePlanTips } from "@/lib/motorhomePlanTips";
 import { resyncPlanDayDates } from "@/lib/daySequence";
-import { fixMotorhomeCopyErrors, activityHasRenderableBody, isDaypartSlotLabel, isPlaceholderOrTruncatedCopy, sanitizeForLang } from "@/lib/textSanitize";
+import { fixMotorhomeCopyErrors, activityHasRenderableBody, isDaypartSlotLabel, isPlaceholderOrTruncatedCopy, sanitizeForLang, stripPlannerMetaCopy } from "@/lib/textSanitize";
 import {
   collectOvernightHotelStays,
   collectOvernightHotelStaysFromHints,
@@ -32,7 +32,9 @@ import {
   isBaseTransferLeg,
   orientArrivalTransferLeg,
   resolveTransferHub,
+  sameTransferBase,
 } from "@/lib/baseTransfer";
+import { scrubLocalTipsOnPdfDays } from "@/lib/localTipsSanitize";
 
 /**
  * Served from /public/fonts so Nitro/Vercel always can fetch them.
@@ -344,6 +346,58 @@ export function isPdfBaseTransferLeg(
   },
 ): boolean {
   return isBaseTransferLeg(leg, opts);
+}
+
+type PdfTransferLeg = {
+  type: string;
+  from: string;
+  to: string;
+  duration?: string;
+  price?: string;
+};
+
+function pdfTransferTypeRank(type: string): number {
+  const t = type.toLowerCase();
+  if (/flight|let/.test(t)) return 5;
+  if (/ferry|trajekt|boat|ladja/.test(t)) return 4;
+  if (/train|vlak/.test(t)) return 3;
+  if (/car|avto/.test(t)) return 2;
+  if (/van|kombi/.test(t)) return 1;
+  return 0;
+}
+
+/** Exact "1h" is the old schema default — not a measured duration. */
+function isPlaceholderPdfDuration(raw: string | undefined): boolean {
+  if (!raw?.trim()) return true;
+  return /^1\s*h(?:r|ours?)?$/i.test(raw.trim());
+}
+
+function pickBetterPdfTransfer(a: PdfTransferLeg, b: PdfTransferLeg): PdfTransferLeg {
+  const aWeak = isPlaceholderPdfDuration(a.duration);
+  const bWeak = isPlaceholderPdfDuration(b.duration);
+  if (aWeak !== bWeak) return aWeak ? b : a;
+  const aRank = pdfTransferTypeRank(a.type);
+  const bRank = pdfTransferTypeRank(b.type);
+  if (aRank !== bRank) return aRank >= bRank ? a : b;
+  return a;
+}
+
+function samePdfTransferHop(a: PdfTransferLeg, b: PdfTransferLeg): boolean {
+  return sameTransferBase(a.from, b.from) && sameTransferBase(a.to, b.to);
+}
+
+/** At most one gray transfer banner per day; identical hops collapse to the first valid leg. */
+export function collapsePdfDayTransfers(legs: PdfTransferLeg[]): PdfTransferLeg[] {
+  if (legs.length <= 1) return legs;
+  const groups: PdfTransferLeg[][] = [];
+  for (const leg of legs) {
+    const group = groups.find((row) => samePdfTransferHop(row[0]!, leg));
+    if (group) group.push(leg);
+    else groups.push([leg]);
+  }
+  const unique = groups.map((group) => group.reduce(pickBetterPdfTransfer));
+  if (unique.length <= 1) return unique;
+  return [unique.reduce(pickBetterPdfTransfer)];
 }
 
 /** Day-1 international hop must read origin → destination, never the reverse. */
@@ -760,13 +814,15 @@ function localizePdfTimeToken(raw: string | undefined, labels: PdfLabels): strin
 /** jsPDF custom fonts choke on emoji / some symbols — strip for layout stability. */
 export function sanitizePdfText(input: unknown): string {
   if (typeof input !== "string") return "";
-  return input
-    .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, "")
-    .replace(/\u0000/g, "")
-    // Collapse spaces/tabs only — keep newlines so bullet lists survive when needed.
-    .replace(/[^\S\n]+/g, " ")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
+  return stripPlannerMetaCopy(
+    input
+      .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, "")
+      .replace(/\u0000/g, "")
+      // Collapse spaces/tabs only — keep newlines so bullet lists survive when needed.
+      .replace(/[^\S\n]+/g, " ")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim(),
+  );
 }
 
 function wrapByWords(text: string, maxChars: number): string[] {
@@ -1107,6 +1163,7 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
               const raw = textOf(t.duration);
               if (!raw) return undefined;
               if (/^\d+(\.\d+)?$/.test(raw.trim())) return undefined;
+              if (isPlaceholderPdfDuration(raw)) return undefined;
               return raw;
             })(),
             price: (() => {
@@ -1197,6 +1254,7 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
       slots: fixedSlots,
     };
   });
+  scrubLocalTipsOnPdfDays(days);
 
   const titleIatas = iatasFromPdfTitle(plan.title);
   const originIata =
@@ -1208,24 +1266,26 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
 
   for (let i = 0; i < days.length; i++) {
     const d = days[i]!;
-    d.transportation = d.transportation
-      .map((leg) =>
-        orientPdfArrivalFlightLeg(leg, {
-          dayNumber: d.day,
-          originIata,
-          destinationIata: destIata,
-        }),
-      )
-      .filter((leg) =>
-        isPdfBaseTransferLeg(leg, {
-          dayCity: d.city,
-          prevCity: days[i - 1]?.city,
-          dayNumber: d.day,
-          originIata,
-          destinationIata: destIata,
-          isLastDay: i === days.length - 1,
-        }),
-      );
+    d.transportation = collapsePdfDayTransfers(
+      d.transportation
+        .map((leg) =>
+          orientPdfArrivalFlightLeg(leg, {
+            dayNumber: d.day,
+            originIata,
+            destinationIata: destIata,
+          }),
+        )
+        .filter((leg) =>
+          isPdfBaseTransferLeg(leg, {
+            dayCity: d.city,
+            prevCity: days[i - 1]?.city,
+            dayNumber: d.day,
+            originIata,
+            destinationIata: destIata,
+            isLastDay: i === days.length - 1,
+          }),
+        ),
+    );
   }
   const returnFlightFrom = textOf(
     (itin as { returnFlightEu?: { fromAirport?: string } }).returnFlightEu?.fromAirport,
@@ -1862,7 +1922,7 @@ async function renderPlanPdf(plan: PlanForPdf): Promise<{
 
       drawDayBand(d.day, metaLine, d.title);
 
-      for (const leg of d.transportation) {
+      for (const leg of collapsePdfDayTransfers(d.transportation)) {
         const line = [
           String(leg.type || "transport").toUpperCase(),
           leg.from && leg.to ? `${leg.from} → ${leg.to}` : "",

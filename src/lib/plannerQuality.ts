@@ -468,7 +468,7 @@ HRANA:
 PRAKTIČNO (vsak dan kjer sodi):
 - Parking, odpiralni čas, sezona, varnost, kje kupiti karto, kateri izhod metroja — konkretno za TO mesto TA dan.
 - travelHack = 1 insider nasvet (cena, ura, bližnjica). transportationTips samo če je konkreten A→B.
-- local_tips vsak dan: voda/hidracija, hrana/higiena, prevare, bonton na prevozu in v svetiščih, napitnine — za TO mesto.
+- local_tips vsak dan: 2–3 kratki nasveti, vezani na konkretna mesta TISTEGA dne (vstopnine, bonton, napitnine) — ne ista šablona in ne "oblačenje v templjih" tam, kjer tisti dan ni templja.
 
 STIL (človeški planner, ne turistična brošura):
 - Piši kot izkušen lokalni kolega: kratko, konkretno, uporabno. Drugačen nasvet vsak dan.

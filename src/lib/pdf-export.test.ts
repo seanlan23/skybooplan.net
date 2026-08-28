@@ -13,6 +13,17 @@ describe("sanitizePdfText", () => {
     expect(sanitizePdfText(12)).toBe("");
     expect(sanitizePdfText("")).toBe("");
   });
+
+  it("strips planner meta-instructions from activity copy", () => {
+    expect(
+      sanitizePdfText(
+        "Phuket: lokalne plaže. Ne enodnevni izlet na Koh Phi Phi — tam že imaš večdnevno bivanje.",
+      ),
+    ).toBe("Phuket: lokalne plaže.");
+    expect(
+      sanitizePdfText("Local sights. Not a day trip to Koh Phi Phi — you already stay there overnight."),
+    ).toBe("Local sights.");
+  });
 });
 
 describe("normalizePlanForPdf", () => {
@@ -115,6 +126,49 @@ describe("normalizePlanForPdf", () => {
     expect(model.days[0]!.localTips).toMatch(/voda iz pipe|žeparje/i);
     expect(model.days[0]!.transportTips).toMatch(/Tokyo Metro/i);
     expect(model.labels.localTips).toBe("Nasveti lokalcev & varnost");
+  });
+
+  it("strips temple-dress copy from NYC local_tips and dedupes identical days", () => {
+    const canned =
+      "Voda iz pipe ni pitna. Ulična hrana na prometnih stojnicah. V templju pokrij ramena; napitnine niso pričakovane.";
+    const model = normalizePlanForPdf({
+      title: "MUC → NYC",
+      destination: "New York",
+      start_date: "2026-08-18",
+      end_date: "2026-08-25",
+      language: "sl",
+      itinerary: {
+        days: [
+          {
+            day: 2,
+            date: "2026-08-19",
+            title: "The Met in Broadway",
+            city: "New York",
+            localTips: canned,
+            activities: {
+              morning: [{ name: "The Met", description: "Časovni vstop." }],
+              afternoon: [{ name: "Central Park", description: "Sprehod." }],
+              evening: [{ name: "Broadway", description: "Predstava." }],
+            },
+          },
+          {
+            day: 3,
+            date: "2026-08-20",
+            title: "Harlem",
+            city: "New York",
+            localTips: canned,
+            activities: {
+              morning: [{ name: "Gospel maša v Harlemu", description: "Pridi zgodaj." }],
+              afternoon: [{ name: "Apollo Theater", description: "Ogled." }],
+              evening: [{ name: "Večerja v Harlemu", description: "Napitnina 20%." }],
+            },
+          },
+        ],
+      },
+    });
+    expect(model.days[0]!.localTips).toBeTruthy();
+    expect(model.days[0]!.localTips).not.toMatch(/templj/i);
+    expect(model.days[1]!.localTips).toBeFalsy();
   });
 
   it("orients day-1 international flight origin → destination and hides airport–hotel FLIGHT", () => {
@@ -966,6 +1020,81 @@ describe("normalizePlanForPdf", () => {
     });
     expect(model.days[1]?.transportation[0]).toMatchObject({ from: "YYZ", to: "YVR" });
     expect(model.days[2]?.transportation[0]).toMatchObject({ from: "YVR", to: "MUC" });
+  });
+
+  it("collapses duplicate same-day transfer banners and omits placeholder 1h", () => {
+    const model = normalizePlanForPdf({
+      title: "BKK → MUC",
+      destination: "Tajska",
+      start_date: "2026-07-24",
+      end_date: "2026-08-07",
+      language: "sl",
+      itinerary: {
+        originIata: "MUC",
+        destinationIata: "BKK",
+        days: [
+          {
+            day: 1,
+            date: "2026-07-24",
+            title: "Prihod",
+            city: "Bangkok",
+          },
+          {
+            day: 14,
+            date: "2026-08-07",
+            title: "Odhod",
+            city: "Bangkok",
+            transportation: [
+              { type: "flight", from: "Bangkok", to: "München", duration: "1h" },
+              { type: "flight", from: "Bangkok", to: "München", duration: "1h" },
+              { type: "flight", from: "BKK", to: "MUC" },
+            ],
+          },
+        ],
+      },
+    });
+    const last = model.days[model.days.length - 1]!;
+    expect(last.transportation).toHaveLength(1);
+    expect(last.transportation[0]!.from).toMatch(/Bangkok|BKK/i);
+    expect(last.transportation[0]!.to).toMatch(/München|Munich|MUC/i);
+    expect(last.transportation[0]!.duration).toBeUndefined();
+  });
+
+  it("keeps a real duration when duplicate hops include one measured time", () => {
+    const model = normalizePlanForPdf({
+      title: "BKK → MUC",
+      destination: "Tajska",
+      start_date: "2026-07-24",
+      end_date: "2026-08-07",
+      language: "sl",
+      itinerary: {
+        originIata: "MUC",
+        destinationIata: "BKK",
+        days: [
+          {
+            day: 1,
+            date: "2026-07-24",
+            title: "Prihod",
+            city: "Bangkok",
+          },
+          {
+            day: 14,
+            date: "2026-08-07",
+            title: "Odhod",
+            city: "Bangkok",
+            transportation: [
+              { type: "flight", from: "Bangkok", to: "München", duration: "1h" },
+              { type: "flight", from: "BKK", to: "MUC", duration: "11h" },
+              { type: "van", from: "Bangkok", to: "München", duration: "1h" },
+            ],
+          },
+        ],
+      },
+    });
+    const last = model.days[model.days.length - 1]!;
+    expect(last.transportation).toHaveLength(1);
+    expect(last.transportation[0]!.type.toLowerCase()).toBe("flight");
+    expect(last.transportation[0]!.duration).toBe("11h");
   });
 
   it("prints open-jaw return from the last overnight hub, not the arrival IATA", () => {

@@ -105,6 +105,8 @@ describe("tripPlanControlRules", () => {
     expect(system).toMatch(/EXACTLY match the inclusive calendar days/);
     expect(system).toMatch(/Day N \(the final day\) MUST ALWAYS be the departure day/);
     expect(system).toMatch(/NO PLACEHOLDERS \/ NO TRUNCATION/);
+    expect(system).toMatch(/NO META-INSTRUCTIONS IN OUTPUT TEXT/);
+    expect(system).toMatch(/NIKOLI in pod nobenim pogojem ne izpisuj/);
     expect(system).toMatch(/fully completed description \(minimum 25 words\)/);
     expect(system).toMatch(/minimum 25 words/);
     expect(system).toMatch(/Never copy the origin international departure/);

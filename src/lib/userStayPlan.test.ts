@@ -62,6 +62,7 @@ describe("userStayPlan", () => {
     expect(block).toMatch(/Patong/);
     expect(block).toMatch(/PRVO bazo/);
     expect(block).toMatch(/enodnevni izlet/);
+    expect(block).toMatch(/NIKOLI in pod nobenim pogojem ne izpisuj/);
   });
 
   it("stamps days/hotels from wishes and overwrites extra first-base nights", () => {

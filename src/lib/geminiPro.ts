@@ -173,7 +173,7 @@ export function tripPlanControlRules(params: {
   const stayBlock = params.explicitStayPlan
     ? `- UPORABNIKOV RAZPORED MEST/NOČI ima ABSOLUTNO PREDNOST pred limito baz, kurirano potjo, “aklimatizacijo” in omejitvijo vstopnih metropol.
 - hotels[] in days[].city MORATA ujemati NATANČNO število nočitev iz želja. PREPOVEDANO spreminjati števila ali dodajati noči na prvo bazo (1 noč na hubu ostane 1 noč).
-- PREPOVEDANO enodnevni izlet (gliser/ladja/let) na kraj, kjer ima potnik že samostojno večdnevno bivanje (npr. Koh Phi Phi kot baza ⇒ ni izleta na Phi Phi iz Phuketa ali Ao Nanga).
+- PREPOVEDANO enodnevni izlet (gliser/ladja/let) na kraj, kjer ima potnik že samostojno večdnevno bivanje (npr. Koh Phi Phi kot baza ⇒ ni izleta na Phi Phi iz Phuketa ali Ao Nanga). Ta prepoved je INTERNO pravilo načrtovanja — NIKOLI je ne izpisuj v naslove/opise aktivnosti.
 - Vrnitev na Phuket/Patong za odhod je dovoljena, če je v željah.`
     : `- Brez eksplicitnega razporeda: mesta in nočitve izberi glede na želje, let in število dni.
 - METROPOLA vs NOTRANJOST (strogo): če je vstop/izstop velika tranzitna metropola (npr. Bangkok, Kuala Lumpur, Toronto, Tokio): na začetku NAJVEČ 2–3 nočitve; ob povratku NAJVEČ 1–2 nočitvi (zaključek + transfer na letališče). Ista metropola skupaj ≤ 30 % celotnega trajanja potovanja.
@@ -251,12 +251,11 @@ TRANSPORT IN PREMIKANJE (obvezno — več plasti):
 - Ne ponavljaj identičnega transportTip na več dneh — prilagodi mesto (Bangkok ≠ Chiang Mai ≠ Phuket).
 
 3) NASVETI LOKALCEV IN VARNOST (days[].local_tips — obvezno vsak dan, type: string):
-- Polje local_tips mora vsak dan vsebovati jedrnate, a bogate praktične nasvete ZA TO mesto/območje dneva (ne za celo državo; ne kopija travelHack in ne kopija transportTip).
-- Voda in hidracija: ali je voda iz pipe pitna, varnost ledu v pijačah, priporočen vnos vode glede na klimo tistega dne.
-- Hrana in higiena: kje je ulična hrana varna, svežina morske hrane, nepisana lokalna pravila.
-- Varnost in pasti (scams): žeparji na gnečah, znane lokalne turistične prevare (npr. "tempelj je zaprt", ponarejeni taksimetri, neoznačeni menjalci denarja).
-- Lokalni bonton in podzemna/vlaki: tišina, sedeži za starejše, prepoved prehranjevanja; kodeks oblačenja v svetiščih/cerkvah; napitnine (pričakovane ali žaljive).
-- Ne ponavljaj identičnega local_tips na več dneh. Prepovedano: generično "bodi previden" / "uporabi zdravo pamet".
+- Vsak dan 2–3 kratki nasveti, STROGO vezani na konkretna mesta/aktivnosti TISTEGA dne (vstopnine, rezervacije, bonton, napitnine, odpiralni časi) — ne generični checklist za celo državo in ne kopija travelHack/transportTip.
+- Ne ponavljaj identičnega local_tips na več dneh. Prepovedano copy-paste šablona "voda iz pipe + ulična hrana + oblačenje v templjih + napitnine" na vsako mesto.
+- Kodeks oblačenja v templjih/wat SAMO če ta dan res obiščeš tempelj/wat/svetišče. PREPOVEDANO "oblačenje v templjih" na New York, Pariz, Rim ali druga mesta brez templja tisti dan.
+- Primeri, samo ko je to na sporedu tistega dne: napitnine v ZDA; bonton na Broadwayu; vstopnine/rezervacije za The Met; pravila pri gospel maši v Harlemu; ramena pokrita pri Wat Pho.
+- Prepovedano: generično "bodi previden" / "uporabi zdravo pamet".
 
 4) MEDMESTNI / OTOŠKI PREVOZ (days[].transportation[] — obvezno ko relevantno):
 - Ob letu, vlaku, trajektu, speedboatu ali kombiju med mesti obvezno izpolni transportation[] z vsakim korakom (type, from, to, duration, estimatedPrice).
@@ -683,7 +682,7 @@ ${flightReturnLine}
 - PREPOVEDANO: znamenitosti enega mesta na dnevu v drugem mestu (POI ∈ baza).
 - timeSlot je obvezen: "dopoldan", "popoldan" ali "vecer". Za mednarodni prihod/odhod vpiši HH:MM NATANKO iz IZBRANI LET — aplikacija JSON ne prepisuje.
 - ČASOVNA STRUKTURA: JSON ključi morning/afternoon/evening so VEDNO obvezni. Pred/za letom slot opiše let/čakanje — ne izmišljene plaže. Miren tempo = manj ogledov, ne manjkajoči ključi.
-- Vsak dan obvezno izpolni travelHack (unikaten insider nasvet), transportTip (dnevni pregled prevoza) in local_tips (nasveti lokalcev in varnost za TO mesto).
+- Vsak dan obvezno izpolni travelHack (unikaten insider nasvet), transportTip (dnevni pregled prevoza) in local_tips (2–3 kratki nasveti lokalcev, vezani na konkretna mesta TISTEGA dne — ne ista šablona vsak dan).
 - Za dni z notranjim letom, trajektom, kombijem ali vlakom obvezno izpolni transportation[] (type: flight|ferry|train|van, from, to, duration, estimatedPrice v ${displayCurrency}). Za otok z letališčem na celini (npr. Boracay/MPH) obvezno 3 koraki: let → kombi → trajekt.
 - Vsak dan (days[]) mora imeti daily_budget_per_person_eur (realna številka EUR na osebo, tipično 35–70 na poln dan, NIKOLI 0), drivingDistanceKm in drivingDurationHours (npr. "3h 45m").
 - Polje days[].date mora biti vedno v ISO obliki YYYY-MM-DD (npr. "2026-08-14") — ne slovenskega datuma; day_name je lahko "Sobota, 14. avgust".
@@ -875,7 +874,7 @@ ${
 - hotels[] / accommodations[] = samo city + nights. Never invent hotel names.`;
 
   const routeBlock = explicitStayPlan
-    ? `VEČ DESTINACIJ: uporabnikov razpored mest/dni ima ABSOLUTNO PREDNOST. Sledi vrstnemu redu in NATANČNEMU številu nočitev; days[].city mora ujemati. PREPOVEDANO dodajati noči na prvo bazo. PREPOVEDANO enodnevni izlet na kraj z že načrtovanim večdnevnim bivanjem.`
+    ? `VEČ DESTINACIJ: uporabnikov razpored mest/dni ima ABSOLUTNO PREDNOST. Sledi vrstnemu redu in NATANČNEMU številu nočitev; days[].city mora ujemati. PREPOVEDANO dodajati noči na prvo bazo. PREPOVEDANO enodnevni izlet na kraj z že načrtovanim večdnevnim bivanjem. Ta prepoved je INTERNO pravilo — NIKOLI je ne izpisuj v opise aktivnosti.`
     : motorhome
       ? `ROAD TRIP: največ ${motorhomeRoadTripMaxBases(params.days)} bazami/kampi. days[] = NATANKO ${params.days} koledarskih day{} ((END_DATE − START_DATE) + 1). PREPOVEDANO: ena baza na vsak dan. Vsaka baza NAJMANJ 2 noči (dnevni izleti); 1 noč samo transfer/hub.`
       : carTrip || roadTrip
@@ -918,7 +917,7 @@ ${motorhomeRules}
 ${lodgingBlock}
 
 STROGI JSON — dnevna polja:
-- Vsak dan: activities.morning + activities.afternoon + activities.evening (vsi trije ključi), transportTip (transportne opombe za TO mesto) in local_tips (nasveti lokalcev in varnost za TO mesto).
+- Vsak dan: activities.morning + activities.afternoon + activities.evening (vsi trije ključi), transportTip (transportne opombe za TO mesto) in local_tips (2–3 kratki nasveti, vezani na lokacije TISTEGA dne).
 - Preferiraj bullets. PREPOVEDANO wall of text / en dolg neformatiran odstavek.
 - arrivalTime/departureTime: on the selected international flights copy IZBRANI LET clocks exactly. The app will not rewrite this JSON.
 - weatherWidget { season, avgTemp, clothing } obvezno. safetyWarning objekt ali null.

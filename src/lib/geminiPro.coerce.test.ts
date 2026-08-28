@@ -71,6 +71,60 @@ describe("coerceTripPlanPayload", () => {
     expect(phase.days[0]!.transportation).toBeUndefined();
   });
 
+  it("does not invent a 1h duration when clocks are missing", () => {
+    const raw = {
+      trip_metadata: {
+        destination: "Thailand",
+        season_warning: "Warm.",
+        currency: "EUR",
+        visa_required: false,
+      },
+      itinerar: [
+        {
+          phase: "Bangkok",
+          city: "Bangkok",
+          unsplashQuery: "Bangkok",
+          lat: 13.75,
+          lng: 100.5,
+          pois: [],
+          days: [
+            {
+              day_number: 1,
+              date: "2026-10-26",
+              day_name: "Monday",
+              title: "Arrival",
+              dailyBudget: 80,
+              drivingDistanceKm: 0,
+              drivingDurationHours: "0h",
+              activities: [
+                {
+                  time: "18:00",
+                  title: "Transfer from BKK airport",
+                  description: "Taxi to the hotel after landing.",
+                  category: "airport",
+                  timeSlot: "vecer",
+                },
+              ],
+              transfer: { type: "flight", from: "Bangkok", to: "München" },
+            },
+          ],
+        },
+      ],
+      logistics_and_tips: {
+        transport: { flights: "BKK", ferries: "n/a", city_transport: "Grab" },
+        finance: "EUR/THB",
+        internet: "eSIM",
+      },
+      hotels: [],
+    };
+
+    const parsed = parseCoercedTripPlan(coerceTripPlanPayload(raw));
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) return;
+    const airport = parsed.data.itinerar[0]!.days[0]!.activities[0]!;
+    expect(airport.duration).toBeUndefined();
+  });
+
   it("accepts sightseeing without arrivalTime/departureTime (flight-day strict JSON)", () => {
     const raw = {
       trip_metadata: {

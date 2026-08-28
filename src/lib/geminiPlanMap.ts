@@ -37,6 +37,7 @@ import { dropDayTripsToOvernightStays } from "@/lib/islandHopGuard";
 import { sanitizeReturnFlightSummary } from "@/lib/returnFlightSummary";
 import { driveTypeLabel } from "@/lib/planLangCopy";
 import { normalizePlanLangCode } from "@/lib/planLanguages";
+import { scrubLocalTipsOnPlan } from "@/lib/localTipsSanitize";
 
 export type GeminiPlanMapOpts = {
   originIata?: string;
@@ -864,6 +865,7 @@ export function tripPlanResponseToAiTripPlan(
   };
   if (!hasExplicitStayPlan(plan.wishes)) paceMetropolisStays(plan);
   dropDayTripsToOvernightStays(plan, lang);
+  scrubLocalTipsOnPlan(plan);
   return plan;
 }
 

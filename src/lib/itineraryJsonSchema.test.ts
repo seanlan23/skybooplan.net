@@ -28,8 +28,9 @@ describe("itinerary JSON schema contract", () => {
     expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/OVERNIGHT town\/area|OVERNIGHT city/);
     expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/"local_tips"/);
     expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/REQUIRED \(type: string\) every day/);
-    expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/Water & hydration/);
-    expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/Safety & scams/);
+    expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/2–3 short practical tips/);
+    expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/Temple\/wat dress ONLY/);
+    expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/Broadway etiquette/);
     expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/nights per city in wishes/);
     expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/multi-night stay/);
     expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/transit metropolis/);
@@ -236,9 +237,10 @@ describe("tripPlanSystemPrompt JSON contract", () => {
     expect(system).toMatch(/minimum 25 words/);
     expect(system).toMatch(/weatherWidget/);
     expect(system).toMatch(/local_tips/);
-    expect(system).toMatch(/Water & hydration/);
+    expect(system).toMatch(/2–3 short practical tips/);
     expect(itineraryHacksAndTransportRules("EUR")).toMatch(/days\[\]\.local_tips/);
-    expect(itineraryHacksAndTransportRules("EUR")).toMatch(/Voda in hidracija/);
-    expect(itineraryHacksAndTransportRules("EUR")).toMatch(/ponarejeni taksimetri/);
+    expect(itineraryHacksAndTransportRules("EUR")).toMatch(/2–3 kratki nasveti/);
+    expect(itineraryHacksAndTransportRules("EUR")).toMatch(/oblačenje v templjih/);
+    expect(itineraryHacksAndTransportRules("EUR")).toMatch(/Broadway/);
   });
 });

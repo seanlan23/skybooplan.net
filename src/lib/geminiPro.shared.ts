@@ -49,7 +49,7 @@ const transportLegSchema = z.object({
   type: z.enum(["flight", "ferry", "train", "van"]),
   from: z.string().min(1),
   to: z.string().min(1),
-  duration: z.string().min(1),
+  duration: z.string().min(1).optional(),
   estimatedPrice: z.number().min(0),
 });
 
@@ -94,7 +94,7 @@ const transferSchema = z.object({
   type: z.string().min(1),
   from: z.string().min(1),
   to: z.string().min(1),
-  duration: z.string().min(1),
+  duration: z.string().min(1).optional(),
   cost_eur: z.number().min(0).optional(),
 });
 
@@ -467,7 +467,7 @@ function inferDurationLabel(arrivalTime?: string, departureTime?: string): strin
     }
     if (diff > 0) return `${diff}min`;
   }
-  return "1h";
+  return "";
 }
 
 /** Lift/flatten Gemini JSON so schema parse succeeds. Does not invent days or POIs. */
@@ -504,10 +504,12 @@ export function coerceTripPlanPayload(raw: unknown): unknown {
         if (!isTransportishTitle(title, category)) continue;
         if (!a.transport_type) a.transport_type = inferTransportType(title, category);
         if (typeof a.duration !== "string" || !a.duration.trim()) {
-          a.duration = inferDurationLabel(
+          const inferred = inferDurationLabel(
             typeof a.arrivalTime === "string" ? a.arrivalTime : undefined,
             typeof a.departureTime === "string" ? a.departureTime : undefined,
           );
+          if (inferred) a.duration = inferred;
+          else delete a.duration;
         }
       }
     }

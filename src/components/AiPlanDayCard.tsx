@@ -28,6 +28,7 @@ import { formatStayDateRange } from "@/lib/islandStays";
 import { activityDescriptionBullets } from "@/lib/activityDescription";
 import { formatActivityClockLabel } from "@/lib/activityTime";
 import { sanitizeLegacyTemplateLeak, activityHasRenderableBody, isDaypartSlotLabel } from "@/lib/textSanitize";
+import { dayLocalTipsContext, scrubDayLocalTips } from "@/lib/localTipsSanitize";
 import type { ActivityMapFocus } from "@/components/TripMap";
 import {
   activityToPoiDetails,
@@ -663,7 +664,7 @@ export function AiPlanDayCard({
   const localTipsText = kwaiDay
     ? ""
     : day.localTips
-      ? sanitizeLegacyTemplateLeak(day.localTips)
+      ? scrubDayLocalTips(sanitizeLegacyTemplateLeak(day.localTips), dayLocalTipsContext(day))
       : "";
   const localWarningsText = kwaiDay
     ? bangkokKwaiDayTripBookingTip(slo)

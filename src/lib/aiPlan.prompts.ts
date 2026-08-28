@@ -126,7 +126,7 @@ The user message is JSON trip parameters. Return ONE JSON object only.
     "transport": { "type": "", "duration": "", "cost": "", "description": "" },
     "travelHack": "insider tip",
     "transportationTips": "how to get around",
-    "localTips": "water, food hygiene, scams, transit etiquette",
+    "localTips": "2–3 short tips for that day's named places",
     "localWarnings": "scams, dress codes",
     "transportation": [{ "type": "flight", "from": "Bangkok BKK", "to": "Chiang Mai CNX", "duration": "1h 10min", "estimatedPrice": 45 }],
     "dailyBudgetEur": number
@@ -153,7 +153,7 @@ Rules:
 - Inter-city travel days: Morning is reserved for travel/transfer. Sightseeing in the new destination only afternoon/evening after hotel check-in — or leave evening empty
 - Each activity: name + priceLabel + 2–3 sentence description (unique, practical) — timing in text must match the slot (no sunset label in morning)
 - MANDATORY travelHack per day: unique, location-specific insider tip — NEVER repeat the same hack on two days
-- MANDATORY localTips / local_tips per day: water & hydration, food hygiene, scams, transit etiquette / temple dress / tipping for THAT city — never the same paragraph two days
+- MANDATORY localTips / local_tips per day: 2–3 short tips strictly bound to THAT day's named places (tickets, etiquette, tipping, reservations). Never the same paragraph two days. Never a copy-paste "tap water + street food + temple dress + tipping" checklist. Temple dress ONLY on a day that visits a temple/wat. NYC examples when those places are on the day: US tipping, Broadway etiquette, The Met tickets, Harlem gospel-service rules.
 - transportationTips ONLY if concrete for THAT city THAT day (named mode, pass, or A→B). Omit the field rather than a universal “use transit / taxi” paragraph
 - Do NOT repeat the identical Grab/tuk-tuk/"če imaš še energijo" sentence across days
 - Day numbers must be contiguous with no gaps (never skip day 5 after day 4)

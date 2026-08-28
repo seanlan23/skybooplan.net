@@ -55,12 +55,7 @@ Field mapping (same payload, do not emit a second itinerary):
 - days[].title is a unique day name (what happens that day) — never "Dan 1" / "Day 1".
 - hotels[] / accommodations[] = one row per consecutive stay { city, nights } matching days[].city. Forbidden: a single gateway-city row covering the whole trip. If the traveller listed nights per city in wishes, hotels[] and days[].city MUST match those counts exactly — no extra nights on the first base. Forbidden: a boat/flight day trip to an island/town that already has a multi-night stay (use local sights on the current base instead). Without an explicit stay plan: an entry/exit transit metropolis (Bangkok, Kuala Lumpur, Toronto, Tokyo…) gets at most 2–3 nights at the start and 1–2 at the return, and ≤30% of the trip in total; interior cultural/mountain bases and islands/parks get ≥3 nights.
 - days[].transportTip (transport notes) is REQUIRED every day — concrete A→B / apps / how to get around for THAT city only
-- days[].local_tips is REQUIRED (type: string) every day — practical local tips & safety for THAT day's city/area only. Not a copy of travelHack (one insider shortcut) and not transportTip (how to get around). Concise but rich; must cover:
-  1) Water & hydration: is tap water drinkable, ice in drinks, how much to drink in that climate.
-  2) Food & hygiene: where street food is safe, seafood freshness, unwritten local eating rules.
-  3) Safety & scams: pickpockets in crowds; known tourist tricks for that place (e.g. "the temple is closed", fake taxi meters, unmarked money changers).
-  4) Local etiquette & metro/trains: silence, seats for the elderly, no eating on transit; dress code in temples/churches; tipping (expected vs offensive).
-  Rotate by city (Tokyo metro ≠ Phuket beach). Forbidden: generic "be careful" / "use common sense" / the same paragraph on two days.
+- days[].local_tips is REQUIRED (type: string) every day — 2–3 short practical tips strictly bound to the named places on THAT day (tickets, reservations, dress/etiquette, tipping, opening quirks). Not a copy of travelHack (one insider shortcut) and not transportTip (how to get around). Forbidden: the same paragraph on two days; a copy-paste checklist (tap water + street food + temple dress + tipping) on every city. Temple/wat dress ONLY if that day visits a temple/wat/shrine. When the day's places actually include them: US tipping, Broadway etiquette, The Met tickets/reservations, Harlem gospel-service rules. Never "cover shoulders at temples" on New York or European days.
 - description = fully completed, minimum 25 words (typically 2–3 complete sentences: what + how + one local tip). Never a wall of text. NEVER '...' or cut off mid-word. On flight days write a complete in-flight/transfer description — do not drop the key
 - time = HH:MM for sightseeing when you know a sensible start; OMIT time on international arrival, hotel checkout, airport transfer, and the return flight (the ticket owns those clocks)
 - days[].daily_budget_per_person_eur → dailyBudget. REQUIRED every day: a real per-person EUR number (typical sightseeing day 35–70, never 0). Includes food + local transport + activities that day; not the international flight.
@@ -211,12 +206,13 @@ function applyTransfer(day: Record<string, unknown>): void {
   const from = str(transfer.from).trim();
   const to = str(transfer.to).trim();
   if (!from || !to || sameTransferBase(from, to)) return;
+  const duration = str(transfer.duration).trim();
   day.transportation = [
     {
       type: transferType(str(transfer.type)),
       from: from || "—",
       to: to || "—",
-      duration: str(transfer.duration).trim() || "1h",
+      ...(duration ? { duration } : {}),
       estimatedPrice: num(transfer.cost_eur) ?? num(transfer.estimatedPrice) ?? 0,
     },
   ];

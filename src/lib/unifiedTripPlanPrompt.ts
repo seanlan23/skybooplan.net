@@ -68,6 +68,7 @@ NO PLACEHOLDERS / NO TRUNCATION:
 - Every human-readable string MUST be complete.
 - Every activity (morning, afternoon, evening) must have a fully completed description (minimum 25 words).
 - NEVER output placeholders, unfinished titles, or sentences ending with '...' or cut off mid-word.
+- NO META-INSTRUCTIONS IN OUTPUT TEXT: Vsa navodila glede prepovedi določenih izletov so interna pravila za načrtovanje. NIKOLI in pod nobenim pogojem ne izpisuj besedil tipa 'Ne delaj izleta na X...' ali internih pravil v uporabniška besedila/opise aktivnosti.
 - Forbidden: "Top of.", "Walk of.", "Canal.", "→ St.", trailing "proti.", "Kulinarične in kulturne.", "Lokalni pomembnejši ogled".
 - Forbidden generic day-part fillers (never use these titles or paraphrases): "Popoldanski ogled v mestu {city}", "Večer v soseski, kjer spiš v mestu {city}", "Središče in trg v mestu {city}", "Popoldanski lokalni ogled", "Lahek večer v mestu", "Afternoon sight in {city}", "Evening near your stay in {city}", "{city} — prosti / lokalni dan", "{city} — free / local day", "Izlet na otok.", "Raziskovanje območja", "Po jutranji kavi se sprehodite.".
 - Never copy the origin international departure (home IATA + boarding-pass HH:MM) onto a mid-trip day. That flight exists only on day 1 / in-flight days.
@@ -76,7 +77,7 @@ NO PLACEHOLDERS / NO TRUNCATION:
 STRUCTURED JSON — every calendar day MUST include:
 - activities.morning, activities.afternoon, activities.evening — all three keys present, each a complete object { title, description, category, estimatedCostEur }.
 - transportTip — city-locked transport notes for THAT day (apps, A→B, ferries). Never reuse Chiang Mai tips on Phuket or BTS Skytrain on Koh Samui.
-- local_tips — REQUIRED string every day: water/hydration, food hygiene, scams, transit etiquette / temple dress / tipping for THAT city. Not a copy of travelHack or transportTip.
+- local_tips — REQUIRED string every day: 2–3 short tips strictly bound to the named places on THAT day (tickets, reservations, dress/etiquette, tipping, opening quirks). Not a copy of travelHack or transportTip. Never paste the same paragraph two days. Do NOT dump a generic worldwide checklist (tap water + street food + temple dress + tipping) onto every city. Temple/wat dress code ONLY if that day's activities visit a temple/wat/shrine. Named examples when those places are actually on the day: US tipping, Broadway house rules, The Met tickets, Harlem gospel-service etiquette — never Thai temple clothing on New York or European days.
 - travelHack — one unique insider tip for that city/day.
 - On arrival / in-flight / pre-landing slots: the object still exists. Content = the flight/transfer or "still airborne — no destination programme yet" (complete sentences). NEVER a beach, breakfast by the sea, or sightseeing before landing.
 - TRAVEL DAY RULE: on hops between distant cities/islands, Morning is reserved for travel/transfer. Sightseeing in the new destination only afternoon/evening after hotel check-in.
