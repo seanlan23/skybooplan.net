@@ -32,6 +32,8 @@ describe("itinerary JSON schema contract", () => {
     expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/Safety & scams/);
     expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/nights per city in wishes/);
     expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/multi-night stay/);
+    expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/transit metropolis/);
+    expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/≤30%/);
   });
 
   it("lifts a flat schema into itinerar[] so PDF can read slots", () => {

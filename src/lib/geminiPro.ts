@@ -171,11 +171,13 @@ export function tripPlanControlRules(params: {
       : `- Če ni izbranega leta: dan 1 = prihod v ${params.arrivalCity} (${params.destinationIata}), lahek program.`;
 
   const stayBlock = params.explicitStayPlan
-    ? `- UPORABNIKOV RAZPORED MEST/NOČI ima ABSOLUTNO PREDNOST pred limito baz, kurirano potjo in “aklimatizacijo”.
+    ? `- UPORABNIKOV RAZPORED MEST/NOČI ima ABSOLUTNO PREDNOST pred limito baz, kurirano potjo, “aklimatizacijo” in omejitvijo vstopnih metropol.
 - hotels[] in days[].city MORATA ujemati NATANČNO število nočitev iz želja. PREPOVEDANO spreminjati števila ali dodajati noči na prvo bazo (1 noč na hubu ostane 1 noč).
 - PREPOVEDANO enodnevni izlet (gliser/ladja/let) na kraj, kjer ima potnik že samostojno večdnevno bivanje (npr. Koh Phi Phi kot baza ⇒ ni izleta na Phi Phi iz Phuketa ali Ao Nanga).
 - Vrnitev na Phuket/Patong za odhod je dovoljena, če je v željah.`
-    : `- Brez eksplicitnega razporeda: mesta in nočitve izberi glede na želje, let in število dni.`;
+    : `- Brez eksplicitnega razporeda: mesta in nočitve izberi glede na želje, let in število dni.
+- METROPOLA vs NOTRANJOST (strogo): če je vstop/izstop velika tranzitna metropola (npr. Bangkok, Kuala Lumpur, Toronto, Tokio): na začetku NAJVEČ 2–3 nočitve; ob povratku NAJVEČ 1–2 nočitvi (zaključek + transfer na letališče). Ista metropola skupaj ≤ 30 % celotnega trajanja potovanja.
+- Sproščene dni nameni notranjosti: kulturni/gorski centri (npr. Chiang Mai) ≥3 nočitve (celodnevni izlet kot Doi Inthanon brez hitenja); otoki in naravni parki (npr. Koh Yao Noi, Khao Sok) ≥3 nočitve. PREPOVEDANO nategovati vstopni hub, medtem ko ima notranja baza 1–2 noči.`;
 
   return `
 === HIERARHIJA PRAVIL (obvezno — ob konfliktu zmaga višje) ===

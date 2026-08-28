@@ -2555,10 +2555,8 @@ function alignSkeletonRegionsToArrival(
 
 const RETURN_HUB_CAP_RE =
   /manila|bangkok|gaborone|windhoek|otjiwarongo|johannesburg|nairobi/i;
-const THIN_SAFARI_HUB_RE =
-  /gaborone|windhoek|otjiwarongo|johannesburg|nairobi/i;
 
-/** Final hub — Manila/Bangkok ≤4d; safari gateways ≤2d. Stolen days → previous region. */
+/** Final hub — transit metropolis ≤2d; safari gateways ≤2d. Stolen days → previous region. */
 function capReturnHubLeisureDays(
   regions: TripRegion[],
   nDays: number,
@@ -2569,7 +2567,7 @@ function capReturnHubLeisureDays(
   const last = regions[regions.length - 1]!;
   if (!RETURN_HUB_CAP_RE.test(last.city)) return regions;
   const span = last.endDay - last.startDay + 1;
-  const maxSpan = THIN_SAFARI_HUB_RE.test(last.city) ? 2 : 4;
+  const maxSpan = 2;
   if (span <= maxSpan) return regions;
   const steal = span - maxSpan;
   const newStart = last.startDay + steal;

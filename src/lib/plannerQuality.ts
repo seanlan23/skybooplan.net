@@ -4,6 +4,12 @@
  */
 
 import type { AiTripPlan } from "@/lib/aiPlan.functions";
+import {
+  INTERIOR_SLOW_MIN_NIGHTS,
+  isInteriorSlowStay,
+  isTransitMetropolis,
+  metropolisPacingPromptBlock,
+} from "@/lib/metropolisPacing";
 
 /** Pure driving target (no long stops). */
 export const TARGET_DRIVE_HOURS = 5;
@@ -312,6 +318,7 @@ export function stealNightForHitAndRun(plan: AiTripPlan): number {
     const day = days[i]!;
     if (day.inFlightDay || day.day === total) continue;
     const city = (day.city ?? day.focusName ?? "").trim();
+    if (isTransitMetropolis(city)) continue;
     if (!prefersTwoNights(city, total)) continue;
     const hitKey = cityKey(city);
     if ((nights.get(hitKey) ?? 0) !== 1) continue;
@@ -332,7 +339,13 @@ export function stealNightForHitAndRun(plan: AiTripPlan): number {
     };
     const prev = days[i - 1]!;
     const prevKey = cityKey(prev.city ?? prev.focusName ?? "");
-    if (prevKey && prevKey !== hitKey && (nights.get(prevKey) ?? 0) >= 3) {
+    const prevCity = (prev.city ?? prev.focusName ?? "").trim();
+    if (
+      prevKey &&
+      prevKey !== hitKey &&
+      (nights.get(prevKey) ?? 0) >= 3 &&
+      !(isInteriorSlowStay(prevCity) && (nights.get(prevKey) ?? 0) <= INTERIOR_SLOW_MIN_NIGHTS)
+    ) {
       stealFrom(prev, prevKey);
       n += 1;
       continue;
@@ -340,8 +353,10 @@ export function stealNightForHitAndRun(plan: AiTripPlan): number {
     const next = days[i + 1];
     if (!next || next.inFlightDay || next.day === total) continue;
     const nextKey = cityKey(next.city ?? next.focusName ?? "");
+    const nextCity = (next.city ?? next.focusName ?? "").trim();
     if (!nextKey || nextKey === hitKey) continue;
     if ((nights.get(nextKey) ?? 0) < 3) continue;
+    if (isInteriorSlowStay(nextCity) && (nights.get(nextKey) ?? 0) <= INTERIOR_SLOW_MIN_NIGHTS) continue;
     stealFrom(next, nextKey);
     n += 1;
   }
@@ -357,6 +372,7 @@ export function annotateHitAndRunStays(plan: AiTripPlan): number {
   let n = 0;
   for (const day of plan.days ?? []) {
     const city = (day.city ?? day.focusName ?? "").trim();
+    if (isTransitMetropolis(city)) continue;
     if (!prefersTwoNights(city, total)) continue;
     if ((nights.get(cityKey(city)) ?? 0) !== 1) continue;
     if ((day.drivingDistanceKm ?? 0) > 400) continue;
@@ -403,10 +419,13 @@ export function plannerQualityPromptBlock(opts: {
   lockUserStayPlan?: boolean;
 }): string {
   const twoNight = opts.lockUserStayPlan
-    ? `- NOČITVE: uporabnikov razpored mest/noči je ZAKLENJEN. PREPOVEDANO “ukrasti noč” sosedu, dvigovati 1-nočne baze na 2, ali dodajati noči na prvo bazo. hotels[] = natanko želje.`
+    ? `- NOČITVE: uporabnikov razpored mest/noči je ZAKLENJEN. PREPOVEDANO “ukrasti noč” sosedu, dvigovati 1-nočne baze na 2, ali dodajati noči na prvo bazo. hotels[] = natanko želje.
+${metropolisPacingPromptBlock({ lockUserStayPlan: true })}`
     : opts.totalDays >= TWO_NIGHT_MIN_TRIP_DAYS
-      ? `- NOČITVE: v pomembnejših mestih (Paris, Rim, Kyoto, Split, Kotor, Berat, Cape Town, NYC…) 2 noči ALI izpusti mesto. PREPOVEDANO 1 noč + sprehod na ${opts.totalDays}-dnevni poti (Rim, Kotor, Pariz…). Aplikacija ukrade noč sosedu z 3+ nočitvami — ti raje že v skeletu daj 2 noči.`
-      : `- NOČITVE: na kratki poti je 1 noč v mestu OK — ne siliti 2 noči na račun cilja.`;
+      ? `- NOČITVE: v pomembnejših mestih (Paris, Rim, Kyoto, Split, Kotor, Berat, Cape Town, NYC…) 2 noči ALI izpusti mesto. PREPOVEDANO 1 noč + sprehod na ${opts.totalDays}-dnevni poti (Rim, Kotor, Pariz…). Aplikacija ukrade noč sosedu z 3+ nočitvami — ti raje že v skeletu daj 2 noči.
+${metropolisPacingPromptBlock()}`
+      : `- NOČITVE: na kratki poti je 1 noč v mestu OK — ne siliti 2 noči na račun cilja.
+${metropolisPacingPromptBlock()}`;
 
   const roadBlock = opts.road
     ? `

@@ -20,7 +20,8 @@ import { stripMisplacedCityPois } from "@/lib/cityPoiGuard";
 import { lookupRegionCoords } from "@/lib/regionCoords";
 import { lookupPoiCoords } from "@/lib/tripGeo";
 import { stampOvernightCitiesFromHotels } from "@/lib/overnightHotelStays";
-import { applyUserStayPlan } from "@/lib/userStayPlan";
+import { applyUserStayPlan, hasExplicitStayPlan } from "@/lib/userStayPlan";
+import { paceMetropolisStays } from "@/lib/metropolisPacing";
 import { addDays } from "@/lib/dateUtils";
 import { sortActivitiesByTime } from "@/lib/dayPlanUi";
 import {
@@ -861,6 +862,7 @@ export function tripPlanResponseToAiTripPlan(
     hotels: hotels.length > 0 ? hotels : undefined,
     wishes: opts?.wishesText?.trim() || undefined,
   };
+  if (!hasExplicitStayPlan(plan.wishes)) paceMetropolisStays(plan);
   dropDayTripsToOvernightStays(plan, lang);
   return plan;
 }

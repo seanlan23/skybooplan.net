@@ -150,6 +150,9 @@ describe("tripPlanControlRules", () => {
     expect(system).toMatch(/SMSEL POTI|ROUTE SENSE/);
     expect(system).not.toMatch(/Dan 1–[34]: Bangkok/i);
     expect(system).toMatch(/Popoldanski ogled v mestu \{city\}/);
+    expect(system).toMatch(/METROPOLA vs NOTRANJOST|tranzitna metropola/);
+    expect(system).toMatch(/30 %/);
+    expect(system).toMatch(/Chiang Mai/);
   });
 
   it("continuation batches ask only for remaining day_numbers and leftover destinations", () => {

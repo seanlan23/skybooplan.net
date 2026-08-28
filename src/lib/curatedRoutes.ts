@@ -899,7 +899,7 @@ export type RegionBlueprintBlock = { city: string; startDay: number; endDay: num
 
 /** International hubs: arrival/return buffers — do not absorb leftover trip days. */
 const BLUEPRINT_HUB_CITY_RE =
-  /^(manila|bangkok|jakarta|singapore|kuala lumpur|ho chi minh city|hanoi|tokyo|seoul|dubai|istanbul|gaborone|windhoek|johannesburg|nairobi)$/i;
+  /^(manila|bangkok|jakarta|singapore|kuala lumpur|toronto|ho chi minh city|hanoi|tokyo|seoul|dubai|istanbul|gaborone|windhoek|johannesburg|nairobi)$/i;
 
 function isBlueprintReturnHub(
   index: number,
@@ -969,7 +969,7 @@ function blueprintFloor(
   const nextCity = template[index + 1]?.[0];
   const minN = minStayNights(city, nextCity);
   if (isBlueprintReturnHub(index, city, template)) {
-    return Math.min(Math.max(1, days || 1), 3);
+    return Math.min(Math.max(1, days || 1), 2);
   }
   if (isBlueprintArrivalHub(index, city, days)) {
     return Math.max(minN, Math.min(Math.max(1, days || 1), 2));

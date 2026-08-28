@@ -52,6 +52,8 @@ describe("plannerQualityPromptBlock", () => {
     const air = plannerQualityPromptBlock({ road: false, totalDays: 16 });
     expect(air).toMatch(/NE velja za mednarodni let/);
     expect(air).toMatch(/zadnji dan/i);
+    expect(air).toMatch(/tranzitna metropola|30 %/);
+    expect(air).toMatch(/Chiang Mai/);
   });
 
   it("locks night counts when the user spelled a stay plan", () => {
@@ -62,6 +64,7 @@ describe("plannerQualityPromptBlock", () => {
     });
     expect(locked).toMatch(/ZAKLENJEN/);
     expect(locked).not.toMatch(/ukrade noč sosedu z 3\+/);
+    expect(locked).toMatch(/premaga omejitev/);
   });
 });
 

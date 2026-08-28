@@ -10,7 +10,7 @@ function slPlansPhrase(count: number, n: string): string {
 }
 
 /** Known completed itineraries — keep the public counter from dropping below this. */
-export const KNOWN_PLANS_GENERATED_FLOOR = 507;
+export const KNOWN_PLANS_GENERATED_FLOOR = 912;
 
 export function resolvePublicPlanCount(
   stored: number,

@@ -22,6 +22,7 @@ import { applyIslandHopLogistics } from "@/lib/islandHopLogistics";
 import { enrichIslandAirportTransfers } from "@/lib/islandAirportTransfers";
 import { scrubImpossibleIslandDayTrips } from "@/lib/islandHopGuard";
 import { applyUserStayPlan, hasExplicitStayPlan } from "@/lib/userStayPlan";
+import { paceMetropolisStays } from "@/lib/metropolisPacing";
 import { isSmallIsland } from "@/lib/islandStays";
 import { scrubBangkokSightsOnIslandTransferDays } from "@/lib/bangkokMustSee";
 import { alignSummaryTripLength } from "@/lib/planTeaser";
@@ -2134,6 +2135,7 @@ export function applyItineraryGuards(
   const lastDayHome = forceLastRoadDayHome(plan);
   const splitDrives = splitOverlongDriveStages(plan);
   const stealNights = lockStay ? 0 : stealNightForHitAndRun(plan);
+  if (!lockStay) paceMetropolisStays(plan);
   if (lockStay) applyUserStayPlan(plan, { arrivalDay: opts?.arrivalDay });
   stripSightseeingOnBrutalDriveDays(plan);
   const overlongDrives = annotateOverlongDriveStages(plan);

@@ -13,6 +13,8 @@ describe("worldRouteRulesPromptBlock", () => {
     expect(sl).toMatch(/Najprej baze/i);
     expect(sl).toMatch(/NOVO bazo/i);
     expect(sl).toMatch(/Težek premik/i);
+    expect(sl).toMatch(/tranzitna metropola|≤30 %/i);
+    expect(en).toMatch(/transit metropolis|≤30%/i);
     expect(sl).toMatch(/zapuščeno regijo|En premik med dvema bazama/i);
     expect(sl).toMatch(/naslednji dan je samo nova baza|brez ponovljenega A→B/i);
     expect(sl).toMatch(/Zadnji koledarski dan|IATA/i);
