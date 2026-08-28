@@ -203,7 +203,7 @@ ${paceBlock}
 
 FAZE vs DNEVI (brez mešanja):
 - itinerar[].pois[] = samo znamenitosti TE faze/baze — vsaka faza MORA imeti ≥1 POI z realnimi lat/lng v istem mestu.
-- days[].city = mesto NOČITVE (kraj/vas/otok kjer spiš) — NE vstopno letališko mesto za vsak dan. Zaporedni dnevi v isti bazi MORAJU imeti isto city. PREPOVEDANO: enodnevni skok nazaj na prejšnje vozlišče brez transferja tisti dan (npr. A–A–B–A).
+- days[].city = mesto DNEVNEGA programa (in običajno nočitve) — NE vstopno letališko mesto za vsak dan. Na dnevu premika zjutraj/dopoldne v NOVO bazo (vlak/let, potem ogledi v novem mestu) je city NOVO mesto OD TISTEGA DNEVA DALJE. PREPOVEDANO pustiti prejšnje mesto na dnevih po premiku (Shinjuku/Ginza ≠ Osaka). Pozni večerni hop PO ogledih v stari bazi: city ostane stara baza, hotels[] šteje spanje v novi. Zaporedni dnevi v isti bazi MORAJU imeti isto city. PREPOVEDANO: enodnevni skok nazaj na prejšnje vozlišče brez transferja tisti dan (npr. A–A–B–A).
 - days[].title = unikaten naslov dneva (kaj se dogaja) — NIKOLI samo "Dan 1" / "Dan 2".
 - hotels[] = ena vrstica na bazo (city + nights), v istem vrstnem redu kot nočitve. PREPOVEDANO: ena vrstica z vstopnim mestom za celo potovanje.
 - days[].activities in transportation[] = samo ta koledarski dan.

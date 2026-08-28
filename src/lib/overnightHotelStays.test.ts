@@ -216,6 +216,54 @@ describe("collectOvernightHotelStays", () => {
       "Chiang Mai:3:2026-10-28:2026-10-31",
     ]);
   });
+
+  it("moves day.city to the new base on a morning train hop and splits NAMESTITVE by sleep", () => {
+    const days = [
+      { day: 1, date: "2026-09-20", city: "Osaka" },
+      { day: 2, date: "2026-09-21", city: "Osaka" },
+      {
+        day: 3,
+        date: "2026-09-22",
+        city: "Osaka",
+        title: "Osaka",
+        transportation: [{ type: "train", from: "Osaka", to: "Tokyo" }],
+        activities: {
+          morning: [{ name: "Shinkansen iz Osake v Tokio", type: "TRANSPORT" }],
+          afternoon: [{ name: "Shinjuku" }],
+          evening: [{ name: "Ginza" }],
+        },
+      },
+      {
+        day: 4,
+        date: "2026-09-23",
+        city: "Osaka",
+        activities: { morning: [{ name: "Ghibli Museum" }], afternoon: [], evening: [] },
+      },
+      { day: 5, date: "2026-09-24", city: "Osaka" },
+      { day: 6, date: "2026-09-25", city: "Osaka" },
+      { day: 7, date: "2026-09-26", city: "Osaka" },
+      { day: 8, date: "2026-09-27", city: "Osaka" },
+    ];
+    expect(syncDayCityToDaytimeProgram(days)).toBeGreaterThan(0);
+    expect(days.slice(2, 8).map((d) => d.city)).toEqual([
+      "Tokyo",
+      "Tokyo",
+      "Tokyo",
+      "Tokyo",
+      "Tokyo",
+      "Tokyo",
+    ]);
+    expect(days[2]!.title).toBe("Tokyo");
+    const stays = collectOvernightHotelStays({
+      originPlace: "München",
+      start_date: "2026-09-20",
+      days,
+    });
+    expect(stays.map((s) => `${s.city}:${s.nights}:${s.checkIn}:${s.checkOut}`)).toEqual([
+      "Osaka:2:2026-09-20:2026-09-22",
+      "Tokyo:5:2026-09-22:2026-09-27",
+    ]);
+  });
 });
 
 describe("shouldShowDayHotels", () => {

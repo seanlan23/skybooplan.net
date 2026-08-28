@@ -19,7 +19,7 @@ import { attachActivityCoordinates } from "@/lib/mapPoiResolver";
 import { stripMisplacedCityPois } from "@/lib/cityPoiGuard";
 import { lookupRegionCoords } from "@/lib/regionCoords";
 import { lookupPoiCoords } from "@/lib/tripGeo";
-import { stampOvernightCitiesFromHotels, syncDayCityToDaytimeProgram } from "@/lib/overnightHotelStays";
+import { stampOvernightCitiesFromHotels, syncDayCityToDaytimeProgram, hotelsFromSleepNights } from "@/lib/overnightHotelStays";
 import { applyUserStayPlan, hasExplicitStayPlan } from "@/lib/userStayPlan";
 import { paceMetropolisStays } from "@/lib/metropolisPacing";
 import { addDays } from "@/lib/dateUtils";
@@ -771,6 +771,25 @@ export function tripPlanResponseToAiTripPlan(
     hotels.push(...(stayPlan.hotels ?? []));
   }
   syncDayCityToDaytimeProgram(days);
+  if (!hasExplicitStayPlan(opts?.wishesText ?? "")) {
+    const sleepHotels = hotelsFromSleepNights({
+      days,
+      originPlace: opts?.originPlace,
+      groundTransportMode: opts?.groundTransportMode,
+    });
+    if (sleepHotels.length) {
+      hotels.length = 0;
+      for (const h of sleepHotels) {
+        if (!h.city) continue;
+        hotels.push({
+          city: h.city,
+          nights: h.nights,
+          from_date: h.from_date,
+          to_date: h.to_date,
+        });
+      }
+    }
+  }
 
   applyRedEyeDepartureChronology(days, {
     inboundDepart: opts?.inboundDepart,

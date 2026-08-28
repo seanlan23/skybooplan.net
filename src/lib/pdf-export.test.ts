@@ -1000,6 +1000,47 @@ describe("normalizePlanForPdf", () => {
     ]);
   });
 
+  it("labels a morning Shinkansen hop as Tokyo and splits NAMESTITVE Osaka 2 / Tokyo 5", () => {
+    const model = normalizePlanForPdf({
+      title: "MUC → KIX",
+      destination: "Japonska",
+      start_date: "2026-09-20",
+      end_date: "2026-09-27",
+      language: "sl",
+      itinerary: {
+        originPlace: "München",
+        days: [
+          { day: 1, date: "2026-09-20", title: "Osaka", city: "Osaka" },
+          { day: 2, date: "2026-09-21", title: "Osaka", city: "Osaka" },
+          {
+            day: 3,
+            date: "2026-09-22",
+            title: "Osaka",
+            city: "Osaka",
+            transportation: [{ type: "train", from: "Osaka", to: "Tokyo" }],
+            activities: {
+              morning: [{ name: "Shinkansen iz Osake v Tokio", type: "TRANSPORT" }],
+              afternoon: [{ name: "Shinjuku" }],
+              evening: [{ name: "Ginza" }],
+            },
+          },
+          { day: 4, date: "2026-09-23", title: "Ghibli", city: "Osaka" },
+          { day: 5, date: "2026-09-24", title: "Asakusa", city: "Osaka" },
+          { day: 6, date: "2026-09-25", title: "Tsukiji", city: "Osaka" },
+          { day: 7, date: "2026-09-26", title: "Shibuya", city: "Osaka" },
+          { day: 8, date: "2026-09-27", title: "Odhod", city: "Osaka" },
+        ],
+      },
+    });
+    expect(model.days[2]?.city).toMatch(/Tokyo/i);
+    expect(model.days[3]?.city).toMatch(/Tokyo/i);
+    expect(model.days[6]?.city).toMatch(/Tokyo/i);
+    expect(model.hotels.map((h) => h.text)).toEqual([
+      expect.stringMatching(/Osaka.*2 noč.*20\.\s*sep.*22\.\s*sep/i),
+      expect.stringMatching(/Tokyo.*5 noč.*22\.\s*sep.*27\.\s*sep/i),
+    ]);
+  });
+
   it("hides same-city outing banners and keeps a real base-change hop", () => {
     const model = normalizePlanForPdf({
       title: "MUC → YYZ",

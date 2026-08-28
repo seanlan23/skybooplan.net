@@ -73,7 +73,7 @@ describe("tripPlanControlRules", () => {
     expect(block).toMatch(/TEMPO MIREN/);
     expect(block).toMatch(/fleksibilno/);
     expect(block).toMatch(/STROGI JSON/);
-    expect(block).toMatch(/mesto NOČITVE/);
+    expect(block).toMatch(/mesto DNEVNEGA programa|mesto NOČITVE/);
     expect(block).toMatch(/enodnevni skok/);
     expect(block).toMatch(/NATANČNO število nočitev/);
     expect(block).toMatch(/enodnevni izlet/);

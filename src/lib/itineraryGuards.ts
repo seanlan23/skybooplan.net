@@ -24,7 +24,7 @@ import { scrubImpossibleIslandDayTrips } from "@/lib/islandHopGuard";
 import { applyUserStayPlan, hasExplicitStayPlan } from "@/lib/userStayPlan";
 import { paceMetropolisStays } from "@/lib/metropolisPacing";
 import { scrubLocalTipsOnPlan } from "@/lib/localTipsSanitize";
-import { syncDayCityToDaytimeProgram } from "@/lib/overnightHotelStays";
+import { hotelsFromSleepNights, syncDayCityToDaytimeProgram } from "@/lib/overnightHotelStays";
 import { isSmallIsland } from "@/lib/islandStays";
 import { scrubBangkokSightsOnIslandTransferDays } from "@/lib/bangkokMustSee";
 import { alignSummaryTripLength } from "@/lib/planTeaser";
@@ -410,8 +410,9 @@ function isMoveActivity(a: Activity): boolean {
   }
   // "Prevoz iz Tuluma do Chiquilá" — Gemini often omits the arrow.
   return (
-    /\b(prevoz|transfer|trajekt|ferry|avtobus|bus|kombi|van|vlak|train|let|flight)\b/i.test(t) &&
-    /\b(iz|from)\b.+\b(do|to|v)\b/i.test(t)
+    /\b(prevoz|transfer|trajekt|ferry|avtobus|bus|kombi|van|vlak|train|let|flight|shinkansen)\b/i.test(
+      t,
+    ) && /\b(iz|from)\b.+\b(do|to|v)\b/i.test(t)
   );
 }
 
@@ -2142,6 +2143,24 @@ export function applyItineraryGuards(
   if (!lockStay) paceMetropolisStays(plan);
   if (lockStay) applyUserStayPlan(plan, { arrivalDay: opts?.arrivalDay });
   syncDayCityToDaytimeProgram(plan.days ?? []);
+  if (!lockStay) {
+    const sleepHotels = hotelsFromSleepNights({
+      days: plan.days,
+      originPlace: plan.originPlace,
+      groundTransportMode: plan.groundTransportMode,
+      accommodationMode: plan.accommodationMode,
+    });
+    if (sleepHotels.length) {
+      plan.hotels = sleepHotels
+        .filter((h) => h.city)
+        .map((h) => ({
+          city: h.city!,
+          nights: h.nights,
+          from_date: h.from_date,
+          to_date: h.to_date,
+        }));
+    }
+  }
   stripSightseeingOnBrutalDriveDays(plan);
   const overlongDrives = annotateOverlongDriveStages(plan);
   const hitAndRun = annotateHitAndRunStays(plan);

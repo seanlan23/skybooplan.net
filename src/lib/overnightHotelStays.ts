@@ -82,15 +82,67 @@ function dayDate(day: OvernightDay, startDate: string | undefined, index: number
 }
 
 const MOVEMENT_ACT_RE =
-  /let\b|flight|trajekt|ferry|vlak|train|speedboat|kombi|\bvan\b|prevoz na letališč|airport transfer|check-?out|odjava|odhod iz hotela/i;
+  /let\b|flight|trajekt|ferry|vlak|train|shinkansen|bullet train|tgv|\bice\b|eurostar|thalys|\bave\b|visokohitrostn|železn|rail|speedboat|kombi|\bvan\b|prevoz na letališč|airport transfer|check-?out|odjava|odhod iz hotela/i;
 
 function actLabel(a: { name?: string; title?: string }): string {
   return (a.name || a.title || "").trim();
 }
 
 function isMovementActivity(a: { name?: string; title?: string; type?: string }): boolean {
-  if ((a.type ?? "").toUpperCase() === "TRANSPORT") return true;
+  const t = (a.type ?? "").toUpperCase();
+  if (t === "TRANSPORT" || t === "TRAIN" || t === "FLIGHT" || t === "FERRY") return true;
   return MOVEMENT_ACT_RE.test(actLabel(a));
+}
+
+function isBareCityTitle(title: string, city: string): boolean {
+  const t = title.trim();
+  if (!t || !city.trim()) return false;
+  return overnightPlacesMatch(t, city) && cityKey(t).length <= cityKey(city).length + 6;
+}
+
+function hopOriginCity(
+  days: OvernightDay[],
+  index: number,
+  hop: { from: string; to: string },
+): string {
+  const prevCity = (days[index - 1]?.city ?? days[index - 1]?.focusName ?? "").trim();
+  if (prevCity && overnightPlacesMatch(prevCity, hop.from)) return prevCity;
+  return stripHopLabel(hop.from);
+}
+
+function stampDayCity(day: OvernightDay, city: string, fromCity?: string): void {
+  day.city = city;
+  if (day.focusName && (!fromCity || overnightPlacesMatch(day.focusName, fromCity))) {
+    day.focusName = city;
+  }
+  if (typeof day.title === "string" && fromCity && isBareCityTitle(day.title, fromCity)) {
+    day.title = city;
+  }
+}
+
+/** Days after a morning/daytime base-change that Gemini left on the old city. */
+function forwardFillNewBase(
+  days: OvernightDay[],
+  hopIndex: number,
+  fromCity: string,
+  toCity: string,
+): number {
+  if (!fromCity || !toCity || overnightPlacesMatch(fromCity, toCity)) return 0;
+  let n = 0;
+  for (let j = hopIndex + 1; j < days.length; j++) {
+    const d = days[j]!;
+    const hop = overnightHop(d, days[j + 1]);
+    if (hop && overnightPlacesMatch(hop.from, toCity) && !overnightPlacesMatch(hop.to, toCity)) {
+      break;
+    }
+    const labeled = (d.city ?? d.focusName ?? "").trim();
+    if (!labeled) continue;
+    if (overnightPlacesMatch(labeled, toCity)) continue;
+    if (!overnightPlacesMatch(labeled, fromCity)) break;
+    stampDayCity(d, toCity, fromCity);
+    n += 1;
+  }
+  return n;
 }
 
 function chronoActivities(day: OvernightDay): Array<{ name?: string; title?: string; type?: string }> {
@@ -117,6 +169,23 @@ function stripHopLabel(raw: string): string {
   return raw.replace(/\s*\([A-Z]{3}\)\s*$/g, "").trim() || raw.trim();
 }
 
+function looksLikeIata(value: string): boolean {
+  return /^[A-Z]{3}$/.test(value.trim());
+}
+
+/** Prefer a human place name over a bare IATA code on transportation[].to/from. */
+function placeNameForHopEnd(
+  raw: string,
+  labeled?: string,
+  nextCity?: string,
+): string {
+  const stripped = stripHopLabel(raw);
+  if (!looksLikeIata(stripped)) return stripped;
+  if (labeled && !looksLikeIata(labeled)) return labeled;
+  if (nextCity && !looksLikeIata(nextCity)) return nextCity;
+  return stripped;
+}
+
 function overnightHop(day: OvernightDay, next?: OvernightDay): { from: string; to: string } | null {
   const hops = baseHops(day);
   if (!hops.length) return null;
@@ -130,6 +199,7 @@ function overnightHop(day: OvernightDay, next?: OvernightDay): { from: string; t
 
 function daytimeSightsBeforeHop(day: OvernightDay, hop: { from: string; to: string } | null): boolean {
   if (!hop) return false;
+  if (MOVEMENT_ACT_RE.test(day.title ?? "")) return false;
   const acts = chronoActivities(day);
   const firstSight = acts.findIndex((a) => actLabel(a) && !isMovementActivity(a));
   if (firstSight < 0) return false;
@@ -150,31 +220,48 @@ function overnightSleepCity(day: OvernightDay, next?: OvernightDay): string {
 /**
  * On a hop after daytime sightseeing, day.city is the origin (Wat Pho day = Bangkok),
  * not the evening arrival city. Hub-return titles ("Nazaj v Cancún") keep the destination.
+ * On a morning/daytime hop INTO a new base, day.city is the destination from that day on
+ * (Shinkansen Osaka→Tokyo ⇒ Tokyo, including the following stay days).
  */
 export function syncDayCityToDaytimeProgram(days: OvernightDay[]): number {
   let n = 0;
   for (let i = 0; i < days.length; i++) {
     const day = days[i]!;
     const hop = overnightHop(day, days[i + 1]);
-    if (!hop || !daytimeSightsBeforeHop(day, hop)) continue;
-    const sightBlob = chronoActivities(day)
-      .filter((a) => actLabel(a) && !isMovementActivity(a))
-      .map(actLabel)
-      .join(" ");
-    const destBlob = `${day.title ?? ""} ${sightBlob}`;
-    if (overnightPlacesMatch(destBlob, hop.to) || overnightPlacesMatch(day.title ?? "", hop.to)) {
+    if (!hop) continue;
+    const dest = placeNameForHopEnd(
+      hop.to,
+      (day.city ?? day.focusName ?? "").trim(),
+      (days[i + 1]?.city ?? days[i + 1]?.focusName ?? "").trim(),
+    );
+    const origin = placeNameForHopEnd(hopOriginCity(days, i, hop), (days[i - 1]?.city ?? "").trim());
+
+    if (daytimeSightsBeforeHop(day, hop)) {
+      const sightBlob = chronoActivities(day)
+        .filter((a) => actLabel(a) && !isMovementActivity(a))
+        .map(actLabel)
+        .join(" ");
+      const destBlob = `${day.title ?? ""} ${sightBlob}`;
+      if (overnightPlacesMatch(destBlob, hop.to) || overnightPlacesMatch(day.title ?? "", hop.to)) {
+        continue;
+      }
+      if (!origin) continue;
+      const current = (day.city ?? "").trim();
+      if (current && overnightPlacesMatch(current, origin)) continue;
+      stampDayCity(day, origin, dest);
+      n += 1;
       continue;
     }
-    const prevCity = (days[i - 1]?.city ?? days[i - 1]?.focusName ?? "").trim();
-    const origin =
-      prevCity && overnightPlacesMatch(prevCity, hop.from)
-        ? prevCity
-        : stripHopLabel(hop.from);
-    if (!origin) continue;
+
+    if (!dest) continue;
     const current = (day.city ?? "").trim();
-    if (current && overnightPlacesMatch(current, origin)) continue;
-    day.city = origin;
-    n += 1;
+    if (!current || !overnightPlacesMatch(current, dest)) {
+      stampDayCity(day, dest, origin);
+      n += 1;
+    } else if (origin) {
+      stampDayCity(day, dest, origin);
+    }
+    n += forwardFillNewBase(days, i, origin, dest);
   }
   return n;
 }
@@ -264,6 +351,22 @@ export function collectOvernightHotelStays(plan: {
   }
 
   return stays;
+}
+
+/** hotels[] rows from actual sleep nights after day.city sync. */
+export function hotelsFromSleepNights(plan: {
+  days?: OvernightDay[];
+  start_date?: string | null;
+  originPlace?: string;
+  groundTransportMode?: string;
+  accommodationMode?: string;
+}): HotelStayHint[] {
+  return collectOvernightHotelStays(plan).map((s) => ({
+    city: s.city,
+    nights: s.nights,
+    from_date: s.checkIn,
+    to_date: s.checkOut,
+  }));
 }
 
 export type HotelStayHint = {
