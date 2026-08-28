@@ -14,5 +14,7 @@ describe("DISTANCE_TRANSPORT_RULES", () => {
     expect(DISTANCE_TRANSPORT_RULES).toMatch(/Krabi \(KBV\)/);
     expect(DISTANCE_TRANSPORT_RULES).toMatch(/ONLY when the overnight city changes/);
     expect(DISTANCE_TRANSPORT_RULES).toMatch(/never splice it into the middle of the mainland coast/i);
+    expect(DISTANCE_TRANSPORT_RULES).toMatch(/Busuanga \/ USU|Busuanga \(USU\)/);
+    expect(DISTANCE_TRANSPORT_RULES).toMatch(/Cebu → Malapascua/);
   });
 });

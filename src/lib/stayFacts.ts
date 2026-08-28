@@ -63,6 +63,8 @@ export function stayFactsPromptBlock(slo: boolean): string {
       "- Koh Lipe: če je na poti, ≥4 nočitve (pristop 6–8 h). PREPOVEDANO 1–2 noči; raje izpusti otok, kot da greš samo čez vikend.",
       "- Krabi / Ao Nang pred Koh Lipe: ≥3 nočitve (Railay, Phra Nang, Phi Phi). PREPOVEDANO 1 noč v Krabiju in 7 noči na Lipeju.",
       "- Isla Mujeres: če je na poti, takoj po prihodu v Cancún ALI zadnja baza pred odhodom (trajekt ~20 min). PREPOVEDANO vmes v celinsko obalo (Cancún → Isla Mujeres → Playa del Carmen → Tulum).",
+      "- El Nido → Coron z ladjo: naslednji let z Busuanga (USU). PREPOVEDANO celodnevni trajekt nazaj v El Nido samo zaradi leta z ENI.",
+      "- Cebu → Malapascua: največ ENA 1-nočna hub nočitev (prihod ALI odhod), ne obe. Odvečne noči na otok.",
     ].join("\n");
   }
   return [
@@ -70,6 +72,8 @@ export function stayFactsPromptBlock(slo: boolean): string {
     "- Koh Lipe: if included, ≥4 nights (6–8h access). Never 1–2 nights; skip the island rather than a weekend hop.",
     "- Krabi / Ao Nang before Koh Lipe: ≥3 nights (Railay, Phra Nang, Phi Phi). Never 1 night in Krabi and 7 on Lipe.",
     "- Isla Mujeres: if included, overnight right after Cancún arrival OR as the last base before departure (~20 min ferry). Never splice it into the mainland coast (Cancún → Isla Mujeres → Playa del Carmen → Tulum).",
+    "- El Nido → Coron by boat: next flight from Busuanga (USU). Never a full-day ferry back to El Nido only for the ENI flight.",
+    "- Cebu → Malapascua: at most ONE 1-night hub sleep (arrival OR departure), not both. Extra nights on the island.",
   ].join("\n");
 }
 

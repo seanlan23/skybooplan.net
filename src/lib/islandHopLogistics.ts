@@ -1,6 +1,8 @@
 import type { Activity, AiTripPlan, DayPlan, DayTransportLeg } from "@/lib/aiPlan.functions";
+import { DESTINATION_BY_IATA } from "@/lib/destinationCoords";
 import { planLangCopy } from "@/lib/planLangCopy";
 import { lookupRegionCoords } from "@/lib/regionCoords";
+import { hasExplicitStayPlan } from "@/lib/userStayPlan";
 
 type Slot = "morning" | "afternoon" | "evening";
 const SLOTS: Slot[] = ["morning", "afternoon", "evening"];
@@ -31,6 +33,19 @@ const STAY_PLACES: StayPlace[] = [
     specificity: 50,
     iata: ["ENI"],
     test: /el nido|lio airport|nacpan|las cabanas|big lagoon|small lagoon|secret lagoon|shimizu|tour a\b/i,
+  },
+  {
+    city: "Coron",
+    key: "coron",
+    specificity: 50,
+    iata: ["USU"],
+    test: /coron|busuanga|kayangan|barracuda lake/i,
+  },
+  {
+    city: "Malapascua",
+    key: "malapascua",
+    specificity: 50,
+    test: /malapascua|monad shoal/i,
   },
   {
     city: "Boracay",
@@ -493,15 +508,231 @@ export function ensureGroundToAirportWindow(plan: AiTripPlan, language?: string)
   return n;
 }
 
+type IslandAirport = { match: RegExp; iata: string; label: string };
+
+const ISLAND_LOCAL_AIRPORTS: IslandAirport[] = [
+  { match: /el nido/i, iata: "ENI", label: "El Nido (ENI)" },
+  { match: /coron|busuanga/i, iata: "USU", label: "Busuanga (USU)" },
+  { match: /bohol|panglao|tagbilaran/i, iata: "TAG", label: "Tagbilaran (TAG)" },
+  { match: /boracay|caticlan/i, iata: "MPH", label: "Caticlan (MPH)" },
+  { match: /puerto princesa/i, iata: "PPS", label: "Puerto Princesa (PPS)" },
+  { match: /\bcebu\b|\bmactan\b/i, iata: "CEB", label: "Cebu (CEB)" },
+];
+
+const BOAT_SATELLITES: Array<{ island: RegExp; hub: RegExp }> = [
+  { island: /malapascua/i, hub: /cebu|\bmactan\b/i },
+  { island: /bantayan/i, hub: /cebu|\bmactan\b/i },
+  { island: /koh phi phi|phi phi/i, hub: /phuket|krabi|ao nang|aonang/i },
+];
+
+function islandAirportFor(text: string): IslandAirport | null {
+  const t = text.trim();
+  if (!t) return null;
+  return ISLAND_LOCAL_AIRPORTS.find((a) => a.match.test(t) || hasIata(t, a.iata)) ?? null;
+}
+
+function overnightAirportHistory(days: DayPlan[], beforeIndex: number): IslandAirport[] {
+  const seen: IslandAirport[] = [];
+  for (let i = 0; i < beforeIndex; i++) {
+    const ap = islandAirportFor(days[i]?.city ?? "");
+    if (!ap || seen.some((s) => s.iata === ap.iata)) continue;
+    seen.push(ap);
+  }
+  return seen;
+}
+
+function departureAirport(days: DayPlan[], index: number): IslandAirport | null {
+  const today = islandAirportFor(days[index]?.city ?? "");
+  const yest = index > 0 ? islandAirportFor(days[index - 1]?.city ?? "") : null;
+  if (yest && today && yest.iata !== today.iata) return yest;
+  return today ?? yest;
+}
+
+function rewriteBacktrackActivities(
+  day: DayPlan,
+  dep: IslandAirport,
+  abandoned: IslandAirport[],
+  lang: string,
+): void {
+  if (!day.activities) return;
+  const abandonedRe = new RegExp(
+    abandoned.map((a) => `${a.iata}|${a.match.source}`).join("|"),
+    "i",
+  );
+  for (const slot of SLOTS) {
+    day.activities[slot] = (day.activities[slot] ?? []).flatMap((a) => {
+      const blob = `${a.name} ${a.description ?? ""}`;
+      if (!abandonedRe.test(blob)) return [a];
+      const waterOnly =
+        /trajekt|ferry|bangka|speedboat|ladj/i.test(blob) && !/let|flight|flug/i.test(blob);
+      if (waterOnly) return [];
+      if (!/let|flight|flug|odlet|airport|letališč/i.test(blob)) return [a];
+      return [
+        {
+          ...a,
+          name: planLangCopy(lang, {
+            sl: `Notranji let iz ${dep.label}`,
+            en: `Domestic flight from ${dep.label}`,
+            de: `Inlandsflug ab ${dep.label}`,
+          }),
+          description: planLangCopy(lang, {
+            sl: `Odlet z ${dep.label} proti naslednji bazi.`,
+            en: `Fly from ${dep.label} to the next base.`,
+            de: `Flug ab ${dep.label} zur nächsten Basis.`,
+          }),
+          type: "TRANSPORT" as const,
+          transportType: "flight" as const,
+        },
+      ];
+    });
+  }
+}
+
+/**
+ * After a boat hop onto an island with its own airport, fly out from there.
+ * Drop a ferry back to a previous overnight island that exists only to catch its flight.
+ */
+export function rewriteFerryBacktrackToLocalAirport(plan: AiTripPlan, language?: string): number {
+  const lang = language ?? plan.contentLanguage ?? "sl";
+  const days = [...(plan.days ?? [])].sort((a, b) => a.day - b.day);
+  let n = 0;
+  for (let i = 0; i < days.length; i++) {
+    const day = days[i]!;
+    const dep = departureAirport(days, i);
+    if (!dep) continue;
+    const history = overnightAirportHistory(days, i);
+    const abandoned = history.filter((a) => a.iata !== dep.iata);
+    if (!abandoned.length) continue;
+    const legs = day.transportation ?? [];
+    if (!legs.length) continue;
+    let changed = false;
+    const nextLegs: DayTransportLeg[] = [];
+    for (const leg of legs) {
+      const toAp = islandAirportFor(leg.to ?? "");
+      const fromAp = islandAirportFor(leg.from ?? "");
+      if (leg.type === "ferry" && toAp && abandoned.some((a) => a.iata === toAp.iata)) {
+        changed = true;
+        continue;
+      }
+      if (
+        leg.type === "flight" &&
+        fromAp &&
+        abandoned.some((a) => a.iata === fromAp.iata) &&
+        fromAp.iata !== dep.iata
+      ) {
+        nextLegs.push({ ...leg, from: dep.label });
+        changed = true;
+        continue;
+      }
+      nextLegs.push(leg);
+    }
+    if (!changed) continue;
+    day.transportation = nextLegs.length ? nextLegs : undefined;
+    rewriteBacktrackActivities(day, dep, abandoned, lang);
+    n += 1;
+  }
+  return n;
+}
+
+type CityRun = { city: string; start: number; end: number };
+
+function overnightCityRuns(days: DayPlan[]): CityRun[] {
+  const runs: CityRun[] = [];
+  for (let i = 0; i < days.length; i++) {
+    const city = (days[i]?.city ?? "").trim();
+    if (!city) continue;
+    const last = runs[runs.length - 1];
+    if (last && stayKey(last.city) === stayKey(city) && last.end === i - 1) {
+      last.end = i;
+    } else {
+      runs.push({ city, start: i, end: i });
+    }
+  }
+  return runs;
+}
+
+function hotelNightsInRun(days: DayPlan[], run: CityRun): number {
+  const lastCal = days.length - 1;
+  let nights = run.end - run.start + 1;
+  if (run.end === lastCal) nights -= 1;
+  return Math.max(0, nights);
+}
+
+function boatSatelliteHub(islandCity: string): RegExp | null {
+  return BOAT_SATELLITES.find((s) => s.island.test(islandCity))?.hub ?? null;
+}
+
+function isPlanIataCity(plan: AiTripPlan, city: string): boolean {
+  const code = (plan.destinationIata ?? "").toUpperCase();
+  if (!code) return false;
+  const hub = DESTINATION_BY_IATA[code]?.name ?? "";
+  if (!hub) return false;
+  return stayKey(city).includes(stayKey(hub)) || stayKey(hub).includes(stayKey(city));
+}
+
+function isArrivalHubRun(days: DayPlan[], run: CityRun): boolean {
+  const prev = days[run.start - 1];
+  return Boolean(prev?.inFlightDay) || run.start <= 1;
+}
+
+function isDepartureHubRun(plan: AiTripPlan, days: DayPlan[], run: CityRun): boolean {
+  const lastCal = days.length - 1;
+  return run.end >= lastCal - 1 && isPlanIataCity(plan, run.city);
+}
+
+function stampRunCity(days: DayPlan[], run: CityRun, city: string): number {
+  let n = 0;
+  const lastCal = days.length - 1;
+  for (let i = run.start; i <= run.end; i++) {
+    if (i === lastCal) continue;
+    const day = days[i];
+    if (!day) continue;
+    if (applyCity(day, city)) n += 1;
+  }
+  return n;
+}
+
+/**
+ * Hub 1 night → boat island → same hub 1 night: keep only one hub sleep.
+ * Arrival-buffer + departure-buffer both 1 night stay as-is (needed for the ticket).
+ */
+export function consolidateIslandHubSandwiches(plan: AiTripPlan): number {
+  if (hasExplicitStayPlan(plan.wishes)) return 0;
+  const days = plan.days ?? [];
+  if (days.length < 4) return 0;
+  const runs = overnightCityRuns(days);
+  let n = 0;
+  for (let r = 1; r < runs.length - 1; r++) {
+    const prev = runs[r - 1]!;
+    const island = runs[r]!;
+    const next = runs[r + 1]!;
+    const hub = boatSatelliteHub(island.city);
+    if (!hub) continue;
+    if (!hub.test(prev.city) || !hub.test(next.city)) continue;
+    if (hotelNightsInRun(days, island) < 2) continue;
+    if (hotelNightsInRun(days, prev) !== 1 || hotelNightsInRun(days, next) !== 1) continue;
+    const keepArrival = isArrivalHubRun(days, prev);
+    const keepDeparture = isDepartureHubRun(plan, days, next);
+    if (keepArrival && keepDeparture) continue;
+    if (keepDeparture) n += stampRunCity(days, prev, island.city);
+    else n += stampRunCity(days, next, island.city);
+  }
+  return n;
+}
+
 export function applyIslandHopLogistics(plan: AiTripPlan, language?: string): {
   cities: number;
   duplicates: number;
   connections: number;
   windows: number;
+  backtracks: number;
+  sandwiches: number;
 } {
   const cities = repairStayCitiesFromContent(plan);
+  const sandwiches = consolidateIslandHubSandwiches(plan);
   const duplicates = dropDuplicateIslandArrivals(plan);
   const connections = rewriteImpossiblePhConnections(plan, language);
+  const backtracks = rewriteFerryBacktrackToLocalAirport(plan, language);
   const windows = ensureGroundToAirportWindow(plan, language);
-  return { cities, duplicates, connections, windows };
+  return { cities, duplicates, connections, windows, backtracks, sandwiches };
 }

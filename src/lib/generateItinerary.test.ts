@@ -27,6 +27,9 @@ describe("CORE_ITINERARY_SYSTEM_RULES", () => {
     expect(CORE_ITINERARY_SYSTEM_RULES).toMatch(/strictly increasing clock order/);
     expect(CORE_ITINERARY_SYSTEM_RULES).toMatch(/NO META-INSTRUCTIONS/);
     expect(CORE_ITINERARY_SYSTEM_RULES).toMatch(/EXACTLY once per day/);
+    expect(CORE_ITINERARY_SYSTEM_RULES).toMatch(/ISLAND HOPS/);
+    expect(CORE_ITINERARY_SYSTEM_RULES).toMatch(/Busuanga \(USU\)/);
+    expect(CORE_ITINERARY_SYSTEM_RULES).toMatch(/Cebu → Malapascua/);
   });
 });
 

@@ -17,6 +17,8 @@ Regional overrides:
 - Andaman / south Thailand local hops: Phuket (HKT) → Krabi / Ao Nang = ALWAYS ferry/speedboat OR road van/taxi (~2.5h). NEVER a flight (HKT–KBV is a useless hop plus two airport transfers).
 - Koh Lanta has NO airport. Flights for that area operate from Krabi (KBV), then van + ferry/speedboat to the island. NEVER invent a Lanta runway or a direct flight onto Koh Lanta.
 - Yucatán: if Isla Mujeres is on the trip, overnight there immediately after landing in Cancún OR as the last base before departure (20-min ferry). NEVER splice it into the middle of the mainland coast (Cancún → Isla Mujeres → Playa del Carmen → Tulum → Valladolid → Cancún).
+- Island hops with a local airport: after a ferry between overnight islands, fly out from the CURRENT island (e.g. El Nido → Coron by boat, then Busuanga / USU — NEVER a full-day ferry back to El Nido only for the ENI flight).
+- Boat-access satellites (no runway): at most one 1-night hub sleep — arrival OR departure, not both. Extra nights stay on the island (e.g. Cebu → Malapascua: never 1 night Cebu + island + 1 night Cebu).
 
 When recommending car: fill drivingDistanceKm and drivingDurationHours on that day; use transportation[] with type "car" and activities with transport_type "car" or omit flight entirely.
 `.trim();

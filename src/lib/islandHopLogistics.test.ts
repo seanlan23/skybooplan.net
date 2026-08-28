@@ -3,10 +3,12 @@ import type { AiTripPlan, DayPlan } from "@/lib/aiPlan.functions";
 import { applyItineraryGuards } from "@/lib/itineraryGuards";
 import {
   applyIslandHopLogistics,
+  consolidateIslandHubSandwiches,
   dropDuplicateIslandArrivals,
   ensureGroundToAirportWindow,
   inferStayCity,
   repairStayCitiesFromContent,
+  rewriteFerryBacktrackToLocalAirport,
   rewriteImpossiblePhConnections,
 } from "@/lib/islandHopLogistics";
 import { parseDriveHours, repairImplausibleDriveTimes, stripDriveStatsOnAirDays } from "@/lib/roadTripLogistics";
@@ -339,5 +341,167 @@ describe("applyIslandHopLogistics", () => {
     const stats = applyIslandHopLogistics(plan, "sl");
     expect(stats.cities).toBe(1);
     expect(plan.days[1]!.activities!.morning).toHaveLength(1);
+  });
+});
+
+describe("rewriteFerryBacktrackToLocalAirport", () => {
+  it("flies out of Busuanga instead of ferrying back to El Nido for ENI", () => {
+    const plan = phPlan([
+      day({ day: 1, city: "München", inFlightDay: true }),
+      day({ day: 2, city: "El Nido" }),
+      day({ day: 3, city: "El Nido" }),
+      day({ day: 4, city: "Coron" }),
+      day({
+        day: 5,
+        city: "Coron",
+        transportation: [
+          {
+            type: "ferry",
+            from: "Coron",
+            to: "El Nido",
+            duration: "4h",
+            estimatedPrice: 40,
+          },
+          {
+            type: "flight",
+            from: "El Nido (ENI)",
+            to: "Tagbilaran (TAG)",
+            duration: "1h 30min",
+            estimatedPrice: 80,
+          },
+        ],
+        activities: {
+          morning: [
+            {
+              name: "Trajekt Coron → El Nido",
+              type: "TRANSPORT",
+              description: "Celodnevna ladja nazaj.",
+            },
+          ],
+          afternoon: [
+            {
+              name: "Let El Nido (ENI) → Tagbilaran",
+              type: "TRANSPORT",
+              description: "Notranji let z ENI.",
+            },
+          ],
+          evening: [],
+        },
+      }),
+      day({ day: 6, city: "Bohol" }),
+    ]);
+    expect(rewriteFerryBacktrackToLocalAirport(plan, "sl")).toBeGreaterThan(0);
+    const legs = plan.days[4]!.transportation ?? [];
+    expect(legs.some((l) => l.type === "ferry")).toBe(false);
+    expect(legs.find((l) => l.type === "flight")?.from).toMatch(/Busuanga \(USU\)/i);
+    const blob = JSON.stringify(plan.days[4]!.activities);
+    expect(blob).not.toMatch(/Trajekt Coron/i);
+    expect(blob).toMatch(/Busuanga \(USU\)/i);
+  });
+
+  it("does not rewrite an El Nido → PPS van plus PPS flight", () => {
+    const plan = phPlan([
+      day({ day: 1, city: "München", inFlightDay: true }),
+      day({ day: 2, city: "El Nido" }),
+      day({
+        day: 3,
+        city: "El Nido",
+        transportation: [
+          {
+            type: "van",
+            from: "El Nido",
+            to: "Puerto Princesa (PPS)",
+            duration: "5–6h",
+            estimatedPrice: 25,
+          },
+          {
+            type: "flight",
+            from: "Puerto Princesa (PPS)",
+            to: "Manila (MNL)",
+            duration: "1h 20min",
+            estimatedPrice: 70,
+          },
+        ],
+      }),
+    ]);
+    expect(rewriteFerryBacktrackToLocalAirport(plan, "sl")).toBe(0);
+    expect(plan.days[2]!.transportation?.map((l) => `${l.type}:${l.from}`)).toEqual([
+      "van:El Nido",
+      "flight:Puerto Princesa (PPS)",
+    ]);
+  });
+});
+
+describe("consolidateIslandHubSandwiches", () => {
+  it("drops the return 1-night Cebu after Malapascua when continuing elsewhere", () => {
+    const plan = phPlan([
+      day({ day: 1, city: "Manila" }),
+      day({ day: 2, city: "Manila" }),
+      day({ day: 3, city: "Cebu" }),
+      day({ day: 4, city: "Malapascua" }),
+      day({ day: 5, city: "Malapascua" }),
+      day({ day: 6, city: "Malapascua" }),
+      day({ day: 7, city: "Cebu" }),
+      day({ day: 8, city: "Bohol" }),
+      day({ day: 9, city: "Manila" }),
+    ]);
+    expect(consolidateIslandHubSandwiches(plan)).toBeGreaterThan(0);
+    expect(plan.days.map((d) => d.city)).toEqual([
+      "Manila",
+      "Manila",
+      "Cebu",
+      "Malapascua",
+      "Malapascua",
+      "Malapascua",
+      "Malapascua",
+      "Bohol",
+      "Manila",
+    ]);
+  });
+
+  it("keeps both 1-night Cebu buffers when they are arrival and IATA departure", () => {
+    const plan = {
+      ...phPlan([
+        day({ day: 1, city: "München", inFlightDay: true }),
+        day({ day: 2, city: "Cebu" }),
+        day({ day: 3, city: "Malapascua" }),
+        day({ day: 4, city: "Malapascua" }),
+        day({ day: 5, city: "Malapascua" }),
+        day({ day: 6, city: "Cebu" }),
+        day({ day: 7, city: "Cebu" }),
+      ]),
+      destinationIata: "CEB",
+    };
+    expect(consolidateIslandHubSandwiches(plan)).toBe(0);
+    expect(plan.days.map((d) => d.city)).toEqual([
+      "München",
+      "Cebu",
+      "Malapascua",
+      "Malapascua",
+      "Malapascua",
+      "Cebu",
+      "Cebu",
+    ]);
+  });
+
+  it("does not rewrite an explicit stay plan", () => {
+    const plan = {
+      ...phPlan([
+        day({ day: 1, city: "Cebu" }),
+        day({ day: 2, city: "Malapascua" }),
+        day({ day: 3, city: "Malapascua" }),
+        day({ day: 4, city: "Cebu" }),
+        day({ day: 5, city: "Manila" }),
+      ]),
+      wishes: "1 noč Cebu, 2 noči Malapascua, 1 noč Cebu",
+    };
+    expect(consolidateIslandHubSandwiches(plan)).toBe(0);
+    expect(plan.days.map((d) => d.city)).toEqual([
+      "Cebu",
+      "Malapascua",
+      "Malapascua",
+      "Cebu",
+      "Manila",
+    ]);
   });
 });

@@ -1,5 +1,5 @@
 /**
- * Four live system rules for itinerary generation (`generateItinerary` → Gemini).
+ * Live system rules for itinerary generation (`generateItinerary` → Gemini).
  * These beat overlapping style notes in the rest of the prompt.
  */
 export const CORE_ITINERARY_SYSTEM_RULES = `=== CORE SYSTEM RULES (mandatory) ===
@@ -23,4 +23,8 @@ export const CORE_ITINERARY_SYSTEM_RULES = `=== CORE SYSTEM RULES (mandatory) ==
 
 4) DEDUP TRANSFERS:
 - transportation[] / the gray transfer banner is emitted EXACTLY once per day, and ONLY when the overnight city actually changes (new base, from !== to).
-- FORBIDDEN: a second banner for the same hop, same-city day-trip boats, or repeating checkout→airport as an extra banner.`.trim();
+- FORBIDDEN: a second banner for the same hop, same-city day-trip boats, or repeating checkout→airport as an extra banner.
+
+5) ISLAND HOPS (no ferry backtracking, no sandwich transit):
+- After a boat/ferry onto a new overnight island, the NEXT flight leaves from THAT island’s airport when it has one. FORBIDDEN: a full-day boat back to the previous island only to catch a flight. Example: El Nido → Coron by ferry, then fly from Busuanga (USU) — never boat back to El Nido for ENI.
+- A boat-access island off a hub: at most ONE 1-night hub sleep (arrival OR departure), not both. Extra nights go to the island. Example: Cebu → Malapascua — do not sleep 1 night in Cebu before the island AND 1 night in Cebu after.`.trim();
