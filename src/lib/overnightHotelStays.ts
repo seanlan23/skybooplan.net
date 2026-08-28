@@ -17,7 +17,14 @@ export type OvernightDay = {
   date?: string;
   city?: string;
   focusName?: string;
+  title?: string;
   inFlightDay?: boolean;
+  transportation?: Array<{ type?: string; from?: string; to?: string }>;
+  activities?: {
+    morning?: Array<{ name?: string; title?: string; type?: string }>;
+    afternoon?: Array<{ name?: string; title?: string; type?: string }>;
+    evening?: Array<{ name?: string; title?: string; type?: string }>;
+  };
 };
 
 function overnightDayNumber(day: OvernightDay, index: number): number {
@@ -74,6 +81,104 @@ function dayDate(day: OvernightDay, startDate: string | undefined, index: number
   return isoAddDays(start, offset);
 }
 
+const MOVEMENT_ACT_RE =
+  /let\b|flight|trajekt|ferry|vlak|train|speedboat|kombi|\bvan\b|prevoz na letališč|airport transfer|check-?out|odjava|odhod iz hotela/i;
+
+function actLabel(a: { name?: string; title?: string }): string {
+  return (a.name || a.title || "").trim();
+}
+
+function isMovementActivity(a: { name?: string; title?: string; type?: string }): boolean {
+  if ((a.type ?? "").toUpperCase() === "TRANSPORT") return true;
+  return MOVEMENT_ACT_RE.test(actLabel(a));
+}
+
+function chronoActivities(day: OvernightDay): Array<{ name?: string; title?: string; type?: string }> {
+  const acts = day.activities;
+  if (!acts) return [];
+  return [
+    ...(acts.morning ?? []),
+    ...(acts.afternoon ?? []),
+    ...(acts.evening ?? []),
+  ];
+}
+
+function baseHops(day: OvernightDay): Array<{ from: string; to: string }> {
+  const hops: Array<{ from: string; to: string }> = [];
+  for (const leg of day.transportation ?? []) {
+    const from = (leg.from ?? "").trim();
+    const to = (leg.to ?? "").trim();
+    if (from && to && !overnightPlacesMatch(from, to)) hops.push({ from, to });
+  }
+  return hops;
+}
+
+function stripHopLabel(raw: string): string {
+  return raw.replace(/\s*\([A-Z]{3}\)\s*$/g, "").trim() || raw.trim();
+}
+
+function overnightHop(day: OvernightDay, next?: OvernightDay): { from: string; to: string } | null {
+  const hops = baseHops(day);
+  if (!hops.length) return null;
+  const nextCity = (next?.city ?? next?.focusName ?? "").trim();
+  if (nextCity) {
+    const hit = [...hops].reverse().find((h) => overnightPlacesMatch(h.to, nextCity));
+    if (hit) return hit;
+  }
+  return hops[hops.length - 1] ?? null;
+}
+
+function daytimeSightsBeforeHop(day: OvernightDay, hop: { from: string; to: string } | null): boolean {
+  if (!hop) return false;
+  const acts = chronoActivities(day);
+  const firstSight = acts.findIndex((a) => actLabel(a) && !isMovementActivity(a));
+  if (firstSight < 0) return false;
+  const firstMove = acts.findIndex((a) => isMovementActivity(a));
+  return firstMove < 0 || firstSight < firstMove;
+}
+
+function overnightSleepCity(day: OvernightDay, next?: OvernightDay): string {
+  const labeled = (day.city ?? day.focusName ?? "").trim();
+  const hop = overnightHop(day, next);
+  if (!hop || !daytimeSightsBeforeHop(day, hop)) return labeled;
+  const nextCity = (next?.city ?? next?.focusName ?? "").trim();
+  if (nextCity && overnightPlacesMatch(nextCity, hop.to)) return nextCity;
+  if (labeled && overnightPlacesMatch(labeled, hop.to)) return labeled;
+  return stripHopLabel(hop.to);
+}
+
+/**
+ * On a hop after daytime sightseeing, day.city is the origin (Wat Pho day = Bangkok),
+ * not the evening arrival city. Hub-return titles ("Nazaj v Cancún") keep the destination.
+ */
+export function syncDayCityToDaytimeProgram(days: OvernightDay[]): number {
+  let n = 0;
+  for (let i = 0; i < days.length; i++) {
+    const day = days[i]!;
+    const hop = overnightHop(day, days[i + 1]);
+    if (!hop || !daytimeSightsBeforeHop(day, hop)) continue;
+    const sightBlob = chronoActivities(day)
+      .filter((a) => actLabel(a) && !isMovementActivity(a))
+      .map(actLabel)
+      .join(" ");
+    const destBlob = `${day.title ?? ""} ${sightBlob}`;
+    if (overnightPlacesMatch(destBlob, hop.to) || overnightPlacesMatch(day.title ?? "", hop.to)) {
+      continue;
+    }
+    const prevCity = (days[i - 1]?.city ?? days[i - 1]?.focusName ?? "").trim();
+    const origin =
+      prevCity && overnightPlacesMatch(prevCity, hop.from)
+        ? prevCity
+        : stripHopLabel(hop.from);
+    if (!origin) continue;
+    const current = (day.city ?? "").trim();
+    if (current && overnightPlacesMatch(current, origin)) continue;
+    day.city = origin;
+    n += 1;
+  }
+  return n;
+}
+
 /**
  * Paid overnight stays from consecutive city days (hotels or camper bases).
  * Last calendar day is never an overnight (sleep at home / fly out).
@@ -117,12 +222,13 @@ export function collectOvernightHotelStays(plan: {
     if (!city) continue;
     const date = dayDate(d, startDate, i);
     if (!date) continue;
+    const sleepCity = overnightSleepCity(d, rawDays[i + 1]) || city;
 
     const prev = groups[groups.length - 1];
-    if (prev && overnightPlacesMatch(prev.city, city)) {
+    if (prev && overnightPlacesMatch(prev.city, sleepCity)) {
       prev.days.push({ day: dayNum, date });
     } else {
-      groups.push({ city, days: [{ day: dayNum, date }] });
+      groups.push({ city: sleepCity, days: [{ day: dayNum, date }] });
     }
   }
 

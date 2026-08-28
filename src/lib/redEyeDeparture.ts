@@ -16,7 +16,7 @@ const AIRPORT_TRANSFER_RE =
 const AIRPORT_CHECKIN_RE =
   /prihod na letališče in prijava|airport check-in|check-in am flughafen|check-in in aeroporto/i;
 const RETURN_FLIGHT_RE =
-  /mednarodni\s*(povratni\s*)?let|international\s*(return\s*)?flight|internationaler\s*(rück)?flug|volo internazionale|vuelo internacional|vol international retour/i;
+  /mednarodni\s*(povratni\s*|nočn[iy]\s*)?let|let proti domu|international\s*(return\s*)?flight|overnight (international )?flight|internationaler\s*(rück|nacht)?flug|volo internazionale|vuelo internacional|vol international retour/i;
 const HOME_LANDING_RE =
   /pristanek (doma|v |na |ob )|pristanek v |landing (at home|in )|ankunft (zu hause|in )|arrivée (à la maison|à )/i;
 const EVENING_TRANSFER_RE =
@@ -160,9 +160,9 @@ function homeLandingActivity(
     }),
     type: "TRANSPORT",
     description: planLangCopy(lang, {
-      sl: `Pristanek na domačem letališču ob ${inboundArrive} (lokalni čas). Zadnji dan nima večernega transferja na letališče — ta je bil že prejšnji večer.`,
-      en: `Land at the home airport at ${inboundArrive} (local time). There is no evening airport transfer on this last day — that happened the evening before.`,
-      de: `Ankunft am Heimatflughafen um ${inboundArrive} (Ortszeit). Kein abendlicher Flughafentransfer an diesem letzten Tag — der war am Vorabend.`,
+      sl: `Pristanek na domačem letališču ob ${inboundArrive} (lokalni čas).`,
+      en: `Landing at the home airport at ${inboundArrive} (local time).`,
+      de: `Ankunft am Heimatflughafen um ${inboundArrive} (Ortszeit).`,
     }),
     arrivalTime: inboundArrive,
   };
@@ -220,15 +220,15 @@ export function applyRedEyeDepartureChronology(
     pulled.push(
       {
         name: planLangCopy(lang, {
-          sl: "Odhod iz hotela (odjava)",
-          en: "Hotel check-out",
-          de: "Hotel Check-out",
+          sl: "Večerna odjava iz hotela",
+          en: "Evening hotel check-out",
+          de: "Abendlicher Hotel-Check-out",
         }),
         type: "STAY",
         description: planLangCopy(lang, {
-          sl: `Odjava zvečer pred nočnim letom ob ${depart}. Prtljago vzemi s seboj — na letališče že zvečer, ne zjutraj na dan leta.`,
-          en: `Check out in the evening before the overnight flight at ${depart}. Take your bags — go to the airport this evening, not on the morning of departure.`,
-          de: `Check-out am Abend vor dem Nachtflug um ${depart}. Gepäck mitnehmen — schon am Abend zum Flughafen, nicht am Morgen des Abflugs.`,
+          sl: `Večerna odjava iz hotela pred nočnim letom ob ${depart}.`,
+          en: `Evening hotel check-out before the overnight flight at ${depart}.`,
+          de: `Abendlicher Check-out vor dem Nachtflug um ${depart}.`,
         }),
         arrivalTime: "22:30",
       },
@@ -240,9 +240,9 @@ export function applyRedEyeDepartureChronology(
         }),
         type: "TRANSPORT",
         description: planLangCopy(lang, {
-          sl: `Kombi/taxi na letališče zvečer pred nočnim letom ob ${depart}. Bodi tam ~3 ure pred odletom.`,
-          en: `Van/taxi to the airport in the evening before the overnight flight at ${depart}. Be there ~3h before departure.`,
-          de: `Transfer zum Flughafen am Abend vor dem Nachtflug um ${depart}. ~3 Stunden vor Abflug da sein.`,
+          sl: `Večerni prevoz na letališče pred nočnim letom ob ${depart}.`,
+          en: `Evening transfer to the airport before the overnight flight at ${depart}.`,
+          de: `Abendlicher Transfer zum Flughafen vor dem Nachtflug um ${depart}.`,
         }),
         arrivalTime: "23:00",
       },
@@ -266,16 +266,16 @@ export function applyRedEyeDepartureChronology(
   if (!lastMorning.some(isReturnFlight)) {
     lastMorning.unshift({
       name: planLangCopy(lang, {
-        sl: "Mednarodni povratni let",
-        en: "International return flight",
-        de: "Internationaler Rückflug",
+        sl: "Mednarodni nočni let proti domu",
+        en: "Overnight international flight home",
+        de: "Internationaler Nachtflug nach Hause",
       }),
       type: "TRANSPORT",
       transportType: "flight",
       description: planLangCopy(lang, {
-        sl: `Nočni let ob ${depart}. Na letališču si že od prejšnjega večera — brez ponovnega transferja zjutraj.`,
-        en: `Overnight flight at ${depart}. You are already at the airport from the previous evening — no morning transfer.`,
-        de: `Nachtflug um ${depart}. Du bist seit dem Vorabend am Flughafen — kein morgendlicher Transfer.`,
+        sl: `Mednarodni nočni let proti domu ob ${depart}.`,
+        en: `Overnight international flight home at ${depart}.`,
+        de: `Internationaler Nachtflug nach Hause um ${depart}.`,
       }),
       arrivalTime: depart,
     });

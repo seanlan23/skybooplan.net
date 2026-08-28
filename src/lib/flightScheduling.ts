@@ -688,12 +688,12 @@ export function buildDepartureLogistics(
   const leaveHint =
     overnight
       ? planLangCopy(lang, {
-          sl: `nočni let ob ${dep} — na letališče že prejšnji večer`,
-          en: `overnight flight at ${dep} — be at the airport the evening before`,
-          de: `Nachtflug um ${dep} — am Vorabend zum Flughafen`,
-          it: `volo notturno alle ${dep} — in aeroporto già la sera prima`,
-          es: `vuelo nocturno a las ${dep} — al aeropuerto ya la noche anterior`,
-          fr: `vol de nuit à ${dep} — à l'aéroport dès la veille au soir`,
+          sl: `nočni let ob ${dep}`,
+          en: `overnight flight at ${dep}`,
+          de: `Nachtflug um ${dep}`,
+          it: `volo notturno alle ${dep}`,
+          es: `vuelo nocturno a las ${dep}`,
+          fr: `vol de nuit à ${dep}`,
         })
     : depMin <= 9 * 60
       ? planLangCopy(lang, {
@@ -787,12 +787,12 @@ export function buildDepartureLogistics(
         })
     : overnight
       ? planLangCopy(lang, {
-          sl: `Odjava zvečer pred nočnim letom — ${leaveHint}. Prtljago vzemi s seboj.`,
-          en: `Check out in the evening before the overnight flight — ${leaveHint}. Take your bags with you.`,
-          de: `Check-out am Abend vor dem Nachtflug — ${leaveHint}. Gepäck mitnehmen.`,
-          it: `Check-out la sera prima del volo notturno — ${leaveHint}. Porta i bagagli.`,
-          es: `Check-out por la noche antes del vuelo nocturno — ${leaveHint}. Lleva el equipaje.`,
-          fr: `Check-out le soir avant le vol de nuit — ${leaveHint}. Prenez les bagages.`,
+          sl: `Večerna odjava iz hotela pred nočnim letom — ${leaveHint}.`,
+          en: `Evening hotel check-out before the overnight flight — ${leaveHint}.`,
+          de: `Abendlicher Check-out vor dem Nachtflug — ${leaveHint}.`,
+          it: `Check-out serale prima del volo notturno — ${leaveHint}.`,
+          es: `Check-out por la noche antes del vuelo nocturno — ${leaveHint}.`,
+          fr: `Check-out le soir avant le vol de nuit — ${leaveHint}.`,
         })
     : depMin <= 17 * 60
       ? planLangCopy(lang, {
@@ -804,23 +804,23 @@ export function buildDepartureLogistics(
           fr: `Le matin, faites le check-out et allez à l'aéroport — ${leaveHint}.`,
         })
       : planLangCopy(lang, {
-          sl: `Odjava pred odhodom na letališče — ${leaveHint}. Prtljago vzemi s seboj ali shrani na recepciji do transferja.`,
-          en: `Check out before the airport transfer — ${leaveHint}. Take bags with you or store them at reception until you leave.`,
-          de: `Check-out vor dem Transfer zum Flughafen — ${leaveHint}. Gepäck mitnehmen oder bis zum Transfer an der Rezeption lassen.`,
-          it: `Check-out prima del transfer in aeroporto — ${leaveHint}. Porta i bagagli o lasciali in reception fino alla partenza.`,
-          es: `Check-out antes del traslado al aeropuerto — ${leaveHint}. Lleva el equipaje o déjalo en recepción hasta salir.`,
-          fr: `Check-out avant le transfert aéroport — ${leaveHint}. Prenez les bagages ou laissez-les à la réception jusqu'au départ.`,
+          sl: `Odjava iz hotela pred prevozom na letališče — ${leaveHint}.`,
+          en: `Hotel check-out before the airport transfer — ${leaveHint}.`,
+          de: `Check-out vor dem Transfer zum Flughafen — ${leaveHint}.`,
+          it: `Check-out prima del transfer in aeroporto — ${leaveHint}.`,
+          es: `Check-out antes del traslado al aeropuerto — ${leaveHint}.`,
+          fr: `Check-out avant le transfert aéroport — ${leaveHint}.`,
         });
 
   const airportDesc =
     overnight
       ? planLangCopy(lang, {
-          sl: `Na letališču oddaj prtljago in opravi prijavo. Nočni let ob ${dep} — pridi ~3 ure pred odletom, ne zjutraj na dan leta.`,
-          en: `Check in and clear security. Overnight flight at ${dep} — arrive ~3h before, not on the morning of departure.`,
-          de: `Am Flughafen Gepäck aufgeben und Check-in. Nachtflug um ${dep} — ~3 Stunden vorher da, nicht am Morgen des Abflugs.`,
-          it: `In aeroporto: bagagli e check-in. Volo notturno alle ${dep} — arriva ~3 ore prima, non la mattina del volo.`,
-          es: `En el aeropuerto: facturación y check-in. Vuelo nocturno a las ${dep} — llega ~3 h antes, no por la mañana del vuelo.`,
-          fr: `À l'aéroport : bagages et check-in. Vol de nuit à ${dep} — arrivez ~3 h avant, pas le matin du vol.`,
+          sl: `Prijava na letališču za nočni let ob ${dep}.`,
+          en: `Airport check-in for the overnight flight at ${dep}.`,
+          de: `Check-in am Flughafen für den Nachtflug um ${dep}.`,
+          it: `Check-in in aeroporto per il volo notturno alle ${dep}.`,
+          es: `Facturación en el aeropuerto para el vuelo nocturno a las ${dep}.`,
+          fr: `Enregistrement à l'aéroport pour le vol de nuit à ${dep}.`,
         })
     : depMin <= 13 * 60
       ? planLangCopy(lang, {

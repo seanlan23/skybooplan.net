@@ -49,6 +49,11 @@ describe("stripPlannerMetaCopy", () => {
     expect(stripPlannerMetaCopy("Dopoldanski izlet na Ayutthaya z vlakom.")).toBe(
       "Dopoldanski izlet na Ayutthaya z vlakom.",
     );
+    expect(
+      stripPlannerMetaCopy(
+        "Večerna odjava. Prtljago vzemi s seboj — na letališče že zvečer. Na letališču si že od prejšnjega večera — brez ponovnega transferja zjutraj.",
+      ),
+    ).toBe("Večerna odjava.");
   });
 });
 

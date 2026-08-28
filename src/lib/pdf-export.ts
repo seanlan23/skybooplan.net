@@ -23,6 +23,7 @@ import {
   overnightPlacesMatch,
   overnightStayBookingUrl,
   stampOvernightCitiesFromHotels,
+  syncDayCityToDaytimeProgram,
   type HotelStayHint,
   type OvernightDay,
 } from "@/lib/overnightHotelStays";
@@ -1133,6 +1134,7 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
     ? (itin.hotels as HotelStayHint[])
     : [];
   stampOvernightCitiesFromHotels(rawDays as OvernightDay[], hotelHints);
+  syncDayCityToDaytimeProgram(rawDays as OvernightDay[]);
   const sample = [textOf(itin.summary), ...rawDays.map((d) => textOf(d?.title))].join(" ");
   const contentLang = normalizePlanLangCode(
     (itin as { contentLanguage?: string }).contentLanguage ||
@@ -1382,6 +1384,10 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
         date: textOf(d.date) || undefined,
         city: textOf(d.city) || textOf(d.focusName) || undefined,
         inFlightDay: d.inFlightDay === true,
+        transportation: Array.isArray(d.transportation)
+          ? (d.transportation as Array<{ type?: string; from?: string; to?: string }>)
+          : undefined,
+        activities: d.activities as OvernightDay["activities"],
       };
     }),
     start_date: plan.start_date,

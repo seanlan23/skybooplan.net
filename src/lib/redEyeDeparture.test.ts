@@ -62,7 +62,7 @@ describe("applyRedEyeDepartureChronology", () => {
 
     const last = days[1]!;
     const lastBlob = JSON.stringify(last.activities);
-    expect(lastBlob).toMatch(/Mednarodni povratni let/i);
+    expect(lastBlob).toMatch(/Mednarodni nočni let proti domu|Mednarodni povratni let/i);
     expect(last.activities!.evening ?? []).not.toEqual(
       expect.arrayContaining([expect.objectContaining({ name: expect.stringMatching(/prevoz na letališč/i) })]),
     );

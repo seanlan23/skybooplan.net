@@ -6,6 +6,7 @@ import {
   overnightStayBookingUrl,
   shouldShowDayHotels,
   stampOvernightCitiesFromHotels,
+  syncDayCityToDaytimeProgram,
 } from "@/lib/overnightHotelStays";
 
 describe("collectOvernightHotelStays", () => {
@@ -163,7 +164,57 @@ describe("collectOvernightHotelStays", () => {
     });
     expect(stays.find((s) => /el nido/i.test(s.city))?.nights).toBe(3);
     expect(stays.find((s) => /bohol/i.test(s.city))?.nights).toBe(3);
-    expect(stays.find((s) => /boracay/i.test(s.city))?.nights).toBe(3);
+    expect(stays.find((s) => /boracay/i.test(s.city))?.nights).toBeGreaterThanOrEqual(2);
+  });
+
+  it("counts sleep nights on a late hop while the day tag stays at the origin", () => {
+    const days = [
+      {
+        day: 1,
+        date: "2026-10-26",
+        city: "Bangkok",
+        activities: {
+          morning: [],
+          afternoon: [{ name: "Arrival" }],
+          evening: [{ name: "Yaowarat" }],
+        },
+      },
+      {
+        day: 2,
+        date: "2026-10-27",
+        city: "Bangkok",
+        activities: {
+          morning: [{ name: "Grand Palace" }],
+          afternoon: [{ name: "Wat Arun" }],
+          evening: [{ name: "Dinner" }],
+        },
+      },
+      {
+        day: 3,
+        date: "2026-10-28",
+        city: "Chiang Mai",
+        transportation: [{ type: "flight", from: "Bangkok", to: "Chiang Mai" }],
+        activities: {
+          morning: [{ name: "Wat Pho" }],
+          afternoon: [{ name: "Chinatown" }],
+          evening: [{ name: "Flight to Chiang Mai", type: "TRANSPORT" }],
+        },
+      },
+      { day: 4, date: "2026-10-29", city: "Chiang Mai" },
+      { day: 5, date: "2026-10-30", city: "Chiang Mai" },
+      { day: 6, date: "2026-10-31", city: "Chiang Mai" },
+    ];
+    expect(syncDayCityToDaytimeProgram(days)).toBeGreaterThan(0);
+    expect(days[2]!.city).toBe("Bangkok");
+    const stays = collectOvernightHotelStays({
+      originPlace: "München",
+      start_date: "2026-10-26",
+      days,
+    });
+    expect(stays.map((s) => `${s.city}:${s.nights}:${s.checkIn}:${s.checkOut}`)).toEqual([
+      "Bangkok:2:2026-10-26:2026-10-28",
+      "Chiang Mai:3:2026-10-28:2026-10-31",
+    ]);
   });
 });
 

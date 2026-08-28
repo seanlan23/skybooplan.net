@@ -951,6 +951,55 @@ describe("normalizePlanForPdf", () => {
     expect(model.days[3]?.title).toBe("Ubud");
   });
 
+  it("keeps a Bangkok sightseeing hop-day labelled Bangkok and splits NAMESTITVE by sleep nights", () => {
+    const model = normalizePlanForPdf({
+      title: "MUC → BKK",
+      destination: "Tajska",
+      start_date: "2026-10-26",
+      end_date: "2026-10-31",
+      language: "sl",
+      itinerary: {
+        originPlace: "München",
+        days: [
+          {
+            day: 1,
+            date: "2026-10-26",
+            title: "Prihod",
+            city: "Bangkok",
+            activities: { evening: [{ name: "Yaowarat" }] },
+          },
+          {
+            day: 2,
+            date: "2026-10-27",
+            title: "Grand Palace",
+            city: "Bangkok",
+            activities: { morning: [{ name: "Grand Palace" }] },
+          },
+          {
+            day: 3,
+            date: "2026-10-28",
+            title: "Wat Pho in Chinatown",
+            city: "Chiang Mai",
+            transportation: [{ type: "flight", from: "Bangkok", to: "Chiang Mai" }],
+            activities: {
+              morning: [{ name: "Wat Pho" }],
+              afternoon: [{ name: "Chinatown" }],
+              evening: [{ name: "Let v Chiang Mai", type: "TRANSPORT" }],
+            },
+          },
+          { day: 4, date: "2026-10-29", title: "Staro mesto", city: "Chiang Mai" },
+          { day: 5, date: "2026-10-30", title: "Doi Suthep", city: "Chiang Mai" },
+          { day: 6, date: "2026-10-31", title: "Odhod", city: "Chiang Mai" },
+        ],
+      },
+    });
+    expect(model.days[2]?.city).toMatch(/Bangkok/i);
+    expect(model.hotels.map((h) => h.text)).toEqual([
+      expect.stringMatching(/Bangkok.*2 noč.*26\.\s*okt.*28\.\s*okt/i),
+      expect.stringMatching(/Chiang Mai.*3 noč.*28\.\s*okt.*31\.\s*okt/i),
+    ]);
+  });
+
   it("hides same-city outing banners and keeps a real base-change hop", () => {
     const model = normalizePlanForPdf({
       title: "MUC → YYZ",

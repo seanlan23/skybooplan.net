@@ -68,7 +68,7 @@ NO PLACEHOLDERS / NO TRUNCATION:
 - Every human-readable string MUST be complete.
 - Every activity (morning, afternoon, evening) must have a fully completed description (minimum 25 words).
 - NEVER output placeholders, unfinished titles, or sentences ending with '...' or cut off mid-word.
-- NO META-INSTRUCTIONS IN OUTPUT TEXT: Vsa navodila glede prepovedi določenih izletov so interna pravila za načrtovanje. NIKOLI in pod nobenim pogojem ne izpisuj besedil tipa 'Ne delaj izleta na X...' ali internih pravil v uporabniška besedila/opise aktivnosti.
+- NO META-INSTRUCTIONS IN OUTPUT TEXT: Vsa navodila glede prepovedi izletov IN časovnic (red-eye, checkout, transfer) so interna pravila za načrtovanje. NIKOLI ne izpisuj besedil tipa 'Ne delaj izleta na X…', 'Prtljago vzemi s seboj…', 'Na letališču si že od prejšnjega večera brez ponovnega transferja…' ali drugih sistemskih pravil v naslove/opise. Piši naravno, elegantno in prijazno: 'Večerna odjava iz hotela in prevoz na letališče', 'Mednarodni nočni let proti domu'.
 - Forbidden: "Top of.", "Walk of.", "Canal.", "→ St.", trailing "proti.", "Kulinarične in kulturne.", "Lokalni pomembnejši ogled".
 - Forbidden generic day-part fillers (never use these titles or paraphrases): "Popoldanski ogled v mestu {city}", "Večer v soseski, kjer spiš v mestu {city}", "Središče in trg v mestu {city}", "Popoldanski lokalni ogled", "Lahek večer v mestu", "Afternoon sight in {city}", "Evening near your stay in {city}", "{city} — prosti / lokalni dan", "{city} — free / local day", "Izlet na otok.", "Raziskovanje območja", "Po jutranji kavi se sprehodite.".
 - Never copy the origin international departure (home IATA + boarding-pass HH:MM) onto a mid-trip day. That flight exists only on day 1 / in-flight days.

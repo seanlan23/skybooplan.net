@@ -24,6 +24,7 @@ import { scrubImpossibleIslandDayTrips } from "@/lib/islandHopGuard";
 import { applyUserStayPlan, hasExplicitStayPlan } from "@/lib/userStayPlan";
 import { paceMetropolisStays } from "@/lib/metropolisPacing";
 import { scrubLocalTipsOnPlan } from "@/lib/localTipsSanitize";
+import { syncDayCityToDaytimeProgram } from "@/lib/overnightHotelStays";
 import { isSmallIsland } from "@/lib/islandStays";
 import { scrubBangkokSightsOnIslandTransferDays } from "@/lib/bangkokMustSee";
 import { alignSummaryTripLength } from "@/lib/planTeaser";
@@ -2092,6 +2093,7 @@ export function applyItineraryGuards(
   } else {
     linearizeOvernightArc(plan);
   }
+  syncDayCityToDaytimeProgram(plan.days ?? []);
   applyIslandHopLogistics(plan, opts?.language ?? plan.contentLanguage);
   relabelHubDayTripOvernights(plan.days ?? [], opts?.language ?? plan.contentLanguage);
   enrichIslandAirportTransfers(plan, {
@@ -2139,6 +2141,7 @@ export function applyItineraryGuards(
   const stealNights = lockStay ? 0 : stealNightForHitAndRun(plan);
   if (!lockStay) paceMetropolisStays(plan);
   if (lockStay) applyUserStayPlan(plan, { arrivalDay: opts?.arrivalDay });
+  syncDayCityToDaytimeProgram(plan.days ?? []);
   stripSightseeingOnBrutalDriveDays(plan);
   const overlongDrives = annotateOverlongDriveStages(plan);
   const hitAndRun = annotateHitAndRunStays(plan);
