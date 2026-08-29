@@ -241,7 +241,7 @@ TRANSPORT IN PREMIKANJE (obvezno — več plasti):
 - Za vsako aktivnost (razen zadnje v dnevu) dodaj ENO kratko točko (v bullets[] ali kot vrstico "- …" v description): kako se premakneš do NASLEDNJE (peš / metro / Grab / taxi …) + približen čas/cena v ${displayCurrency}.
 - PREPOVEDANO: dolg neformatiran odstavek o večerji/prevozu — max 1 vrstica za premik, detajli v transportTip.
 
-2) DNEVNI PREVOZNI PREGLED (days[].transportTip — obvezno vsak dan):
+2) DNEVNI PREVOZNI PREGLED (days[].transport_tip / transportTip — obvezno vsak dan):
 - Polje transportTip mora vsak dan vsebovati strukturiran pregled premikanja za tisti dan v 2–4 stavkih:
   • primarni način prevoza v mestu/regiji,
   • priporočene lokalne aplikacije (npr. Grab/Bolt v Bangkoku, InDrive na Phuketu, Uber v ZDA, Citymapper v Evropi — izberi realne za lokacijo),
@@ -929,7 +929,7 @@ ${motorhomeRules}
 ${lodgingBlock}
 
 STROGI JSON — dnevna polja:
-- Vsak dan: activities.morning + activities.afternoon + activities.evening (vsi trije ključi), transportTip (transportne opombe za TO mesto) in local_tips (2–3 kratki nasveti, vezani na lokacije TISTEGA dne).
+- Vsak dan: day_title, activities[] (time_slot SAMO DOPOLDAN|POPOLDAN|VEČER, start_time, title, description brez vgnezdene ure, estimated_cost_eur, navigation_available), transport_tip in local_tips (2–3 kratki nasveti, vezani na lokacije TISTEGA dne).
 - Preferiraj bullets. PREPOVEDANO wall of text / en dolg neformatiran odstavek.
 - arrivalTime/departureTime: on the selected international flights copy IZBRANI LET clocks exactly. The app will not rewrite this JSON.
 - weatherWidget { season, avgTemp, clothing } obvezno. safetyWarning objekt ali null.

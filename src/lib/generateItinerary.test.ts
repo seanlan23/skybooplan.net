@@ -163,6 +163,68 @@ describe("itineraryJsonToPlan", () => {
     expect(JSON.stringify(plan)).not.toMatch(/morske sadeve/);
   });
 
+  it("maps the live day contract onto DayPlan slots", () => {
+    const raw = {
+      trip_title: "MUC → NYC",
+      overview: "Prihod in prvi vtis.",
+      weatherWidget: { season: "mild", avgTemp: "18°C", clothing: "layers" },
+      safetyWarning: null,
+      days: [
+        {
+          day_number: 1,
+          date: "19. sep. 2026",
+          city: "New York",
+          day_title: "Prihod v New York in prvi vtis",
+          daily_budget_per_person_eur: 75,
+          activities: [
+            {
+              time_slot: "DOPOLDAN",
+              start_time: "10:00",
+              title: "High Line",
+              description: `${SLOT} Sprehod od 14th Street do Hudson Yards.`,
+              estimated_cost_eur: 0,
+              navigation_available: true,
+            },
+            {
+              time_slot: "POPOLDAN",
+              start_time: "14:00",
+              title: "The Met",
+              description: SLOT,
+              estimated_cost_eur: 30,
+              navigation_available: true,
+            },
+            {
+              time_slot: "VEČER",
+              start_time: "19:00",
+              title: "Broadway",
+              description: SLOT,
+              estimated_cost_eur: 40,
+              navigation_available: true,
+            },
+          ],
+          local_tips: "The Met zahteva časovni vstop.",
+          transport_tip: "OMNY / contactless na podzemni.",
+        },
+      ],
+    };
+
+    const plan = itineraryJsonToPlan(raw, {
+      ...input(),
+      destinationIata: "JFK",
+      destinationPlace: "New York",
+    });
+    expect(plan).not.toBeNull();
+    expect(plan!.days[0]!.title).toMatch(/Prihod v New York/);
+    expect(plan!.days[0]!.city).toMatch(/New York/i);
+    expect(plan!.days[0]!.activities?.morning?.[0]?.name).toMatch(/High Line/i);
+    expect(plan!.days[0]!.activities?.morning?.[0]?.arrivalTime).toBe("10:00");
+    expect(plan!.days[0]!.activities?.afternoon?.[0]?.name).toMatch(/The Met/i);
+    expect(plan!.days[0]!.activities?.evening?.[0]?.name).toMatch(/Broadway/i);
+    expect(plan!.days[0]!.dailyBudgetEur).toBe(75);
+    expect(plan!.days[0]!.transportationTips).toMatch(/OMNY/i);
+    expect(plan!.days[0]!.localTips).toMatch(/The Met/i);
+  });
+
   it("locks wish-list nights and drops a day trip to an overnight island", () => {
     const slot = {
       title: "Local sightseeing",

@@ -245,45 +245,43 @@ export const tripPlanSchema = z.object({
 });
 
 /** Slim structured-output schema — the full tripPlanSchema is too heavy for Gemini to stream. */
-const geminiSlotSchema = z.object({
+const GEMINI_TIME_SLOTS = ["DOPOLDAN", "POPOLDAN", "VEČER"] as const;
+
+const geminiDayActivitySchema = z.object({
+  time_slot: z.enum(GEMINI_TIME_SLOTS),
+  start_time: z.string().optional(),
   title: z.string().min(1),
   description: z.string().min(1),
-  category: z.enum(MAP_POI_CATEGORIES).optional(),
-  time: z.string().optional(),
-  cost_eur: z.number().min(0).optional(),
-  estimatedCostEur: z.number().min(0).optional(),
-  coordinates: coordinatesSchema.optional(),
-  unsplashQuery: z.string().min(1).optional(),
+  estimated_cost_eur: z.number().min(0),
+  navigation_available: z.boolean(),
+});
+
+const geminiDaySchema = z.object({
+  day_number: z.number().int().min(1),
+  date: z.string().min(1),
+  city: z.string().min(1),
+  day_title: z.string().min(1),
+  daily_budget_per_person_eur: z.number().min(1),
+  activities: z.array(geminiDayActivitySchema).min(1),
+  local_tips: z.string().min(1),
+  transport_tip: z.string().min(1),
 });
 
 export const tripPlanGeminiSchema = z.object({
-  itinerar: z.array(
-    z.object({
-      city: z.string().min(1),
-      phase: z.string().min(1).optional(),
-      unsplashQuery: z.string().min(1).optional(),
-      lat: wgsLat.optional(),
-      lng: wgsLng.optional(),
-      days: z.array(
-        z.object({
-          day_number: z.number().int().min(1),
-          date: z.string().optional(),
-          title: z.string().min(1),
-          city: z.string().min(1),
-          transportTip: z.string().optional(),
-          local_tips: z.string().min(1),
-          dailyBudget: z.number().min(0).optional(),
-          daily_budget_per_person_eur: z.number().min(1),
-          transfer: transferSchema.optional(),
-          activities: z.object({
-            morning: geminiSlotSchema,
-            afternoon: geminiSlotSchema,
-            evening: geminiSlotSchema,
-          }),
-        }),
-      ),
-    }),
-  ),
+  days: z.array(geminiDaySchema).min(1),
+  trip_title: z.string().min(1).optional(),
+  overview: z.string().optional(),
+  total_budget_eur: z.number().min(0).optional(),
+  accommodations: z
+    .array(
+      z.object({
+        city: z.string().min(1),
+        nights: z.number().int().min(0),
+        from_date: z.string().optional(),
+        to_date: z.string().optional(),
+      }),
+    )
+    .optional(),
   trip_metadata: z
     .object({
       destination: z.string(),

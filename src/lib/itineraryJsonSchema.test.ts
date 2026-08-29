@@ -10,10 +10,10 @@ describe("itinerary JSON schema contract", () => {
     expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/"overview"/);
     expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/"total_budget_eur"/);
     expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/"day_number"/);
-    expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/"transfer"/);
+    expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/days\[\]\.transfer/);
     expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/ONLY when the overnight city changes/);
     expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/FORBIDDEN: transfer\/transportation\[\] for same-city day trips/);
-    expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/"cost_eur"/);
+    expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/cost_eur/);
     expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/"daily_budget_per_person_eur"/);
     expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/"accommodations"/);
     expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/Never a freeform itinerary essay|never a freeform itinerary essay/i);
@@ -21,8 +21,16 @@ describe("itinerary JSON schema contract", () => {
     expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/Red-eye boarded on N−1/);
     expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/EXACTLY the inclusive calendar days/);
     expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/minimum 25 words/);
-    expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/morning = travel\/transfer only/);
-    expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/afternoon\/evening after hotel check-in/);
+    expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/time_slot DOPOLDAN = travel\/transfer only/);
+    expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/POPOLDAN\/VEČER after hotel check-in/);
+    expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/"day_title"/);
+    expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/"time_slot"/);
+    expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/DOPOLDAN/);
+    expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/"start_time"/);
+    expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/"estimated_cost_eur"/);
+    expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/"navigation_available"/);
+    expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/"transport_tip"/);
+    expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/MUST NOT embed a clock tag/);
     expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/strictly valid, parseable JSON/);
     expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/no markdown code fences/);
     expect(ITINERARY_JSON_SCHEMA_RULE).toMatch(/conversational intro\/outro/);
@@ -135,6 +143,75 @@ describe("itinerary JSON schema contract", () => {
 
     const parsed = parseCoercedTripPlan(lifted);
     expect(parsed.success).toBe(true);
+  });
+
+  it("lifts the live day contract (flat activities, day_title, transport_tip)", () => {
+    const lifted = liftFlatItineraryToItinerar({
+      trip_title: "MUC → NYC",
+      overview: "Prihod v New York in prvi vtis mesta.",
+      days: [
+        {
+          day_number: 1,
+          date: "19. sep. 2026",
+          city: "New York",
+          day_title: "Prihod v New York in prvi vtis",
+          daily_budget_per_person_eur: 75,
+          activities: [
+            {
+              time_slot: "DOPOLDAN",
+              start_time: "10:00",
+              title: "Kratek in udaren naslov",
+              description: "Sprehod po High Line od 14th Street do Hudson Yards. Prihod ob 10:00, potem Times Square.",
+              estimated_cost_eur: 25,
+              navigation_available: true,
+            },
+            {
+              time_slot: "POPOLDAN",
+              start_time: "14:00",
+              title: "The Met",
+              description: "Rezerviraj časovni vstop. Fokus na evropsko slikarstvo, ne na celoten muzej.",
+              estimated_cost_eur: 30,
+              navigation_available: true,
+            },
+            {
+              time_slot: "VEČER",
+              start_time: "19:00",
+              title: "Joe's Pizza",
+              description: "Klasika na Carmine Street. Pridi pred vrsto, vzemi rezino in jej stoje.",
+              estimated_cost_eur: 18,
+              navigation_available: true,
+            },
+          ],
+          local_tips: "The Met zahteva časovni vstop.",
+          transport_tip: "OMNY / contactless na podzemni — ne kupuj MetroCard.",
+        },
+      ],
+    }) as {
+      itinerar: Array<{
+        days: Array<{
+          title: string;
+          transportTip?: string;
+          activities: Array<{
+            title: string;
+            timeSlot: string;
+            arrivalTime?: string;
+            estimatedCostEur: number;
+            description: string;
+            navigationAvailable?: boolean;
+          }>;
+        }>;
+      }>;
+    };
+
+    const d1 = lifted.itinerar[0]!.days[0]!;
+    expect(d1.title).toBe("Prihod v New York in prvi vtis");
+    expect(d1.transportTip).toMatch(/OMNY/);
+    expect(d1.activities.map((a) => a.timeSlot)).toEqual(["dopoldan", "popoldan", "vecer"]);
+    expect(d1.activities[0]!.arrivalTime).toBe("10:00");
+    expect(d1.activities[0]!.estimatedCostEur).toBe(25);
+    expect(d1.activities[0]!.navigationAvailable).toBe(true);
+    expect(d1.activities[0]!.description).not.toMatch(/\d{1,2}:\d{2}/);
+    expect(parseCoercedTripPlan(lifted).success).toBe(true);
   });
 
   it("keeps the overnight city when a middle day flickers to another hub without a hop", () => {

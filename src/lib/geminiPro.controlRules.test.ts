@@ -128,7 +128,9 @@ describe("tripPlanControlRules", () => {
     expect(system).toMatch(/Morning is reserved for travel\/transfer/);
     expect(system).toMatch(/STRICT GENERATION & FORMATTING CONSTRAINTS/);
     expect(system).toMatch(/no markdown code fences/);
-    expect(system).toMatch(/activities\.morning/);
+    expect(system).toMatch(/time_slot/);
+    expect(system).toMatch(/DOPOLDAN/);
+    expect(system).toMatch(/transport_tip/);
     expect(system).toMatch(/transportTip/);
     expect(system).toMatch(/Phuket \(HKT\) → Krabi \/ Ao Nang/);
     expect(system).toMatch(/Koh Lanta has NO airport/);

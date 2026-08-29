@@ -330,10 +330,15 @@ function toActivity(
     description?: string;
     bullets?: string[];
     time?: string;
+    start_time?: string;
     arrivalTime?: string;
     departureTime?: string;
     estimatedCostEur?: number;
+    estimated_cost_eur?: number;
     timeSlot?: string;
+    time_slot?: string;
+    navigation_available?: boolean;
+    navigationAvailable?: boolean;
     category?: string;
     transport_type?: string;
     duration?: string;
@@ -346,10 +351,8 @@ function toActivity(
   },
   poiGuideByName?: Map<string, TripAdvisorStyleDetails>,
 ): Activity {
-  const cost =
-    typeof act.estimatedCostEur === "number" && act.estimatedCostEur >= 0
-      ? act.estimatedCostEur
-      : undefined;
+  const costRaw = act.estimatedCostEur ?? act.estimated_cost_eur;
+  const cost = typeof costRaw === "number" && costRaw >= 0 ? costRaw : undefined;
   const guide =
     act.tripAdvisorStyleDetails ??
     poiGuideByName?.get(act.title.trim().toLowerCase());
@@ -362,7 +365,8 @@ function toActivity(
   const bullets = Array.isArray(act.bullets)
     ? act.bullets.filter((b): b is string => typeof b === "string" && b.trim().length > 0)
     : undefined;
-  const startClock = parseHmClock(act.arrivalTime) ?? parseHmClock(act.time);
+  const startClock =
+    parseHmClock(act.arrivalTime) ?? parseHmClock(act.start_time) ?? parseHmClock(act.time);
   const lat = act.coordinates?.lat ?? act.lat;
   const lng = act.coordinates?.lng ?? act.lng;
 
@@ -374,7 +378,8 @@ function toActivity(
     departureTime: parseHmClock(act.departureTime),
     estimatedCostEur: cost,
     priceLabel: cost != null && cost > 0 ? `€${cost}` : undefined,
-    timeSlot: act.timeSlot,
+    timeSlot: act.timeSlot ?? act.time_slot,
+    navigationAvailable: act.navigationAvailable ?? act.navigation_available,
     type: act.category,
     transportType,
     transportDuration,
@@ -663,7 +668,10 @@ export function tripPlanResponseToAiTripPlan(
       if (!travelHack && isFirstDay && meta?.season_warning?.trim()) {
         travelHack = meta.season_warning.trim();
       }
-      const transportationTipsRaw = day.transportTip?.trim() || "";
+      const transportationTipsRaw =
+        day.transportTip?.trim() ||
+        (day as { transport_tip?: string }).transport_tip?.trim() ||
+        "";
       let transportationTips = isGenericTransportTip(transportationTipsRaw)
         ? ""
         : transportationTipsRaw;
@@ -698,7 +706,7 @@ export function tripPlanResponseToAiTripPlan(
           stripMisplacedCityPois({
             day: day.day_number,
             date: resolveIsoDayDate(day.date, opts?.departDate, day.day_number),
-            title: day.title,
+            title: day.title || (day as { day_title?: string }).day_title || "",
             morning: slots.morning,
             afternoon: slots.afternoon,
             evening: slots.evening,

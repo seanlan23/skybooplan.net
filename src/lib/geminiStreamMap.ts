@@ -10,6 +10,7 @@ import {
 } from "@/lib/geminiPlanMap";
 import { parseHmClock } from "@/lib/activityTime";
 import { sameTransferBase } from "@/lib/baseTransfer";
+import { normalizeTimeSlotLabel } from "@/lib/itineraryJsonSchema";
 
 type PartialResponse = DeepPartial<TripPlanResponse>;
 
@@ -19,7 +20,7 @@ const SLOT_KEYS = [
   ["evening", "vecer"],
 ] as const;
 
-/** Gemini structured output uses { morning, afternoon, evening }; coerce still uses arrays. */
+/** Gemini structured output is activities[]; nested morning/afternoon/evening still accepted. */
 function flattenPartialActivities(raw: unknown): unknown[] {
   if (Array.isArray(raw)) return raw;
   if (!raw || typeof raw !== "object") return [];
@@ -36,6 +37,18 @@ function flattenPartialActivities(raw: unknown): unknown[] {
     }
   }
   return out;
+}
+
+function rootDaysToItinerar(partial: Record<string, unknown>): PartialResponse["itinerar"] {
+  const days = partial.days;
+  if (!Array.isArray(days) || days.length === 0) return undefined;
+  const first = days.find((d) => d && typeof d === "object") as { city?: string } | undefined;
+  const city =
+    (typeof first?.city === "string" && first.city.trim()) ||
+    (typeof partial.trip_title === "string" && partial.trip_title.trim()) ||
+    "";
+  if (!city) return undefined;
+  return [{ city, days: days as never }];
 }
 
 function transferToTransportation(
@@ -82,13 +95,14 @@ function isMapCategory(value: unknown): value is (typeof MAP_POI_CATEGORIES)[num
   return typeof value === "string" && (MAP_POI_CATEGORIES as readonly string[]).includes(value);
 }
 
-function coercePartialResponse(partial: PartialResponse): TripPlanResponse | null {
+function coercePartialResponse(partial: PartialResponse & { days?: unknown[]; trip_title?: string }): TripPlanResponse | null {
   const fallbackCity =
     partial.trip_metadata?.destination?.trim() ||
     (typeof partial.itinerar?.[0]?.city === "string"
       ? partial.itinerar[0].city.trim()
-      : "");
-  const itinerar = (partial.itinerar ?? [])
+      : "") ||
+    (typeof partial.trip_title === "string" ? partial.trip_title.trim() : "");
+  const itinerar = (partial.itinerar ?? rootDaysToItinerar(partial) ?? [])
     .map((phase) => {
       if (!phase) return null;
       const city = phase.city?.trim() || fallbackCity;
@@ -117,7 +131,10 @@ function coercePartialResponse(partial: PartialResponse): TripPlanResponse | nul
       const days = (phase.days ?? [])
         .map((day) => {
           if (typeof day?.day_number !== "number") return null;
-          const dayTitle = day.title?.trim() || `Dan ${day.day_number}`;
+          const dayTitle =
+            day.title?.trim() ||
+            (day as { day_title?: string }).day_title?.trim() ||
+            `Dan ${day.day_number}`;
 
           const activities = flattenPartialActivities(day.activities)
             .map((raw, idx) => {
@@ -125,12 +142,15 @@ function coercePartialResponse(partial: PartialResponse): TripPlanResponse | nul
                 title?: string;
                 name?: string;
                 time?: string;
+                start_time?: string;
                 arrivalTime?: string;
                 departureTime?: string;
                 description?: string;
                 category?: string;
                 timeSlot?: string;
+                time_slot?: string;
                 estimatedCostEur?: number;
+                estimated_cost_eur?: number;
                 cost_eur?: number;
                 transport_type?: TripPlanResponse["itinerar"][number]["days"][number]["activities"][number]["transport_type"];
                 duration?: string;
@@ -145,24 +165,31 @@ function coercePartialResponse(partial: PartialResponse): TripPlanResponse | nul
               const title = (act.title?.trim() || act.name?.trim() || "");
               if (!title) return null;
               const slots = ["dopoldan", "popoldan", "vecer"] as const;
-              const clock = parseHmClock(act.arrivalTime) ?? parseHmClock(act.time);
+              const clock =
+                parseHmClock(act.arrivalTime) ??
+                parseHmClock(act.start_time) ??
+                parseHmClock(act.time);
               const cost =
                 typeof act.estimatedCostEur === "number"
                   ? act.estimatedCostEur
-                  : typeof act.cost_eur === "number"
-                    ? act.cost_eur
-                    : undefined;
+                  : typeof act.estimated_cost_eur === "number"
+                    ? act.estimated_cost_eur
+                    : typeof act.cost_eur === "number"
+                      ? act.cost_eur
+                      : undefined;
+              const mappedSlot = normalizeTimeSlotLabel(act.timeSlot ?? act.time_slot ?? "");
               return {
                 time: clock ?? "",
                 title,
                 description: description || title,
                 category: isMapCategory(act.category) ? act.category : "sightseeing",
                 timeSlot:
-                  act.timeSlot === "dopoldan" ||
+                  mappedSlot ??
+                  (act.timeSlot === "dopoldan" ||
                   act.timeSlot === "popoldan" ||
                   act.timeSlot === "vecer"
                     ? act.timeSlot
-                    : slots[idx % slots.length]!,
+                    : slots[idx % slots.length]!),
                 arrivalTime: clock,
                 departureTime: parseHmClock(act.departureTime),
                 estimatedCostEur: cost,
@@ -203,7 +230,9 @@ function coercePartialResponse(partial: PartialResponse): TripPlanResponse | nul
               typeof day.drivingDistanceKm === "number" ? day.drivingDistanceKm : 0,
             drivingDurationHours: day.drivingDurationHours?.trim() || "0h",
             travelHack: day.travelHack?.trim(),
-            transportTip: day.transportTip?.trim(),
+            transportTip:
+              day.transportTip?.trim() ||
+              (day as { transport_tip?: string }).transport_tip?.trim(),
             local_tips: day.local_tips?.trim(),
             transportation,
             activities,
@@ -258,7 +287,7 @@ function coercePartialResponse(partial: PartialResponse): TripPlanResponse | nul
 
 /** Map streaming partial Gemini JSON → preview `AiTripPlan` (text only, no images). */
 export function partialTripPlanToPreviewPlan(
-  partial: PartialResponse,
+  partial: PartialResponse & { days?: unknown[]; trip_title?: string },
   opts: GeminiPlanMapOpts & { enrich?: boolean },
 ): AiTripPlan | null {
   const coerced = coercePartialResponse(partial);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isPdfDaypartToken, normalizePlanForPdf, sanitizePdfText, buildPdfDownloadFileName, pdfDayHeading, isPdfBaseTransferLeg, resolvePdfReturnFromIata } from "@/lib/pdf-export";
+import { isPdfDaypartToken, normalizePlanForPdf, sanitizePdfText, buildPdfDownloadFileName, pdfDayHeading, isPdfBaseTransferLeg, resolvePdfReturnFromIata, shouldBreakBeforeBlock } from "@/lib/pdf-export";
 import { isoAddDays } from "@/lib/overnightHotelStays";
 
 describe("sanitizePdfText", () => {
@@ -1282,6 +1282,26 @@ describe("resolvePdfReturnFromIata", () => {
         ],
       }),
     ).toBe("YVR");
+  });
+});
+
+describe("shouldBreakBeforeBlock", () => {
+  const page = { pageBottom: 800, margin: 44 };
+
+  it("keeps a compact card on the current page when it fits", () => {
+    expect(shouldBreakBeforeBlock({ y: 200, needed: 180, ...page })).toBe(false);
+  });
+
+  it("starts a new page instead of splitting a card that fits on the next page", () => {
+    expect(shouldBreakBeforeBlock({ y: 700, needed: 180, ...page })).toBe(true);
+  });
+
+  it("does not hop when already at the top of a page", () => {
+    expect(shouldBreakBeforeBlock({ y: 44, needed: 900, ...page })).toBe(false);
+  });
+
+  it("avoids a leftover stub before a taller-than-page day", () => {
+    expect(shouldBreakBeforeBlock({ y: 740, needed: 900, ...page })).toBe(true);
   });
 });
 

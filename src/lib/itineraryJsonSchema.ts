@@ -4,7 +4,7 @@
  */
 
 import { activityHasRenderableBody } from "@/lib/textSanitize";
-import { parseHmClock } from "@/lib/activityTime";
+import { parseHmClock, stripProseClocksExcept } from "@/lib/activityTime";
 import { stampOvernightCitiesFromHotels, type HotelStayHint, type OvernightDay } from "@/lib/overnightHotelStays";
 import { sameTransferBase } from "@/lib/baseTransfer";
 
@@ -15,18 +15,22 @@ export const ITINERARY_JSON_SCHEMA_EXAMPLE = `{
   "days": [
     {
       "day_number": 1,
-      "date": "YYYY-MM-DD",
-      "city": "string",
-      "title": "string",
-      "transfer": { "type": "string", "from": "string", "to": "string", "duration": "string", "cost_eur": "number" },
-      "activities": {
-        "morning": { "title": "string", "description": "string", "cost_eur": "number", "time": "HH:MM" },
-        "afternoon": { "title": "string", "description": "string", "cost_eur": "number", "time": "HH:MM" },
-        "evening": { "title": "string", "description": "string", "cost_eur": "number", "time": "HH:MM" }
-      },
-      "daily_budget_per_person_eur": "number",
-      "transportTip": "string",
-      "local_tips": "string"
+      "date": "19. sep. 2026",
+      "city": "New York",
+      "day_title": "Prihod v New York in prvi vtis",
+      "daily_budget_per_person_eur": 75,
+      "activities": [
+        {
+          "time_slot": "DOPOLDAN",
+          "start_time": "10:00",
+          "title": "Kratek in udaren naslov",
+          "description": "Opis aktivnosti brez vgnezdene časovne značke.",
+          "estimated_cost_eur": 25,
+          "navigation_available": true
+        }
+      ],
+      "local_tips": "Specifičen, enkraten nasvet za ta dan.",
+      "transport_tip": "Natančen nasvet za prevoz za ta dan."
     }
   ],
   "accommodations": [
@@ -47,17 +51,17 @@ Field mapping (same payload, do not emit a second itinerary):
 - overview → trip_metadata.season_warning (2–4 complete sentences)
 - total_budget_eur → root number (optional; app may recompute)
 - days[] length / day_number 1…N = EXACTLY the inclusive calendar days from START_DATE through END_DATE. Day N is ALWAYS the departure day (return home). Daytime board: checkout + airport + international flight. Red-eye boarded on N−1: Day N is only in-air + home landing — no morning dest checkout/transfers.
-- days[].day_number, date, title, city — title is a complete phrase
+- days[].day_number, date, city, day_title — day_title is a complete unique phrase (maps to title). Date may be a locale label; the app stamps ISO from START_DATE + day_number.
 - days[].transfer → days[].transportation[0] { type, from, to, duration, estimatedPrice = cost_eur } ONLY when the overnight city changes (new base). from and to MUST be different bases. Omit transfer on same-city days. FORBIDDEN: transfer/transportation[] for same-city day trips (island excursions, bay tours, Phi Phi / Phang Nga / Ang Thong style outings) — those stay as activities only
-- TRAVEL DAY: if city changes vs the previous overnight (distant city/island hop), morning = travel/transfer only; sightseeing in the new city only afternoon/evening after hotel check-in
-- days[].activities.morning|afternoon|evening are REQUIRED keys — never omit a slot. Each is one complete object: title, description, cost_eur, time. Map to activities[] with timeSlot dopoldan|popoldan|vecer. Evening on a full destination day is a real dinner / night program, not an empty key.
+- TRAVEL DAY: if city changes vs the previous overnight (distant city/island hop), time_slot DOPOLDAN = travel/transfer only; sightseeing in the new city only POPOLDAN/VEČER after hotel check-in
+- days[].activities is a REQUIRED flat array (never morning/afternoon/evening object keys). Each item: time_slot (ONLY "DOPOLDAN" | "POPOLDAN" | "VEČER"), start_time HH:MM, title, description, estimated_cost_eur (alias cost_eur), navigation_available. A full destination day covers all three time_slot values; evening is a real dinner / night program. Description MUST NOT embed a clock tag — start_time owns the clock.
 - days[].city is ALWAYS the overnight sleep city for THAT night (hotel/camp). NEVER copy the arrival-airport city onto every day. After a morning/daytime hop INTO a new base, city is the new sleep city from that day on (Shinkansen Osaka→Tokyo ⇒ Tokyo on that day and the following stay days). Nearby islands/towns are day trips from the main base — do not 1-night-hop. Consecutive full stay days keep the same city string. Forbidden: a one-day flicker to a previous hub with no transfer that day.
-- days[].title is a unique day name (what happens that day) — never "Dan 1" / "Day 1".
+- days[].day_title is a unique day name (what happens that day) — never "Dan 1" / "Day 1".
 - hotels[] / accommodations[] = one row per consecutive SLEEP stay { city, nights, from_date, to_date }. Nights follow days[].city sleep: Osaka 2 nights 20–22 Sep and Tokyo 5 nights 22–27 Sep when the move is on 22 Sep. Forbidden: a single gateway-city row covering the whole trip. If the traveller listed nights per city in wishes, hotels[] MUST match those counts exactly — no extra nights on the first base. Forbidden: a boat/flight day trip to an island/town that already has a multi-night stay (use local sights on the current base instead). Without an explicit stay plan: an entry/exit transit metropolis (Bangkok, Kuala Lumpur, Toronto, Tokyo…) gets at most 2–3 nights at the start and 1–2 at the return, and ≤30% of the trip in total; interior cultural/mountain bases and islands/parks get ≥3 nights.
-- days[].transportTip (transport notes) is REQUIRED every day — concrete A→B / apps / how to get around for THAT city only
+- days[].transport_tip (alias transportTip) is REQUIRED every day — concrete A→B / apps / how to get around for THAT city only
 - days[].local_tips is REQUIRED (type: string) every day — 2–3 short practical tips strictly bound to the named places on THAT day (tickets, reservations, dress/etiquette, tipping, opening quirks). Not a copy of travelHack (one insider shortcut) and not transportTip (how to get around). Forbidden: the same paragraph on two days; a copy-paste checklist (tap water + street food + temple dress + tipping) on every city. Temple/wat dress ONLY if that day visits a temple/wat/shrine. When the day's places actually include them: US tipping, Broadway etiquette, The Met tickets/reservations, Harlem gospel-service rules. Never "cover shoulders at temples" on New York or European days.
 - description = fully completed, minimum 25 words (typically 2–3 complete sentences: what + how + one local tip). Never a wall of text. NEVER '...' or cut off mid-word. On flight days write a complete in-flight/transfer description — do not drop the key
-- time = HH:MM for sightseeing when you know a sensible start; OMIT time on international arrival, hotel checkout, airport transfer, and the return flight (the ticket owns those clocks)
+- start_time = HH:MM for sightseeing when you know a sensible start; OMIT start_time on international arrival, hotel checkout, airport transfer, and the return flight (the ticket owns those clocks)
 - days[].daily_budget_per_person_eur → dailyBudget. REQUIRED every day: a real per-person EUR number (typical sightseeing day 35–70, never 0). Includes food + local transport + activities that day; not the international flight.
 - accommodations[] → hotels[] { name = city, city, nights, from_date, to_date } — city + nights only, NEVER invent hotel names
 - Keep weatherWidget + safetyWarning on the root as already required
@@ -69,6 +73,61 @@ const SLOT_TO_TIMESLOT: Record<string, "dopoldan" | "popoldan" | "vecer"> = {
   afternoon: "popoldan",
   evening: "vecer",
 };
+
+/** Gemini day contract: DOPOLDAN | POPOLDAN | VEČER → internal timeSlot. */
+export function normalizeTimeSlotLabel(raw: string): "dopoldan" | "popoldan" | "vecer" | undefined {
+  const t = raw
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .trim();
+  if (/^dopoldan$|^morning$/.test(t)) return "dopoldan";
+  if (/^popoldan$|^afternoon$/.test(t)) return "popoldan";
+  if (/^vecer$|^evening$/.test(t)) return "vecer";
+  return undefined;
+}
+
+function inferSlotFromClock(clock: string | undefined): "dopoldan" | "popoldan" | "vecer" | undefined {
+  const hm = parseHmClock(clock ?? "");
+  if (!hm) return undefined;
+  const hour = Number(hm.slice(0, 2));
+  if (hour < 12) return "dopoldan";
+  if (hour < 17) return "popoldan";
+  return "vecer";
+}
+
+/** Map Rok's live day fields onto the internal activity/day shape. */
+export function normalizeGeminiDayFields(day: Record<string, unknown>): void {
+  if (!str(day.title).trim() && str(day.day_title).trim()) day.title = str(day.day_title).trim();
+  if (!str(day.transportTip).trim() && str(day.transport_tip).trim()) {
+    day.transportTip = str(day.transport_tip).trim();
+  }
+}
+
+export function normalizeGeminiActivityFields(a: Record<string, unknown>): void {
+  if (!str(a.title).trim() && str(a.name).trim()) a.title = str(a.name).trim();
+  const start =
+    parseHmClock(str(a.start_time)) ?? parseHmClock(str(a.time)) ?? parseHmClock(str(a.arrivalTime));
+  if (start) {
+    a.time = start;
+    if (!str(a.arrivalTime).trim()) a.arrivalTime = start;
+  }
+  const slot =
+    normalizeTimeSlotLabel(str(a.time_slot)) ??
+    normalizeTimeSlotLabel(str(a.timeSlot)) ??
+    inferSlotFromClock(start);
+  if (slot) a.timeSlot = slot;
+  if (num(a.estimatedCostEur) == null) {
+    a.estimatedCostEur = num(a.estimated_cost_eur) ?? num(a.cost_eur) ?? 0;
+  }
+  if (typeof a.navigation_available === "boolean" && a.navigationAvailable == null) {
+    a.navigationAvailable = a.navigation_available;
+  }
+  const desc = str(a.description).trim();
+  if (desc) {
+    a.description = stripProseClocksExcept(desc, []) ?? desc;
+  }
+}
 
 function asRecord(v: unknown): Record<string, unknown> | null {
   if (!v || typeof v !== "object" || Array.isArray(v)) return null;
@@ -97,14 +156,16 @@ function slotActivities(raw: unknown, timeSlot: "dopoldan" | "popoldan" | "vecer
     if (!activityHasRenderableBody({ description, bullets })) continue;
     const title = str(a.title || a.name).trim();
     if (!title) continue;
-    const clock = parseHmClock(str(a.time)) ?? parseHmClock(str(a.arrivalTime));
+    normalizeGeminiActivityFields(a);
+    const clock = parseHmClock(str(a.time)) ?? parseHmClock(str(a.arrivalTime)) ?? parseHmClock(str(a.start_time));
+    const descriptionClean = str(a.description).trim();
     out.push({
       ...a,
       title,
-      description,
+      description: descriptionClean,
       time: clock ?? str(a.time),
       arrivalTime: str(a.arrivalTime).trim() || clock || undefined,
-      estimatedCostEur: num(a.estimatedCostEur) ?? num(a.cost_eur) ?? 0,
+      estimatedCostEur: num(a.estimatedCostEur) ?? num(a.estimated_cost_eur) ?? num(a.cost_eur) ?? 0,
       timeSlot: typeof a.timeSlot === "string" ? a.timeSlot : timeSlot,
       category: typeof a.category === "string" ? a.category : "sightseeing",
     });
@@ -127,14 +188,13 @@ function flattenDayActivities(day: Record<string, unknown>): void {
     for (const a of acts) {
       const rec = asRecord(a);
       if (!rec) continue;
-      if (rec.estimatedCostEur == null && num(rec.cost_eur) != null) {
-        rec.estimatedCostEur = num(rec.cost_eur);
-      }
-      if (!str(rec.title) && str(rec.name)) rec.title = str(rec.name);
+      normalizeGeminiActivityFields(rec);
       rec.title = str(rec.title).trim();
       if (!str(rec.title)) continue;
-      const clock = parseHmClock(str(rec.time)) ?? parseHmClock(str(rec.arrivalTime));
-      if (clock && !str(rec.arrivalTime).trim()) rec.arrivalTime = clock;
+      if (!str(rec.timeSlot)) rec.timeSlot = inferSlotFromClock(str(rec.arrivalTime)) ?? "dopoldan";
+      if (!str(rec.category)) rec.category = "sightseeing";
+      if (!str(rec.time)) rec.time = str(rec.arrivalTime);
+      if (!str(rec.description)) rec.description = rec.title;
       next.push(rec);
     }
     day.activities = next;
@@ -153,6 +213,7 @@ function flattenDayActivities(day: Record<string, unknown>): void {
 }
 
 function fillDayDefaults(day: Record<string, unknown>): void {
+  normalizeGeminiDayFields(day);
   flattenDayActivities(day);
   applyTransfer(day);
   if (num(day.dailyBudget) == null && num(day.daily_budget_per_person_eur) != null) {
@@ -163,7 +224,7 @@ function fillDayDefaults(day: Record<string, unknown>): void {
   if (!str(day.drivingDurationHours).trim()) day.drivingDurationHours = "0h";
   if (!str(day.day_name).trim()) {
     const n = num(day.day_number) ?? 1;
-    day.day_name = `Day ${n}`;
+    day.day_name = str(day.title).trim() || `Day ${n}`;
   }
   if (!str(day.date).trim()) day.date = "";
   const localTips = str(day.local_tips).trim() || str(day.localTips).trim();

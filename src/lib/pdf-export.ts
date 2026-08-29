@@ -874,6 +874,30 @@ function wrapPdfLines(doc: jsPDF, text: string, maxWidth: number): string[] {
   }
 }
 
+/**
+ * jsPDF equivalent of CSS page-break-inside: avoid.
+ * Hop to a new page when the block fits there but not here.
+ * Blocks taller than a page still start on a fresh page if only a stub remains
+ * (prevents empty holes); they may then split.
+ */
+export function shouldBreakBeforeBlock(opts: {
+  y: number;
+  needed: number;
+  pageBottom: number;
+  margin: number;
+}): boolean {
+  const { y, needed, pageBottom, margin } = opts;
+  if (needed <= 0) return false;
+  const room = pageBottom - y;
+  if (needed <= room) return false;
+  if (y <= margin + 1) return false;
+  const pageBody = pageBottom - margin;
+  if (needed > pageBody) {
+    return room < Math.min(120, Math.max(48, needed * 0.22));
+  }
+  return true;
+}
+
 function dateLocaleForPlanLang(lang: string | undefined): string {
   switch ((lang ?? "en").slice(0, 2).toLowerCase()) {
     case "sl":
@@ -1697,15 +1721,102 @@ async function renderPlanPdf(plan: PlanForPdf): Promise<{
     return cleaned ? doc.getTextWidth(cleaned) : 0;
   };
 
+  const pageBottom = pageH - footerH;
+
   const ensureSpace = (needed: number) => {
-    if (y + needed > pageH - footerH) {
+    if (y + needed > pageBottom) {
       doc.addPage();
       y = margin;
     }
   };
 
-  const heading = (text: string) => {
-    ensureSpace(36);
+  /** page-break-inside: avoid — start a new page when the whole unit still fits there. */
+  const breakBefore = (needed: number) => {
+    if (shouldBreakBeforeBlock({ y, needed, pageBottom, margin })) {
+      doc.addPage();
+      y = margin;
+    }
+  };
+
+  const cleanPdfLine = (value: string): string => {
+    let cleaned = sanitizePdfText(value);
+    if (!cleaned) return "";
+    if (!hasUnicodeFont) cleaned = asciiFallback(cleaned);
+    return cleaned;
+  };
+
+  const measureParaH = (text: string, size = 10, indent = 0): number => {
+    const cleaned = cleanPdfLine(text);
+    if (!cleaned) return 0;
+    setFont("normal", size);
+    return wrapPdfLines(doc, cleaned, contentW - indent).length * (size + 3.5);
+  };
+
+  const pdfSlotItems = (slot: PdfDay["slots"][number]) => {
+    const items = slot.items.filter((it) => !isPdfClutterActivity(it.title, it.description));
+    let logisticsKept = 0;
+    return items.filter((it) => {
+      if (!isPdfLogisticsTitle(it.title)) return true;
+      logisticsKept += 1;
+      return logisticsKept <= 2;
+    });
+  };
+
+  const estimateDayHeight = (d: PdfDay): number => {
+    const titleSafe = cleanPdfLine(d.title);
+    setFont("bold", 13, INK);
+    const titleLines = wrapPdfLines(doc, titleSafe, contentW - 72);
+    let h = 36 + titleLines.length * 15 + 14;
+    h += collapsePdfDayTransfers(d.transportation).length * 24;
+    if (d.bookingUrl) h += 16;
+    for (const slot of d.slots) {
+      const trimmed = pdfSlotItems(slot);
+      if (!trimmed.length) continue;
+      h += 12;
+      for (const it of trimmed) {
+        const timeLabel = it.time?.trim() || "";
+        const timeW = timeLabel ? measure(timeLabel, "bold", 9) : 0;
+        const titleMaxW = contentW - (timeW ? timeW + 18 : 8);
+        setFont("bold", 11, INK);
+        h += wrapPdfLines(doc, cleanPdfLine(it.title), titleMaxW).length * 13;
+        if (it.price) h += 12;
+        for (const line of activityDescriptionBullets(it.description, it.bullets)) {
+          const bullet = cleanPdfLine(`–  ${line}`);
+          setFont("normal", 9, MUTED);
+          h += wrapPdfLines(doc, bullet, contentW - 14).length * 11;
+        }
+        if (it.mapsUrl && !isPdfLogisticsTitle(it.title)) h += 11;
+        h += 10;
+      }
+    }
+    if (
+      (typeof d.dailyBudgetEur === "number" && d.dailyBudgetEur > 0) ||
+      d.localTips ||
+      d.transportTips
+    ) {
+      h += 11;
+    }
+    if (d.localTips) {
+      const cleaned = cleanPdfLine(`${model.labels.localTips}: ${d.localTips}`);
+      if (cleaned) {
+        setFont("normal", 8.5, AMBER_INK);
+        h += 10 + wrapPdfLines(doc, cleaned, contentW - 18).length * 12 + 8;
+      }
+    }
+    if (d.transportTips) h += measureParaH(`${model.labels.transport}: ${d.transportTips}`, 8.5, 2);
+    if (typeof d.dailyBudgetEur === "number" && d.dailyBudgetEur > 0) {
+      h += measureParaH(
+        `${model.labels.dailyBudget}: €${Math.round(d.dailyBudgetEur)} ${model.labels.dailyBudgetPerPerson}`,
+        8.5,
+        2,
+      );
+    }
+    return h + 16;
+  };
+
+  const heading = (text: string, keepWith = 48) => {
+    // page-break-after: avoid — heading stays with the following unit
+    breakBefore(28 + keepWith);
     y += 10;
     setFont("bold", 10, SKY_DARK);
     safeText(String(text ?? "").toUpperCase(), margin, y);
@@ -1756,8 +1867,8 @@ async function renderPlanPdf(plan: PlanForPdf): Promise<{
     setFont("bold", 13, INK);
     const titleLines = wrapPdfLines(doc, titleSafe, contentW - 72);
     const bandH = 36 + titleLines.length * 15;
-    // Prefer starting a day on a fresh page when little room remains.
-    if (y + bandH + 90 > pageH - footerH && y > margin + 40) {
+    // .day-header { page-break-after: avoid } — don't leave the band alone at the footer.
+    if (shouldBreakBeforeBlock({ y, needed: bandH + 70, pageBottom, margin })) {
       doc.addPage();
       y = margin;
     }
@@ -1870,13 +1981,17 @@ async function renderPlanPdf(plan: PlanForPdf): Promise<{
   y = COVER_H + 24;
 
   if (model.summary) {
-    heading(model.labels.overview);
+    heading(model.labels.overview, measureParaH(model.summary, 10.5) + 8);
     para(model.summary, 10.5, MUTED);
     y += 8;
   }
 
   if (model.insurance) {
-    heading(model.labels.insurance);
+    const insBody =
+      measureParaH(`${model.insurance.title} — ${model.insurance.body}`, 10) +
+      (model.insurance.insurers ? measureParaH(model.insurance.insurers, 9, 2) : 0) +
+      8;
+    heading(model.labels.insurance, insBody);
     para(`${model.insurance.title} — ${model.insurance.body}`, 10, MUTED);
     if (model.insurance.insurers) {
       para(model.insurance.insurers, 9, MUTED, 2);
@@ -1885,7 +2000,6 @@ async function renderPlanPdf(plan: PlanForPdf): Promise<{
   }
 
   if (model.totalBudgetEur != null) {
-    heading(model.labels.budget);
     const breakdown = pdfBudgetBreakdownLines({
       lang: model.contentLang,
       pax: model.pax,
@@ -1900,6 +2014,7 @@ async function renderPlanPdf(plan: PlanForPdf): Promise<{
       extraLines.push(roadStaysCaption(model));
     }
     const budgetH = 28 + extraLines.length * 13;
+    heading(model.labels.budget, budgetH + 12);
     softPanel(budgetH);
     setFont("bold", 20, INK);
     safeText(`€${Math.round(model.totalBudgetEur)}`, margin + 16, y + 20);
@@ -1914,7 +2029,7 @@ async function renderPlanPdf(plan: PlanForPdf): Promise<{
 
   // ===== DAYS =====
   if (model.days.length) {
-    heading(model.labels.daily);
+    heading(model.labels.daily, Math.min(estimateDayHeight(model.days[0]!), 140));
 
     for (const d of model.days) {
       const dateLabel = [
@@ -1925,6 +2040,8 @@ async function renderPlanPdf(plan: PlanForPdf): Promise<{
         .join(" – ");
       const metaLine = [dateLabel, d.city].filter(Boolean).join("  ·  ");
 
+      // .day-card { page-break-inside: avoid }
+      breakBefore(estimateDayHeight(d));
       drawDayBand(d.day, metaLine, d.title);
 
       for (const leg of collapsePdfDayTransfers(d.transportation)) {
@@ -1958,20 +2075,11 @@ async function renderPlanPdf(plan: PlanForPdf): Promise<{
       }
 
       for (const slot of d.slots) {
-        const items = slot.items.filter(
-          (it) => !isPdfClutterActivity(it.title, it.description),
-        );
-        // Keep at most 2 pure logistics rows per slot (flight day noise).
-        let logisticsKept = 0;
-        const trimmed = items.filter((it) => {
-          if (!isPdfLogisticsTitle(it.title)) return true;
-          logisticsKept += 1;
-          return logisticsKept <= 2;
-        });
+        const trimmed = pdfSlotItems(slot);
         if (!trimmed.length) continue;
 
         // Keep slot pill with the first row — don't orphan "POPOLDAN" at a page break.
-        if (y + 55 > pageH - footerH && y > margin + 40) {
+        if (shouldBreakBeforeBlock({ y, needed: 55, pageBottom, margin })) {
           doc.addPage();
           y = margin;
         }
@@ -2080,14 +2188,22 @@ async function renderPlanPdf(plan: PlanForPdf): Promise<{
   }
 
   if (model.flights.length) {
-    heading(model.labels.flights);
-    for (const f of model.flights) para(f, 10, INK);
+    // .flights-container { page-break-inside: auto } — keep each row together
+    heading(model.labels.flights, measureParaH(model.flights[0]!, 10));
+    for (const f of model.flights) {
+      breakBefore(measureParaH(f, 10));
+      para(f, 10, INK);
+    }
     y += 4;
   }
 
   if (model.hotels.length) {
-    heading(model.labels.stays);
+    const firstStayH =
+      measureParaH(model.hotels[0]!.text, 10) + (model.hotels[0]!.url ? 12 : 0);
+    heading(model.labels.stays, firstStayH);
     for (const h of model.hotels) {
+      // .accommodation-row { page-break-inside: avoid }
+      breakBefore(measureParaH(h.text, 10) + (h.url ? 12 : 0));
       para(h.text, 10, INK);
       if (h.url) {
         ensureSpace(12);

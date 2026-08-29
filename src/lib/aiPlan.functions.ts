@@ -256,6 +256,8 @@ export type Activity = {
   departureTime?: string;
   estimatedCostEur?: number;
   timeSlot?: string;
+  /** Gemini day contract — true when the activity has a walkable/map pin. */
+  navigationAvailable?: boolean;
   lat?: number;
   lng?: number;
   /** Google Places photo for this activity (server-enriched). */
