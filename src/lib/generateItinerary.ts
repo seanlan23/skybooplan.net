@@ -54,6 +54,7 @@ export type GenerateItineraryResult = {
  * No day padding or route repair.
  */
 export { CORE_ITINERARY_SYSTEM_RULES } from "@/lib/coreItineraryRules";
+export type { ActivityItem, ItineraryDayPlan } from "@/lib/itineraryDayContract";
 export function itineraryJsonToPlan(
   raw: unknown,
   userInputs: GenerateItineraryInput,

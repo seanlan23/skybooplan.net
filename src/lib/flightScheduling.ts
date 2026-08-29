@@ -66,6 +66,18 @@ export type LogisticsActivity = {
   departureTime?: string;
 };
 
+export function formatHmClock(min: number): string {
+  const wrapped = ((min % (24 * 60)) + 24 * 60) % (24 * 60);
+  const h = Math.floor(wrapped / 60);
+  const m = wrapped % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+/** Be at the international terminal exactly 3 hours before departure. */
+export function airportArrivalClockBeforeDepart(depart: string): string {
+  return formatHmClock(parseHm(depart) - 3 * 60);
+}
+
 function parseHm(hm: string): number {
   // Accept "18:55", "18:55+1", "18.55"
   const cleaned = hm.trim().replace(/\+\d+\s*$/, "");

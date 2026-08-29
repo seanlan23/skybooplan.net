@@ -1,7 +1,11 @@
 import { z } from "zod";
 import { coerceActivityDescriptionFields } from "@/lib/activityDescription";
+import { GEMINI_TIME_SLOTS } from "@/lib/itineraryDayContract";
 import { liftFlatItineraryToItinerar } from "@/lib/itineraryJsonSchema";
 import { MAP_POI_CATEGORIES } from "@/lib/mapPoiCategory";
+
+export type { ActivityItem, ItineraryDayPlan, TimeSlot } from "@/lib/itineraryDayContract";
+export { GEMINI_TIME_SLOTS } from "@/lib/itineraryDayContract";
 
 export { MAP_POI_CATEGORIES, type MapPoiCategory } from "@/lib/mapPoiCategory";
 
@@ -244,16 +248,14 @@ export const tripPlanSchema = z.object({
     .default([]),
 });
 
-/** Slim structured-output schema — the full tripPlanSchema is too heavy for Gemini to stream. */
-const GEMINI_TIME_SLOTS = ["DOPOLDAN", "POPOLDAN", "VEČER"] as const;
-
+/** Slim structured-output schema — matches `ActivityItem` / `ItineraryDayPlan`. */
 const geminiDayActivitySchema = z.object({
   time_slot: z.enum(GEMINI_TIME_SLOTS),
-  start_time: z.string().optional(),
+  start_time: z.string(),
   title: z.string().min(1),
   description: z.string().min(1),
-  estimated_cost_eur: z.number().min(0),
-  navigation_available: z.boolean(),
+  estimated_cost_eur: z.number().min(0).optional(),
+  navigation_available: z.boolean().optional(),
 });
 
 const geminiDaySchema = z.object({

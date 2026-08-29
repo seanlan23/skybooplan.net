@@ -1,5 +1,7 @@
 import type { Activity, DayPlan } from "@/lib/aiPlan.functions";
 import {
+  airportArrivalClockBeforeDepart,
+  formatHmClock,
   isOvernightDeparture,
   lastDayArriveForDisplay,
   type TripFlightContext,
@@ -314,4 +316,46 @@ export function applyRedEyeDepartureChronology(
     });
     if (!last.transportation.length) last.transportation = undefined;
   }
+}
+
+/**
+ * Same-day return: airport activity = depart − 3:00.
+ * Evening board: move morning checkout to the transfer window (no 08:00 checkout).
+ */
+export function stampDepartureDayThreeHourLead(
+  days: DayPlan[],
+  opts: { inboundDepart?: string; skip?: boolean },
+): void {
+  if (opts.skip) return;
+  const depart = opts.inboundDepart?.trim();
+  if (!depart || !days.length) return;
+  const flights = { inboundDepart: depart } as TripFlightContext;
+  if (isOvernightDeparture(flights)) return;
+
+  const last = days[days.length - 1]!;
+  if (!last.activities) return;
+  const airportAt = airportArrivalClockBeforeDepart(depart);
+  const depMin = parseHm(depart);
+  const eveningDepart = depMin >= 17 * 60;
+  const checkoutAt = formatHmClock(Math.max(0, parseHm(airportAt) - 30));
+
+  const stamped: Activity[] = [];
+  for (const slot of ["morning", "afternoon", "evening"] as const) {
+    for (const a of takeSlot(last, slot)) {
+      if (isAirportTransfer(a) || isAirportCheckin(a)) {
+        stamped.push({ ...a, arrivalTime: airportAt });
+        continue;
+      }
+      if (isCheckout(a) && eveningDepart) {
+        stamped.push({ ...a, arrivalTime: checkoutAt });
+        continue;
+      }
+      stamped.push(a);
+    }
+  }
+  last.activities = sortDayActivitiesByClock({
+    morning: stamped,
+    afternoon: [],
+    evening: [],
+  });
 }

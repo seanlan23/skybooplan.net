@@ -9,6 +9,7 @@ export const CORE_ITINERARY_SYSTEM_RULES = `=== CORE SYSTEM RULES (mandatory) ==
 - After a train/flight into a new base, city is the new sleep city from that day on (and the following stay days).
 - Evening hop after origin sightseeing: keep those origin sights on this calendar day; city is still the arrival/sleep city. Morning hop: morning = transfer, then new-city programme.
 - FORBIDDEN: chopping the trip into consecutive 1-night stops. Each main base 2–4 nights. Nearby islands and smaller towns = day trips from the main base WITHOUT changing hotel.
+- BASE HUB: towns within a 30–45 min drive share ONE hotel. Do not switch hotels for that radius. Trips under 14 calendar days: at most 2–3 overnight bases.
 - hotels[] / accommodations[] must match those sleep nights (one row per consecutive stay).
 
 2) CHRONOLOGY (sort by time):
@@ -43,4 +44,11 @@ export const CORE_ITINERARY_SYSTEM_RULES = `=== CORE SYSTEM RULES (mandatory) ==
 
 9) SLOVENIAN COPY:
 - Dual: 2 potnika (never 2 potnikov). Seafood: morske sadeže (never morske sadeve). Insurance: 24h asistenca (never asistença).
-- Never wrap dates as LaTeX/math: write 9/11 or 11. september — never $9/11$.`.trim();
+- Never wrap dates as LaTeX/math: write 9/11 or 11. september — never $9/11$.
+
+10) DEPARTURE DAY (exactly 3 hours):
+- Airport arrival start_time = international departure minus exactly 3:00.
+- Evening / late-afternoon return: NO morning checkout. Keep daytime activities relaxed until transfer; checkout sits with the afternoon/evening transfer.
+
+11) CLEAN JSON (no markdown tables):
+- Never put raw Markdown table pipes "|" in titles, start_time, or descriptions. Clean JSON fields only.`.trim();

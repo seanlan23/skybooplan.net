@@ -22,8 +22,24 @@ import {
   sanitizePlanGuestCopy,
   sanitizeSlText,
   scrubInappropriatePoiCopy,
+  stripMarkdownTablePipes,
   stripPlannerMetaCopy,
 } from "@/lib/textSanitize";
+
+describe("stripMarkdownTablePipes", () => {
+  it("drops raw markdown table pipes from titles and clocks", () => {
+    expect(stripMarkdownTablePipes("| High Line | 10:00 |")).toBe("High Line 10:00");
+    expect(stripMarkdownTablePipes("| 10:00 |")).toBe("10:00");
+    expect(stripMarkdownTablePipes("| High Line | 10:00 |")).not.toMatch(/\|/);
+  });
+});
+
+describe("sanitizeForLang", () => {
+  it("strips markdown table pipes in every language", () => {
+    expect(sanitizeForLang("| High Line | 10:00 |", "en")).toBe("High Line 10:00");
+    expect(sanitizeForLang("| High Line | 10:00 |", "de")).not.toMatch(/\|/);
+  });
+});
 
 describe("sanitizeSlText", () => {
   it("replaces Cyrillic оживи with Slovenian", () => {

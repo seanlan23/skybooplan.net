@@ -4,6 +4,12 @@ import {
 } from "@/lib/activityDescription";
 import { localizeTravelCopy } from "@/lib/localizeTravelCopy";
 
+/** Drop raw Markdown table pipes from titles, clocks, and guest copy. */
+export function stripMarkdownTablePipes(text: string): string {
+  if (!text.includes("|")) return text;
+  return text.replace(/\|/g, " ").replace(/[^\S\n]{2,}/g, " ").replace(/\(\s*\)/g, "").trim();
+}
+
 /** Strip Cyrillic / wrong-script leaks in Slovenian UI copy. */
 export function sanitizeSlText(text: string): string {
   const CYRILLIC_FIX: Record<string, string> = {
@@ -18,6 +24,7 @@ export function sanitizeSlText(text: string): string {
   });
 
   // Preserve newlines (activity bullets) — only collapse spaces/tabs on a line.
+  out = stripMarkdownTablePipes(out);
   out = out
     .replace(/morske sadeve/gi, "morske sadeže")
     .replace(/asistença/gi, "asistenca")
@@ -1121,6 +1128,7 @@ export function sanitizeForLang(text: string, langCode: string, country?: string
   // poisoned normal hotel trips (Paris/Lyon PDFs). Motorhome paths call it explicitly.
   out = stripConcreteBangkokHotelBrands(out);
   out = stripPlannerMetaCopy(out);
+  out = stripMarkdownTablePipes(out);
   out = localizeTravelCopy(out, langCode);
   if (langCode === "sl" || langCode.startsWith("sl")) {
     out = sanitizeSlText(out);

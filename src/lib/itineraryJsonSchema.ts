@@ -3,10 +3,17 @@
  * Freeform prose is unreadable for PDF export and gets cut mid-sentence.
  */
 
-import { activityHasRenderableBody } from "@/lib/textSanitize";
+import { activityHasRenderableBody, stripMarkdownTablePipes } from "@/lib/textSanitize";
 import { parseHmClock, stripProseClocksExcept } from "@/lib/activityTime";
 import { stampOvernightCitiesFromHotels, type HotelStayHint, type OvernightDay } from "@/lib/overnightHotelStays";
 import { sameTransferBase } from "@/lib/baseTransfer";
+
+export type {
+  ActivityItem,
+  ItineraryDayPlan,
+  TimeSlot,
+} from "@/lib/itineraryDayContract";
+export { GEMINI_TIME_SLOTS } from "@/lib/itineraryDayContract";
 
 export const ITINERARY_JSON_SCHEMA_EXAMPLE = `{
   "trip_title": "string",
@@ -105,6 +112,10 @@ export function normalizeGeminiDayFields(day: Record<string, unknown>): void {
 }
 
 export function normalizeGeminiActivityFields(a: Record<string, unknown>): void {
+  for (const key of ["title", "name", "start_time", "time", "arrivalTime", "description"] as const) {
+    const v = str(a[key]);
+    if (v.includes("|")) a[key] = stripMarkdownTablePipes(v);
+  }
   if (!str(a.title).trim() && str(a.name).trim()) a.title = str(a.name).trim();
   const start =
     parseHmClock(str(a.start_time)) ?? parseHmClock(str(a.time)) ?? parseHmClock(str(a.arrivalTime));

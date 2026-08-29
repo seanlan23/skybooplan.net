@@ -1,8 +1,41 @@
 import { describe, expect, it } from "vitest";
 import { ITINERARY_JSON_SCHEMA_RULE, liftFlatItineraryToItinerar } from "@/lib/itineraryJsonSchema";
-import { parseCoercedTripPlan } from "@/lib/geminiPro.shared";
+import { parseCoercedTripPlan, tripPlanGeminiSchema } from "@/lib/geminiPro.shared";
 import { itineraryHacksAndTransportRules, tripPlanSystemPrompt } from "@/lib/geminiPro";
 import type { GenerateTripPlanParams } from "@/lib/geminiPro.shared";
+import type { ActivityItem, DayPlan } from "@/lib/itineraryDayContract";
+
+describe("official ActivityItem / DayPlan JSON contract", () => {
+  const activity = {
+    time_slot: "DOPOLDAN",
+    start_time: "10:00",
+    title: "High Line",
+    description: "Sprehod od 14th Street do Hudson Yards.",
+  } satisfies ActivityItem;
+
+  const day = {
+    day_number: 1,
+    date: "19. sep. 2026",
+    city: "New York",
+    day_title: "Prihod v New York in prvi vtis",
+    daily_budget_per_person_eur: 75,
+    activities: [activity],
+    local_tips: "The Met zahteva časovni vstop.",
+    transport_tip: "OMNY / contactless na podzemni.",
+  } satisfies DayPlan;
+
+  it("is the live Gemini structured-output day shape", () => {
+    expect(tripPlanGeminiSchema.safeParse({ days: [day] }).success).toBe(true);
+  });
+
+  it("rejects nested morning/afternoon/evening activity objects", () => {
+    expect(
+      tripPlanGeminiSchema.safeParse({
+        days: [{ ...day, activities: { morning: [activity] } }],
+      }).success,
+    ).toBe(false);
+  });
+});
 
 describe("itinerary JSON schema contract", () => {
   it("embeds Rok's field names in the designer prompt", () => {
@@ -212,6 +245,42 @@ describe("itinerary JSON schema contract", () => {
     expect(d1.activities[0]!.navigationAvailable).toBe(true);
     expect(d1.activities[0]!.description).not.toMatch(/\d{1,2}:\d{2}/);
     expect(parseCoercedTripPlan(lifted).success).toBe(true);
+  });
+
+  it("strips markdown table pipes from titles and start_time so clocks parse", () => {
+    const lifted = liftFlatItineraryToItinerar({
+      trip_title: "NYC",
+      overview: "Clean JSON fields without markdown table pipes.",
+      days: [
+        {
+          day_number: 1,
+          date: "19. sep. 2026",
+          city: "New York",
+          day_title: "Prihod",
+          daily_budget_per_person_eur: 75,
+          activities: [
+            {
+              time_slot: "DOPOLDAN",
+              start_time: "| 10:00 |",
+              title: "| High Line |",
+              description: "Sprehod po High Line od 14th Street do Hudson Yards.",
+              estimated_cost_eur: 0,
+              navigation_available: true,
+            },
+          ],
+          local_tips: "The Met zahteva časovni vstop.",
+          transport_tip: "OMNY.",
+        },
+      ],
+    }) as {
+      itinerar: Array<{
+        days: Array<{ activities: Array<{ title: string; arrivalTime?: string; time?: string }> }>;
+      }>;
+    };
+    const a = lifted.itinerar[0]!.days[0]!.activities[0]!;
+    expect(a.title).toBe("High Line");
+    expect(a.title).not.toMatch(/\|/);
+    expect(a.arrivalTime ?? a.time).toBe("10:00");
   });
 
   it("keeps the overnight city when a middle day flickers to another hub without a hop", () => {

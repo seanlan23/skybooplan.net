@@ -35,6 +35,10 @@ describe("CORE_ITINERARY_SYSTEM_RULES", () => {
     expect(CORE_ITINERARY_SYSTEM_RULES).toMatch(/12\+ hours/);
     expect(CORE_ITINERARY_SYSTEM_RULES).toMatch(/2 potnika/);
     expect(CORE_ITINERARY_SYSTEM_RULES).toMatch(/\$9\/11\$/);
+    expect(CORE_ITINERARY_SYSTEM_RULES).toMatch(/exactly 3/);
+    expect(CORE_ITINERARY_SYSTEM_RULES).toMatch(/30–45/);
+    expect(CORE_ITINERARY_SYSTEM_RULES).toMatch(/under 14/);
+    expect(CORE_ITINERARY_SYSTEM_RULES).toMatch(/Markdown table pipes/);
   });
 });
 

@@ -32,7 +32,7 @@ import type { Lang } from "@/lib/i18n";
 import type { GroundTransportMode } from "@/lib/aiPlan.functions";
 import { repairTransportLegs } from "@/lib/transportLegRepair";
 import { isBaseTransferLeg, orientArrivalTransferLeg } from "@/lib/baseTransfer";
-import { applyRedEyeDepartureChronology } from "@/lib/redEyeDeparture";
+import { applyRedEyeDepartureChronology, stampDepartureDayThreeHourLead } from "@/lib/redEyeDeparture";
 import { dropDayTripsToOvernightStays } from "@/lib/islandHopGuard";
 import { sanitizeReturnFlightSummary } from "@/lib/returnFlightSummary";
 import { driveTypeLabel } from "@/lib/planLangCopy";
@@ -803,6 +803,10 @@ export function tripPlanResponseToAiTripPlan(
     inboundDepart: opts?.inboundDepart,
     inboundArrive: opts?.inboundArrive,
     language: opts?.language ?? "sl",
+    skip: Boolean(opts?.groundTransportMode),
+  });
+  stampDepartureDayThreeHourLead(days, {
+    inboundDepart: opts?.inboundDepart,
     skip: Boolean(opts?.groundTransportMode),
   });
   filterPlanBaseTransfers(days, {

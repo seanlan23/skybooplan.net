@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { applyRedEyeDepartureChronology, distributeDaytimeReturnActivities } from "@/lib/redEyeDeparture";
+import {
+  applyRedEyeDepartureChronology,
+  distributeDaytimeReturnActivities,
+  stampDepartureDayThreeHourLead,
+} from "@/lib/redEyeDeparture";
 import type { DayPlan } from "@/lib/aiPlan.functions";
 
 function day(partial: Partial<DayPlan> & { day: number; city: string }): DayPlan {
@@ -199,5 +203,79 @@ describe("distributeDaytimeReturnActivities", () => {
     expect(chrono[0]?.arrivalTime).toBe("17:00");
     expect(chrono.find((a) => /povratni let/i.test(a.name))?.arrivalTime).toBe("20:50");
     expect(slots.morning).toEqual([]);
+  });
+});
+
+describe("stampDepartureDayThreeHourLead", () => {
+  it("stamps airport at depart−3h and moves morning checkout on an evening flight", () => {
+    const days: DayPlan[] = [
+      day({
+        day: 7,
+        city: "New York",
+        activities: {
+          morning: [
+            {
+              name: "Odhod iz hotela (odjava)",
+              type: "STAY",
+              description: "Odjava.",
+              arrivalTime: "08:00",
+            },
+            {
+              name: "Prevoz na letališče",
+              type: "TRANSPORT",
+              description: "JFK.",
+              arrivalTime: "09:00",
+            },
+          ],
+          afternoon: [
+            {
+              name: "Sprehod po High Line",
+              description: "Sproščen dan do transferja.",
+              arrivalTime: "11:00",
+            },
+          ],
+          evening: [],
+        },
+      }),
+    ];
+
+    stampDepartureDayThreeHourLead(days, { inboundDepart: "20:00" });
+
+    const last = days[0]!;
+    const all = [
+      ...(last.activities?.morning ?? []),
+      ...(last.activities?.afternoon ?? []),
+      ...(last.activities?.evening ?? []),
+    ];
+    expect(all.find((a) => /prevoz na letališč/i.test(a.name))?.arrivalTime).toBe("17:00");
+    expect(all.find((a) => /odjava|check-out/i.test(a.name))?.arrivalTime).toBe("16:30");
+    expect(last.activities?.morning ?? []).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ name: expect.stringMatching(/odjava|check-out/i) })]),
+    );
+  });
+
+  it("skips red-eye returns so checkout stays on N−1", () => {
+    const days: DayPlan[] = [
+      day({
+        day: 8,
+        city: "Bangkok",
+        activities: {
+          morning: [
+            {
+              name: "Prevoz na letališče",
+              type: "TRANSPORT",
+              description: "BKK.",
+              arrivalTime: "09:00",
+            },
+          ],
+          afternoon: [],
+          evening: [],
+        },
+      }),
+    ];
+
+    stampDepartureDayThreeHourLead(days, { inboundDepart: "02:30" });
+
+    expect(days[0]!.activities?.morning?.[0]?.arrivalTime).toBe("09:00");
   });
 });

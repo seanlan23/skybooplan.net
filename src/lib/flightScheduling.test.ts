@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  airportArrivalClockBeforeDepart,
   arrivalDaySlot,
   inboundArriveForDisplay,
   lastDayArriveForDisplay,
@@ -15,6 +16,13 @@ import {
   isTightDeparture,
 } from "@/lib/flightScheduling";
 import { isoToHM } from "@/lib/flights.functions";
+
+describe("airportArrivalClockBeforeDepart", () => {
+  it("is exactly 3 hours before international departure", () => {
+    expect(airportArrivalClockBeforeDepart("20:00")).toBe("17:00");
+    expect(airportArrivalClockBeforeDepart("09:15")).toBe("06:15");
+  });
+});
 
 describe("isoToHM", () => {
   it("uses wall-clock local time from Duffel offset timestamps", () => {
