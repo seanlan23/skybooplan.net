@@ -4,10 +4,22 @@ import {
 } from "@/lib/activityDescription";
 import { localizeTravelCopy } from "@/lib/localizeTravelCopy";
 
+/** Guest-facing JSON/UI copy: no markdown pipes, no LaTeX temperatures. */
+export function cleanText(input: string): string {
+  if (!input) return "";
+  return input
+    .replace(/\|/g, "")
+    .replace(/\$(\d+)\\circ\s*C\$/g, "$1°C")
+    .replace(/\$(\d+)\^\{\\circ\}\s*C\$/g, "$1°C")
+    .replace(/\$(\d+)\^\\circ\s*C\$/g, "$1°C")
+    .replace(/[^\S\n]{2,}/g, " ")
+    .replace(/\(\s*\)/g, "")
+    .trim();
+}
+
 /** Drop raw Markdown table pipes from titles, clocks, and guest copy. */
 export function stripMarkdownTablePipes(text: string): string {
-  if (!text.includes("|")) return text;
-  return text.replace(/\|/g, " ").replace(/[^\S\n]{2,}/g, " ").replace(/\(\s*\)/g, "").trim();
+  return cleanText(text);
 }
 
 /** Strip Cyrillic / wrong-script leaks in Slovenian UI copy. */
@@ -1128,7 +1140,7 @@ export function sanitizeForLang(text: string, langCode: string, country?: string
   // poisoned normal hotel trips (Paris/Lyon PDFs). Motorhome paths call it explicitly.
   out = stripConcreteBangkokHotelBrands(out);
   out = stripPlannerMetaCopy(out);
-  out = stripMarkdownTablePipes(out);
+  out = cleanText(out);
   out = localizeTravelCopy(out, langCode);
   if (langCode === "sl" || langCode.startsWith("sl")) {
     out = sanitizeSlText(out);

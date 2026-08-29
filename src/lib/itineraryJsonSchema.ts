@@ -3,7 +3,7 @@
  * Freeform prose is unreadable for PDF export and gets cut mid-sentence.
  */
 
-import { activityHasRenderableBody, stripMarkdownTablePipes } from "@/lib/textSanitize";
+import { activityHasRenderableBody, cleanText } from "@/lib/textSanitize";
 import { parseHmClock, stripProseClocksExcept } from "@/lib/activityTime";
 import { stampOvernightCitiesFromHotels, type HotelStayHint, type OvernightDay } from "@/lib/overnightHotelStays";
 import { sameTransferBase } from "@/lib/baseTransfer";
@@ -114,7 +114,7 @@ export function normalizeGeminiDayFields(day: Record<string, unknown>): void {
 export function normalizeGeminiActivityFields(a: Record<string, unknown>): void {
   for (const key of ["title", "name", "start_time", "time", "arrivalTime", "description"] as const) {
     const v = str(a[key]);
-    if (v.includes("|")) a[key] = stripMarkdownTablePipes(v);
+    if (v) a[key] = cleanText(v);
   }
   if (!str(a.title).trim() && str(a.name).trim()) a.title = str(a.name).trim();
   const start =

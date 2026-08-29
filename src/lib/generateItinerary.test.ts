@@ -39,6 +39,8 @@ describe("CORE_ITINERARY_SYSTEM_RULES", () => {
     expect(CORE_ITINERARY_SYSTEM_RULES).toMatch(/30–45/);
     expect(CORE_ITINERARY_SYSTEM_RULES).toMatch(/under 14/);
     expect(CORE_ITINERARY_SYSTEM_RULES).toMatch(/Markdown table pipes/);
+    expect(CORE_ITINERARY_SYSTEM_RULES).toMatch(/30°C/);
+    expect(CORE_ITINERARY_SYSTEM_RULES).toMatch(/\\circ/);
   });
 });
 

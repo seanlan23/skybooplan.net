@@ -98,6 +98,8 @@ describe("tripPlanControlRules", () => {
     expect(system).toMatch(/30–45/);
     expect(system).toMatch(/under 14/);
     expect(system).toMatch(/Markdown table pipes/);
+    expect(system).toMatch(/30°C/);
+    expect(system).toMatch(/\\circ/);
     expect(system).toMatch(/experienced human travel consultant/);
     expect(system).toMatch(/Never mix English terms or placeholder words/);
     expect(system).toMatch(/10–11 hours door-to-door/);

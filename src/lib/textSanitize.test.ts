@@ -22,9 +22,19 @@ import {
   sanitizePlanGuestCopy,
   sanitizeSlText,
   scrubInappropriatePoiCopy,
+  cleanText,
   stripMarkdownTablePipes,
   stripPlannerMetaCopy,
 } from "@/lib/textSanitize";
+
+describe("cleanText", () => {
+  it("drops markdown table pipes and turns LaTeX degrees into 30°C", () => {
+    expect(cleanText("| High Line | 10:00 |")).toBe("High Line 10:00");
+    expect(cleanText("$30\\circ C$")).toBe("30°C");
+    expect(cleanText("$30^{\\circ}C$")).toBe("30°C");
+    expect(cleanText("")).toBe("");
+  });
+});
 
 describe("stripMarkdownTablePipes", () => {
   it("drops raw markdown table pipes from titles and clocks", () => {

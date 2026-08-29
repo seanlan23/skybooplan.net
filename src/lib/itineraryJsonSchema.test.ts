@@ -283,6 +283,37 @@ describe("itinerary JSON schema contract", () => {
     expect(a.arrivalTime ?? a.time).toBe("10:00");
   });
 
+  it("rewrites LaTeX temperatures in activity titles", () => {
+    const lifted = liftFlatItineraryToItinerar({
+      trip_title: "NYC",
+      overview: "Clean JSON fields without LaTeX degrees.",
+      days: [
+        {
+          day_number: 1,
+          date: "19. sep. 2026",
+          city: "New York",
+          day_title: "Prihod",
+          daily_budget_per_person_eur: 75,
+          activities: [
+            {
+              time_slot: "DOPOLDAN",
+              start_time: "10:00",
+              title: "Sprehod pri $30^{\\circ}C$",
+              description: "Toplo dopoldne, voda in kapa.",
+              estimated_cost_eur: 0,
+              navigation_available: true,
+            },
+          ],
+          local_tips: "The Met zahteva časovni vstop.",
+          transport_tip: "OMNY.",
+        },
+      ],
+    }) as {
+      itinerar: Array<{ days: Array<{ activities: Array<{ title: string }> }> }>;
+    };
+    expect(lifted.itinerar[0]!.days[0]!.activities[0]!.title).toBe("Sprehod pri 30°C");
+  });
+
   it("keeps the overnight city when a middle day flickers to another hub without a hop", () => {
     const slot = (title: string) => ({
       title,

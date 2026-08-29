@@ -50,5 +50,6 @@ export const CORE_ITINERARY_SYSTEM_RULES = `=== CORE SYSTEM RULES (mandatory) ==
 - Airport arrival start_time = international departure minus exactly 3:00.
 - Evening / late-afternoon return: NO morning checkout. Keep daytime activities relaxed until transfer; checkout sits with the afternoon/evening transfer.
 
-11) CLEAN JSON (no markdown tables):
-- Never put raw Markdown table pipes "|" in titles, start_time, or descriptions. Clean JSON fields only.`.trim();
+11) CLEAN JSON (no markdown tables, no LaTeX):
+- Never put raw Markdown table pipes "|" in titles, start_time, or descriptions. Clean JSON fields only.
+- Temperatures as 30°C — never $30^{\\circ}C$ or $30\\circ C$.`.trim();
