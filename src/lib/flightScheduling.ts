@@ -733,12 +733,12 @@ export function buildDepartureLogistics(
               })
           : depMin >= 21 * 60
             ? planLangCopy(lang, {
-                sl: `pozni večernji let ob ${dep} — po odjavi še skoraj cel dan na voljo; na letališče šele ~3 ure pred odletom`,
-                en: `late evening flight at ${dep} — nearly full day after check-out; head to airport ~3h before departure`,
-                de: `später Abendflug um ${dep} — nach Check-out fast den ganzen Tag Zeit; erst ~3 Stunden vor Abflug zum Flughafen`,
-                it: `volo serale tardi alle ${dep} — quasi tutta la giornata dopo il check-out; in aeroporto ~3 ore prima`,
-                es: `vuelo nocturno a las ${dep} — casi todo el día tras el check-out; al aeropuerto ~3 h antes`,
-                fr: `vol tard le soir à ${dep} — presque toute la journée après check-out; aéroport ~3 h avant`,
+                sl: `pozni večernji let ob ${dep} — odjava popoldan/zvečer, na letališče ~3 ure pred odletom (ne odjava 12+ ur prej)`,
+                en: `late evening flight at ${dep} — afternoon/evening check-out, airport ~3h before departure (not 12+ hours early)`,
+                de: `später Abendflug um ${dep} — Check-out nachmittags/abends, Flughafen ~3 Stunden vorher (nicht 12+ Stunden früher)`,
+                it: `volo serale tardi alle ${dep} — check-out pomeriggio/sera, aeroporto ~3 ore prima (non 12+ ore prima)`,
+                es: `vuelo nocturno a las ${dep} — check-out por la tarde/noche, aeropuerto ~3 h antes (no 12+ horas antes)`,
+                fr: `vol tard le soir à ${dep} — check-out après-midi/soir, aéroport ~3 h avant (pas 12+ heures trop tôt)`,
               })
             : planLangCopy(lang, {
                 sl: `večernji let ob ${dep} — odjava popoldan/zvečer (~17:00), nato prevoz na letališče; brez dopoldanskih ogledov`,

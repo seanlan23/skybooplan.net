@@ -130,7 +130,7 @@ describe("normalizePlanForPdf", () => {
 
   it("strips temple-dress copy from NYC local_tips and dedupes identical days", () => {
     const canned =
-      "Voda iz pipe ni pitna. Ulična hrana na prometnih stojnicah. V templju pokrij ramena; napitnine niso pričakovane.";
+      "Voda iz pipe ni pitna. Ulična hrana na prometnih stojnicah. V templju pokrij ramena; napitnine niso pričakovane. The Met zahteva časovni vstop.";
     const model = normalizePlanForPdf({
       title: "MUC → NYC",
       destination: "New York",

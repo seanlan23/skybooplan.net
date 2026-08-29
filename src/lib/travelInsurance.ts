@@ -208,7 +208,7 @@ function disclaimer(lang: string): string {
 function euBody(lang: string, leavesEhic: boolean): string {
   if (leavesEhic) {
     return planLangCopy(lang, {
-      sl: "Dodatno turistično zavarovanje je obvezno. Evropska kartica zdravstvenega zavarovanja (EKZZ) na tej destinaciji ne velja — ne krije zdravljenja v tujini, prevoza v domovino, zasebnih klinik niti odpovedi potovanja. Skleni polico pred odhodom (zdravstveno + 24h asistença + repatriacija).",
+      sl: "Dodatno turistično zavarovanje je obvezno. Evropska kartica zdravstvenega zavarovanja (EKZZ) na tej destinaciji ne velja — ne krije zdravljenja v tujini, prevoza v domovino, zasebnih klinik niti odpovedi potovanja. Skleni polico pred odhodom (zdravstveno + 24h asistenca + repatriacija).",
       en: "Extra travel insurance is required. The European Health Insurance Card (EHIC) does not apply at this destination — it does not cover treatment abroad, repatriation, private clinics, or trip cancellation. Buy a policy before you go (medical + 24h assistance + repatriation).",
       de: "Zusätzliche Reiseversicherung ist Pflicht. Die EHIC gilt an diesem Ziel nicht — sie deckt keine Behandlung im Ausland, keine Rückholung, keine Privatkliniken und keine Stornierung. Police vor der Abreise abschließen (medizinisch + 24h-Assistance + Rücktransport).",
     });
@@ -287,7 +287,7 @@ function titleFor(lang: string): string {
 function howToFor(lang: string, insurers: string[]): string {
   const names = insurers.join(", ");
   return planLangCopy(lang, {
-    sl: `Za tvoj odhod priporočamo: ${names}. Preveri kritje (zdravljenje v tujini, 24h asistença, repatriacija, odpoved). ${disclaimer(lang)}`,
+    sl: `Za tvoj odhod priporočamo: ${names}. Preveri kritje (zdravljenje v tujini, 24h asistenca, repatriacija, odpoved). ${disclaimer(lang)}`,
     en: `For your departure we recommend: ${names}. Check cover (treatment abroad, 24h assistance, repatriation, cancellation). ${disclaimer(lang)}`,
     de: `Für deinen Start empfehlen wir: ${names}. Deckung prüfen (Behandlung im Ausland, 24h-Assistance, Rücktransport, Storno). ${disclaimer(lang)}`,
   });

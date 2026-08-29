@@ -11,6 +11,13 @@ const TEMPLE_CULTURE_RE =
 const GENERIC_FILLER_RE =
   /^(?:bodi previden|uporabi zdravo pamet|be careful|use common sense)[.!]?$/i;
 
+/** Asia/tropics hygiene — strip on Western / European days. */
+const TROPICAL_SAFETY_RE =
+  /voda iz pipe|tap water|ne pij(?:te)? vode iz pipe|do not drink (?:the )?tap|bottled water only|ice cubes|dengue|malaria|komarj|mosquito repellent|ulična hrana na prometnih stojnicah|street food is safer at busy stalls/i;
+
+const WESTERN_DAY_RE =
+  /new york|\bnyc\b|manhattan|brooklyn|paris|london|rome|berlin|vienna|wien|madrid|barcelona|amsterdam|prague|lisbon|dublin|stockholm|copenhagen|munich|münchen|zurich|geneva|brussels|warsaw|budapest|ljubljana|zagreb|split|venice|milan|florence|boston|chicago|los angeles|san francisco|toronto|vancouver|montreal|sydney|melbourne/i;
+
 /** Day copy that implies US-style tipping — not the Thai/Japan "no tipping" template. */
 const US_TIP_CONTEXT_RE =
   /broadway|harlem|gospel|\bthe met\b|manhattan|new york|\bnyc\b|napitnin\w*.{0,16}1[58]\s*[–-]?\s*20|tip(?:ping)?\s*1[58]/i;
@@ -79,10 +86,12 @@ export function scrubDayLocalTips(tips: string, dayContext: string): string {
   if (!tips.trim()) return "";
   const allowTemple = TEMPLE_PLACE_RE.test(dayContext);
   const usTipContext = US_TIP_CONTEXT_RE.test(dayContext);
+  const westernDay = WESTERN_DAY_RE.test(dayContext);
   const kept = splitTipUnits(tips).filter((unit) => {
     if (GENERIC_FILLER_RE.test(unit.trim())) return false;
     if (!allowTemple && TEMPLE_CULTURE_RE.test(unit)) return false;
     if (usTipContext && NO_TIPPING_TEMPLATE_RE.test(unit)) return false;
+    if (westernDay && TROPICAL_SAFETY_RE.test(unit)) return false;
     return true;
   });
   return joinTipUnits(kept);

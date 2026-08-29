@@ -84,6 +84,54 @@ export function sortDayActivitiesByClock<T extends ActivityClockFields & { time?
   return out;
 }
 
+function formatClockMin(min: number): string {
+  const wrapped = ((min % (24 * 60)) + 24 * 60) % (24 * 60);
+  const h = Math.floor(wrapped / 60);
+  const m = wrapped % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+function stampStartClock<T extends ActivityClockFields & { time?: string | null }>(
+  a: T,
+  clock: string,
+): T {
+  if (a.arrivalTime) return { ...a, arrivalTime: clock };
+  if (a.time) return { ...a, time: clock };
+  return { ...a, arrivalTime: clock };
+}
+
+/** Sequential timed activities on one day must not share the same start HH:MM. */
+export function uniquifyDayActivityClocks<T extends ActivityClockFields & { time?: string | null }>(
+  slots: { morning?: T[]; afternoon?: T[]; evening?: T[] },
+): { morning: T[]; afternoon: T[]; evening: T[] } {
+  const sorted = sortDayActivitiesByClock(slots);
+  const rows: Array<{ a: T; from: DaypartSlot; min: number | null }> = [];
+  for (const from of ["morning", "afternoon", "evening"] as const) {
+    for (const a of sorted[from]) {
+      rows.push({ a, from, min: activityStartMinutes(a) });
+    }
+  }
+  let last: number | null = null;
+  const stamped = rows.map((row) => {
+    if (row.min == null) return row;
+    let min = row.min;
+    if (last != null && min <= last) min = Math.min(last + 30, 23 * 60 + 30);
+    last = min;
+    if (min === row.min) return { ...row, min };
+    return { ...row, a: stampStartClock(row.a, formatClockMin(min)), min };
+  });
+  const out: { morning: T[]; afternoon: T[]; evening: T[] } = {
+    morning: [],
+    afternoon: [],
+    evening: [],
+  };
+  for (const row of stamped) {
+    const slot = row.min != null ? daypartFromMinutes(row.min) : row.from;
+    out[slot].push(row.a);
+  }
+  return out;
+}
+
 /** Gemini nested slots use `time: "HH:MM"` — reject day-part labels like "evening". */
 export function parseHmClock(raw: string | undefined | null): string | undefined {
   if (!raw?.trim()) return undefined;

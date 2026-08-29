@@ -11,6 +11,7 @@ import type { DuffelFlight } from "@/lib/flights.functions";
 import { resolveInboundRoute } from "@/lib/flightSearch";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
+import { formatPaxUiCount } from "@/lib/slovenePax";
 import {
   FlightFilters,
   defaultFilters,
@@ -144,7 +145,7 @@ export function FlightResults({
     returnDate?: string;
   } | null;
 }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [sortBy, setSortBy] = useState<SortKey>("cheapest");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [visibleCount, setVisibleCount] = useState(FLIGHTS_PAGE_SIZE);
@@ -371,7 +372,7 @@ export function FlightResults({
                     </span>
                   )}
                   <div className="text-[11px] text-muted-foreground">
-                    {pax} {pax === 1 ? t("results.traveler") : t("results.travelers")}
+                    {formatPaxUiCount(pax, lang, t("results.traveler"), t("results.travelers"))}
                   </div>
                   <div className="text-2xl font-bold tabular-nums leading-none text-foreground">
                     {f.price} €

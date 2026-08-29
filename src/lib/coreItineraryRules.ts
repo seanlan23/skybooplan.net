@@ -27,4 +27,20 @@ export const CORE_ITINERARY_SYSTEM_RULES = `=== CORE SYSTEM RULES (mandatory) ==
 
 5) ISLAND HOPS (no ferry backtracking, no sandwich transit):
 - After a boat/ferry onto a new overnight island, the NEXT flight leaves from THAT island’s airport when it has one. FORBIDDEN: a full-day boat back to the previous island only to catch a flight. Example: El Nido → Coron by ferry, then fly from Busuanga (USU) — never boat back to El Nido for ENI.
-- A boat-access island off a hub: at most ONE 1-night hub sleep (arrival OR departure), not both. Extra nights go to the island. Example: Cebu → Malapascua — do not sleep 1 night in Cebu before the island AND 1 night in Cebu after.`.trim();
+- A boat-access island off a hub: at most ONE 1-night hub sleep (arrival OR departure), not both. Extra nights go to the island. Example: Cebu → Malapascua — do not sleep 1 night in Cebu before the island AND 1 night in Cebu after.
+
+6) UNIQUE LOCAL TIPS (no generic repeats):
+- days[].local_tips MUST be 100% unique per calendar day and bound only to THAT day's named activities. NEVER repeat the same safety or local-advice sentence on two days.
+- FORBIDDEN tropical/Asia checklist on Western cities (New York, Europe): tap water, temple dress, street-food hygiene. Those belong only on days that actually visit temples or tropical streets.
+
+7) LINEAR ROUTE & CITY MATCH:
+- Overnight cities are a one-way arc. FORBIDDEN A→B→A→C except the international IATA hub. The city in the day header MUST match that day's activities.
+- Road: max 6–7 h driving per day. FORBIDDEN a single-day drive Valencia→Vienna (or any 10–16 h / 1500+ km hop) — insert overnight transit.
+
+8) TIME-SLOT COHERENCE:
+- Arrival → transfer → hotel check-in in strictly increasing clocks. No two sequential activities share the same start HH:MM.
+- Do NOT check out 12+ hours before the same-day departure (late-evening flight: checkout afternoon/evening, not 08:00). Red-eye: checkout sits on the evening of N−1.
+
+9) SLOVENIAN COPY:
+- Dual: 2 potnika (never 2 potnikov). Seafood: morske sadeže (never morske sadeve). Insurance: 24h asistenca (never asistença).
+- Never wrap dates as LaTeX/math: write 9/11 or 11. september — never $9/11$.`.trim();

@@ -46,6 +46,27 @@ describe("scrubDayLocalTips", () => {
     expect(out).not.toMatch(/niso pričakovane/i);
   });
 
+  it("drops tap-water / tropical hygiene on a New York day", () => {
+    const ctx = dayLocalTipsContext(
+      day({
+        day: 2,
+        city: "New York",
+        title: "Central Park",
+        activities: {
+          morning: [{ name: "Central Park", description: "The Mall." }],
+          afternoon: [],
+          evening: [],
+        },
+      }),
+    );
+    const out = scrubDayLocalTips(
+      "Do not drink tap water. Street food is safer at busy stalls. Reserve The Met timed entry.",
+      ctx,
+    );
+    expect(out).toMatch(/The Met/i);
+    expect(out).not.toMatch(/tap water|street food is safer/i);
+  });
+
   it("keeps temple dress on a Wat Pho day", () => {
     const ctx = dayLocalTipsContext(
       day({
@@ -71,7 +92,7 @@ describe("scrubDayLocalTips", () => {
 describe("scrubLocalTipsOnPlan", () => {
   it("drops identical copy-paste local_tips on later days", () => {
     const canned =
-      "Voda iz pipe ni pitna. Ulična hrana na prometnih stojnicah. V templju pokrij ramena; napitnine niso pričakovane.";
+      "Voda iz pipe ni pitna. Ulična hrana na prometnih stojnicah. V templju pokrij ramena; napitnine niso pričakovane. The Met zahteva časovni vstop.";
     const plan = {
       destinationName: "USA",
       days: [

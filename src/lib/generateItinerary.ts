@@ -50,7 +50,8 @@ export type GenerateItineraryResult = {
 /**
  * Field copy only: Gemini structured JSON → UI/PDF `AiTripPlan`.
  * Live system rules: `CORE_ITINERARY_SYSTEM_RULES` (sleep city, clock order,
- * no prompt leaks, one transfer banner). No day padding or route repair.
+ * no prompt leaks, one transfer, unique tips, linear route, time slots, SL copy).
+ * No day padding or route repair.
  */
 export { CORE_ITINERARY_SYSTEM_RULES } from "@/lib/coreItineraryRules";
 export function itineraryJsonToPlan(

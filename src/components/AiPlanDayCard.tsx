@@ -29,6 +29,7 @@ import { activityDescriptionBullets } from "@/lib/activityDescription";
 import { formatActivityClockLabel } from "@/lib/activityTime";
 import { sanitizeLegacyTemplateLeak, activityHasRenderableBody, isDaypartSlotLabel } from "@/lib/textSanitize";
 import { dayLocalTipsContext, scrubDayLocalTips } from "@/lib/localTipsSanitize";
+import { formatPaxCountPhrase } from "@/lib/slovenePax";
 import type { ActivityMapFocus } from "@/components/TripMap";
 import {
   activityToPoiDetails,
@@ -951,7 +952,7 @@ export function AiPlanDayCard({
             </span>
             {pax > 1 && (
               <span className="text-slate-600">
-                · {t("aiplan.dailyBudgetGroup" as never).replace("{n}", String(pax))}:{" "}
+                · {formatPaxCountPhrase(t("aiplan.dailyBudgetGroup" as never), pax)}:{" "}
                 {formatMoney(Math.round(day.dailyBudgetEur * pax))}
               </span>
             )}

@@ -13,8 +13,8 @@ import {
   normalizeMapPoiCategory,
   resolveMapPoiCategory,
 } from "@/lib/mapPoiCategory";
-import { activityHasRenderableBody, isDaypartSlotLabel } from "@/lib/textSanitize";
-import { parseHmClock, sortDayActivitiesByClock } from "@/lib/activityTime";
+import { activityHasRenderableBody, isDaypartSlotLabel, sanitizePlanGuestCopy } from "@/lib/textSanitize";
+import { parseHmClock, uniquifyDayActivityClocks } from "@/lib/activityTime";
 import { attachActivityCoordinates } from "@/lib/mapPoiResolver";
 import { stripMisplacedCityPois } from "@/lib/cityPoiGuard";
 import { lookupRegionCoords } from "@/lib/regionCoords";
@@ -420,7 +420,7 @@ function syncDayActivitySlots(
   day: DayPlan,
   slots: { morning: Activity[]; afternoon: Activity[]; evening: Activity[] },
 ): void {
-  const chrono = sortDayActivitiesByClock({
+  const chrono = uniquifyDayActivityClocks({
     morning: sortActivitiesByTime(slots.morning),
     afternoon: sortActivitiesByTime(slots.afternoon),
     evening: sortActivitiesByTime(slots.evening),
@@ -886,6 +886,7 @@ export function tripPlanResponseToAiTripPlan(
   if (!hasExplicitStayPlan(plan.wishes)) paceMetropolisStays(plan);
   dropDayTripsToOvernightStays(plan, lang);
   scrubLocalTipsOnPlan(plan);
+  sanitizePlanGuestCopy(plan, lang);
   return plan;
 }
 

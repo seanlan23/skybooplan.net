@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import type { SearchValues } from "@/components/SearchPanel";
 import { useI18n } from "@/lib/i18n";
+import { formatPaxUiCount } from "@/lib/slovenePax";
 
 type Row = {
   id: string;
@@ -24,7 +25,7 @@ export function FlightSearchHistory({
   onRepeat: (v: SearchValues) => void;
 }) {
   const { user } = useAuth();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
@@ -91,7 +92,7 @@ export function FlightSearchHistory({
                       <div className="text-sm font-semibold text-foreground truncate">
                         {r.origin} → {r.destination}
                         <span className="ml-2 text-xs font-normal text-muted-foreground">
-                          {r.pax} {t("history.paxLabel")}
+                          {formatPaxUiCount(r.pax, lang, t("history.paxLabel"), t("history.paxLabel"))}
                         </span>
                       </div>
                       <div className="text-xs text-muted-foreground truncate">

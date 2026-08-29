@@ -16,5 +16,7 @@ describe("DISTANCE_TRANSPORT_RULES", () => {
     expect(DISTANCE_TRANSPORT_RULES).toMatch(/never splice it into the middle of the mainland coast/i);
     expect(DISTANCE_TRANSPORT_RULES).toMatch(/Busuanga \/ USU|Busuanga \(USU\)/);
     expect(DISTANCE_TRANSPORT_RULES).toMatch(/Cebu → Malapascua/);
+    expect(DISTANCE_TRANSPORT_RULES).toMatch(/Valencia→Vienna/);
+    expect(DISTANCE_TRANSPORT_RULES).toMatch(/6–7 h/);
   });
 });

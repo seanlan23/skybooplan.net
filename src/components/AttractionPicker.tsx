@@ -13,6 +13,7 @@ import {
 } from "@/lib/attractionCatalog";
 import { useI18n } from "@/lib/i18n";
 import { formatPlanMoneyRange } from "@/lib/planCurrency";
+import { formatPaxCountPhrase } from "@/lib/slovenePax";
 
 type Props = {
   cities: string[];
@@ -185,7 +186,7 @@ export function AttractionPicker({
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
             {labels.perPerson}: {formatPlanMoneyRange(budget.perPersonMin, budget.perPersonMax, currency)} ·{" "}
-            {labels.group.replace("{n}", String(Math.max(1, pax)))}:{" "}
+            {formatPaxCountPhrase(labels.group, Math.max(1, pax))}:{" "}
             {formatPlanMoneyRange(budget.groupMin, budget.groupMax, currency)}
           </p>
           <p className="mt-2 text-[11px] text-muted-foreground">{labels.budgetNote}</p>

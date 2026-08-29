@@ -30,6 +30,11 @@ describe("CORE_ITINERARY_SYSTEM_RULES", () => {
     expect(CORE_ITINERARY_SYSTEM_RULES).toMatch(/ISLAND HOPS/);
     expect(CORE_ITINERARY_SYSTEM_RULES).toMatch(/Busuanga \(USU\)/);
     expect(CORE_ITINERARY_SYSTEM_RULES).toMatch(/Cebu → Malapascua/);
+    expect(CORE_ITINERARY_SYSTEM_RULES).toMatch(/UNIQUE LOCAL TIPS/);
+    expect(CORE_ITINERARY_SYSTEM_RULES).toMatch(/Valencia→Vienna/);
+    expect(CORE_ITINERARY_SYSTEM_RULES).toMatch(/12\+ hours/);
+    expect(CORE_ITINERARY_SYSTEM_RULES).toMatch(/2 potnika/);
+    expect(CORE_ITINERARY_SYSTEM_RULES).toMatch(/\$9\/11\$/);
   });
 });
 
@@ -92,6 +97,70 @@ describe("itineraryJsonToPlan", () => {
     expect(plan!.days[0]!.dailyBudgetEur).toBe(48);
     expect(plan!.days[0]!.localTips).toMatch(/tap water|templ/i);
     expect(JSON.stringify(plan)).not.toMatch(/prosti \/ lokalni dan/i);
+  });
+
+  it("strips tropical tips on a New York day and fixes Slovenian copy", () => {
+    const raw = {
+      trip_metadata: {
+        destination: "New York",
+        season_warning: "Cool evenings.",
+        currency: "EUR",
+        visa_required: false,
+      },
+      weatherWidget: { season: "mild", avgTemp: "18°C", clothing: "layers" },
+      safetyWarning: null,
+      itinerar: [
+        {
+          city: "New York",
+          lat: 40.7128,
+          lng: -74.006,
+          days: [
+            {
+              day_number: 1,
+              date: "2026-10-26",
+              title: "Memorial $9/11$",
+              city: "New York",
+              daily_budget_per_person_eur: 90,
+              transportTip: "OMNY / contactless on subway.",
+              local_tips:
+                "Do not drink tap water. Street food is safer at busy stalls. Reserve The Met timed entry. Za 2 potnikov.",
+              activities: {
+                morning: {
+                  title: "9/11 Memorial",
+                  description: `${SLOT} Spomin na $9/11$. Jedi morske sadeve.`,
+                  cost_eur: 0,
+                },
+                afternoon: {
+                  title: "The Met",
+                  description: SLOT,
+                  cost_eur: 25,
+                },
+                evening: {
+                  title: "Broadway",
+                  description: SLOT,
+                  cost_eur: 40,
+                },
+              },
+            },
+          ],
+        },
+      ],
+    };
+
+    const plan = itineraryJsonToPlan(raw, {
+      ...input(),
+      destinationIata: "JFK",
+      destinationPlace: "New York",
+    });
+    expect(plan).not.toBeNull();
+    expect(plan!.days[0]!.city).toMatch(/New York/i);
+    expect(plan!.days[0]!.title).toMatch(/9\/11/);
+    expect(plan!.days[0]!.title).not.toMatch(/\$9\/11\$/);
+    expect(plan!.days[0]!.localTips).toMatch(/The Met/i);
+    expect(plan!.days[0]!.localTips).not.toMatch(/tap water|street food is safer/i);
+    expect(plan!.days[0]!.localTips).toMatch(/2 potnika/);
+    expect(JSON.stringify(plan)).toMatch(/morske sadeže/);
+    expect(JSON.stringify(plan)).not.toMatch(/morske sadeve/);
   });
 
   it("locks wish-list nights and drops a day trip to an overnight island", () => {

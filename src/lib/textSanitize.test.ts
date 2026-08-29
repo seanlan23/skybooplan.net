@@ -19,6 +19,7 @@ import {
   rewriteCountryFoodLeak,
   sanitizeForLang,
   sanitizeLegacyTemplateLeak,
+  sanitizePlanGuestCopy,
   sanitizeSlText,
   scrubInappropriatePoiCopy,
   stripPlannerMetaCopy,
@@ -32,6 +33,38 @@ describe("sanitizeSlText", () => {
   it("preserves activity bullet newlines", () => {
     const input = "- Prva točka\n- Druga točka\n- Tretja točka";
     expect(sanitizeSlText(input)).toBe(input);
+  });
+
+  it("fixes dual, seafood, assistance, and LaTeX dates", () => {
+    expect(sanitizeSlText("Za 2 potnikov jedi morske sadeve. 24h asistença. $9/11$")).toBe(
+      "Za 2 potnika jedi morske sadeže. 24h asistenca. 9/11",
+    );
+  });
+});
+
+describe("sanitizePlanGuestCopy", () => {
+  it("rewrites Slovenian dual, seafood, and LaTeX dates on the mapped plan", () => {
+    const plan = {
+      summary: "Za 2 potnikov",
+      days: [
+        {
+          title: "Ogled $9/11$",
+          localTips: "Jedi morske sadeve. 24h asistença.",
+          activities: {
+            morning: [{ name: "Memorial", description: "Spomin na $9/11$." }],
+            afternoon: [],
+            evening: [],
+          },
+        },
+      ],
+    };
+    sanitizePlanGuestCopy(plan, "sl");
+    expect(plan.summary).toBe("Za 2 potnika");
+    expect(plan.days[0]!.title).toBe("Ogled 9/11");
+    expect(plan.days[0]!.localTips).toMatch(/morske sadeže/);
+    expect(plan.days[0]!.localTips).toMatch(/asistenca/);
+    expect(plan.days[0]!.localTips).not.toMatch(/asistença/);
+    expect(plan.days[0]!.activities!.morning![0]!.description).toBe("Spomin na 9/11.");
   });
 });
 

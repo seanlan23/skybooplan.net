@@ -19,6 +19,10 @@ export function sanitizeSlText(text: string): string {
 
   // Preserve newlines (activity bullets) — only collapse spaces/tabs on a line.
   out = out
+    .replace(/morske sadeve/gi, "morske sadeže")
+    .replace(/asistença/gi, "asistenca")
+    .replace(/\$(\d{1,2})\s*\/\s*(\d{1,2})\$/g, "$1/$2")
+    .replace(/\b2 potnikov\b/g, "2 potnika")
     .replace(/[^\S\n]{2,}/g, " ")
     .replace(/[^\S\n]+([,.])/g, "$1")
     .replace(/\n{3,}/g, "\n\n")
@@ -704,6 +708,82 @@ function ellipsisWasOnlyStripped(original: string, repaired: string): boolean {
       .trim()
       .toLowerCase();
   return Boolean(norm(original)) && norm(original) === norm(repaired);
+}
+
+/** Guest-facing plan copy: language sanitizers (SL dual, seafood, LaTeX dates, …). */
+export function sanitizePlanGuestCopy(
+  plan: {
+    summary?: string;
+    days?: Array<{
+      title?: string;
+      morning?: string;
+      afternoon?: string;
+      evening?: string;
+      travelHack?: string;
+      transportationTips?: string;
+      localWarnings?: string;
+      localTips?: string;
+      activities?: {
+        morning?: Array<{
+          name?: string;
+          description?: string;
+          bullets?: string[];
+          priceLabel?: string;
+        }>;
+        afternoon?: Array<{
+          name?: string;
+          description?: string;
+          bullets?: string[];
+          priceLabel?: string;
+        }>;
+        evening?: Array<{
+          name?: string;
+          description?: string;
+          bullets?: string[];
+          priceLabel?: string;
+        }>;
+      };
+      mapPins?: Array<{ name?: string; description?: string }>;
+    }>;
+    returnFlightEu?: { summary?: string };
+  },
+  langCode: string,
+): void {
+  const run = (raw: string | undefined): string =>
+    raw ? sanitizeForLang(raw, langCode) : "";
+  if (plan.summary) plan.summary = run(plan.summary);
+  if (plan.returnFlightEu?.summary) {
+    plan.returnFlightEu.summary = run(plan.returnFlightEu.summary);
+  }
+  for (const day of plan.days ?? []) {
+    for (const key of [
+      "title",
+      "morning",
+      "afternoon",
+      "evening",
+      "travelHack",
+      "transportationTips",
+      "localWarnings",
+      "localTips",
+    ] as const) {
+      const cur = day[key];
+      if (cur) day[key] = run(cur);
+    }
+    if (day.activities) {
+      for (const slot of ["morning", "afternoon", "evening"] as const) {
+        for (const a of day.activities[slot] ?? []) {
+          if (a.name) a.name = run(a.name);
+          if (a.description) a.description = run(a.description);
+          if (a.priceLabel) a.priceLabel = run(a.priceLabel);
+          if (a.bullets?.length) a.bullets = a.bullets.map((b) => run(b));
+        }
+      }
+    }
+    for (const pin of day.mapPins ?? []) {
+      if (pin.name) pin.name = run(pin.name);
+      if (pin.description) pin.description = run(pin.description);
+    }
+  }
 }
 
 /** Apply truncation repair across day/activity copy (all trip modes). */

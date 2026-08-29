@@ -91,6 +91,9 @@ describe("tripPlanControlRules", () => {
     expect(system).toMatch(/ISLAND HOPS/);
     expect(system).toMatch(/Busuanga \(USU\)/);
     expect(system).toMatch(/Cebu → Malapascua/);
+    expect(system).toMatch(/UNIQUE LOCAL TIPS/);
+    expect(system).toMatch(/Valencia→Vienna/);
+    expect(system).toMatch(/2 potnika/);
     expect(system).toMatch(/experienced human travel consultant/);
     expect(system).toMatch(/Never mix English terms or placeholder words/);
     expect(system).toMatch(/10–11 hours door-to-door/);

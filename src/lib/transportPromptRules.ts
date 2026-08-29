@@ -5,7 +5,7 @@ DISTANCE-BASED TRANSPORT SELECTION (mandatory — applies to ALL legs, including
 Never suggest flying between cities that are less than 500 km apart or less than 1 hour flight time. Instead recommend driving with estimated drive time and cost, or train connections where available.
 
 Distance rules:
-- Under 300 km → ALWAYS suggest CAR or BUS — NEVER a flight. Include estimated drive time, fuel/toll cost, and parking tips.
+- Under 300 km → ALWAYS suggest CAR or BUS — NEVER a flight. Include estimated drive time, fuel/toll cost, and parking tips. Max 6–7 h driving per day. FORBIDDEN a single-day drive Valencia→Vienna (or any 10–16 h / 1500+ km hop) — insert an overnight transit.
 - 300–500 km → Prefer CAR or TRAIN; mention flight ONLY if it is significantly faster (save 3+ hours) AND still note the drive/train alternative with time and cost.
 - Over 500 km → Flight may be the primary option; still mention ground alternatives when reasonable (e.g. overnight train).
 

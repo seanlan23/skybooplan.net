@@ -7,6 +7,7 @@ import {
   parseHmClock,
   sortDayActivitiesByClock,
   stripProseClocksExcept,
+  uniquifyDayActivityClocks,
 } from "@/lib/activityTime";
 
 describe("parseHmClock", () => {
@@ -122,5 +123,19 @@ describe("sortDayActivitiesByClock", () => {
     });
     expect(out.morning.map((a) => a.name)).toEqual(["Walk"]);
     expect(out.afternoon.map((a) => a.name)).toEqual(["Lunch"]);
+  });
+});
+
+describe("uniquifyDayActivityClocks", () => {
+  it("bumps a duplicate start clock on the same day", () => {
+    const out = uniquifyDayActivityClocks({
+      morning: [
+        { name: "Arrival", arrivalTime: "10:00" },
+        { name: "Museum", arrivalTime: "10:00" },
+      ],
+      afternoon: [],
+      evening: [],
+    });
+    expect(out.morning.map((a) => a.arrivalTime)).toEqual(["10:00", "10:30"]);
   });
 });

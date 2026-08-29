@@ -12,7 +12,8 @@ import {
 import type { AiTripPlan } from "@/lib/aiPlan.functions";
 import { DAY_TITLE_PREFIXES, normalizePlanLangCode } from "@/lib/planLanguages";
 import { activityDescriptionBullets } from "@/lib/activityDescription";
-import { formatActivityClockLabel, sortDayActivitiesByClock } from "@/lib/activityTime";
+import { formatActivityClockLabel, uniquifyDayActivityClocks } from "@/lib/activityTime";
+import { slPaxAfterNumber } from "@/lib/slovenePax";
 import { enrichMotorhomePlanTips } from "@/lib/motorhomePlanTips";
 import { resyncPlanDayDates } from "@/lib/daySequence";
 import { fixMotorhomeCopyErrors, activityHasRenderableBody, isDaypartSlotLabel, isPlaceholderOrTruncatedCopy, sanitizeForLang, stripPlannerMetaCopy } from "@/lib/textSanitize";
@@ -600,9 +601,7 @@ function resolvePdfTripCosts(itin: PlanItinerary): {
 function pdfTicketPartyLine(lang: string, pax: number, eur: number): string {
   const n = Math.max(1, pax);
   if (lang === "sl") {
-    return n <= 1
-      ? `Karte (tja + nazaj, 1 potnik): €${eur}`
-      : `Karte (tja + nazaj, ${n} potnikov): €${eur}`;
+    return `Karte (tja + nazaj, ${slPaxAfterNumber(n)}): €${eur}`;
   }
   if (lang === "de") {
     return n <= 1
@@ -1181,7 +1180,7 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
         })
       : [];
 
-    const chrono = sortDayActivitiesByClock({
+    const chrono = uniquifyDayActivityClocks({
       morning: slotItems(d, "morning", labels),
       afternoon: slotItems(d, "afternoon", labels),
       evening: slotItems(d, "evening", labels),
@@ -1196,7 +1195,7 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
     if (!slots.length) {
       const items = legacyItems(d, labels);
       if (items.length) {
-        const sorted = sortDayActivitiesByClock({
+        const sorted = uniquifyDayActivityClocks({
           morning: items,
           afternoon: [],
           evening: [],
