@@ -5,6 +5,7 @@ import {
   normalizeHotelSearchDate,
   resolveHotelBookingUrl,
 } from "./bookingUrl";
+import { lookupDestination } from "./destinationCoords";
 import {
   hotelSearchQueryAlias,
   pickBestBookingDestination,
@@ -54,6 +55,7 @@ const Input = z.object({
   rooms: z.number().int().min(1).max(10).default(1),
   childrenAges: z.array(z.number().int().min(0).max(17)).max(10).default([]),
   currency: z.string().min(3).max(3).default("EUR"),
+  destIata: z.string().min(3).max(3).optional(),
   filters: z
     .object({
       hotel: z.boolean().optional(),
@@ -151,11 +153,16 @@ export const searchHotels = createServerFn({ method: "POST" })
       }
 
       const searchQuery = hotelSearchQueryAlias(city);
+      const destCountry = data.destIata
+        ? lookupDestination(data.destIata.toUpperCase())?.country
+        : undefined;
       const destParams = { query: searchQuery };
       console.log("[searchHotels] searchDestination", destParams);
       const destLookup = await rapid("/searchDestination", destParams);
       const destRows = Array.isArray(destLookup?.data) ? destLookup.data : [];
-      const best = pickBestBookingDestination(searchQuery, destRows);
+      const best = pickBestBookingDestination(searchQuery, destRows, {
+        countryCode: destCountry,
+      });
 
       console.log("[searchHotels] searchDestination result", {
         city,

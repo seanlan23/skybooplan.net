@@ -83,7 +83,7 @@ import { inferArriveDayOffset, parseMakeFlightRoute, type MakeSearchFlight } fro
 import { makeFlightStopContext } from "@/lib/flightTransitGuide";
 import { resolveHeroSearchData } from "@/lib/heroSearchPoll";
 import { ensureHotelCheckoutAfterCheckin } from "@/lib/bookingUrl";
-import { hotelSearchQueryAlias } from "@/lib/hotelDestinationPick";
+import { hotelSearchQueryForStay } from "@/lib/hotelDestinationPick";
 import { searchHotels } from "@/lib/hotels.functions";
 import {
   isResortPackageSearch,
@@ -1009,8 +1009,9 @@ function Landing() {
     );
     const city =
       coastalHotel?.hotelQuery ||
-      hotelSearchQueryAlias(
-        stayDestinationLabel(ctx.destinationPlace || collected.destination || "").split(",")[0]!.trim(),
+      hotelSearchQueryForStay(
+        stayDestinationLabel(ctx.destinationPlace || collected.destination || ""),
+        ctx.to,
       ) ||
       ctx.destinationPlace?.split(",")[0]?.trim() ||
       "";
@@ -1023,6 +1024,7 @@ function Landing() {
       rooms,
       childrenAges: ctx.childrenAges ?? [],
       currency: "EUR" as const,
+      destIata: ctx.to || undefined,
     };
     const emptyHotelRes = {
       hotels: [] as Awaited<ReturnType<typeof searchHotels>>["hotels"],

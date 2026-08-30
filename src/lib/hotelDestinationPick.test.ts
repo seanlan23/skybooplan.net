@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   hotelCapitalFallback,
   hotelSearchQueryAlias,
+  hotelSearchQueryForStay,
   pickBestBookingDestination,
 } from "@/lib/hotelDestinationPick";
 
@@ -17,6 +18,10 @@ describe("hotelSearchQueryAlias", () => {
     expect(hotelSearchQueryAlias("Tajska")).toBe("Thailand");
     expect(hotelSearchQueryAlias("Slovenia")).toBe("Slovenia");
     expect(hotelSearchQueryAlias("Slovenija")).toBe("Slovenia");
+    expect(hotelSearchQueryAlias("Maldivi")).toBe("Maldives");
+    expect(hotelSearchQueryAlias("Maldivi (MLE)")).toBe("Maldives");
+    expect(hotelSearchQueryAlias("MLE")).toBe("Maldives");
+    expect(hotelSearchQueryForStay("Maldivi (MLE)", "MLE")).toBe("Maldives");
   });
 });
 
@@ -57,5 +62,29 @@ describe("pickBestBookingDestination", () => {
     ]);
     expect(picked?.dest_id).toBe("202");
     expect(hotelCapitalFallback("Slovenija")).toBe("Ljubljana");
+  });
+
+  it("keeps the dest in the flight country when Booking also returns another country", () => {
+    const picked = pickBestBookingDestination(
+      "Maldives",
+      [
+        { dest_id: "401", search_type: "city", label: "Bijeljina, Bosnia", cc1: "ba" },
+        { dest_id: "88", search_type: "country", label: "Maldives", cc1: "mv" },
+      ],
+      { countryCode: "MV" },
+    );
+    expect(picked?.dest_id).toBe("88");
+  });
+
+  it("does not fall back to another country when the IATA country is known", () => {
+    const picked = pickBestBookingDestination(
+      "Maldivi",
+      [
+        { dest_id: "401", search_type: "city", label: "Bijeljina, Bosnia", cc1: "ba" },
+        { dest_id: "402", search_type: "city", label: "Harmony, Republika Srpska", cc1: "ba" },
+      ],
+      { countryCode: "MV" },
+    );
+    expect(picked).toBeNull();
   });
 });

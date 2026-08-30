@@ -126,5 +126,11 @@ describe("isAllowedResortStayProperty", () => {
     expect(isAllowedResortStayProperty({ name: "Garden Hotel", kind: "hotel", stars: 4, typeId: 214 })).toBe(
       false,
     );
+    expect(
+      isAllowedResortStayProperty({ name: "Harmony Stan na Dan", kind: "other", stars: 4 }),
+    ).toBe(false);
+    expect(
+      isAllowedResortStayProperty({ name: "Apartman Mihajlovic", kind: "other", stars: 4 }),
+    ).toBe(false);
   });
 });

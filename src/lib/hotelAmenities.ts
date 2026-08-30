@@ -37,7 +37,7 @@ const RESORT_STAY_TYPE_IDS = [204, 216, 213] as const;
 const RESORT_STAY_TYPE_ID_SET = new Set<number>(RESORT_STAY_TYPE_IDS);
 
 const EXCLUDED_RESORT_STAY =
-  /\bhomestays?\b|\bhome[\s-]?stays?\b|\bhostels?\b|\bdormitor(?:y|ies)\b|\bdorms?\b|\bguest[\s-]?houses?\b|\bguesthouses?\b|\bcondos?\b|\bcondominiums?\b|\bapartments?\b|\bapartma\w*\b|\baparthotels?\b|\bmansions?\b|\bbed\s*and\s*breakfasts?\b|\bb\s*&\s*bs?\b|\bbnbs?\b|\bmom'?s\s+home\b|\bmum'?s\s+home\b|\bmoms\s+home\b|\bgostišč\w*|\bpenzions?\b/i;
+  /\bhomestays?\b|\bhome[\s-]?stays?\b|\bhostels?\b|\bdormitor(?:y|ies)\b|\bdorms?\b|\bguest[\s-]?houses?\b|\bguesthouses?\b|\bcondos?\b|\bcondominiums?\b|\bapartments?\b|\bapartma\w*\b|\baparthotels?\b|\bstan[\s-]?na[\s-]?dan\b|\bmansions?\b|\bbed\s*and\s*breakfasts?\b|\bb\s*&\s*bs?\b|\bbnbs?\b|\bmom'?s\s+home\b|\bmum'?s\s+home\b|\bmoms\s+home\b|\bgostišč\w*|\bpenzions?\b/i;
 
 const ALLOWED_RESORT_STAY = /\b(hotels?|resorts?|boutique|villas?)\b/i;
 
@@ -49,7 +49,11 @@ export function inferHotelKind(typeId?: number, typeName?: string, name?: string
   if (typeId && APARTMENT_TYPE_IDS.has(typeId)) return "apartment";
   if (typeId && HOTEL_TYPE_IDS.has(typeId)) return "hotel";
   const text = blobOf([typeName, name]);
-  if (/\b(apartment|apartma|apartments?|aparthotel|condo|flat|studio)\b/i.test(text)) {
+  if (
+    /\b(apartment|apartma\w*|apartments?|aparthotel|condo|flat|studio|stan[\s-]?na[\s-]?dan)\b/i.test(
+      text,
+    )
+  ) {
     return "apartment";
   }
   if (/\b(hotel|resort|motel|ryokan)\b/i.test(text)) return "hotel";
