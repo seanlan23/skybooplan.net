@@ -518,7 +518,7 @@ export function AiPlanView({
   }, [isPlaying, plan, sortedDayNumbers]);
 
   const tripSessionKey = useMemo(() => {
-    if (!plan?.days.length) return "";
+    if (!plan?.days?.length) return "";
     return [
       plan.destinationIata ?? plan.destinationName ?? "",
       plan.originIata ?? plan.originPlace ?? "",
@@ -528,7 +528,7 @@ export function AiPlanView({
     plan?.destinationName,
     plan?.originIata,
     plan?.originPlace,
-    plan?.days.length,
+    plan?.days?.length,
   ]);
 
   // Must stay above loading/error early returns — conditional useMemo crashes (Rules of Hooks).
@@ -732,8 +732,8 @@ export function AiPlanView({
   );
   const totalExpectedDays = expectedDayCount > 0 ? expectedDayCount : (plan.days?.length ?? 0);
   const pendingDayNumbers: number[] = [];
-  if (streaming && !isResortMode && totalExpectedDays > plan.days.length) {
-    const existing = new Set(plan.days.map((d) => d.day));
+  if (streaming && !isResortMode && totalExpectedDays > (plan.days?.length ?? 0)) {
+    const existing = new Set((plan.days ?? []).map((d) => d.day));
     for (let d = 1; d <= totalExpectedDays; d++) {
       if (!existing.has(d)) pendingDayNumbers.push(d);
     }

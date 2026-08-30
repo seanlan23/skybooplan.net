@@ -69,6 +69,9 @@ describe("share plan URL", () => {
       ),
     ).toMatchObject({ from: "MUC", to: "MLE", s: "tok123", guests: 2 });
     expect(resolveSharePlanSearch({ to: "HKT" }, "/plan?to=MLE")).toMatchObject({ to: "HKT" });
+    expect(
+      parseSharePlanSearch({ hotelId: '"1286043"', s: '"4c5f0x4j2442"', to: "HKT" }),
+    ).toMatchObject({ hotelId: "1286043", s: "4c5f0x4j2442", to: "HKT" });
   });
 });
 

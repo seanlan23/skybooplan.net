@@ -39,13 +39,21 @@ function SharedPlanError() {
 
 export const Route = createFileRoute("/plan")({
   validateSearch: (search: Record<string, unknown>) => parseSharePlanSearch(search ?? {}),
+  staleTime: 5 * 60_000,
   loader: async ({ search, location }) => {
     const params = resolveSharePlanSearch(search, location.href || location.searchStr);
     const token = params.s?.trim() ?? "";
     let snapshot = null;
-    if (token) {
+    if (token || params.hotelId) {
       try {
-        snapshot = await getSharedPackage({ data: { id: token } });
+        snapshot = await getSharedPackage({
+          data: {
+            id: token,
+            hotelId: params.hotelId,
+            to: params.to,
+            depart: params.depart,
+          },
+        });
       } catch (err) {
         console.error("[plan] shared package load failed", err);
         snapshot = null;

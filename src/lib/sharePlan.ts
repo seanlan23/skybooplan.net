@@ -60,10 +60,18 @@ export function asShareStyle(value: unknown): TripStyle | undefined {
   return undefined;
 }
 
+function unquoteParam(value: string): string {
+  const trimmed = value.trim();
+  if (trimmed.length >= 2 && trimmed.startsWith('"') && trimmed.endsWith('"')) {
+    return trimmed.slice(1, -1).trim();
+  }
+  return trimmed;
+}
+
 export function parseSharePlanSearch(search: Record<string, unknown> | null | undefined): SharePlanParams {
   const raw = search ?? {};
-  const hotelId = clip(String(raw.hotelId ?? ""), 80);
-  const token = clip(String(raw.s ?? ""), 32);
+  const hotelId = clip(unquoteParam(String(raw.hotelId ?? "")), 80);
+  const token = clip(unquoteParam(String(raw.s ?? "")), 32);
   return {
     from: asShareIata(raw.from),
     to: asShareIata(raw.to),

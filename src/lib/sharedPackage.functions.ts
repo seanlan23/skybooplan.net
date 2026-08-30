@@ -13,7 +13,13 @@ import {
   type ShareOgMeta,
   type SharePlanParams,
 } from "@/lib/sharePlan";
-import { sharePackageIdFromInput, unwrapServerFnInput } from "@/lib/sharedPackageParse";
+import { shareLookupFromInput, unwrapServerFnInput } from "@/lib/sharedPackageParse";
+import {
+  destinationNameFromOgTitle,
+  normalizeShareToken,
+  planFromSharePayload,
+  unquoteShareValue,
+} from "@/lib/sharedPackageSnapshot";
 
 export type SharedPackageSnapshot = {
   id: string;
@@ -123,56 +129,91 @@ export const createSharedPackage = createServerFn({ method: "POST" })
     return { id, path: buildSharePlanPath({ ...params, s: id }) };
   });
 
+const ShareRowSelect =
+  "id, payload, og_title, og_description, og_image, from_iata, to_iata, depart_date, return_date, trip_style, hotel_id, guests" as const;
+
+type SharedPackageRow = {
+  id: string;
+  payload: unknown;
+  og_title: string;
+  og_description: string;
+  og_image: string | null;
+  from_iata: string | null;
+  to_iata: string | null;
+  depart_date: string | null;
+  return_date: string | null;
+  trip_style: string | null;
+  hotel_id: string | null;
+  guests: number | null;
+};
+
+function snapshotFromRow(row: SharedPackageRow): SharedPackageSnapshot {
+  const payload = (row.payload ?? {}) as {
+    plan?: AiTripPlan;
+    params?: SharePlanParams;
+    og?: ShareOgMeta;
+  };
+  const plan = planFromSharePayload(payload.plan, {
+    destinationName: destinationNameFromOgTitle(row.og_title),
+    destinationIata: row.to_iata ?? undefined,
+    originIata: row.from_iata ?? undefined,
+    tripStyle: row.trip_style,
+  });
+  return {
+    id: row.id,
+    plan,
+    params: {
+      from: asShareIata(row.from_iata) ?? payload.params?.from,
+      to: asShareIata(row.to_iata) ?? payload.params?.to,
+      depart: asShareIsoDate(row.depart_date) ?? payload.params?.depart,
+      return: asShareIsoDate(row.return_date) ?? payload.params?.return,
+      style: asShareStyle(row.trip_style) ?? payload.params?.style,
+      hotelId: unquoteShareValue(row.hotel_id ?? payload.params?.hotelId ?? "") || undefined,
+      guests: asShareGuests(row.guests) ?? payload.params?.guests,
+      s: row.id,
+    },
+    og: {
+      title: row.og_title || payload.og?.title || plan.destinationName,
+      description: row.og_description || payload.og?.description || "",
+      image: row.og_image || payload.og?.image || "",
+    },
+  };
+}
+
 export const getSharedPackage = createServerFn({ method: "POST" })
-  .inputValidator((d: unknown) => ({
-    id: sharePackageIdFromInput(d),
-  }))
+  .inputValidator((d: unknown) => shareLookupFromInput(d))
   .handler(async ({ data }): Promise<SharedPackageSnapshot | null> => {
     try {
-      if (!/^[a-zA-Z0-9_-]{6,32}$/.test(data.id)) return null;
+      const id = normalizeShareToken(data.id);
+      const hotelId = unquoteShareValue(data.hotelId ?? "");
+      const to = asShareIata(data.to);
+      const depart = asShareIsoDate(data.depart);
       const { createSharedPackagesClient } = await import("@/lib/sharedPackageDb.server");
       const db = createSharedPackagesClient();
-      const { data: row, error } = await db
-        .from("shared_packages")
-        .select("id, payload, og_title, og_description, og_image, from_iata, to_iata, depart_date, return_date, trip_style, hotel_id, guests")
-        .eq("id", data.id)
-        .maybeSingle();
-      if (error || !row) return null;
-      const payload = (row.payload ?? {}) as {
-        plan?: AiTripPlan;
-        params?: SharePlanParams;
-        og?: ShareOgMeta;
-      };
-      const raw = payload.plan;
-      if (!raw?.destinationName && !raw?.days?.length && !raw?.resortStay) return null;
-      const plan: AiTripPlan = {
-        ...raw,
-        destinationName: raw.destinationName || "Trip",
-        summary: raw.summary ?? "",
-        totalBudgetEur: raw.totalBudgetEur ?? 0,
-        centerLat: raw.centerLat ?? 0,
-        centerLng: raw.centerLng ?? 0,
-        days: Array.isArray(raw.days) ? raw.days : [],
-      };
-      return {
-        id: row.id,
-        plan,
-        params: {
-          from: asShareIata(row.from_iata) ?? payload.params?.from,
-          to: asShareIata(row.to_iata) ?? payload.params?.to,
-          depart: asShareIsoDate(row.depart_date) ?? payload.params?.depart,
-          return: asShareIsoDate(row.return_date) ?? payload.params?.return,
-          style: asShareStyle(row.trip_style) ?? payload.params?.style,
-          hotelId: row.hotel_id ?? payload.params?.hotelId,
-          guests: asShareGuests(row.guests) ?? payload.params?.guests,
-          s: row.id,
-        },
-        og: {
-          title: row.og_title || payload.og?.title || plan.destinationName,
-          description: row.og_description || payload.og?.description || "",
-          image: row.og_image || payload.og?.image || "",
-        },
-      };
+
+      if (/^[a-zA-Z0-9_-]{6,32}$/.test(id)) {
+        const { data: row, error } = await db
+          .from("shared_packages")
+          .select(ShareRowSelect)
+          .eq("id", id)
+          .maybeSingle();
+        if (error) console.error("[sharedPackage] load by id failed:", error.message);
+        if (row) return snapshotFromRow(row as SharedPackageRow);
+      }
+
+      if (hotelId) {
+        let query = db.from("shared_packages").select(ShareRowSelect).eq("hotel_id", hotelId);
+        if (to) query = query.eq("to_iata", to);
+        if (depart) query = query.eq("depart_date", depart);
+        const { data: row, error } = await query
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (error) console.error("[sharedPackage] load by hotel failed:", error.message);
+        if (row) return snapshotFromRow(row as SharedPackageRow);
+      }
+
+      return null;
     } catch (err) {
       console.error("[sharedPackage] load failed:", err);
       return null;

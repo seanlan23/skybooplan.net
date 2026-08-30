@@ -75,36 +75,36 @@ export function SingleBaseStayView({
         title={t("aiplan.singleBase.arrival" as never)}
       >
         {transitGuide ? <TransitGuideNote guide={transitGuide} /> : null}
-        <Field label={t("aiplan.singleBase.visa" as never)} text={arrival.visa_and_entry} />
-        <Field label={t("aiplan.singleBase.immigration" as never)} text={arrival.immigration} />
-        <Field label={t("aiplan.singleBase.baggage" as never)} text={arrival.baggage} />
+        <Field label={t("aiplan.singleBase.visa" as never)} text={arrival?.visa_and_entry ?? ""} />
+        <Field label={t("aiplan.singleBase.immigration" as never)} text={arrival?.immigration ?? ""} />
+        <Field label={t("aiplan.singleBase.baggage" as never)} text={arrival?.baggage ?? ""} />
         <Field
           label={t("aiplan.singleBase.transfer" as never)}
-          text={ensureTransferPickupCopy(arrival.transfer_pickup, destination ?? {}, lang)}
+          text={ensureTransferPickupCopy(arrival?.transfer_pickup ?? "", destination ?? {}, lang)}
         />
-        <Field label={t("aiplan.singleBase.cashEsim" as never)} text={arrival.cash_and_esim} />
+        <Field label={t("aiplan.singleBase.cashEsim" as never)} text={arrival?.cash_and_esim ?? ""} />
       </SectionCard>
 
       <SectionCard
         kicker={t("aiplan.singleBase.kicker" as never)}
         title={t("aiplan.singleBase.resort" as never)}
       >
-        <Field label={t("aiplan.singleBase.checkInOut" as never)} text={guide.check_in_out} />
+        <Field label={t("aiplan.singleBase.checkInOut" as never)} text={guide?.check_in_out ?? ""} />
         <Field
           label={diningFieldLabel(destination, t)}
-          text={guide.all_inclusive_etiquette}
+          text={guide?.all_inclusive_etiquette ?? ""}
         />
-        <Field label={t("aiplan.singleBase.tipping" as never)} text={guide.tipping} />
-        <Field label={t("aiplan.singleBase.relax" as never)} text={guide.relaxing_at_resort} />
+        <Field label={t("aiplan.singleBase.tipping" as never)} text={guide?.tipping ?? ""} />
+        <Field label={t("aiplan.singleBase.relax" as never)} text={guide?.relaxing_at_resort ?? ""} />
       </SectionCard>
 
-      {stay.optionalExcursions.length > 0 ? (
+      {(stay.optionalExcursions ?? []).length > 0 ? (
         <SectionCard
           kicker={t("aiplan.singleBase.kicker" as never)}
           title={t("aiplan.singleBase.excursions" as never)}
         >
           <ul className="space-y-3">
-            {stay.optionalExcursions.map((ex) => (
+            {(stay.optionalExcursions ?? []).map((ex) => (
               <li key={ex.title} className="rounded-xl border border-slate-100 bg-slate-50/80 p-3">
                 <div className="flex items-start justify-between gap-3">
                   <p className="font-semibold text-slate-900">{ex.title}</p>
@@ -132,15 +132,15 @@ export function SingleBaseStayView({
       >
         <Field
           label={t("aiplan.singleBase.returnTransfer" as never)}
-          text={departure.return_transfer}
+          text={departure?.return_transfer ?? ""}
         />
         <Field
           label={t("aiplan.singleBase.airportLead" as never)}
-          text={departure.airport_lead_time}
+          text={departure?.airport_lead_time ?? ""}
         />
         <Field
           label={t("aiplan.singleBase.flightAlign" as never)}
-          text={departure.flight_alignment}
+          text={departure?.flight_alignment ?? ""}
         />
       </SectionCard>
     </div>
