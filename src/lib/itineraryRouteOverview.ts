@@ -23,9 +23,9 @@ export function resolveRouteOriginLabel(plan: AiTripPlan): string | null {
   return null;
 }
 
-export function collectStayCities(days: DayPlan[]): string[] {
+export function collectStayCities(days?: DayPlan[] | null): string[] {
   const cities: string[] = [];
-  for (const day of days) {
+  for (const day of days ?? []) {
     if (day.inFlightDay) continue;
     const city = day.city?.trim();
     if (!city) continue;
@@ -41,7 +41,7 @@ function usesAirHub(plan: AiTripPlan): boolean {
 
 /** High-level one-line route: origin ✈️ stay₁ 🏨 stay₂ 🏨 … ✈️ origin */
 export function buildItineraryRouteOverview(plan: AiTripPlan): RouteOverviewSegment[] {
-  const cities = collectStayCities(plan.days);
+  const cities = collectStayCities(plan.days ?? []);
   if (cities.length === 0) return [];
 
   const origin = resolveRouteOriginLabel(plan);

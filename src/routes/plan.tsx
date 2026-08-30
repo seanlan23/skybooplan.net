@@ -3,7 +3,6 @@ import { useState } from "react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { AiPlanView } from "@/components/AiPlanView";
-import { generatePlanPdf, offerPdfDownload } from "@/lib/pdf-export";
 import {
   absoluteShareUrl,
   buildShareOgMeta,
@@ -15,12 +14,43 @@ import {
 import { getSharedPackage } from "@/lib/sharedPackage.functions";
 import { useI18n } from "@/lib/i18n";
 
+function SharedPlanError() {
+  const { t } = useI18n();
+  return (
+    <div className="min-h-screen bg-background">
+      <SiteHeader />
+      <main className="mx-auto max-w-6xl px-6 py-8">
+        <div className="mx-auto max-w-lg rounded-3xl border border-border bg-card px-6 py-12 text-center shadow-sm">
+          <p className="text-lg font-semibold text-foreground">
+            {t("share.plan.missing" as never)}
+          </p>
+          <Link
+            to="/"
+            className="mt-6 inline-flex items-center justify-center rounded-xl bg-sky-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-sky-700"
+          >
+            {t("share.plan.cta" as never)}
+          </Link>
+        </div>
+      </main>
+      <SiteFooter />
+    </div>
+  );
+}
+
 export const Route = createFileRoute("/plan")({
   validateSearch: (search: Record<string, unknown>) => parseSharePlanSearch(search ?? {}),
   loader: async ({ search, location }) => {
     const params = resolveSharePlanSearch(search, location.href || location.searchStr);
     const token = params.s?.trim() ?? "";
-    const snapshot = token ? await getSharedPackage({ data: { id: token } }) : null;
+    let snapshot = null;
+    if (token) {
+      try {
+        snapshot = await getSharedPackage({ data: { id: token } });
+      } catch (err) {
+        console.error("[plan] shared package load failed", err);
+        snapshot = null;
+      }
+    }
     return { snapshot, search: params };
   },
   head: ({ loaderData }) => {
@@ -57,6 +87,7 @@ export const Route = createFileRoute("/plan")({
     };
   },
   component: SharedPlanPage,
+  errorComponent: SharedPlanError,
 });
 
 function SharedPlanPage() {
@@ -71,6 +102,7 @@ function SharedPlanPage() {
     if (!plan) return;
     setDownloading(true);
     try {
+      const { generatePlanPdf, offerPdfDownload } = await import("@/lib/pdf-export");
       const pdf = await generatePlanPdf({
         title: plan.destinationName,
         destination: plan.destinationPlace || plan.destinationName,

@@ -122,13 +122,12 @@ export const createSharedPackage = createServerFn({ method: "POST" })
   });
 
 export const getSharedPackage = createServerFn({ method: "POST" })
-  .inputValidator((d: { id: string }) => {
-    const id = String(d?.id ?? "").trim();
-    if (!/^[a-zA-Z0-9_-]{6,32}$/.test(id)) throw new Error("Invalid share id");
-    return { id };
-  })
+  .inputValidator((d: { id?: string } | null) => ({
+    id: String(d?.id ?? "").trim(),
+  }))
   .handler(async ({ data }): Promise<SharedPackageSnapshot | null> => {
     try {
+      if (!/^[a-zA-Z0-9_-]{6,32}$/.test(data.id)) return null;
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { data: row, error } = await supabaseAdmin
         .from("shared_packages")
@@ -141,8 +140,17 @@ export const getSharedPackage = createServerFn({ method: "POST" })
         params?: SharePlanParams;
         og?: ShareOgMeta;
       };
-      const plan = payload.plan;
-      if (!plan?.destinationName && !plan?.days?.length && !plan?.resortStay) return null;
+      const raw = payload.plan;
+      if (!raw?.destinationName && !raw?.days?.length && !raw?.resortStay) return null;
+      const plan: AiTripPlan = {
+        ...raw,
+        destinationName: raw.destinationName || "Trip",
+        summary: raw.summary ?? "",
+        totalBudgetEur: raw.totalBudgetEur ?? 0,
+        centerLat: raw.centerLat ?? 0,
+        centerLng: raw.centerLng ?? 0,
+        days: Array.isArray(raw.days) ? raw.days : [],
+      };
       return {
         id: row.id,
         plan,

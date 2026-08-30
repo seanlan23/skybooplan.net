@@ -48,6 +48,18 @@ describe("collectStayCities", () => {
     expect(cities).toEqual(["Havana", "Viñales", "Trinidad"]);
   });
 
+  it("treats a missing days list as no stays", () => {
+    expect(collectStayCities(undefined)).toEqual([]);
+    expect(buildItineraryRouteOverview({
+      destinationName: "Maldivi",
+      summary: "",
+      totalBudgetEur: 0,
+      centerLat: 0,
+      centerLng: 0,
+      days: undefined as never,
+    })).toEqual([]);
+  });
+
   it("skips in-flight days without a stay city", () => {
     const cities = collectStayCities([
       day({ day: 1, city: "Havana", inFlightDay: true }),

@@ -1,5 +1,6 @@
 import type { AiTripPlan } from "@/lib/aiPlan.functions";
 import type { ResortPackage } from "@/lib/resortPackage";
+import { slimPlanForShare } from "@/lib/sharePlan";
 import { createSharedPackage } from "@/lib/sharedPackage.functions";
 
 export async function copySharedPlanLink(opts: {
@@ -15,7 +16,7 @@ export async function copySharedPlanLink(opts: {
 }): Promise<string | null> {
   const created = await createSharedPackage({
     data: {
-      plan: opts.plan,
+      plan: slimPlanForShare(opts.plan),
       hotelId: opts.pkg?.id,
       from: opts.from || opts.plan.originIata,
       to: opts.to || opts.plan.destinationIata,

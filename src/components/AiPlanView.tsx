@@ -190,7 +190,7 @@ export function AiPlanView({
   const hasCoords = useMemo(
     () =>
       Boolean(
-        plan?.days.some(
+        plan?.days?.some(
           (d) =>
             (Number.isFinite(d.lat) && Number.isFinite(d.lng)) ||
             Boolean((d.city ?? "").trim()) ||
@@ -250,7 +250,7 @@ export function AiPlanView({
   );
 
   const costSummary = useMemo(() => {
-    if (!plan?.days.length) {
+    if (!plan?.days?.length) {
       return buildTripCostSummary({
         planEur: 0,
         flightTotalEur: flightTotalEur ?? 0,
@@ -730,7 +730,7 @@ export function AiPlanView({
     connectionsFromFlightContext(flights ?? plan.flightContext),
     lang,
   );
-  const totalExpectedDays = expectedDayCount > 0 ? expectedDayCount : plan.days.length;
+  const totalExpectedDays = expectedDayCount > 0 ? expectedDayCount : (plan.days?.length ?? 0);
   const pendingDayNumbers: number[] = [];
   if (streaming && !isResortMode && totalExpectedDays > plan.days.length) {
     const existing = new Set(plan.days.map((d) => d.day));
@@ -1148,7 +1148,7 @@ export function AiPlanView({
               onStopSelect={handleMapCitySelect}
             />
           )}
-          {isResortMode ? null : plan.days.map((d, idx) => {
+          {isResortMode ? null : (plan.days ?? []).map((d, idx) => {
             let checkOut = d.date;
             if (d.city) {
               let endIdx = idx;
