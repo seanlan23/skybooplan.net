@@ -7,6 +7,7 @@ import {
   buildShareOgTitle,
   buildSharePlanPath,
   parseSharePlanSearch,
+  resolveSharePlanSearch,
   slimPlanForShare,
   tripDayCount,
 } from "@/lib/sharePlan";
@@ -61,6 +62,13 @@ describe("share plan URL", () => {
       guests: undefined,
       s: undefined,
     });
+    expect(
+      resolveSharePlanSearch(
+        {},
+        "https://www.skybooplan.com/plan?from=MUC&to=MLE&s=tok123&guests=2",
+      ),
+    ).toMatchObject({ from: "MUC", to: "MLE", s: "tok123", guests: 2 });
+    expect(resolveSharePlanSearch({ to: "HKT" }, "/plan?to=MLE")).toMatchObject({ to: "HKT" });
   });
 });
 

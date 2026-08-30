@@ -1,5 +1,4 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { getRequest } from "@tanstack/react-start/server";
 import { useState } from "react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
@@ -10,35 +9,22 @@ import {
   buildShareOgMeta,
   buildSharePlanPath,
   parseSharePlanSearch,
+  resolveSharePlanSearch,
   type SharePlanParams,
 } from "@/lib/sharePlan";
 import { getSharedPackage } from "@/lib/sharedPackage.functions";
 import { useI18n } from "@/lib/i18n";
 
-function shareSearchFromRequest(search?: SharePlanParams | Record<string, unknown> | null): SharePlanParams {
-  const parsed = parseSharePlanSearch(search);
-  if (parsed.s || parsed.to || parsed.from) return parsed;
-  try {
-    const req = getRequest();
-    if (!req?.url) return parsed;
-    return parseSharePlanSearch(
-      Object.fromEntries(new URL(req.url, "https://www.skybooplan.com").searchParams.entries()),
-    );
-  } catch {
-    return parsed;
-  }
-}
-
 export const Route = createFileRoute("/plan")({
   validateSearch: (search: Record<string, unknown>) => parseSharePlanSearch(search ?? {}),
-  loader: async ({ search }) => {
-    const params = shareSearchFromRequest(search);
+  loader: async ({ search, location }) => {
+    const params = resolveSharePlanSearch(search, location.href || location.searchStr);
     const token = params.s?.trim() ?? "";
     const snapshot = token ? await getSharedPackage({ data: { id: token } }) : null;
     return { snapshot, search: params };
   },
   head: ({ loaderData }) => {
-    const search = loaderData?.search ?? shareSearchFromRequest(null);
+    const search = loaderData?.search ?? parseSharePlanSearch(null);
     const snapshot = loaderData?.snapshot;
     const og =
       snapshot?.og ??

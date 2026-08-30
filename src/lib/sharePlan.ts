@@ -76,6 +76,25 @@ export function parseSharePlanSearch(search: Record<string, unknown> | null | un
   };
 }
 
+/** When TanStack `search` is empty on SSR, recover params from the request URL. */
+export function resolveSharePlanSearch(
+  search?: SharePlanParams | Record<string, unknown> | null,
+  href?: string | null,
+): SharePlanParams {
+  const parsed = parseSharePlanSearch(search);
+  if (parsed.s || parsed.to || parsed.from) return parsed;
+  const raw = (href ?? "").trim();
+  if (!raw) return parsed;
+  try {
+    const url = raw.includes("://")
+      ? new URL(raw)
+      : new URL(raw, "https://www.skybooplan.com");
+    return parseSharePlanSearch(Object.fromEntries(url.searchParams.entries()));
+  } catch {
+    return parsed;
+  }
+}
+
 export function tripDayCount(depart?: string, returnDate?: string, nights?: number): number {
   const start = asShareIsoDate(depart);
   const end = asShareIsoDate(returnDate);
