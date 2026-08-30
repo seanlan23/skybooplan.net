@@ -1,5 +1,17 @@
 import type { AiTripPlan } from "@/lib/aiPlan.functions";
-import { asShareIata, asShareStyle } from "@/lib/sharePlan";
+import {
+  asShareIata,
+  asShareStyle,
+  type ShareOgMeta,
+  type SharePlanParams,
+} from "@/lib/sharePlan";
+
+export type SharedPackageSnapshot = {
+  id: string;
+  plan: AiTripPlan;
+  params: SharePlanParams;
+  og: ShareOgMeta;
+};
 
 /** TanStack search / JSON often wraps scalars in extra quotes. */
 export function unquoteShareValue(value: string): string {

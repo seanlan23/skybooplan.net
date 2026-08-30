@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { sharedPackageApiPath } from "@/lib/fetchSharedPackage";
 import {
   absoluteShareUrl,
   asShareStyle,
@@ -72,6 +73,16 @@ describe("share plan URL", () => {
     expect(
       parseSharePlanSearch({ hotelId: '"1286043"', s: '"4c5f0x4j2442"', to: "HKT" }),
     ).toMatchObject({ hotelId: "1286043", s: "4c5f0x4j2442", to: "HKT" });
+    expect(
+      sharedPackageApiPath({
+        s: '"4c5f0x4j2442"',
+        hotelId: '"1286043"',
+        to: "HKT",
+        depart: "2026-11-14",
+      }),
+    ).toBe(
+      "/api/shared-package?id=4c5f0x4j2442&hotelId=1286043&to=HKT&depart=2026-11-14",
+    );
   });
 });
 

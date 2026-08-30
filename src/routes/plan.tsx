@@ -1,8 +1,9 @@
+import { Component, useEffect, useMemo, useState, type ReactNode } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { AiPlanView } from "@/components/AiPlanView";
+import { PackageDeck } from "@/components/PackageCard";
 import {
   absoluteShareUrl,
   buildShareOgMeta,
@@ -11,7 +12,9 @@ import {
   resolveSharePlanSearch,
   type SharePlanParams,
 } from "@/lib/sharePlan";
-import { getSharedPackage } from "@/lib/sharedPackage.functions";
+import { fetchSharedPackageSnapshot } from "@/lib/fetchSharedPackage";
+import { resortPackagesFromPlan } from "@/lib/resortPackage";
+import type { SharedPackageSnapshot } from "@/lib/sharedPackageSnapshot";
 import { useI18n } from "@/lib/i18n";
 
 function SharedPlanError() {
@@ -37,28 +40,30 @@ function SharedPlanError() {
   );
 }
 
+class ShareViewBoundary extends Component<
+  { children: ReactNode; fallback: ReactNode },
+  { failed: boolean }
+> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  componentDidCatch(err: unknown) {
+    console.error("[plan] shared view crashed", err);
+  }
+  render() {
+    return this.state.failed ? this.props.fallback : this.props.children;
+  }
+}
+
 export const Route = createFileRoute("/plan")({
   validateSearch: (search: Record<string, unknown>) => parseSharePlanSearch(search ?? {}),
-  staleTime: 5 * 60_000,
   loader: async ({ search, location }) => {
     const params = resolveSharePlanSearch(search, location.href || location.searchStr);
-    const token = params.s?.trim() ?? "";
-    let snapshot = null;
-    if (token || params.hotelId) {
-      try {
-        snapshot = await getSharedPackage({
-          data: {
-            id: token,
-            hotelId: params.hotelId,
-            to: params.to,
-            depart: params.depart,
-          },
-        });
-      } catch (err) {
-        console.error("[plan] shared package load failed", err);
-        snapshot = null;
-      }
-    }
+    const snapshot = await fetchSharedPackageSnapshot(
+      params,
+      location.href || location.searchStr,
+    );
     return { snapshot, search: params };
   },
   head: ({ loaderData }) => {
@@ -98,10 +103,55 @@ export const Route = createFileRoute("/plan")({
   errorComponent: SharedPlanError,
 });
 
+function SharedPlanFallback({
+  snapshot,
+  search,
+  guests,
+  hotelId,
+}: {
+  snapshot: SharedPackageSnapshot;
+  search: SharePlanParams;
+  guests: number;
+  hotelId?: string;
+}) {
+  const plan = snapshot.plan;
+  const packages = resortPackagesFromPlan(plan, {
+    pax: guests,
+    adults: guests,
+    flightTotalEur: plan.flightTotalEur,
+    departDate: snapshot.params.depart ?? search.depart,
+    returnDate: snapshot.params.return ?? search.return,
+    destinationIata: snapshot.params.to ?? search.to ?? plan.destinationIata,
+  });
+  return (
+    <div className="space-y-5">
+      <h1 className="text-2xl font-bold text-foreground">{plan.destinationName}</h1>
+      <PackageDeck
+        packages={packages}
+        selectedId={hotelId}
+        onSelect={() => undefined}
+      />
+    </div>
+  );
+}
+
 function SharedPlanPage() {
   const { t } = useI18n();
-  const { snapshot, search } = Route.useLoaderData();
+  const { snapshot: loaded, search } = Route.useLoaderData();
+  const [snapshot, setSnapshot] = useState<SharedPackageSnapshot | null>(loaded);
   const [downloading, setDownloading] = useState(false);
+
+  useEffect(() => {
+    setSnapshot(loaded);
+  }, [loaded]);
+
+  useEffect(() => {
+    if (snapshot?.plan) return;
+    void fetchSharedPackageSnapshot(search).then((next) => {
+      if (next?.plan) setSnapshot(next);
+    });
+  }, [snapshot?.plan, search.s, search.hotelId, search.to, search.depart]);
+
   const plan = snapshot?.plan ?? null;
   const hotelId = snapshot?.params.hotelId ?? search.hotelId;
   const guests = snapshot?.params.guests ?? search.guests ?? 2;
@@ -125,24 +175,34 @@ function SharedPlanPage() {
     }
   };
 
+  const fallback = useMemo(
+    () =>
+      snapshot ? (
+        <SharedPlanFallback snapshot={snapshot} search={search} guests={guests} hotelId={hotelId} />
+      ) : null,
+    [snapshot, search, guests, hotelId],
+  );
+
   return (
     <div className="min-h-screen bg-background">
       <SiteHeader />
       <main className="mx-auto max-w-6xl px-6 py-8">
         {plan ? (
-          <AiPlanView
-            loading={false}
-            plan={plan}
-            error={null}
-            pax={guests}
-            destinationIata={snapshot?.params.to ?? search.to ?? plan.destinationIata}
-            departDate={snapshot?.params.depart ?? search.depart}
-            returnDate={snapshot?.params.return ?? search.return}
-            flights={plan.flightContext}
-            flightTotalEur={plan.flightTotalEur}
-            initialSelectedPackageId={hotelId}
-            onDownloadClick={downloading ? undefined : () => void downloadPdf()}
-          />
+          <ShareViewBoundary fallback={fallback}>
+            <AiPlanView
+              loading={false}
+              plan={plan}
+              error={null}
+              pax={guests}
+              destinationIata={snapshot?.params.to ?? search.to ?? plan.destinationIata}
+              departDate={snapshot?.params.depart ?? search.depart}
+              returnDate={snapshot?.params.return ?? search.return}
+              flights={plan.flightContext}
+              flightTotalEur={plan.flightTotalEur}
+              initialSelectedPackageId={hotelId}
+              onDownloadClick={downloading ? undefined : () => void downloadPdf()}
+            />
+          </ShareViewBoundary>
         ) : (
           <div className="mx-auto max-w-lg rounded-3xl border border-border bg-card px-6 py-12 text-center shadow-sm">
             <p className="text-lg font-semibold text-foreground">

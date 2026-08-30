@@ -212,7 +212,7 @@ export function AiPlanView({
   }, [plan?.days]);
   const { ctx: destCtx, loading: destLoading } = useDestinationContext(
     destinationIata ?? plan?.destinationIata,
-    departDate ?? plan?.days[0]?.date,
+    departDate ?? plan?.days?.[0]?.date,
     lang,
     {
       returnDate,
@@ -228,7 +228,7 @@ export function AiPlanView({
         ? buildWeatherWidgetFallback({
             destinationIata: destinationIata ?? plan.destinationIata,
             destinationPlace: [plan.destinationPlace, plan.destinationName].filter(Boolean).join(" "),
-            departDate: departDate ?? plan.days[0]?.date,
+            departDate: departDate ?? plan.days?.[0]?.date,
             returnDate,
             lang,
             priorities: plannerPriorities,

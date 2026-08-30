@@ -23,6 +23,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as CheckoutReturnRouteImport } from './routes/checkout.return'
 import { Route as AuthGoogleRouteImport } from './routes/auth/google'
 import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
+import { Route as ApiSharedPackageRouteImport } from './routes/api/shared-package'
 import { Route as ApiSearchRouteImport } from './routes/api/search'
 import { Route as ApiSaveTravelPlanRouteImport } from './routes/api/save-travel-plan'
 import { Route as ApiHeroPhotoRouteImport } from './routes/api/hero-photo'
@@ -109,6 +110,11 @@ const AuthGoogleRoute = AuthGoogleRouteImport.update({
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
   id: '/auth/callback',
   path: '/auth/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSharedPackageRoute = ApiSharedPackageRouteImport.update({
+  id: '/api/shared-package',
+  path: '/api/shared-package',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiSearchRoute = ApiSearchRouteImport.update({
@@ -225,6 +231,7 @@ export interface FileRoutesByFullPath {
   '/api/hero-photo': typeof ApiHeroPhotoRoute
   '/api/save-travel-plan': typeof ApiSaveTravelPlanRoute
   '/api/search': typeof ApiSearchRouteWithChildren
+  '/api/shared-package': typeof ApiSharedPackageRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/google': typeof AuthGoogleRoute
   '/checkout/return': typeof CheckoutReturnRoute
@@ -258,6 +265,7 @@ export interface FileRoutesByTo {
   '/api/hero-photo': typeof ApiHeroPhotoRoute
   '/api/save-travel-plan': typeof ApiSaveTravelPlanRoute
   '/api/search': typeof ApiSearchRouteWithChildren
+  '/api/shared-package': typeof ApiSharedPackageRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/google': typeof AuthGoogleRoute
   '/checkout/return': typeof CheckoutReturnRoute
@@ -293,6 +301,7 @@ export interface FileRoutesById {
   '/api/hero-photo': typeof ApiHeroPhotoRoute
   '/api/save-travel-plan': typeof ApiSaveTravelPlanRoute
   '/api/search': typeof ApiSearchRouteWithChildren
+  '/api/shared-package': typeof ApiSharedPackageRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/google': typeof AuthGoogleRoute
   '/checkout/return': typeof CheckoutReturnRoute
@@ -328,6 +337,7 @@ export interface FileRouteTypes {
     | '/api/hero-photo'
     | '/api/save-travel-plan'
     | '/api/search'
+    | '/api/shared-package'
     | '/auth/callback'
     | '/auth/google'
     | '/checkout/return'
@@ -361,6 +371,7 @@ export interface FileRouteTypes {
     | '/api/hero-photo'
     | '/api/save-travel-plan'
     | '/api/search'
+    | '/api/shared-package'
     | '/auth/callback'
     | '/auth/google'
     | '/checkout/return'
@@ -395,6 +406,7 @@ export interface FileRouteTypes {
     | '/api/hero-photo'
     | '/api/save-travel-plan'
     | '/api/search'
+    | '/api/shared-package'
     | '/auth/callback'
     | '/auth/google'
     | '/checkout/return'
@@ -427,6 +439,7 @@ export interface RootRouteChildren {
   ApiHeroPhotoRoute: typeof ApiHeroPhotoRoute
   ApiSaveTravelPlanRoute: typeof ApiSaveTravelPlanRoute
   ApiSearchRoute: typeof ApiSearchRouteWithChildren
+  ApiSharedPackageRoute: typeof ApiSharedPackageRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   AuthGoogleRoute: typeof AuthGoogleRoute
   CheckoutReturnRoute: typeof CheckoutReturnRoute
@@ -536,6 +549,13 @@ declare module '@tanstack/react-router' {
       path: '/auth/callback'
       fullPath: '/auth/callback'
       preLoaderRoute: typeof AuthCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/shared-package': {
+      id: '/api/shared-package'
+      path: '/api/shared-package'
+      fullPath: '/api/shared-package'
+      preLoaderRoute: typeof ApiSharedPackageRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/search': {
@@ -727,6 +747,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiHeroPhotoRoute: ApiHeroPhotoRoute,
   ApiSaveTravelPlanRoute: ApiSaveTravelPlanRoute,
   ApiSearchRoute: ApiSearchRouteWithChildren,
+  ApiSharedPackageRoute: ApiSharedPackageRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   AuthGoogleRoute: AuthGoogleRoute,
   CheckoutReturnRoute: CheckoutReturnRoute,
