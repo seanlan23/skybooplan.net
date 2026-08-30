@@ -16,9 +16,11 @@ export type TripCostSummary = {
   planEur: number;
   /** Selected flight offer total for the whole party (0 if none). */
   flightEur: number;
-  /** plan + flights — shown as the main TOTAL. */
+  /** plan + flights, or flight + stay when `stayInTotal`. */
   grandTotalEur: number;
   overnight: OvernightEstimate;
+  /** Resort / single_base: stay estimate is inside SKUPAJ. */
+  stayInTotal: boolean;
 };
 
 export function buildTripCostSummary(opts: {
@@ -32,6 +34,7 @@ export function buildTripCostSummary(opts: {
   mode: "hotel" | "car" | "motorhome";
   unpaidNights?: number;
   nights?: number;
+  stayInTotal?: boolean;
 }): TripCostSummary {
   const planEur = Math.max(0, Math.round(opts.planEur));
   const flightEur = Math.max(0, Math.round(opts.flightTotalEur ?? 0));
@@ -45,11 +48,15 @@ export function buildTripCostSummary(opts: {
     unpaidNights: opts.unpaidNights,
     nights: opts.nights,
   });
+  const stayInTotal = Boolean(opts.stayInTotal);
   return {
     planEur,
     flightEur,
-    grandTotalEur: planEur + flightEur,
+    grandTotalEur: stayInTotal
+      ? flightEur + overnight.totalEur
+      : planEur + flightEur,
     overnight,
+    stayInTotal,
   };
 }
 
@@ -146,6 +153,7 @@ export function summarizeAiTripCosts(
     mode: motorhome ? "motorhome" : car ? "car" : "hotel",
     unpaidNights: car || motorhome ? countHomeboundUnpaidNights(plan) : 0,
     nights: resortNights,
+    stayInTotal: Boolean(plan.resortStay || plan.tripStyle === "single_base"),
   });
 }
 

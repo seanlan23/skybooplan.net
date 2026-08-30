@@ -1,3 +1,4 @@
+import { isAllowedResortStayProperty, type HotelKind } from "@/lib/hotelAmenities";
 import { uniqueHotelImageUrls } from "@/lib/hotelImages";
 
 export type PackageMealPlan = "all_inclusive" | "breakfast";
@@ -14,6 +15,9 @@ export type ResortHotelPickInput = {
   reviewWord?: string;
   stars?: number;
   neighborhood?: string;
+  kind?: HotelKind;
+  typeName?: string;
+  typeId?: number;
   amenities?: { allInclusive?: boolean; breakfast?: boolean };
 };
 
@@ -83,6 +87,7 @@ function usableHotels(hotels: ResortHotelPickInput[]): ResortHotelPickInput[] {
     const id = hotel.id.trim() || name;
     if (!name || hotel.price <= 0 || seen.has(id)) continue;
     if (!meetsMinGuestScore(hotel.rating)) continue;
+    if (!isAllowedResortStayProperty(hotel)) continue;
     seen.add(id);
     out.push({ ...hotel, id, name, rating: guestScoreOnTen(hotel.rating) });
   }
@@ -108,6 +113,9 @@ export function mergeResortHotelPools(
         id,
         rating: Math.max(prev.rating, hotel.rating),
         stars: Math.max(prev.stars ?? 0, hotel.stars ?? 0) || prev.stars || hotel.stars,
+        kind: hotel.kind ?? prev.kind,
+        typeName: hotel.typeName || prev.typeName,
+        typeId: hotel.typeId ?? prev.typeId,
         images: uniqueHotelImageUrls([...(prev.images ?? []), ...(hotel.images ?? []), prev.image, hotel.image]),
         amenities: {
           ...prev.amenities,

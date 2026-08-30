@@ -7,6 +7,7 @@ import { hotelSearchQueryAlias } from "@/lib/hotelDestinationPick";
 import { resolveDayBudgetCountry } from "@/lib/countryDailyBudget";
 import { bookingNfltFor } from "@/lib/hotelAmenities";
 import { buildSkyscannerFlightUrl } from "@/lib/makeSearch";
+import { hotelStayTotalEur, stayNights } from "@/lib/hotelResults";
 import {
   estimateHotelRoomNightlyEur,
   overnightPlaceHint,
@@ -47,6 +48,7 @@ export type ResortPackage = {
   flightEur: number;
   hotelEur: number;
   pax: number;
+  nights?: number;
   checkIn?: string;
   checkOut?: string;
   adults: number;
@@ -376,7 +378,7 @@ export function buildResortPackageFromPlan(
   const adults = bookingAdults(opts);
   const rooms = bookingRooms(opts);
   const flightEur = Math.max(0, Math.round(opts.flightTotalEur ?? plan.flightTotalEur ?? 0));
-  const { hotelEur } = estimatePackageHotelEur(plan, {
+  const { hotelEur, nights } = estimatePackageHotelEur(plan, {
     pax,
     mealPlan,
     departDate: opts.departDate,
@@ -392,9 +394,12 @@ export function buildResortPackageFromPlan(
       : flightEur + hotelEur;
   const nflt = bookingNfltFor({
     hotel: true,
+    resortStay: true,
+    stars345: true,
+    minReview80: true,
+    pool: true,
     allInclusive: mealPlan === "all_inclusive",
     breakfast: mealPlan === "breakfast",
-    minReview80: true,
   });
   const place = bookingSearchPlace(plan, { city, destinationIata });
   const hotelName = hotel?.name?.trim() && hotel.name.trim() !== place ? hotel.name.trim() : undefined;
@@ -438,6 +443,7 @@ export function buildResortPackageFromPlan(
     totalEur,
     flightEur,
     hotelEur,
+    nights,
     pax,
     checkIn,
     checkOut,
@@ -455,7 +461,13 @@ export function buildResortPackageFromOffer(
   opts: BuildResortPackageOpts,
 ): ResortPackage {
   const base = buildResortPackageFromPlan(plan, opts);
-  const hotelEur = Math.max(0, Math.round(offer.hotelEur));
+  const nights = Math.max(
+    1,
+    base.nights ||
+      (base.checkIn && base.checkOut ? stayNights(base.checkIn, base.checkOut) : 0) ||
+      1,
+  );
+  const hotelEur = hotelStayTotalEur(offer.hotelEur, nights);
   const flightEur = base.flightEur;
   const totalEur = flightEur + hotelEur;
   const hotelImages = uniqueHotelImageUrls([...(offer.images ?? []), offer.imageUrl]);
@@ -477,6 +489,7 @@ export function buildResortPackageFromOffer(
     guestScoreLabel: offer.reviewWord,
     mealPlan: offer.mealPlan,
     hotelEur,
+    nights,
     totalEur,
     pricePerPersonEur: totalEur > 0 ? Math.round(totalEur / base.pax) : 0,
     bookingHref:
@@ -494,9 +507,12 @@ export function buildResortPackageFromOffer(
         lang: opts.lang,
         nflt: bookingNfltFor({
           hotel: true,
+          resortStay: true,
+          stars345: true,
+          minReview80: true,
+          pool: true,
           allInclusive: offer.mealPlan === "all_inclusive",
           breakfast: offer.mealPlan === "breakfast",
-          minReview80: true,
         }),
         incomingHref: offer.bookingHref,
       }) || base.bookingHref,

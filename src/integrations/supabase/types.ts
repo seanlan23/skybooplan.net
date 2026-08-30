@@ -325,6 +325,54 @@ export type Database = {
         }
         Relationships: []
       }
+      shared_packages: {
+        Row: {
+          created_at: string
+          depart_date: string | null
+          from_iata: string | null
+          guests: number | null
+          hotel_id: string | null
+          id: string
+          og_description: string
+          og_image: string | null
+          og_title: string
+          payload: Json
+          return_date: string | null
+          to_iata: string | null
+          trip_style: string | null
+        }
+        Insert: {
+          created_at?: string
+          depart_date?: string | null
+          from_iata?: string | null
+          guests?: number | null
+          hotel_id?: string | null
+          id: string
+          og_description: string
+          og_image?: string | null
+          og_title: string
+          payload: Json
+          return_date?: string | null
+          to_iata?: string | null
+          trip_style?: string | null
+        }
+        Update: {
+          created_at?: string
+          depart_date?: string | null
+          from_iata?: string | null
+          guests?: number | null
+          hotel_id?: string | null
+          id?: string
+          og_description?: string
+          og_image?: string | null
+          og_title?: string
+          payload?: Json
+          return_date?: string | null
+          to_iata?: string | null
+          trip_style?: string | null
+        }
+        Relationships: []
+      }
       travel_plans: {
         Row: {
           ai_model: string | null

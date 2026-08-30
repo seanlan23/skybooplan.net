@@ -23,7 +23,9 @@ import {
   type PackageTransferKind,
   type ResortPackage,
 } from "@/lib/resortPackage";
+import { SharePlanButton } from "@/components/SharePlanButton";
 import { SingleBaseStayView } from "@/components/SingleBaseStayView";
+import type { AiTripPlan } from "@/lib/aiPlan.functions";
 import {
   Carousel,
   CarouselContent,
@@ -32,7 +34,7 @@ import {
   CarouselPrevious,
 } from "@/components/ui/carousel";
 import { useI18n } from "@/lib/i18n";
-import { formatPaxCountPhrase } from "@/lib/slovenePax";
+import { formatPaxCountPhrase, stayNightsPhrase } from "@/lib/slovenePax";
 import { cn } from "@/lib/utils";
 
 function mealPlanLabel(plan: PackageMealPlan, t: (key: never) => string): string {
@@ -293,18 +295,30 @@ function Badge({ icon, children }: { icon: ReactNode; children: ReactNode }) {
   );
 }
 
+export type PackageShareContext = {
+  plan: AiTripPlan;
+  from?: string;
+  to?: string;
+  depart?: string;
+  returnDate?: string;
+  guests?: number;
+  style?: string;
+};
+
 export function PackageCard({
   pkg,
   selected = false,
   onOpen,
   flightStay,
+  share,
 }: {
   pkg: ResortPackage;
   selected?: boolean;
   onOpen: () => void;
   flightStay?: HotelStayDates;
+  share?: PackageShareContext;
 }) {
-  const { t, formatMoney } = useI18n();
+  const { t, formatMoney, lang } = useI18n();
   const bookingHref = bookingHrefFor(pkg, flightStay);
   const flightLine =
     pkg.originIata && pkg.destinationIata
@@ -364,10 +378,12 @@ export function PackageCard({
               </p>
               <p className="mt-0.5 text-sm text-slate-500">
                 {formatPaxCountPhrase(
-                  t("aiplan.package.totalFor" as never).replace(
-                    "{price}",
-                    formatMoney(pkg.totalEur),
-                  ),
+                  t("aiplan.package.totalForStay" as never)
+                    .replace("{price}", formatMoney(pkg.totalEur))
+                    .replace(
+                      "{stay}",
+                      stayNightsPhrase(Math.max(1, pkg.nights ?? 1), lang),
+                    ),
                   pkg.pax,
                 )}
               </p>
@@ -381,6 +397,21 @@ export function PackageCard({
             {t("aiplan.package.openDetails" as never)}
             <ArrowRight className="h-4 w-4" aria-hidden />
           </button>
+          {share ? (
+            <div className="mt-2">
+              <SharePlanButton
+                variant="card"
+                plan={share.plan}
+                pkg={pkg}
+                from={share.from}
+                to={share.to}
+                depart={share.depart}
+                returnDate={share.returnDate}
+                guests={share.guests}
+                style={share.style}
+              />
+            </div>
+          ) : null}
         </div>
       </div>
     </article>
@@ -392,11 +423,13 @@ export function PackageDeck({
   selectedId,
   onSelect,
   flightStay,
+  share,
 }: {
   packages: ResortPackage[];
   selectedId?: string;
   onSelect: (id: string) => void;
   flightStay?: HotelStayDates;
+  share?: PackageShareContext;
 }) {
   if (packages.length === 0) return null;
 
@@ -407,6 +440,7 @@ export function PackageDeck({
       selected={pkg.id === selectedId}
       onOpen={() => onSelect(pkg.id)}
       flightStay={flightStay}
+      share={share}
     />
   ));
 
@@ -426,6 +460,7 @@ export function PackageDeck({
                   selected={pkg.id === selectedId}
                   onOpen={() => onSelect(pkg.id)}
                   flightStay={flightStay}
+                  share={share}
                 />
               </CarouselItem>
             ))}

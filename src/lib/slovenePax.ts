@@ -28,6 +28,21 @@ export function formatPaxUiCount(
   return `${count} ${count === 1 ? singular : plural}`;
 }
 
+/** Stay-night count for package / header copy. */
+export function stayNightsPhrase(n: number, lang: string): string {
+  const count = Math.max(1, Math.floor(n));
+  if (lang === "sl" || lang.startsWith("sl")) {
+    if (count === 1) return "1 nočitev";
+    if (count === 2) return "2 nočitvi";
+    if (count === 3 || count === 4) return `${count} nočitve`;
+    return `${count} nočitev`;
+  }
+  if (lang === "de" || lang.startsWith("de")) {
+    return count === 1 ? "1 Nacht" : `${count} Nächte`;
+  }
+  return count === 1 ? "1 night" : `${count} nights`;
+}
+
 /** Fill `{n}` / `{n} potnikov` with the correct dual/plural. */
 export function formatPaxCountPhrase(template: string, n: number): string {
   const t = template.trim();

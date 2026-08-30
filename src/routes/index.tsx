@@ -68,7 +68,7 @@ import { resolveErrorMessage, translate, useI18n } from "@/lib/i18n";
 import { normalizePlanLangCode } from "@/lib/planLanguages";
 import { normalizePlanCurrency } from "@/lib/planCurrency";
 import { flightContextFromLegs } from "@/lib/flightScheduling";
-import { stampHotelStayOnFlightContext } from "@/lib/hotelStayDates";
+import { hotelStayDatesFromContext, stampHotelStayOnFlightContext } from "@/lib/hotelStayDates";
 import {
   heroFlightPartyTotalEur,
   itineraryWithTripCosts,
@@ -95,7 +95,9 @@ import {
   defaultResortHotelFilters,
   prefersAllInclusiveResortSearch,
   resolveResortDiningModel,
+  RESORT_STAY_QUALITY_FILTERS,
 } from "@/lib/resortDiningModel";
+import type { StayFilterFlags } from "@/lib/hotelAmenities";
 import { resolveResortCoastalBase } from "@/lib/resortCoastalBase";
 import { heroChatToPlannerPayload, resolveDestinationIata } from "@/lib/heroChatPlanner";
 import { useUserLocation } from "@/lib/hooks/useUserLocation";
@@ -992,8 +994,15 @@ function Landing() {
     setAiContext(ctx);
     setHeroPlannerActive(true);
 
-    const checkIn = ctx.departDate;
-    const checkOut = ensureHotelCheckoutAfterCheckin(checkIn, ctx.returnDate);
+    const hotelStay = hotelStayDatesFromContext(ctx.flights, {
+      departDate: ctx.departDate,
+      returnDate: ctx.returnDate,
+    });
+    const checkIn = hotelStay?.checkIn || ctx.departDate;
+    const checkOut = ensureHotelCheckoutAfterCheckin(
+      checkIn,
+      hotelStay?.checkOut || ctx.returnDate,
+    );
     const coastalHotel = resolveResortCoastalBase(
       collected.destination || ctx.destinationPlace,
       collected.travelStyle,
@@ -1024,12 +1033,7 @@ function Landing() {
       destinationPlace: collected.destination || ctx.destinationPlace,
       destinationName: ctx.destinationPlace,
     });
-    const searchResortHotels = (filters: {
-      hotel?: boolean;
-      breakfast?: boolean;
-      allInclusive?: boolean;
-      minReview80?: boolean;
-    }) =>
+    const searchResortHotels = (filters: StayFilterFlags) =>
       searchHotels({ data: { ...stayQuery, filters } }).catch((err) => {
         console.warn("[resortPackages] hotel search failed", err);
         return { hotels: emptyHotelRes.hotels, error: String(err) };
@@ -1038,7 +1042,7 @@ function Landing() {
       city && checkIn && checkOut
         ? prefersAllInclusiveResortSearch(dining)
           ? Promise.all([
-              searchResortHotels({ hotel: true }),
+              searchResortHotels(RESORT_STAY_QUALITY_FILTERS),
               searchResortHotels(defaultResortHotelFilters(dining)),
             ]).then(([base, allInclusive]) => ({
               hotels: mergeResortHotelPools(base.hotels ?? [], allInclusive.hotels ?? []),

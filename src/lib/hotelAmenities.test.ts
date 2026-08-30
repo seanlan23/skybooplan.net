@@ -4,11 +4,13 @@ import {
   bookingNfltFor,
   inferHotelAmenities,
   inferHotelKind,
+  isAllowedResortStayProperty,
 } from "./hotelAmenities";
 
 describe("inferHotelKind", () => {
   it("maps Booking type ids", () => {
     expect(inferHotelKind(204)).toBe("hotel");
+    expect(inferHotelKind(216)).toBe("hotel");
     expect(inferHotelKind(201)).toBe("apartment");
   });
 });
@@ -61,5 +63,68 @@ describe("bookingNfltFor", () => {
   it("forwards the 8.0+ guest-score filter to Booking nflt and RapidAPI", () => {
     expect(bookingNfltFor({ minReview80: true })).toEqual(["review_score=80"]);
     expect(bookingCategoriesFilterFor({ minReview80: true })).toBe("review_score::80");
+  });
+
+  it("forwards 3–5★ and hotel/resort/villa types for Resort / Mir", () => {
+    expect(bookingNfltFor({ resortStay: true, stars345: true })).toEqual([
+      "ht_id=204",
+      "ht_id=216",
+      "ht_id=213",
+      "class=3",
+      "class=4",
+      "class=5",
+      "class_interval=3,4,5",
+    ]);
+    expect(bookingCategoriesFilterFor({ resortStay: true, stars345: true })).toBe(
+      "ht_id::204,ht_id::216,ht_id::213,class::3,class::4,class::5,class_interval::3",
+    );
+  });
+});
+
+describe("isAllowedResortStayProperty", () => {
+  it("keeps official 3–5★ hotels, resorts, boutique hotels and villas", () => {
+    expect(isAllowedResortStayProperty({ name: "Palm Hotel", kind: "hotel", stars: 3 })).toBe(true);
+    expect(isAllowedResortStayProperty({ name: "Coral Resort", kind: "other", stars: 4 })).toBe(true);
+    expect(isAllowedResortStayProperty({ name: "Boutique Beach House", kind: "hotel", stars: 4 })).toBe(
+      true,
+    );
+    expect(
+      isAllowedResortStayProperty({
+        name: "Sunset Villa",
+        typeName: "Villa",
+        kind: "apartment",
+        stars: 5,
+      }),
+    ).toBe(true);
+  });
+
+  it("drops unrated, 1–2★ and hostel / apartment / homestay types", () => {
+    expect(isAllowedResortStayProperty({ name: "Palm Hotel", kind: "hotel" })).toBe(false);
+    expect(isAllowedResortStayProperty({ name: "Palm Hotel", kind: "hotel", stars: 2 })).toBe(false);
+    expect(isAllowedResortStayProperty({ name: "Beach Hostel", kind: "hotel", stars: 4 })).toBe(false);
+    expect(isAllowedResortStayProperty({ name: "Mom's Home", kind: "other", stars: 4 })).toBe(false);
+    expect(
+      isAllowedResortStayProperty({
+        name: "Sea View Apartment",
+        typeName: "Apartment",
+        kind: "apartment",
+        stars: 4,
+      }),
+    ).toBe(false);
+    expect(isAllowedResortStayProperty({ name: "Garden Guest House", kind: "hotel", stars: 3 })).toBe(
+      false,
+    );
+    expect(isAllowedResortStayProperty({ name: "City Condo", kind: "hotel", stars: 4 })).toBe(false);
+    expect(isAllowedResortStayProperty({ name: "Hill Mansion", kind: "hotel", stars: 4 })).toBe(false);
+    expect(isAllowedResortStayProperty({ name: "Backpacker Dormitory", kind: "other", stars: 3 })).toBe(
+      false,
+    );
+    expect(isAllowedResortStayProperty({ name: "Rose Bed and Breakfast", kind: "hotel", stars: 3 })).toBe(
+      false,
+    );
+    expect(isAllowedResortStayProperty({ name: "Family Homestay", kind: "other", stars: 3 })).toBe(false);
+    expect(isAllowedResortStayProperty({ name: "Garden Hotel", kind: "hotel", stars: 4, typeId: 214 })).toBe(
+      false,
+    );
   });
 });

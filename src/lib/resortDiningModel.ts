@@ -1,5 +1,6 @@
 import { resolveDayBudgetCountry } from "@/lib/countryDailyBudget";
 import { lookupDestination } from "@/lib/destinationCoords";
+import type { StayFilterFlags } from "@/lib/hotelAmenities";
 
 /**
  * How meals work at a typical beach resort — country-level, not a named-city branch.
@@ -66,14 +67,21 @@ export function prefersAllInclusiveResortSearch(model: ResortDiningModel): boole
   return model === "all_inclusive_standard";
 }
 
-export function defaultResortHotelFilters(model: ResortDiningModel): {
-  hotel: true;
-  breakfast?: boolean;
-  allInclusive?: boolean;
-} {
-  if (model === "breakfast_first") return { hotel: true, breakfast: true };
-  if (model === "all_inclusive_standard") return { hotel: true, allInclusive: true };
-  return { hotel: true };
+/** Booking search for Resort / Mir — 3–5★ hotel/resort/villa, 8.0+, pool. */
+export const RESORT_STAY_QUALITY_FILTERS: StayFilterFlags = {
+  hotel: true,
+  resortStay: true,
+  stars345: true,
+  minReview80: true,
+  pool: true,
+};
+
+export function defaultResortHotelFilters(model: ResortDiningModel): StayFilterFlags {
+  if (model === "breakfast_first") return { ...RESORT_STAY_QUALITY_FILTERS, breakfast: true };
+  if (model === "all_inclusive_standard") {
+    return { ...RESORT_STAY_QUALITY_FILTERS, allInclusive: true };
+  }
+  return { ...RESORT_STAY_QUALITY_FILTERS };
 }
 
 /** Prompt + UI copy. Named places are examples for the model, not code branches. */

@@ -19,6 +19,7 @@ function pkg(over?: Partial<ResortPackage>): ResortPackage {
     totalEur: 1800,
     flightEur: 800,
     hotelEur: 1000,
+    nights: 11,
     pax: 2,
     adults: 2,
     rooms: 1,
@@ -52,5 +53,12 @@ describe("PackageCard gallery", () => {
     expect(single).toContain("PHUKET");
     expect(single).not.toMatch(/Previous photo|Prejšnja slika/);
     expect(single).not.toContain("1/1");
+  });
+
+  it("prints per-person and stay total with flight + nights", () => {
+    const html = renderToStaticMarkup(<PackageCard pkg={pkg()} onOpen={vi.fn()} />);
+    expect(html).toMatch(/€?900|900/);
+    expect(html).toMatch(/person|osebo/);
+    expect(html).toMatch(/flight \+ 11 nights|let \+ 11 nočitev/i);
   });
 });

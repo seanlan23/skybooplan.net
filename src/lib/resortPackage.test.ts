@@ -273,6 +273,39 @@ describe("buildResortPackageFromPlan", () => {
     expect(pkgs[0]?.title).toBe("High Score Bay");
   });
 
+  it("expands a nightly-looking cheap hotel across the full stay", () => {
+    const pkgs = resortPackagesFromPlan(
+      plan({
+        hotels: [{ city: "Phuket", nights: 11, from_date: "2026-10-27", to_date: "2026-11-07" }],
+        resortOffers: [
+          {
+            id: "cheap",
+            tier: "value",
+            name: "Value Bay",
+            hotelEur: 55,
+            mealPlan: "breakfast",
+            guestScore: 8.2,
+          },
+        ],
+      }),
+      {
+        pax: 2,
+        flightTotalEur: 1162,
+        departDate: "2026-10-26",
+        returnDate: "2026-11-06",
+        flights: {
+          outboundDepart: "19:40",
+          outboundArrive: "10:10",
+          outboundArriveDayOffset: 1,
+        },
+      },
+    );
+    expect(pkgs[0]?.nights).toBe(10);
+    expect(pkgs[0]?.hotelEur).toBe(550);
+    expect(pkgs[0]?.totalEur).toBe(1712);
+    expect(pkgs[0]?.pricePerPersonEur).toBe(856);
+  });
+
   it("stamps Booking search with flight dates, destination, and guests — not hotel dates", () => {
     const pkg = buildResortPackageFromPlan(
       plan({ hotels: [{ city: "Nungwi", nights: 6, from_date: "2026-09-20", to_date: "2026-09-27" }] }),

@@ -22,6 +22,18 @@ export function stayNights(checkIn: string, checkOut?: string): number {
   return Math.max(1, Math.round((b - a) / 86_400_000));
 }
 
+/**
+ * Booking `grossPrice` is the stay total. Cheap rows sometimes send a nightly
+ * "from" instead — expand those to the full stay so cards do not sum 1 night.
+ */
+export function hotelStayTotalEur(price: number, nights: number): number {
+  const stay = Math.max(0, Math.round(price));
+  const n = Math.max(1, Math.floor(nights));
+  if (stay <= 0 || n <= 1) return stay;
+  if (stay / n < 12) return Math.round(stay * n);
+  return stay;
+}
+
 export function perNightPrice(stayTotal: number, nights: number): number {
   if (stayTotal <= 0) return 0;
   return Math.round(stayTotal / Math.max(1, nights));

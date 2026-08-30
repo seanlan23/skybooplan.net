@@ -7,6 +7,9 @@ export function TripTotalBreakdown({
   car = false,
   planEur = 0,
   flightEur = 0,
+  stayEur = 0,
+  stayNights = 0,
+  stayInTotal = false,
   roundTrip = true,
   overnight,
 }: {
@@ -18,6 +21,10 @@ export function TripTotalBreakdown({
   planEur?: number;
   /** Selected international flights already in the main TOTAL. */
   flightEur?: number;
+  /** Stay already in SKUPAJ (resort / selected package). */
+  stayEur?: number;
+  stayNights?: number;
+  stayInTotal?: boolean;
   /** False for one-way tickets. */
   roundTrip?: boolean;
   overnight?: OvernightEstimate | null;
@@ -39,7 +46,12 @@ export function TripTotalBreakdown({
       ? ("aiplan.totalExcludesCar" as const)
       : ("aiplan.totalExcludes" as const);
 
-  const showOvernight = Boolean(overnight && overnight.kind !== "none" && overnight.totalEur > 0);
+  const stayAmount = stayEur > 0 ? stayEur : overnight?.totalEur ?? 0;
+  const nights = stayNights > 0 ? stayNights : overnight?.nights ?? 0;
+  const showStayInTotal = stayInTotal && stayAmount > 0;
+  const showOvernight = Boolean(
+    !showStayInTotal && overnight && overnight.kind !== "none" && overnight.totalEur > 0,
+  );
 
   const fallbackIncludes = motorhome
     ? ("aiplan.totalIncludesMotorhome" as const)
@@ -53,7 +65,7 @@ export function TripTotalBreakdown({
 
   return (
     <div className="mt-2 w-full space-y-1.5 text-[11px] text-slate-500 leading-snug text-pretty break-words sm:text-right">
-      {hasPlan || hasFlights ? (
+      {hasPlan || hasFlights || showStayInTotal ? (
         <>
           {hasPlan ? (
             <p>
@@ -71,12 +83,29 @@ export function TripTotalBreakdown({
               </span>
             </p>
           ) : null}
+          {showStayInTotal ? (
+            <p>
+              <span className="font-semibold text-slate-700">{formatMoney(stayAmount)}</span>
+              <span> · {t("aiplan.costStaysLabel")}</span>
+              {nights > 0 ? (
+                <span className="mt-0.5 block text-[10px] text-slate-400">
+                  {t("aiplan.costStaysHint")
+                    .replace("{nights}", String(nights))
+                    .replace("{night}", String(overnight?.nightlyEur ?? Math.round(stayAmount / nights)))}
+                </span>
+              ) : null}
+            </p>
+          ) : null}
         </>
       ) : (
         <p>{t(fallbackIncludes)}</p>
       )}
-      <p className="pt-0.5 text-slate-400">{t("aiplan.notInTotal")}</p>
-      <p>{t(excludesKey)}</p>
+      {showStayInTotal ? null : (
+        <>
+          <p className="pt-0.5 text-slate-400">{t("aiplan.notInTotal")}</p>
+          <p>{t(excludesKey)}</p>
+        </>
+      )}
       {showOvernight ? (
         <p className="font-medium text-slate-600">
           {t("aiplan.overnightApprox")

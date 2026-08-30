@@ -48,6 +48,23 @@ describe("buildTripCostSummary", () => {
     expect(s.grandTotalEur).toBe(3874);
     expect(s.flightEur).toBe(2874);
     expect(s.overnight.totalEur).toBe(55 * 14);
+    expect(s.stayInTotal).toBe(false);
+  });
+
+  it("puts flight + stay estimate in SKUPAJ for a resort stay", () => {
+    const s = buildTripCostSummary({
+      planEur: 0,
+      flightTotalEur: 1162,
+      dayCount: 1,
+      pax: 2,
+      countryCode: "TH",
+      mode: "hotel",
+      nights: 11,
+      stayInTotal: true,
+    });
+    expect(s.overnight.totalEur).toBe(605);
+    expect(s.grandTotalEur).toBe(1767);
+    expect(s.stayInTotal).toBe(true);
   });
 
   it("hero per-person × party; party_total stays as-is", () => {
@@ -88,6 +105,8 @@ describe("buildTripCostSummary", () => {
     expect(s.flightEur).toBe(1800);
     expect(s.overnight.nights).toBe(6);
     expect(s.overnight.totalEur).toBeGreaterThan(0);
+    expect(s.grandTotalEur).toBe(1800 + s.overnight.totalEur);
+    expect(s.stayInTotal).toBe(true);
   });
 
   it("counts resort nights from destination arrival, not home-airport depart", () => {

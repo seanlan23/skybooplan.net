@@ -14,6 +14,7 @@ import { Route as SignupRouteImport } from './routes/signup'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as RefundsRouteImport } from './routes/refunds'
 import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as PlanRouteImport } from './routes/plan'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as GeminiProTestRouteImport } from './routes/gemini-pro-test'
 import { Route as AboutRouteImport } from './routes/about'
@@ -64,6 +65,11 @@ const RefundsRoute = RefundsRouteImport.update({
 const PrivacyRoute = PrivacyRouteImport.update({
   id: '/privacy',
   path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlanRoute = PlanRouteImport.update({
+  id: '/plan',
+  path: '/plan',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -205,6 +211,7 @@ export interface FileRoutesByFullPath {
   '/about': typeof AboutRoute
   '/gemini-pro-test': typeof GeminiProTestRoute
   '/login': typeof LoginRoute
+  '/plan': typeof PlanRoute
   '/privacy': typeof PrivacyRoute
   '/refunds': typeof RefundsRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -237,6 +244,7 @@ export interface FileRoutesByTo {
   '/about': typeof AboutRoute
   '/gemini-pro-test': typeof GeminiProTestRoute
   '/login': typeof LoginRoute
+  '/plan': typeof PlanRoute
   '/privacy': typeof PrivacyRoute
   '/refunds': typeof RefundsRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -271,6 +279,7 @@ export interface FileRoutesById {
   '/about': typeof AboutRoute
   '/gemini-pro-test': typeof GeminiProTestRoute
   '/login': typeof LoginRoute
+  '/plan': typeof PlanRoute
   '/privacy': typeof PrivacyRoute
   '/refunds': typeof RefundsRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -305,6 +314,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/gemini-pro-test'
     | '/login'
+    | '/plan'
     | '/privacy'
     | '/refunds'
     | '/reset-password'
@@ -337,6 +347,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/gemini-pro-test'
     | '/login'
+    | '/plan'
     | '/privacy'
     | '/refunds'
     | '/reset-password'
@@ -370,6 +381,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/gemini-pro-test'
     | '/login'
+    | '/plan'
     | '/privacy'
     | '/refunds'
     | '/reset-password'
@@ -404,6 +416,7 @@ export interface RootRouteChildren {
   AboutRoute: typeof AboutRoute
   GeminiProTestRoute: typeof GeminiProTestRoute
   LoginRoute: typeof LoginRoute
+  PlanRoute: typeof PlanRoute
   PrivacyRoute: typeof PrivacyRoute
   RefundsRoute: typeof RefundsRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
@@ -460,6 +473,13 @@ declare module '@tanstack/react-router' {
       path: '/privacy'
       fullPath: '/privacy'
       preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/plan': {
+      id: '/plan'
+      path: '/plan'
+      fullPath: '/plan'
+      preLoaderRoute: typeof PlanRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -696,6 +716,7 @@ const rootRouteChildren: RootRouteChildren = {
   AboutRoute: AboutRoute,
   GeminiProTestRoute: GeminiProTestRoute,
   LoginRoute: LoginRoute,
+  PlanRoute: PlanRoute,
   PrivacyRoute: PrivacyRoute,
   RefundsRoute: RefundsRoute,
   ResetPasswordRoute: ResetPasswordRoute,

@@ -33,10 +33,28 @@ describe("resolveResortDiningModel", () => {
     expect(resolveResortDiningModel({ destinationPlace: "Zanzibar" })).toBe("unspecified");
     expect(prefersAllInclusiveResortSearch("breakfast_first")).toBe(false);
     expect(prefersAllInclusiveResortSearch("all_inclusive_standard")).toBe(true);
-    expect(defaultResortHotelFilters("breakfast_first")).toEqual({ hotel: true, breakfast: true });
+    expect(defaultResortHotelFilters("breakfast_first")).toEqual({
+      hotel: true,
+      resortStay: true,
+      stars345: true,
+      minReview80: true,
+      pool: true,
+      breakfast: true,
+    });
     expect(defaultResortHotelFilters("all_inclusive_standard")).toEqual({
       hotel: true,
+      resortStay: true,
+      stars345: true,
+      minReview80: true,
+      pool: true,
       allInclusive: true,
+    });
+    expect(defaultResortHotelFilters("unspecified")).toEqual({
+      hotel: true,
+      resortStay: true,
+      stars345: true,
+      minReview80: true,
+      pool: true,
     });
   });
 });

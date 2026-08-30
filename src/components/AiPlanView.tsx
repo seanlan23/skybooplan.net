@@ -6,6 +6,7 @@ import { AiTripMapPanel } from "@/components/AiTripMapPanel";
 import { MobileMapOpenButton } from "@/components/MobileMapOverlay";
 import { AiPlanDayCard, StreamingDayPlaceholder, activityFocusKey } from "@/components/AiPlanDayCard";
 import { PackageDeck, PackagePlanDetails } from "@/components/PackageCard";
+import { SharePlanButton } from "@/components/SharePlanButton";
 import { SingleBaseStayView } from "@/components/SingleBaseStayView";
 import { resortPackagesFromPlan } from "@/lib/resortPackage";
 import { isSingleBasePlan } from "@/lib/tripStyle";
@@ -120,6 +121,8 @@ export function AiPlanView({
   flightTotalEur,
   flightBookingUrl,
   loaderOrbit,
+  initialSelectedPackageId,
+  hideShare = false,
 }: {
   loading: boolean;
   plan: AiTripPlan | null;
@@ -147,6 +150,9 @@ export function AiPlanView({
   flightBookingUrl?: string;
   /** Orbit vehicle while waiting for first day (motorhome = RV + exhaust). */
   loaderOrbit?: "flight" | "motorhome" | "car";
+  /** Pre-select a live Booking card (shared /plan links). */
+  initialSelectedPackageId?: string | null;
+  hideShare?: boolean;
 }) {
   const { t, lang, formatMoney } = useI18n();
   const [, setMotorhomeTipsTick] = useState(0);
@@ -172,7 +178,9 @@ export function AiPlanView({
   const focusedActivityDayRef = useRef<number | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [mobileMapOpen, setMobileMapOpen] = useState(false);
-  const [selectedPackageId, setSelectedPackageId] = useState<string | null>(null);
+  const [selectedPackageId, setSelectedPackageId] = useState<string | null>(
+    initialSelectedPackageId ?? null,
+  );
   const packageDetailsRef = useRef<HTMLDivElement>(null);
   const isClickNavigatingRef = useRef(false);
   const isPlayingRef = useRef(false);
@@ -261,8 +269,6 @@ export function AiPlanView({
     });
   }, [plan, destinationIata, flightTotalEur, pax, departDate, returnDate, flights]);
 
-  const displayTotalBudget = costSummary.grandTotalEur;
-
   const hotelStay = useMemo(
     () =>
       hotelStayDatesFromContext(flights ?? plan?.flightContext, {
@@ -306,8 +312,15 @@ export function AiPlanView({
   const selectedPackage = resortPackages.find((pkg) => pkg.id === selectedPackageId);
 
   useEffect(() => {
-    setSelectedPackageId(null);
-  }, [plan?.destinationName, plan?.originIata, plan?.destinationIata, departDate, returnDate]);
+    setSelectedPackageId(initialSelectedPackageId ?? null);
+  }, [
+    plan?.destinationName,
+    plan?.originIata,
+    plan?.destinationIata,
+    departDate,
+    returnDate,
+    initialSelectedPackageId,
+  ]);
 
   useEffect(() => {
     if (!selectedPackageId || !packageDetailsRef.current) return;
@@ -706,6 +719,13 @@ export function AiPlanView({
   if (!plan) return null;
 
   const isResortMode = isSingleBasePlan(plan);
+  const headerStayEur =
+    isResortMode && selectedPackage && selectedPackage.hotelEur > 0
+      ? selectedPackage.hotelEur
+      : costSummary.overnight.totalEur;
+  const displayTotalBudget = isResortMode
+    ? costSummary.flightEur + headerStayEur
+    : costSummary.grandTotalEur;
   const transitGuide = buildTransitGuide(
     connectionsFromFlightContext(flights ?? plan.flightContext),
     lang,
@@ -786,7 +806,7 @@ export function AiPlanView({
         </>
       )}
 
-      {(onDownloadClick || onEmailClick || onClearPlan) && (
+      {(onDownloadClick || onEmailClick || onClearPlan || (plan && !hideShare)) && (
         <div className="flex flex-col items-end gap-2 relative z-20">
           <div className="flex flex-wrap items-center justify-end gap-2">
             {onClearPlan && !streaming ? (
@@ -797,6 +817,18 @@ export function AiPlanView({
               >
                 {t("aiplan.clearPlan" as never)}
               </button>
+            ) : null}
+            {plan && !hideShare && !streaming ? (
+              <SharePlanButton
+                plan={plan}
+                pkg={selectedPackage}
+                from={plan.originIata}
+                to={destinationIata ?? plan.destinationIata}
+                depart={departDate}
+                returnDate={returnDate}
+                guests={pax}
+                style={plan.tripStyle}
+              />
             ) : null}
             {onEmailClick && !streaming ? (
               <button
@@ -1023,8 +1055,13 @@ export function AiPlanView({
                 plan.accommodationMode === "motorhome"
               }
               car={plan.groundTransportMode === "car"}
-              planEur={costSummary.planEur}
+              planEur={isResortMode ? 0 : costSummary.planEur}
               flightEur={costSummary.flightEur}
+              stayInTotal={isResortMode}
+              stayEur={headerStayEur}
+              stayNights={
+                selectedPackage?.nights ?? costSummary.overnight.nights
+              }
               roundTrip={Boolean(flights?.inboundDepart)}
               overnight={costSummary.overnight}
             />
@@ -1043,6 +1080,19 @@ export function AiPlanView({
                   setSelectedPackageId((cur) => (cur === id ? null : id))
                 }
                 flightStay={hotelStay ?? undefined}
+                share={
+                  hideShare || streaming
+                    ? undefined
+                    : {
+                        plan,
+                        from: plan.originIata,
+                        to: destinationIata ?? plan.destinationIata,
+                        depart: departDate,
+                        returnDate,
+                        guests: pax,
+                        style: plan.tripStyle,
+                      }
+                }
               />
               {selectedPackage && plan.resortStay ? (
                 <div ref={packageDetailsRef} id="package-plan-details">

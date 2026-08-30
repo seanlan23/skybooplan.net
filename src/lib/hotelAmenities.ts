@@ -24,10 +24,22 @@ export type StayFilterFlags = {
   freeCancel?: boolean;
   /** Booking review_score=80 — guest rating 8.0+. */
   minReview80?: boolean;
+  /** Official 3★ / 4★ / 5★ only (drops 1–2★ and unrated). */
+  stars345?: boolean;
+  /** Hotel + resort + villa types (single_base / Resort-Mir). */
+  resortStay?: boolean;
 };
 
 const APARTMENT_TYPE_IDS = new Set([201, 213, 221, 222, 223]);
-const HOTEL_TYPE_IDS = new Set([204, 206, 219, 220, 229, 230, 234]);
+const HOTEL_TYPE_IDS = new Set([204, 206, 216, 219, 220, 229, 230, 234]);
+/** Booking `ht_id` — Hotels, Resorts, Villas. */
+const RESORT_STAY_TYPE_IDS = [204, 216, 213] as const;
+const RESORT_STAY_TYPE_ID_SET = new Set<number>(RESORT_STAY_TYPE_IDS);
+
+const EXCLUDED_RESORT_STAY =
+  /\bhomestays?\b|\bhome[\s-]?stays?\b|\bhostels?\b|\bdormitor(?:y|ies)\b|\bdorms?\b|\bguest[\s-]?houses?\b|\bguesthouses?\b|\bcondos?\b|\bcondominiums?\b|\bapartments?\b|\bapartma\w*\b|\baparthotels?\b|\bmansions?\b|\bbed\s*and\s*breakfasts?\b|\bb\s*&\s*bs?\b|\bbnbs?\b|\bmom'?s\s+home\b|\bmum'?s\s+home\b|\bmoms\s+home\b|\bgostišč\w*|\bpenzions?\b/i;
+
+const ALLOWED_RESORT_STAY = /\b(hotels?|resorts?|boutique|villas?)\b/i;
 
 function blobOf(parts: Array<string | undefined>): string {
   return parts.filter(Boolean).join(" ").toLowerCase();
@@ -76,7 +88,11 @@ export function inferHotelAmenities(input: {
 /** Booking.com `nflt` tokens for the public search URL. */
 export function bookingNfltFor(filters: StayFilterFlags): string[] {
   const out: string[] = [];
-  if (filters.hotel) out.push("ht_id=204");
+  if (filters.resortStay) {
+    for (const id of RESORT_STAY_TYPE_IDS) out.push(`ht_id=${id}`);
+  } else if (filters.hotel) {
+    out.push("ht_id=204");
+  }
   if (filters.apartment) out.push("ht_id=201");
   // Holiday homes / chalets / lodges — country-wide cabin search.
   if (filters.cabin) out.push("ht_id=208", "ht_id=223", "ht_id=228");
@@ -90,6 +106,9 @@ export function bookingNfltFor(filters: StayFilterFlags): string[] {
   if (filters.jacuzzi) out.push("hotelfacility=46");
   if (filters.freeCancel) out.push("fc=2");
   if (filters.minReview80) out.push("review_score=80");
+  if (filters.stars345) {
+    out.push("class=3", "class=4", "class=5", "class_interval=3,4,5");
+  }
   return out;
 }
 
@@ -99,7 +118,11 @@ export function bookingNfltFor(filters: StayFilterFlags): string[] {
  */
 export function bookingCategoriesFilterFor(filters: StayFilterFlags): string {
   const parts: string[] = [];
-  if (filters.hotel) parts.push("ht_id::204");
+  if (filters.resortStay) {
+    for (const id of RESORT_STAY_TYPE_IDS) parts.push(`ht_id::${id}`);
+  } else if (filters.hotel) {
+    parts.push("ht_id::204");
+  }
   if (filters.apartment) parts.push("ht_id::201");
   if (filters.cabin) parts.push("ht_id::208", "ht_id::223", "ht_id::228");
   if (filters.nature) parts.push("ht_id::221", "ht_id::230");
@@ -111,5 +134,29 @@ export function bookingCategoriesFilterFor(filters: StayFilterFlags): string {
   if (filters.jacuzzi) parts.push("hotelfacility::46");
   if (filters.freeCancel) parts.push("free_cancellation::1");
   if (filters.minReview80) parts.push("review_score::80");
+  if (filters.stars345) {
+    parts.push("class::3", "class::4", "class::5", "class_interval::3");
+  }
   return parts.join(",");
+}
+
+export function isExcludedResortStayText(text: string): boolean {
+  return EXCLUDED_RESORT_STAY.test(text);
+}
+
+/** Official 3–5★ hotel / resort / boutique / villa only. Drops unrated and 1–2★. */
+export function isAllowedResortStayProperty(input: {
+  name: string;
+  typeName?: string;
+  typeId?: number;
+  kind?: HotelKind;
+  stars?: number;
+}): boolean {
+  const stars = input.stars ?? 0;
+  if (!Number.isFinite(stars) || stars < 3 || stars > 5) return false;
+  if (input.typeId && !RESORT_STAY_TYPE_ID_SET.has(input.typeId)) return false;
+  const text = blobOf([input.name, input.typeName]);
+  if (isExcludedResortStayText(text)) return false;
+  if (input.kind === "hotel") return true;
+  return ALLOWED_RESORT_STAY.test(text);
 }

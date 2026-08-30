@@ -12,6 +12,7 @@ import {
 import {
   bookingCategoriesFilterFor,
   inferHotelAmenities,
+  isAllowedResortStayProperty,
   type HotelAmenities,
   type HotelKind,
   type StayFilterFlags,
@@ -41,6 +42,8 @@ export type RealHotel = {
   originalPrice?: number;
   kind?: HotelKind;
   amenities?: HotelAmenities;
+  typeName?: string;
+  typeId?: number;
 };
 
 const Input = z.object({
@@ -65,6 +68,8 @@ const Input = z.object({
       parking: z.boolean().optional(),
       freeCancel: z.boolean().optional(),
       minReview80: z.boolean().optional(),
+      stars345: z.boolean().optional(),
+      resortStay: z.boolean().optional(),
     })
     .optional(),
 });
@@ -232,9 +237,8 @@ export const searchHotels = createServerFn({ method: "POST" })
         const lat = Number(prop.latitude ?? prop.lat);
         const lng = Number(prop.longitude ?? prop.lng);
         const hasCoords = Number.isFinite(lat) && Number.isFinite(lng) && (lat !== 0 || lng !== 0);
-        const starsRaw = Math.round(
-          Number(prop.accuratePropertyClass ?? prop.propertyClass ?? prop.qualityClass ?? 0),
-        );
+        const typeName = String(prop.accommodationTypeName ?? prop.propertyType ?? "").trim();
+        const officialStars = Math.round(Number(prop.accuratePropertyClass ?? prop.propertyClass ?? 0));
 
         const directUrl: string | undefined = prop.url ?? h.url;
         const bookingUrl = resolveHotelBookingUrl(directUrl, {
@@ -246,10 +250,11 @@ export const searchHotels = createServerFn({ method: "POST" })
               .map((b: { text?: string; identifier?: string }) => `${b.text ?? ""} ${b.identifier ?? ""}`)
               .join(" ")
           : "";
+        const typeId = Number(prop.accommodationType ?? prop.accommodationTypeId ?? 0) || undefined;
         const inferred = inferHotelAmenities({
           name: String(prop.name ?? ""),
-          typeName: String(prop.accommodationTypeName ?? prop.propertyType ?? ""),
-          typeId: Number(prop.accommodationType ?? prop.accommodationTypeId ?? 0) || undefined,
+          typeName,
+          typeId,
           label: String(prop.accessibilityLabel ?? ""),
           badges,
         });
@@ -271,7 +276,7 @@ export const searchHotels = createServerFn({ method: "POST" })
           images: images.length ? images : undefined,
           bookingUrl,
           reviewWord: String(prop.reviewScoreWord ?? "").trim() || undefined,
-          stars: starsRaw >= 1 && starsRaw <= 5 ? starsRaw : undefined,
+          stars: officialStars >= 1 && officialStars <= 5 ? officialStars : undefined,
           lat: hasCoords ? lat : undefined,
           lng: hasCoords ? lng : undefined,
           neighborhood: String(prop.wishlistName ?? "").trim() || undefined,
@@ -279,10 +284,26 @@ export const searchHotels = createServerFn({ method: "POST" })
           originalPrice: strike > price ? Math.round(strike) : undefined,
           kind: inferred.kind,
           amenities: inferred.amenities,
+          typeName: typeName || undefined,
+          typeId,
         };
       });
 
-      return { hotels, error: null, dest: bookingDest };
+      const stayFilters = data.filters ?? {};
+      const resortQuality = Boolean(stayFilters.stars345 || stayFilters.resortStay);
+      const filtered = resortQuality
+        ? hotels.filter((hotel) =>
+            isAllowedResortStayProperty({
+              name: hotel.name,
+              typeName: hotel.typeName,
+              typeId: hotel.typeId,
+              kind: hotel.kind,
+              stars: hotel.stars,
+            }),
+          )
+        : hotels;
+
+      return { hotels: filtered, error: null, dest: bookingDest };
     } catch (e: any) {
       console.error("searchHotels failed:", e?.message);
       return { hotels: [], error: e?.message ?? "Failed to fetch hotels" };

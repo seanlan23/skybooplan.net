@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   applyHotelFilters,
+  hotelStayTotalEur,
   perNightPrice,
   sortHotels,
   stayNights,
@@ -10,6 +11,18 @@ describe("stayNights", () => {
   it("counts nights between ISO dates", () => {
     expect(stayNights("2026-11-02", "2026-11-04")).toBe(2);
     expect(stayNights("2026-11-02")).toBe(1);
+  });
+});
+
+describe("hotelStayTotalEur", () => {
+  it("keeps a full-stay Booking total", () => {
+    expect(hotelStayTotalEur(605, 11)).toBe(605);
+    expect(hotelStayTotalEur(2100, 11)).toBe(2100);
+  });
+
+  it("expands a nightly-looking cheap row across the whole stay", () => {
+    expect(hotelStayTotalEur(55, 11)).toBe(605);
+    expect(hotelStayTotalEur(80, 10)).toBe(800);
   });
 });
 

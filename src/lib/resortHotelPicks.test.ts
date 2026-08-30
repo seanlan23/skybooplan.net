@@ -13,6 +13,8 @@ function hotel(
 ): ResortHotelPickInput {
   return {
     rating: 8.2,
+    stars: 4,
+    kind: "hotel",
     ...over,
   };
 }
@@ -158,5 +160,38 @@ describe("pickResortHotels", () => {
     ]);
     expect(offers.filter((o) => o.mealPlan === "all_inclusive")).toHaveLength(1);
     expect(offers[0]?.guestScore).toBe(8.2);
+  });
+
+  it("keeps breakfast meal-plan hotels but drops hostels, 2★ and apartments", () => {
+    const offers = pickResortHotels([
+      hotel({
+        id: "keep",
+        name: "Garden Hotel",
+        price: 1100,
+        rating: 8.4,
+        amenities: { breakfast: true },
+      }),
+      hotel({ id: "hostel", name: "Beach Hostel", price: 400, rating: 8.6 }),
+      hotel({ id: "two", name: "Budget Hotel", price: 500, rating: 8.3, stars: 2 }),
+      hotel({ id: "none", name: "Unrated Hotel", price: 700, rating: 8.5, stars: undefined }),
+      hotel({
+        id: "apt",
+        name: "Sea View Apartment",
+        price: 800,
+        rating: 8.7,
+        kind: "apartment",
+        typeName: "Apartment",
+      }),
+      hotel({
+        id: "villa",
+        name: "Palm Villa",
+        price: 1400,
+        rating: 8.8,
+        kind: "apartment",
+        typeName: "Villa",
+      }),
+    ]);
+    expect(offers.map((o) => o.id).sort()).toEqual(["keep", "villa"]);
+    expect(offers.every((o) => (o.guestScore ?? 0) >= 8)).toBe(true);
   });
 });
