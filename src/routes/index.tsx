@@ -83,7 +83,9 @@ import { inferArriveDayOffset, parseMakeFlightRoute, type MakeSearchFlight } fro
 import { makeFlightStopContext } from "@/lib/flightTransitGuide";
 import { resolveHeroSearchData } from "@/lib/heroSearchPoll";
 import { ensureHotelCheckoutAfterCheckin } from "@/lib/bookingUrl";
+import { lookupDestination } from "@/lib/destinationCoords";
 import { hotelSearchQueryForStay } from "@/lib/hotelDestinationPick";
+import { stayNights } from "@/lib/hotelResults";
 import { searchHotels } from "@/lib/hotels.functions";
 import {
   isResortPackageSearch,
@@ -1060,6 +1062,9 @@ function Landing() {
     const hotelRes = await hotelsPromise;
     const offers = pickResortHotels(hotelRes.hotels ?? [], {
       preferAllInclusiveSlots: prefersAllInclusiveResortSearch(dining),
+      destIata: ctx.to,
+      countryCode: lookupDestination(ctx.to)?.country,
+      nights: stayNights(checkIn, checkOut),
     });
     if (offers.length) {
       setAiPlan((current) => (current ? { ...current, resortOffers: offers } : current));

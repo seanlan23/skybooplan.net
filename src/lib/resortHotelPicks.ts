@@ -1,5 +1,14 @@
 import { isAllowedResortStayProperty, type HotelKind } from "@/lib/hotelAmenities";
 import { uniqueHotelImageUrls } from "@/lib/hotelImages";
+import {
+  inValueNightlyBand,
+  isExcludedResortLocation,
+  isOverwaterStay,
+  matchesValueNeedle,
+  matchResortStayMix,
+  stayNightlyEur,
+  type ResortStayMixRow,
+} from "@/lib/resortStayMix";
 
 export type PackageMealPlan = "all_inclusive" | "breakfast";
 
@@ -18,6 +27,8 @@ export type ResortHotelPickInput = {
   kind?: HotelKind;
   typeName?: string;
   typeId?: number;
+  lat?: number;
+  lng?: number;
   amenities?: { allInclusive?: boolean; breakfast?: boolean };
 };
 
@@ -79,7 +90,10 @@ export function isLuxuryStay(hotel: Pick<ResortHotelPickInput, "name" | "stars">
   return /\b5\s*[- ]?(star|zvezd|[★☆])\b|\bluxury\b|\bluksuz|\bdeluxe\b/i.test(hotel.name);
 }
 
-function usableHotels(hotels: ResortHotelPickInput[]): ResortHotelPickInput[] {
+function usableHotels(
+  hotels: ResortHotelPickInput[],
+  mix?: ResortStayMixRow | null,
+): ResortHotelPickInput[] {
   const seen = new Set<string>();
   const out: ResortHotelPickInput[] = [];
   for (const hotel of hotels) {
@@ -88,6 +102,7 @@ function usableHotels(hotels: ResortHotelPickInput[]): ResortHotelPickInput[] {
     if (!name || hotel.price <= 0 || seen.has(id)) continue;
     if (!meetsMinGuestScore(hotel.rating)) continue;
     if (!isAllowedResortStayProperty(hotel)) continue;
+    if (mix && isExcludedResortLocation(hotel, mix)) continue;
     seen.add(id);
     out.push({ ...hotel, id, name, rating: guestScoreOnTen(hotel.rating) });
   }
@@ -158,20 +173,144 @@ function takeFirst(
   return hit;
 }
 
+export type PickResortHotelsOpts = {
+  preferAllInclusiveSlots?: boolean;
+  destIata?: string;
+  countryCode?: string;
+  nights?: number;
+};
+
+function valueCandidateScore(
+  hotel: ResortHotelPickInput,
+  mix: ResortStayMixRow,
+  nights: number,
+): number {
+  const nightly = stayNightlyEur(hotel.price, nights);
+  const mid = (mix.valueNightlyEur.min + mix.valueNightlyEur.max) / 2;
+  let score = hotel.rating * 2;
+  if ((hotel.stars ?? 0) === 4) score += 28;
+  else if ((hotel.stars ?? 0) === 3) score += 6;
+  else if ((hotel.stars ?? 0) >= 5) score -= 18;
+  if (inValueNightlyBand(hotel.price, nights, mix)) score += 45;
+  else score -= Math.min(40, Math.abs(nightly - mid) / 8);
+  if (matchesValueNeedle(hotel, mix)) score += 22;
+  if (mix.skipForValue.test(hotel.name)) score -= 80;
+  score -= nightly * 0.015;
+  return score;
+}
+
+function pickBalancedStayMix(
+  usable: ResortHotelPickInput[],
+  mix: ResortStayMixRow,
+  nights: number,
+  preferAi: boolean,
+): ResortHotelOffer[] {
+  const used = new Set<string>();
+  const unused = () => usable.filter((hotel) => !used.has(hotel.id));
+  const take = (
+    candidates: ResortHotelPickInput[],
+    count: number,
+    tierFor: (index: number) => ResortPackageTier,
+  ): ResortHotelOffer[] => {
+    const out: ResortHotelOffer[] = [];
+    for (const hotel of candidates) {
+      if (out.length >= count) break;
+      if (used.has(hotel.id)) continue;
+      used.add(hotel.id);
+      out.push(offerFromHotel(hotel, tierFor(out.length)));
+    }
+    return out;
+  };
+
+  const fourStar = unused().filter((hotel) => {
+    const stars = hotel.stars ?? 0;
+    return stars === 4 || stars === 3;
+  });
+  const valuePool = fourStar
+    .filter((hotel) => !mix.skipForValue.test(hotel.name))
+    .filter((hotel) => !preferAi || mealPlanFromHotel(hotel) !== "all_inclusive")
+    .sort((a, b) => valueCandidateScore(b, mix, nights) - valueCandidateScore(a, mix, nights));
+  const valueExpanded =
+    valuePool.length >= mix.valueSlots
+      ? valuePool
+      : unused()
+          .filter((hotel) => !mix.skipForValue.test(hotel.name) && (hotel.stars ?? 0) <= 4)
+          .filter((hotel) => !preferAi || mealPlanFromHotel(hotel) !== "all_inclusive")
+          .sort((a, b) => valueCandidateScore(b, mix, nights) - valueCandidateScore(a, mix, nights));
+  const valueSource =
+    valueExpanded.length > 0
+      ? valueExpanded
+      : unused()
+          .filter((hotel) => !mix.skipForValue.test(hotel.name))
+          .filter((hotel) => !preferAi || mealPlanFromHotel(hotel) !== "all_inclusive")
+          .sort((a, b) => a.price - b.price || b.rating - a.rating);
+  const valueOffers = take(valueSource, mix.valueSlots, (i) => (i === 0 ? "value" : "recommended"));
+
+  const aiOffers = preferAi
+    ? take(
+        unused()
+          .filter((hotel) => mealPlanFromHotel(hotel) === "all_inclusive")
+          .sort((a, b) => a.price - b.price || b.rating - a.rating),
+        mix.allInclusiveSlots,
+        (i) => (i === 0 ? "all_inclusive" : "all_inclusive_alt"),
+      )
+    : [];
+
+  const premiumOffers = take(
+    unused()
+      .filter((hotel) => isOverwaterStay(hotel, mix) || (hotel.stars ?? 0) >= 5)
+      .sort((a, b) => {
+        const ao = isOverwaterStay(a, mix) ? 1 : 0;
+        const bo = isOverwaterStay(b, mix) ? 1 : 0;
+        if (ao !== bo) return bo - ao;
+        return b.rating - a.rating || b.price - a.price;
+      }),
+    mix.premiumSlots,
+    () => "premium",
+  );
+
+  const offers = [...valueOffers, ...aiOffers, ...premiumOffers];
+  for (const hotel of unused()) {
+    if (offers.length >= MAX_RESORT_PACKAGE_OFFERS) break;
+    const needsAi =
+      preferAi && offers.filter((o) => o.mealPlan === "all_inclusive").length < mix.allInclusiveSlots;
+    const tier: ResortPackageTier =
+      needsAi && mealPlanFromHotel(hotel) === "all_inclusive"
+        ? offers.some((o) => o.tier === "all_inclusive")
+          ? "all_inclusive_alt"
+          : "all_inclusive"
+        : (hotel.stars ?? 0) >= 5 || isOverwaterStay(hotel, mix)
+          ? "premium"
+          : offers.some((o) => o.tier === "value")
+            ? "recommended"
+            : "value";
+    offers.push(offerFromHotel(hotel, tier));
+    used.add(hotel.id);
+  }
+  return offers.slice(0, MAX_RESORT_PACKAGE_OFFERS);
+}
+
 /**
  * Up to 6 distinct live Booking hotels for the same flight.
  * Drops scores below 8.0 / missing scores. Never invents names or ratings.
  */
 export function pickResortHotels(
   hotels: ResortHotelPickInput[],
-  opts?: { preferAllInclusiveSlots?: boolean },
+  opts?: PickResortHotelsOpts,
 ): ResortHotelOffer[] {
-  const usable = usableHotels(hotels);
+  const mix = matchResortStayMix({
+    countryCode: opts?.countryCode,
+    destIata: opts?.destIata,
+  });
+  const usable = usableHotels(hotels, mix);
   if (usable.length === 0) return [];
+
+  const preferAi = opts?.preferAllInclusiveSlots !== false;
+  const nights = Math.max(1, Math.round(opts?.nights ?? 1));
+  if (mix) return pickBalancedStayMix(usable, mix, nights, preferAi);
 
   const used = new Set<string>();
   const unused = () => usable.filter((hotel) => !used.has(hotel.id));
-  const preferAi = opts?.preferAllInclusiveSlots !== false;
 
   const allInclusive = preferAi
     ? usable.filter((hotel) => mealPlanFromHotel(hotel) === "all_inclusive")

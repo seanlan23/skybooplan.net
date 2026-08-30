@@ -194,4 +194,77 @@ describe("pickResortHotels", () => {
     expect(offers.map((o) => o.id).sort()).toEqual(["keep", "villa"]);
     expect(offers.every((o) => (o.guestScore ?? 0) >= 8)).toBe(true);
   });
+
+  it("for Maldives keeps 4★ island value cards and drops Male / Hulhumale", () => {
+    const offers = pickResortHotels(
+      [
+        hotel({
+          id: "male",
+          name: "City Hotel Male",
+          price: 900,
+          stars: 4,
+          neighborhood: "Malé",
+        }),
+        hotel({
+          id: "hulhu",
+          name: "Hulhumale Beach Hotel",
+          price: 950,
+          stars: 4,
+          neighborhood: "Hulhumalé",
+        }),
+        hotel({
+          id: "bandos",
+          name: "Bandos Maldives",
+          price: 2000,
+          stars: 4,
+          neighborhood: "North Male Atoll",
+        }),
+        hotel({
+          id: "fiha",
+          name: "Fihalhohi Island Resort",
+          price: 1800,
+          stars: 4,
+          neighborhood: "South Male Atoll",
+        }),
+        hotel({
+          id: "adaaran",
+          name: "Adaaran Club Rannalhi",
+          price: 2400,
+          stars: 4,
+          amenities: { allInclusive: true },
+          neighborhood: "South Male Atoll",
+        }),
+        hotel({
+          id: "ai2",
+          name: "Reef All Inclusive",
+          price: 3200,
+          stars: 5,
+          amenities: { allInclusive: true },
+        }),
+        hotel({
+          id: "hyatt",
+          name: "Park Hyatt Maldives",
+          price: 9000,
+          stars: 5,
+        }),
+        hotel({
+          id: "over",
+          name: "Lagoon Overwater Villa",
+          price: 8500,
+          stars: 5,
+        }),
+      ],
+      { destIata: "MLE", nights: 10, preferAllInclusiveSlots: true },
+    );
+
+    expect(offers.some((o) => o.id === "male" || o.id === "hulhu")).toBe(false);
+    expect(offers.filter((o) => o.tier === "value" || o.tier === "recommended")).toHaveLength(2);
+    expect(offers.filter((o) => o.tier === "value" || o.tier === "recommended").map((o) => o.id).sort()).toEqual([
+      "bandos",
+      "fiha",
+    ]);
+    expect(offers.filter((o) => o.tier === "all_inclusive" || o.tier === "all_inclusive_alt")).toHaveLength(2);
+    expect(offers.filter((o) => o.tier === "premium").map((o) => o.id).sort()).toEqual(["hyatt", "over"]);
+    expect(offers.find((o) => o.tier === "value")?.name).not.toMatch(/hyatt|ritz/i);
+  });
 });
