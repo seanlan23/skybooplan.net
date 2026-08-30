@@ -24,6 +24,7 @@ import {
   overnightPlacesMatch,
   overnightStayBookingUrl,
   stampOvernightCitiesFromHotels,
+  holdCityHeaderUntilTransfer,
   syncDayCityToDaytimeProgram,
   type HotelStayHint,
   type OvernightDay,
@@ -139,7 +140,7 @@ type NormalizedPdfPlan = {
   pax: number;
   days: PdfDay[];
   flights: string[];
-  hotels: Array<{ text: string; url?: string }>;
+  hotels: Array<{ text: string; lead?: string; dates?: string; url?: string }>;
   packing: string[];
   labels: PdfLabels;
   contentLang: string;
@@ -898,6 +899,22 @@ export function shouldBreakBeforeBlock(opts: {
   return true;
 }
 
+/** City · nights on the left, dates nowrap on the right (.accommodation-row). */
+export function accommodationStayParts(opts: {
+  city: string;
+  nightsLabel: string;
+  checkInLabel: string;
+  checkOutLabel: string;
+}): { text: string; lead: string; dates: string } {
+  const dates = [opts.checkInLabel, opts.checkOutLabel].filter(Boolean).join(" → ");
+  const lead = [opts.city, opts.nightsLabel].filter(Boolean).join("  ·  ");
+  return {
+    text: [lead, dates].filter(Boolean).join("  ·  "),
+    lead,
+    dates: dates.replace(/ /g, "\u00A0"),
+  };
+}
+
 function dateLocaleForPlanLang(lang: string | undefined): string {
   switch ((lang ?? "en").slice(0, 2).toLowerCase()) {
     case "sl":
@@ -1158,6 +1175,7 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
     : [];
   stampOvernightCitiesFromHotels(rawDays as OvernightDay[], hotelHints);
   syncDayCityToDaytimeProgram(rawDays as OvernightDay[]);
+  holdCityHeaderUntilTransfer(rawDays as OvernightDay[]);
   const sample = [textOf(itin.summary), ...rawDays.map((d) => textOf(d?.title))].join(" ");
   const contentLang = normalizePlanLangCode(
     (itin as { contentLanguage?: string }).contentLanguage ||
@@ -1443,20 +1461,20 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
     }
   }
 
-  const stayHotels = stays.map((s) => ({
-    text: [
-      s.city,
-      nightsPhrase(s.nights, contentLang),
-      [fmtDate(s.checkIn, contentLang), fmtDate(s.checkOut, contentLang)]
-        .filter(Boolean)
-        .join(" → "),
-    ]
-      .filter(Boolean)
-      .join("  ·  "),
-    url: motorhome
-      ? undefined
-      : overnightStayBookingUrl(s, { adults: pax, lang: contentLang }),
-  }));
+  const stayHotels = stays.map((s) => {
+    const parts = accommodationStayParts({
+      city: s.city,
+      nightsLabel: nightsPhrase(s.nights, contentLang),
+      checkInLabel: fmtDate(s.checkIn, contentLang),
+      checkOutLabel: fmtDate(s.checkOut, contentLang),
+    });
+    return {
+      ...parts,
+      url: motorhome
+        ? undefined
+        : overnightStayBookingUrl(s, { adults: pax, lang: contentLang }),
+    };
+  });
   const hotels = stayHotels.length
     ? stayHotels
     : motorhome
@@ -2198,13 +2216,39 @@ async function renderPlanPdf(plan: PlanForPdf): Promise<{
   }
 
   if (model.hotels.length) {
-    const firstStayH =
-      measureParaH(model.hotels[0]!.text, 10) + (model.hotels[0]!.url ? 12 : 0);
+    const firstStay = model.hotels[0]!;
+    const firstLead = firstStay.lead || firstStay.text;
+    const firstDates = firstStay.dates || "";
+    const firstOneLine =
+      !firstDates ||
+      measure(firstLead, "normal", 10) + 12 + (firstDates ? measure(firstDates, "normal", 10) : 0) <=
+        contentW;
+    const firstStayH = (firstOneLine ? 16 : 30) + (firstStay.url ? 12 : 0);
     heading(model.labels.stays, firstStayH);
     for (const h of model.hotels) {
-      // .accommodation-row { page-break-inside: avoid }
-      breakBefore(measureParaH(h.text, 10) + (h.url ? 12 : 0));
-      para(h.text, 10, INK);
+      // .accommodation-row { display:flex; justify-content:space-between;
+      //   white-space:nowrap; break-inside:avoid }
+      const lead = h.lead || h.text;
+      const dates = h.dates || "";
+      setFont("normal", 10);
+      const dateW = dates ? measure(dates, "normal", 10) : 0;
+      const leadW = measure(lead, "normal", 10);
+      const oneLine = !dates || leadW + 12 + dateW <= contentW;
+      const rowH = (oneLine ? 16 : 30) + (h.url ? 12 : 0);
+      breakBefore(rowH);
+      setFont("normal", 10, INK);
+      if (dates && oneLine) {
+        safeText(lead, margin, y);
+        safeText(dates, pageW - margin, y, { align: "right" });
+        y += 16;
+      } else if (dates) {
+        safeText(lead, margin, y);
+        y += 14;
+        safeText(dates, pageW - margin, y, { align: "right" });
+        y += 16;
+      } else {
+        para(h.text, 10, INK);
+      }
       if (h.url) {
         ensureSpace(12);
         setFont("normal", 8.5, SKY);

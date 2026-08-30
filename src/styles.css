@@ -630,3 +630,12 @@
   color: #475569;
   background: #f1f5f9;
 }
+
+/* Stay dates stay on one line (PDF jsPDF mirrors this). */
+.accommodation-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  white-space: nowrap;
+  break-inside: avoid;
+}

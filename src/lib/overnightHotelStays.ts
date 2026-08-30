@@ -247,6 +247,31 @@ export function syncDayCityToDaytimeProgram(days: OvernightDay[]): number {
 }
 
 /**
+ * Keep day.city on the current base until the calendar day the hop happens.
+ * Does not touch hop days or a first arrival that has no later origin→dest hop.
+ */
+export function holdCityHeaderUntilTransfer(days: OvernightDay[]): number {
+  let n = 0;
+  for (let i = 1; i < days.length; i++) {
+    const day = days[i]!;
+    if (overnightHop(day, days[i + 1])) continue;
+    const prev = (days[i - 1]!.city ?? days[i - 1]!.focusName ?? "").trim();
+    const cur = (day.city ?? day.focusName ?? "").trim();
+    if (!prev || !cur || overnightPlacesMatch(cur, prev)) continue;
+    const laterHopFromPrev = days.slice(i + 1).some((d, j) => {
+      const hop = overnightHop(d, days[i + 2 + j]);
+      return Boolean(
+        hop && overnightPlacesMatch(hop.from, prev) && overnightPlacesMatch(hop.to, cur),
+      );
+    });
+    if (!laterHopFromPrev) continue;
+    stampDayCity(day, prev, cur);
+    n += 1;
+  }
+  return n;
+}
+
+/**
  * Paid overnight stays from consecutive city days (hotels or camper bases).
  * Last calendar day is never an overnight (sleep at home / fly out).
  */

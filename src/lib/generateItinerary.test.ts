@@ -24,6 +24,8 @@ describe("CORE_ITINERARY_SYSTEM_RULES", () => {
   it("exports the four live sleep-city / clock / leak / transfer rules", () => {
     expect(CORE_ITINERARY_SYSTEM_RULES).toMatch(/CORE SYSTEM RULES/);
     expect(CORE_ITINERARY_SYSTEM_RULES).toMatch(/SLEEPS that night/);
+    expect(CORE_ITINERARY_SYSTEM_RULES).toMatch(/CITY HEADER CONSISTENCY/);
+    expect(CORE_ITINERARY_SYSTEM_RULES).toMatch(/until the day the transfer actually occurs/);
     expect(CORE_ITINERARY_SYSTEM_RULES).toMatch(/strictly increasing clock order/);
     expect(CORE_ITINERARY_SYSTEM_RULES).toMatch(/NO META-INSTRUCTIONS/);
     expect(CORE_ITINERARY_SYSTEM_RULES).toMatch(/EXACTLY once per day/);

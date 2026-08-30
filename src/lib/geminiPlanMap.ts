@@ -19,7 +19,7 @@ import { attachActivityCoordinates } from "@/lib/mapPoiResolver";
 import { stripMisplacedCityPois } from "@/lib/cityPoiGuard";
 import { lookupRegionCoords } from "@/lib/regionCoords";
 import { lookupPoiCoords } from "@/lib/tripGeo";
-import { stampOvernightCitiesFromHotels, syncDayCityToDaytimeProgram, hotelsFromSleepNights } from "@/lib/overnightHotelStays";
+import { stampOvernightCitiesFromHotels, syncDayCityToDaytimeProgram, holdCityHeaderUntilTransfer, hotelsFromSleepNights } from "@/lib/overnightHotelStays";
 import { applyUserStayPlan, hasExplicitStayPlan } from "@/lib/userStayPlan";
 import { paceMetropolisStays } from "@/lib/metropolisPacing";
 import { addDays } from "@/lib/dateUtils";
@@ -779,6 +779,7 @@ export function tripPlanResponseToAiTripPlan(
     hotels.push(...(stayPlan.hotels ?? []));
   }
   syncDayCityToDaytimeProgram(days);
+  holdCityHeaderUntilTransfer(days);
   if (!hasExplicitStayPlan(opts?.wishesText ?? "")) {
     const sleepHotels = hotelsFromSleepNights({
       days,

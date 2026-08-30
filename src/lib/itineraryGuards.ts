@@ -24,7 +24,7 @@ import { scrubImpossibleIslandDayTrips } from "@/lib/islandHopGuard";
 import { applyUserStayPlan, hasExplicitStayPlan } from "@/lib/userStayPlan";
 import { paceMetropolisStays } from "@/lib/metropolisPacing";
 import { scrubLocalTipsOnPlan } from "@/lib/localTipsSanitize";
-import { hotelsFromSleepNights, syncDayCityToDaytimeProgram } from "@/lib/overnightHotelStays";
+import { hotelsFromSleepNights, holdCityHeaderUntilTransfer, syncDayCityToDaytimeProgram } from "@/lib/overnightHotelStays";
 import { isSmallIsland } from "@/lib/islandStays";
 import { scrubBangkokSightsOnIslandTransferDays } from "@/lib/bangkokMustSee";
 import { alignSummaryTripLength } from "@/lib/planTeaser";
@@ -2102,6 +2102,7 @@ export function applyItineraryGuards(
     linearizeOvernightArc(plan);
   }
   syncDayCityToDaytimeProgram(plan.days ?? []);
+  holdCityHeaderUntilTransfer(plan.days ?? []);
   applyIslandHopLogistics(plan, opts?.language ?? plan.contentLanguage);
   relabelHubDayTripOvernights(plan.days ?? [], opts?.language ?? plan.contentLanguage);
   enrichIslandAirportTransfers(plan, {
@@ -2150,6 +2151,7 @@ export function applyItineraryGuards(
   if (!lockStay) paceMetropolisStays(plan);
   if (lockStay) applyUserStayPlan(plan, { arrivalDay: opts?.arrivalDay });
   syncDayCityToDaytimeProgram(plan.days ?? []);
+  holdCityHeaderUntilTransfer(plan.days ?? []);
   if (!lockStay) {
     const sleepHotels = hotelsFromSleepNights({
       days: plan.days,

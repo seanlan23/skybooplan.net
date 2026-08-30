@@ -449,7 +449,7 @@ export function HotelsSection({
                       <div className="line-clamp-2 min-h-[2.5rem] text-sm font-semibold leading-tight text-slate-900">
                         {h.name}
                       </div>
-                      <div className="mt-1 text-[11px] text-slate-500">
+                      <div className="accommodation-row mt-1 text-[11px] text-slate-500">
                         {fmtDate(checkIn)}
                         {checkOut ? ` – ${fmtDate(checkOut)}` : ""}
                       </div>
@@ -680,7 +680,7 @@ export function HotelsSection({
                               <Stars count={h.stars} />
                             </div>
                           ) : null}
-                          <div className="mt-1 text-[11px] text-slate-500">
+                          <div className="accommodation-row mt-1 text-[11px] text-slate-500">
                             {fmtDate(checkIn)}
                             {checkOut ? ` – ${fmtDate(checkOut)}` : ""}
                           </div>

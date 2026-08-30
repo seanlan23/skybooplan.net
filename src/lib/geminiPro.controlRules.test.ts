@@ -86,6 +86,8 @@ describe("tripPlanControlRules", () => {
     expect(system).not.toMatch(/DVO-STOPENJSKI NAČRT|FAZA 1/i);
     expect(system).toMatch(/CORE SYSTEM RULES/);
     expect(system).toMatch(/ALWAYS the city where the traveller SLEEPS that night/);
+    expect(system).toMatch(/CITY HEADER CONSISTENCY/);
+    expect(system).toMatch(/until the day the transfer actually occurs/);
     expect(system).toMatch(/strictly increasing clock order/);
     expect(system).toMatch(/EXACTLY once per day/);
     expect(system).toMatch(/ISLAND HOPS/);

@@ -6,6 +6,7 @@ export const CORE_ITINERARY_SYSTEM_RULES = `=== CORE SYSTEM RULES (mandatory) ==
 
 1) BASES & day.city (sleep city):
 - days[].city is ALWAYS the city where the traveller SLEEPS that night (overnight hotel / camp). Not yesterday’s base. Not a day-trip island.
+- CITY HEADER CONSISTENCY: days[].city for Day X is the city where the traveller wakes up and spends the majority of that calendar day. Do NOT change the header to the next destination until the day the transfer actually occurs. Forbidden: a full stay day labeled with tomorrow’s city.
 - After a train/flight into a new base, city is the new sleep city from that day on (and the following stay days).
 - Evening hop after origin sightseeing: keep those origin sights on this calendar day; city is still the arrival/sleep city. Morning hop: morning = transfer, then new-city programme.
 - FORBIDDEN: chopping the trip into consecutive 1-night stops. Each main base 2–4 nights. Nearby islands and smaller towns = day trips from the main base WITHOUT changing hotel.

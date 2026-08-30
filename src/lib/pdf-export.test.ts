@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isPdfDaypartToken, normalizePlanForPdf, sanitizePdfText, buildPdfDownloadFileName, pdfDayHeading, isPdfBaseTransferLeg, resolvePdfReturnFromIata, shouldBreakBeforeBlock } from "@/lib/pdf-export";
+import { isPdfDaypartToken, normalizePlanForPdf, sanitizePdfText, buildPdfDownloadFileName, pdfDayHeading, isPdfBaseTransferLeg, resolvePdfReturnFromIata, shouldBreakBeforeBlock, accommodationStayParts } from "@/lib/pdf-export";
 import { isoAddDays } from "@/lib/overnightHotelStays";
 
 describe("sanitizePdfText", () => {
@@ -1282,6 +1282,21 @@ describe("resolvePdfReturnFromIata", () => {
         ],
       }),
     ).toBe("YVR");
+  });
+});
+
+describe("accommodationStayParts", () => {
+  it("keeps the date range as one nowrap token", () => {
+    const row = accommodationStayParts({
+      city: "New York",
+      nightsLabel: "3 noči",
+      checkInLabel: "19. sep. 2026",
+      checkOutLabel: "22. sep. 2026",
+    });
+    expect(row.text).toBe("New York  ·  3 noči  ·  19. sep. 2026 → 22. sep. 2026");
+    expect(row.lead).toBe("New York  ·  3 noči");
+    expect(row.dates).toBe("19.\u00A0sep.\u00A02026\u00A0→\u00A022.\u00A0sep.\u00A02026");
+    expect(row.dates).not.toMatch(/ /);
   });
 });
 

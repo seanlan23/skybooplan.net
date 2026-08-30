@@ -6,6 +6,7 @@ import {
   overnightStayBookingUrl,
   shouldShowDayHotels,
   stampOvernightCitiesFromHotels,
+  holdCityHeaderUntilTransfer,
   syncDayCityToDaytimeProgram,
 } from "@/lib/overnightHotelStays";
 
@@ -414,5 +415,33 @@ describe("collectOvernightHotelStaysFromHints", () => {
       "Ubud:2:2026-07-27:2026-07-29",
       "Nusa Lembongan:2:2026-07-29:2026-07-31",
     ]);
+  });
+});
+
+describe("holdCityHeaderUntilTransfer", () => {
+  it("keeps the current city until the calendar day the hop happens", () => {
+    const days = [
+      { day: 1, date: "2026-09-19", city: "New York" },
+      { day: 2, date: "2026-09-20", city: "Boston" },
+      {
+        day: 3,
+        date: "2026-09-21",
+        city: "Boston",
+        transportation: [{ type: "train", from: "New York", to: "Boston" }],
+      },
+      { day: 4, date: "2026-09-22", city: "Boston" },
+    ];
+    expect(holdCityHeaderUntilTransfer(days)).toBe(1);
+    expect(days.map((d) => d.city)).toEqual(["New York", "New York", "Boston", "Boston"]);
+  });
+
+  it("does not pull an arrival city back onto the origin hub day", () => {
+    const days = [
+      { day: 1, date: "2026-09-19", city: "Munich", inFlightDay: true },
+      { day: 2, date: "2026-09-20", city: "New York" },
+      { day: 3, date: "2026-09-21", city: "New York" },
+    ];
+    expect(holdCityHeaderUntilTransfer(days)).toBe(0);
+    expect(days.map((d) => d.city)).toEqual(["Munich", "New York", "New York"]);
   });
 });
