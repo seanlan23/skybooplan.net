@@ -9,6 +9,8 @@ import { PackageDeck, PackagePlanDetails } from "@/components/PackageCard";
 import { SharePlanButton } from "@/components/SharePlanButton";
 import { SingleBaseStayView } from "@/components/SingleBaseStayView";
 import { resortPackagesFromPlan } from "@/lib/resortPackage";
+import { matchResortPackageId, resolveStayForPackageDetails } from "@/lib/resortStayFallback";
+import { unquoteShareValue } from "@/lib/sharedPackageSnapshot";
 import { isSingleBasePlan } from "@/lib/tripStyle";
 import { POIDetailsModal } from "@/components/POIDetailsModal";
 import { refreshPoiDetailsImage, type PoiDetailsData } from "@/lib/poiDetails.types";
@@ -179,7 +181,7 @@ export function AiPlanView({
   const [isPlaying, setIsPlaying] = useState(false);
   const [mobileMapOpen, setMobileMapOpen] = useState(false);
   const [selectedPackageId, setSelectedPackageId] = useState<string | null>(
-    initialSelectedPackageId ?? null,
+    () => unquoteShareValue(initialSelectedPackageId ?? "") || null,
   );
   const packageDetailsRef = useRef<HTMLDivElement>(null);
   const isClickNavigatingRef = useRef(false);
@@ -309,18 +311,18 @@ export function AiPlanView({
     stayInfo?.rooms,
     stayInfo?.childrenAges,
   ]);
-  const selectedPackage = resortPackages.find((pkg) => pkg.id === selectedPackageId);
+  const selectedPackage = matchResortPackageId(resortPackages, selectedPackageId);
+  const packageIdsKey = resortPackages.map((pkg) => pkg.id).join("|");
+  const appliedShareHotelRef = useRef<string | null>(null);
 
   useEffect(() => {
-    setSelectedPackageId(initialSelectedPackageId ?? null);
-  }, [
-    plan?.destinationName,
-    plan?.originIata,
-    plan?.destinationIata,
-    departDate,
-    returnDate,
-    initialSelectedPackageId,
-  ]);
+    const wanted = unquoteShareValue(initialSelectedPackageId ?? "");
+    if (!wanted || appliedShareHotelRef.current === wanted) return;
+    if (matchResortPackageId(resortPackages, wanted)) {
+      setSelectedPackageId(wanted);
+      appliedShareHotelRef.current = wanted;
+    }
+  }, [initialSelectedPackageId, packageIdsKey, resortPackages]);
 
   useEffect(() => {
     if (!selectedPackageId || !packageDetailsRef.current) return;
@@ -1076,9 +1078,7 @@ export function AiPlanView({
               <PackageDeck
                 packages={resortPackages}
                 selectedId={selectedPackage?.id}
-                onSelect={(id) =>
-                  setSelectedPackageId((cur) => (cur === id ? null : id))
-                }
+                onSelect={(id) => setSelectedPackageId(id)}
                 flightStay={hotelStay ?? undefined}
                 share={
                   hideShare || streaming
@@ -1094,10 +1094,18 @@ export function AiPlanView({
                       }
                 }
               />
-              {selectedPackage && plan.resortStay ? (
+              {selectedPackage ? (
                 <div ref={packageDetailsRef} id="package-plan-details">
                   <PackagePlanDetails
-                    stay={plan.resortStay}
+                    stay={resolveStayForPackageDetails(
+                      plan.resortStay,
+                      {
+                        destinationIata: destinationIata ?? plan.destinationIata,
+                        destinationName: plan.destinationName,
+                        destinationPlace: plan.destinationPlace,
+                      },
+                      lang,
+                    )}
                     pkg={selectedPackage}
                     onDownloadPdf={onDownloadClick}
                     flights={flights ?? plan.flightContext}

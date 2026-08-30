@@ -3,7 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { AiPlanView } from "@/components/AiPlanView";
-import { PackageDeck } from "@/components/PackageCard";
+import { PackageDeck, PackagePlanDetails } from "@/components/PackageCard";
 import {
   absoluteShareUrl,
   buildShareOgMeta,
@@ -14,7 +14,8 @@ import {
 } from "@/lib/sharePlan";
 import { fetchSharedPackageSnapshot } from "@/lib/fetchSharedPackage";
 import { resortPackagesFromPlan } from "@/lib/resortPackage";
-import type { SharedPackageSnapshot } from "@/lib/sharedPackageSnapshot";
+import { matchResortPackageId, resolveStayForPackageDetails } from "@/lib/resortStayFallback";
+import { unquoteShareValue, type SharedPackageSnapshot } from "@/lib/sharedPackageSnapshot";
 import { useI18n } from "@/lib/i18n";
 
 function SharedPlanError() {
@@ -114,6 +115,10 @@ function SharedPlanFallback({
   guests: number;
   hotelId?: string;
 }) {
+  const { lang } = useI18n();
+  const [selectedId, setSelectedId] = useState<string | null>(
+    () => unquoteShareValue(hotelId ?? "") || null,
+  );
   const plan = snapshot.plan;
   const packages = resortPackagesFromPlan(plan, {
     pax: guests,
@@ -123,14 +128,31 @@ function SharedPlanFallback({
     returnDate: snapshot.params.return ?? search.return,
     destinationIata: snapshot.params.to ?? search.to ?? plan.destinationIata,
   });
+  const selected = matchResortPackageId(packages, selectedId);
   return (
     <div className="space-y-5">
       <h1 className="text-2xl font-bold text-foreground">{plan.destinationName}</h1>
       <PackageDeck
         packages={packages}
-        selectedId={hotelId}
-        onSelect={() => undefined}
+        selectedId={selected?.id}
+        onSelect={(id) => setSelectedId(id)}
       />
+      {selected ? (
+        <div id="package-plan-details">
+          <PackagePlanDetails
+            stay={resolveStayForPackageDetails(
+              plan.resortStay,
+              {
+                destinationIata: snapshot.params.to ?? search.to ?? plan.destinationIata,
+                destinationName: plan.destinationName,
+                destinationPlace: plan.destinationPlace,
+              },
+              lang,
+            )}
+            pkg={selected}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }
