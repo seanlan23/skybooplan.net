@@ -101,7 +101,12 @@ import {
 } from "@/lib/resortDiningModel";
 import type { StayFilterFlags } from "@/lib/hotelAmenities";
 import { resolveResortCoastalBase } from "@/lib/resortCoastalBase";
-import { heroChatToPlannerPayload, resolveDestinationIata } from "@/lib/heroChatPlanner";
+import { heroChatToPlannerPayload, mapChatBudget, resolveDestinationIata } from "@/lib/heroChatPlanner";
+import {
+  budgetCapMaxPerPerson,
+  maxHotelStayEurForBudget,
+  resolveTripBudgetBand,
+} from "@/lib/tripBudgetCap";
 import { useUserLocation } from "@/lib/hooks/useUserLocation";
 import { nudgeIntoView } from "@/lib/utils";
 
@@ -1018,6 +1023,18 @@ function Landing() {
       ctx.destinationPlace?.split(",")[0]?.trim() ||
       "";
     const rooms = Math.max(1, Math.min(10, Math.ceil(Math.max(1, ctx.adults) / 2)));
+    const guests = Math.max(
+      1,
+      ctx.pax || (ctx.adults || 0) + (ctx.childrenAges?.length ?? 0) || ctx.adults || 1,
+    );
+    const flightTotalEur = ctx.flightTotalEur ?? 0;
+    const budgetBand = resolveTripBudgetBand(collected.budget, mapChatBudget(collected.budget));
+    const budgetCap = budgetCapMaxPerPerson(budgetBand);
+    const priceMax = maxHotelStayEurForBudget({
+      flightPartyEur: flightTotalEur,
+      guests,
+      capMaxPerPerson: budgetCap,
+    });
     const stayQuery = {
       city,
       checkIn,
@@ -1027,6 +1044,7 @@ function Landing() {
       childrenAges: ctx.childrenAges ?? [],
       currency: "EUR" as const,
       destIata: ctx.to || undefined,
+      ...(priceMax != null && priceMax > 0 ? { priceMax } : {}),
     };
     const emptyHotelRes = {
       hotels: [] as Awaited<ReturnType<typeof searchHotels>>["hotels"],
@@ -1065,6 +1083,10 @@ function Landing() {
       destIata: ctx.to,
       countryCode: lookupDestination(ctx.to)?.country,
       nights: stayNights(checkIn, checkOut),
+      flightTotalEur,
+      guests,
+      budgetMinPerPerson: budgetBand.minPerPerson,
+      budgetMaxPerPerson: budgetBand.maxPerPerson,
     });
     if (offers.length) {
       setAiPlan((current) => (current ? { ...current, resortOffers: offers } : current));

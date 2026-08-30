@@ -1,4 +1,5 @@
 import { isAllowedResortStayProperty, type HotelKind } from "@/lib/hotelAmenities";
+import { cleanHotelDisplayName } from "@/lib/hotelDisplayName";
 import { uniqueHotelImageUrls } from "@/lib/hotelImages";
 import {
   inValueNightlyBand,
@@ -9,6 +10,10 @@ import {
   stayNightlyEur,
   type ResortStayMixRow,
 } from "@/lib/resortStayMix";
+import {
+  budgetCapMaxPerPerson,
+  hotelFitsPackageBudgetCap,
+} from "@/lib/tripBudgetCap";
 
 export type PackageMealPlan = "all_inclusive" | "breakfast";
 
@@ -97,7 +102,7 @@ function usableHotels(
   const seen = new Set<string>();
   const out: ResortHotelPickInput[] = [];
   for (const hotel of hotels) {
-    const name = hotel.name.trim();
+    const name = cleanHotelDisplayName(hotel.name);
     const id = hotel.id.trim() || name;
     if (!name || hotel.price <= 0 || seen.has(id)) continue;
     if (!meetsMinGuestScore(hotel.rating)) continue;
@@ -153,7 +158,7 @@ export function offerFromHotel(
   return {
     id: hotel.id,
     tier,
-    name: hotel.name.trim(),
+    name: cleanHotelDisplayName(hotel.name),
     imageUrl: images[0] || hotel.image?.trim() || undefined,
     images: images.length ? images : undefined,
     guestScore: guestScore > 0 ? guestScore : undefined,
@@ -178,7 +183,40 @@ export type PickResortHotelsOpts = {
   destIata?: string;
   countryCode?: string;
   nights?: number;
+  /** Party flight total (same basis as the package card). */
+  flightTotalEur?: number;
+  guests?: number;
+  /** Stated € / person band (cap applies +10% slack). */
+  budgetMinPerPerson?: number | null;
+  budgetMaxPerPerson?: number | null;
 };
+
+function isThreeOrFourStar(hotel: ResortHotelPickInput): boolean {
+  const stars = hotel.stars ?? 0;
+  return stars === 3 || stars === 4;
+}
+
+function hotelsWithinBudgetCap(
+  hotels: ResortHotelPickInput[],
+  opts?: PickResortHotelsOpts,
+): ResortHotelPickInput[] {
+  const capMaxPerPerson = budgetCapMaxPerPerson({
+    maxPerPerson: opts?.budgetMaxPerPerson ?? null,
+  });
+  if (capMaxPerPerson == null) return hotels;
+  const flightPartyEur = opts?.flightTotalEur ?? 0;
+  const guests = Math.max(1, Math.round(opts?.guests ?? 2));
+  return hotels
+    .filter((hotel) =>
+      hotelFitsPackageBudgetCap({
+        hotelStayEur: hotel.price,
+        flightPartyEur,
+        guests,
+        capMaxPerPerson,
+      }),
+    )
+    .sort((a, b) => a.price - b.price || b.rating - a.rating);
+}
 
 function valueCandidateScore(
   hotel: ResortHotelPickInput,
@@ -204,6 +242,7 @@ function pickBalancedStayMix(
   mix: ResortStayMixRow,
   nights: number,
   preferAi: boolean,
+  budgetCapped: boolean,
 ): ResortHotelOffer[] {
   const used = new Set<string>();
   const unused = () => usable.filter((hotel) => !used.has(hotel.id));
@@ -222,21 +261,26 @@ function pickBalancedStayMix(
     return out;
   };
 
-  const fourStar = unused().filter((hotel) => {
-    const stars = hotel.stars ?? 0;
-    return stars === 4 || stars === 3;
-  });
+  const fourStar = unused().filter(isThreeOrFourStar);
   const valuePool = fourStar
     .filter((hotel) => !mix.skipForValue.test(hotel.name))
     .filter((hotel) => !preferAi || mealPlanFromHotel(hotel) !== "all_inclusive")
-    .sort((a, b) => valueCandidateScore(b, mix, nights) - valueCandidateScore(a, mix, nights));
+    .sort((a, b) =>
+      budgetCapped
+        ? a.price - b.price || b.rating - a.rating
+        : valueCandidateScore(b, mix, nights) - valueCandidateScore(a, mix, nights),
+    );
   const valueExpanded =
     valuePool.length >= mix.valueSlots
       ? valuePool
       : unused()
           .filter((hotel) => !mix.skipForValue.test(hotel.name) && (hotel.stars ?? 0) <= 4)
           .filter((hotel) => !preferAi || mealPlanFromHotel(hotel) !== "all_inclusive")
-          .sort((a, b) => valueCandidateScore(b, mix, nights) - valueCandidateScore(a, mix, nights));
+          .sort((a, b) =>
+            budgetCapped
+              ? a.price - b.price || b.rating - a.rating
+              : valueCandidateScore(b, mix, nights) - valueCandidateScore(a, mix, nights),
+          );
   const valueSource =
     valueExpanded.length > 0
       ? valueExpanded
@@ -274,6 +318,7 @@ function pickBalancedStayMix(
     if (offers.length >= MAX_RESORT_PACKAGE_OFFERS) break;
     const needsAi =
       preferAi && offers.filter((o) => o.mealPlan === "all_inclusive").length < mix.allInclusiveSlots;
+    const valueLike = offers.filter((o) => o.tier === "value" || o.tier === "recommended").length;
     const tier: ResortPackageTier =
       needsAi && mealPlanFromHotel(hotel) === "all_inclusive"
         ? offers.some((o) => o.tier === "all_inclusive")
@@ -281,9 +326,11 @@ function pickBalancedStayMix(
           : "all_inclusive"
         : (hotel.stars ?? 0) >= 5 || isOverwaterStay(hotel, mix)
           ? "premium"
-          : offers.some((o) => o.tier === "value")
-            ? "recommended"
-            : "value";
+          : valueLike < mix.valueSlots
+            ? offers.some((o) => o.tier === "value")
+              ? "recommended"
+              : "value"
+            : "boutique";
     offers.push(offerFromHotel(hotel, tier));
     used.add(hotel.id);
   }
@@ -302,12 +349,15 @@ export function pickResortHotels(
     countryCode: opts?.countryCode,
     destIata: opts?.destIata,
   });
-  const usable = usableHotels(hotels, mix);
+  const usable = hotelsWithinBudgetCap(usableHotels(hotels, mix), opts);
   if (usable.length === 0) return [];
 
   const preferAi = opts?.preferAllInclusiveSlots !== false;
   const nights = Math.max(1, Math.round(opts?.nights ?? 1));
-  if (mix) return pickBalancedStayMix(usable, mix, nights, preferAi);
+  const budgetCapped = budgetCapMaxPerPerson({
+    maxPerPerson: opts?.budgetMaxPerPerson ?? null,
+  }) != null;
+  if (mix) return pickBalancedStayMix(usable, mix, nights, preferAi, budgetCapped);
 
   const used = new Set<string>();
   const unused = () => usable.filter((hotel) => !used.has(hotel.id));
@@ -336,12 +386,17 @@ export function pickResortHotels(
       .sort((a, b) => b.rating - a.rating || a.price - b.price),
     used,
   );
-  const premium = takeFirst(
+  const luxuryPremium = takeFirst(
     unused()
       .filter(isLuxuryStay)
       .sort((a, b) => b.price - a.price || b.rating - a.rating),
     used,
-  ) ?? takeFirst([...unused()].sort((a, b) => b.price - a.price || b.rating - a.rating), used);
+  );
+  const premium =
+    luxuryPremium ??
+    (budgetCapped
+      ? undefined
+      : takeFirst([...unused()].sort((a, b) => b.price - a.price || b.rating - a.rating), used));
 
   const slots: Array<{ hotel?: ResortHotelPickInput; tier: ResortPackageTier }> = [
     { hotel: value, tier: "value" },

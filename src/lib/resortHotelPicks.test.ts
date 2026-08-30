@@ -267,4 +267,77 @@ describe("pickResortHotels", () => {
     expect(offers.filter((o) => o.tier === "premium").map((o) => o.id).sort()).toEqual(["hyatt", "over"]);
     expect(offers.find((o) => o.tier === "value")?.name).not.toMatch(/hyatt|ritz/i);
   });
+
+  it("respects the 1000–2000€ package cap and fills 4–6 cards from 3★/4★", () => {
+    const offers = pickResortHotels(
+      [
+        hotel({
+          id: "ultra1",
+          name: "Park Hyatt Maldives",
+          price: 9000,
+          stars: 5,
+          rating: 9.4,
+        }),
+        hotel({
+          id: "ultra2",
+          name: "Radisson Blu Resort Maldives with 50 percent off on Sea Plane round trip 03 nights & above",
+          price: 8500,
+          stars: 5,
+          rating: 9.1,
+        }),
+        hotel({ id: "v3", name: "Island Three Star Resort", price: 1400, stars: 3, rating: 8.1 }),
+        hotel({ id: "v4", name: "Coral Four Star", price: 1550, stars: 4, rating: 8.3 }),
+        hotel({
+          id: "ai1",
+          name: "Reef All Inclusive",
+          price: 1750,
+          stars: 4,
+          amenities: { allInclusive: true },
+        }),
+        hotel({
+          id: "ai2",
+          name: "Palm All Inclusive",
+          price: 1850,
+          stars: 4,
+          amenities: { allInclusive: true },
+        }),
+        hotel({ id: "mid", name: "Lagoon Hotel", price: 1680, stars: 4, rating: 8.5 }),
+        hotel({ id: "mid2", name: "Atoll Hotel", price: 1720, stars: 3, rating: 8.2 }),
+      ],
+      {
+        destIata: "MLE",
+        nights: 10,
+        preferAllInclusiveSlots: true,
+        flightTotalEur: 2242,
+        guests: 2,
+        budgetMaxPerPerson: 2000,
+      },
+    );
+
+    expect(offers.length).toBeGreaterThanOrEqual(4);
+    expect(offers.length).toBeLessThanOrEqual(6);
+    expect(
+      offers.every((offer) => (2242 + offer.hotelEur) / 2 <= 2200),
+    ).toBe(true);
+    expect(offers.some((offer) => /hyatt|radisson/i.test(offer.name))).toBe(false);
+    expect(offers.find((offer) => offer.id === "ultra2")?.name).toBeUndefined();
+    expect(offers.filter((o) => o.tier === "value" || o.tier === "recommended")).toHaveLength(2);
+    expect(offers.filter((o) => o.tier === "all_inclusive" || o.tier === "all_inclusive_alt")).toHaveLength(
+      2,
+    );
+    expect(offers.find((o) => o.id === "v3")?.name).toBe("Island Three Star Resort");
+  });
+
+  it("cleans marketing tails on card titles", () => {
+    const offers = pickResortHotels([
+      hotel({
+        id: "rad",
+        name: "Radisson Blu Resort Maldives with 50 percent off on Sea Plane round trip 03 nights & above",
+        price: 1400,
+        stars: 4,
+        rating: 8.4,
+      }),
+    ]);
+    expect(offers[0]?.name).toBe("Radisson Blu Resort Maldives");
+  });
 });

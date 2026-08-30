@@ -18,6 +18,7 @@ import {
   type HotelKind,
   type StayFilterFlags,
 } from "./hotelAmenities";
+import { cleanHotelDisplayName } from "./hotelDisplayName";
 import { uniqueHotelImageUrls } from "./hotelImages";
 
 const RAPID_HOST = "booking-com15.p.rapidapi.com";
@@ -56,6 +57,9 @@ const Input = z.object({
   childrenAges: z.array(z.number().int().min(0).max(17)).max(10).default([]),
   currency: z.string().min(3).max(3).default("EUR"),
   destIata: z.string().min(3).max(3).optional(),
+  /** Party stay-total EUR — RapidAPI `price_min` / `price_max`. */
+  priceMin: z.number().positive().max(1_000_000).optional(),
+  priceMax: z.number().positive().max(1_000_000).optional(),
   filters: z
     .object({
       hotel: z.boolean().optional(),
@@ -202,6 +206,12 @@ export const searchHotels = createServerFn({ method: "POST" })
       if (data.childrenAges.length > 0) {
         params.children_age = data.childrenAges.join(",");
       }
+      if (typeof data.priceMin === "number") {
+        params.price_min = String(Math.round(data.priceMin));
+      }
+      if (typeof data.priceMax === "number") {
+        params.price_max = String(Math.round(data.priceMax));
+      }
       const categories = bookingCategoriesFilterFor((data.filters ?? {}) as StayFilterFlags);
       if (categories) {
         params.categories_filter = categories;
@@ -212,12 +222,19 @@ export const searchHotels = createServerFn({ method: "POST" })
       try {
         result = await rapid("/searchHotels", params);
       } catch (err) {
-        if (!params.categories_filter) throw err;
-        const { categories_filter: _dropped, ...unfiltered } = params;
-        console.warn("[searchHotels] categories_filter rejected, retrying without it");
+        const canDrop = Boolean(params.categories_filter || params.price_max || params.price_min);
+        if (!canDrop) throw err;
+        const { categories_filter: _c, price_max: _max, price_min: _min, ...unfiltered } = params;
+        console.warn("[searchHotels] filter params rejected, retrying without categories/price");
         result = await rapid("/searchHotels", unfiltered);
       }
-      const rows = extractHotelsRows(result);
+      let rows = extractHotelsRows(result);
+      if (rows.length === 0 && (params.price_max || params.price_min)) {
+        const { price_max: _max, price_min: _min, ...noPrice } = params;
+        console.warn("[searchHotels] empty with price filter, retrying without price_min/max");
+        result = await rapid("/searchHotels", noPrice);
+        rows = extractHotelsRows(result);
+      }
 
       console.log("[searchHotels] searchHotels result", {
         city,
@@ -258,8 +275,10 @@ export const searchHotels = createServerFn({ method: "POST" })
               .join(" ")
           : "";
         const typeId = Number(prop.accommodationType ?? prop.accommodationTypeId ?? 0) || undefined;
+        const rawName = String(prop.name ?? "");
+        const displayName = cleanHotelDisplayName(rawName) || rawName || "Hotel";
         const inferred = inferHotelAmenities({
-          name: String(prop.name ?? ""),
+          name: rawName,
           typeName,
           typeId,
           label: String(prop.accessibilityLabel ?? ""),
@@ -273,8 +292,8 @@ export const searchHotels = createServerFn({ method: "POST" })
           images[0] || "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=400";
 
         return {
-          id: id || String(prop.name ?? "hotel"),
-          name: String(prop.name ?? "Hotel"),
+          id: id || displayName,
+          name: displayName,
           price,
           currency: String(priceObj.currency ?? data.currency),
           rating: Number(prop.reviewScore ?? 0),
