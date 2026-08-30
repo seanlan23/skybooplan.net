@@ -13,6 +13,7 @@ import {
   type ShareOgMeta,
   type SharePlanParams,
 } from "@/lib/sharePlan";
+import { sharePackageIdFromInput, unwrapServerFnInput } from "@/lib/sharedPackageParse";
 
 export type SharedPackageSnapshot = {
   id: string;
@@ -55,7 +56,7 @@ function paramsFromInput(data: z.infer<typeof CreateInput>, hotelId?: string): S
 }
 
 export const createSharedPackage = createServerFn({ method: "POST" })
-  .inputValidator((d) => CreateInput.parse(d))
+  .inputValidator((d) => CreateInput.parse(unwrapServerFnInput(d)))
   .handler(async ({ data }): Promise<{ id: string; path: string } | { error: string }> => {
     const plan = slimPlanForShare(data.plan);
     if (!plan.destinationName && !plan.destinationIata) {
@@ -94,8 +95,9 @@ export const createSharedPackage = createServerFn({ method: "POST" })
     };
 
     try {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { error } = await supabaseAdmin.from("shared_packages").insert({
+      const { createSharedPackagesClient } = await import("@/lib/sharedPackageDb.server");
+      const db = createSharedPackagesClient();
+      const { error } = await db.from("shared_packages").insert({
         id,
         payload: payload as unknown as Json,
         og_title: og.title,
@@ -122,14 +124,15 @@ export const createSharedPackage = createServerFn({ method: "POST" })
   });
 
 export const getSharedPackage = createServerFn({ method: "POST" })
-  .inputValidator((d: { id?: string } | null) => ({
-    id: String(d?.id ?? "").trim(),
+  .inputValidator((d: unknown) => ({
+    id: sharePackageIdFromInput(d),
   }))
   .handler(async ({ data }): Promise<SharedPackageSnapshot | null> => {
     try {
       if (!/^[a-zA-Z0-9_-]{6,32}$/.test(data.id)) return null;
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { data: row, error } = await supabaseAdmin
+      const { createSharedPackagesClient } = await import("@/lib/sharedPackageDb.server");
+      const db = createSharedPackagesClient();
+      const { data: row, error } = await db
         .from("shared_packages")
         .select("id, payload, og_title, og_description, og_image, from_iata, to_iata, depart_date, return_date, trip_style, hotel_id, guests")
         .eq("id", data.id)
