@@ -303,9 +303,9 @@ function thailandFallback(lang: LangCode): Omit<TravelRequirements, "targetResid
   if (code === "sl") {
     return {
       visaRequirement:
-        "Državljani EU/Schengen za turistični obisk Tajske ne potrebujejo vize vnaprej. Od maja 2026 velja 30 dni brezvizumskega bivanja na vstop (začasna shema 60 dni je bila ukinjena). Največ dva brezvizumska vstopa na koledarsko leto. Potni list mora veljati vsaj 6 mesecev ob vstopu. Na meji lahko zahtevajo dokazilo o nastanitvi, povratni let in sredstva za bivanje (okvirno 20 000 THB na osebo ali enakovredno).",
+        "Državljani EU/Schengen (vključno s slovenskimi) za turistični obisk Tajske ne potrebujejo vize vnaprej. Turistični vstop je brez vizuma do 60 dni. Potni list mora veljati vsaj 6 mesecev ob vstopu. Na meji lahko zahtevajo dokazilo o nastanitvi, povratni let in sredstva za bivanje (okvirno 20 000 THB na osebo ali enakovredno).",
       howToApply:
-        "Pred prihodom izpolni brezplačni digitalni obrazec TDAC (Thailand Digital Arrival Card) na uradni strani Thai Immigration. Ob vstopu pokažeš potni list in TDAC. Podaljšanje za dodatnih 30 dni je mogoče pri lokalni imigracijski uradi (približno 1 900 THB) — skupaj največ okoli 60 dni na enem potovanju.",
+        "Pred prihodom izpolni brezplačni digitalni obrazec TDAC (Thailand Digital Arrival Card) na uradni strani Thai Immigration. Ob vstopu pokažeš potni list in TDAC.",
       vaccinations:
         "Priporočeno: cepljenje proti hepatitisu A (in B pri daljšem potovanju), posodobljena rutinska cepljenja (MMR, tetanus). Rumena mrličica je obvezna le, če prihajaš iz endemične države. Antimalariki za Bangkok/Chiang Mai/otoke običajno niso potrebni; za deževno sezono imej repelent in zdravila proti driski.",
       estimatedCosts:
@@ -316,9 +316,9 @@ function thailandFallback(lang: LangCode): Omit<TravelRequirements, "targetResid
   if (code === "de") {
     return {
       visaRequirement:
-        "EU-/Schengen-Bürger brauchen für touristische Aufenthalte in Thailand kein Visum im Voraus. Ab Mai 2026 gilt 30 Tage visumfreier Aufenthalt pro Einreise (die vorübergehende 60-Tage-Regelung wurde beendet). Höchstens zwei visumfreie Einreisen pro Kalenderjahr. Reisepass muss bei Einreise mindestens 6 Monate gültig sein. Grenzbeamte können Nachweis über Unterkunft, Rückflug und finanzielle Mittel verlangen (ca. 20.000 THB pro Person oder Gegenwert).",
+        "EU-/Schengen-Bürger (einschließlich Slowenien) brauchen für touristische Aufenthalte in Thailand kein Visum im Voraus. Die visumfreie Einreise gilt bis 60 Tage. Reisepass muss bei Einreise mindestens 6 Monate gültig sein. Grenzbeamte können Nachweis über Unterkunft, Rückflug und finanzielle Mittel verlangen (ca. 20.000 THB pro Person oder Gegenwert).",
       howToApply:
-        "Vor der Ankunft die kostenlose TDAC (Thailand Digital Arrival Card) auf der offiziellen Thai-Immigration-Website ausfüllen. Bei Einreise Reisepass und TDAC vorzeigen. Eine Verlängerung um 30 Tage ist bei einer lokalen Einwanderungsbehörde möglich (~1.900 THB) — insgesamt bis ca. 60 Tage auf einer Reise.",
+        "Vor der Ankunft die kostenlose TDAC (Thailand Digital Arrival Card) auf der offiziellen Thai-Immigration-Website ausfüllen. Bei Einreise Reisepass und TDAC vorzeigen.",
       vaccinations:
         "Empfohlen: Hepatitis A (und B bei längeren Reisen), aktuelle Routineimpfungen (MMR, Tetanus). Gelbfieber nur bei Anreise aus einem Endemiegebiet. Malariaprophylaxe ist für Bangkok/Chiang Mai/Inseln meist nicht nötig; für die Regenzeit Repellent und Mittel gegen Durchfall mitnehmen.",
       estimatedCosts:
@@ -328,9 +328,9 @@ function thailandFallback(lang: LangCode): Omit<TravelRequirements, "targetResid
 
   return {
     visaRequirement:
-      "EU/Schengen citizens do not need a visa in advance for tourism in Thailand. From May 2026, visa-free stays are 30 days per entry (the temporary 60-day scheme was ended). Max two visa-free entries per calendar year. Passport must be valid at least 6 months on arrival. Border officers may ask for proof of accommodation, a return flight, and funds (roughly 20,000 THB per person or equivalent).",
+      "EU/Schengen citizens (including Slovenian passport holders) do not need a visa in advance for tourism in Thailand. Visa-free tourist entry is up to 60 days. Passport must be valid at least 6 months on arrival. Border officers may ask for proof of accommodation, a return flight, and funds (roughly 20,000 THB per person or equivalent).",
     howToApply:
-      "Before arrival, complete the free TDAC (Thailand Digital Arrival Card) on the official Thai Immigration site. Show your passport and TDAC at entry. A 30-day extension is possible at a local immigration office (~1,900 THB) — up to about 60 days total on one trip.",
+      "Before arrival, complete the free TDAC (Thailand Digital Arrival Card) on the official Thai Immigration site. Show your passport and TDAC at entry.",
     vaccinations:
       "Recommended: hepatitis A (and B for longer trips), up-to-date routine vaccines (MMR, tetanus). Yellow fever only if arriving from an endemic country. Malaria prophylaxis is usually unnecessary for Bangkok/Chiang Mai/islands; pack repellent and diarrhoea meds for the rainy season.",
     estimatedCosts:
@@ -461,10 +461,10 @@ function buildFallbackTravelRequirementsCore(
         country,
         requirement:
           langCode === "sl"
-            ? `Preveri aktualna brezvizumska pravila za potnike s potnim listom ${country} ob vstopu v Tajsko (2026: večina zahodnih držav 30 dni). Potni list vsaj 6 mesecev veljaven.`
+            ? `Preveri aktualna brezvizumska pravila za potnike s potnim listom ${country} ob vstopu v Tajsko (2026: turistični vstop za slovenske/EU državljane je brez vizuma do 60 dni). Potni list vsaj 6 mesecev veljaven.`
             : langCode === "de"
-              ? `Aktuelle visumfreie Regeln für Reisende mit Pass aus ${country} bei Einreise nach Thailand prüfen (2026: die meisten westlichen Pässe 30 Tage). Reisepass mindestens 6 Monate gültig.`
-              : `Check current visa-free rules for ${country} passport holders entering Thailand (2026: most Western passports get 30 days). Passport must be valid at least 6 months.`,
+              ? `Aktuelle visumfreie Regeln für Reisende mit Pass aus ${country} bei Einreise nach Thailand prüfen (2026: EU/Slowenien visumfrei bis 60 Tage). Reisepass mindestens 6 Monate gültig.`
+              : `Check current visa-free rules for ${country} passport holders entering Thailand (2026: Slovenian/EU tourist entry is visa-free up to 60 days). Passport must be valid at least 6 months.`,
         howToApply:
           langCode === "sl"
             ? "Preveri uradne vire Thai MFA ali lokalno veleposlaništvo pred odhodom. TDAC obrazec je obvezen za vse potnike."
@@ -683,7 +683,7 @@ SMART TRAVEL REQUIREMENTS (travel_requirements — required in JSON):
 - Intra-EU/Schengen (Spain, Italy, France, Croatia, Greece, Netherlands, Germany, Austria…): free movement, ID/passport enough, visa €0, no special vaccines.
 - NEVER write visa rules for Italy/Rome/FCO unless the destination is actually Italy.
 - Western Balkans road trip (Croatia + Bosnia + Montenegro + Albania, or “Balkan”): Croatia is Schengen; BA/ME/AL visa-free 90 days in 180 for EU; mention car green card / borders. This is NOT an Italy trip.
-- THAILAND 2026: visa-free for EU/Schengen is 30 days (temporary 60-day scheme ended May 2026), max 2 entries/year — do NOT write 60 days visa-free.
+- THAILAND 2026: visa-free tourist entry for Slovenian / EU / Schengen passports is 60 days — do NOT write 30 days. TDAC is still required before arrival.
 - If the itinerary visits MORE THAN ONE country (e.g. Thailand + Kuala Lumpur/Malaysia), visa_info MUST have a separate entry for EACH country. Never cover only the arrival hub.
 - MALAYSIA 2026: EU/Schengen visa-free typically 90 days; complete free MDAC (Malaysia Digital Arrival Card) on imigresen-online.imi.gov.my within 3 days before arrival.
 - vaccinations / estimated_costs: destination-specific and practical (fees in €/USD where known).

@@ -14,6 +14,8 @@ export type BookingSearchParams = {
   destId?: string;
   destType?: string;
   lang?: string;
+  /** Guest review floor (80 = 8.0+). */
+  reviewScore?: number;
 };
 
 function normalizeBookingDate(iso: string): string {
@@ -38,8 +40,8 @@ function ensureCheckoutAfterCheckin(checkIn: string, checkOut?: string): string 
 
 function searchDestination(params: BookingSearchParams): string {
   const city = params.destination.trim();
-  if (!city) return "";
-  return params.hotelName?.trim() ? `${params.hotelName.trim()}, ${city}` : city;
+  const hotel = params.hotelName?.trim() ?? "";
+  return hotel || city;
 }
 
 export function ensureHotelCheckoutAfterCheckin(checkIn: string, checkOut?: string): string {
@@ -52,60 +54,91 @@ function bookingUiLang(lang?: string): string {
   return "en-us";
 }
 
-function setBookingStayDates(url: URL, checkIn: string, checkOut: string) {
-  url.searchParams.set("checkin", checkIn);
-  url.searchParams.set("checkout", checkOut);
-  const [inY, inM, inD] = checkIn.split("-");
-  const [outY, outM, outD] = checkOut.split("-");
-  if (inY && inM && inD) {
-    url.searchParams.set("checkin_year", inY);
-    url.searchParams.set("checkin_month", String(Number(inM)));
-    url.searchParams.set("checkin_monthday", String(Number(inD)));
-  }
-  if (outY && outM && outD) {
-    url.searchParams.set("checkout_year", outY);
-    url.searchParams.set("checkout_month", String(Number(outM)));
-    url.searchParams.set("checkout_monthday", String(Number(outD)));
-  }
+/** Local noon so `YYYY-MM-DD` does not shift a day west of UTC. */
+function bookingCalendarDate(iso: string): Date | null {
+  const day = normalizeBookingDate(iso);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return null;
+  const dt = new Date(`${day}T12:00:00`);
+  return Number.isFinite(dt.getTime()) ? dt : null;
 }
 
-/** Standard Booking.com affiliate search URL with destination + stay dates. */
+export function isValidBookingIsoDate(raw?: string | null): boolean {
+  return bookingCalendarDate(raw ?? "") != null;
+}
+
+/**
+ * Hotel stay from the selected flight (destination arrival / inbound depart)
+ * wins over a stored/mock hotel date. Empty or invalid values never reach
+ * Booking (that opens “today”).
+ */
+export function resolveBookingStayDates(opts: {
+  flightDepartDate?: string;
+  flightReturnDate?: string;
+  checkIn?: string;
+  checkOut?: string;
+}): { checkIn: string; checkOut: string } | null {
+  const checkIn = [opts.flightDepartDate, opts.checkIn]
+    .map((v) => (v ? normalizeBookingDate(v) : ""))
+    .find((v) => isValidBookingIsoDate(v));
+  if (!checkIn) return null;
+  const checkOut = [opts.flightReturnDate, opts.checkOut]
+    .map((v) => (v ? normalizeBookingDate(v) : ""))
+    .find((v) => isValidBookingIsoDate(v));
+  return { checkIn, checkOut: ensureCheckoutAfterCheckin(checkIn, checkOut) };
+}
+
+function setBookingStayDates(url: URL, checkIn: string, checkOut: string) {
+  const inDate = bookingCalendarDate(checkIn);
+  const outDate = bookingCalendarDate(checkOut);
+  if (!inDate || !outDate) return;
+  url.searchParams.set("checkin", checkIn);
+  url.searchParams.set("checkout", checkOut);
+  url.searchParams.set("checkin_year", String(inDate.getFullYear()));
+  url.searchParams.set("checkin_month", String(inDate.getMonth() + 1));
+  url.searchParams.set("checkin_monthday", String(inDate.getDate()));
+  url.searchParams.set("checkout_year", String(outDate.getFullYear()));
+  url.searchParams.set("checkout_month", String(outDate.getMonth() + 1));
+  url.searchParams.set("checkout_monthday", String(outDate.getDate()));
+}
+
+/** Booking.com searchresults URL — ISO dates + year/month/monthday (calendar lock). */
 export function buildBookingSearchUrl(params: BookingSearchParams): string {
   const destination = searchDestination(params);
-  if (!destination) return applyBookingNetworkTracking("https://www.booking.com/");
+  const stay = resolveBookingStayDates({
+    checkIn: params.checkIn,
+    checkOut: params.checkOut,
+  });
+  if (!destination || !stay) return applyBookingNetworkTracking("https://www.booking.com/");
 
-  const checkIn = normalizeBookingDate(params.checkIn);
-  const checkOut = ensureCheckoutAfterCheckin(checkIn, params.checkOut);
-  const lang = bookingUiLang(params.lang);
-
-  const url = new URL("https://www.booking.com/searchresults.html");
-  url.searchParams.set("ss", destination);
-  url.searchParams.set("ssne", destination);
-  url.searchParams.set("ssne_untouched", destination);
-  setBookingStayDates(url, checkIn, checkOut);
-  url.searchParams.set("group_adults", String(params.adults ?? 2));
-  url.searchParams.set("no_rooms", String(params.rooms ?? 1));
-  url.searchParams.set("group_children", String(params.childrenAges?.length ?? 0));
-  (params.childrenAges ?? []).forEach((age) => url.searchParams.append("age", String(age)));
-  if (params.affiliateId) url.searchParams.set("aid", params.affiliateId);
-  if (params.destId) {
-    url.searchParams.set("dest_id", params.destId);
-    url.searchParams.set("dest_type", params.destType || "city");
-  }
-  url.searchParams.set("lang", lang);
-  url.searchParams.set("selected_currency", "EUR");
-  url.searchParams.set("sb", "1");
-  url.searchParams.set("src_elem", "sb");
-  url.searchParams.set("do_availability_check", "1");
-  if (params.nflt?.length) {
-    url.searchParams.set("nflt", params.nflt.join(";"));
-    // Homepage `src=index` drops nflt. dest_id keeps the place for signed-in users.
-    url.searchParams.set("src", "searchresults");
-  } else {
-    url.searchParams.set("src", "index");
+  const checkInDate = bookingCalendarDate(stay.checkIn);
+  const checkoutDate = bookingCalendarDate(stay.checkOut);
+  if (!checkInDate || !checkoutDate) {
+    return applyBookingNetworkTracking("https://www.booking.com/");
   }
 
-  return applyBookingNetworkTracking(url.toString());
+  const search = new URLSearchParams({
+    ss: destination,
+    checkin: stay.checkIn,
+    checkout: stay.checkOut,
+    checkin_year: String(checkInDate.getFullYear()),
+    checkin_month: String(checkInDate.getMonth() + 1),
+    checkin_monthday: String(checkInDate.getDate()),
+    checkout_year: String(checkoutDate.getFullYear()),
+    checkout_month: String(checkoutDate.getMonth() + 1),
+    checkout_monthday: String(checkoutDate.getDate()),
+    group_adults: String(params.adults || 2),
+    no_rooms: String(params.rooms ?? 1),
+    group_children: String(params.childrenAges?.length ?? 0),
+  });
+  (params.childrenAges ?? []).forEach((age) => search.append("age", String(age)));
+  const reviewScore = params.reviewScore ?? 80;
+  if (reviewScore > 0) search.set("review_score", String(reviewScore));
+  if (params.nflt?.length) search.set("nflt", params.nflt.join(";"));
+  if (params.lang) search.set("lang", bookingUiLang(params.lang));
+
+  return applyBookingNetworkTracking(
+    `https://www.booking.com/searchresults.html?${search.toString()}`,
+  );
 }
 
 function isBookingHomepage(pathname: string, search: string): boolean {
@@ -126,6 +159,14 @@ export function resolveHotelBookingUrl(
   apiUrl: string | undefined,
   fallback: BookingSearchParams,
 ): string {
+  const stay = resolveBookingStayDates({
+    checkIn: fallback.checkIn,
+    checkOut: fallback.checkOut,
+  });
+  if (stay && searchDestination(fallback)) {
+    return buildBookingSearchUrl({ ...fallback, ...stay });
+  }
+
   const incoming = extractBookingHopDest(apiUrl ?? "") ?? apiUrl;
   if (!incoming || !allowedBookingDest(incoming)) {
     return buildBookingSearchUrl(fallback);
@@ -136,32 +177,7 @@ export function resolveHotelBookingUrl(
     if (isBookingHomepage(u.pathname, u.search)) {
       return buildBookingSearchUrl(fallback);
     }
-
-    const checkIn = normalizeBookingDate(fallback.checkIn);
-    const checkOut = ensureCheckoutAfterCheckin(checkIn, fallback.checkOut);
-
-    setBookingStayDates(u, checkIn, checkOut);
-    u.searchParams.set("group_adults", String(fallback.adults ?? 2));
-    u.searchParams.set("no_rooms", String(fallback.rooms ?? 1));
-    u.searchParams.set("group_children", String(fallback.childrenAges?.length ?? 0));
-    if (fallback.affiliateId) u.searchParams.set("aid", fallback.affiliateId);
-    if (fallback.destId) {
-      u.searchParams.set("dest_id", fallback.destId);
-      u.searchParams.set("dest_type", fallback.destType || "city");
-    }
-    if (fallback.nflt?.length) {
-      u.searchParams.set("nflt", fallback.nflt.join(";"));
-    }
-
-    if (u.pathname.includes("searchresults") && !u.searchParams.get("ss")) {
-      const destination = searchDestination(fallback);
-      if (destination) {
-        u.searchParams.set("ss", destination);
-        u.searchParams.set("ssne", destination);
-        u.searchParams.set("ssne_untouched", destination);
-      }
-    }
-
+    if (stay) setBookingStayDates(u, stay.checkIn, stay.checkOut);
     return applyBookingNetworkTracking(u.toString());
   } catch {
     return buildBookingSearchUrl(fallback);

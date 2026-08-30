@@ -3,9 +3,11 @@ import type { AiTripPlan } from "@/lib/aiPlan.functions";
 import {
   hasAcceptablePlanDayCoverage,
   incompletePlanDayCoverageMessage,
+  shouldCheckPlanDayCoverage,
   tripDayCount,
   type GenerateGeminiProTripInput,
 } from "@/lib/geminiPro.functions";
+import { resolveTripStyle } from "@/lib/tripStyle";
 import { supabaseAuthHeaders } from "@/lib/supabaseAuthHeaders";
 import {
   consumeNdjsonBuffer,
@@ -132,6 +134,7 @@ export function useStreamItinerary() {
       requestScreenWakeLock();
 
       const expectedFromInput = tripDayCount(input.departDate, input.returnDate);
+      const skipDayCoverage = resolveTripStyle(input) === "single_base";
 
       setStatus("streaming");
       setPreviewPlan(null);
@@ -164,6 +167,8 @@ export function useStreamItinerary() {
         const lastPartialPlan = lastPartial.plan;
         if (!lastPartialPlan?.days?.length) return null;
         if (
+          !skipDayCoverage &&
+          shouldCheckPlanDayCoverage(lastPartialPlan) &&
           !hasAcceptablePlanDayCoverage(lastPartialPlan.days.length, expectedFromInput)
         ) {
           return rejectIncomplete(
@@ -201,7 +206,11 @@ export function useStreamItinerary() {
           setPreviewPlan(plan);
           setStreamedDayCount(plan.days.length);
           setExpectedDays(expectedFromInput);
-          if (!hasAcceptablePlanDayCoverage(plan.days.length, expectedFromInput)) {
+          if (
+            !skipDayCoverage &&
+            shouldCheckPlanDayCoverage(plan) &&
+            !hasAcceptablePlanDayCoverage(plan.days.length, expectedFromInput)
+          ) {
             streamError = incompletePlanDayCoverageMessage(
               plan.days.length,
               expectedFromInput,

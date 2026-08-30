@@ -449,6 +449,43 @@ describe("parseMakeSearchFlights", () => {
       "https://www.skyscanner.net/transport/flights/vie/hkt/261026/261109/?adults=2",
     );
   });
+
+  it("stores layover airport and wait from Duffel segments", () => {
+    const result = parseMakeSearchFlights({
+      offers: [
+        {
+          id: "off_pek",
+          total_amount: "640.00",
+          total_currency: "EUR",
+          owner: { name: "Air China", iata_code: "CA" },
+          slices: [
+            {
+              origin: { iata_code: "VIE" },
+              destination: { iata_code: "BKK" },
+              segments: [
+                {
+                  departing_at: "2026-11-20T13:00:00+01:00",
+                  arriving_at: "2026-11-21T04:50:00+08:00",
+                  origin: { iata_code: "VIE" },
+                  destination: { iata_code: "PEK" },
+                  marketing_carrier: { name: "Air China", iata_code: "CA" },
+                },
+                {
+                  departing_at: "2026-11-21T20:00:00+08:00",
+                  arriving_at: "2026-11-22T00:10:00+07:00",
+                  origin: { iata_code: "PEK" },
+                  destination: { iata_code: "BKK" },
+                  marketing_carrier: { name: "Air China", iata_code: "CA" },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+    expect(result[0]?.postanki).toBe("1|PEK");
+    expect(result[0]?.outbound_layovers).toEqual([{ iata: "PEK", minutes: 15 * 60 + 10 }]);
+  });
 });
 
 describe("parseMakeSearchUserMessage", () => {

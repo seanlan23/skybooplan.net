@@ -144,6 +144,7 @@ export function corePlanForDb(plan: AiTripPlan): AiTripPlan {
     travelRequirements: safeJsonClone(plan.travelRequirements),
     groundJourney: safeJsonClone(plan.groundJourney),
     hotels: safeJsonClone(plan.hotels),
+    flightContext: safeJsonClone(plan.flightContext) ?? undefined,
     days: (plan.days ?? []).map((d): DayPlan => ({
       day: d.day,
       date: d.date ?? "",

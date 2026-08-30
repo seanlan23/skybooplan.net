@@ -13,6 +13,9 @@ import {
 } from "@/lib/geminiPro.functions";
 import { createTripPlanStream, generateTripPlan } from "@/lib/geminiPro";
 import { normalizePlanLangCode } from "@/lib/planLanguages";
+import { isSingleBasePayload } from "@/lib/singleBaseContract";
+import { singleBaseJsonToPlan } from "@/lib/singleBasePlanMap";
+import { resolveTripStyle } from "@/lib/tripStyle";
 
 export function buildGeminiMapOpts(userInputs: GenerateItineraryInput) {
   const wishesText = [
@@ -37,6 +40,9 @@ export function buildGeminiMapOpts(userInputs: GenerateItineraryInput) {
     budget: userInputs.budget,
     pax: userInputs.pax.adults + userInputs.pax.childrenAges.length,
     pace: userInputs.pace,
+    travelStyle: userInputs.travelStyle,
+    tripStyle: userInputs.tripStyle,
+    returnDate: userInputs.returnDate,
   };
 }
 
@@ -55,16 +61,47 @@ export type GenerateItineraryResult = {
  */
 export { CORE_ITINERARY_SYSTEM_RULES } from "@/lib/coreItineraryRules";
 export type { ActivityItem, ItineraryDayPlan } from "@/lib/itineraryDayContract";
+export type { TripStyle } from "@/lib/tripStyle";
+export type {
+  ArrivalProtocol,
+  DepartureProtocol,
+  OptionalExcursion,
+  ResortGuide,
+  SingleBasePlan,
+} from "@/lib/singleBaseContract";
 export function itineraryJsonToPlan(
   raw: unknown,
   userInputs: GenerateItineraryInput,
 ): AiTripPlan | null {
+  const opts = buildGeminiMapOpts(userInputs);
+  const style = resolveTripStyle(userInputs);
+  const rawObj = raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Record<string, unknown>) : null;
+  const hasDayItinerary = Boolean(
+    (Array.isArray(rawObj?.days) && rawObj.days.length > 0) ||
+      (Array.isArray(rawObj?.itinerar) && rawObj.itinerar.length > 0),
+  );
+  const useSingleBase =
+    isSingleBasePayload(raw) || (style === "single_base" && !hasDayItinerary);
+  if (useSingleBase) {
+    const plan = singleBaseJsonToPlan(raw, opts);
+    if (!plan || !isCatalogTripPlan(plan)) return null;
+    finalizeItineraryMapCoords(plan);
+    return stampFlightContext(plan, userInputs);
+  }
   const parsed = parseCoercedTripPlan(raw);
   if (!parsed.success) return null;
-  const plan = tripPlanResponseToAiTripPlan(parsed.data, buildGeminiMapOpts(userInputs));
+  const plan = tripPlanResponseToAiTripPlan(parsed.data, opts);
   if (!isCatalogTripPlan(plan)) return null;
   finalizeItineraryMapCoords(plan);
-  return plan;
+  return stampFlightContext(plan, userInputs);
+}
+
+function stampFlightContext(
+  plan: AiTripPlan,
+  userInputs: GenerateItineraryInput,
+): AiTripPlan {
+  if (!userInputs.flightContext) return plan;
+  return { ...plan, flightContext: userInputs.flightContext };
 }
 
 /** One structured Gemini call for the full calendar. JSON is mapped, not rewritten. */

@@ -1,8 +1,11 @@
 import type { AiTripPlan } from "@/lib/aiPlan.functions";
 import { resolveDayBudgetCountry } from "@/lib/countryDailyBudget";
+import type { TripFlightContext } from "@/lib/flightScheduling";
+import { hotelStayDatesFromFlight } from "@/lib/hotelStayDates";
 import {
   estimateOvernightStay,
   overnightPlaceHint,
+  resolveStayNights,
   type OvernightEstimate,
 } from "@/lib/overnightEstimate";
 import { countHomeboundUnpaidNights } from "@/lib/roadTripLogistics";
@@ -28,6 +31,7 @@ export function buildTripCostSummary(opts: {
   iata?: string;
   mode: "hotel" | "car" | "motorhome";
   unpaidNights?: number;
+  nights?: number;
 }): TripCostSummary {
   const planEur = Math.max(0, Math.round(opts.planEur));
   const flightEur = Math.max(0, Math.round(opts.flightTotalEur ?? 0));
@@ -39,6 +43,7 @@ export function buildTripCostSummary(opts: {
     iata: opts.iata,
     mode: opts.mode,
     unpaidNights: opts.unpaidNights,
+    nights: opts.nights,
   });
   return {
     planEur,
@@ -85,6 +90,9 @@ export function summarizeAiTripCosts(
     pax: number;
     flightTotalEur?: number | null;
     destinationIata?: string;
+    departDate?: string;
+    returnDate?: string;
+    flights?: TripFlightContext;
   },
 ): TripCostSummary {
   const pax = Math.max(1, opts.pax);
@@ -99,6 +107,26 @@ export function summarizeAiTripCosts(
   const flightEur = motorhome
     ? 0
     : (opts.flightTotalEur ?? plan.flightTotalEur ?? 0);
+  const hotel = plan.hotels?.[0];
+  const stay = hotelStayDatesFromFlight({
+    departDate: opts.departDate,
+    returnDate: opts.returnDate,
+    outboundArriveDate: opts.flights?.outboundArriveDate,
+    outboundArriveDayOffset: opts.flights?.outboundArriveDayOffset,
+    outboundDepart: opts.flights?.outboundDepart,
+    outboundArrive: opts.flights?.outboundArrive,
+    inboundDepartDate: opts.flights?.inboundDepartDate,
+  });
+  const fromDate = stay?.checkIn || hotel?.from_date || opts.departDate || plan.days[0]?.date;
+  const toDate = stay?.checkOut || hotel?.to_date || opts.returnDate;
+  const resortNights =
+    plan.resortStay || plan.tripStyle === "single_base"
+      ? resolveStayNights({
+          hotelNights: fromDate && toDate ? undefined : hotel?.nights,
+          fromDate,
+          toDate,
+        })
+      : undefined;
   return buildTripCostSummary({
     planEur,
     flightTotalEur: flightEur,
@@ -117,6 +145,7 @@ export function summarizeAiTripCosts(
     iata: destIata,
     mode: motorhome ? "motorhome" : car ? "car" : "hotel",
     unpaidNights: car || motorhome ? countHomeboundUnpaidNights(plan) : 0,
+    nights: resortNights,
   });
 }
 

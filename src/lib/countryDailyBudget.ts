@@ -167,6 +167,9 @@ export function inferBudgetCountryFromPlace(place?: string): string | null {
   if (/georgia|gruzij|tbilisi/.test(n)) return "GE";
   if (/kenya|kenij|nairobi|maasai|amboseli|\bnbo\b/.test(n)) return "KE";
   if (/tanzania|tanzanij|serengeti|ngorongoro|zanzibar|arusha|\bjro\b/.test(n)) return "TZ";
+  if (/maldives|maldiv|\bmle\b/.test(n)) return "MV";
+  if (/dominican|dominikansk|punta\s*cana|bavaro|saona|\bpuj\b|\bsdq\b/.test(n)) return "DO";
+  if (/mauritius|mavricij|\bmru\b/.test(n)) return "MU";
   if (/namibia|namibij|windhoek|etosha|sossusvlei|\bwdh\b/.test(n)) return "NA";
   if (/botswana|bocvan|maun|gaborone|chobe|okavango|makgadikgadi|kasane|\bgbe\b|\bmub\b/.test(n)) {
     return "BW";

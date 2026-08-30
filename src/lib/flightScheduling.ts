@@ -8,6 +8,7 @@ import {
   hotelTransferDescription,
   type TripLocale,
 } from "@/lib/tripLocale";
+import type { FlightLayover } from "@/lib/flightTransitGuide";
 
 /** EU/EEA + CH + GB — off-site airport parking comparators are common. */
 const EU_PARKING_ORIGIN_COUNTRIES = new Set([
@@ -48,6 +49,10 @@ export type TripFlightContext = {
   outboundDepart: string;
   outboundArrive: string;
   outboundArriveDayOffset: number;
+  /** Local YYYY-MM-DD the outbound flight lands — hotel check-in. */
+  outboundArriveDate?: string;
+  /** Local YYYY-MM-DD the inbound flight takes off — hotel check-out. */
+  inboundDepartDate?: string;
   inboundDepart?: string;
   inboundArrive?: string;
   /** Stops on outbound / inbound (0 = nonstop). Undefined = unknown. */
@@ -55,6 +60,8 @@ export type TripFlightContext = {
   inboundStops?: number;
   outboundVia?: string;
   inboundVia?: string;
+  outboundLayovers?: FlightLayover[];
+  inboundLayovers?: FlightLayover[];
 };
 
 export type LogisticsActivity = {
@@ -387,8 +394,15 @@ export function flightContextFromLegs(
     arriveDayOffset: number;
     stops?: number;
     via?: string;
+    layovers?: FlightLayover[];
   },
-  inbound?: { depart: string; arrive: string; stops?: number; via?: string },
+  inbound?: {
+    depart: string;
+    arrive: string;
+    stops?: number;
+    via?: string;
+    layovers?: FlightLayover[];
+  },
 ): TripFlightContext {
   return {
     outboundDepart: outbound.depart,
@@ -400,6 +414,8 @@ export function flightContextFromLegs(
     ...(inbound?.stops != null ? { inboundStops: inbound.stops } : {}),
     ...(outbound.via ? { outboundVia: outbound.via } : {}),
     ...(inbound?.via ? { inboundVia: inbound.via } : {}),
+    ...(outbound.layovers?.length ? { outboundLayovers: outbound.layovers } : {}),
+    ...(inbound?.layovers?.length ? { inboundLayovers: inbound.layovers } : {}),
   };
 }
 

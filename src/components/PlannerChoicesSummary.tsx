@@ -1,5 +1,6 @@
 import { CheckSquare, Gauge, Heart, MessageSquareQuote } from "lucide-react";
 import type { AiPlannerSubmit } from "@/components/AiPlannerPreview";
+import { DEFAULT_TRAVEL_STYLE } from "@/lib/travelStyle";
 import { localizeWishesDisplay } from "@/lib/heroChatFlow";
 import { plannerWishesForDisplay } from "@/lib/heroCar";
 import { useI18n } from "@/lib/i18n";
@@ -28,6 +29,8 @@ export function PlannerChoicesSummary({
   const hasWishes = wishesText.length > 0;
   const tags = Array.isArray(form.tags) ? form.tags : [];
   const paceText = t("aiplan.paceChip").replace("{pace}", paceLabel(form.pace, t));
+  const styleId = form.travelStyle ?? DEFAULT_TRAVEL_STYLE;
+  const styleText = t(`heroChat.travelStyle.${styleId}` as never);
 
   return (
     <div className={`mt-3 rounded-xl border border-sky-100 bg-sky-50/60 px-4 py-3 ${className}`.trim()}>
@@ -38,6 +41,9 @@ export function PlannerChoicesSummary({
         <span className="inline-flex items-center gap-1.5 rounded-full bg-white border border-sky-200 px-3 py-1 text-xs font-semibold text-slate-700 shadow-sm">
           <Gauge className="h-3.5 w-3.5 text-sky-600" aria-hidden />
           {paceText}
+        </span>
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-white border border-sky-200 px-3 py-1 text-xs font-semibold text-slate-700 shadow-sm">
+          {styleText}
         </span>
         {form.plannerStyle === "catalog" && (form.pickedAttractionIds?.length ?? 0) > 0 ? (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-white border border-emerald-200 px-3 py-1 text-xs font-semibold text-slate-700 shadow-sm">

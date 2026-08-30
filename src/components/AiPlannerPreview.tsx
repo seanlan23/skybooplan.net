@@ -41,6 +41,7 @@ export type AiPlannerContext = {
 
 export type AiPlannerSubmit = {
   pace: "intensive" | "relaxed" | "calm";
+  travelStyle?: import("@/lib/travelStyle").TravelStyle;
   wishes: string;
   tags: string[];
   customPrompt: string;

@@ -22,6 +22,8 @@ export type StayFilterFlags = {
   pool?: boolean;
   parking?: boolean;
   freeCancel?: boolean;
+  /** Booking review_score=80 — guest rating 8.0+. */
+  minReview80?: boolean;
 };
 
 const APARTMENT_TYPE_IDS = new Set([201, 213, 221, 222, 223]);
@@ -87,6 +89,7 @@ export function bookingNfltFor(filters: StayFilterFlags): string[] {
   if (filters.parking) out.push("hotelfacility=2");
   if (filters.jacuzzi) out.push("hotelfacility=46");
   if (filters.freeCancel) out.push("fc=2");
+  if (filters.minReview80) out.push("review_score=80");
   return out;
 }
 
@@ -107,5 +110,6 @@ export function bookingCategoriesFilterFor(filters: StayFilterFlags): string {
   if (filters.parking) parts.push("hotelfacility::2");
   if (filters.jacuzzi) parts.push("hotelfacility::46");
   if (filters.freeCancel) parts.push("free_cancellation::1");
+  if (filters.minReview80) parts.push("review_score::80");
   return parts.join(",");
 }

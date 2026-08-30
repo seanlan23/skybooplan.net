@@ -41,19 +41,20 @@ describe("collapseResidentLabels", () => {
 });
 
 describe("buildFallbackTravelRequirements Thailand", () => {
-  it("uses EU label and English 30-day rule by default", () => {
+  it("uses EU label and English 60-day visa-free rule by default", () => {
     const req = buildFallbackTravelRequirements("LJU", "BKK", "en");
     expect(req?.targetResidents).toEqual(["EU"]);
     expect(req?.visaInfo).toHaveLength(1);
     expect(req?.visaInfo[0]!.country).toBe("EU / Schengen");
-    expect(req?.visaInfo[0]!.requirement).toMatch(/30 days/i);
+    expect(req?.visaInfo[0]!.requirement).toMatch(/60 days/i);
+    expect(req?.visaInfo[0]!.requirement).not.toMatch(/30 days per entry/i);
     expect(req?.visaInfo[0]!.requirement).not.toMatch(/državljan/i);
   });
 
   it("keeps Slovenian copy when lang is sl", () => {
     const req = buildFallbackTravelRequirements("LJU", "BKK", "sl");
-    expect(req?.visaInfo[0]!.requirement).toMatch(/30 dni/);
-    expect(req?.visaInfo[0]!.requirement).not.toMatch(/60 dni brezvizumskega/);
+    expect(req?.visaInfo[0]!.requirement).toMatch(/60 dni/);
+    expect(req?.visaInfo[0]!.requirement).not.toMatch(/30 dni brezvizumskega/);
   });
 });
 

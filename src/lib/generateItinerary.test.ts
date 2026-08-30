@@ -17,6 +17,7 @@ function input(): GenerateItineraryInput {
     wishTags: [],
     language: "sl",
     currency: "EUR",
+    tripStyle: "explorer",
   };
 }
 
@@ -43,6 +44,9 @@ describe("CORE_ITINERARY_SYSTEM_RULES", () => {
     expect(CORE_ITINERARY_SYSTEM_RULES).toMatch(/Markdown table pipes/);
     expect(CORE_ITINERARY_SYSTEM_RULES).toMatch(/30°C/);
     expect(CORE_ITINERARY_SYSTEM_RULES).toMatch(/\\circ/);
+    expect(CORE_ITINERARY_SYSTEM_RULES).toMatch(/TIMEZONE & FLIGHT DURATION/);
+    expect(CORE_ITINERARY_SYSTEM_RULES).toMatch(/SAME calendar day/);
+    expect(CORE_ITINERARY_SYSTEM_RULES).toMatch(/24h\+/);
   });
 });
 
@@ -335,5 +339,76 @@ describe("itineraryJsonToPlan", () => {
     ]);
     expect(plan!.days[0]!.activities?.morning?.[0]?.name).toMatch(/Lokalni ogled Phuket/i);
     expect(plan!.days[0]!.activities?.morning?.[0]?.name).not.toMatch(/gliser|Phi Phi/i);
+  });
+
+  it("maps single_base protocol JSON without inventing hourly days", () => {
+    const raw = {
+      tripStyle: "single_base",
+      trip_title: "Zanzibar, 1 baza",
+      overview: "En resort, brez selitev.",
+      arrival_protocol: {
+        visa_and_entry: "Pred pristankom izpolni vstopni obrazec. 2 potnika.",
+        immigration: "Vrsta za obiskovalce, potni list in povratni let.",
+        baggage: "Trak 2, nato carina.",
+        transfer_pickup: "Pult hotel transfer desno od izhoda, tablica z imenom.",
+        cash_and_esim: "Menjalnica pred izhodom; eSIM pred poletom. 24h asistenca.",
+      },
+      resort_guide: {
+        check_in_out: "Prijava od 14:00, odjava do 10:00.",
+        all_inclusive_etiquette: "Zapestnica za restavracije; večerja a la carte z rezervacijo.",
+        tipping: "Napitnina v restavraciji ni obvezna; sobarju drobiž.",
+        relaxing_at_resort: "Plaža, bazen, masaža — brez urnika po urah.",
+      },
+      optional_excursions: [
+        {
+          title: "Stone Town",
+          description: "Sprehod po starem mestu in morske sadeže na večerji.",
+          estimated_cost_eur: 45,
+          book_safely_where: "Uradni concierge v hotelu",
+        },
+        {
+          title: "Prison Island",
+          description: "Izlet s čolnom do želv.",
+          estimated_cost_eur: 60,
+          book_safely_where: "Licenciran operator na recepciji",
+        },
+        {
+          title: "Safari Blue",
+          description: "Celodnevni izlet z jadrnico.",
+          estimated_cost_eur: 90,
+          book_safely_where: "Uradni pult, ne ulični posredniki",
+        },
+        {
+          title: "Jozani gozd",
+          description: "Sprehod med rdečimi kolobusi.",
+          estimated_cost_eur: 40,
+          book_safely_where: "Hotel desk",
+        },
+      ],
+      departure_protocol: {
+        return_transfer: "Kombi 3 ure pred poletom.",
+        airport_lead_time: "Na terminalu 3 ure pred odhodom, 30°C popoldne.",
+        flight_alignment: "Odjava po zajtrku, brez 10-urnega čakanja.",
+      },
+      hotels: [{ city: "Nungwi", nights: 6 }],
+    };
+
+    const plan = itineraryJsonToPlan(raw, {
+      ...input(),
+      destinationIata: "ZNZ",
+      destinationPlace: "Zanzibar",
+      tripStyle: "single_base",
+      returnDate: "2026-11-01",
+    });
+    expect(plan).not.toBeNull();
+    expect(plan!.tripStyle).toBe("single_base");
+    expect(plan!.resortStay?.optionalExcursions).toHaveLength(4);
+    expect(plan!.resortStay?.arrivalProtocol.visa_and_entry).toMatch(/2 potnika/);
+    expect(plan!.resortStay?.arrivalProtocol.transfer_pickup).toMatch(/Naročilo prek hotela/);
+    expect(plan!.resortStay?.arrivalProtocol.transfer_pickup).toMatch(/aplikacij/i);
+    expect(plan!.resortStay?.arrivalProtocol.transfer_pickup).toMatch(/Uradni letališki taksi pult/);
+    expect(plan!.days).toHaveLength(1);
+    expect(plan!.days[0]!.city).toMatch(/Nungwi|Zanzibar/i);
+    expect(JSON.stringify(plan!.days[0]!.activities ?? {})).not.toMatch(/10:00/);
   });
 });

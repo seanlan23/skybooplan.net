@@ -6,6 +6,12 @@ import {
   type HeroChatCollected,
 } from "@/lib/heroChatFlow";
 import { normalizeIata, type TripBudgetTier } from "@/lib/geminiPro.shared";
+import {
+  resolveResortCoastalBase,
+  resortCoastalPlaceLabel,
+  resortCoastalPromptNote,
+} from "@/lib/resortCoastalBase";
+import { DEFAULT_TRAVEL_STYLE, normalizeTravelStyle } from "@/lib/travelStyle";
 import { parseMakeSearchDestination, parseMakeSearchOriginAirports } from "@/lib/makeSearch";
 
 const ORIGIN_IATA: Record<string, string> = {
@@ -240,7 +246,12 @@ export function heroChatToPlannerPayload(
           : defaultDateTo(departDate));
   const { adults, childrenAges } = parseChatPassengers(collected.passengers);
   const originPlace = collected.origin?.trim() || "Ljubljana";
-  const destinationPlace = (collected.destination ?? "").trim() || "Thailand";
+  const rawDestination = (collected.destination ?? "").trim() || "Thailand";
+  const travelStyle = collected.travelStyle
+    ? normalizeTravelStyle(collected.travelStyle)
+    : DEFAULT_TRAVEL_STYLE;
+  const coastal = resolveResortCoastalBase(rawDestination, travelStyle);
+  const destinationPlace = coastal ? resortCoastalPlaceLabel(coastal) : rawDestination;
   const returnFromIata =
     tripType === "openjaw" && collected.returnFromIata?.trim()
       ? collected.returnFromIata.trim().toUpperCase()
@@ -248,7 +259,7 @@ export function heroChatToPlannerPayload(
 
   const ctx: AiPlannerContext & { language?: string; currency?: "EUR" | "USD" } = {
     from: resolveOriginIata(originPlace),
-    to: resolveDestinationIata(destinationPlace),
+    to: coastal?.iata || resolveDestinationIata(rawDestination),
     originPlace,
     destinationPlace,
     departDate,
@@ -275,9 +286,15 @@ export function heroChatToPlannerPayload(
   // (and the planner summary chip). Keep this box for free-form places only.
   const form: AiPlannerSubmit = {
     pace,
-    wishes: locationWishes
-      ? `Želje (obvezno upoštevaj mesta/lokacije): ${locationWishes}`
-      : "",
+    travelStyle,
+    wishes: [
+      coastal ? resortCoastalPromptNote(coastal, language) : "",
+      locationWishes
+        ? `Želje (obvezno upoštevaj mesta/lokacije): ${locationWishes}`
+        : "",
+    ]
+      .filter(Boolean)
+      .join("\n"),
     tags: [],
     customPrompt: "",
     budget: mapChatBudget(budgetLabel),

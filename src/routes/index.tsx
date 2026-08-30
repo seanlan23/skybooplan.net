@@ -20,6 +20,7 @@ import {
   type HeroChatMode,
 } from "@/lib/heroChatFlow";
 import {
+  stayDestinationLabel,
   staySearchFromCollected,
   type HeroStaySearchParams,
 } from "@/lib/heroStaySearch";
@@ -67,6 +68,7 @@ import { resolveErrorMessage, translate, useI18n } from "@/lib/i18n";
 import { normalizePlanLangCode } from "@/lib/planLanguages";
 import { normalizePlanCurrency } from "@/lib/planCurrency";
 import { flightContextFromLegs } from "@/lib/flightScheduling";
+import { stampHotelStayOnFlightContext } from "@/lib/hotelStayDates";
 import {
   heroFlightPartyTotalEur,
   itineraryWithTripCosts,
@@ -78,8 +80,23 @@ import { formatPlannerInterests } from "@/lib/plannerInterests";
 import { Button } from "@/components/ui/button";
 import { addDays, inclusiveCalendarDayCount } from "@/lib/dateUtils";
 import { inferArriveDayOffset, parseMakeFlightRoute, type MakeSearchFlight } from "@/lib/makeSearch";
-import { parsePostankiLeg } from "@/lib/returnFlightSummary";
+import { makeFlightStopContext } from "@/lib/flightTransitGuide";
 import { resolveHeroSearchData } from "@/lib/heroSearchPoll";
+import { ensureHotelCheckoutAfterCheckin } from "@/lib/bookingUrl";
+import { hotelSearchQueryAlias } from "@/lib/hotelDestinationPick";
+import { searchHotels } from "@/lib/hotels.functions";
+import {
+  isResortPackageSearch,
+  pickResortBaseFlight,
+  plannerContextFromHeroFlight,
+} from "@/lib/heroResortFlow";
+import { mergeResortHotelPools, pickResortHotels } from "@/lib/resortHotelPicks";
+import {
+  defaultResortHotelFilters,
+  prefersAllInclusiveResortSearch,
+  resolveResortDiningModel,
+} from "@/lib/resortDiningModel";
+import { resolveResortCoastalBase } from "@/lib/resortCoastalBase";
 import { heroChatToPlannerPayload, resolveDestinationIata } from "@/lib/heroChatPlanner";
 import { useUserLocation } from "@/lib/hooks/useUserLocation";
 import { nudgeIntoView } from "@/lib/utils";
@@ -284,9 +301,14 @@ function normalizeLastPlannerForm(input: unknown): AiPlannerSubmit | null {
       raw.plannerStyle === "catalog" || raw.plannerStyle === "ai"
         ? raw.plannerStyle
         : undefined;
+    const travelStyle =
+      raw.travelStyle === "resort" || raw.travelStyle === "explore" || raw.travelStyle === "roadtrip"
+        ? raw.travelStyle
+        : undefined;
 
     return {
       pace,
+      travelStyle,
       wishes: typeof raw.wishes === "string" ? raw.wishes : "",
       tags,
       customPrompt: typeof raw.customPrompt === "string" ? raw.customPrompt : "",
@@ -941,12 +963,100 @@ function Landing() {
       language: lang,
     });
 
-    // Stay on flight cards after search — AI planner opens only when the user
-    // picks a flight ("Za AI načrt"), not automatically in "Vse skupaj" mode.
+    // Resort / Mir: lock the best return flight and generate packages — no “Izberi za plan”.
+    if (isResortPackageSearch(collected, mode) && resolvedFlights.length > 0) {
+      const flight = pickResortBaseFlight(resolvedFlights);
+      if (flight) {
+        setHeroFlights([flight]);
+        await startResortPackageGeneration(flight, collected, enrichedCtx);
+        return;
+      }
+    }
+
+    // Explore / roadtrip: stay on flight cards until the user picks one.
     if (flightSearchOk || resolvedFlights.length > 0) {
       window.setTimeout(() => {
         nudgeIntoView(document.getElementById("hero-chat-window"), "nearest");
       }, 120);
+    }
+  }
+
+  async function startResortPackageGeneration(
+    flight: MakeSearchFlight,
+    collected: HeroChatCollected,
+    baseCtx: AiPlannerContext & { language?: string },
+  ) {
+    const { form } = heroChatToPlannerPayload(collected, lang);
+    const ctx = plannerContextFromHeroFlight(flight, baseCtx);
+    setSelectedHeroFlightId(flight.id);
+    setAiContext(ctx);
+    setHeroPlannerActive(true);
+
+    const checkIn = ctx.departDate;
+    const checkOut = ensureHotelCheckoutAfterCheckin(checkIn, ctx.returnDate);
+    const coastalHotel = resolveResortCoastalBase(
+      collected.destination || ctx.destinationPlace,
+      collected.travelStyle,
+    );
+    const city =
+      coastalHotel?.hotelQuery ||
+      hotelSearchQueryAlias(
+        stayDestinationLabel(ctx.destinationPlace || collected.destination || "").split(",")[0]!.trim(),
+      ) ||
+      ctx.destinationPlace?.split(",")[0]?.trim() ||
+      "";
+    const rooms = Math.max(1, Math.min(10, Math.ceil(Math.max(1, ctx.adults) / 2)));
+    const stayQuery = {
+      city,
+      checkIn,
+      checkOut,
+      adults: Math.max(1, ctx.adults),
+      rooms,
+      childrenAges: ctx.childrenAges ?? [],
+      currency: "EUR" as const,
+    };
+    const emptyHotelRes = {
+      hotels: [] as Awaited<ReturnType<typeof searchHotels>>["hotels"],
+      error: null as string | null,
+    };
+    const dining = resolveResortDiningModel({
+      destinationIata: ctx.to,
+      destinationPlace: collected.destination || ctx.destinationPlace,
+      destinationName: ctx.destinationPlace,
+    });
+    const searchResortHotels = (filters: {
+      hotel?: boolean;
+      breakfast?: boolean;
+      allInclusive?: boolean;
+      minReview80?: boolean;
+    }) =>
+      searchHotels({ data: { ...stayQuery, filters } }).catch((err) => {
+        console.warn("[resortPackages] hotel search failed", err);
+        return { hotels: emptyHotelRes.hotels, error: String(err) };
+      });
+    const hotelsPromise =
+      city && checkIn && checkOut
+        ? prefersAllInclusiveResortSearch(dining)
+          ? Promise.all([
+              searchResortHotels({ hotel: true }),
+              searchResortHotels(defaultResortHotelFilters(dining)),
+            ]).then(([base, allInclusive]) => ({
+              hotels: mergeResortHotelPools(base.hotels ?? [], allInclusive.hotels ?? []),
+              error: base.error || allInclusive.error,
+            }))
+          : searchResortHotels(defaultResortHotelFilters(dining)).then((base) => ({
+              hotels: base.hotels ?? [],
+              error: base.error,
+            }))
+        : Promise.resolve(emptyHotelRes);
+
+    await handleGeneratePlan(form, ctx, "trip", "hero-trip-plan", collected.attachment);
+    const hotelRes = await hotelsPromise;
+    const offers = pickResortHotels(hotelRes.hotels ?? [], {
+      preferAllInclusiveSlots: prefersAllInclusiveResortSearch(dining),
+    });
+    if (offers.length) {
+      setAiPlan((current) => (current ? { ...current, resortOffers: offers } : current));
     }
   }
 
@@ -1184,30 +1294,33 @@ function Landing() {
       (lastSearch?.tripType === "multicity" && lastSearch.slices?.[1]?.from) ||
       undefined;
 
-    const outStops = parsePostankiLeg(flight.postanki, "outbound");
-    const inStops = parsePostankiLeg(flight.postanki, "inbound");
     const flightCtx =
       flight.outbound_depart && flight.outbound_arrive
-        ? {
-            outboundDepart: flight.outbound_depart,
-            outboundArrive: flight.outbound_arrive,
-            // Same inference as FlightCard (+1 for 21:10→17:55) — never default silent 0.
-            outboundArriveDayOffset: inferArriveDayOffset(
-              flight.outbound_depart,
-              flight.outbound_arrive,
-              flight.outbound_arrive_day_offset,
-            ),
-            ...(!isOneWay && flight.inbound_depart
-              ? { inboundDepart: flight.inbound_depart }
-              : {}),
-            ...(!isOneWay && flight.inbound_arrive
-              ? { inboundArrive: flight.inbound_arrive }
-              : {}),
-            ...(outStops.stops != null ? { outboundStops: outStops.stops } : {}),
-            ...(!isOneWay && inStops.stops != null ? { inboundStops: inStops.stops } : {}),
-            ...(outStops.via ? { outboundVia: outStops.via } : {}),
-            ...(!isOneWay && inStops.via ? { inboundVia: inStops.via } : {}),
-          }
+        ? stampHotelStayOnFlightContext(
+            {
+              outboundDepart: flight.outbound_depart,
+              outboundArrive: flight.outbound_arrive,
+              // Same inference as FlightCard (+1 for 21:10→17:55) — never default silent 0.
+              outboundArriveDayOffset: inferArriveDayOffset(
+                flight.outbound_depart,
+                flight.outbound_arrive,
+                flight.outbound_arrive_day_offset,
+              ),
+              ...(!isOneWay && flight.inbound_depart
+                ? { inboundDepart: flight.inbound_depart }
+                : {}),
+              ...(!isOneWay && flight.inbound_arrive
+                ? { inboundArrive: flight.inbound_arrive }
+                : {}),
+              ...makeFlightStopContext(flight, !isOneWay),
+            },
+            {
+              departDate: flight.depart_date || departDate,
+              returnDate: flight.return_date || returnDate,
+              outboundArriveIso: flight.outbound_arrive_iso,
+              inboundDepartIso: flight.inbound_depart_iso,
+            },
+          )
         : aiContext.flights;
 
     const partyForPrice = Math.max(
@@ -1270,7 +1383,10 @@ function Landing() {
       adults,
       childrenAges,
       language: lastSearch?.language || "en",
-      flights: flightContextFromLegs(f.outbound, f.inbound),
+      flights: stampHotelStayOnFlightContext(
+        flightContextFromLegs(f.outbound, f.inbound),
+        { departDate: f.outbound.date, returnDate: f.inbound?.date },
+      ),
       flightTotalEur: Math.round(f.price),
     });
     setTimeout(() => {
@@ -1428,6 +1544,9 @@ function Landing() {
             pax: paxPdf,
             flightTotalEur: aiContext?.flightTotalEur ?? planForPdf.flightTotalEur,
             destinationIata: planForPdf.destinationIata ?? aiContext?.to,
+            departDate: startDate ?? undefined,
+            returnDate: endDate ?? undefined,
+            flights: aiContext?.flights ?? planForPdf.flightContext,
           });
         } catch (costErr) {
           console.warn("[pdf] cost summary skipped", costErr);
@@ -1489,6 +1608,9 @@ function Landing() {
           itinerary: {
             ...(costPdf ? itineraryWithTripCosts(planForPdf, costPdf) : planForPdf),
             ...(pdfFlights?.length ? { flights: pdfFlights } : {}),
+            ...(aiContext?.flights || planForPdf.flightContext
+              ? { flightContext: aiContext?.flights ?? planForPdf.flightContext }
+              : {}),
           } as never,
           language: aiContext?.language,
           pax: paxPdf,
@@ -1546,6 +1668,9 @@ function Landing() {
             pax: paxMail,
             flightTotalEur: aiContext?.flightTotalEur ?? planForMail.flightTotalEur,
             destinationIata: planForMail.destinationIata ?? aiContext?.to,
+            departDate: aiContext?.departDate,
+            returnDate: aiContext?.returnDate,
+            flights: aiContext?.flights ?? planForMail.flightContext,
           });
         } catch (costErr) {
           console.warn("[email] cost summary skipped", costErr);
@@ -1555,9 +1680,12 @@ function Landing() {
           destination: planForMail.destinationName || planForMail.destinationPlace || "",
           start_date: aiContext?.departDate ?? planForMail.days[0]?.date ?? null,
           end_date: aiContext?.returnDate ?? lastDay?.dateEnd ?? lastDay?.date ?? null,
-          itinerary: (costMail
-            ? itineraryWithTripCosts(planForMail, costMail)
-            : planForMail) as never,
+          itinerary: {
+            ...(costMail ? itineraryWithTripCosts(planForMail, costMail) : planForMail),
+            ...(aiContext?.flights || planForMail.flightContext
+              ? { flightContext: aiContext?.flights ?? planForMail.flightContext }
+              : {}),
+          } as never,
           language: aiContext?.language,
           pax: paxMail,
           ipCountry,
@@ -1678,6 +1806,7 @@ function Landing() {
             return text ? text.slice(0, 2400) : undefined;
           })(),
           pace: safeForm.pace,
+          travelStyle: safeForm.travelStyle,
           priorities,
           attachment: heroAttachment ?? undefined,
           ...groundTrip,
@@ -1696,7 +1825,7 @@ function Landing() {
           { days: plan?.days.length ?? 0, error: streamError },
         );
 
-        if (plan?.days?.length) {
+        if (plan?.days?.length || plan?.resortStay) {
           commitAiPlan(plan);
           // Stream path used to skip DB save — dashboard stayed empty for logged-in users.
           await persistPlanToTrips(plan, ctx);
@@ -1706,7 +1835,7 @@ function Landing() {
           if (streamError === "error.planInterrupted") setGenInterrupted(true);
           return;
         }
-        if (!plan?.days?.length) {
+        if (!plan?.days?.length && !plan?.resortStay) {
           setAiError(t("error.planInvalidFormat"));
         }
         return;
@@ -1741,6 +1870,7 @@ function Landing() {
         language: ctx.language || "en",
         currency: normalizePlanCurrency(ctx.currency ?? lastSearch?.currency ?? uiCurrency),
         pace: form.pace,
+        travelStyle: form.travelStyle,
         wishes,
         priorities: form.tags,
         customPrompt: form.customPrompt,
@@ -1813,6 +1943,11 @@ function Landing() {
     ? previewWithPhotos ?? aiPlan
     : aiPlan ?? previewWithPhotos;
   const isGeminiStreaming = streamItinerary.isStreaming;
+  const selectedFlightBookingUrl = (() => {
+    if (!selectedHeroFlightId) return undefined;
+    const url = heroFlights.find((f) => f.id === selectedHeroFlightId)?.booking_url?.trim();
+    return url || undefined;
+  })();
 
   const showHeroPlannerForm =
     heroSkyChatComplete &&
@@ -1932,6 +2067,7 @@ function Landing() {
           childrenAges: lastSearch?.childrenAges ?? aiContext?.childrenAges,
           rooms: lastSearch?.rooms,
         }}
+        flightBookingUrl={selectedFlightBookingUrl}
       />
 
       <SocialProofSection />
@@ -2037,6 +2173,7 @@ function Landing() {
                   returnDate={aiContext?.returnDate}
                   flights={aiContext?.flights}
                   flightTotalEur={aiContext?.flightTotalEur}
+                  flightBookingUrl={selectedFlightBookingUrl}
                   loaderOrbit={
                     aiContext?.groundTransportMode === "motorhome"
                       ? "motorhome"

@@ -60,6 +60,38 @@ function segmentAirMin(seg: NonNullable<DuffelSliceDurationInput["segments"]>[nu
   return 0;
 }
 
+export type SliceLayover = {
+  iata: string;
+  minutes: number;
+};
+
+/** Connection airport + wait between consecutive segments. */
+export function sliceLayoversFromSegments(
+  segments: NonNullable<DuffelSliceDurationInput["segments"]> | undefined,
+): SliceLayover[] {
+  const segs = (segments ?? []).filter((s) => s && (s.departing_at || s.arriving_at));
+  if (segs.length < 2) return [];
+  const out: SliceLayover[] = [];
+  for (let i = 0; i < segs.length - 1; i++) {
+    const prev = segs[i]!;
+    const next = segs[i + 1]!;
+    const iata = (
+      prev.destination?.iata_code ||
+      next.origin?.iata_code ||
+      ""
+    )
+      .trim()
+      .toUpperCase();
+    if (!/^[A-Z]{3}$/.test(iata)) continue;
+    let minutes = 0;
+    if (prev.arriving_at && next.departing_at) {
+      minutes = firstLastElapsedMin(prev.arriving_at, next.departing_at, iata, iata);
+    }
+    out.push({ iata, minutes });
+  }
+  return out;
+}
+
 /** Airborne + layover from consecutive segment timestamps. */
 function chainedSliceMinutes(
   segments: NonNullable<DuffelSliceDurationInput["segments"]>,

@@ -4,6 +4,8 @@
  * Country bands are a floor. Famous expensive cities override — NYC is not “generic US”.
  */
 
+import { inclusiveCalendarDayCount } from "@/lib/dateUtils";
+
 /** Mid double-room nightly EUR for hubs where the country average is far too cheap. */
 const CITY_HOTEL_NIGHTLY: Array<{ test: RegExp; eur: number }> = [
   { test: /new york|\bnyc\b|manhattan|brooklyn|williamsburg/, eur: 270 },
@@ -128,6 +130,9 @@ const WEST_EU_HOTEL = new Set([
 
 const PREMIUM_HOTEL = new Set(["CH", "NO", "DK", "SE", "FI", "IS", "LU"]);
 
+/** Fly-and-flop island nations — mid resort room, not a city 3★. */
+const ISLAND_RESORT_HOTEL = new Set(["MV", "SC", "MU"]);
+
 export type OvernightStayKind = "hotel" | "camp" | "none";
 
 export type OvernightEstimate = {
@@ -154,6 +159,7 @@ export function estimateHotelRoomNightlyEur(
     return 55;
   }
   if (ADRIATIC_ALPS_HOTEL.has(cc)) return 100;
+  if (ISLAND_RESORT_HOTEL.has(cc)) return 240;
   if (PREMIUM_HOTEL.has(cc)) return 160;
   if (WEST_EU_HOTEL.has(cc)) return 120;
   if (cc === "US" || cc === "CA" || cc === "AU" || cc === "NZ") return 140;
@@ -172,6 +178,23 @@ export function estimateCampNightlyEur(countryCode: string | undefined, pax: num
 
 export function tripOvernightNights(dayCount: number): number {
   return Math.max(0, Math.floor(dayCount) - 1);
+}
+
+/** Hotel nights from `hotels[]` or check-in/out — not from a synthetic 1-day plan. */
+export function resolveStayNights(opts: {
+  hotelNights?: number | null;
+  fromDate?: string | null;
+  toDate?: string | null;
+}): number | undefined {
+  if (typeof opts.hotelNights === "number" && opts.hotelNights > 0) {
+    return Math.floor(opts.hotelNights);
+  }
+  const from = opts.fromDate?.match(/^(\d{4}-\d{2}-\d{2})/)?.[1];
+  const to = opts.toDate?.match(/^(\d{4}-\d{2}-\d{2})/)?.[1];
+  if (!from || !to) return undefined;
+  const days = inclusiveCalendarDayCount(from, to);
+  if (!days) return undefined;
+  return Math.max(1, days - 1);
 }
 
 /** Join destination + all day cities so day-1 origin (Munich) cannot hide NYC. */
@@ -206,8 +229,12 @@ export function estimateOvernightStay(opts: {
   mode: "hotel" | "car" | "motorhome";
   /** Nights at home / origin on a car loop — do not bill a hotel. */
   unpaidNights?: number;
+  /** When set, used instead of `dayCount - 1` (single-base synthetic days). */
+  nights?: number;
 }): OvernightEstimate {
-  const nights = Math.max(0, tripOvernightNights(opts.dayCount) - Math.max(0, opts.unpaidNights ?? 0));
+  const rawNights =
+    opts.nights != null ? Math.floor(opts.nights) : tripOvernightNights(opts.dayCount);
+  const nights = Math.max(0, rawNights - Math.max(0, opts.unpaidNights ?? 0));
   if (nights <= 0 || opts.mode === "motorhome") {
     return { kind: "none", nightlyEur: 0, nights: 0, rooms: 0, totalEur: 0 };
   }

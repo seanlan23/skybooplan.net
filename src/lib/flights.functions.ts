@@ -6,7 +6,7 @@ import {
   isMultiCitySearch,
   type FlightSearchInput,
 } from "@/lib/flightSearch";
-import { duffelSliceDurationMin } from "@/lib/flightSliceDuration";
+import { duffelSliceDurationMin, sliceLayoversFromSegments } from "@/lib/flightSliceDuration";
 
 /** Max offers pulled from Duffel per search (sorted by price server-side). */
 export const DUFFEL_MAX_OFFERS = 20;
@@ -118,6 +118,9 @@ export type FlightLeg = {
   stops: number;
   airline: string;
   airlineCode: string;
+  /** Layover IATAs, e.g. "PEK" or "IST,DXB". */
+  via?: string;
+  layovers?: Array<{ iata: string; minutes?: number }>;
 };
 
 export type DuffelFlight = {
@@ -224,6 +227,11 @@ function mapSliceToLeg(slice: DuffelSlice): FlightLeg {
   const last = slice.segments[slice.segments.length - 1];
   const carrier = first.marketing_carrier;
   const durationMin = resolveSliceDurationMin(slice);
+  const layovers = sliceLayoversFromSegments(slice.segments).map((l) => ({
+    iata: l.iata,
+    ...(l.minutes > 0 ? { minutes: l.minutes } : {}),
+  }));
+  const via = layovers.map((l) => l.iata).join(",");
 
   return {
     from: first.origin.iata_code,
@@ -237,6 +245,8 @@ function mapSliceToLeg(slice: DuffelSlice): FlightLeg {
     stops: Math.max(0, slice.segments.length - 1),
     airline: carrier.name,
     airlineCode: carrier.iata_code,
+    ...(via ? { via } : {}),
+    ...(layovers.length ? { layovers } : {}),
   };
 }
 

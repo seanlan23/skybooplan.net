@@ -73,6 +73,47 @@ describe("buildTripCostSummary", () => {
     expect(overlay.flightTotalEur).toBe(2874);
   });
 
+  it("single_base uses hotel nights, not the synthetic 1-day plan", () => {
+    const s = summarizeAiTripCosts(
+      stubPlan({
+        tripStyle: "single_base",
+        totalBudgetEur: 0,
+        flightTotalEur: 1800,
+        hotels: [{ city: "Nungwi", nights: 6, from_date: "2026-09-20", to_date: "2026-09-26" }],
+        destinationName: "Zanzibar",
+        destinationIata: "ZNZ",
+      }),
+      { pax: 2, flightTotalEur: 1800, destinationIata: "ZNZ" },
+    );
+    expect(s.flightEur).toBe(1800);
+    expect(s.overnight.nights).toBe(6);
+    expect(s.overnight.totalEur).toBeGreaterThan(0);
+  });
+
+  it("counts resort nights from destination arrival, not home-airport depart", () => {
+    const s = summarizeAiTripCosts(
+      stubPlan({
+        tripStyle: "single_base",
+        totalBudgetEur: 0,
+        hotels: [{ city: "Phuket", nights: 11, from_date: "2026-10-26", to_date: "2026-11-06" }],
+        destinationName: "Phuket",
+        destinationIata: "HKT",
+      }),
+      {
+        pax: 2,
+        destinationIata: "HKT",
+        departDate: "2026-10-26",
+        returnDate: "2026-11-06",
+        flights: {
+          outboundDepart: "19:40",
+          outboundArrive: "10:10",
+          outboundArriveDayOffset: 1,
+        },
+      },
+    );
+    expect(s.overnight.nights).toBe(10);
+  });
+
   it("stampFlightTotalOnPlan skips motorhome", () => {
     const stamped = stampFlightTotalOnPlan(
       stubPlan({ groundTransportMode: "motorhome" }),

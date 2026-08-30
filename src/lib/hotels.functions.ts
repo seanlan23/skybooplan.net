@@ -16,6 +16,7 @@ import {
   type HotelKind,
   type StayFilterFlags,
 } from "./hotelAmenities";
+import { uniqueHotelImageUrls } from "./hotelImages";
 
 const RAPID_HOST = "booking-com15.p.rapidapi.com";
 const BASE = `https://${RAPID_HOST}/api/v1/hotels`;
@@ -28,6 +29,8 @@ export type RealHotel = {
   rating: number;
   reviews: number;
   image: string;
+  /** Up to 6 Booking photo URLs for the package-card gallery. */
+  images?: string[];
   bookingUrl: string;
   reviewWord?: string;
   stars?: number;
@@ -61,6 +64,7 @@ const Input = z.object({
       pool: z.boolean().optional(),
       parking: z.boolean().optional(),
       freeCancel: z.boolean().optional(),
+      minReview80: z.boolean().optional(),
     })
     .optional(),
 });
@@ -249,6 +253,12 @@ export const searchHotels = createServerFn({ method: "POST" })
           label: String(prop.accessibilityLabel ?? ""),
           badges,
         });
+        const images = uniqueHotelImageUrls([
+          ...(Array.isArray(prop.photoUrls) ? prop.photoUrls : []),
+          prop.photoMainUrl,
+        ]);
+        const image =
+          images[0] || "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=400";
 
         return {
           id: id || String(prop.name ?? "hotel"),
@@ -257,11 +267,8 @@ export const searchHotels = createServerFn({ method: "POST" })
           currency: String(priceObj.currency ?? data.currency),
           rating: Number(prop.reviewScore ?? 0),
           reviews: Number(prop.reviewCount ?? 0),
-          image: String(
-            (Array.isArray(prop.photoUrls) && prop.photoUrls[0]) ||
-              prop.photoMainUrl ||
-              "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=400",
-          ),
+          image,
+          images: images.length ? images : undefined,
           bookingUrl,
           reviewWord: String(prop.reviewScoreWord ?? "").trim() || undefined,
           stars: starsRaw >= 1 && starsRaw <= 5 ? starsRaw : undefined,

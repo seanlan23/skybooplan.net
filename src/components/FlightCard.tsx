@@ -10,6 +10,11 @@ import {
   type MakeSearchFlight,
 } from "@/lib/makeSearch";
 import { resolveMakeFlightLegAirports } from "@/lib/flightCardRoute";
+import {
+  buildTransitGuide,
+  connectionsFromMakeFlight,
+} from "@/lib/flightTransitGuide";
+import { TransitGuideNote } from "@/components/TransitGuideNote";
 import { cn } from "@/lib/utils";
 
 function formatPrice(eur: number, lang: string): string {
@@ -415,6 +420,7 @@ export function FlightCard({
   const outboundLabel = t("flightCard.departure" as never);
   const returnLabel = t("flightCard.return" as never);
   const onewayBadge = t("flightCard.onewayBadge" as never);
+  const transitGuide = buildTransitGuide(connectionsFromMakeFlight(flight), lang);
 
   return (
     <article
@@ -549,6 +555,7 @@ export function FlightCard({
           ) : null}
         </div>
       </div>
+      {transitGuide ? <TransitGuideNote guide={transitGuide} collapsible /> : null}
     </article>
   );
 }

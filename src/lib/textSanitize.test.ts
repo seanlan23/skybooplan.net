@@ -32,6 +32,10 @@ describe("cleanText", () => {
     expect(cleanText("| High Line | 10:00 |")).toBe("High Line 10:00");
     expect(cleanText("$30\\circ C$")).toBe("30°C");
     expect(cleanText("$30^{\\circ}C$")).toBe("30°C");
+    expect(cleanText("$MUC\\rightarrow JFK \\cdot 1$")).toBe("MUC → JFK 1");
+    expect(cleanText("$\\approx70$ €")).toBe("~70 €");
+    expect(cleanText("$\\approx40~\\xi$")).toBe("~40 €");
+    expect(cleanText("Ni v term znesku — hoteli")).toBe("Ni v tem znesku — hoteli");
     expect(cleanText("")).toBe("");
   });
 });

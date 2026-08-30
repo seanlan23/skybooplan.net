@@ -53,4 +53,10 @@ export const CORE_ITINERARY_SYSTEM_RULES = `=== CORE SYSTEM RULES (mandatory) ==
 
 11) CLEAN JSON (no markdown tables, no LaTeX):
 - Never put raw Markdown table pipes "|" in titles, start_time, or descriptions. Clean JSON fields only.
-- Temperatures as 30°C — never $30^{\\circ}C$ or $30\\circ C$.`.trim();
+- Temperatures as 30°C — never $30^{\\circ}C$ or $30\\circ C$.
+- Flight hops as MUC → JFK — never $MUC\\rightarrow JFK \\cdot 1$.
+
+12) TIMEZONE & FLIGHT DURATION ACCURACY:
+- When flying West (e.g. Europe to North/Central America), account for time zone gain (−6 to −8 hours).
+- Flights departing Europe in the afternoon/evening arrive in America on the SAME calendar day in the evening.
+- Do NOT push the arrival to the next day unless it is a multi-layover 24h+ flight.`.trim();

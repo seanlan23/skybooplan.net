@@ -21,6 +21,12 @@ import {
 import { HeroDateRangeCalendar } from "@/components/HeroDateRangeCalendar";
 import { HeroDestinationAutocomplete } from "@/components/HeroDestinationAutocomplete";
 import {
+  DEFAULT_TRAVEL_STYLE,
+  TRAVEL_STYLES,
+  normalizeTravelStyle,
+  skipsPaceQuestion,
+} from "@/lib/travelStyle";
+import {
   buildHeroMakeSearchQuery,
   buildHeroStaysSearchQuery,
   createChatMessage,
@@ -67,6 +73,7 @@ const DATE_CHIP_IDS = ["endOctober", "startNovember", "octNov", "flexible"] as c
 const TRIP_TYPE_IDS = ["return", "oneway", "openjaw"] as const;
 const NIGHT_CHIP_IDS = ["3-5", "7", "10-14", "2weeks"] as const;
 const PACE_CHIP_IDS = ["intensive", "relaxed", "calm"] as const;
+const TRAVEL_STYLE_CHIP_IDS = TRAVEL_STYLES;
 const BUDGET_CHIP_IDS = ["under500", "500-1000", "1000-2000", "2000plus"] as const;
 
 /**
@@ -99,6 +106,7 @@ const HERO_FEATURE_BADGE_IDS = ["itinerary", "flights", "pdf", "onePlan"] as con
 type ChipOption = {
   id: string;
   label: string;
+  hint?: string;
 };
 
 type HeroChatFlowProps = {
@@ -261,7 +269,7 @@ function QuickReplyChips({
               : "flex flex-wrap",
         )}
       >
-        {options.map(({ id, label }) => (
+        {options.map(({ id, label, hint }) => (
           <button
             key={id}
             type="button"
@@ -269,10 +277,18 @@ function QuickReplyChips({
             onClick={() => onSelect(id, label)}
             className={cn(
               "inline-flex items-center justify-center rounded-full border border-white/40 bg-white px-3.5 py-2 text-sm font-medium text-gray-800 shadow-sm transition-colors hover:bg-white/90 disabled:opacity-50",
-              layout === "grid" || layout === "stack" ? "w-full text-center" : "max-w-full min-w-0",
+              hint
+                ? "flex-col items-stretch rounded-2xl py-3 text-left"
+                : layout === "grid" || layout === "stack"
+                  ? "w-full text-center"
+                  : "max-w-full min-w-0",
+              (layout === "grid" || layout === "stack") && "w-full",
             )}
           >
             <span className="whitespace-normal text-balance leading-snug">{label}</span>
+            {hint ? (
+              <span className="mt-0.5 text-xs font-normal text-gray-500">{hint}</span>
+            ) : null}
           </button>
         ))}
       </div>
@@ -617,6 +633,7 @@ export function HeroChatFlow({
   const isFullPlan = mode === "all";
   /** Skip pace/budget — flights / stays / avtodom / car go straight to results after party size. */
   const isQuickSearchMode = isFlightsOnly || isStaysOnly || isRoadGroundOnly;
+  const fullPlanPrefStep = "travelStyle" as const;
   const roadChatNs = isCarOnly ? "heroChat.car" : "heroChat.motorhome";
   const roadT = useCallback(
     (key: string) => t(`${roadChatNs}.${key}` as never),
@@ -644,7 +661,7 @@ export function HeroChatFlow({
   const [fileError, setFileError] = useState<string | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   /** Where to go after the origin picker confirms. */
-  const [afterOrigin, setAfterOrigin] = useState<"searching" | "pace">("searching");
+  const [afterOrigin, setAfterOrigin] = useState<"searching" | "pace" | "travelStyle">("searching");
 
   const agentName = t("heroChat.agentName" as never);
   const isSearching = step === "searching";
@@ -819,7 +836,7 @@ export function HeroChatFlow({
       // Flights: destination → origin (MUC…) → trip type → dates → …
       if (!isStaysOnly && !isRoadGroundOnly) {
         const knownOrigin = originsFromCollected(destWithAirport, "");
-        setAfterOrigin(isFlightsOnly ? "searching" : "pace");
+        setAfterOrigin(isFlightsOnly ? "searching" : isFullPlan ? "travelStyle" : "pace");
         if (knownOrigin.length === 0) {
           appendMessages(createChatMessage("ai", t("heroChat.origin.ask" as never)));
           setStep("origin");
@@ -1116,7 +1133,16 @@ export function HeroChatFlow({
   }, [step]);
 
   useEffect(() => {
-    if (loading || flights.length === 0 || flightsAnnouncedRef.current) return;
+    if (loading || flightsAnnouncedRef.current) return;
+    const hideFlightPicker = isFullPlan && collected.travelStyle === "resort";
+    if (hideFlightPicker) {
+      if (step !== "searching" || searchError) return;
+      flightsAnnouncedRef.current = true;
+      appendMessages(createChatMessage("ai", t("heroChat.resortPickingFlight" as never)));
+      scrollToBottom();
+      return;
+    }
+    if (flights.length === 0) return;
     flightsAnnouncedRef.current = true;
     const namedOrigins = originsFromCollected(
       collected.destination,
@@ -1143,7 +1169,19 @@ export function HeroChatFlow({
         : t("heroChat.flightResultsIntro" as never);
     appendMessages(createChatMessage("ai", intro));
     scrollToBottom();
-  }, [loading, flights, collected.destination, appendMessages, t, scrollToBottom]);
+  }, [
+    loading,
+    flights,
+    step,
+    searchError,
+    isFullPlan,
+    collected.travelStyle,
+    collected.destination,
+    collected.origin,
+    appendMessages,
+    t,
+    scrollToBottom,
+  ]);
 
   function clearDatePickerOffers() {
     setMessages((prev) =>
@@ -1180,7 +1218,7 @@ export function HeroChatFlow({
       setCollected((prev) => ({ ...prev, destination: destAir }));
     }
     const knownOrigin = originsFromCollected(destAir, collected.origin);
-    setAfterOrigin("pace");
+    setAfterOrigin(fullPlanPrefStep);
     if (knownOrigin.length === 0) {
       appendMessages(createChatMessage("ai", t("heroChat.origin.ask" as never)));
       setStep("origin");
@@ -1225,7 +1263,7 @@ export function HeroChatFlow({
     continueFlightAfterDestination();
   }
 
-  function goToOriginStep(next: "searching" | "pace") {
+  function goToOriginStep(next: "searching" | "pace" | "travelStyle") {
     setAfterOrigin(next);
     appendMessages(createChatMessage("ai", t("heroChat.origin.ask" as never)));
     setStep("origin");
@@ -1234,7 +1272,7 @@ export function HeroChatFlow({
 
   /** Skip the picker when the user already named airports in chat. */
   function continueWithOptionalOrigin(
-    next: "searching" | "pace",
+    next: "searching" | "pace" | "travelStyle",
     context: { destination?: string; origin?: string; dates?: string },
   ) {
     if (context.dates?.trim()) {
@@ -1260,6 +1298,10 @@ export function HeroChatFlow({
       }));
       if (next === "searching") {
         startFlightSearch({ origins: known });
+        return;
+      }
+      if (next === "travelStyle") {
+        askTravelStyle();
         return;
       }
       appendMessages(createChatMessage("ai", t("heroChat.pace.ask" as never)));
@@ -1331,7 +1373,7 @@ export function HeroChatFlow({
         return;
       }
       if (collected.dates?.trim()) {
-        continueWithOptionalOrigin(isQuickSearchMode ? "searching" : "pace", {
+        continueWithOptionalOrigin(isQuickSearchMode ? "searching" : fullPlanPrefStep, {
           destination: collected.destination,
           origin: collected.origin,
           dates: collected.dates,
@@ -1363,7 +1405,7 @@ export function HeroChatFlow({
     }
 
     if (collected.dates?.trim()) {
-      continueWithOptionalOrigin(isQuickSearchMode ? "searching" : "pace", {
+      continueWithOptionalOrigin(isQuickSearchMode ? "searching" : fullPlanPrefStep, {
         destination: collected.destination,
         origin: collected.origin,
         dates: collected.dates,
@@ -1378,7 +1420,7 @@ export function HeroChatFlow({
     appendMessages(createChatMessage("user", label || code));
     setCollected((prev) => ({ ...prev, returnFromIata: code, tripType: "openjaw" }));
     if (collected.dates?.trim()) {
-      continueWithOptionalOrigin(isQuickSearchMode ? "searching" : "pace", {
+      continueWithOptionalOrigin(isQuickSearchMode ? "searching" : fullPlanPrefStep, {
         destination: collected.destination,
         origin: collected.origin,
         dates: collected.dates,
@@ -1396,7 +1438,7 @@ export function HeroChatFlow({
       askPassengers(dates);
       return;
     }
-    continueWithOptionalOrigin(isQuickSearchMode ? "searching" : "pace", {
+    continueWithOptionalOrigin(isQuickSearchMode ? "searching" : fullPlanPrefStep, {
       destination: collected.destination,
       origin: collected.origin,
       dates,
@@ -1410,6 +1452,36 @@ export function HeroChatFlow({
       appendMessages(createChatMessage("user", label.trim()));
     }
     continueAfterDates(label);
+  }
+
+  function askTravelStyle() {
+    setCollected((prev) => ({
+      ...prev,
+      travelStyle: prev.travelStyle ?? DEFAULT_TRAVEL_STYLE,
+    }));
+    appendMessages(createChatMessage("ai", t("heroChat.travelStyle.ask" as never)));
+    setStep("travelStyle");
+    scrollToBottom();
+  }
+
+  function handleTravelStyleSelect(id: string, label: string) {
+    const travelStyle = normalizeTravelStyle(id);
+    if (skipsPaceQuestion(travelStyle)) {
+      const relaxed = t("heroChat.pace.relaxed" as never);
+      appendMessages(
+        createChatMessage("user", label),
+        createChatMessage("ai", t("heroChat.budget.ask" as never)),
+      );
+      setCollected((prev) => ({ ...prev, travelStyle, pace: relaxed }));
+      setStep("budget");
+      return;
+    }
+    appendMessages(
+      createChatMessage("user", label),
+      createChatMessage("ai", t("heroChat.pace.ask" as never)),
+    );
+    setCollected((prev) => ({ ...prev, travelStyle }));
+    setStep("pace");
   }
 
   function handlePaceSelect(_id: string, label: string) {
@@ -1491,6 +1563,10 @@ export function HeroChatFlow({
       startFlightSearch({ origins: codes });
       return;
     }
+    if (next === "travelStyle" || isFullPlan) {
+      askTravelStyle();
+      return;
+    }
     appendMessages(createChatMessage("ai", t("heroChat.pace.ask" as never)));
     setStep("pace");
   }
@@ -1528,7 +1604,7 @@ export function HeroChatFlow({
         scrollToBottom();
         return;
       }
-      continueWithOptionalOrigin(isQuickSearchMode ? "searching" : "pace", {
+      continueWithOptionalOrigin(isQuickSearchMode ? "searching" : fullPlanPrefStep, {
         destination,
         origin: collected.origin,
         dates: dateLabel,
@@ -1579,7 +1655,7 @@ export function HeroChatFlow({
       askRoadWishes();
       return;
     }
-    goToOriginStep(isFlightsOnly ? "searching" : "pace");
+    goToOriginStep(isFlightsOnly ? "searching" : fullPlanPrefStep);
   }
 
   function handleBudgetSelect(_id: string, label: string) {
@@ -1685,6 +1761,9 @@ export function HeroChatFlow({
         handlePassengersSelect(parsed?.label ?? trimmed);
         break;
       }
+      case "travelStyle":
+        handleTravelStyleSelect(trimmed, trimmed);
+        break;
       case "pace":
         handlePaceSelect("custom", trimmed);
         break;
@@ -1721,6 +1800,7 @@ export function HeroChatFlow({
     step === "dates" ||
     step === "nights" ||
     step === "passengers" ||
+    step === "travelStyle" ||
     step === "pace" ||
     step === "budget" ||
     step === "travelMode" ||
@@ -1973,7 +2053,10 @@ export function HeroChatFlow({
             </div>
           ) : null}
 
-          {!loading && !staySearch && flights.length > 0 ? (
+          {!loading &&
+          !staySearch &&
+          flights.length > 0 &&
+          !(isFullPlan && collected.travelStyle === "resort") ? (
             <div className="hero-sky-enter mx-auto w-full max-w-xl space-y-2 pl-0 pr-1 sm:pl-10">
               {flights.map((flight, index) => (
                 <FlightCard
@@ -1997,6 +2080,19 @@ export function HeroChatFlow({
               onSelect={(label, _adults, _children, rooms) =>
                 handlePassengersSelect(label, rooms)
               }
+            />
+          ) : null}
+
+          {showConversationChips && step === "travelStyle" && !isQuickSearchMode ? (
+            <QuickReplyChips
+              layout="stack"
+              disabled={loading}
+              options={TRAVEL_STYLE_CHIP_IDS.map((id) => ({
+                id,
+                label: t(`heroChat.travelStyle.${id}` as never),
+                hint: t(`heroChat.travelStyle.${id}Hint` as never),
+              }))}
+              onSelect={handleTravelStyleSelect}
             />
           ) : null}
 

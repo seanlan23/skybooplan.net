@@ -9,15 +9,16 @@ import {
   resolvePlanContentLanguage,
   stripPlanTeaser,
 } from "@/lib/planTeaser";
-import type { AiTripPlan } from "@/lib/aiPlan.functions";
+import type { AiTripPlan, ResortStay } from "@/lib/aiPlan.functions";
 import { DAY_TITLE_PREFIXES, normalizePlanLangCode } from "@/lib/planLanguages";
 import { activityDescriptionBullets } from "@/lib/activityDescription";
 import { formatActivityClockLabel, uniquifyDayActivityClocks } from "@/lib/activityTime";
 import { slPaxAfterNumber } from "@/lib/slovenePax";
 import { enrichMotorhomePlanTips } from "@/lib/motorhomePlanTips";
 import { resyncPlanDayDates } from "@/lib/daySequence";
-import { fixMotorhomeCopyErrors, activityHasRenderableBody, isDaypartSlotLabel, isPlaceholderOrTruncatedCopy, sanitizeForLang, stripPlannerMetaCopy } from "@/lib/textSanitize";
+import { fixMotorhomeCopyErrors, activityHasRenderableBody, cleanText, isDaypartSlotLabel, isPlaceholderOrTruncatedCopy, sanitizeForLang, stripLatexRelics, stripPlannerMetaCopy } from "@/lib/textSanitize";
 import {
+  collectCalendarHotelStay,
   collectOvernightHotelStays,
   collectOvernightHotelStaysFromHints,
   hotelHintsHaveMultipleBases,
@@ -29,7 +30,14 @@ import {
   type HotelStayHint,
   type OvernightDay,
 } from "@/lib/overnightHotelStays";
+import { inclusiveCalendarDayCount } from "@/lib/dateUtils";
+import { hotelStayDatesFromContext } from "@/lib/hotelStayDates";
 import { DESTINATION_BY_IATA, lookupDestination } from "@/lib/destinationCoords";
+import {
+  resolveResortDiningModel,
+  resortDiningSectionLabel,
+} from "@/lib/resortDiningModel";
+import { ensureTransferPickupCopy } from "@/lib/resortTransferModel";
 import { resolveTravelRequirements, type TravelRequirements } from "@/lib/travelRequirements";
 import {
   isBaseTransferLeg,
@@ -38,6 +46,14 @@ import {
   sameTransferBase,
 } from "@/lib/baseTransfer";
 import { scrubLocalTipsOnPdfDays } from "@/lib/localTipsSanitize";
+import type { TripFlightContext } from "@/lib/flightScheduling";
+import {
+  buildTransitGuide,
+  connectionsFromFlightContext,
+  formatTransitGuidePdfLines,
+  formatTransitGuideProtocolText,
+} from "@/lib/flightTransitGuide";
+import { buildGoldenRules, type GoldenRules } from "@/lib/travelGoldenRules";
 
 /**
  * Served from /public/fonts so Nitro/Vercel always can fetch them.
@@ -58,6 +74,7 @@ export type PlanItinerary = {
   flightTotalEur?: number;
   days?: Array<Record<string, unknown>>;
   flights?: Array<{ from?: string; to?: string; date?: string; airline?: string; price?: string }>;
+  flightContext?: TripFlightContext;
   originIata?: string;
   destinationIata?: string;
   returnFromIata?: string;
@@ -142,9 +159,13 @@ type NormalizedPdfPlan = {
   flights: string[];
   hotels: Array<{ text: string; lead?: string; dates?: string; url?: string }>;
   packing: string[];
+  goldenRules?: GoldenRules;
   labels: PdfLabels;
   contentLang: string;
   coverImageUrl?: string;
+  /** Inclusive calendar days from start_date–end_date (not protocol block count). */
+  tripDays?: number;
+  tripNights?: number;
 };
 
 type PdfLabels = {
@@ -640,17 +661,29 @@ function roadStaysCaption(model: NormalizedPdfPlan): string {
   return `+ Stays (approx.): €${eur}`;
 }
 
-function labelsFor(lang: PlanForPdf["language"], sampleText: string): PdfLabels {
+function labelsFor(
+  lang: PlanForPdf["language"],
+  sampleText: string,
+  opts?: { resortStay?: boolean },
+): PdfLabels {
   const normalized = (lang ?? "").toLowerCase().slice(0, 2);
   const sl =
     normalized === "sl" ||
     (!normalized &&
       /[čšžćđČŠŽĆĐ]|\b(dan|dopoldan|popoldan|večer|načrt|potovanje)\b/i.test(sampleText));
+  const stayGuide = Boolean(opts?.resortStay);
+  const stayDaily = stayGuide
+    ? sl || normalized === "sl"
+      ? "Vodnik po bivanju"
+      : normalized === "de"
+        ? "Resort-Protokoll"
+        : "Resort protocol"
+    : null;
   if (sl || normalized === "sl") {
     return {
       brand: "SKYBOOPLAN  ·  Potovalni načrt",
       overview: "Pregled",
-      daily: "Dnevni itinerar",
+      daily: stayDaily ?? "Dnevni itinerar",
       morning: "Dopoldan",
       afternoon: "Popoldan",
       evening: "Večer",
@@ -674,7 +707,7 @@ function labelsFor(lang: PlanForPdf["language"], sampleText: string): PdfLabels 
     return {
       brand: "SKYBOOPLAN  ·  Piano di viaggio",
       overview: "Panoramica",
-      daily: "Itinerario giornaliero",
+      daily: stayDaily ?? "Itinerario giornaliero",
       morning: "Mattina",
       afternoon: "Pomeriggio",
       evening: "Sera",
@@ -700,7 +733,7 @@ function labelsFor(lang: PlanForPdf["language"], sampleText: string): PdfLabels 
     return {
       brand: "SKYBOOPLAN  ·  Reiseplan",
       overview: "Überblick",
-      daily: "Tagesplan",
+      daily: stayDaily ?? "Tagesplan",
       morning: "Morgen",
       afternoon: "Nachmittag",
       evening: "Abend",
@@ -726,7 +759,7 @@ function labelsFor(lang: PlanForPdf["language"], sampleText: string): PdfLabels 
     return {
       brand: "SKYBOOPLAN  ·  Plan de viaje",
       overview: "Resumen",
-      daily: "Itinerario diario",
+      daily: stayDaily ?? "Itinerario diario",
       morning: "Mañana",
       afternoon: "Tarde",
       evening: "Noche",
@@ -752,7 +785,7 @@ function labelsFor(lang: PlanForPdf["language"], sampleText: string): PdfLabels 
     return {
       brand: "SKYBOOPLAN  ·  Plan de voyage",
       overview: "Aperçu",
-      daily: "Itinéraire jour par jour",
+      daily: stayDaily ?? "Itinéraire jour par jour",
       morning: "Matin",
       afternoon: "Après-midi",
       evening: "Soir",
@@ -777,7 +810,7 @@ function labelsFor(lang: PlanForPdf["language"], sampleText: string): PdfLabels 
   return {
     brand: "SKYBOOPLAN  ·  Travel plan",
     overview: "Overview",
-    daily: "Daily itinerary",
+    daily: stayDaily ?? "Daily itinerary",
     morning: "Morning",
     afternoon: "Afternoon",
     evening: "Evening",
@@ -812,14 +845,44 @@ function localizePdfTimeToken(raw: string | undefined, labels: PdfLabels): strin
   return raw.trim();
 }
 
+/** Year glued to the next day ("20266. nov.") after a dropped dash. */
+export function repairSmashedPdfDates(text: string): string {
+  return text.replace(/(\d{4})(\d{1,2}\.)/g, "$1 – $2");
+}
+
+/** "LJUHKT" or "LJU HKT" → "LJU → HKT". */
+export function formatPdfAirportPair(from?: string, to?: string): string {
+  const a = (from ?? "").trim();
+  const b = (to ?? "").trim();
+  const splitSix = (raw: string): string | null => {
+    const m = raw.replace(/[\s\-–—→\\]+/g, "").match(/^([A-Za-z]{3})([A-Za-z]{3})$/);
+    return m ? `${m[1]!.toUpperCase()} → ${m[2]!.toUpperCase()}` : null;
+  };
+  return splitSix(a) || splitSix(b) || splitSix(`${a}${b}`) || (a && b ? `${a} → ${b}` : a || b);
+}
+
+export function formatPdfDateRange(from: string, to: string): string {
+  const a = from.trim();
+  const b = to.trim();
+  if (!a) return b;
+  if (!b) return a;
+  return `${a} – ${b}`;
+}
+
 /** jsPDF custom fonts choke on emoji / some symbols — strip for layout stability. */
 export function sanitizePdfText(input: unknown): string {
   if (typeof input !== "string") return "";
   return stripPlannerMetaCopy(
-    input
-      .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, "")
-      .replace(/\u0000/g, "")
-      // Collapse spaces/tabs only — keep newlines so bullet lists survive when needed.
+    repairSmashedPdfDates(
+      stripLatexRelics(
+        cleanText(
+          input
+            .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, "")
+            .replace(/\u0000/g, ""),
+        ),
+      ),
+    )
+      // Collapse leftover spaces/tabs only — keep newlines so bullet lists survive.
       .replace(/[^\S\n]+/g, " ")
       .replace(/\n{3,}/g, "\n\n")
       .trim(),
@@ -906,12 +969,18 @@ export function accommodationStayParts(opts: {
   checkInLabel: string;
   checkOutLabel: string;
 }): { text: string; lead: string; dates: string } {
-  const dates = [opts.checkInLabel, opts.checkOutLabel].filter(Boolean).join(" → ");
+  const checkIn = opts.checkInLabel.trim();
+  const checkOut = opts.checkOutLabel.trim();
+  const dates = formatPdfDateRange(checkIn, checkOut);
   const lead = [opts.city, opts.nightsLabel].filter(Boolean).join("  ·  ");
+  const nowrapDate = (raw: string) => raw.replace(/ /g, "\u00A0");
   return {
     text: [lead, dates].filter(Boolean).join("  ·  "),
     lead,
-    dates: dates.replace(/ /g, "\u00A0"),
+    dates:
+      checkIn && checkOut
+        ? `${nowrapDate(checkIn)} – ${nowrapDate(checkOut)}`
+        : nowrapDate(dates),
   };
 }
 
@@ -1075,6 +1144,87 @@ function slotItems(
     .map((title) => ({ title }));
 }
 
+function resortStayAsPdfSourceDays(
+  stay: ResortStay,
+  seed: Record<string, unknown> | undefined,
+  lang: string,
+  diningHint?: { destinationIata?: string; destinationName?: string; destinationPlace?: string },
+  flightContext?: TripFlightContext,
+): Array<Record<string, unknown>> {
+  const city = textOf(seed?.city) || textOf(seed?.focusName) || "";
+  const sl = lang === "sl";
+  const titles = sl
+    ? {
+        arrival: "Protokol ob prihodu",
+        resort: "Bivanje v resortu",
+        excursions: "Opcijski izleti",
+        departure: "Protokol ob odhodu",
+      }
+    : {
+        arrival: "Arrival protocol",
+        resort: "Resort stay",
+        excursions: "Optional excursions",
+        departure: "Departure protocol",
+      };
+  const field = (label: string, text: string) =>
+    text.trim() ? { title: label, description: text.trim() } : null;
+  const transitGuide = buildTransitGuide(connectionsFromFlightContext(flightContext), lang);
+  const arrivalItems = [
+    transitGuide
+      ? field(transitGuide.title, formatTransitGuideProtocolText(transitGuide))
+      : null,
+    field(sl ? "Vstop in viza" : "Entry & visa", stay.arrivalProtocol.visa_and_entry),
+    field(sl ? "Imigracija" : "Immigration", stay.arrivalProtocol.immigration),
+    field(sl ? "Prtljaga" : "Baggage", stay.arrivalProtocol.baggage),
+    field(
+      sl ? "Transfer" : "Transfer pickup",
+      ensureTransferPickupCopy(stay.arrivalProtocol.transfer_pickup, {
+        destinationIata: diningHint?.destinationIata,
+        destinationName: diningHint?.destinationName || city,
+        destinationPlace: diningHint?.destinationPlace || city,
+      }, lang),
+    ),
+    field(sl ? "Gotovina in eSIM" : "Cash & eSIM", stay.arrivalProtocol.cash_and_esim),
+  ].filter(Boolean);
+  const resortItems = [
+    field(sl ? "Prijava in odjava" : "Check-in & check-out", stay.resortGuide.check_in_out),
+    field(
+      resortDiningSectionLabel(
+        resolveResortDiningModel({
+          destinationIata: diningHint?.destinationIata,
+          destinationName: diningHint?.destinationName || city,
+          destinationPlace: diningHint?.destinationPlace || city,
+        }),
+        lang,
+      ),
+      stay.resortGuide.all_inclusive_etiquette,
+    ),
+    field(sl ? "Napitnine" : "Tipping", stay.resortGuide.tipping),
+    field(sl ? "Sprostitev" : "At the resort", stay.resortGuide.relaxing_at_resort),
+  ].filter(Boolean);
+  const excursionItems = stay.optionalExcursions.map((ex) => ({
+    title: ex.title,
+    description: [
+      ex.description,
+      ex.estimated_cost_eur > 0 ? `≈ ${ex.estimated_cost_eur} €` : "",
+      ex.book_safely_where,
+    ]
+      .filter(Boolean)
+      .join(" "),
+  }));
+  const departureItems = [
+    field(sl ? "Povratni transfer" : "Return transfer", stay.departureProtocol.return_transfer),
+    field(sl ? "Prihod na letališče" : "Airport arrival", stay.departureProtocol.airport_lead_time),
+    field(sl ? "Uskladitev z letom" : "Flight timing", stay.departureProtocol.flight_alignment),
+  ].filter(Boolean);
+  return [
+    { day: 1, city, title: titles.arrival, items: arrivalItems },
+    { day: 2, city, title: titles.resort, items: resortItems },
+    { day: 3, city, title: titles.excursions, items: excursionItems },
+    { day: 4, city, title: titles.departure, items: departureItems },
+  ];
+}
+
 function legacyItems(day: Record<string, unknown>, labels?: PdfLabels): PdfActivity[] {
   if (!Array.isArray(day.items)) return [];
   const dayOrigin = resolveDayNavOrigin({
@@ -1169,7 +1319,7 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
       console.warn("[pdf] motorhome tip enrich skipped", err);
     }
   }
-  const rawDays = Array.isArray(itin.days) ? itin.days : [];
+  let rawDays = Array.isArray(itin.days) ? itin.days : [];
   const hotelHints: HotelStayHint[] = Array.isArray(itin.hotels)
     ? (itin.hotels as HotelStayHint[])
     : [];
@@ -1186,8 +1336,24 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
         days: rawDays as AiTripPlan["days"],
       }),
   );
+  const resortStay = (itin as AiTripPlan).resortStay;
+  const pdfFlightContext =
+    (itin as PlanItinerary).flightContext || (itin as AiTripPlan).flightContext;
+  if (resortStay) {
+    rawDays = resortStayAsPdfSourceDays(
+      resortStay,
+      rawDays[0],
+      contentLang,
+      {
+        destinationIata: (itin as AiTripPlan).destinationIata,
+        destinationName: (itin as AiTripPlan).destinationName,
+        destinationPlace: (itin as AiTripPlan).destinationPlace,
+      },
+      pdfFlightContext,
+    );
+  }
   scrubPdfItineraryLanguage(itin, contentLang);
-  const labels = labelsFor(contentLang, sample);
+  const labels = labelsFor(contentLang, sample, { resortStay: Boolean(resortStay) });
 
   const days: PdfDay[] = rawDays.map((raw, idx) => {
     const d = (raw ?? {}) as Record<string, unknown>;
@@ -1360,8 +1526,9 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
           );
           const from = rewritten.from;
           const to = rewritten.to;
+          const hop = formatPdfAirportPair(from, to);
           return [
-            from && to ? `${from} → ${to}` : "",
+            hop,
             fmtDate(textOf(f.date) || null, contentLang),
             textOf(f.airline),
             textOf(f.price),
@@ -1416,32 +1583,64 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
     }
   }
 
+  const transitGuide = buildTransitGuide(
+    connectionsFromFlightContext(pdfFlightContext),
+    contentLang,
+  );
+  if (transitGuide) {
+    flights.push(...formatTransitGuidePdfLines(transitGuide));
+  }
+
   const originPlace = textOf((itin as { originPlace?: string }).originPlace);
-  let stays = collectOvernightHotelStays({
-    days: rawDays.map((raw, idx) => {
-      const d = (raw ?? {}) as Record<string, unknown>;
-      return {
-        day: typeof d.day === "number" ? d.day : idx + 1,
-        date: textOf(d.date) || undefined,
-        city: textOf(d.city) || textOf(d.focusName) || undefined,
-        inFlightDay: d.inFlightDay === true,
-        transportation: Array.isArray(d.transportation)
-          ? (d.transportation as Array<{ type?: string; from?: string; to?: string }>)
-          : undefined,
-        activities: d.activities as OvernightDay["activities"],
-      };
-    }),
-    start_date: plan.start_date,
-    originPlace,
-    groundTransportMode: textOf(
-      (itin as { groundTransportMode?: string }).groundTransportMode,
-    ),
-    accommodationMode: textOf(
-      (itin as { accommodationMode?: string }).accommodationMode,
-    ),
+  const stayCity =
+    textOf(hotelHints[0]?.city) ||
+    textOf(hotelHints[0]?.name) ||
+    textOf((itin as { destinationPlace?: string }).destinationPlace) ||
+    destination;
+  const hotelStay = hotelStayDatesFromContext(pdfFlightContext, {
+    departDate: plan.start_date,
+    returnDate: plan.end_date,
   });
+  const stayStart = resortStay
+    ? (hotelStay?.checkIn ?? plan.start_date)
+    : plan.start_date;
+  const stayEnd = resortStay
+    ? (hotelStay?.checkOut ?? plan.end_date)
+    : plan.end_date;
+
+  let stays = resortStay
+    ? collectCalendarHotelStay({
+        city: stayCity,
+        startDate: stayStart,
+        endDate: stayEnd,
+        hotel: hotelHints[0],
+      })
+    : collectOvernightHotelStays({
+        days: rawDays.map((raw, idx) => {
+          const d = (raw ?? {}) as Record<string, unknown>;
+          return {
+            day: typeof d.day === "number" ? d.day : idx + 1,
+            date: textOf(d.date) || undefined,
+            city: textOf(d.city) || textOf(d.focusName) || undefined,
+            inFlightDay: d.inFlightDay === true,
+            transportation: Array.isArray(d.transportation)
+              ? (d.transportation as Array<{ type?: string; from?: string; to?: string }>)
+              : undefined,
+            activities: d.activities as OvernightDay["activities"],
+          };
+        }),
+        start_date: plan.start_date,
+        originPlace,
+        groundTransportMode: textOf(
+          (itin as { groundTransportMode?: string }).groundTransportMode,
+        ),
+        accommodationMode: textOf(
+          (itin as { accommodationMode?: string }).accommodationMode,
+        ),
+      });
   const stayCities = new Set(stays.map((s) => s.city.trim().toLowerCase()));
   if (
+    !resortStay &&
     !motorhome &&
     stayCities.size <= 1 &&
     hotelHintsHaveMultipleBases(hotelHints)
@@ -1515,14 +1714,24 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
       }
     : undefined;
 
+  const calendarDays = inclusiveCalendarDayCount(
+    stayStart ?? "",
+    stayEnd ?? "",
+  );
+  const tripDays =
+    resortStay && calendarDays && calendarDays > 0
+      ? calendarDays
+      : days.length;
+  const tripNights = resortStay && tripDays > 1 ? tripDays - 1 : undefined;
+
   return {
     title: plan.title || destination || "Skybooplan",
     destination,
-    startDate: fmtDate(plan.start_date, contentLang),
-    endDate: fmtDate(plan.end_date, contentLang),
+    startDate: fmtDate(stayStart, contentLang),
+    endDate: fmtDate(stayEnd, contentLang),
     summary: alignSummaryTripLength(
       cleanSummary(stripPlanTeaser(textOf(itin.summary), contentLang)),
-      days.length,
+      resortStay ? tripDays : days.length,
     ),
     insurance,
     totalBudgetEur,
@@ -1535,9 +1744,12 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
     flights,
     hotels,
     packing,
+    goldenRules: buildGoldenRules(contentLang),
     labels,
     contentLang,
     coverImageUrl,
+    tripDays,
+    tripNights,
   };
 }
 
@@ -1978,14 +2190,22 @@ async function renderPlanPdf(plan: PlanForPdf): Promise<{
     heroY += 20;
   }
 
-  const meta = [model.startDate, model.endDate].filter(Boolean).join("  –  ");
+  const meta = formatPdfDateRange(model.startDate, model.endDate);
+  const coverDays = model.tripDays ?? model.days.length;
+  const coverNights = model.tripNights ?? 0;
   const dayCountLabel =
-    model.days.length > 0
+    coverDays > 0
       ? model.contentLang === "sl"
-        ? `${model.days.length} dni`
+        ? coverNights > 0
+          ? `${coverNights} noči / ${coverDays} dni`
+          : `${coverDays} dni`
         : model.contentLang === "de"
-          ? `${model.days.length} Tage`
-          : `${model.days.length} days`
+          ? coverNights > 0
+            ? `${coverNights} Nächte / ${coverDays} Tage`
+            : `${coverDays} Tage`
+          : coverNights > 0
+            ? `${coverNights} nights / ${coverDays} days`
+            : `${coverDays} days`
       : "";
   // Meta chips under hero
   const chips = [meta, dayCountLabel, model.pax > 1 ? `${model.pax}×` : ""]
@@ -1993,7 +2213,7 @@ async function renderPlanPdf(plan: PlanForPdf): Promise<{
     .join("   ·   ");
   if (chips) {
     setFont("normal", 10, { r: 226, g: 232, b: 240 });
-    safeText(chips, margin, Math.min(heroY + 8, COVER_H - 22));
+    safeText(sanitizePdfText(chips), margin, Math.min(heroY + 8, COVER_H - 22));
   }
 
   y = COVER_H + 24;
@@ -2065,7 +2285,7 @@ async function renderPlanPdf(plan: PlanForPdf): Promise<{
       for (const leg of collapsePdfDayTransfers(d.transportation)) {
         const line = [
           String(leg.type || "transport").toUpperCase(),
-          leg.from && leg.to ? `${leg.from} → ${leg.to}` : "",
+          formatPdfAirportPair(leg.from, leg.to),
           leg.duration,
           leg.price,
         ]
@@ -2202,6 +2422,18 @@ async function renderPlanPdf(plan: PlanForPdf): Promise<{
       }
 
       y += 16;
+    }
+  }
+
+  if (model.goldenRules) {
+    const rules = model.goldenRules;
+    heading(rules.title, 72);
+    for (const group of rules.groups) {
+      para(group.heading, 9, SKY_DARK, 2);
+      for (const item of group.items) {
+        para(`${item.title}: ${item.body}`, 10, INK);
+      }
+      y += 4;
     }
   }
 

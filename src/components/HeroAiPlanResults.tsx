@@ -33,6 +33,7 @@ type HeroAiPlanResultsProps = {
   onEmailPlan?: (plan: AiTripPlan) => void | Promise<void>;
   onDownloadPlan?: (plan: AiTripPlan) => void | Promise<void>;
   lastSearchPax?: { adults?: number; childrenAges?: number[]; rooms?: number };
+  flightBookingUrl?: string;
 };
 
 export function HeroAiPlanResults({
@@ -59,6 +60,7 @@ export function HeroAiPlanResults({
   onEmailPlan,
   onDownloadPlan,
   lastSearchPax,
+  flightBookingUrl,
 }: HeroAiPlanResultsProps) {
   const { t } = useI18n();
   const showBlock =
@@ -76,10 +78,11 @@ export function HeroAiPlanResults({
       ? (inclusiveCalendarDayCount(aiContext.departDate, aiContext.returnDate) ?? 7)
       : 7;
 
+  const stayAdults = lastSearchPax?.adults ?? aiContext?.adults ?? aiContext?.pax ?? 2;
   const stayInfo = {
-    adults: lastSearchPax?.adults ?? aiContext?.adults ?? aiContext?.pax ?? 2,
+    adults: stayAdults,
     childrenAges: lastSearchPax?.childrenAges ?? aiContext?.childrenAges ?? [],
-    rooms: lastSearchPax?.rooms ?? 1,
+    rooms: lastSearchPax?.rooms ?? Math.max(1, Math.ceil(stayAdults / 2)),
   };
 
   const loaderOrbit =
@@ -135,6 +138,7 @@ export function HeroAiPlanResults({
               returnDate={aiContext?.returnDate}
               flights={aiContext?.flights as TripFlightContext | undefined}
               flightTotalEur={aiContext?.flightTotalEur}
+              flightBookingUrl={flightBookingUrl}
               loaderOrbit={loaderOrbit}
             />
           ) : aiLoading || aiExpandingFull ? (

@@ -512,6 +512,25 @@ export function collectOvernightHotelStaysFromHints(
   return stays.length >= 2 ? stays : [];
 }
 
+/**
+ * One stay from trip calendar dates (resort / single_base).
+ * Never treat protocol blocks as overnight nights.
+ */
+export function collectCalendarHotelStay(opts: {
+  city?: string;
+  startDate?: string | null;
+  endDate?: string | null;
+  hotel?: HotelStayHint;
+}): OvernightHotelStay[] {
+  const checkIn = isoDateOf(opts.startDate ?? undefined) || isoDateOf(opts.hotel?.from_date);
+  const checkOut = isoDateOf(opts.endDate ?? undefined) || isoDateOf(opts.hotel?.to_date);
+  const city = (opts.hotel?.city || opts.hotel?.name || opts.city || "").trim();
+  if (!city || !checkIn || !checkOut || checkOut <= checkIn) return [];
+  const nights = hintNights({ from_date: checkIn, to_date: checkOut });
+  if (nights <= 0) return [];
+  return [{ city, checkIn, checkOut, nights, firstDay: 1 }];
+}
+
 /** Whether the day card should mount HotelsSection / Booking.com. */
 export function shouldShowDayHotels(input: {
   city?: string;
@@ -546,6 +565,7 @@ export function overnightStayBookingUrl(
       adults: Math.max(1, opts?.adults ?? 2),
       rooms: 1,
       lang: opts?.lang,
+      reviewScore: 80,
     }),
   );
 }

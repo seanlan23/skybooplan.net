@@ -407,6 +407,7 @@ describe("tripPlanSystemPrompt JSON contract", () => {
       wishTags: [],
       language: "sl",
       currency: "EUR",
+      tripStyle: "explorer",
     };
     const system = tripPlanSystemPrompt(params);
     expect(system).toMatch(/trip_title/);

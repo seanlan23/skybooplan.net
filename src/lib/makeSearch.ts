@@ -7,7 +7,8 @@ import {
   estimateLocalArrival,
   isoHasExplicitOffset,
 } from "@/lib/airportTimeZones";
-import { duffelSliceDurationMin } from "@/lib/flightSliceDuration";
+import { duffelSliceDurationMin, sliceLayoversFromSegments } from "@/lib/flightSliceDuration";
+import type { FlightLayover } from "@/lib/flightTransitGuide";
 
 export type MakeSearchFlight = {
   id: string;
@@ -60,6 +61,9 @@ export type MakeSearchFlight = {
   outbound_arrive_iso?: string;
   inbound_depart_iso?: string;
   inbound_arrive_iso?: string;
+  /** Connection airports + wait (from Duffel segments) for the transit guide. */
+  outbound_layovers?: FlightLayover[];
+  inbound_layovers?: FlightLayover[];
 };
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -223,6 +227,8 @@ function parseDuffelOfferAsMakeFlight(item: unknown, index: number): MakeSearchF
   const inbound_duration = formatDurationMinutes(inMins);
   const duration_minutes =
     outMins > 0 || inMins > 0 ? outMins + inMins : undefined;
+  const outbound_layovers = layoversFromUnknownSegments(segments);
+  const inbound_layovers = layoversFromUnknownSegments(returnSegments);
 
   return {
     id: readString(record, "id") || `duffel-${index}`,
@@ -256,7 +262,27 @@ function parseDuffelOfferAsMakeFlight(item: unknown, index: number): MakeSearchF
     ...(outbound_duration ? { outbound_duration } : {}),
     ...(inbound_duration ? { inbound_duration } : {}),
     ...(duration_minutes != null ? { duration_minutes } : {}),
+    ...(outbound_layovers.length ? { outbound_layovers } : {}),
+    ...(inbound_layovers.length ? { inbound_layovers } : {}),
   };
+}
+
+function layoversFromUnknownSegments(segments: unknown[]): FlightLayover[] {
+  return sliceLayoversFromSegments(
+    segments.map((raw) => {
+      const seg = asRecord(raw) ?? {};
+      return {
+        duration: readString(seg, "duration") || undefined,
+        departing_at: readString(seg, "departing_at") || undefined,
+        arriving_at: readString(seg, "arriving_at") || undefined,
+        origin: { iata_code: readNestedIata(seg.origin) || undefined },
+        destination: { iata_code: readNestedIata(seg.destination) || undefined },
+      };
+    }),
+  ).map((l) => ({
+    iata: l.iata,
+    ...(l.minutes > 0 ? { minutes: l.minutes } : {}),
+  }));
 }
 
 function flightNumberFromSegment(

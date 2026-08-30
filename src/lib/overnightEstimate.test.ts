@@ -4,6 +4,7 @@ import {
   estimateHotelRoomNightlyEur,
   estimateOvernightStay,
   overnightPlaceHint,
+  resolveStayNights,
   tripOvernightNights,
 } from "@/lib/overnightEstimate";
 
@@ -53,6 +54,32 @@ describe("overnightEstimate", () => {
   it("nights = days - 1", () => {
     expect(tripOvernightNights(14)).toBe(13);
     expect(tripOvernightNights(1)).toBe(0);
+  });
+
+  it("resolveStayNights prefers hotel.nights over a 1-day synthetic plan", () => {
+    expect(resolveStayNights({ hotelNights: 7, fromDate: "2026-09-19" })).toBe(7);
+    expect(
+      resolveStayNights({
+        fromDate: "2026-09-19",
+        toDate: "2026-09-26",
+      }),
+    ).toBe(7);
+  });
+
+  it("estimateOvernightStay can take explicit nights", () => {
+    const est = estimateOvernightStay({
+      dayCount: 1,
+      nights: 6,
+      pax: 2,
+      countryCode: "TZ",
+      mode: "hotel",
+    });
+    expect(est.nights).toBe(6);
+    expect(est.totalEur).toBe(80 * 6);
+  });
+
+  it("prices island-resort countries above the generic hotel band", () => {
+    expect(estimateHotelRoomNightlyEur("MV")).toBe(240);
   });
 
   it("hotel trip: room × rooms × nights for 2 pax", () => {

@@ -36,12 +36,28 @@ function BookingLink({
   href,
   className,
   children,
+  stay,
 }: {
   href: string;
   className?: string;
   children: ReactNode;
+  stay?: {
+    destination: string;
+    hotelName?: string;
+    checkIn: string;
+    checkOut?: string;
+    adults?: number;
+    rooms?: number;
+    childrenAges?: number[];
+  };
 }) {
-  const safeHref = toBookingClickHref(href);
+  const safeHref = stay
+    ? buildBookingSearchUrl({
+        ...stay,
+        rooms: stay.rooms ?? 1,
+        reviewScore: 80,
+      })
+    : toBookingClickHref(href);
 
   return (
     <a
@@ -84,14 +100,25 @@ function BookingCta({
   href,
   label,
   size = "compact",
+  stay,
 }: {
   href: string;
   label: string;
   size?: "compact" | "hero";
+  stay?: {
+    destination: string;
+    hotelName?: string;
+    checkIn: string;
+    checkOut?: string;
+    adults?: number;
+    rooms?: number;
+    childrenAges?: number[];
+  };
 }) {
   return (
     <BookingLink
       href={href}
+      stay={stay}
       className={
         size === "hero"
           ? "inline-flex w-full items-center justify-center gap-2 rounded-md bg-[#0071c2] px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#005999]"
@@ -252,7 +279,6 @@ export function HotelsSection({
   const { isLoading, usedFallback, sourceCity } = selection;
   const realHotels = selection.hotels;
   const isError = selection.isError || Boolean(primary.data?.error ?? (shouldFallback ? fallback.data?.error : null));
-  const dest = usedFallback ? fallback.data?.dest : primary.data?.dest;
 
   const buildBookingUrl = (queryCity: string, hotelName?: string) =>
     buildBookingSearchUrl({
@@ -260,11 +286,16 @@ export function HotelsSection({
       destination: hotelSearchQueryAlias(queryCity),
       hotelName,
       nflt,
-      destId: dest?.destId,
-      destType: dest?.destType,
       lang,
+      reviewScore: 80,
     });
   const bookingHref = buildBookingUrl(capitalFallback && usedFallback ? sourceCity : city);
+  const bookingStay = {
+    ...bookingBase,
+    destination: hotelSearchQueryAlias(capitalFallback && usedFallback ? sourceCity : city),
+    checkIn,
+    checkOut: effectiveCheckOut,
+  };
 
   const nightlyPrices = realHotels.map((h) => perNightPrice(h.price, nights));
   const extent = priceExtent(nightlyPrices);
@@ -355,12 +386,19 @@ export function HotelsSection({
             </p>
           ) : null}
         </div>
-        {!bookingFirst ? <BookingCta href={bookingHref} label={t("aiplan.browseHotels" as never)} /> : null}
+        {!bookingFirst ? (
+          <BookingCta href={bookingHref} stay={bookingStay} label={t("aiplan.browseHotels" as never)} />
+        ) : null}
       </div>
 
       {bookingFirst ? (
         <div className="mb-3 space-y-2">
-          <BookingCta href={bookingHref} label={t("aiplan.hotelsEmptyCta" as never)} size="hero" />
+          <BookingCta
+            href={bookingHref}
+            stay={bookingStay}
+            label={t("aiplan.hotelsEmptyCta" as never)}
+            size="hero"
+          />
           <p className="text-xs text-slate-500">{t("aiplan.hotelsBookingFirstSub" as never)}</p>
         </div>
       ) : null}
@@ -396,7 +434,14 @@ export function HotelsSection({
               {isError ? t("aiplan.hotelsEmptyErrorSub" as never) : t("aiplan.hotelsEmptyDefaultSub" as never)}
             </p>
             <div className="mt-3">
-              <BookingCta href={buildBookingUrl(capitalFallback || city)} label={t("aiplan.hotelsEmptyCta" as never)} />
+              <BookingCta
+                href={buildBookingUrl(capitalFallback || city)}
+                stay={{
+                  ...bookingStay,
+                  destination: hotelSearchQueryAlias(capitalFallback || city),
+                }}
+                label={t("aiplan.hotelsEmptyCta" as never)}
+              />
             </div>
           </div>
         )
@@ -426,8 +471,6 @@ export function HotelsSection({
                   ...bookingBase,
                   destination: hotelSearchQueryAlias(sourceCity),
                   hotelName: h.name,
-                  destId: dest?.destId,
-                  destType: dest?.destType,
                   nflt,
                   lang,
                 });
@@ -435,6 +478,11 @@ export function HotelsSection({
                   <BookingLink
                     key={h.id}
                     href={bookUrl}
+                    stay={{
+                      ...bookingStay,
+                      destination: hotelSearchQueryAlias(sourceCity),
+                      hotelName: h.name,
+                    }}
                     className="block w-[260px] shrink-0 snap-start overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:border-sky-200 hover:shadow-md"
                   >
                     <div className="relative h-36 w-full bg-slate-100">
@@ -472,6 +520,7 @@ export function HotelsSection({
           <aside className="hidden h-fit space-y-4 rounded-lg border border-slate-200 bg-white p-3 lg:sticky lg:top-4 lg:block">
             <BookingLink
               href={bookingHref}
+              stay={bookingStay}
               className="relative block overflow-hidden rounded-md border border-slate-200"
             >
               {mapCenter ? (
@@ -652,8 +701,6 @@ export function HotelsSection({
                       ...bookingBase,
                       destination: hotelSearchQueryAlias(sourceCity),
                       hotelName: h.name,
-                      destId: dest?.destId,
-                      destType: dest?.destType,
                       nflt,
                       lang,
                     });
@@ -661,6 +708,11 @@ export function HotelsSection({
                       <BookingLink
                         key={h.id}
                         href={bookUrl}
+                        stay={{
+                          ...bookingStay,
+                          destination: hotelSearchQueryAlias(sourceCity),
+                          hotelName: h.name,
+                        }}
                         className="block w-[260px] shrink-0 snap-start overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:border-sky-200 hover:shadow-md"
                       >
                         <div className="relative h-36 w-full bg-slate-100">

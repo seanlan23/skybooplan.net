@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isPdfDaypartToken, normalizePlanForPdf, sanitizePdfText, buildPdfDownloadFileName, pdfDayHeading, isPdfBaseTransferLeg, resolvePdfReturnFromIata, shouldBreakBeforeBlock, accommodationStayParts } from "@/lib/pdf-export";
+import { isPdfDaypartToken, normalizePlanForPdf, sanitizePdfText, buildPdfDownloadFileName, pdfDayHeading, isPdfBaseTransferLeg, resolvePdfReturnFromIata, shouldBreakBeforeBlock, accommodationStayParts, formatPdfAirportPair, formatPdfDateRange, repairSmashedPdfDates } from "@/lib/pdf-export";
 import { isoAddDays } from "@/lib/overnightHotelStays";
 
 describe("sanitizePdfText", () => {
@@ -12,6 +12,20 @@ describe("sanitizePdfText", () => {
     expect(sanitizePdfText(null)).toBe("");
     expect(sanitizePdfText(12)).toBe("");
     expect(sanitizePdfText("")).toBe("");
+  });
+
+  it("strips markdown pipes, LaTeX flight arrows, and the term/tem typo", () => {
+    expect(sanitizePdfText("| MUC | JFK |")).toBe("MUC JFK");
+    expect(sanitizePdfText("$MUC\\rightarrow JFK \\cdot 1$")).toBe("MUC → JFK 1");
+    expect(sanitizePdfText("Ni v term znesku — hoteli")).toBe("Ni v tem znesku — hoteli");
+  });
+
+  it("replaces LaTeX approx/euro relics before drawing", () => {
+    expect(sanitizePdfText("$\\approx70$ €")).toBe("~70 €");
+    expect(sanitizePdfText("$\\approx50~\\epsilon$")).toBe("~50 €");
+    expect(sanitizePdfText("$\\approx40~\\xi$")).toBe("~40 €");
+    expect(sanitizePdfText("cena $\\approx$ 40 \\euro")).toBe("cena ~40 €");
+    expect(sanitizePdfText("$\\approx70$ €")).not.toMatch(/\$|\\approx|\\epsilon|\\xi/);
   });
 
   it("strips planner meta-instructions from activity copy", () => {
@@ -1216,6 +1230,207 @@ describe("normalizePlanForPdf", () => {
     expect(model.flights.some((f) => /YVR\s*→\s*MUC/.test(f))).toBe(true);
     expect(model.flights.join(" ")).not.toMatch(/YYZ\s*→\s*MUC/);
   });
+
+  it("uses flight dates for resort duration and NAMESTITVE, not 4 protocol blocks", () => {
+    const model = normalizePlanForPdf({
+      title: "CUN → Cancún",
+      destination: "Cancún Riviera Maya",
+      start_date: "2026-10-01",
+      end_date: "2026-10-08",
+      language: "sl",
+      pax: 2,
+      itinerary: {
+        destinationPlace: "Cancún Riviera Maya",
+        destinationName: "Cancún",
+        destinationIata: "CUN",
+        tripStyle: "single_base",
+        hotels: [
+          {
+            city: "Cancún Riviera Maya",
+            nights: 3,
+            from_date: "2026-10-01",
+            to_date: "2026-10-04",
+          },
+        ],
+        days: [
+          { day: 1, date: "2026-10-01", title: "Prihod", city: "Cancún" },
+          { day: 2, date: "2026-10-02", title: "Resort", city: "Cancún" },
+          { day: 3, date: "2026-10-03", title: "Izleti", city: "Cancún" },
+          { day: 4, date: "2026-10-04", title: "Odhod", city: "Cancún" },
+        ],
+        resortStay: {
+          arrivalProtocol: {
+            visa_and_entry: "Potni list",
+            immigration: "",
+            baggage: "",
+            transfer_pickup: "",
+            cash_and_esim: "",
+          },
+          resortGuide: {
+            check_in_out: "Prijava 15:00",
+            all_inclusive_etiquette: "",
+            tipping: "",
+            relaxing_at_resort: "",
+          },
+          optionalExcursions: [
+            {
+              title: "Chichen Itza",
+              description: "Izlet stane $\\approx70$ €",
+              estimated_cost_eur: 70,
+              book_safely_where: "Na recepciji",
+            },
+          ],
+          departureProtocol: {
+            return_transfer: "",
+            airport_lead_time: "",
+            flight_alignment: "",
+          },
+        },
+      },
+    });
+
+    expect(model.days).toHaveLength(4);
+    expect(model.labels.daily).toBe("Vodnik po bivanju");
+    expect(model.labels.daily).not.toMatch(/Dnevni itinerar/i);
+    expect(model.tripDays).toBe(8);
+    expect(model.tripNights).toBe(7);
+    expect(model.hotels).toHaveLength(1);
+    expect(model.hotels[0]?.text).toMatch(/7 noči/);
+    expect(model.hotels[0]?.text).toMatch(/1\.\s*okt/);
+    expect(model.hotels[0]?.text).toMatch(/8\.\s*okt/);
+    expect(model.hotels[0]?.text).not.toMatch(/4\.\s*okt/);
+    const excursionCopy = model.days
+      .flatMap((d) => d.slots.flatMap((s) => s.items.map((i) => `${i.title} ${i.description ?? ""}`)))
+      .join(" ");
+    expect(excursionCopy).not.toMatch(/\$|\\approx|\\epsilon/);
+    const transferCopy = model.days
+      .flatMap((d) => d.slots.flatMap((s) => s.items.map((i) => `${i.title} ${i.description ?? ""}`)))
+      .join(" ");
+    expect(transferCopy).toMatch(/Naročilo prek hotela/);
+    expect(transferCopy).toMatch(/Uradni letališki taksi pult|uradni pult/i);
+  });
+
+  it("uses destination arrival for resort NAMESTITVE nights, not home-airport depart", () => {
+    const model = normalizePlanForPdf({
+      title: "LJU → Phuket",
+      destination: "Phuket",
+      start_date: "2026-10-26",
+      end_date: "2026-11-06",
+      language: "sl",
+      pax: 2,
+      itinerary: {
+        destinationPlace: "Phuket",
+        destinationName: "Phuket",
+        destinationIata: "HKT",
+        tripStyle: "single_base",
+        flightContext: {
+          outboundDepart: "19:40",
+          outboundArrive: "10:10",
+          outboundArriveDayOffset: 1,
+          inboundDepart: "09:25",
+        },
+        hotels: [{ city: "Phuket", nights: 11, from_date: "2026-10-26", to_date: "2026-11-06" }],
+        days: [
+          { day: 1, date: "2026-10-26", title: "Let", city: "Ljubljana" },
+          { day: 2, date: "2026-10-27", title: "Prihod", city: "Phuket" },
+        ],
+        resortStay: {
+          arrivalProtocol: {
+            visa_and_entry: "Potni list",
+            immigration: "",
+            baggage: "",
+            transfer_pickup: "",
+            cash_and_esim: "",
+          },
+          resortGuide: {
+            check_in_out: "Prijava 15:00",
+            all_inclusive_etiquette: "",
+            tipping: "",
+            relaxing_at_resort: "",
+          },
+          optionalExcursions: [],
+          departureProtocol: {
+            return_transfer: "",
+            airport_lead_time: "",
+            flight_alignment: "",
+          },
+        },
+      },
+    });
+
+    expect(model.tripDays).toBe(11);
+    expect(model.tripNights).toBe(10);
+    expect(model.hotels).toHaveLength(1);
+    expect(model.hotels[0]?.text).toMatch(/10 noči/);
+    expect(model.hotels[0]?.text).toMatch(/27\.\s*okt/);
+    expect(model.hotels[0]?.text).toMatch(/6\.\s*nov/);
+    expect(model.hotels[0]?.text).not.toMatch(/26\.\s*okt/);
+    const bookingDest = decodeURIComponent(model.hotels[0]?.url ?? "");
+    expect(bookingDest).toMatch(/checkin=2026-10-27/);
+    expect(bookingDest).toMatch(/checkout=2026-11-06/);
+  });
+
+  it("adds connection tips to LETI and arrival protocol", () => {
+    const model = normalizePlanForPdf({
+      title: "LJU → BKK",
+      destination: "Bangkok",
+      start_date: "2026-11-20",
+      end_date: "2026-11-30",
+      language: "sl",
+      pax: 2,
+      itinerary: {
+        summary: "Tajska.",
+        destinationIata: "BKK",
+        tripStyle: "single_base",
+        flightEur: 900,
+        flights: [{ from: "LJU", to: "BKK", date: "2026-11-20", airline: "13:00" }],
+        flightContext: {
+          outboundDepart: "13:00",
+          outboundArrive: "10:10",
+          outboundArriveDayOffset: 1,
+          outboundStops: 1,
+          outboundVia: "PEK",
+          outboundLayovers: [{ iata: "PEK", minutes: 90 }],
+        },
+        days: [{ day: 1, date: "2026-11-20", title: "Prihod", city: "Bangkok" }],
+        resortStay: {
+          arrivalProtocol: {
+            visa_and_entry: "TDAC",
+            immigration: "Potni list",
+            baggage: "Trak 4",
+            transfer_pickup: "",
+            cash_and_esim: "",
+          },
+          resortGuide: {
+            check_in_out: "Prijava 15:00",
+            all_inclusive_etiquette: "",
+            tipping: "",
+            relaxing_at_resort: "",
+          },
+          optionalExcursions: [],
+          departureProtocol: {
+            return_transfer: "",
+            airport_lead_time: "",
+            flight_alignment: "",
+          },
+        },
+      },
+    });
+
+    const flightBlob = model.flights.join(" ");
+    expect(flightBlob).toMatch(/Nasveti za prestop/);
+    expect(flightBlob).toMatch(/Oddana prtljaga/);
+    expect(flightBlob).toMatch(/Kratek prestop/);
+    const protocol = model.days
+      .flatMap((d) => d.slots.flatMap((s) => s.items.map((i) => `${i.title} ${i.description ?? ""}`)))
+      .join(" ");
+    expect(protocol).toMatch(/Transfers \/ Connecting Flights/);
+    expect(protocol).toMatch(/PEK/);
+    expect(model.goldenRules?.title).toBe("Zlata pravila brezskrbnega potovanja");
+    expect(model.goldenRules?.groups.some((g) => g.items.some((i) => /Without Conversion/.test(i.body)))).toBe(
+      true,
+    );
+  });
 });
 
 describe("pdfDayHeading", () => {
@@ -1293,10 +1508,14 @@ describe("accommodationStayParts", () => {
       checkInLabel: "19. sep. 2026",
       checkOutLabel: "22. sep. 2026",
     });
-    expect(row.text).toBe("New York  ·  3 noči  ·  19. sep. 2026 → 22. sep. 2026");
+    expect(row.text).toBe("New York  ·  3 noči  ·  19. sep. 2026 – 22. sep. 2026");
     expect(row.lead).toBe("New York  ·  3 noči");
-    expect(row.dates).toBe("19.\u00A0sep.\u00A02026\u00A0→\u00A022.\u00A0sep.\u00A02026");
-    expect(row.dates).not.toMatch(/ /);
+    expect(row.dates).toBe("19.\u00A0sep.\u00A02026 – 22.\u00A0sep.\u00A02026");
+    expect(row.dates).toMatch(/ – /);
+    expect(repairSmashedPdfDates("27. okt. 20266. nov. 2026")).toBe("27. okt. 2026 – 6. nov. 2026");
+    expect(formatPdfDateRange("27. okt. 2026", "6. nov. 2026")).toBe("27. okt. 2026 – 6. nov. 2026");
+    expect(formatPdfAirportPair("LJUHKT", "")).toBe("LJU → HKT");
+    expect(formatPdfAirportPair("LJU", "HKT")).toBe("LJU → HKT");
   });
 });
 

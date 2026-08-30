@@ -1,5 +1,39 @@
 import { describe, expect, it } from "vitest";
-import { duffelSliceDurationMin } from "@/lib/flightSliceDuration";
+import { duffelSliceDurationMin, sliceLayoversFromSegments } from "@/lib/flightSliceDuration";
+
+describe("sliceLayoversFromSegments", () => {
+  it("reads PEK wait from consecutive timestamps", () => {
+    expect(
+      sliceLayoversFromSegments([
+        {
+          departing_at: "2026-11-20T13:00:00+01:00",
+          arriving_at: "2026-11-21T04:50:00+08:00",
+          origin: { iata_code: "VIE" },
+          destination: { iata_code: "PEK" },
+        },
+        {
+          departing_at: "2026-11-21T20:00:00+08:00",
+          arriving_at: "2026-11-22T00:10:00+07:00",
+          origin: { iata_code: "PEK" },
+          destination: { iata_code: "BKK" },
+        },
+      ]),
+    ).toEqual([{ iata: "PEK", minutes: 15 * 60 + 10 }]);
+  });
+
+  it("returns empty for a nonstop slice", () => {
+    expect(
+      sliceLayoversFromSegments([
+        {
+          departing_at: "2026-08-15T08:00:00+02:00",
+          arriving_at: "2026-08-15T10:00:00+02:00",
+          origin: { iata_code: "LJU" },
+          destination: { iata_code: "CDG" },
+        },
+      ]),
+    ).toEqual([]);
+  });
+});
 
 describe("duffelSliceDurationMin", () => {
   it("uses Duffel slice.duration when it is the full total", () => {

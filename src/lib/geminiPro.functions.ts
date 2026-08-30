@@ -15,6 +15,10 @@ import { inclusiveCalendarDayCount } from "@/lib/dateUtils";
 import { DESTINATION_BY_IATA } from "@/lib/destinationCoords";
 import { sanitizeGroundDestinationPlace } from "@/lib/groundTransport";
 import { remapConfusedDestinationIata } from "@/lib/airportRank";
+import {
+  resolveTripStyle,
+  tripStyleToTravelStyle,
+} from "@/lib/tripStyle";
 
 const SL_MONTHS = [
   "januar",
@@ -98,6 +102,9 @@ export const generateGeminiProTripInputSchema = z
     wishTags: z.array(z.enum(TRIP_WISH_TAGS)).max(TRIP_WISH_TAGS.length).default([]),
     customWishes: z.string().trim().max(2500).optional(),
     pace: z.enum(["intensive", "relaxed", "calm"]).optional(),
+    travelStyle: z.enum(["resort", "explore", "roadtrip"]).optional(),
+    /** Official body param. Missing → `single_base`. UI `travelStyle` is also accepted. */
+    tripStyle: z.enum(["single_base", "explorer", "roadtrip"]).optional(),
     priorities: z.array(z.string().max(200)).max(12).optional(),
     groundTransportMode: z.enum(["car", "motorhome", "train"]).optional(),
     originPlace: z.string().trim().min(2).max(120).optional(),
@@ -115,6 +122,24 @@ export const generateGeminiProTripInputSchema = z
         inboundStops: z.number().int().min(0).max(5).optional(),
         outboundVia: z.string().trim().max(40).optional(),
         inboundVia: z.string().trim().max(40).optional(),
+        outboundLayovers: z
+          .array(
+            z.object({
+              iata: z.string().trim().regex(/^[A-Za-z]{3}$/),
+              minutes: z.number().int().min(1).max(72 * 60).optional(),
+            }),
+          )
+          .max(4)
+          .optional(),
+        inboundLayovers: z
+          .array(
+            z.object({
+              iata: z.string().trim().regex(/^[A-Za-z]{3}$/),
+              minutes: z.number().int().min(1).max(72 * 60).optional(),
+            }),
+          )
+          .max(4)
+          .optional(),
       })
       .optional(),
     attachment: z
@@ -163,19 +188,30 @@ export const generateGeminiProTripInputSchema = z
   });
 
 /** Shared by the server fn and `/api/generate-itinerary` — do not duplicate FCO defaults. */
-export const generateTripInputSchema = generateGeminiProTripInputSchema.transform((data) => ({
-  ...data,
-  destinationPlace: data.destinationPlace
-    ? sanitizeGroundDestinationPlace(data.destinationPlace)
-    : data.destinationPlace,
-  // Ground trips must not inherit Rome (FCO) — that made Balkan car plans say “visa for Italy”.
-  originIata: data.originIata ?? (data.groundTransportMode ? "" : "LJU"),
-  destinationIata: data.destinationIata ?? (data.groundTransportMode ? "" : "FCO"),
-}));
+export const generateTripInputSchema = generateGeminiProTripInputSchema.transform((data) => {
+  const tripStyle = resolveTripStyle(data);
+  return {
+    ...data,
+    destinationPlace: data.destinationPlace
+      ? sanitizeGroundDestinationPlace(data.destinationPlace)
+      : data.destinationPlace,
+    // Ground trips must not inherit Rome (FCO) — that made Balkan car plans say “visa for Italy”.
+    originIata: data.originIata ?? (data.groundTransportMode ? "" : "LJU"),
+    destinationIata: data.destinationIata ?? (data.groundTransportMode ? "" : "FCO"),
+    tripStyle,
+    travelStyle: data.travelStyle ?? tripStyleToTravelStyle(tripStyle),
+  };
+});
 
 const generateInput = generateTripInputSchema;
 
-export type GenerateGeminiProTripInput = z.infer<typeof generateInput>;
+export type GenerateGeminiProTripInput = Omit<
+  z.infer<typeof generateInput>,
+  "tripStyle" | "travelStyle"
+> & {
+  tripStyle?: import("@/lib/tripStyle").TripStyle;
+  travelStyle?: import("@/lib/travelStyle").TravelStyle;
+};
 
 /** Human-readable validation message for /api/generate-itinerary 400 responses. */
 export function formatGenerateTripInputError(error: z.ZodError): string {
@@ -219,7 +255,17 @@ export function tripDayCount(departDate: string, returnDate?: string): number {
 /**
  * Whether a generated itinerary covers enough calendar days.
  * For trips ≥5 days require full coverage (gaps are repaired earlier; −1 is no longer OK).
+ * `single_base` / resortStay never uses a day-by-day itinerary — do not check days.length.
  */
+export function shouldCheckPlanDayCoverage(plan: {
+  tripStyle?: unknown;
+  resortStay?: unknown;
+} | null | undefined): boolean {
+  if (!plan) return true;
+  if (plan.tripStyle === "single_base" || Boolean(plan.resortStay)) return false;
+  return true;
+}
+
 export function hasAcceptablePlanDayCoverage(
   gotDays: number,
   expectedDays: number,
@@ -324,6 +370,8 @@ export function buildGeminiTripPlanParams(data: GenerateGeminiProTripInput, days
     wishTags: data.wishTags,
     customWishes: data.customWishes,
     pace: data.pace,
+    travelStyle: data.travelStyle ?? tripStyleToTravelStyle(resolveTripStyle(data)),
+    tripStyle: resolveTripStyle(data),
     priorities: data.priorities,
     groundTransportMode: data.groundTransportMode,
     originPlace: data.originPlace,

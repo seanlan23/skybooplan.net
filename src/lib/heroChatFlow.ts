@@ -60,6 +60,7 @@ export type HeroChatStep =
   | "nights"
   | "origin"
   | "passengers"
+  | "travelStyle"
   | "pace"
   | "budget"
   | "wishes"
@@ -73,6 +74,8 @@ export type HeroChatCollected = {
   passengers: string;
   /** Stays only — Booking room count. */
   rooms?: number;
+  /** Full plan: resort | explore | roadtrip */
+  travelStyle?: import("@/lib/travelStyle").TravelStyle;
   pace: string;
   budget: string;
   /** Free-text places / preferences in the destination country (optional). */
@@ -306,6 +309,7 @@ export function heroChatStepNumber(step: HeroChatStep): number {
       return 2;
     case "dates":
       return 3;
+    case "travelStyle":
     case "pace":
       return 4;
     case "budget":

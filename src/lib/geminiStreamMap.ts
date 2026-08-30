@@ -9,6 +9,9 @@ import {
   normalizeWeatherWidget,
 } from "@/lib/geminiPlanMap";
 import { parseHmClock } from "@/lib/activityTime";
+import { isSingleBasePayload } from "@/lib/singleBaseContract";
+import { singleBaseJsonToPlan } from "@/lib/singleBasePlanMap";
+import { resolveTripStyle } from "@/lib/tripStyle";
 import { sameTransferBase } from "@/lib/baseTransfer";
 import { normalizeTimeSlotLabel } from "@/lib/itineraryJsonSchema";
 
@@ -290,6 +293,9 @@ export function partialTripPlanToPreviewPlan(
   partial: PartialResponse & { days?: unknown[]; trip_title?: string },
   opts: GeminiPlanMapOpts & { enrich?: boolean },
 ): AiTripPlan | null {
+  if (resolveTripStyle(opts) === "single_base" || isSingleBasePayload(partial)) {
+    return singleBaseJsonToPlan(partial, opts);
+  }
   const coerced = coercePartialResponse(partial);
   if (!coerced) return null;
   try {

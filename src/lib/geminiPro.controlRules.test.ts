@@ -28,6 +28,7 @@ function baseParams(
     },
     language: "sl",
     currency: "EUR",
+    tripStyle: "explorer",
     ...overrides,
   };
 }
@@ -102,6 +103,9 @@ describe("tripPlanControlRules", () => {
     expect(system).toMatch(/Markdown table pipes/);
     expect(system).toMatch(/30°C/);
     expect(system).toMatch(/\\circ/);
+    expect(system).toMatch(/TIMEZONE & FLIGHT DURATION/);
+    expect(system).toMatch(/SAME calendar day/);
+    expect(system).toMatch(/24h\+/);
     expect(system).toMatch(/experienced human travel consultant/);
     expect(system).toMatch(/Never mix English terms or placeholder words/);
     expect(system).toMatch(/10–11 hours door-to-door/);
@@ -213,5 +217,54 @@ describe("tripPlanControlRules", () => {
     expect(system).toMatch(/THIS JSON CALL ONLY: emit day_number 7…12/);
     expect(system).not.toMatch(/FAZA 2|ZAKLENJENA MATRIKA BAZ/);
     expect(system).not.toMatch(/PRIHODOVNO LETALIŠČE \(OBVEZNO/);
+  });
+
+  it("single_base prompt forbids hourly days and requires the four protocol blocks", () => {
+    const system = tripPlanSystemPrompt(baseParams({ tripStyle: "single_base" }));
+    expect(system).toMatch(/arrival_protocol/);
+    expect(system).toMatch(/resort_guide/);
+    expect(system).toMatch(/optional_excursions/);
+    expect(system).toMatch(/departure_protocol/);
+    expect(system).toMatch(/IMUGA/);
+    expect(system).toMatch(/3 ure pred odhodom/);
+    expect(system).toMatch(/24h asistenca/);
+    expect(system).toMatch(/2 potnika/);
+    expect(system).toMatch(/30°C/);
+    expect(system).toMatch(/PREPOVEDANO: days\[\]/);
+    expect(system).toMatch(/breakfast_first|nočitev z zajtrkom/);
+    expect(system).toMatch(/COASTAL BASE|Phuket|obmorsko/);
+    expect(system).not.toMatch(/zapestnice, restavracije à la carte/);
+    expect(system).not.toMatch(/time_slot SAMO DOPOLDAN/);
+    expect(system).not.toMatch(/itinerar\[\]\.days\[\]/);
+    expect(system).toMatch(/transfer_pickup/);
+    expect(system).toMatch(/Šofer vas bo pričakal z napisom/);
+    expect(system).toMatch(/Grab \/ Bolt/);
+  });
+
+  it("single_base all-inclusive dining rules apply only where that model is standard", () => {
+    const system = tripPlanSystemPrompt(
+      baseParams({
+        tripStyle: "single_base",
+        destinationIata: "MLE",
+        destination: "Maldivi",
+        destinationPlace: "Maldivi",
+      }),
+    );
+    expect(system).toMatch(/all_inclusive_standard/);
+    expect(system).toMatch(/zapestnice/);
+    expect(system).toMatch(/IZKLJUČNO resort/);
+    expect(system).toMatch(/3 dni/);
+  });
+
+  it("defaults a missing tripStyle to single_base on a flight trip", () => {
+    const system = tripPlanSystemPrompt(
+      baseParams({
+        tripStyle: undefined,
+        travelStyle: undefined,
+        customWishes: "plaža in mir",
+      }),
+    );
+    expect(system).toMatch(/arrival_protocol/);
+    expect(system).not.toMatch(/time_slot SAMO DOPOLDAN/);
   });
 });

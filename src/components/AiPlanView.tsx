@@ -5,6 +5,10 @@ import { type ActivityMapFocus } from "@/components/TripMap";
 import { AiTripMapPanel } from "@/components/AiTripMapPanel";
 import { MobileMapOpenButton } from "@/components/MobileMapOverlay";
 import { AiPlanDayCard, StreamingDayPlaceholder, activityFocusKey } from "@/components/AiPlanDayCard";
+import { PackageDeck, PackagePlanDetails } from "@/components/PackageCard";
+import { SingleBaseStayView } from "@/components/SingleBaseStayView";
+import { resortPackagesFromPlan } from "@/lib/resortPackage";
+import { isSingleBasePlan } from "@/lib/tripStyle";
 import { POIDetailsModal } from "@/components/POIDetailsModal";
 import { refreshPoiDetailsImage, type PoiDetailsData } from "@/lib/poiDetails.types";
 import { DayScrollDebug } from "@/components/DayScrollDebug";
@@ -20,6 +24,13 @@ import { buildWeatherWidgetFallback } from "@/lib/weatherWidgetFallback";
 import { useDestinationContext } from "@/hooks/useDestinationContext";
 import { DestinationInsightBanner } from "@/components/DestinationInsightBanner";
 import type { TripFlightContext } from "@/lib/flightScheduling";
+import { hotelStayDatesFromContext } from "@/lib/hotelStayDates";
+import {
+  buildTransitGuide,
+  connectionsFromFlightContext,
+} from "@/lib/flightTransitGuide";
+import { TransitGuideNote } from "@/components/TransitGuideNote";
+import { GoldenRulesNote } from "@/components/GoldenRulesNote";
 import { parsePlannerInterestKeys } from "@/lib/plannerInterests";
 
 import { parseLocalDate } from "@/lib/dateUtils";
@@ -107,6 +118,7 @@ export function AiPlanView({
   returnDate,
   flights,
   flightTotalEur,
+  flightBookingUrl,
   loaderOrbit,
 }: {
   loading: boolean;
@@ -131,6 +143,8 @@ export function AiPlanView({
   flights?: TripFlightContext | null;
   /** Selected flight party total (EUR) — added into main TOTAL. */
   flightTotalEur?: number | null;
+  /** Duffel / partner checkout when the selected offer has a booking URL. */
+  flightBookingUrl?: string;
   /** Orbit vehicle while waiting for first day (motorhome = RV + exhaust). */
   loaderOrbit?: "flight" | "motorhome" | "car";
 }) {
@@ -158,6 +172,8 @@ export function AiPlanView({
   const focusedActivityDayRef = useRef<number | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [mobileMapOpen, setMobileMapOpen] = useState(false);
+  const [selectedPackageId, setSelectedPackageId] = useState<string | null>(null);
+  const packageDetailsRef = useRef<HTMLDivElement>(null);
   const isClickNavigatingRef = useRef(false);
   const isPlayingRef = useRef(false);
   isPlayingRef.current = isPlaying;
@@ -239,10 +255,64 @@ export function AiPlanView({
       pax: Math.max(1, pax),
       flightTotalEur: flightTotalEur ?? plan.flightTotalEur,
       destinationIata: destinationIata ?? plan.destinationIata,
+      departDate,
+      returnDate,
+      flights: flights ?? plan.flightContext,
     });
-  }, [plan, destinationIata, flightTotalEur, pax]);
+  }, [plan, destinationIata, flightTotalEur, pax, departDate, returnDate, flights]);
 
   const displayTotalBudget = costSummary.grandTotalEur;
+
+  const hotelStay = useMemo(
+    () =>
+      hotelStayDatesFromContext(flights ?? plan?.flightContext, {
+        departDate,
+        returnDate,
+      }),
+    [flights, plan?.flightContext, departDate, returnDate],
+  );
+
+  const resortPackages = useMemo(() => {
+    if (!plan || !isSingleBasePlan(plan)) return [];
+    return resortPackagesFromPlan(plan, {
+      pax: Math.max(1, pax),
+      adults: Math.max(1, stayInfo?.adults ?? pax),
+      rooms: Math.max(1, stayInfo?.rooms ?? Math.ceil(Math.max(1, stayInfo?.adults ?? pax) / 2)),
+      childrenAges: stayInfo?.childrenAges,
+      flightTotalEur: flightTotalEur ?? plan.flightTotalEur ?? costSummary.flightEur,
+      departDate,
+      returnDate,
+      flights: flights ?? plan.flightContext,
+      originIata: plan.originIata,
+      destinationIata: destinationIata ?? plan.destinationIata,
+      lang,
+      flightBookingUrl,
+    });
+  }, [
+    plan,
+    pax,
+    flightTotalEur,
+    costSummary.flightEur,
+    departDate,
+    returnDate,
+    flights,
+    destinationIata,
+    lang,
+    flightBookingUrl,
+    stayInfo?.adults,
+    stayInfo?.rooms,
+    stayInfo?.childrenAges,
+  ]);
+  const selectedPackage = resortPackages.find((pkg) => pkg.id === selectedPackageId);
+
+  useEffect(() => {
+    setSelectedPackageId(null);
+  }, [plan?.destinationName, plan?.originIata, plan?.destinationIata, departDate, returnDate]);
+
+  useEffect(() => {
+    if (!selectedPackageId || !packageDetailsRef.current) return;
+    packageDetailsRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [selectedPackageId]);
 
   const pauseScrollSpy = useCallback((ms = 3000) => {
     isClickNavigatingRef.current = true;
@@ -635,9 +705,14 @@ export function AiPlanView({
 
   if (!plan) return null;
 
+  const isResortMode = isSingleBasePlan(plan);
+  const transitGuide = buildTransitGuide(
+    connectionsFromFlightContext(flights ?? plan.flightContext),
+    lang,
+  );
   const totalExpectedDays = expectedDayCount > 0 ? expectedDayCount : plan.days.length;
   const pendingDayNumbers: number[] = [];
-  if (streaming && totalExpectedDays > plan.days.length) {
+  if (streaming && !isResortMode && totalExpectedDays > plan.days.length) {
     const existing = new Set(plan.days.map((d) => d.day));
     for (let d = 1; d <= totalExpectedDays; d++) {
       if (!existing.has(d)) pendingDayNumbers.push(d);
@@ -754,7 +829,8 @@ export function AiPlanView({
         </div>
       )}
 
-      {error ? (
+      {error &&
+      !(isResortMode && /nepopoln\s*\(\d+\/\d+\s*dni\)/i.test(error)) ? (
         <div
           className={
             isSoftQuotaError(error)
@@ -864,6 +940,7 @@ export function AiPlanView({
               destinationPlace={plan.destinationPlace ?? plan.destinationName}
               className="mt-3"
             />
+            {!isResortMode ? (
             <div className="mt-4">
               <TravelRequirements
                 requirements={plan.travelRequirements}
@@ -879,7 +956,12 @@ export function AiPlanView({
                   .join(" ")}
                 groundTransportMode={plan.groundTransportMode}
               />
+              {transitGuide ? (
+                <TransitGuideNote guide={transitGuide} className="mt-3" />
+              ) : null}
+              <GoldenRulesNote lang={lang} className="mt-3" />
             </div>
+            ) : null}
             <PlannerChoicesSummary form={plannerForm} className="mt-4" />
             {langMismatch ? (
               <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50/90 px-3.5 py-3 text-sm text-amber-950">
@@ -905,7 +987,7 @@ export function AiPlanView({
             {displaySummary ? (
               <p className="mt-2 text-slate-600 max-w-2xl text-sm leading-relaxed">{displaySummary}</p>
             ) : null}
-            {streaming && (
+            {streaming && !isResortMode && (
               <p className="mt-2 inline-flex items-center gap-2 text-sm font-medium text-sky-600">
                 <span className="relative flex h-2 w-2">
                   <span className="absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75 animate-ping" />
@@ -950,8 +1032,60 @@ export function AiPlanView({
         </div>
       </div>
 
+      {isResortMode ? (
+        <div className="space-y-5">
+          {resortPackages.length ? (
+            <>
+              <PackageDeck
+                packages={resortPackages}
+                selectedId={selectedPackage?.id}
+                onSelect={(id) =>
+                  setSelectedPackageId((cur) => (cur === id ? null : id))
+                }
+                flightStay={hotelStay ?? undefined}
+              />
+              {selectedPackage && plan.resortStay ? (
+                <div ref={packageDetailsRef} id="package-plan-details">
+                  <PackagePlanDetails
+                    stay={plan.resortStay}
+                    pkg={selectedPackage}
+                    onDownloadPdf={onDownloadClick}
+                    flights={flights ?? plan.flightContext}
+                    flightStay={hotelStay ?? undefined}
+                  />
+                </div>
+              ) : null}
+            </>
+          ) : plan.resortStay ? (
+            <SingleBaseStayView
+              stay={plan.resortStay}
+              destination={{
+                destinationIata: destinationIata ?? plan.destinationIata,
+                destinationName: plan.destinationName,
+                destinationPlace: plan.destinationPlace,
+              }}
+              flights={flights ?? plan.flightContext}
+            />
+          ) : null}
+          <TravelRequirements
+            requirements={plan.travelRequirements}
+            originIata={plan.originIata}
+            destinationIata={plan.destinationIata}
+            destinationPlace={[
+              plan.destinationPlace,
+              plan.destinationName,
+              plan.summary,
+            ]
+              .filter(Boolean)
+              .join(" ")}
+            groundTransportMode={plan.groundTransportMode}
+          />
+        </div>
+      ) : null}
+
       <SupportCard isGenerating={isGenerating} />
 
+      {isResortMode ? null : (
       <div className="flex flex-col lg:grid lg:grid-cols-[1fr_1.3fr] gap-4 sm:gap-5 lg:gap-6 lg:items-start w-full">
         <div
           ref={planScrollRef}
@@ -964,7 +1098,7 @@ export function AiPlanView({
               onStopSelect={handleMapCitySelect}
             />
           )}
-          {plan.days.map((d, idx) => {
+          {isResortMode ? null : plan.days.map((d, idx) => {
             let checkOut = d.date;
             if (d.city) {
               let endIdx = idx;
@@ -1012,12 +1146,13 @@ export function AiPlanView({
               </div>
             );
           })}
-          {pendingDayNumbers.map((dayNum, i) => (
+          {!isResortMode &&
+            pendingDayNumbers.map((dayNum, i) => (
             <div key={`pending-${dayNum}`}>
               <StreamingDayPlaceholder dayNumber={dayNum} isGenerating={i === 0} />
             </div>
           ))}
-          {!streaming && <ReturnHomeCard plan={plan} />}
+          {!streaming && !isResortMode && <ReturnHomeCard plan={plan} />}
         </div>
 
         {hasCoords && (
@@ -1041,8 +1176,9 @@ export function AiPlanView({
           />
         )}
       </div>
+      )}
 
-      {hasCoords && mobileMapOpen && (
+      {hasCoords && mobileMapOpen && !isResortMode && (
         <AiTripMapPanel
           plan={plan}
           activeDay={activeDay}
@@ -1065,7 +1201,7 @@ export function AiPlanView({
       )}
 
       <MobileMapOpenButton
-        visible={hasCoords && !mobileMapOpen}
+        visible={hasCoords && !mobileMapOpen && !isResortMode}
         onClick={() => setMobileMapOpen(true)}
       />
 

@@ -114,6 +114,34 @@ describe("heroChatPlanner", () => {
     expect(ctx.adults).toBe(1);
   });
 
+  it("sends country-only resort searches to a coastal airport, not the capital", () => {
+    const { ctx, form } = heroChatToPlannerPayload({
+      destination: "Tajska",
+      dates: "1. okt → 8. okt 2026",
+      nights: "",
+      origin: "Ljubljana",
+      passengers: "2 odrasla",
+      pace: "Sproščen",
+      budget: "1000–2000€",
+      travelStyle: "resort",
+    }, "sl");
+    expect(ctx.to).toBe("HKT");
+    expect(ctx.destinationPlace).toMatch(/Phuket/);
+    expect(form.wishes).toMatch(/obmorsko bazo/);
+  });
+
+  it("keeps Thailand on Bangkok for explore", () => {
+    const { ctx } = heroChatToPlannerPayload({
+      destination: "Tajska",
+      dates: "1. okt → 8. okt 2026",
+      origin: "Ljubljana",
+      passengers: "2 odrasla",
+      travelStyle: "explore",
+    });
+    expect(ctx.to).toBe("BKK");
+    expect(ctx.destinationPlace).toBe("Tajska");
+  });
+
   it("parses night ranges", () => {
     expect(parseChatNights("10–14 noči")).toBe(12);
   });

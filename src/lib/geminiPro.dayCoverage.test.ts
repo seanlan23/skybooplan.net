@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   hasAcceptablePlanDayCoverage,
   incompletePlanDayCoverageMessage,
+  shouldCheckPlanDayCoverage,
   tripDayCount,
 } from "@/lib/geminiPro.functions";
 
@@ -36,5 +37,14 @@ describe("plan day coverage", () => {
   it("requires both days for a 2-day trip", () => {
     expect(hasAcceptablePlanDayCoverage(1, 2)).toBe(false);
     expect(hasAcceptablePlanDayCoverage(2, 2)).toBe(true);
+  });
+
+  it("does not check day counts for single_base / resortStay", () => {
+    expect(shouldCheckPlanDayCoverage({ tripStyle: "single_base" })).toBe(false);
+    expect(shouldCheckPlanDayCoverage({ resortStay: { arrivalProtocol: {} } })).toBe(
+      false,
+    );
+    expect(shouldCheckPlanDayCoverage({ tripStyle: "explorer" })).toBe(true);
+    expect(shouldCheckPlanDayCoverage({ tripStyle: "roadtrip" })).toBe(true);
   });
 });

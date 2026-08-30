@@ -250,10 +250,12 @@ export function duffelFlightToMakeSearchFlight(
 ): MakeSearchFlight {
   const out = flight.outbound;
   const inn = flight.inbound;
-  const outStops = out.stops === 0 ? "0" : String(out.stops);
-  const postanki = inn
-    ? `${outStops}/${inn.stops === 0 ? "0" : String(inn.stops)}`
-    : outStops;
+  const formatLegStops = (leg: typeof out) => {
+    if (leg.stops <= 0) return "0";
+    const via = leg.via || leg.layovers?.map((l) => l.iata).filter(Boolean).join(",");
+    return via ? `${leg.stops}|${via}` : String(leg.stops);
+  };
+  const postanki = inn ? `${formatLegStops(out)}/${formatLegStops(inn)}` : formatLegStops(out);
   const airlineIata = (flight.airlineCode || out.airlineCode || "").toUpperCase();
   // Duffel total_amount is always the party total for the searched passengers.
   const travelers = Math.max(1, opts?.travelers ?? 1);
@@ -289,6 +291,8 @@ export function duffelFlightToMakeSearchFlight(
     outbound_arrive_day_offset: out.arriveDayOffset || undefined,
     outbound_duration: out.duration,
     duration_minutes: flight.durationMin,
+    ...(out.layovers?.length ? { outbound_layovers: out.layovers } : {}),
+    ...(inn?.layovers?.length ? { inbound_layovers: inn.layovers } : {}),
   };
 }
 

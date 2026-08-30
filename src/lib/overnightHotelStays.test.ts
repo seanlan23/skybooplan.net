@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  collectCalendarHotelStay,
   collectOvernightHotelStays,
   collectOvernightHotelStaysFromHints,
   isoAddDays,
@@ -397,6 +398,26 @@ describe("stampOvernightCitiesFromHotels", () => {
       ]),
     ).toBe(false);
     expect(days.map((d) => d.city)).toEqual(["Ubud", "Ubud", "Amed", "Amed"]);
+  });
+});
+
+describe("collectCalendarHotelStay", () => {
+  it("spans the full flight stay, not a short Gemini hotel window", () => {
+    const stays = collectCalendarHotelStay({
+      city: "Cancún Riviera Maya",
+      startDate: "2026-10-01",
+      endDate: "2026-10-08",
+      hotel: { city: "Cancún", nights: 3, from_date: "2026-10-01", to_date: "2026-10-04" },
+    });
+    expect(stays).toEqual([
+      {
+        city: "Cancún",
+        checkIn: "2026-10-01",
+        checkOut: "2026-10-08",
+        nights: 7,
+        firstDay: 1,
+      },
+    ]);
   });
 });
 

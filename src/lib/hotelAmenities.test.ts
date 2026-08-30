@@ -57,4 +57,9 @@ describe("bookingNfltFor", () => {
       "mealplan::1,mealplan::9,free_cancellation::1",
     );
   });
+
+  it("forwards the 8.0+ guest-score filter to Booking nflt and RapidAPI", () => {
+    expect(bookingNfltFor({ minReview80: true })).toEqual(["review_score=80"]);
+    expect(bookingCategoriesFilterFor({ minReview80: true })).toBe("review_score::80");
+  });
 });

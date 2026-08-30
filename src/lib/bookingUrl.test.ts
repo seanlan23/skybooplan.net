@@ -5,6 +5,7 @@ import {
   BOOKING_CLICK_HOP_PATH,
   bookingClickHopHref,
   buildBookingSearchUrl,
+  resolveBookingStayDates,
   resolveHotelBookingUrl,
   SKYBOOPLAN_CJ_CLICK_URL,
   toBookingClickHref,
@@ -13,6 +14,7 @@ import {
   SKYBOOPLAN_SITE,
   renderBookingHopHtml,
 } from "@/lib/bookingUrl";
+import { packageBookingHref } from "@/lib/resortPackage";
 
 function hopDest(href: string): URL {
   expect(href.startsWith(`${BOOKING_CLICK_HOP_PATH}?`)).toBe(true);
@@ -41,25 +43,39 @@ describe("buildBookingSearchUrl", () => {
     expect(url.searchParams.get("checkin_year")).toBe("2026");
     expect(url.searchParams.get("checkin_month")).toBe("10");
     expect(url.searchParams.get("group_adults")).toBe("2");
+    expect(url.searchParams.get("no_rooms")).toBe("1");
     expect(url.searchParams.get("aid")).toBeNull();
-    expect(url.searchParams.get("src")).toBe("index");
+    expect(url.searchParams.get("src")).toBeNull();
+    expect(url.pathname).toBe("/searchresults.html");
+    expect(url.searchParams.get("review_score")).toBe("80");
+    expect(url.searchParams.get("checkin_monthday")).toBe("12");
+    expect(url.searchParams.get("checkout_year")).toBe("2026");
+    expect(url.searchParams.get("checkout_month")).toBe("10");
+    expect(url.searchParams.get("checkout_monthday")).toBe("18");
   });
 
-  it("includes dest_id so Booking keeps the city for signed-in users", () => {
+  it("locks the calendar with ISO dates plus year/month/monthday — no src=index", () => {
     const url = hopDest(
       buildBookingSearchUrl({
-        destination: "New York",
-        checkIn: "2026-09-20",
-        checkOut: "2026-09-27",
-        destId: "20088325",
-        destType: "city",
+        destination: "Phuket",
+        checkIn: "2026-11-21",
+        checkOut: "2026-11-30",
         lang: "sl",
       }),
     );
-    expect(url.searchParams.get("dest_id")).toBe("20088325");
-    expect(url.searchParams.get("dest_type")).toBe("city");
+    expect(url.searchParams.get("checkin")).toBe("2026-11-21");
+    expect(url.searchParams.get("checkout")).toBe("2026-11-30");
+    expect(url.searchParams.get("checkin_year")).toBe("2026");
+    expect(url.searchParams.get("checkin_month")).toBe("11");
+    expect(url.searchParams.get("checkin_monthday")).toBe("21");
+    expect(url.searchParams.get("checkout_year")).toBe("2026");
+    expect(url.searchParams.get("checkout_month")).toBe("11");
+    expect(url.searchParams.get("checkout_monthday")).toBe("30");
     expect(url.searchParams.get("lang")).toBe("sl");
-    expect(url.searchParams.get("src")).not.toBe("searchresults");
+    expect(url.searchParams.get("src")).toBeNull();
+    expect(url.searchParams.get("dest_id")).toBeNull();
+    expect(url.pathname).toBe("/searchresults.html");
+    expect(url.searchParams.get("review_score")).toBe("80");
   });
 
   it("still opens a destination search when affiliate id is missing", () => {
@@ -73,6 +89,8 @@ describe("buildBookingSearchUrl", () => {
 
     expect(url.searchParams.get("ss")).toBe("Barcelona");
     expect(url.searchParams.get("aid")).toBeNull();
+    expect(url.pathname).toBe("/searchresults.html");
+    expect(url.searchParams.get("review_score")).toBe("80");
   });
 
   it("forwards popular filters as Booking nflt", () => {
@@ -85,7 +103,7 @@ describe("buildBookingSearchUrl", () => {
       }),
     );
     expect(url.searchParams.get("nflt")).toBe("mealplan=1;ht_id=204");
-    expect(url.searchParams.get("src")).toBe("searchresults");
+    expect(url.searchParams.get("src")).toBeNull();
   });
 });
 
@@ -144,12 +162,90 @@ describe("applyBookingNetworkTracking", () => {
   });
 });
 
+describe("packageBookingHref", () => {
+  it("always opens searchresults with ss, flight dates, guests, and review_score", () => {
+    const href = packageBookingHref({
+      destination: "Cancun Riviera Maya",
+      hotelName: "Occidental Costa Cancun",
+      checkIn: "2026-10-01",
+      checkOut: "2026-10-08",
+      adults: 2,
+      rooms: 1,
+      incomingHref: "https://www.booking.com/",
+    });
+    const dest = hopDest(href!);
+    expect(dest.pathname).toBe("/searchresults.html");
+    expect(dest.searchParams.get("ss")).toBe("Occidental Costa Cancun");
+    expect(dest.searchParams.get("checkin")).toBe("2026-10-01");
+    expect(dest.searchParams.get("checkout")).toBe("2026-10-08");
+    expect(dest.searchParams.get("checkin_year")).toBe("2026");
+    expect(dest.searchParams.get("checkin_month")).toBe("10");
+    expect(dest.searchParams.get("checkin_monthday")).toBe("1");
+    expect(dest.searchParams.get("checkout_year")).toBe("2026");
+    expect(dest.searchParams.get("checkout_month")).toBe("10");
+    expect(dest.searchParams.get("checkout_monthday")).toBe("8");
+    expect(dest.searchParams.get("group_adults")).toBe("2");
+    expect(dest.searchParams.get("no_rooms")).toBe("1");
+    expect(dest.searchParams.get("review_score")).toBe("80");
+    expect(dest.toString()).not.toBe("https://www.booking.com/");
+  });
+
+  it("overwrites a mock/empty hotel date with the selected flight stay", () => {
+    const href = packageBookingHref({
+      destination: "Phuket",
+      checkIn: "",
+      checkOut: "not-a-date",
+      hotelCheckIn: "2026-11-21",
+      hotelCheckOut: "2026-11-30",
+      adults: 2,
+      rooms: 1,
+    });
+    const dest = hopDest(href!);
+    expect(dest.searchParams.get("checkin")).toBe("2026-11-21");
+    expect(dest.searchParams.get("checkout")).toBe("2026-11-30");
+    expect(dest.searchParams.get("checkin_year")).toBe("2026");
+    expect(dest.searchParams.get("checkin_month")).toBe("11");
+    expect(dest.searchParams.get("checkin_monthday")).toBe("21");
+    expect(dest.searchParams.get("checkout_monthday")).toBe("30");
+  });
+});
+
+describe("resolveBookingStayDates", () => {
+  it("prefers the selected flight over a stored hotel date", () => {
+    expect(
+      resolveBookingStayDates({
+        flightDepartDate: "2026-11-21",
+        flightReturnDate: "2026-11-30",
+        checkIn: "2026-01-01",
+        checkOut: "2026-01-08",
+      }),
+    ).toEqual({ checkIn: "2026-11-21", checkOut: "2026-11-30" });
+  });
+
+  it("locks Booking to destination arrival, not home-airport depart", () => {
+    const href = packageBookingHref({
+      destination: "Phuket",
+      checkIn: "2026-10-26",
+      checkOut: "2026-11-06",
+      hotelCheckIn: "2026-10-27",
+      hotelCheckOut: "2026-11-06",
+      adults: 2,
+      rooms: 1,
+    });
+    const dest = hopDest(href!);
+    expect(dest.searchParams.get("checkin")).toBe("2026-10-27");
+    expect(dest.searchParams.get("checkout")).toBe("2026-11-06");
+    expect(dest.searchParams.get("checkin_monthday")).toBe("27");
+  });
+});
+
 describe("resolveHotelBookingUrl", () => {
-  it("hops a hotel property page used by See availability cards", () => {
+  it("rebuilds searchresults so a hotel page cannot open today's calendar", () => {
     const href = resolveHotelBookingUrl(
       "https://www.booking.com/hotel/ae/atlantis-the-palm.html?aid=304142",
       {
         destination: "Dubai",
+        hotelName: "Atlantis The Palm",
         checkIn: "2026-09-20",
         checkOut: "2026-09-27",
         adults: 2,
@@ -158,20 +254,63 @@ describe("resolveHotelBookingUrl", () => {
     );
     const dest = hopDest(href);
     expect(dest.hostname).toBe("www.booking.com");
-    expect(dest.pathname).toContain("/hotel/ae/atlantis-the-palm.html");
+    expect(dest.pathname).toBe("/searchresults.html");
+    expect(dest.searchParams.get("ss")).toBe("Atlantis The Palm");
     expect(dest.searchParams.get("checkin")).toBe("2026-09-20");
+    expect(dest.searchParams.get("checkin_year")).toBe("2026");
+    expect(dest.searchParams.get("checkin_monthday")).toBe("20");
     expect(dest.searchParams.get("aid")).toBeNull();
   });
 
-  it("keeps the hotel page when the API already returned a Skybooplan hop", () => {
+  it("fills an empty ss and stamps flight dates on a searchresults URL", () => {
+    const dest = hopDest(
+      resolveHotelBookingUrl("https://www.booking.com/searchresults.html?ss=&src=index", {
+        destination: "Punta Cana",
+        hotelName: "Xanadú Resort and Residences",
+        checkIn: "2026-10-01",
+        checkOut: "2026-10-08",
+        adults: 2,
+        rooms: 1,
+      }),
+    );
+    expect(dest.searchParams.get("ss")).toMatch(/Xanadú|Punta Cana/i);
+    expect(dest.searchParams.get("ss")?.trim()).toBeTruthy();
+    expect(dest.searchParams.get("checkin")).toBe("2026-10-01");
+    expect(dest.searchParams.get("checkout")).toBe("2026-10-08");
+    expect(dest.searchParams.get("checkin_year")).toBe("2026");
+    expect(dest.searchParams.get("checkin_month")).toBe("10");
+    expect(dest.searchParams.get("checkin_monthday")).toBe("1");
+    expect(dest.searchParams.get("group_adults")).toBe("2");
+    expect(dest.searchParams.get("no_rooms")).toBe("1");
+  });
+
+  it("builds ss from hotel name when the city is missing", () => {
+    const dest = hopDest(
+      buildBookingSearchUrl({
+        destination: "",
+        hotelName: "Xanadú Resort and Residences",
+        checkIn: "2026-10-01",
+        checkOut: "2026-10-08",
+        adults: 2,
+        rooms: 1,
+      }),
+    );
+    expect(dest.searchParams.get("ss")).toBe("Xanadú Resort and Residences");
+  });
+
+  it("rebuilds searchresults when the API already returned a Skybooplan hop", () => {
     const inner =
       "https://www.booking.com/hotel/us/pod-times-square.html?checkin=2026-09-20";
     const href = resolveHotelBookingUrl(bookingClickHopHref(inner), {
       destination: "New York",
+      hotelName: "Pod Times Square",
       checkIn: "2026-09-20",
       checkOut: "2026-09-27",
     });
-    expect(hopDest(href).pathname).toContain("/hotel/us/pod-times-square.html");
+    const dest = hopDest(href);
+    expect(dest.pathname).toBe("/searchresults.html");
+    expect(dest.searchParams.get("checkin")).toBe("2026-09-20");
+    expect(dest.searchParams.get("checkout")).toBe("2026-09-27");
   });
 });
 

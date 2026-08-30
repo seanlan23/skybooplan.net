@@ -368,6 +368,10 @@ export type GenerateTripPlanParams = {
   wishTags: string[];
   customWishes?: string;
   pace?: "intensive" | "relaxed" | "calm";
+  /** Full-plan searcher UI id: 1 base / 1–2 bases / more stops. */
+  travelStyle?: import("@/lib/travelStyle").TravelStyle;
+  /** Official generation style — defaults to `single_base` when omitted. */
+  tripStyle?: import("@/lib/tripStyle").TripStyle;
   priorities?: string[];
   /** Ground transport from home city to destination */
   groundTransportMode?: "car" | "motorhome" | "train";
@@ -393,6 +397,8 @@ export type GenerateTripPlanParams = {
     inboundStops?: number;
     outboundVia?: string;
     inboundVia?: string;
+    outboundLayovers?: Array<{ iata: string; minutes?: number }>;
+    inboundLayovers?: Array<{ iata: string; minutes?: number }>;
   };
 };
 

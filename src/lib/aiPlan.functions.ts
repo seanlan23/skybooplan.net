@@ -219,6 +219,8 @@ const Input = z.object({
   language: z.enum(["en", "sl", "de"]).optional(),
   currency: z.enum(["EUR", "USD"]).optional(),
   pace: z.enum(["intensive", "relaxed", "calm"]).optional(),
+  travelStyle: z.enum(["resort", "explore", "roadtrip"]).optional(),
+  tripStyle: z.enum(["single_base", "explorer", "roadtrip"]).optional(),
   wishes: z.string().max(2000).optional(),
   priorities: z.array(z.enum(PLANNER_INTEREST_KEYS)).max(10).optional(),
   customPrompt: z.string().max(8000).optional(),
@@ -450,6 +452,22 @@ export type AiTripPlan = {
   }>;
   /** Free-text wishes — used to lock an explicit city/night stay plan. */
   wishes?: string;
+  /** Official generation style — `single_base` uses `resortStay` instead of hourly days. */
+  tripStyle?: import("@/lib/tripStyle").TripStyle;
+  /** Resort / one-base stay — no DOPOLDAN/POPOLDAN/VEČER clocks. */
+  resortStay?: ResortStay;
+  /** Live Booking resorts for the same flight — never invented names. */
+  resortOffers?: import("@/lib/resortHotelPicks").ResortHotelOffer[];
+  /** Selected flight clocks + connections — used by the transit guide and PDF. */
+  flightContext?: TripFlightContext;
+};
+
+/** Four-block resort plan (Maldives / Zanzibar / one island). */
+export type ResortStay = {
+  arrivalProtocol: import("@/lib/singleBaseContract").ArrivalProtocol;
+  resortGuide: import("@/lib/singleBaseContract").ResortGuide;
+  optionalExcursions: import("@/lib/singleBaseContract").OptionalExcursion[];
+  departureProtocol: import("@/lib/singleBaseContract").DepartureProtocol;
 };
 
 /** Phase A — city/region blocks shown in ~30s before day-by-day expansion. */
@@ -1774,6 +1792,8 @@ export const generateAiPlan = createServerFn({ method: "POST" })
       wishTags: [],
       customWishes: [data.wishes, data.customPrompt].filter(Boolean).join("\n") || undefined,
       pace: data.pace,
+      travelStyle: data.travelStyle,
+      tripStyle: data.tripStyle,
       language: data.language ?? "sl",
       currency: data.currency,
       flightContext: data.flightContext,

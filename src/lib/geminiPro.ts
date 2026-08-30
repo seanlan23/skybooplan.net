@@ -55,6 +55,13 @@ import {
   type TravelBriefFields,
 } from "@/lib/travelDesignerPrompt";
 import { normalizeAppLang } from "@/lib/i18n";
+import { parseSingleBasePlan, singleBaseGeminiSchema } from "@/lib/singleBaseContract";
+import { isSingleBaseTripStyle, resolveTripStyle } from "@/lib/tripStyle";
+import {
+  EXPLORER_ROADTRIP_STYLE_RULES,
+  TRIP_COPY_FORMAT_RULES,
+  singleBaseSystemRules,
+} from "@/lib/tripStylePrompt";
 
 export type {
   GenerateTripPlanParams,
@@ -63,6 +70,12 @@ export type {
   TripPlanResponse,
   TripWishTag,
 } from "@/lib/geminiPro.shared";
+export function tripPlanGeminiSchemaFor(params: GenerateTripPlanParams) {
+  return isSingleBaseTripStyle(resolveTripStyle(params))
+    ? singleBaseGeminiSchema
+    : tripPlanGeminiSchema;
+}
+
 export {
   TRIP_WISH_TAGS,
   tripPlanSchema,
@@ -387,7 +400,7 @@ function travelBriefFieldsFromParams(params: GenerateTripPlanParams): TravelBrie
   if (params.flightContext && !params.groundTransportMode) {
     const fc = params.flightContext;
     extraTransport.push(
-      `Selected ticket: outbound ${params.originIata} ${fc.outboundDepart} → ${params.destinationIata} ${fc.outboundArrive}${fc.outboundArriveDayOffset ? ` (+${fc.outboundArriveDayOffset} day)` : ""}.`,
+      `Selected ticket: outbound ${params.originIata} ${fc.outboundDepart} → ${params.destinationIata} ${fc.outboundArrive}${fc.outboundArriveDayOffset ? ` (+${fc.outboundArriveDayOffset} day)` : " (same local calendar day — do not invent +1)"}.`,
     );
     if (fc.inboundDepart) {
       extraTransport.push(
@@ -483,6 +496,9 @@ function travelBriefFieldsFromParams(params: GenerateTripPlanParams): TravelBrie
 }
 
 function buildTripPlanPrompt(params: GenerateTripPlanParams): string {
+  if (isSingleBaseTripStyle(resolveTripStyle(params))) {
+    return singleBaseTripPlanUserPrompt(params);
+  }
   const wishes =
     params.wishTags.length > 0
       ? params.wishTags.join(", ")
@@ -756,7 +772,86 @@ const tripPlanGenerationConfig = {
   },
 } as const;
 
+function singleBaseTripPlanSystemPrompt(params: GenerateTripPlanParams): string {
+  const lang = normalizeAppLang(params.language ?? "sl");
+  const displayCurrency: PlanCurrency = normalizePlanCurrency(params.currency);
+  const writingRule = languageWritingRule(lang);
+  const moneyRule = currencyWritingRule(displayCurrency);
+  const fc = params.flightContext;
+  const selectedFlightSystemBlock =
+    !params.groundTransportMode && fc
+      ? `IZBRANI LET (samo za arrival_protocol / departure_protocol — brez dnevnega urnika):
+- Odhod ${params.originIata}: ${fc.outboundDepart}. Prihod ${params.destinationIata}: ${fc.outboundArrive} (+${fc.outboundArriveDayOffset ?? 0}d).
+${
+  fc.inboundDepart
+    ? `- Povratek: odhod ${fc.inboundDepart} z ${params.returnFromIata ?? params.destinationIata}${
+        fc.inboundArrive ? `, prihod ${fc.inboundArrive}` : ""
+      }.`
+    : ""
+}
+- V departure_protocol: prihod na mednarodni terminal = odhod − natanko 3:00. Ne piši days[] in ne time_slot.`
+      : "";
+  const travelReqBlock = travelRequirementsPromptBlock({
+    originIata: params.originIata,
+    destinationIata: params.destinationIata,
+    destinationLabel: params.destination,
+    language: lang,
+  });
+  return `Si strokovni potovalni agent za aplikacijo skybooplan. Striktno sledi zahtevani JSON shemi.
+
+${singleBaseSystemRules(params)}
+
+${TRIP_COPY_FORMAT_RULES}
+
+${STRICT_LLM_LANGUAGE_RULE}
+
+${STRICT_LLM_CURRENCY_RULE}
+
+JEZIK IZHODA:
+${writingRule}
+${lang === "sl" ? "- Odgovori izključno v slovenščini v veljavnem JSON formatu." : ""}
+
+VALUTA (displayCurrency = ${displayCurrency}):
+${moneyRule}
+
+${travelReqBlock}
+${selectedFlightSystemBlock}
+
+weatherWidget in safetyWarning sta obvezna (safetyWarning = objekt ali null).
+PREPOVEDANO: days[], time_slot, start_time, DOPOLDAN/POPOLDAN/VEČER.`;
+}
+
+function singleBaseTripPlanUserPrompt(params: GenerateTripPlanParams): string {
+  const route = params.originPlace && params.destinationPlace
+    ? `${params.originPlace} → ${params.destinationPlace}`
+    : params.returnFromIata
+      ? `${params.originIata} → ${params.destinationIata}, povratek iz ${params.returnFromIata}`
+      : `${params.originIata} → ${params.destinationIata}`;
+  const dates = params.returnDate
+    ? `${params.departDate} → ${params.returnDate}`
+    : params.departDate;
+  const customWishes = params.customWishes?.trim() ?? "";
+  const paxLabel =
+    params.pax.adults + params.pax.childrenAges.length === 2
+      ? "2 potnika"
+      : `${params.pax.adults + params.pax.childrenAges.length} potnikov`;
+  return `Sestavi RESORT / 1-BAZA načrt (tripStyle=single_base) za:
+- Pot: ${route}
+- Datumi: ${dates} (${params.days} koledarskih dni)
+- Potniki: ${paxLabel}
+- Proračun: ${BUDGET_LABELS[params.budget]}
+- Želje: ${customWishes || params.wishTags.join(", ") || "brez posebnih zahtev"}
+
+Vrni samo JSON s štirimi sklopi: arrival_protocol, resort_guide, optional_excursions (4–6), departure_protocol.
+Brez dnevnega urnika z urami.
+Sledi pravilom RESORT DINING za to destinacijo (zajtrk v Aziji; All-Inclusive samo kjer je to res standard).
+V arrival_protocol.transfer_pickup razloži 3 realne poti do resorta (hotel, aplikacija, uradni pult) — nikoli samo »šofer z napisom«.`;
+}
+
 export function tripPlanSystemPrompt(params: GenerateTripPlanParams): string {
+  if (isSingleBaseTripStyle(resolveTripStyle(params))) {
+    return singleBaseTripPlanSystemPrompt(params);
+  }
   const span = thisResponseDaySpan(params);
   const motorhome = isMotorhomeTrip(params);
   const carTrip = isCarRoadTrip(params);
@@ -920,6 +1015,10 @@ ${moneyRule}
 
 ${controlRules}
 
+${EXPLORER_ROADTRIP_STYLE_RULES}
+
+${TRIP_COPY_FORMAT_RULES}
+
 ${userStayPlanBlock ?? ""}
 ${travelReqBlock}
 ${arrivalAirportBlock}
@@ -971,7 +1070,7 @@ export function createTripPlanStream(
           ],
         },
       ],
-      schema: tripPlanGeminiSchema,
+      schema: tripPlanGeminiSchemaFor(params),
       abortSignal,
       ...tripPlanGenerationConfig,
     });
@@ -981,7 +1080,7 @@ export function createTripPlanStream(
     model: google(GEMINI_TRIP_PLAN_MODEL),
     system: tripPlanSystemPrompt(params),
     prompt,
-    schema: tripPlanGeminiSchema,
+    schema: tripPlanGeminiSchemaFor(params),
     abortSignal,
     ...tripPlanGenerationConfig,
   });
@@ -1005,7 +1104,8 @@ export function extractGeneratedObject(error: unknown): unknown | null {
   return null;
 }
 
-export async function generateTripPlan(params: GenerateTripPlanParams): Promise<TripPlanResponse> {
+export async function generateTripPlan(params: GenerateTripPlanParams): Promise<unknown> {
+  const singleBase = isSingleBaseTripStyle(resolveTripStyle(params));
   try {
     pipelineLog("gemini:generateObject START");
     const genStart = performance.now();
@@ -1015,7 +1115,7 @@ export async function generateTripPlan(params: GenerateTripPlanParams): Promise<
         model: google(GEMINI_TRIP_PLAN_MODEL),
         system: tripPlanSystemPrompt(params),
         prompt: buildTripPlanPrompt(params),
-        schema: tripPlanGeminiSchema,
+        schema: tripPlanGeminiSchemaFor(params),
         ...tripPlanGenerationConfig,
       }),
       GEMINI_GENERATION_TIMEOUT_MS,
@@ -1034,6 +1134,17 @@ export async function generateTripPlan(params: GenerateTripPlanParams): Promise<
       payload = parsed.value;
     }
 
+    if (singleBase) {
+      const parsedBase = parseSingleBasePlan(payload);
+      if (!parsedBase.success) {
+        const loose = parseSingleBasePlan(payload, { loose: true });
+        if (loose.success) return loose.data;
+        console.error("Gemini Pro single_base parse failed");
+        throw new Error("Napaka pri generiranju načrta preko Gemini Pro");
+      }
+      return parsedBase.data;
+    }
+
     const coerced = parseCoercedTripPlan(payload);
     if (!coerced.success) {
       console.error("Gemini Pro coerce/parse failed", coerced.error.flatten());
@@ -1048,6 +1159,13 @@ export async function generateTripPlan(params: GenerateTripPlanParams): Promise<
 
     const recovered = extractGeneratedObject(error);
     if (recovered != null) {
+      if (singleBase) {
+        const loose = parseSingleBasePlan(recovered, { loose: true });
+        if (loose.success) {
+          pipelineLog("gemini:recovered via singleBase");
+          return loose.data;
+        }
+      }
       const coerced = parseCoercedTripPlan(recovered);
       if (coerced.success) {
         pipelineLog("gemini:recovered via coerceTripPlanPayload");

@@ -4,14 +4,35 @@ import {
 } from "@/lib/activityDescription";
 import { localizeTravelCopy } from "@/lib/localizeTravelCopy";
 
-/** Guest-facing JSON/UI copy: no markdown pipes, no LaTeX temperatures. */
-export function cleanText(input: string): string {
+/** Guest-facing JSON/UI/PDF copy: no markdown pipes, no LaTeX relics. */
+export function stripLatexRelics(input: string): string {
   if (!input) return "";
   return input
-    .replace(/\|/g, "")
-    .replace(/\$(\d+)\\circ\s*C\$/g, "$1°C")
-    .replace(/\$(\d+)\^\{\\circ\}\s*C\$/g, "$1°C")
-    .replace(/\$(\d+)\^\\circ\s*C\$/g, "$1°C")
+    .replace(/\$\\approx\s*/gi, "~")
+    .replace(/\\approx\s*/gi, "~")
+    .replace(/\\xi/gi, "€")
+    .replace(/\\epsilon/gi, "€")
+    .replace(/\\euro/gi, "€")
+    .replace(/\$/g, "")
+    .replace(/~\s+(\d)/g, "~$1")
+    .replace(/~\s*€/g, " €")
+    .replace(/~ /g, " ");
+}
+
+export function cleanText(input: string): string {
+  if (!input) return "";
+  return stripLatexRelics(
+    input
+      .replace(/\|/g, "")
+      .replace(/\$(\d+)\\circ\s*C\$/g, "$1°C")
+      .replace(/\$(\d+)\^\{\\circ\}\s*C\$/g, "$1°C")
+      .replace(/\$(\d+)\^\\circ\s*C\$/g, "$1°C")
+      .replace(
+        /\$([A-Z]{3})\s*\\(?:rightarrow|to)\s*([A-Z]{3})(?:\s*\\cdot\s*(\d+))?\$/g,
+        (_m, from: string, to: string, n?: string) => (n ? `${from} → ${to} ${n}` : `${from} → ${to}`),
+      ),
+  )
+    .replace(/Ni v term znesku/gi, "Ni v tem znesku")
     .replace(/[^\S\n]{2,}/g, " ")
     .replace(/\(\s*\)/g, "")
     .trim();

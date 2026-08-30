@@ -19,6 +19,8 @@ import { partialTripPlanToPreviewPlan } from "@/lib/geminiStreamMap";
 import { optionalSupabaseAuthRequest } from "@/lib/supabaseRequestAuth.server";
 import { enforceItineraryQuota, recordPlanGeneration } from "@/lib/quota.server";
 import type { AiTripPlan } from "@/lib/aiPlan.functions";
+import { resortStayProgress } from "@/lib/singleBasePlanMap";
+import { resolveTripStyle } from "@/lib/tripStyle";
 
 const generateInput = generateTripInputSchema;
 
@@ -74,7 +76,9 @@ export const Route = createFileRoute("/api/generate-itinerary")({
         }
 
         const data = parsedInput.data as GenerateGeminiProTripInput;
-        const expectedDays = tripDayCount(data.departDate, data.returnDate);
+        const calendarDays = tripDayCount(data.departDate, data.returnDate);
+        const expectedDays =
+          resolveTripStyle(data) === "single_base" ? 4 : calendarDays;
         const mapOpts = buildGeminiMapOpts(data);
 
         const stream = new ReadableStream<Uint8Array>({
@@ -125,9 +129,11 @@ export const Route = createFileRoute("/api/generate-itinerary")({
                   ...mapOpts,
                   enrich: false,
                 });
-                if (!next?.days.length) continue;
+                if (!next?.days.length && !next?.resortStay) continue;
                 preview = next;
-                const dayCount = next.days.length;
+                const dayCount = next.resortStay
+                  ? Math.max(1, resortStayProgress(next.resortStay))
+                  : next.days.length;
                 if (dayCount > lastDayCount) {
                   lastDayCount = dayCount;
                   push({
@@ -166,7 +172,7 @@ export const Route = createFileRoute("/api/generate-itinerary")({
               }
 
               const plan = finalPlan ?? preview;
-              if (plan?.days.length) {
+              if (plan?.days.length || plan?.resortStay) {
                 await recordPlanGeneration(userId, quota.tier, request);
                 push({ type: "done", plan });
                 pipelineLog(

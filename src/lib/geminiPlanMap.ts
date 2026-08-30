@@ -53,6 +53,10 @@ export type GeminiPlanMapOpts = {
   budget?: TripBudgetTier;
   pax?: number;
   pace?: "intensive" | "relaxed" | "calm";
+  travelStyle?: import("@/lib/travelStyle").TravelStyle;
+  tripStyle?: import("@/lib/tripStyle").TripStyle;
+  /** Trip end — used for single-base hotel nights. */
+  returnDate?: string;
   inboundDepart?: string;
   inboundArrive?: string;
   /** Calendar day the outbound lands (1 + outboundArriveDayOffset). */
