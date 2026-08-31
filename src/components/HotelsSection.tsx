@@ -163,6 +163,7 @@ export function HotelsSection({
   regionFallback,
   initialFilters,
   bookingFirst = false,
+  guestScoreFloor = 0,
 }: {
   city: string;
   checkIn: string;
@@ -173,6 +174,8 @@ export function HotelsSection({
   initialFilters?: StayIntentFilters;
   /** Hero stays: Booking link is the product; RapidAPI cards are optional. */
   bookingFirst?: boolean;
+  /** Hide preview cards below this Booking guest score (0–10). */
+  guestScoreFloor?: number;
 }) {
   const { t, lang } = useI18n();
   const aid = import.meta.env.VITE_BOOKING_AFFILIATE_ID || "";
@@ -195,7 +198,7 @@ export function HotelsSection({
   );
 
   const [sort, setSort] = useState<HotelResultSort>(bookingFirst ? "top" : "priceAsc");
-  const [minRating, setMinRating] = useState(0);
+  const [minRating, setMinRating] = useState(guestScoreFloor > 0 ? guestScoreFloor : 0);
   const [starFilter, setStarFilter] = useState<number[]>([]);
   const [maxPerNight, setMaxPerNight] = useState<number | null>(null);
   const [popular, setPopular] = useState({
@@ -221,7 +224,14 @@ export function HotelsSection({
     rooms,
     childrenAges,
     currency: "EUR" as const,
-    ...(categoriesFilter ? { filters: popular } : {}),
+    ...(categoriesFilter || guestScoreFloor >= 8
+      ? {
+          filters: {
+            ...popular,
+            ...(guestScoreFloor >= 8 ? { minReview80: true } : {}),
+          },
+        }
+      : {}),
   };
 
   const primary = useQuery({

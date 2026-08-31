@@ -80,10 +80,21 @@ export function isSingleBaseTripStyle(style: TripStyle): boolean {
 /** Finished or streaming resort plan — no hourly day itinerary. */
 export function isSingleBasePlan(plan: {
   tripStyle?: unknown;
+  travelStyle?: unknown;
   resortStay?: unknown;
+  days?: unknown;
 } | null | undefined): boolean {
   if (!plan) return false;
-  return plan.tripStyle === "single_base" || Boolean(plan.resortStay);
+  const stated =
+    normalizeTripStyleLoose(plan.tripStyle) ??
+    (isTravelStyle(plan.travelStyle)
+      ? travelStyleToTripStyle(plan.travelStyle)
+      : normalizeTripStyleLoose(plan.travelStyle));
+  if (stated && isDayByDayTripStyle(stated)) return false;
+  if (stated === "single_base") return true;
+  const hasDays = Array.isArray(plan.days) && plan.days.length > 0;
+  if (hasDays) return false;
+  return Boolean(plan.resortStay);
 }
 
 export function isDayByDayTripStyle(style: TripStyle): boolean {

@@ -102,6 +102,7 @@ import type { StayFilterFlags } from "@/lib/hotelAmenities";
 import { coastalBaseForIata, resolveResortCoastalBase } from "@/lib/resortCoastalBase";
 import { matchResortStayMix } from "@/lib/resortStayMix";
 import { heroChatToPlannerPayload, mapChatBudget, resolveDestinationIata } from "@/lib/heroChatPlanner";
+import { resolveTripStyle } from "@/lib/tripStyle";
 import {
   budgetCapMaxPerPerson,
   maxHotelStayEurForBudget,
@@ -709,6 +710,7 @@ function Landing() {
     const { form: plannerFormFromChat } = heroChatToPlannerPayload(collected, lang);
     setHeroDreamPrompt(plannerFormFromChat.wishes?.trim() || trimmed);
     setHeroPlannerBudget(plannerFormFromChat.budget ?? "standard");
+    setLastPlannerForm(plannerFormFromChat);
 
     // Avtodom: start → end → dates → people → AI road-trip plan + Mapbox.
     if (mode === "motorhome") {
@@ -1307,7 +1309,6 @@ function Landing() {
     setShowSpotlight(false);
     setHeroChatMode("all");
     setHeroSkyChatComplete(true);
-    setLastPlannerForm(null);
     setAiPlan(null);
     setPreviewPhotoPlan(null);
     setAiError(null);
@@ -1375,7 +1376,7 @@ function Landing() {
         lastSearch?.adults ||
         1,
     );
-    setAiContext({
+    const nextCtx = {
       ...aiContext,
       from,
       to,
@@ -1388,7 +1389,13 @@ function Landing() {
         partyForPrice,
         flight.price_basis,
       ),
-    });
+    };
+    setAiContext(nextCtx);
+
+    if (lastPlannerForm?.travelStyle === "explore" || lastPlannerForm?.travelStyle === "roadtrip") {
+      void handleGeneratePlan(lastPlannerForm, nextCtx, "trip", "hero-trip-plan");
+      return;
+    }
 
     window.setTimeout(() => {
       const el = document.getElementById("hero-ai-planner");
@@ -1851,6 +1858,10 @@ function Landing() {
           })(),
           pace: safeForm.pace,
           travelStyle: safeForm.travelStyle,
+          tripStyle: resolveTripStyle({
+            travelStyle: safeForm.travelStyle,
+            groundTransportMode: ctx.groundTransportMode,
+          }),
           priorities,
           attachment: heroAttachment ?? undefined,
           ...groundTrip,
@@ -1915,6 +1926,10 @@ function Landing() {
         currency: normalizePlanCurrency(ctx.currency ?? lastSearch?.currency ?? uiCurrency),
         pace: form.pace,
         travelStyle: form.travelStyle,
+        tripStyle: resolveTripStyle({
+          travelStyle: form.travelStyle,
+          groundTransportMode: ctx.groundTransportMode,
+        }),
         wishes,
         priorities: form.tags,
         customPrompt: form.customPrompt,

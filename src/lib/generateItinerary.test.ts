@@ -226,6 +226,8 @@ describe("itineraryJsonToPlan", () => {
       destinationPlace: "New York",
     });
     expect(plan).not.toBeNull();
+    expect(plan!.tripStyle).toBe("explorer");
+    expect(plan!.resortStay).toBeUndefined();
     expect(plan!.days[0]!.title).toMatch(/Prihod v New York/);
     expect(plan!.days[0]!.city).toMatch(/New York/i);
     expect(plan!.days[0]!.activities?.morning?.[0]?.name).toMatch(/High Line/i);
@@ -410,5 +412,20 @@ describe("itineraryJsonToPlan", () => {
     expect(plan!.days).toHaveLength(1);
     expect(plan!.days[0]!.city).toMatch(/Nungwi|Zanzibar/i);
     expect(JSON.stringify(plan!.days[0]!.activities ?? {})).not.toMatch(/10:00/);
+  });
+
+  it("does not turn a roadtrip request into resort protocol blocks", () => {
+    const plan = itineraryJsonToPlan(
+      {
+        tripStyle: "single_base",
+        arrival_protocol: { visa_and_entry: "IMUGA" },
+        resort_guide: { relaxing_at_resort: "Bazen" },
+        departure_protocol: { return_transfer: "Kombi" },
+        optional_excursions: [{ title: "Izlet" }],
+      },
+      { ...input(), tripStyle: "roadtrip", destinationIata: "JFK", destinationPlace: "New York" },
+    );
+    expect(plan?.resortStay).toBeUndefined();
+    expect(plan?.tripStyle).not.toBe("single_base");
   });
 });

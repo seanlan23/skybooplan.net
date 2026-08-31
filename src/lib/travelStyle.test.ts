@@ -34,6 +34,10 @@ describe("isSingleBasePlan", () => {
     expect(isSingleBasePlan({ tripStyle: "single_base" })).toBe(true);
     expect(isSingleBasePlan({ resortStay: { arrivalProtocol: {} } })).toBe(true);
     expect(isSingleBasePlan({ tripStyle: "explorer" })).toBe(false);
+    expect(isSingleBasePlan({ tripStyle: "roadtrip", resortStay: { arrivalProtocol: {} } })).toBe(
+      false,
+    );
+    expect(isSingleBasePlan({ days: [{ day: 1 }] })).toBe(false);
     expect(isSingleBasePlan(null)).toBe(false);
   });
 });

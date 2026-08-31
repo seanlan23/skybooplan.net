@@ -46,5 +46,11 @@ describe("plan day coverage", () => {
     );
     expect(shouldCheckPlanDayCoverage({ tripStyle: "explorer" })).toBe(true);
     expect(shouldCheckPlanDayCoverage({ tripStyle: "roadtrip" })).toBe(true);
+    expect(
+      shouldCheckPlanDayCoverage({
+        tripStyle: "roadtrip",
+        resortStay: { arrivalProtocol: {} },
+      }),
+    ).toBe(true);
   });
 });

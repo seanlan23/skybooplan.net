@@ -9,7 +9,6 @@ import {
   normalizeWeatherWidget,
 } from "@/lib/geminiPlanMap";
 import { parseHmClock } from "@/lib/activityTime";
-import { isSingleBasePayload } from "@/lib/singleBaseContract";
 import { singleBaseJsonToPlan } from "@/lib/singleBasePlanMap";
 import { resolveTripStyle } from "@/lib/tripStyle";
 import { sameTransferBase } from "@/lib/baseTransfer";
@@ -293,14 +292,16 @@ export function partialTripPlanToPreviewPlan(
   partial: PartialResponse & { days?: unknown[]; trip_title?: string },
   opts: GeminiPlanMapOpts & { enrich?: boolean },
 ): AiTripPlan | null {
-  if (resolveTripStyle(opts) === "single_base" || isSingleBasePayload(partial)) {
+  const style = resolveTripStyle(opts);
+  if (style === "single_base") {
     return singleBaseJsonToPlan(partial, opts);
   }
   const coerced = coercePartialResponse(partial);
   if (!coerced) return null;
   try {
     const plan = tripPlanResponseToAiTripPlan(coerced, opts);
-    return plan;
+    const { resortStay: _leaked, ...rest } = plan;
+    return { ...rest, tripStyle: style };
   } catch (err) {
     console.warn("[geminiStreamMap] preview mapping failed:", err);
     return null;

@@ -15,7 +15,7 @@ import { createTripPlanStream, generateTripPlan } from "@/lib/geminiPro";
 import { normalizePlanLangCode } from "@/lib/planLanguages";
 import { isSingleBasePayload } from "@/lib/singleBaseContract";
 import { singleBaseJsonToPlan } from "@/lib/singleBasePlanMap";
-import { resolveTripStyle } from "@/lib/tripStyle";
+import { isDayByDayTripStyle, resolveTripStyle, type TripStyle } from "@/lib/tripStyle";
 
 export function buildGeminiMapOpts(userInputs: GenerateItineraryInput) {
   const wishesText = [
@@ -81,19 +81,26 @@ export function itineraryJsonToPlan(
       (Array.isArray(rawObj?.itinerar) && rawObj.itinerar.length > 0),
   );
   const useSingleBase =
-    isSingleBasePayload(raw) || (style === "single_base" && !hasDayItinerary);
+    !isDayByDayTripStyle(style) &&
+    (isSingleBasePayload(raw) || (style === "single_base" && !hasDayItinerary));
   if (useSingleBase) {
     const plan = singleBaseJsonToPlan(raw, opts);
     if (!plan || !isCatalogTripPlan(plan)) return null;
     finalizeItineraryMapCoords(plan);
-    return stampFlightContext(plan, userInputs);
+    return stampFlightContext(applyRequestedTripStyle(plan, style), userInputs);
   }
   const parsed = parseCoercedTripPlan(raw);
   if (!parsed.success) return null;
   const plan = tripPlanResponseToAiTripPlan(parsed.data, opts);
   if (!isCatalogTripPlan(plan)) return null;
   finalizeItineraryMapCoords(plan);
-  return stampFlightContext(plan, userInputs);
+  return stampFlightContext(applyRequestedTripStyle(plan, style), userInputs);
+}
+
+function applyRequestedTripStyle(plan: AiTripPlan, style: TripStyle): AiTripPlan {
+  if (style === "single_base") return { ...plan, tripStyle: style };
+  const { resortStay: _leaked, ...rest } = plan;
+  return { ...rest, tripStyle: style };
 }
 
 function stampFlightContext(

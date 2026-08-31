@@ -16,6 +16,7 @@ import { DESTINATION_BY_IATA } from "@/lib/destinationCoords";
 import { sanitizeGroundDestinationPlace } from "@/lib/groundTransport";
 import { remapConfusedDestinationIata } from "@/lib/airportRank";
 import {
+  isSingleBasePlan,
   resolveTripStyle,
   tripStyleToTravelStyle,
 } from "@/lib/tripStyle";
@@ -262,8 +263,7 @@ export function shouldCheckPlanDayCoverage(plan: {
   resortStay?: unknown;
 } | null | undefined): boolean {
   if (!plan) return true;
-  if (plan.tripStyle === "single_base" || Boolean(plan.resortStay)) return false;
-  return true;
+  return !isSingleBasePlan(plan);
 }
 
 export function hasAcceptablePlanDayCoverage(

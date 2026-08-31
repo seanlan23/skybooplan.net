@@ -12,6 +12,7 @@ import { resortPackagesFromPlan } from "@/lib/resortPackage";
 import { matchResortPackageId, resolveStayForPackageDetails } from "@/lib/resortStayFallback";
 import { unquoteShareValue } from "@/lib/sharedPackageSnapshot";
 import { isSingleBasePlan } from "@/lib/tripStyle";
+import { TripHotelBases } from "@/components/TripHotelBases";
 import { POIDetailsModal } from "@/components/POIDetailsModal";
 import { refreshPoiDetailsImage, type PoiDetailsData } from "@/lib/poiDetails.types";
 import { DayScrollDebug } from "@/components/DayScrollDebug";
@@ -1212,6 +1213,9 @@ export function AiPlanView({
             </div>
           ))}
           {!streaming && !isResortMode && <ReturnHomeCard plan={plan} />}
+          {!streaming && !isResortMode ? (
+            <TripHotelBases plan={plan} stayInfo={stayInfo} />
+          ) : null}
         </div>
 
         {hasCoords && (
