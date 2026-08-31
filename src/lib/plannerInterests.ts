@@ -120,16 +120,18 @@ function labelsForLang(lang: string): Record<PlannerInterestKey, string> {
   return EN_LABELS;
 }
 
-export function formatPlannerInterests(keys: string[], lang = "en"): string {
+export function formatPlannerInterests(keys: string[] | null | undefined, lang = "en"): string {
   const map = labelsForLang(lang);
-  return keys
+  return (keys ?? [])
     .filter((k): k is PlannerInterestKey => k in map)
     .map((k) => map[k])
     .join(", ");
 }
 
-export function parsePlannerInterestKeys(keys: string[]): PlannerInterestKey[] {
-  return keys.filter((k): k is PlannerInterestKey => k in EN_LABELS);
+export function parsePlannerInterestKeys(
+  keys: string[] | null | undefined,
+): PlannerInterestKey[] {
+  return (keys ?? []).filter((k): k is PlannerInterestKey => k in EN_LABELS);
 }
 
 /** Structured payload for AI — keys + human labels + steering hint. */

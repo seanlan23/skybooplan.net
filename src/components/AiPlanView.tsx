@@ -48,8 +48,8 @@ import { enrichMotorhomePlanTips } from "@/lib/motorhomePlanTips";
 const PLAY_ROUTE_HOLD_MS = 3200;
 
 function playStepMs(plan: AiTripPlan, fromDay: number, toDay: number): number {
-  const a = plan.days.find((d) => d.day === fromDay);
-  const b = plan.days.find((d) => d.day === toDay);
+  const a = (plan.days ?? []).find((d) => d.day === fromDay);
+  const b = (plan.days ?? []).find((d) => d.day === toDay);
   const ca = a ? resolveCityCenter(a) : null;
   const cb = b ? resolveCityCenter(b) : null;
   const dist =
@@ -203,7 +203,7 @@ export function AiPlanView({
   );
 
   const plannerPriorities = useMemo(
-    () => parsePlannerInterestKeys(plannerForm?.tags),
+    () => parsePlannerInterestKeys(plannerForm?.tags ?? []),
     [plannerForm?.tags],
   );
   const planRegionCities = useMemo(() => {
@@ -457,7 +457,7 @@ export function AiPlanView({
 
   useEffect(() => {
     if (!poiModalOpen || !poiModal || !plan) return;
-    const day = plan.days.find((d) => d.day === poiModal.day);
+    const day = plan.days?.find((d) => d.day === poiModal.day);
     if (!day) return;
     const refreshed = refreshPoiDetailsImage(poiModal, day);
     if (refreshed.imageUrl !== poiModal.imageUrl) {
@@ -749,8 +749,9 @@ export function AiPlanView({
   const displaySummary = (() => {
     const stripped = stripPlanTeaser(plan.summary, lang);
     if (!langMismatch) return stripped;
-    const depart = plan.days[0]?.date?.slice(0, 10);
-    const last = plan.days[plan.days.length - 1];
+    const days = plan.days ?? [];
+    const depart = days[0]?.date?.slice(0, 10);
+    const last = days[days.length - 1];
     const ret = (last?.dateEnd ?? last?.date)?.slice(0, 10);
     const iata = plan.destinationIata?.trim();
     if (!depart || !iata) return "";

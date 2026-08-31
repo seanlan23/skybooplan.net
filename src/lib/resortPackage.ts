@@ -85,9 +85,9 @@ export function inferPackageMealPlan(
 ): PackageMealPlan {
   if (dining === "breakfast_first") return "breakfast";
   const blob = [
-    stay?.resortGuide.all_inclusive_etiquette,
-    stay?.resortGuide.relaxing_at_resort,
-    stay?.resortGuide.check_in_out,
+    stay?.resortGuide?.all_inclusive_etiquette,
+    stay?.resortGuide?.relaxing_at_resort,
+    stay?.resortGuide?.check_in_out,
   ]
     .filter(Boolean)
     .join(" ");
@@ -101,7 +101,7 @@ export function inferPackageMealPlan(
 }
 
 export function inferPackageTransferKind(stay: ResortStay | undefined): PackageTransferKind {
-  const blob = [stay?.arrivalProtocol.transfer_pickup, stay?.departureProtocol.return_transfer]
+  const blob = [stay?.arrivalProtocol?.transfer_pickup, stay?.departureProtocol?.return_transfer]
     .filter(Boolean)
     .join(" ");
   if (/hidroplan|seaplane|hidravlič/i.test(blob)) return "seaplane";
@@ -147,20 +147,20 @@ export function resolvePackageCoverImage(
   plan: AiTripPlan,
   destinationLabel: string,
 ): string {
-  const fromDay = plan.days[0]?.imageUrl;
+  const fromDay = plan.days?.[0]?.imageUrl;
   if (isUsableCoverUrl(fromDay)) return normalizeCoverUrl(fromDay!);
   const fromCatalog =
     inspirationCoverFor(
       plan.destinationPlace,
       plan.destinationName,
       destinationLabel,
-      plan.days[0]?.city,
+      plan.days?.[0]?.city,
     ) ||
     travelFactCoverFor(
       plan.destinationPlace,
       plan.destinationName,
       destinationLabel,
-      plan.days[0]?.city,
+      plan.days?.[0]?.city,
     );
   if (fromCatalog) return fromCatalog;
   return unsplashDestinationCover(destinationLabel || plan.destinationName) || GENERIC_RESORT_COVER;
@@ -230,7 +230,7 @@ export function flightStayDatesForBooking(
     inboundDepartDate: opts.flights?.inboundDepartDate,
   });
   if (stay) return stay;
-  const checkIn = isoDay(opts.departDate) || isoDay(plan.days[0]?.date);
+  const checkIn = isoDay(opts.departDate) || isoDay(plan.days?.[0]?.date);
   const checkOut = isoDay(opts.returnDate);
   return { checkIn, checkOut };
 }
@@ -245,7 +245,7 @@ export function bookingSearchPlace(
     extra?.city?.trim() ||
     plan.hotels?.[0]?.city?.trim() ||
     plan.destinationPlace?.trim() ||
-    plan.days[0]?.city?.trim() ||
+    plan.days?.[0]?.city?.trim() ||
     plan.destinationName?.trim() ||
     fromIata ||
     "";
@@ -318,7 +318,7 @@ export function estimatePackageHotelEur(
     inboundDepartIso: opts.inboundDepartIso,
     inboundDepartDate: opts.flights?.inboundDepartDate,
   });
-  const fromDate = stay?.checkIn || opts.departDate || hotel?.from_date || plan.days[0]?.date;
+  const fromDate = stay?.checkIn || opts.departDate || hotel?.from_date || plan.days?.[0]?.date;
   const toDate = stay?.checkOut || opts.returnDate || hotel?.to_date;
   const nights =
     resolveStayNights({
@@ -332,14 +332,14 @@ export function estimatePackageHotelEur(
   const countryCode = resolveDayBudgetCountry({
     destinationName: plan.destinationName,
     destinationIata: destIata,
-    dayCity: hotel?.city || plan.days[0]?.city,
+    dayCity: hotel?.city || plan.days?.[0]?.city,
   });
   let nightly = estimateHotelRoomNightlyEur(countryCode, {
     place: overnightPlaceHint({
       destinationName: plan.destinationName,
       destinationPlace: plan.destinationPlace,
       destinationIata: destIata,
-      dayCities: [hotel?.city, plan.days[0]?.city],
+      dayCities: [hotel?.city, plan.days?.[0]?.city],
     }),
     iata: destIata,
   });
@@ -358,7 +358,7 @@ export function buildResortPackageFromPlan(
   const city =
     hotel?.city?.trim() ||
     plan.destinationPlace?.trim() ||
-    plan.days[0]?.city?.trim() ||
+    plan.days?.[0]?.city?.trim() ||
     plan.destinationName;
   const title = hotel?.name?.trim() || plan.destinationName || city;
   const destinationLabel = destinationBadgeLabel(

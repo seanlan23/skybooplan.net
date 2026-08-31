@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatPlannerInterests, MIN_PLANNER_INTERESTS } from "@/lib/plannerInterests";
+import { formatPlannerInterests, MIN_PLANNER_INTERESTS, parsePlannerInterestKeys } from "@/lib/plannerInterests";
 
 describe("plannerInterests", () => {
   it("formats Slovenian labels for AI wishes", () => {
@@ -12,6 +12,12 @@ describe("plannerInterests", () => {
     expect(formatPlannerInterests(["beaches", "fun", "sights"], "de")).toBe(
       "Traumstrände, viel Spaß, Sehenswürdigkeiten",
     );
+  });
+
+  it("returns empty lists when tags are missing (hero Resort / Mir has no planner form)", () => {
+    expect(parsePlannerInterestKeys(undefined)).toEqual([]);
+    expect(parsePlannerInterestKeys(null)).toEqual([]);
+    expect(formatPlannerInterests(undefined, "sl")).toBe("");
   });
 
   it("requires at least 3 interests in UI constant", () => {
