@@ -79,11 +79,31 @@ describe("bookingNfltFor", () => {
       "ht_id::204,ht_id::216,ht_id::213,class::3,class::4,class::5,class_interval::3",
     );
   });
+
+  it("forwards 4–5★ when the stay mix raises the star floor", () => {
+    expect(bookingNfltFor({ resortStay: true, stars45: true })).toEqual([
+      "ht_id=204",
+      "ht_id=216",
+      "ht_id=213",
+      "class=4",
+      "class=5",
+      "class_interval=4,5",
+    ]);
+    expect(bookingCategoriesFilterFor({ resortStay: true, stars45: true })).toBe(
+      "ht_id::204,ht_id::216,ht_id::213,class::4,class::5,class_interval::4",
+    );
+  });
 });
 
 describe("isAllowedResortStayProperty", () => {
   it("keeps official 3–5★ hotels, resorts, boutique hotels and villas", () => {
     expect(isAllowedResortStayProperty({ name: "Palm Hotel", kind: "hotel", stars: 3 })).toBe(true);
+    expect(
+      isAllowedResortStayProperty({ name: "Island Three Star", kind: "hotel", stars: 3, minStars: 4 }),
+    ).toBe(false);
+    expect(
+      isAllowedResortStayProperty({ name: "Coral Four Star", kind: "hotel", stars: 4, minStars: 4 }),
+    ).toBe(true);
     expect(isAllowedResortStayProperty({ name: "Coral Resort", kind: "other", stars: 4 })).toBe(true);
     expect(isAllowedResortStayProperty({ name: "Boutique Beach House", kind: "hotel", stars: 4 })).toBe(
       true,

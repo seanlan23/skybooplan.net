@@ -10,6 +10,7 @@ describe("matchResortStayMix", () => {
   it("resolves the Maldives row from IATA or country, not from other hubs", () => {
     expect(matchResortStayMix({ destIata: "MLE" })?.countries).toContain("MV");
     expect(matchResortStayMix({ countryCode: "MV" })?.valueSlots).toBe(2);
+    expect(matchResortStayMix({ destIata: "MLE" })?.minStars).toBe(4);
     expect(matchResortStayMix({ destIata: "HKT" })).toBeNull();
   });
 });

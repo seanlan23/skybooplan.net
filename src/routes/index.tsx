@@ -94,13 +94,14 @@ import {
 } from "@/lib/heroResortFlow";
 import { mergeResortHotelPools, pickResortHotels } from "@/lib/resortHotelPicks";
 import {
-  defaultResortHotelFilters,
   prefersAllInclusiveResortSearch,
   resolveResortDiningModel,
-  RESORT_STAY_QUALITY_FILTERS,
+  resortHotelSearchFilters,
+  resortStayQualityFilters,
 } from "@/lib/resortDiningModel";
 import type { StayFilterFlags } from "@/lib/hotelAmenities";
 import { resolveResortCoastalBase } from "@/lib/resortCoastalBase";
+import { matchResortStayMix } from "@/lib/resortStayMix";
 import { heroChatToPlannerPayload, mapChatBudget, resolveDestinationIata } from "@/lib/heroChatPlanner";
 import {
   budgetCapMaxPerPerson,
@@ -1055,6 +1056,10 @@ function Landing() {
       destinationPlace: collected.destination || ctx.destinationPlace,
       destinationName: ctx.destinationPlace,
     });
+    const stayMix = matchResortStayMix({
+      destIata: ctx.to,
+      countryCode: lookupDestination(ctx.to)?.country,
+    });
     const searchResortHotels = (filters: StayFilterFlags) =>
       searchHotels({ data: { ...stayQuery, filters } }).catch((err) => {
         console.warn("[resortPackages] hotel search failed", err);
@@ -1064,13 +1069,13 @@ function Landing() {
       city && checkIn && checkOut
         ? prefersAllInclusiveResortSearch(dining)
           ? Promise.all([
-              searchResortHotels(RESORT_STAY_QUALITY_FILTERS),
-              searchResortHotels(defaultResortHotelFilters(dining)),
+              searchResortHotels(resortStayQualityFilters(stayMix)),
+              searchResortHotels(resortHotelSearchFilters(dining, stayMix)),
             ]).then(([base, allInclusive]) => ({
               hotels: mergeResortHotelPools(base.hotels ?? [], allInclusive.hotels ?? []),
               error: base.error || allInclusive.error,
             }))
-          : searchResortHotels(defaultResortHotelFilters(dining)).then((base) => ({
+          : searchResortHotels(resortHotelSearchFilters(dining, stayMix)).then((base) => ({
               hotels: base.hotels ?? [],
               error: base.error,
             }))

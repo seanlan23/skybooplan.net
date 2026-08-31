@@ -20,6 +20,7 @@ import {
 } from "./hotelAmenities";
 import { cleanHotelDisplayName } from "./hotelDisplayName";
 import { uniqueHotelImageUrls } from "./hotelImages";
+import { matchResortStayMix } from "./resortStayMix";
 
 const RAPID_HOST = "booking-com15.p.rapidapi.com";
 const BASE = `https://${RAPID_HOST}/api/v1/hotels`;
@@ -46,6 +47,8 @@ export type RealHotel = {
   amenities?: HotelAmenities;
   typeName?: string;
   typeId?: number;
+  /** Booking location review (0–10 or 0–100). */
+  locationScore?: number;
 };
 
 const Input = z.object({
@@ -75,6 +78,7 @@ const Input = z.object({
       freeCancel: z.boolean().optional(),
       minReview80: z.boolean().optional(),
       stars345: z.boolean().optional(),
+      stars45: z.boolean().optional(),
       resortStay: z.boolean().optional(),
     })
     .optional(),
@@ -290,6 +294,13 @@ export const searchHotels = createServerFn({ method: "POST" })
         ]);
         const image =
           images[0] || "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=400";
+        const locationScoreRaw = Number(
+          prop.locationScore ??
+            prop.reviewLocationScore ??
+            prop.locationReviewScore ??
+            prop.reviewScores?.location ??
+            0,
+        );
 
         return {
           id: id || displayName,
@@ -303,6 +314,7 @@ export const searchHotels = createServerFn({ method: "POST" })
           bookingUrl,
           reviewWord: String(prop.reviewScoreWord ?? "").trim() || undefined,
           stars: officialStars >= 1 && officialStars <= 5 ? officialStars : undefined,
+          locationScore: locationScoreRaw > 0 ? locationScoreRaw : undefined,
           lat: hasCoords ? lat : undefined,
           lng: hasCoords ? lng : undefined,
           neighborhood: String(prop.wishlistName ?? "").trim() || undefined,
@@ -316,7 +328,10 @@ export const searchHotels = createServerFn({ method: "POST" })
       });
 
       const stayFilters = data.filters ?? {};
-      const resortQuality = Boolean(stayFilters.stars345 || stayFilters.resortStay);
+      const resortQuality = Boolean(stayFilters.stars345 || stayFilters.stars45 || stayFilters.resortStay);
+      const minStars = stayFilters.stars45
+        ? 4
+        : (matchResortStayMix({ destIata: data.destIata })?.minStars ?? 3);
       const filtered = resortQuality
         ? hotels.filter((hotel) =>
             isAllowedResortStayProperty({
@@ -325,6 +340,7 @@ export const searchHotels = createServerFn({ method: "POST" })
               typeId: hotel.typeId,
               kind: hotel.kind,
               stars: hotel.stars,
+              minStars,
             }),
           )
         : hotels;

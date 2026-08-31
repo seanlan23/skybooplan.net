@@ -5,6 +5,7 @@ import {
   resolveResortDiningModel,
   resortDiningPromptRules,
   resortDiningSectionLabel,
+  resortHotelSearchFilters,
 } from "@/lib/resortDiningModel";
 
 describe("resolveResortDiningModel", () => {
@@ -56,6 +57,8 @@ describe("resolveResortDiningModel", () => {
       minReview80: true,
       pool: true,
     });
+    expect(resortHotelSearchFilters("all_inclusive_standard", { minStars: 4 }).stars45).toBe(true);
+    expect(resortHotelSearchFilters("breakfast_first", { minStars: 3 }).stars45).toBeUndefined();
   });
 });
 

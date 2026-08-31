@@ -5,6 +5,7 @@ import {
   mergeResortHotelPools,
   meetsMinGuestScore,
   pickResortHotels,
+  valueForMoneyScore,
   type ResortHotelPickInput,
 } from "@/lib/resortHotelPicks";
 
@@ -28,6 +29,17 @@ describe("guestScoreOnTen", () => {
     expect(meetsMinGuestScore(7.9)).toBe(false);
     expect(meetsMinGuestScore(80)).toBe(true);
     expect(meetsMinGuestScore(79)).toBe(false);
+  });
+});
+
+describe("valueForMoneyScore", () => {
+  it("ranks guest score per euro of stay total, not cheapest-first", () => {
+    expect(valueForMoneyScore({ rating: 8.8, price: 1000 })).toBeCloseTo(0.0088);
+    expect(valueForMoneyScore({ rating: 81, price: 1000 })).toBeCloseTo(0.0081);
+    const cheapUnknown = { rating: 8.0, price: 400 };
+    const betterResort = { rating: 9.2, price: 900 };
+    expect(valueForMoneyScore(cheapUnknown)).toBeGreaterThan(valueForMoneyScore(betterResort));
+    expect(valueForMoneyScore({ rating: 8.1, price: 0 })).toBe(0);
   });
 });
 
@@ -75,7 +87,7 @@ describe("pickResortHotels", () => {
         price: 1240,
         rating: 9.2,
         reviewWord: "Superb",
-        amenities: { breakfast: true },
+        amenities: { breakfast: true, pool: true },
       }),
       hotel({
         id: "c",
@@ -91,7 +103,14 @@ describe("pickResortHotels", () => {
         rating: 9.1,
         amenities: { allInclusive: true },
       }),
-      hotel({ id: "e", name: "Boutique Beach House", price: 1400, rating: 8.7, neighborhood: "Beach" }),
+      hotel({
+        id: "e",
+        name: "Boutique Beach House",
+        price: 1400,
+        rating: 8.7,
+        neighborhood: "Beach",
+        locationScore: 9.1,
+      }),
       hotel({ id: "f", name: "Royal Palace", price: 3200, rating: 9.0, stars: 5 }),
       hotel({ id: "g", name: "Garden Inn", price: 1100, rating: 8.3 }),
     ]);
@@ -105,6 +124,8 @@ describe("pickResortHotels", () => {
     expect(offers.map((o) => o.tier)).toContain("all_inclusive_alt");
     expect(offers.map((o) => o.tier)).toContain("boutique");
     expect(offers.map((o) => o.tier)).toContain("premium");
+    expect(offers.find((o) => o.tier === "value")?.id).toBe("a");
+    expect(offers.find((o) => o.tier === "recommended")?.id).toBe("b");
     expect(offers.find((o) => o.tier === "premium")?.name).toBe("Royal Palace");
     expect(offers.find((o) => o.tier === "boutique")?.name).toBe("Boutique Beach House");
     expect(offers.every((o) => (o.guestScore ?? 0) >= 8)).toBe(true);
@@ -213,6 +234,13 @@ describe("pickResortHotels", () => {
           neighborhood: "Hulhumalé",
         }),
         hotel({
+          id: "three",
+          name: "Budget Island Three Star",
+          price: 1100,
+          stars: 3,
+          neighborhood: "North Male Atoll",
+        }),
+        hotel({
           id: "bandos",
           name: "Bandos Maldives",
           price: 2000,
@@ -257,14 +285,15 @@ describe("pickResortHotels", () => {
       { destIata: "MLE", nights: 10, preferAllInclusiveSlots: true },
     );
 
-    expect(offers.some((o) => o.id === "male" || o.id === "hulhu")).toBe(false);
+    expect(offers.some((o) => o.id === "male" || o.id === "hulhu" || o.id === "three")).toBe(false);
     expect(offers.filter((o) => o.tier === "value" || o.tier === "recommended")).toHaveLength(2);
+    expect(offers.find((o) => o.tier === "value")?.id).toBe("fiha");
     expect(offers.filter((o) => o.tier === "value" || o.tier === "recommended").map((o) => o.id).sort()).toEqual([
       "bandos",
       "fiha",
     ]);
     expect(offers.filter((o) => o.tier === "all_inclusive" || o.tier === "all_inclusive_alt")).toHaveLength(2);
-    expect(offers.filter((o) => o.tier === "premium").map((o) => o.id).sort()).toEqual(["hyatt", "over"]);
+    expect(offers.filter((o) => o.tier === "premium").map((o) => o.id)).toEqual(["over"]);
     expect(offers.find((o) => o.tier === "value")?.name).not.toMatch(/hyatt|ritz/i);
   });
 
@@ -285,7 +314,7 @@ describe("pickResortHotels", () => {
           stars: 5,
           rating: 9.1,
         }),
-        hotel({ id: "v3", name: "Island Three Star Resort", price: 1400, stars: 3, rating: 8.1 }),
+        hotel({ id: "v3", name: "Island Four Star Resort", price: 1400, stars: 4, rating: 8.1 }),
         hotel({ id: "v4", name: "Coral Four Star", price: 1550, stars: 4, rating: 8.3 }),
         hotel({
           id: "ai1",
@@ -302,7 +331,7 @@ describe("pickResortHotels", () => {
           amenities: { allInclusive: true },
         }),
         hotel({ id: "mid", name: "Lagoon Hotel", price: 1680, stars: 4, rating: 8.5 }),
-        hotel({ id: "mid2", name: "Atoll Hotel", price: 1720, stars: 3, rating: 8.2 }),
+        hotel({ id: "mid2", name: "Atoll Hotel", price: 1720, stars: 4, rating: 8.2 }),
       ],
       {
         destIata: "MLE",
@@ -325,7 +354,18 @@ describe("pickResortHotels", () => {
     expect(offers.filter((o) => o.tier === "all_inclusive" || o.tier === "all_inclusive_alt")).toHaveLength(
       2,
     );
-    expect(offers.find((o) => o.id === "v3")?.name).toBe("Island Three Star Resort");
+    expect(offers.find((o) => o.id === "v3")?.name).toBe("Island Four Star Resort");
+  });
+
+  it("gives Ugodna izbira to the best score-per-euro 3★/4★, not a cheaper 5★", () => {
+    const offers = pickResortHotels([
+      hotel({ id: "star5", name: "Cheap Palace", price: 700, stars: 5, rating: 8.1 }),
+      hotel({ id: "vfm", name: "Coral Garden Resort", price: 1100, stars: 4, rating: 9.0 }),
+      hotel({ id: "ok", name: "Bay Hotel", price: 1300, stars: 3, rating: 8.6, amenities: { pool: true } }),
+    ]);
+    expect(offers.find((o) => o.tier === "value")?.id).toBe("vfm");
+    expect(offers.find((o) => o.tier === "recommended")?.id).toBe("ok");
+    expect(offers.find((o) => o.tier === "premium")?.id).toBe("star5");
   });
 
   it("cleans marketing tails on card titles", () => {

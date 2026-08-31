@@ -84,6 +84,20 @@ export function defaultResortHotelFilters(model: ResortDiningModel): StayFilterF
   return { ...RESORT_STAY_QUALITY_FILTERS };
 }
 
+export function resortHotelSearchFilters(
+  model: ResortDiningModel,
+  mix?: { minStars?: number } | null,
+): StayFilterFlags {
+  const base = defaultResortHotelFilters(model);
+  if ((mix?.minStars ?? 3) >= 4) return { ...base, stars45: true };
+  return base;
+}
+
+export function resortStayQualityFilters(mix?: { minStars?: number } | null): StayFilterFlags {
+  if ((mix?.minStars ?? 3) >= 4) return { ...RESORT_STAY_QUALITY_FILTERS, stars45: true };
+  return RESORT_STAY_QUALITY_FILTERS;
+}
+
 /** Prompt + UI copy. Named places are examples for the model, not code branches. */
 export function resortDiningPromptRules(model: ResortDiningModel, destLabel: string): string {
   const dest = destLabel.trim() || "this destination";

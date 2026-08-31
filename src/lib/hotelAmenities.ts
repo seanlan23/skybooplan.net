@@ -26,6 +26,8 @@ export type StayFilterFlags = {
   minReview80?: boolean;
   /** Official 3★ / 4★ / 5★ only (drops 1–2★ and unrated). */
   stars345?: boolean;
+  /** Official 4★ / 5★ only — country-table floor (e.g. Maldives mix). */
+  stars45?: boolean;
   /** Hotel + resort + villa types (single_base / Resort-Mir). */
   resortStay?: boolean;
 };
@@ -110,7 +112,9 @@ export function bookingNfltFor(filters: StayFilterFlags): string[] {
   if (filters.jacuzzi) out.push("hotelfacility=46");
   if (filters.freeCancel) out.push("fc=2");
   if (filters.minReview80) out.push("review_score=80");
-  if (filters.stars345) {
+  if (filters.stars45) {
+    out.push("class=4", "class=5", "class_interval=4,5");
+  } else if (filters.stars345) {
     out.push("class=3", "class=4", "class=5", "class_interval=3,4,5");
   }
   return out;
@@ -138,7 +142,9 @@ export function bookingCategoriesFilterFor(filters: StayFilterFlags): string {
   if (filters.jacuzzi) parts.push("hotelfacility::46");
   if (filters.freeCancel) parts.push("free_cancellation::1");
   if (filters.minReview80) parts.push("review_score::80");
-  if (filters.stars345) {
+  if (filters.stars45) {
+    parts.push("class::4", "class::5", "class_interval::4");
+  } else if (filters.stars345) {
     parts.push("class::3", "class::4", "class::5", "class_interval::3");
   }
   return parts.join(",");
@@ -155,9 +161,12 @@ export function isAllowedResortStayProperty(input: {
   typeId?: number;
   kind?: HotelKind;
   stars?: number;
+  /** Country-table floor (default 3). */
+  minStars?: number;
 }): boolean {
   const stars = input.stars ?? 0;
-  if (!Number.isFinite(stars) || stars < 3 || stars > 5) return false;
+  const minStars = Math.max(3, Math.min(5, input.minStars ?? 3));
+  if (!Number.isFinite(stars) || stars < minStars || stars > 5) return false;
   if (input.typeId && !RESORT_STAY_TYPE_ID_SET.has(input.typeId)) return false;
   const text = blobOf([input.name, input.typeName]);
   if (isExcludedResortStayText(text)) return false;

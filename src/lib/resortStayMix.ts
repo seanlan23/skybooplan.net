@@ -17,7 +17,10 @@ export type ResortStayMixRow = {
   overwater: RegExp;
   valueSlots: number;
   allInclusiveSlots: number;
+  boutiqueSlots?: number;
   premiumSlots: number;
+  /** Official star floor (default 3). Maldives islands use 4. */
+  minStars?: number;
 };
 
 export type ResortStayPlace = {
@@ -45,7 +48,9 @@ const RESORT_STAY_MIX: ResortStayMixRow[] = [
     overwater: /\bover[- ]?water|water villas?|water bungalows?|nad vodo\b/i,
     valueSlots: 2,
     allInclusiveSlots: 2,
-    premiumSlots: 2,
+    boutiqueSlots: 1,
+    premiumSlots: 1,
+    minStars: 4,
   },
 ];
 
