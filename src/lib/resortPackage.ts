@@ -3,7 +3,7 @@ import { buildBookingSearchUrl, resolveBookingStayDates } from "@/lib/bookingUrl
 import type { TripFlightContext } from "@/lib/flightScheduling";
 import { hotelStayDatesFromFlight } from "@/lib/hotelStayDates";
 import { lookupDestination } from "@/lib/destinationCoords";
-import { hotelSearchQueryAlias } from "@/lib/hotelDestinationPick";
+import { hotelSearchQueryForStay } from "@/lib/hotelDestinationPick";
 import { resolveDayBudgetCountry } from "@/lib/countryDailyBudget";
 import { bookingNfltFor } from "@/lib/hotelAmenities";
 import { buildSkyscannerFlightUrl } from "@/lib/makeSearch";
@@ -137,10 +137,21 @@ function travelFactCoverFor(...labels: Array<string | undefined>): string | unde
   return hit?.imageUrl;
 }
 
-function unsplashDestinationCover(label: string): string | undefined {
-  const q = label.trim();
-  if (!q) return undefined;
-  return `https://images.unsplash.com/featured/?${encodeURIComponent(q)},resort,beach&w=1400&q=80`;
+function stableResortCover(): string {
+  return GENERIC_RESORT_COVER;
+}
+
+function isLiveHotelTitle(name: string | undefined, plan: AiTripPlan): boolean {
+  const title = (name ?? "").trim();
+  if (!title) return false;
+  const lower = title.toLowerCase();
+  const place = (plan.destinationPlace ?? "").trim().toLowerCase();
+  const destName = (plan.destinationName ?? "").trim().toLowerCase();
+  const dest = destinationBadgeLabel(plan.destinationPlace || plan.destinationName).toLowerCase();
+  if (place && lower === place) return false;
+  if (destName && lower === destName) return false;
+  if (dest && (lower === dest || lower.startsWith(`${dest},`))) return false;
+  return true;
 }
 
 export function resolvePackageCoverImage(
@@ -163,7 +174,7 @@ export function resolvePackageCoverImage(
       plan.days?.[0]?.city,
     );
   if (fromCatalog) return fromCatalog;
-  return unsplashDestinationCover(destinationLabel || plan.destinationName) || GENERIC_RESORT_COVER;
+  return stableResortCover();
 }
 
 export function resolvePackageCoverWithFallback(
@@ -250,7 +261,13 @@ export function bookingSearchPlace(
     fromIata ||
     "";
   const badge = destinationBadgeLabel(raw);
-  return hotelSearchQueryAlias(badge || raw || fromIata || "") || badge || raw || fromIata || "";
+  return (
+    hotelSearchQueryForStay(badge || raw || fromIata || "", extra?.destinationIata || plan.destinationIata) ||
+    badge ||
+    raw ||
+    fromIata ||
+    ""
+  );
 }
 
 export function packageBookingHref(params: {
@@ -470,10 +487,12 @@ export function buildResortPackageFromOffer(
   const hotelEur = hotelStayTotalEur(offer.hotelEur, nights);
   const flightEur = base.flightEur;
   const totalEur = flightEur + hotelEur;
-  const hotelImages = uniqueHotelImageUrls([...(offer.images ?? []), offer.imageUrl]);
-  const images = hotelImages.length
-    ? hotelImages
-    : uniqueHotelImageUrls([base.coverImageUrl]);
+  const images = uniqueHotelImageUrls([
+    ...(offer.images ?? []),
+    offer.imageUrl,
+    base.coverImageUrl,
+    ...RESORT_COVER_FALLBACKS,
+  ]);
   return {
     ...base,
     id: offer.id,
@@ -525,10 +544,10 @@ export function resortPackagesFromPlan(
 ): ResortPackage[] {
   if (!plan.resortStay && plan.tripStyle !== "single_base") return [];
   const offers = (plan.resortOffers ?? []).filter(
-    (offer) => typeof offer.guestScore === "number" && meetsMinGuestScore(offer.guestScore),
+    (offer) =>
+      typeof offer.guestScore === "number" &&
+      meetsMinGuestScore(offer.guestScore) &&
+      isLiveHotelTitle(offer.name, plan),
   );
-  if (offers.length > 0) {
-    return offers.map((offer) => buildResortPackageFromOffer(plan, offer, opts));
-  }
-  return [buildResortPackageFromPlan(plan, opts)];
+  return offers.map((offer) => buildResortPackageFromOffer(plan, offer, opts));
 }

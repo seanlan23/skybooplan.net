@@ -96,11 +96,10 @@ import { mergeResortHotelPools, pickResortHotels } from "@/lib/resortHotelPicks"
 import {
   prefersAllInclusiveResortSearch,
   resolveResortDiningModel,
-  resortHotelSearchFilters,
-  resortStayQualityFilters,
+  resortHotelSearchAttempts,
 } from "@/lib/resortDiningModel";
 import type { StayFilterFlags } from "@/lib/hotelAmenities";
-import { resolveResortCoastalBase } from "@/lib/resortCoastalBase";
+import { coastalBaseForIata, resolveResortCoastalBase } from "@/lib/resortCoastalBase";
 import { matchResortStayMix } from "@/lib/resortStayMix";
 import { heroChatToPlannerPayload, mapChatBudget, resolveDestinationIata } from "@/lib/heroChatPlanner";
 import {
@@ -1021,6 +1020,7 @@ function Landing() {
         stayDestinationLabel(ctx.destinationPlace || collected.destination || ""),
         ctx.to,
       ) ||
+      coastalBaseForIata(ctx.to)?.hotelQuery ||
       ctx.destinationPlace?.split(",")[0]?.trim() ||
       "";
     const rooms = Math.max(1, Math.min(10, Math.ceil(Math.max(1, ctx.adults) / 2)));
@@ -1060,30 +1060,16 @@ function Landing() {
       destIata: ctx.to,
       countryCode: lookupDestination(ctx.to)?.country,
     });
-    const searchResortHotels = (filters: StayFilterFlags) =>
-      searchHotels({ data: { ...stayQuery, filters } }).catch((err) => {
+    const searchResortHotels = (filters: StayFilterFlags, dropPriceCap = false) => {
+      const { priceMax: _cap, ...uncapped } = stayQuery;
+      return searchHotels({
+        data: { ...(dropPriceCap ? uncapped : stayQuery), filters },
+      }).catch((err) => {
         console.warn("[resortPackages] hotel search failed", err);
         return { hotels: emptyHotelRes.hotels, error: String(err) };
       });
-    const hotelsPromise =
-      city && checkIn && checkOut
-        ? prefersAllInclusiveResortSearch(dining)
-          ? Promise.all([
-              searchResortHotels(resortStayQualityFilters(stayMix)),
-              searchResortHotels(resortHotelSearchFilters(dining, stayMix)),
-            ]).then(([base, allInclusive]) => ({
-              hotels: mergeResortHotelPools(base.hotels ?? [], allInclusive.hotels ?? []),
-              error: base.error || allInclusive.error,
-            }))
-          : searchResortHotels(resortHotelSearchFilters(dining, stayMix)).then((base) => ({
-              hotels: base.hotels ?? [],
-              error: base.error,
-            }))
-        : Promise.resolve(emptyHotelRes);
-
-    await handleGeneratePlan(form, ctx, "trip", "hero-trip-plan", collected.attachment);
-    const hotelRes = await hotelsPromise;
-    const offers = pickResortHotels(hotelRes.hotels ?? [], {
+    };
+    const pickOpts = {
       preferAllInclusiveSlots: prefersAllInclusiveResortSearch(dining),
       destIata: ctx.to,
       countryCode: lookupDestination(ctx.to)?.country,
@@ -1092,7 +1078,27 @@ function Landing() {
       guests,
       budgetMinPerPerson: budgetBand.minPerPerson,
       budgetMaxPerPerson: budgetBand.maxPerPerson,
-    });
+    };
+    const hotelsPromise =
+      city && checkIn && checkOut
+        ? (async () => {
+            let hotels: Awaited<ReturnType<typeof searchHotels>>["hotels"] = [];
+            let error: string | null = null;
+            const attempts = resortHotelSearchAttempts(dining, stayMix);
+            for (let i = 0; i < attempts.length; i++) {
+              const dropPrice = i > 0;
+              const res = await searchResortHotels(attempts[i]!, dropPrice);
+              hotels = mergeResortHotelPools(hotels, res.hotels ?? []);
+              error = error || res.error;
+              if (pickResortHotels(hotels, pickOpts).length >= 4) break;
+            }
+            return { hotels, error };
+          })()
+        : Promise.resolve(emptyHotelRes);
+
+    await handleGeneratePlan(form, ctx, "trip", "hero-trip-plan", collected.attachment);
+    const hotelRes = await hotelsPromise;
+    const offers = pickResortHotels(hotelRes.hotels ?? [], pickOpts);
     if (offers.length) {
       setAiPlan((current) => (current ? { ...current, resortOffers: offers } : current));
     }

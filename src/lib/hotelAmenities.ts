@@ -154,7 +154,7 @@ export function isExcludedResortStayText(text: string): boolean {
   return EXCLUDED_RESORT_STAY.test(text);
 }
 
-/** Official 3–5★ hotel / resort / boutique / villa only. Drops unrated and 1–2★. */
+/** Official 3–5★ hotel / resort / boutique / villa only. Drops 1–2★; unrated only when filling. */
 export function isAllowedResortStayProperty(input: {
   name: string;
   typeName?: string;
@@ -163,10 +163,17 @@ export function isAllowedResortStayProperty(input: {
   stars?: number;
   /** Country-table floor (default 3). */
   minStars?: number;
+  /** Keep 8.0+ hotel/resort rows when Booking omitted propertyClass. */
+  allowUnrated?: boolean;
 }): boolean {
   const stars = input.stars ?? 0;
   const minStars = Math.max(3, Math.min(5, input.minStars ?? 3));
-  if (!Number.isFinite(stars) || stars < minStars || stars > 5) return false;
+  const hasOfficialStars = Number.isFinite(input.stars) && (input.stars ?? 0) > 0;
+  if (hasOfficialStars) {
+    if (stars < minStars || stars > 5) return false;
+  } else if (!input.allowUnrated) {
+    return false;
+  }
   if (input.typeId && !RESORT_STAY_TYPE_ID_SET.has(input.typeId)) return false;
   const text = blobOf([input.name, input.typeName]);
   if (isExcludedResortStayText(text)) return false;

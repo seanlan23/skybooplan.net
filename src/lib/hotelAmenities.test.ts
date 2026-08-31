@@ -120,6 +120,9 @@ describe("isAllowedResortStayProperty", () => {
 
   it("drops unrated, 1–2★ and hostel / apartment / homestay types", () => {
     expect(isAllowedResortStayProperty({ name: "Palm Hotel", kind: "hotel" })).toBe(false);
+    expect(
+      isAllowedResortStayProperty({ name: "Palm Hotel", kind: "hotel", allowUnrated: true }),
+    ).toBe(true);
     expect(isAllowedResortStayProperty({ name: "Palm Hotel", kind: "hotel", stars: 2 })).toBe(false);
     expect(isAllowedResortStayProperty({ name: "Beach Hostel", kind: "hotel", stars: 4 })).toBe(false);
     expect(isAllowedResortStayProperty({ name: "Mom's Home", kind: "other", stars: 4 })).toBe(false);

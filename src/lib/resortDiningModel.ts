@@ -98,6 +98,34 @@ export function resortStayQualityFilters(mix?: { minStars?: number } | null): St
   return RESORT_STAY_QUALITY_FILTERS;
 }
 
+/** Tight → loose Booking filters when the first wave returns too few live stays. */
+export function resortHotelSearchAttempts(
+  model: ResortDiningModel,
+  mix?: { minStars?: number } | null,
+): StayFilterFlags[] {
+  const tight = resortHotelSearchFilters(model, mix);
+  const quality = resortStayQualityFilters(mix);
+  const mid: StayFilterFlags = {
+    hotel: true,
+    resortStay: true,
+    stars345: true,
+    minReview80: true,
+  };
+  const loose: StayFilterFlags = {
+    hotel: true,
+    resortStay: true,
+    minReview80: true,
+  };
+  const open: StayFilterFlags = {
+    hotel: true,
+    minReview80: true,
+  };
+  if (prefersAllInclusiveResortSearch(model)) {
+    return [tight, quality, mid, loose, open];
+  }
+  return [tight, mid, loose, open];
+}
+
 /** Prompt + UI copy. Named places are examples for the model, not code branches. */
 export function resortDiningPromptRules(model: ResortDiningModel, destLabel: string): string {
   const dest = destLabel.trim() || "this destination";

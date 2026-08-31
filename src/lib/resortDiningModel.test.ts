@@ -5,6 +5,7 @@ import {
   resolveResortDiningModel,
   resortDiningPromptRules,
   resortDiningSectionLabel,
+  resortHotelSearchAttempts,
   resortHotelSearchFilters,
 } from "@/lib/resortDiningModel";
 
@@ -59,6 +60,15 @@ describe("resolveResortDiningModel", () => {
     });
     expect(resortHotelSearchFilters("all_inclusive_standard", { minStars: 4 }).stars45).toBe(true);
     expect(resortHotelSearchFilters("breakfast_first", { minStars: 3 }).stars45).toBeUndefined();
+    expect(resortHotelSearchAttempts("all_inclusive_standard").at(-2)).toEqual({
+      hotel: true,
+      resortStay: true,
+      minReview80: true,
+    });
+    expect(resortHotelSearchAttempts("all_inclusive_standard").at(-1)).toEqual({
+      hotel: true,
+      minReview80: true,
+    });
   });
 });
 

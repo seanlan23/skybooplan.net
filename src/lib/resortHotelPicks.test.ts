@@ -212,7 +212,8 @@ describe("pickResortHotels", () => {
         typeName: "Villa",
       }),
     ]);
-    expect(offers.map((o) => o.id).sort()).toEqual(["keep", "villa"]);
+    expect(offers.map((o) => o.id).sort()).toEqual(["keep", "none", "villa"]);
+    expect(offers.some((o) => o.id === "hostel" || o.id === "two" || o.id === "apt")).toBe(false);
     expect(offers.every((o) => (o.guestScore ?? 0) >= 8)).toBe(true);
   });
 
@@ -355,6 +356,48 @@ describe("pickResortHotels", () => {
       2,
     );
     expect(offers.find((o) => o.id === "v3")?.name).toBe("Island Four Star Resort");
+  });
+
+  it("drops the package budget cap when it would leave fewer than 4 live hotels", () => {
+    const offers = pickResortHotels(
+      [
+        hotel({ id: "a", name: "Bavaro Palace", price: 2400, rating: 8.6 }),
+        hotel({
+          id: "b",
+          name: "Coral All Inclusive",
+          price: 2600,
+          rating: 8.8,
+          amenities: { allInclusive: true },
+        }),
+        hotel({ id: "c", name: "Palm Beach Resort", price: 2800, rating: 8.4, amenities: { pool: true } }),
+        hotel({ id: "d", name: "Ocean Garden Hotel", price: 3000, rating: 8.3 }),
+        hotel({
+          id: "e",
+          name: "Sunset Club",
+          price: 3200,
+          rating: 8.2,
+          amenities: { allInclusive: true },
+        }),
+      ],
+      {
+        destIata: "PUJ",
+        flightTotalEur: 1726,
+        guests: 2,
+        budgetMaxPerPerson: 1200,
+      },
+    );
+    expect(offers).toHaveLength(5);
+    expect(offers.every((offer) => offer.name && !/punta cana/i.test(offer.name))).toBe(true);
+  });
+
+  it("keeps unrated 8.0+ hotels only when rated rows are too few", () => {
+    const offers = pickResortHotels([
+      hotel({ id: "rated", name: "Rated Bay Hotel", price: 1400, stars: 4, rating: 8.4 }),
+      hotel({ id: "u1", name: "Unrated Palm Hotel", price: 1500, stars: undefined, rating: 8.5 }),
+      hotel({ id: "u2", name: "Unrated Coral Hotel", price: 1600, stars: undefined, rating: 8.3 }),
+      hotel({ id: "u3", name: "Unrated Ocean Hotel", price: 1700, stars: undefined, rating: 8.2 }),
+    ]);
+    expect(offers.map((o) => o.id)).toEqual(expect.arrayContaining(["rated", "u1", "u2", "u3"]));
   });
 
   it("gives Ugodna izbira to the best score-per-euro 3★/4★, not a cheaper 5★", () => {

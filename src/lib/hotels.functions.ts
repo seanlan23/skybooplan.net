@@ -7,7 +7,7 @@ import {
 } from "./bookingUrl";
 import { lookupDestination } from "./destinationCoords";
 import {
-  hotelSearchQueryAlias,
+  hotelSearchQueryForStay,
   pickBestBookingDestination,
 } from "./hotelDestinationPick";
 import {
@@ -160,7 +160,7 @@ export const searchHotels = createServerFn({ method: "POST" })
         return { hotels: [], error: "BOOKING_API_KEY not configured" };
       }
 
-      const searchQuery = hotelSearchQueryAlias(city);
+      const searchQuery = hotelSearchQueryForStay(city, data.destIata);
       const destCountry = data.destIata
         ? lookupDestination(data.destIata.toUpperCase())?.country
         : undefined;
@@ -248,7 +248,7 @@ export const searchHotels = createServerFn({ method: "POST" })
 
       const aid = process.env.BOOKING_AFFILIATE_ID;
       const linkBase = {
-        destination: city,
+        destination: searchQuery,
         checkIn: arrival,
         checkOut: departure,
         adults: data.adults,
@@ -256,7 +256,8 @@ export const searchHotels = createServerFn({ method: "POST" })
         childrenAges: data.childrenAges,
         affiliateId: aid,
       };
-      const hotels: RealHotel[] = rows.slice(0, 40).map((h: any) => {
+      const mapRows = (hotelRows: any[]): RealHotel[] =>
+        hotelRows.slice(0, 40).map((h: any) => {
         const prop = h.property ?? {};
         const priceObj = prop.priceBreakdown?.grossPrice ?? {};
         const strike = Number(prop.priceBreakdown?.strikethroughPrice?.value ?? 0);
@@ -325,25 +326,41 @@ export const searchHotels = createServerFn({ method: "POST" })
           typeName: typeName || undefined,
           typeId,
         };
-      });
+        });
+      let hotels = mapRows(rows);
 
       const stayFilters = data.filters ?? {};
       const resortQuality = Boolean(stayFilters.stars345 || stayFilters.stars45 || stayFilters.resortStay);
       const minStars = stayFilters.stars45
         ? 4
         : (matchResortStayMix({ destIata: data.destIata })?.minStars ?? 3);
-      const filtered = resortQuality
-        ? hotels.filter((hotel) =>
-            isAllowedResortStayProperty({
-              name: hotel.name,
-              typeName: hotel.typeName,
-              typeId: hotel.typeId,
-              kind: hotel.kind,
-              stars: hotel.stars,
-              minStars,
-            }),
-          )
-        : hotels;
+      const qualityFilter = (list: RealHotel[], stars: number, allowUnrated = false) =>
+        list.filter((hotel) =>
+          isAllowedResortStayProperty({
+            name: hotel.name,
+            typeName: hotel.typeName,
+            typeId: hotel.typeId,
+            kind: hotel.kind,
+            stars: hotel.stars,
+            minStars: stars,
+            allowUnrated,
+          }),
+        );
+      let filtered = resortQuality ? qualityFilter(hotels, minStars) : hotels;
+      if (
+        resortQuality &&
+        filtered.length < 4 &&
+        (params.categories_filter || params.price_max || params.price_min)
+      ) {
+        const { categories_filter: _c, price_max: _max, price_min: _min, ...loose } = params;
+        console.warn("[searchHotels] fewer than 4 quality stays, retrying without categories/price");
+        result = await rapid("/searchHotels", loose);
+        hotels = mapRows(extractHotelsRows(result));
+        filtered = qualityFilter(hotels, Math.min(3, minStars));
+      }
+      if (resortQuality && filtered.length < 4) {
+        filtered = qualityFilter(hotels, Math.min(3, minStars), true);
+      }
 
       return { hotels: filtered, error: null, dest: bookingDest };
     } catch (e: any) {

@@ -23,6 +23,13 @@ describe("hotelSearchQueryAlias", () => {
     expect(hotelSearchQueryAlias("MLE")).toBe("Maldives");
     expect(hotelSearchQueryForStay("Maldivi (MLE)", "MLE")).toBe("Maldives");
   });
+
+  it("sends only the city to Booking, never a localized country tail", () => {
+    expect(hotelSearchQueryAlias("Punta Cana, Dominikanska republika")).toBe("Punta Cana");
+    expect(hotelSearchQueryForStay("Punta Cana, Dominikanska republika", "PUJ")).toBe("Punta Cana");
+    expect(hotelSearchQueryForStay("Phuket, Tajska", "HKT")).toBe("Phuket");
+    expect(hotelSearchQueryForStay("PUJ", "PUJ")).toBe("Punta Cana");
+  });
 });
 
 describe("pickBestBookingDestination", () => {

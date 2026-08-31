@@ -57,31 +57,42 @@ export function hotelCapitalFallback(query: string): string | undefined {
   return matchStayCountry(query)?.capital;
 }
 
+/** Booking `ss` / searchDestination — place only, never "City, localized country". */
+export function bookingPlaceHead(query: string): string {
+  return query
+    .trim()
+    .replace(/\s*\([A-Za-z]{3}\)\s*$/g, "")
+    .split(",")[0]
+    ?.replace(/\s+/g, " ")
+    .trim() ?? "";
+}
+
 /**
  * Normalize the Booking lookup string.
  * City-specific aliases stay; countries stay countries (English name).
  */
 export function hotelSearchQueryAlias(city: string): string {
   const trimmed = city.trim();
-  if (/^krabi$/i.test(trimmed)) return "Ao Nang";
-  if (/phi\s*phi/i.test(trimmed)) return "Ko Phi Phi Don";
-  const bare = trimmed.replace(/\s*\([A-Za-z]{3}\)\s*$/g, "").trim() || trimmed;
-  const country = matchStayCountry(bare) ?? matchStayCountry(trimmed);
+  if (!trimmed) return "";
+  const head = bookingPlaceHead(trimmed);
+  if (/^krabi$/i.test(head) || /^krabi$/i.test(trimmed)) return "Ao Nang";
+  if (/phi\s*phi/i.test(head) || /phi\s*phi/i.test(trimmed)) return "Ko Phi Phi Don";
+  const country = matchStayCountry(head) || matchStayCountry(trimmed);
   if (country) return country.english;
-  if (/^[A-Za-z]{3}$/.test(bare) || /^[A-Za-z]{3}$/.test(trimmed)) {
-    const fromIata = lookupDestination((/^[A-Za-z]{3}$/.test(bare) ? bare : trimmed).toUpperCase());
+  const iataHead = /^[A-Za-z]{3}$/.test(head) ? head : /^[A-Za-z]{3}$/.test(trimmed) ? trimmed : "";
+  if (iataHead) {
+    const fromIata = lookupDestination(iataHead.toUpperCase());
     if (fromIata?.name) return fromIata.name;
   }
-  return trimmed;
+  return head || trimmed;
 }
 
 /** Resort / stay search: country names and IATA become Booking-English place names. */
 export function hotelSearchQueryForStay(place: string, destIata?: string): string {
-  const first = place.split(",")[0]?.trim() ?? "";
-  const aliased = hotelSearchQueryAlias(first);
+  const aliased = hotelSearchQueryAlias(place);
   if (aliased) return aliased;
   const iata = (destIata ?? "").trim().toUpperCase();
-  return (iata && lookupDestination(iata)?.name) || first;
+  return (iata && lookupDestination(iata)?.name) || bookingPlaceHead(place);
 }
 
 function rowCountryCode(row: BookingDestRow): string {

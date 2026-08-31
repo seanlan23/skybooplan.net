@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { AiTripPlan, DayPlan, ResortStay } from "@/lib/aiPlan.functions";
 import { BOOKING_CLICK_HOP_PATH } from "@/lib/bookingUrl";
 import {
+  bookingSearchPlace,
   buildResortPackageFromOffer,
   buildResortPackageFromPlan,
   destinationBadgeLabel,
@@ -155,6 +156,7 @@ describe("buildResortPackageFromPlan", () => {
   it("always returns an Unsplash or Pexels cover when the day has no photo", () => {
     const url = resolvePackageCoverImage(plan({ days: [day({ imageUrl: "" })] }), "Maldivi");
     expect(url).toMatch(/^https:\/\/(images\.unsplash\.com|images\.pexels\.com)\//);
+    expect(url).not.toMatch(/featured\/\?/);
     expect(resolvePackageCoverWithFallback(undefined, plan(), "Zanzibar")).toMatch(
       /^https:\/\//,
     );
@@ -234,11 +236,12 @@ describe("buildResortPackageFromPlan", () => {
     expect(pkgs[1]?.title).toBe("Palm All Inclusive");
     expect(pkgs[1]?.totalEur).toBe(3900);
     expect(pkgs[1]?.coverImageUrl).toContain("palm.jpg");
-    expect(pkgs[1]?.images).toEqual([
+    expect(pkgs[1]?.images?.slice(0, 3)).toEqual([
       "https://images.example/palm.jpg",
       "https://images.example/palm-pool.jpg",
       "https://images.example/palm-beach.jpg",
     ]);
+    expect(pkgs[1]?.images?.some((url) => /unsplash|pexels/i.test(url))).toBe(true);
     const palm = hopDest(pkgs[1]?.bookingHref);
     expect(palm.pathname).toBe("/searchresults.html");
     expect(palm.searchParams.get("ss")).toMatch(/Palm All Inclusive/i);
@@ -271,6 +274,46 @@ describe("buildResortPackageFromPlan", () => {
     );
     expect(pkgs).toHaveLength(1);
     expect(pkgs[0]?.title).toBe("High Score Bay");
+  });
+
+  it("does not invent a destination-only card when Booking sent no live hotels", () => {
+    expect(
+      resortPackagesFromPlan(plan({ resortOffers: [] }), {
+        pax: 2,
+        flightTotalEur: 1800,
+        departDate: "2026-09-19",
+        returnDate: "2026-09-26",
+      }),
+    ).toEqual([]);
+    expect(
+      resortPackagesFromPlan(
+        plan({
+          destinationName: "Punta Cana, Dominikanska republika",
+          destinationPlace: "Punta Cana, Dominikanska republika",
+          resortOffers: [
+            {
+              id: "fake",
+              tier: "value",
+              name: "Punta Cana, Dominikanska republika",
+              hotelEur: 560,
+              mealPlan: "all_inclusive",
+              guestScore: 8.2,
+            },
+          ],
+        }),
+        { pax: 2, flightTotalEur: 1726 },
+      ),
+    ).toEqual([]);
+    expect(
+      bookingSearchPlace(
+        plan({
+          destinationName: "Punta Cana, Dominikanska republika",
+          destinationPlace: "Punta Cana, Dominikanska republika",
+          destinationIata: "PUJ",
+          hotels: [{ city: "Punta Cana, Dominikanska republika", nights: 7 }],
+        }),
+      ),
+    ).toBe("Punta Cana");
   });
 
   it("expands a nightly-looking cheap hotel across the full stay", () => {

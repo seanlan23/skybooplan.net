@@ -131,6 +131,7 @@ export function isBoutiqueLocationCandidate(hotel: ResortHotelPickInput): boolea
 function usableHotels(
   hotels: ResortHotelPickInput[],
   mix?: ResortStayMixRow | null,
+  allowUnrated = false,
 ): ResortHotelPickInput[] {
   const seen = new Set<string>();
   const out: ResortHotelPickInput[] = [];
@@ -140,7 +141,7 @@ function usableHotels(
     const id = hotel.id.trim() || name;
     if (!name || hotel.price <= 0 || seen.has(id)) continue;
     if (!meetsMinGuestScore(hotel.rating)) continue;
-    if (!isAllowedResortStayProperty({ ...hotel, minStars })) continue;
+    if (!isAllowedResortStayProperty({ ...hotel, minStars, allowUnrated })) continue;
     if (mix && isExcludedResortLocation(hotel, mix)) continue;
     seen.add(id);
     const loc = locationScoreOnTen(hotel.locationScore);
@@ -408,7 +409,12 @@ export function pickResortHotels(
     countryCode: opts?.countryCode,
     destIata: opts?.destIata,
   });
-  const usable = hotelsWithinBudgetCap(usableHotels(hotels, mix), opts);
+  const quality = usableHotels(hotels, mix);
+  const capped = hotelsWithinBudgetCap(quality, opts);
+  let usable = capped.length >= 4 ? capped : quality;
+  if (usable.length < 4) {
+    usable = usableHotels(hotels, mix, true);
+  }
   if (usable.length === 0) return [];
 
   const preferAi = opts?.preferAllInclusiveSlots !== false;
