@@ -1,5 +1,10 @@
 import type { AiTripPlan } from "@/lib/aiPlan.functions";
-import { sortDepartureDayChronology, type DepartureDaySortOpts } from "@/lib/departureDaySort";
+import {
+  sortDepartureDayChronology,
+  stripPrematureDepartureLogistics,
+  type DepartureDaySortOpts,
+} from "@/lib/departureDaySort";
+import { alignDayCityToActivities } from "@/lib/itineraryCityAlign";
 import { enforceTripBaseCap } from "@/lib/tripBaseCap";
 import { isSingleBasePlan } from "@/lib/tripStyle";
 
@@ -17,6 +22,8 @@ export function stabilizeTripStayStructure(
 ): AiTripPlan {
   if (isSingleBasePlan(plan)) return plan;
   enforceTripBaseCap(plan, { calendarDays: opts?.calendarDays });
+  alignDayCityToActivities(plan);
+  stripPrematureDepartureLogistics(plan, opts);
   sortDepartureDayChronology(plan, opts);
   return plan;
 }

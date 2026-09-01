@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { AiTripPlan, DayPlan } from "@/lib/aiPlan.functions";
 import { uniquifyDayActivityClocks } from "@/lib/activityTime";
-import { sortDepartureDayChronology } from "@/lib/departureDaySort";
+import { sortDepartureDayChronology, stripPrematureDepartureLogistics } from "@/lib/departureDaySort";
+import { alignDayCityToActivities } from "@/lib/itineraryCityAlign";
+import { isEnricherPlaceholderActivity } from "@/lib/itineraryGuards";
 import { enforceTripBaseCap, tripStayBaseCap } from "@/lib/tripBaseCap";
 import { stabilizeTripStayStructure } from "@/lib/tripStayStructure";
 
@@ -78,8 +80,11 @@ function eightHotelSeventeenDayPlan(): AiTripPlan {
           activities: {
             morning: [
               {
-                name: b === 6 ? "Tirta Gangga" : `Sprehod po ${base.city}`,
-                description: "Ogled in enodnevni izlet, ne menjava hotela.",
+                name: b === 6 ? "Tirta Gangga" : `Ogled v ${base.city}`,
+                description:
+                  b === 0
+                    ? "Bajra Sandhi in trg Puputan v Denpasarju."
+                    : "Ogled in enodnevni izlet, ne menjava hotela.",
               },
             ],
             afternoon: [],
@@ -157,7 +162,7 @@ describe("enforceTripBaseCap", () => {
     enforceTripBaseCap(plan);
     const hotels = plan.hotels ?? [];
     expect(hotels.length).toBeGreaterThanOrEqual(3);
-    expect(hotels.length).toBeLessThanOrEqual(4);
+    expect(hotels.length).toBeLessThanOrEqual(6);
     expect(hotels.some((h) => /amed/i.test(h.city))).toBe(false);
     for (const h of hotels) {
       expect(h.nights ?? 0).toBeGreaterThanOrEqual(3);
@@ -210,6 +215,103 @@ describe("sortDepartureDayChronology", () => {
   });
 });
 
+describe("alignDayCityToActivities", () => {
+  it("relabels an Ubud header when the day is exploring Denpasar", () => {
+    const plan = planOf([
+      day(1, "Ubud", {
+        lat: -8.51,
+        lng: 115.26,
+        title: "Raziskovanje Denpasarja",
+        activities: {
+          morning: [
+            {
+              name: "Bajra Sandhi v Denpasarju",
+              description: "Spomenik in trg Puputan v Denpasarju.",
+            },
+          ],
+          afternoon: [{ name: "Tržnica Badung v Denpasarju", description: "Lokalna tržnica." }],
+          evening: [],
+        },
+      }),
+      day(2, "Ubud", { lat: -8.51, lng: 115.26 }),
+    ]);
+    expect(alignDayCityToActivities(plan)).toBeGreaterThan(0);
+    expect(plan.days[0]!.city).toMatch(/Denpasar/i);
+  });
+});
+
+describe("stripPrematureDepartureLogistics", () => {
+  it("keeps checkout on the 21:10 flight day and clears it from the previous evening", () => {
+    const plan = planOf([
+      day(18, "Kuta", {
+        lat: -8.72,
+        lng: 115.17,
+        activities: {
+          morning: [{ name: "Zadnji sprehod po plaži", description: "Kuta Beach." }],
+          afternoon: [],
+          evening: [
+            {
+              name: "Odjava iz hotela",
+              type: "STAY",
+              description: "Večerna odjava pred letom.",
+              arrivalTime: "22:30",
+            },
+            {
+              name: "Prevoz na letališče",
+              type: "TRANSPORT",
+              description: "Transfer na DPS.",
+              arrivalTime: "23:00",
+            },
+          ],
+        },
+      }),
+      day(19, "Kuta", {
+        lat: -8.72,
+        lng: 115.17,
+        activities: {
+          morning: [],
+          afternoon: [
+            {
+              name: "Odjava iz hotela",
+              type: "STAY",
+              description: "Odjava ob 18:00.",
+              arrivalTime: "18:00",
+            },
+            {
+              name: "Prevoz na letališče",
+              type: "TRANSPORT",
+              description: "Na DPS 3 ure pred poletom.",
+              arrivalTime: "18:10",
+            },
+          ],
+          evening: [
+            {
+              name: "Odhod mednarodnega leta DPS → MUC",
+              type: "TRANSPORT",
+              arrivalTime: "21:10",
+            },
+          ],
+        },
+      }),
+    ]);
+    stripPrematureDepartureLogistics(plan, { inboundDepart: "21:10" });
+    expect(JSON.stringify(plan.days[0]!.activities)).not.toMatch(/odjava|prevoz na letališč/i);
+    expect(JSON.stringify(plan.days[1]!.activities)).toMatch(/odjava/i);
+    expect(JSON.stringify(plan.days[1]!.activities)).toMatch(/21:10/);
+  });
+});
+
+describe("generic town-sights template", () => {
+  it("flags the leftover meta description as a placeholder", () => {
+    expect(
+      isEnricherPlaceholderActivity({
+        name: "Lokalni ogled Ubud",
+        description: "Ubud: lokalne znamenitosti, staro mestno jedro in bližnje plaže.",
+      }),
+    ).toBe(true);
+  });
+});
+
 describe("stabilizeTripStayStructure", () => {
   it("caps bases and sorts the departure day together", () => {
     const plan = eightHotelSeventeenDayPlan();
@@ -220,7 +322,9 @@ describe("stabilizeTripStayStructure", () => {
       originIata: "MUC",
       calendarDays: 17,
     });
-    expect(plan.hotels?.length ?? 99).toBeLessThanOrEqual(4);
+    expect(plan.hotels?.length ?? 99).toBeLessThanOrEqual(6);
+    expect(plan.days[0]!.city).toMatch(/Denpasar/i);
+    expect(plan.days[1]!.city).toMatch(/Denpasar/i);
     const last = plan.days[16]!;
     expect(JSON.stringify(last.activities?.morning ?? [])).not.toMatch(/pristanek/i);
     expect(JSON.stringify(last.activities?.evening ?? [])).toMatch(/naslednji dan/i);

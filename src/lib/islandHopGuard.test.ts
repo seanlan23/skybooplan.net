@@ -151,9 +151,9 @@ describe("scrubImpossibleIslandDayTrips", () => {
       ],
     } as AiTripPlan;
     expect(dropDayTripsToOvernightStays(plan, "sl")).toBeGreaterThan(0);
-    expect(plan.days[0]!.activities!.morning[0]!.name).toMatch(/Lokalni ogled Phuket/i);
-    expect(plan.days[0]!.activities!.morning[0]!.description).toMatch(/lokalne znamenitosti/i);
-    expect(plan.days[0]!.activities!.morning[0]!.description).not.toMatch(
+    expect(plan.days[0]!.activities!.morning ?? []).toHaveLength(0);
+    expect(JSON.stringify(plan.days[0]!.activities)).not.toMatch(/lokalne znamenitosti/i);
+    expect(JSON.stringify(plan.days[0]!.activities)).not.toMatch(
       /ne enodnevni izlet|večdnevno bivanje|PREPOVEDANO/i,
     );
     expect(plan.days[1]!.activities!.morning[0]!.name).toMatch(/Trajekt/i);

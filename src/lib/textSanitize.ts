@@ -184,6 +184,22 @@ export function sanitizeLegacyTemplateLeak(text: string): string {
     .replace(/[^.!?\n]*kulturni in zgodovinski dragulj[^.!?\n]*[.!?]?/gi, "")
     .replace(/[^.!?\n]*raje 2 noči v [^.!?\n]*[.!?]?/gi, "")
     .replace(/[^.!?\n]*prefer 2 nights in [^.!?\n]*[.!?]?/gi, "")
+    .replace(
+      /[^.!?\n]*lokalne znamenitosti[,\s]+staro mestno jedro in bližnje plaže[^.!?\n]*[.!?]?/gi,
+      "",
+    )
+    .replace(
+      /[^.!?\n]*local sights[,\s]+old town and nearby beaches[^.!?\n]*[.!?]?/gi,
+      "",
+    )
+    .replace(
+      /[^.!?\n]*lokale Sehenswürdigkeiten[,\s]+Altstadt und Strände[^.!?\n]*[.!?]?/gi,
+      "",
+    )
+    .replace(
+      /[^.!?\n]*attrazioni locali[,\s]+centro storico e spiagge[^.!?\n]*[.!?]?/gi,
+      "",
+    )
     .replace(/\s{2,}/g, " ")
     .trim(),
   );

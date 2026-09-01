@@ -339,8 +339,7 @@ describe("itineraryJsonToPlan", () => {
       ["Ao Nang", 1],
       ["Koh Phi Phi", 2],
     ]);
-    expect(plan!.days[0]!.activities?.morning?.[0]?.name).toMatch(/Lokalni ogled Phuket/i);
-    expect(plan!.days[0]!.activities?.morning?.[0]?.name).not.toMatch(/gliser|Phi Phi/i);
+    expect(JSON.stringify(plan!.days[0]!.activities ?? {})).not.toMatch(/gliser|Phi Phi|lokalne znamenitosti/i);
   });
 
   it("maps single_base protocol JSON without inventing hourly days", () => {

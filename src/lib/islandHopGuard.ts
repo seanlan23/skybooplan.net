@@ -168,8 +168,7 @@ function isTransferTowardStay(day: DayPlan, next: DayPlan | undefined, stayCity:
  * No preview day-trip (boat/flight) to a place where the traveler already has
  * a multi-night stay. Transfer days that actually move to that base stay intact.
  */
-export function dropDayTripsToOvernightStays(plan: AiTripPlan, language?: string): number {
-  const lang = normalizePlanLangCode(language ?? plan.contentLanguage ?? "en");
+export function dropDayTripsToOvernightStays(plan: AiTripPlan, _language?: string): number {
   const stays = [...overnightStayCities(plan).entries()].filter(([, n]) => n >= 2);
   if (!stays.length) return 0;
   let n = 0;
@@ -185,36 +184,16 @@ export function dropDayTripsToOvernightStays(plan: AiTripPlan, language?: string
       for (const slot of ["morning", "afternoon", "evening"] as const) {
         const list = day.activities[slot];
         if (!list?.length) continue;
-        day.activities[slot] = list.map((a) => {
+        day.activities[slot] = list.filter((a) => {
           const blob = `${a.name} ${a.description ?? ""}`;
-          if (!stayCityMentioned(blob, stayCity)) return a;
+          if (!stayCityMentioned(blob, stayCity)) return true;
           const dayTrip =
             DAY_TRIP_CUE_RE.test(blob) ||
             /ladja|čoln|boat|ferry|trajekt|gliser|speedboat|let na |flight to /i.test(blob);
-          if (!dayTrip) return a;
-          if (a.type === "TRANSPORT" && isTransferTowardStay(day, next, stayCity)) return a;
+          if (!dayTrip) return true;
+          if (a.type === "TRANSPORT" && isTransferTowardStay(day, next, stayCity)) return true;
           n += 1;
-          const city = (day.city || day.focusName || "").trim() || stayCity;
-          return {
-            ...a,
-            name: planLangCopy(lang, {
-              sl: `Lokalni ogled ${city}`,
-              en: `Local sights in ${city}`,
-              de: `Lokales Programm in ${city}`,
-              it: `Visite locali a ${city}`,
-              es: `Visitas locales en ${city}`,
-              fr: `Visites locales à ${city}`,
-            }),
-            description: planLangCopy(lang, {
-              sl: `${city}: lokalne znamenitosti, staro mestno jedro in bližnje plaže.`,
-              en: `${city}: local sights, old town and nearby beaches.`,
-              de: `${city}: lokale Sehenswürdigkeiten, Altstadt und Strände in der Nähe.`,
-              it: `${city}: attrazioni locali, centro storico e spiagge vicine.`,
-              es: `${city}: sitios locales, casco antiguo y playas cercanas.`,
-              fr: `${city} : visites locales, vieille ville et plages proches.`,
-            }),
-            type: a.type === "TRANSPORT" ? "SIGHT" : a.type || "SIGHT",
-          };
+          return false;
         });
       }
     }

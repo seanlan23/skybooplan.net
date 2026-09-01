@@ -100,6 +100,12 @@ export function isEnricherPlaceholderActivity(a: {
     /^pause café$/i.test(name) ||
     /2[–-]3\s*stavki|what to see|why it matters|practical tip/i.test(blob) ||
     /kaj vidiš.*zakaj je vredno/i.test(blob) ||
+    /lokalne znamenitosti[,\s]+staro mestno jedro in bližnje plaže/i.test(blob) ||
+    /local sights[,\s]+old town and nearby beaches/i.test(blob) ||
+    /lokale Sehenswürdigkeiten[,\s]+Altstadt und Strände/i.test(blob) ||
+    /attrazioni locali[,\s]+centro storico e spiagge/i.test(blob) ||
+    /^lokalni ogled\s+\w+/i.test(name) ||
+    /^local sights in\s+\w+/i.test(name) ||
     isHollowProgramTitle(name, desc)
   );
 }

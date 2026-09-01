@@ -5,6 +5,7 @@ import {
   hotelsFromSleepNights,
   overnightPlacesMatch,
 } from "@/lib/overnightHotelStays";
+import { isSmallIsland } from "@/lib/islandStays";
 import { lookupRegionCoords } from "@/lib/regionCoords";
 import { isSingleBasePlan } from "@/lib/tripStyle";
 import { hasExplicitStayPlan } from "@/lib/userStayPlan";
@@ -151,6 +152,29 @@ function dropAbsorbedHotelHop(day: DayPlan, fromCity: string, toCity: string): v
   }
 }
 
+const MOVE_ACT_RE =
+  /let\b|flight|trajekt|ferry|prevoz na letališč|airport transfer|check-?out|odjava|odhod iz hotela/i;
+
+function runHasNamedSights(run: CityRun, days: DayPlan[]): boolean {
+  for (let i = run.start; i <= run.end; i++) {
+    for (const slot of ["morning", "afternoon", "evening"] as const) {
+      for (const a of days[i]?.activities?.[slot] ?? []) {
+        if (MOVE_ACT_RE.test(`${a.name ?? ""} ${a.type ?? ""}`)) continue;
+        if ((a.name ?? "").trim().length >= 8) return true;
+      }
+    }
+  }
+  return false;
+}
+
+function runIsIsland(run: CityRun, days: DayPlan[]): boolean {
+  if (isSmallIsland(run.city)) return true;
+  for (let i = run.start; i <= run.end; i++) {
+    if ((days[i]?.transportation ?? []).some((leg) => leg.type === "ferry")) return true;
+  }
+  return false;
+}
+
 function stampSleepCity(day: DayPlan, city: string, sample: DayPlan | undefined): void {
   const fromCity = day.city;
   day.city = city;
@@ -198,8 +222,14 @@ function pickMerge(
       const over = combined > maxNights ? 1000 + (combined - maxNights) * 80 : 0;
       const pairBonus =
         from.nights <= 2 && into.nights <= 2 && combined <= maxNights ? -90 : 0;
+      const bothSights =
+        runHasNamedSights(from, days) && runHasNamedSights(into, days) ? 180 : 0;
       const score =
-        over + from.nights * 45 + Math.min(runDistanceKm(from, into, days), 900) + pairBonus;
+        over +
+        from.nights * 45 +
+        Math.min(runDistanceKm(from, into, days), 900) +
+        pairBonus +
+        bothSights;
       if (!best || score < best.score) best = { score, from: i, into: j };
     }
   }
@@ -278,6 +308,29 @@ export function enforceTripBaseCap(
     if (!neighbor) break;
     applyMerge(days, short, neighbor, runs[runs.length - 1]!);
     absorbed += 1;
+  }
+
+  for (let i = 0; i < 8; i++) {
+    const runs = buildRuns(days);
+    if (runs.length < 3) break;
+    let folded = false;
+    for (let r = 1; r < runs.length - 1; r++) {
+      const prev = runs[r - 1]!;
+      const cur = runs[r]!;
+      const next = runs[r + 1]!;
+      if (runIsIsland(cur, days)) continue;
+      const dPrevNext = runDistanceKm(prev, next, days);
+      const dPrevCur = runDistanceKm(prev, cur, days);
+      const dCurNext = runDistanceKm(cur, next, days);
+      if (dPrevCur < 50 || dCurNext < 50) continue;
+      if (dPrevNext >= Math.min(dPrevCur, dCurNext) * 0.85) continue;
+      const into = dCurNext <= dPrevCur ? next : prev;
+      applyMerge(days, cur, into, runs[runs.length - 1]!);
+      absorbed += 1;
+      folded = true;
+      break;
+    }
+    if (!folded) break;
   }
 
   rebuildHotels(plan, days);

@@ -136,6 +136,48 @@ export type DepartureDaySortOpts = {
   originIata?: string;
 };
 
+function isHomeboundLogistics(a: Activity): boolean {
+  if (isAirportTransfer(a) || isReturnFlight(a)) return true;
+  if (/prihod na letališče in prijava|airport check-in/i.test(a.name ?? "")) return true;
+  if (isCheckout(a) && /letališč|airport|mednarodn|flight home|povrat/i.test(`${a.name} ${a.description ?? ""}`)) {
+    return true;
+  }
+  if (isCheckout(a) && !/→|->|prevoz v |transfer to |check-?in v /i.test(a.name ?? "")) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Same-day evening/afternoon return (not 00:00–05:59 red-eye): checkout and
+ * airport transfer live only on the last calendar day. Strip them from N−1.
+ */
+export function stripPrematureDepartureLogistics(
+  plan: AiTripPlan,
+  opts?: DepartureDaySortOpts,
+): number {
+  const days = [...(plan.days ?? [])].sort((a, b) => a.day - b.day);
+  if (days.length < 2) return 0;
+  const { depart } = inboundClocks(plan, opts);
+  if (depart && isOvernightDeparture({ inboundDepart: depart } as TripFlightContext)) return 0;
+
+  const prev = days[days.length - 2];
+  if (!prev?.activities) return 0;
+  let removed = 0;
+  for (const slot of ["morning", "afternoon", "evening"] as const) {
+    const list = prev.activities[slot] ?? [];
+    prev.activities[slot] = list.filter((a) => {
+      if (!isHomeboundLogistics(a)) return true;
+      removed += 1;
+      return false;
+    });
+  }
+  prev.evening = (prev.evening ?? "")
+    .replace(/[^.!\n]*(odjava iz hotela|hotel check-out|prevoz na letališč)[^.!\n]*[.!]?/gi, "")
+    .trim();
+  return removed;
+}
+
 /**
  * Last calendar day: keep existing logistics clocks, but never show a home
  * landing whose clock is before the international depart (06:00 before 18:45)
