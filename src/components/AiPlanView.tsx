@@ -12,7 +12,9 @@ import { resortPackagesFromPlan } from "@/lib/resortPackage";
 import { matchResortPackageId, resolveStayForPackageDetails } from "@/lib/resortStayFallback";
 import { unquoteShareValue } from "@/lib/sharedPackageSnapshot";
 import { isSingleBasePlan } from "@/lib/tripStyle";
+import { HubStayGuide } from "@/components/HubStayGuide";
 import { TripHotelBases } from "@/components/TripHotelBases";
+import { usesHubStayGuide } from "@/lib/hubStayModules";
 import { POIDetailsModal } from "@/components/POIDetailsModal";
 import { refreshPoiDetailsImage, type PoiDetailsData } from "@/lib/poiDetails.types";
 import { DayScrollDebug } from "@/components/DayScrollDebug";
@@ -170,7 +172,7 @@ export function AiPlanView({
     setMotorhomeTipsTick((n) => n + 1);
   }, [plan, lang]);
   const [activeDay, setActiveDay] = useState<number>(1);
-  const dayRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  const dayRefs = useRef<Map<number, HTMLElement>>(new Map());
   const planScrollRef = useRef<HTMLDivElement>(null);
   const [highlightPoiName, setHighlightPoiName] = useState<string | null>(null);
   const [highlightPoiLat, setHighlightPoiLat] = useState<number | null>(null);
@@ -723,6 +725,7 @@ export function AiPlanView({
   if (!plan) return null;
 
   const isResortMode = isSingleBasePlan(plan);
+  const isHubGuide = !isResortMode && usesHubStayGuide(plan);
   const headerStayEur =
     isResortMode && selectedPackage && selectedPackage.hotelEur > 0
       ? selectedPackage.hotelEur
@@ -1159,7 +1162,32 @@ export function AiPlanView({
               onStopSelect={handleMapCitySelect}
             />
           )}
-          {isResortMode ? null : (plan.days ?? []).map((d, idx) => {
+          {isHubGuide ? (
+            <HubStayGuide
+              plan={plan}
+              stayInfo={stayInfo}
+              lang={lang}
+              activeDay={activeDay}
+              onSelectHub={(hub) => {
+                const day = plan.days.find((d) => d.day === hub.firstDay);
+                if (day) handleDaySelect(day);
+              }}
+              onHighlight={(hub, title, lat, lng) => {
+                if (lat == null || lng == null) return;
+                handleActivityFocus({
+                  lat,
+                  lng,
+                  day: hub.firstDay,
+                  poiName: title,
+                });
+              }}
+              registerRef={(day, el) => {
+                if (el) dayRefs.current.set(day, el);
+                else dayRefs.current.delete(day);
+              }}
+            />
+          ) : isResortMode ? null : (
+            (plan.days ?? []).map((d, idx) => {
             let checkOut = d.date;
             if (d.city) {
               let endIdx = idx;
@@ -1206,15 +1234,16 @@ export function AiPlanView({
                 />
               </div>
             );
-          })}
-          {!isResortMode &&
+          })
+          )}
+          {!isResortMode && !isHubGuide &&
             pendingDayNumbers.map((dayNum, i) => (
             <div key={`pending-${dayNum}`}>
               <StreamingDayPlaceholder dayNumber={dayNum} isGenerating={i === 0} />
             </div>
           ))}
-          {!streaming && !isResortMode && <ReturnHomeCard plan={plan} />}
-          {!streaming && !isResortMode ? (
+          {!streaming && !isResortMode && !isHubGuide && <ReturnHomeCard plan={plan} />}
+          {!streaming && !isResortMode && !isHubGuide ? (
             <TripHotelBases plan={plan} stayInfo={stayInfo} />
           ) : null}
         </div>

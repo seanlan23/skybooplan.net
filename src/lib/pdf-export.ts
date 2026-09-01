@@ -57,6 +57,12 @@ import {
   formatTransitGuideProtocolText,
 } from "@/lib/flightTransitGuide";
 import { buildGoldenRules, type GoldenRules } from "@/lib/travelGoldenRules";
+import {
+  buildHubStayModules,
+  hubGuideCopy,
+  usesHubStayGuide,
+  type HubStayModule,
+} from "@/lib/hubStayModules";
 
 /**
  * Served from /public/fonts so Nitro/Vercel always can fetch them.
@@ -159,6 +165,8 @@ type NormalizedPdfPlan = {
   roadTrip: boolean;
   pax: number;
   days: PdfDay[];
+  hubStays?: HubStayModule[];
+  returnFlightSummary?: string;
   flights: string[];
   hotels: Array<{ text: string; lead?: string; dates?: string; url?: string }>;
   packing: string[];
@@ -1736,6 +1744,15 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
       ? calendarDays
       : days.length;
   const tripNights = resortStay && tripDays > 1 ? tripDays - 1 : undefined;
+  const asPlan = itin as AiTripPlan;
+  const hubStays = usesHubStayGuide(asPlan) ? buildHubStayModules(asPlan, contentLang) : [];
+  const hubNights = hubStays.reduce((sum, hub) => sum + hub.nights, 0);
+  const rf = asPlan.returnFlightEu;
+  const returnFlightSummary = rf
+    ? [rf.fromAirport, rf.toAirport, rf.departureTime, rf.arrivalTimeEu, rf.summary]
+        .filter(Boolean)
+        .join(" · ")
+    : undefined;
 
   return {
     title: plan.title || destination || "Skybooplan",
@@ -1754,6 +1771,8 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
     roadTrip,
     pax,
     days,
+    hubStays: hubStays.length ? hubStays : undefined,
+    returnFlightSummary,
     flights,
     hotels,
     packing,
@@ -1762,7 +1781,7 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
     contentLang,
     coverImageUrl,
     tripDays,
-    tripNights,
+    tripNights: hubNights > 0 ? hubNights : tripNights,
   };
 }
 
@@ -2278,8 +2297,87 @@ async function renderPlanPdf(plan: PlanForPdf): Promise<{
     y += budgetH + 12;
   }
 
-  // ===== DAYS =====
-  if (model.days.length) {
+  const hubCopy = hubGuideCopy(model.contentLang);
+  const isHubPdf = (model.hubStays?.length ?? 0) > 0;
+
+  if (isHubPdf && model.hubStays) {
+    if (model.flights.length) {
+      heading(model.labels.flights, measureParaH(model.flights[0]!, 10));
+      for (const f of model.flights) {
+        breakBefore(measureParaH(f, 10));
+        para(f, 10, INK);
+      }
+      y += 4;
+    }
+    heading(hubCopy.bases, 36);
+    for (const hub of model.hubStays) {
+      const dates = [hub.checkIn, hub.checkOut].filter(Boolean).join(" – ");
+      para(
+        `${hub.cityName}  ·  ${hubCopy.nights(hub.nights)}${dates ? `  ·  ${dates}` : ""}`,
+        10,
+        INK,
+      );
+    }
+
+    for (const hub of model.hubStays) {
+      doc.addPage();
+      y = margin;
+      heading(`${hub.cityName}`, 48);
+      para(hubCopy.nights(hub.nights), 11, SKY_DARK);
+      y += 4;
+      heading(hubCopy.transfer, 28);
+      para(hub.transferIn.summary, 10, MUTED);
+      y += 6;
+      heading(hubCopy.highlights, 28);
+      for (const item of hub.highlights) {
+        const meta = [
+          item.kind === "daytrip" ? hubCopy.daytrip : "",
+          item.duration,
+          item.estimatedCostEur != null ? `€${Math.round(item.estimatedCostEur)}` : "",
+        ]
+          .filter(Boolean)
+          .join("  ·  ");
+        para(item.title, 11, INK);
+        if (meta) para(meta, 8.5, MUTED, 2);
+        if (item.description) para(item.description, 9, MUTED, 2);
+        y += 4;
+      }
+      if (hub.localTips) {
+        y += 4;
+        heading(hubCopy.tips, 28);
+        para(hub.localTips, 10, AMBER_INK);
+      }
+    }
+
+    doc.addPage();
+    y = margin;
+    heading(hubCopy.returnProtocol, 40);
+    if (model.returnFlightSummary) para(model.returnFlightSummary, 10, INK);
+    y += 6;
+    if (model.goldenRules) {
+      const rules = model.goldenRules;
+      heading(rules.title, 72);
+      for (const group of rules.groups) {
+        para(group.heading, 9, SKY_DARK, 2);
+        for (const item of group.items) {
+          para(`${item.title}: ${item.body}`, 10, INK);
+        }
+        y += 4;
+      }
+    }
+    if (model.hotels.length) {
+      heading(model.labels.stays, 28);
+      for (const h of model.hotels) {
+        const lead = h.lead || h.text;
+        const dates = h.dates || "";
+        para(dates ? `${lead}  ·  ${dates}` : lead, 10, INK);
+      }
+    }
+    if (model.packing.length) {
+      heading(model.labels.packing);
+      for (const p of model.packing) para(`☐  ${p}`, 10, INK);
+    }
+  } else if (model.days.length) {
     heading(model.labels.daily, Math.min(estimateDayHeight(model.days[0]!), 140));
 
     for (const d of model.days) {
@@ -2438,7 +2536,7 @@ async function renderPlanPdf(plan: PlanForPdf): Promise<{
     }
   }
 
-  if (model.goldenRules) {
+  if (!isHubPdf && model.goldenRules) {
     const rules = model.goldenRules;
     heading(rules.title, 72);
     for (const group of rules.groups) {
@@ -2450,7 +2548,7 @@ async function renderPlanPdf(plan: PlanForPdf): Promise<{
     }
   }
 
-  if (model.flights.length) {
+  if (!isHubPdf && model.flights.length) {
     // .flights-container { page-break-inside: auto } — keep each row together
     heading(model.labels.flights, measureParaH(model.flights[0]!, 10));
     for (const f of model.flights) {
@@ -2460,7 +2558,7 @@ async function renderPlanPdf(plan: PlanForPdf): Promise<{
     y += 4;
   }
 
-  if (model.hotels.length) {
+  if (!isHubPdf && model.hotels.length) {
     const firstStay = model.hotels[0]!;
     const firstLead = firstStay.lead || firstStay.text;
     const firstDates = firstStay.dates || "";
@@ -2508,7 +2606,7 @@ async function renderPlanPdf(plan: PlanForPdf): Promise<{
     y += 4;
   }
 
-  if (model.packing.length) {
+  if (!isHubPdf && model.packing.length) {
     heading(model.labels.packing);
     for (const p of model.packing) para(`☐  ${p}`, 10, INK);
   }

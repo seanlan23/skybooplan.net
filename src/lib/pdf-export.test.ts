@@ -1432,6 +1432,56 @@ describe("normalizePlanForPdf", () => {
       true,
     );
   });
+
+  it("builds hub modules for explorer flights without clock times", () => {
+    const model = normalizePlanForPdf({
+      title: "MUC → DPS",
+      destination: "Bali",
+      start_date: "2026-07-01",
+      end_date: "2026-07-11",
+      language: "sl",
+      itinerary: {
+        tripStyle: "explorer",
+        destinationName: "Bali",
+        summary: "Tri baze na Baliju.",
+        days: [
+          {
+            day: 1,
+            date: "2026-07-01",
+            city: "Ubud",
+            title: "Ubud",
+            activities: {
+              morning: [{ name: "09:00 Rice terraces", description: "Tegallalang at 09:00" }],
+            },
+            localTips: "Najemi skuter v središču.",
+          },
+          { day: 2, date: "2026-07-02", city: "Ubud", title: "Ubud" },
+          { day: 3, date: "2026-07-03", city: "Ubud", title: "Ubud" },
+          { day: 4, date: "2026-07-04", city: "Ubud", title: "Ubud" },
+          {
+            day: 5,
+            date: "2026-07-05",
+            city: "Nusa Lembongan",
+            title: "Nusa",
+            transportation: [
+              { type: "ferry", from: "Sanur", to: "Nusa Lembongan", duration: "40 min", estimatedPrice: 20 },
+            ],
+          },
+          { day: 6, date: "2026-07-06", city: "Nusa Lembongan", title: "Nusa" },
+          { day: 7, date: "2026-07-07", city: "Nusa Lembongan", title: "Nusa" },
+          { day: 8, date: "2026-07-08", city: "Uluwatu", title: "Uluwatu" },
+          { day: 9, date: "2026-07-09", city: "Uluwatu", title: "Uluwatu" },
+          { day: 10, date: "2026-07-10", city: "Uluwatu", title: "Uluwatu" },
+          { day: 11, date: "2026-07-11", city: "Uluwatu", title: "Uluwatu" },
+        ],
+      },
+    });
+    expect(model.hubStays?.map((h) => h.cityName)).toEqual(["Ubud", "Nusa Lembongan", "Uluwatu"]);
+    expect(model.hubStays?.every((h) => h.highlights.every((x) => !/\d{1,2}:\d{2}/.test(x.title)))).toBe(
+      true,
+    );
+    expect(model.tripNights).toBeGreaterThanOrEqual(9);
+  });
 });
 
 describe("pdfDayHeading", () => {
