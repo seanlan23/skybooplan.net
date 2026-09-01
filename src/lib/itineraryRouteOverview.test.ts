@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildItineraryRouteOverview,
   collectStayCities,
+  planHeaderDestinationName,
 } from "@/lib/itineraryRouteOverview";
 import type { AiTripPlan, DayPlan } from "@/lib/aiPlan.functions";
 
@@ -102,5 +103,32 @@ describe("buildItineraryRouteOverview", () => {
 
     expect(segments[1]).toEqual({ kind: "transfer" });
     expect(segments[segments.length - 2]).toEqual({ kind: "transfer" });
+  });
+
+  it("uses the selected ticket airports, not the nearby-hub list", () => {
+    const segments = buildItineraryRouteOverview(
+      plan([day({ day: 1, city: "Phuket" })], {
+        tripStyle: "single_base",
+        originIata: "VIE",
+        destinationIata: "HKT",
+        originPlace: "Ljubljana (LJU) · Vienna (VIE) · Zagreb (ZAG)",
+        destinationName: "Ljubljana (LJU) · Vienna (VIE) · Phuket (HKT)",
+      }),
+      "sl",
+    );
+    expect(segments).toEqual([
+      { kind: "place", label: "Dunaj (VIE)" },
+      { kind: "flight" },
+      { kind: "place", label: "Phuket (HKT)" },
+    ]);
+    expect(
+      planHeaderDestinationName(
+        plan([day({ day: 1, city: "Phuket" })], {
+          destinationIata: "HKT",
+          destinationName: "Ljubljana (LJU) · Vienna (VIE) · Phuket (HKT)",
+        }),
+        "sl",
+      ),
+    ).toBe("Phuket (HKT)");
   });
 });

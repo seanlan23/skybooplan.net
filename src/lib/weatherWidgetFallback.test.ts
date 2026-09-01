@@ -16,6 +16,17 @@ describe("buildWeatherWidgetFallback Balkan road trip", () => {
     expect(w?.avgTemp).not.toMatch(/Check weather forecast/i);
     expect(w?.season).not.toMatch(/^This \d+-day/i);
   });
+
+  it("does not treat dry-season copy as rain clothing", () => {
+    const w = buildWeatherWidgetFallback({
+      destinationIata: "HKT",
+      destinationPlace: "Phuket",
+      departDate: "2026-12-10",
+      lang: "sl",
+    });
+    expect(w?.season).toMatch(/sušn|suho|dry/i);
+    expect(w?.clothing).not.toMatch(/raincoat|dež/i);
+  });
 });
 
 describe("Mexico / Yucatán climate", () => {

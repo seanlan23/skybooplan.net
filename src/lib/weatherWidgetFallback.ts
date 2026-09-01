@@ -4,6 +4,7 @@ import { inferBudgetCountryFromPlace } from "@/lib/countryDailyBudget";
 import { lookupDestination } from "@/lib/destinationCoords";
 import { planLangCopy } from "@/lib/planLangCopy";
 import { buildTripClimate } from "@/lib/seasonalHints";
+import { weatherCaptionTone } from "@/lib/weatherCaptionVisual";
 
 /** Typical Adriatic / Western Balkans daytime range (shared by HR, BA, ME, AL, SI…). */
 const ADRIATIC_TEMP: Partial<Record<number, string>> = {
@@ -141,8 +142,9 @@ function monthFromIso(iso?: string): number | null {
 }
 
 function clothingFromHints(hints: string[], lang: string): string {
-  const blob = hints.join(" ").toLowerCase();
-  if (/dež|rain|monsun|monsoon|plohe|shower|pioggia|pluie|regen/i.test(blob)) {
+  const blob = hints.join(" ");
+  const tone = weatherCaptionTone(blob);
+  if (tone === "wet") {
     return planLangCopy(lang, {
       sl: "Lahek raincoat, dihalna oblačila, zaprti čevlji za dež.",
       en: "Light rain jacket, breathable clothes, closed shoes for rain.",
@@ -150,6 +152,16 @@ function clothingFromHints(hints: string[], lang: string): string {
       it: "Giacca leggera antipioggia, vestiti traspiranti, scarpe chiuse.",
       es: "Chubasquero ligero, ropa transpirable, zapatos cerrados.",
       fr: "Veste de pluie légère, vêtements respirants, chaussures fermées.",
+    });
+  }
+  if (tone === "dry") {
+    return planLangCopy(lang, {
+      sl: "Lahka oblačila, udobni čevlji, kapa proti soncu.",
+      en: "Light clothes, comfortable shoes, sun hat.",
+      de: "Leichte Kleidung, bequeme Schuhe, Sonnenhut.",
+      it: "Vestiti leggeri, scarpe comode, cappello da sole.",
+      es: "Ropa ligera, zapatos cómodos, gorra solar.",
+      fr: "Vêtements légers, chaussures confortables, chapeau.",
     });
   }
   if (/vroč|hot|40|heat|caldo|chaud|heiß/i.test(blob)) {
@@ -226,7 +238,6 @@ export function buildWeatherWidgetFallback(opts: {
   const season =
     seasonFromClimate ||
     hints[0]?.trim() ||
-    opts.context?.weatherLabel ||
     planLangCopy(lang, {
       sl: "Sezonske razmere na destinaciji",
       en: "Season at destination",

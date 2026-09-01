@@ -2,9 +2,11 @@ import { isAllowedResortStayProperty, type HotelKind } from "@/lib/hotelAmenitie
 import { cleanHotelDisplayName } from "@/lib/hotelDisplayName";
 import { uniqueHotelImageUrls } from "@/lib/hotelImages";
 import {
+  isDownrankedResortLocation,
   isExcludedResortLocation,
   isOverwaterStay,
   matchResortStayMix,
+  matchesValueNeedle,
   type ResortStayMixRow,
 } from "@/lib/resortStayMix";
 import {
@@ -108,6 +110,23 @@ function byValueForMoney(a: ResortHotelPickInput, b: ResortHotelPickInput): numb
   return valueForMoneyScore(b) - valueForMoneyScore(a) || b.rating - a.rating || a.price - b.price;
 }
 
+function mixPreferenceScore(
+  hotel: Pick<ResortHotelPickInput, "name" | "neighborhood">,
+  mix: ResortStayMixRow | null,
+): number {
+  if (!mix) return 0;
+  let score = 0;
+  if (matchesValueNeedle(hotel, mix)) score += 4;
+  if (isBoutiqueOrBeach(hotel)) score += 2;
+  if (isDownrankedResortLocation(hotel, mix)) score -= 6;
+  return score;
+}
+
+function byMixThenValue(mix: ResortStayMixRow | null) {
+  return (a: ResortHotelPickInput, b: ResortHotelPickInput): number =>
+    mixPreferenceScore(b, mix) - mixPreferenceScore(a, mix) || byValueForMoney(a, b);
+}
+
 export function hasPoolOrBeach(
   hotel: Pick<ResortHotelPickInput, "name" | "neighborhood" | "amenities">,
 ): boolean {
@@ -153,7 +172,7 @@ function usableHotels(
       locationScore: loc > 0 ? loc : undefined,
     });
   }
-  return out.sort(byValueForMoney);
+  return out.sort(byMixThenValue(mix ?? null));
 }
 
 export function mergeResortHotelPools(
@@ -241,16 +260,14 @@ function hotelsWithinBudgetCap(
   if (capMaxPerPerson == null) return hotels;
   const flightPartyEur = opts?.flightTotalEur ?? 0;
   const guests = Math.max(1, Math.round(opts?.guests ?? 2));
-  return hotels
-    .filter((hotel) =>
-      hotelFitsPackageBudgetCap({
-        hotelStayEur: hotel.price,
-        flightPartyEur,
-        guests,
-        capMaxPerPerson,
-      }),
-    )
-    .sort(byValueForMoney);
+  return hotels.filter((hotel) =>
+    hotelFitsPackageBudgetCap({
+      hotelStayEur: hotel.price,
+      flightPartyEur,
+      guests,
+      capMaxPerPerson,
+    }),
+  );
 }
 
 function takeOffers(
@@ -285,29 +302,30 @@ function documentResortCards(
   const notReservedAi = (hotel: ResortHotelPickInput) =>
     !preferAi || mealPlanFromHotel(hotel) !== "all_inclusive";
 
+  const rank = byMixThenValue(mix);
   const valuePool = unused()
     .filter((hotel) => isValueStarBand(hotel, minStars))
     .filter((hotel) => !skipValue.test(hotel.name))
     .filter(notReservedAi)
-    .sort(byValueForMoney);
+    .sort(rank);
   const valueExpanded =
     valuePool.length > 0
       ? valuePool
       : unused()
           .filter((hotel) => (hotel.stars ?? 0) <= 4 && !skipValue.test(hotel.name))
           .filter(notReservedAi)
-          .sort(byValueForMoney);
+          .sort(rank);
   const valueOffers = takeOffers(valueExpanded, used, 1, () => "value");
 
   const recPool = unused()
     .filter((hotel) => !skipValue.test(hotel.name))
     .filter(notReservedAi)
     .filter(isSkybooplanCandidate)
-    .sort(byValueForMoney);
+    .sort(rank);
   const recFallback = unused()
     .filter((hotel) => isValueStarBand(hotel, minStars) && !skipValue.test(hotel.name))
     .filter(notReservedAi)
-    .sort(byValueForMoney);
+    .sort(rank);
   const recommendedOffers = takeOffers(
     recPool.length ? recPool : recFallback,
     used,
@@ -319,7 +337,7 @@ function documentResortCards(
   const aiOffers = takeOffers(
     unused()
       .filter((hotel) => mealPlanFromHotel(hotel) === "all_inclusive")
-      .sort(byValueForMoney),
+      .sort(rank),
     used,
     aiSlots,
     (i) => (i === 0 ? "all_inclusive" : "all_inclusive_alt"),
@@ -332,6 +350,7 @@ function documentResortCards(
       .sort(
         (a, b) =>
           locationScoreOnTen(b.locationScore) - locationScoreOnTen(a.locationScore) ||
+          mixPreferenceScore(b, mix) - mixPreferenceScore(a, mix) ||
           b.rating - a.rating ||
           byValueForMoney(a, b),
       ),
@@ -349,6 +368,8 @@ function documentResortCards(
           const ao = isOverwaterStay(a, mix) ? 1 : 0;
           const bo = isOverwaterStay(b, mix) ? 1 : 0;
           if (ao !== bo) return bo - ao;
+          const pref = mixPreferenceScore(b, mix) - mixPreferenceScore(a, mix);
+          if (pref) return pref;
         }
         return b.rating - a.rating || b.price - a.price;
       }),
@@ -365,7 +386,7 @@ function documentResortCards(
     ...premiumOffers,
   ];
 
-  for (const hotel of unused().sort(byValueForMoney)) {
+  for (const hotel of unused().sort(rank)) {
     if (offers.length >= MAX_RESORT_PACKAGE_OFFERS) break;
     const aiCount = offers.filter((o) => o.mealPlan === "all_inclusive").length;
     const needsAi = preferAi && aiCount < aiSlots;

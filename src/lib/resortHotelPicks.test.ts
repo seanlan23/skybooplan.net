@@ -423,4 +423,45 @@ describe("pickResortHotels", () => {
     ]);
     expect(offers[0]?.name).toBe("Radisson Blu Resort Maldives");
   });
+
+  it("prefers HKT beach belts over Phuket Town", () => {
+    const offers = pickResortHotels(
+      [
+        hotel({
+          id: "town",
+          name: "Sino House Phuket",
+          neighborhood: "Phuket Town",
+          price: 480,
+          rating: 8.6,
+        }),
+        hotel({
+          id: "inland",
+          name: "Kathu Inn",
+          neighborhood: "Kathu",
+          price: 510,
+          rating: 8.3,
+        }),
+        hotel({
+          id: "kata",
+          name: "Kata Palm Resort",
+          neighborhood: "Kata Beach",
+          price: 920,
+          rating: 8.5,
+          amenities: { pool: true },
+        }),
+        hotel({
+          id: "bang",
+          name: "Bang Tao Bay Hotel",
+          neighborhood: "Bang Tao",
+          price: 1100,
+          rating: 8.7,
+          amenities: { pool: true },
+        }),
+      ],
+      { destIata: "HKT" },
+    );
+    expect(offers.some((o) => o.id === "town")).toBe(false);
+    expect(offers.map((o) => o.id)).toEqual(expect.arrayContaining(["kata", "bang"]));
+    expect(offers.find((o) => o.tier === "value")?.id).toBe("kata");
+  });
 });

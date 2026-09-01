@@ -1,7 +1,16 @@
-import { CloudSun, Moon, Plane, Thermometer } from "lucide-react";
+import { CloudRain, CloudSun, Moon, Plane, Snowflake, Sun, Thermometer } from "lucide-react";
 import type { DestinationContext } from "@/lib/tripContext.functions";
 import type { TripFlightContext } from "@/lib/flightScheduling";
 import { useI18n } from "@/lib/i18n";
+import { displayWeatherLabel, weatherCaptionTone } from "@/lib/weatherCaptionVisual";
+
+function HintIcon({ text }: { text: string }) {
+  const tone = weatherCaptionTone(text);
+  if (tone === "dry" || tone === "clear") return <Sun className="h-3.5 w-3.5 text-amber-500" />;
+  if (tone === "wet") return <CloudRain className="h-3.5 w-3.5 text-sky-600" />;
+  if (tone === "cold") return <Snowflake className="h-3.5 w-3.5 text-sky-600" />;
+  return <CloudSun className="h-3.5 w-3.5 text-sky-600" />;
+}
 
 export function DestinationInsightBanner({
   context,
@@ -28,6 +37,10 @@ export function DestinationInsightBanner({
   const hasRegionHints = (context?.regionClimate?.length ?? 0) > 0;
   const hasAstroHints = (context?.astronomyHints?.length ?? 0) > 0;
   const hasTemp = context?.tempC != null;
+  const liveWeather = displayWeatherLabel(context?.weatherLabel, [
+    ...(context?.seasonalHints ?? []),
+    ...(context?.regionClimate?.flatMap((block) => block.hints) ?? []),
+  ]);
 
   if (!hasHints && !hasRegionHints && !hasAstroHints && !hasTemp && !flights) return null;
 
@@ -41,8 +54,8 @@ export function DestinationInsightBanner({
                 <Thermometer className="h-4 w-4 text-sky-600" />
               </span>
               {context!.destinationName}: {context!.tempC}°C
-              {context!.weatherLabel && (
-                <span className="font-normal text-slate-600">· {context!.weatherLabel}</span>
+              {liveWeather && (
+                <span className="font-normal text-slate-600">· {liveWeather}</span>
               )}
             </span>
           )}
@@ -69,7 +82,7 @@ export function DestinationInsightBanner({
           {context!.seasonalHints.map((hint) => (
             <li key={hint} className="flex items-start gap-2 text-xs leading-snug text-slate-700">
               <span className="mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center">
-                <CloudSun className="h-3.5 w-3.5 text-sky-600" />
+                <HintIcon text={hint} />
               </span>
               {hint}
             </li>
@@ -81,7 +94,7 @@ export function DestinationInsightBanner({
                 className="flex items-start gap-2 text-xs leading-snug text-slate-700"
               >
                 <span className="mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center">
-                  <CloudSun className="h-3.5 w-3.5 text-sky-600" />
+                  <HintIcon text={hint} />
                 </span>
                 <span>
                   <span className="font-semibold text-slate-800">{block.city}:</span> {hint}

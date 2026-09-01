@@ -21,6 +21,8 @@ export type ResortStayMixRow = {
   premiumSlots: number;
   /** Official star floor (default 3). Maldives islands use 4. */
   minStars?: number;
+  /** Soft penalty (city-centre / town) so beach needles win on coastal bases. */
+  downrankPlace?: RegExp;
 };
 
 export type ResortStayPlace = {
@@ -52,6 +54,24 @@ const RESORT_STAY_MIX: ResortStayMixRow[] = [
     premiumSlots: 1,
     minStars: 4,
   },
+  {
+    countries: [],
+    iatas: ["HKT"],
+    excludePlace:
+      /\bphuket\s*(town|city|old\s*town)\b|\bold\s*phuket\b|\btalat\s*yai\b/i,
+    excludeCityExact: /^(phuket town|phuket city|old phuket|talat yai)$/i,
+    excludeNear: [{ lat: 7.8804, lng: 98.3923, radiusKm: 3.5 }],
+    valueNeedles: ["kata", "karon", "kamala", "bang tao", "bangtao"],
+    valueNightlyEur: { min: 60, max: 180 },
+    skipForValue:
+      /\b(ritz[- ]?carlton|four seasons|st\.?\s*regis|aman\b|one\s*&?\s*only|banyan tree)\b/i,
+    overwater: /.^/,
+    valueSlots: 2,
+    allInclusiveSlots: 2,
+    boutiqueSlots: 1,
+    premiumSlots: 1,
+    downrankPlace: /\b(town|city\s*center|city\s*centre|downtown|old\s*town)\b/i,
+  },
 ];
 
 export function matchResortStayMix(opts?: {
@@ -61,14 +81,13 @@ export function matchResortStayMix(opts?: {
   const cc = (opts?.countryCode ?? "").trim().toUpperCase();
   const iata = (opts?.destIata ?? "").trim().toUpperCase();
   const fromIata = iata ? lookupDestination(iata)?.country : "";
-  return (
-    RESORT_STAY_MIX.find(
-      (row) =>
-        (cc && row.countries.includes(cc)) ||
-        (fromIata && row.countries.includes(fromIata)) ||
-        (iata && row.iatas?.includes(iata)),
-    ) ?? null
-  );
+  if (iata) {
+    const byIata = RESORT_STAY_MIX.find((row) => row.iatas?.includes(iata));
+    if (byIata) return byIata;
+  }
+  const country = cc || fromIata;
+  if (!country) return null;
+  return RESORT_STAY_MIX.find((row) => row.countries.includes(country)) ?? null;
 }
 
 export function stayPlaceBlob(hotel: ResortStayPlace): string {
@@ -94,6 +113,12 @@ export function isOverwaterStay(hotel: ResortStayPlace, row: ResortStayMixRow): 
 export function matchesValueNeedle(hotel: ResortStayPlace, row: ResortStayMixRow): boolean {
   const blob = stayPlaceBlob(hotel).toLowerCase();
   return row.valueNeedles.some((needle) => blob.includes(needle));
+}
+
+export function isDownrankedResortLocation(hotel: ResortStayPlace, row: ResortStayMixRow): boolean {
+  if (!row.downrankPlace) return false;
+  if (matchesValueNeedle(hotel, row)) return false;
+  return row.downrankPlace.test(stayPlaceBlob(hotel));
 }
 
 export function stayNightlyEur(stayTotal: number, nights: number): number {

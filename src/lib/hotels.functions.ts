@@ -170,6 +170,7 @@ export const searchHotels = createServerFn({ method: "POST" })
       const destRows = Array.isArray(destLookup?.data) ? destLookup.data : [];
       const best = pickBestBookingDestination(searchQuery, destRows, {
         countryCode: destCountry,
+        destIata: data.destIata,
       });
 
       console.log("[searchHotels] searchDestination result", {

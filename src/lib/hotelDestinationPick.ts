@@ -1,4 +1,5 @@
 import { lookupDestination } from "@/lib/destinationCoords";
+import { matchResortStayMix } from "@/lib/resortStayMix";
 
 /** Booking.com RapidAPI destination row (subset we care about). */
 export type BookingDestRow = {
@@ -110,7 +111,7 @@ function rowLabel(row: BookingDestRow): string {
 export function pickBestBookingDestination(
   query: string,
   rows: BookingDestRow[],
-  opts?: { countryCode?: string },
+  opts?: { countryCode?: string; destIata?: string },
 ): BookingDestRow | null {
   if (!rows.length) return null;
   const q = query.trim().toLowerCase();
@@ -119,6 +120,10 @@ export function pickBestBookingDestination(
   const wantCc = (opts?.countryCode ?? "").trim().toUpperCase();
   const isKrabiSearch = /^krabi$|^ao nang$/i.test(query.trim());
   const preferCountry = isCountryStayQuery(query);
+  const mix = matchResortStayMix({
+    countryCode: opts?.countryCode,
+    destIata: opts?.destIata,
+  });
 
   const scoreRows = (allowMismatch: boolean): BookingDestRow | null => {
     let best: BookingDestRow | null = null;
@@ -151,6 +156,11 @@ export function pickBestBookingDestination(
       if (isKrabiSearch) {
         if (/ao nang|krabi town|krabi city/.test(label)) score += 55;
         if (/lanta/.test(label)) score -= 70;
+      }
+
+      if (mix) {
+        if (mix.excludePlace.test(label) || mix.excludeCityExact.test(label)) score -= 80;
+        if (mix.valueNeedles.some((needle) => label.includes(needle))) score += 40;
       }
 
       score -= i * 0.01;

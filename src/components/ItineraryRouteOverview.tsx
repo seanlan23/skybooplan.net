@@ -45,8 +45,8 @@ export function ItineraryRouteOverview({
   plan: AiTripPlan;
   className?: string;
 }) {
-  const { t } = useI18n();
-  const segments = useMemo(() => buildItineraryRouteOverview(plan), [plan]);
+  const { t, lang } = useI18n();
+  const segments = useMemo(() => buildItineraryRouteOverview(plan, lang), [plan, lang]);
 
   if (segments.length === 0) return null;
 

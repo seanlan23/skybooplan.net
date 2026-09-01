@@ -11,7 +11,9 @@ describe("matchResortStayMix", () => {
     expect(matchResortStayMix({ destIata: "MLE" })?.countries).toContain("MV");
     expect(matchResortStayMix({ countryCode: "MV" })?.valueSlots).toBe(2);
     expect(matchResortStayMix({ destIata: "MLE" })?.minStars).toBe(4);
-    expect(matchResortStayMix({ destIata: "HKT" })).toBeNull();
+    expect(matchResortStayMix({ destIata: "HKT" })?.iatas).toContain("HKT");
+    expect(matchResortStayMix({ destIata: "BKK" })).toBeNull();
+    expect(matchResortStayMix({ countryCode: "TH" })).toBeNull();
   });
 });
 
@@ -44,5 +46,24 @@ describe("isExcludedResortLocation", () => {
     expect(isExcludedResortLocation({ name: "Bandos Maldives", lat: 4.27, lng: 73.492 }, mix)).toBe(
       false,
     );
+  });
+});
+
+describe("HKT coastal mix", () => {
+  const hkt = matchResortStayMix({ destIata: "HKT" })!;
+
+  it("drops Phuket Town stays and keeps beach belts", () => {
+    expect(
+      isExcludedResortLocation({ name: "Sino House", neighborhood: "Phuket Town" }, hkt),
+    ).toBe(true);
+    expect(
+      isExcludedResortLocation({ name: "Old Phuket Hotel", neighborhood: "Old Phuket" }, hkt),
+    ).toBe(true);
+    expect(
+      isExcludedResortLocation({ name: "Kata Palm Resort", neighborhood: "Kata Beach" }, hkt),
+    ).toBe(false);
+    expect(
+      isExcludedResortLocation({ name: "Kamala Beach Hotel", neighborhood: "Kamala" }, hkt),
+    ).toBe(false);
   });
 });

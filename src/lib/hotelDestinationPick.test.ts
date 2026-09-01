@@ -94,4 +94,16 @@ describe("pickBestBookingDestination", () => {
     );
     expect(picked).toBeNull();
   });
+
+  it("prefers a beach dest over Phuket Town when the ticket is HKT", () => {
+    const picked = pickBestBookingDestination(
+      "Phuket",
+      [
+        { dest_id: "1", search_type: "city", label: "Phuket Town, Thailand", cc1: "th" },
+        { dest_id: "2", search_type: "district", label: "Kata Beach, Phuket, Thailand", cc1: "th" },
+      ],
+      { countryCode: "TH", destIata: "HKT" },
+    );
+    expect(picked?.dest_id).toBe("2");
+  });
 });

@@ -36,6 +36,7 @@ import {
 import { TransitGuideNote } from "@/components/TransitGuideNote";
 import { GoldenRulesNote } from "@/components/GoldenRulesNote";
 import { parsePlannerInterestKeys } from "@/lib/plannerInterests";
+import { planHeaderDestinationName } from "@/lib/itineraryRouteOverview";
 
 import { parseLocalDate } from "@/lib/dateUtils";
 import { haversineKm } from "@/lib/geoMath";
@@ -885,7 +886,7 @@ export function AiPlanView({
               {t("aiplan.badge" as never)}
             </p>
             <h2 className="mt-0.5 text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900 leading-tight tracking-tight">
-              {plan.destinationName}
+              {planHeaderDestinationName(plan, lang)}
             </h2>
             <ItineraryRouteOverview plan={plan} />
             {showRoadTripMaps ? (
