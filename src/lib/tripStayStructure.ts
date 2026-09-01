@@ -5,6 +5,7 @@ import {
   type DepartureDaySortOpts,
 } from "@/lib/departureDaySort";
 import { alignDayCityToActivities } from "@/lib/itineraryCityAlign";
+import { sanitizePlanDayCities, stampLastDayReturnFlightClock } from "@/lib/itinerarySanitize";
 import {
   holdCityHeaderUntilTransfer,
   syncDayCityToDaytimeProgram,
@@ -28,8 +29,13 @@ export function stabilizeTripStayStructure(
   syncDayCityToDaytimeProgram(plan.days ?? []);
   holdCityHeaderUntilTransfer(plan.days ?? []);
   enforceTripBaseCap(plan, { calendarDays: opts?.calendarDays });
+  sanitizePlanDayCities(plan);
   alignDayCityToActivities(plan);
   stripPrematureDepartureLogistics(plan, opts);
   sortDepartureDayChronology(plan, opts);
+  stampLastDayReturnFlightClock(plan, {
+    inboundDepart: opts?.inboundDepart,
+    returnTime: opts?.inboundDepart,
+  });
   return plan;
 }

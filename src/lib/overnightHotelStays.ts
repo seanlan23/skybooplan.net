@@ -116,7 +116,9 @@ function parseArrowRoute(text: string): { from: string; to: string } | null {
   const from = stripHopLabel(match[1] ?? "");
   const to = stripHopLabel(match[2] ?? "");
   if (!from || !to || overnightPlacesMatch(from, to)) return null;
-  if (looksLikeIata(from) || looksLikeIata(to)) return null;
+  if (looksLikeIata(from) || looksLikeIata(to) || startsWithIata(from) || startsWithIata(to)) {
+    return null;
+  }
   return { from, to };
 }
 
@@ -274,6 +276,10 @@ function stripHopLabel(raw: string): string {
 
 function looksLikeIata(value: string): boolean {
   return /^[A-Z]{3}$/.test(value.trim());
+}
+
+function startsWithIata(value: string): boolean {
+  return /^[A-Z]{3}\b/.test(value.trim());
 }
 
 /** Prefer a human place name over a bare IATA code on transportation[].to/from. */

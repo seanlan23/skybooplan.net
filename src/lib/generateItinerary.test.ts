@@ -413,6 +413,77 @@ describe("itineraryJsonToPlan", () => {
     expect(JSON.stringify(plan!.days[0]!.activities ?? {})).not.toMatch(/10:00/);
   });
 
+  it("sanitizes leaked day.city prose and stamps the last-day return clock", () => {
+    const raw = {
+      trip_title: "MUC → DPS",
+      overview: "Bali explorer.",
+      weatherWidget: { season: "dry", avgTemp: "29°C", clothing: "light" },
+      safetyWarning: null,
+      days: [
+        {
+          day_number: 1,
+          date: "26. okt. 2026",
+          city: "Nusa Penida Po zajtrku odpeljemo proti Crystal Bay",
+          day_title: "Nusa Penida",
+          daily_budget_per_person_eur: 70,
+          activities: [
+            {
+              time_slot: "DOPOLDAN",
+              start_time: "09:00",
+              title: "Crystal Bay",
+              description: SLOT,
+              estimated_cost_eur: 20,
+              navigation_available: true,
+            },
+          ],
+          local_tips: SLOT,
+          transport_tip: SLOT,
+        },
+        {
+          day_number: 2,
+          date: "27. okt. 2026",
+          city: "Denpasar, Bali",
+          day_title: "Odhod",
+          daily_budget_per_person_eur: 40,
+          activities: [
+            {
+              time_slot: "POPOLDAN",
+              start_time: "14:30",
+              title: "Povratni let DPS → MUC",
+              description: `${SLOT} Odhod ob 14:30.`,
+              estimated_cost_eur: 0,
+              navigation_available: false,
+            },
+          ],
+          local_tips: SLOT,
+          transport_tip: SLOT,
+        },
+      ],
+    };
+
+    const plan = itineraryJsonToPlan(raw, {
+      ...input(),
+      destinationIata: "DPS",
+      destinationPlace: "Bali",
+      flightContext: {
+        outboundDepart: "08:00",
+        outboundArrive: "22:00",
+        outboundArriveDayOffset: 0,
+        inboundDepart: "09:25",
+        inboundArrive: "18:40",
+      },
+    });
+    expect(plan).not.toBeNull();
+    expect(plan!.days[0]!.city).toBe("Nusa Penida");
+    expect(plan!.days[1]!.city).toBe("Denpasar");
+    const homebound = [
+      ...(plan!.days[1]!.activities?.morning ?? []),
+      ...(plan!.days[1]!.activities?.afternoon ?? []),
+      ...(plan!.days[1]!.activities?.evening ?? []),
+    ].find((a) => /povratni let|mednarodn/i.test(a.name));
+    expect(homebound?.arrivalTime).toBe("09:25");
+  });
+
   it("does not turn a roadtrip request into resort protocol blocks", () => {
     const plan = itineraryJsonToPlan(
       {

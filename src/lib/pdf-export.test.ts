@@ -108,6 +108,62 @@ describe("normalizePlanForPdf", () => {
     expect(model.coverImageUrl).toBeUndefined();
   });
 
+  it("sanitizes leaked day.city and last-day return clock before render", () => {
+    const model = normalizePlanForPdf({
+      title: "MUC → DPS",
+      destination: "Bali",
+      start_date: "2026-10-26",
+      end_date: "2026-10-27",
+      language: "sl",
+      itinerary: {
+        originIata: "MUC",
+        destinationIata: "DPS",
+        flightContext: {
+          outboundDepart: "08:00",
+          outboundArrive: "22:00",
+          outboundArriveDayOffset: 0,
+          inboundDepart: "09:25",
+        },
+        days: [
+          {
+            day: 1,
+            date: "2026-10-26",
+            title: "Nusa Penida",
+            city: "Nusa Penida Po zajtrku gremo proti Crystal Bay",
+            activities: {
+              morning: [{ name: "Crystal Bay", arrivalTime: "09:00" }],
+              afternoon: [],
+              evening: [],
+            },
+          },
+          {
+            day: 2,
+            date: "2026-10-27",
+            title: "Odhod",
+            city: "Denpasar, Bali",
+            activities: {
+              morning: [],
+              afternoon: [
+                {
+                  name: "Povratni let DPS → MUC",
+                  arrivalTime: "14:30",
+                  description: "Odhod ob 14:30.",
+                },
+              ],
+              evening: [],
+            },
+          },
+        ],
+      },
+    });
+
+    expect(model.days[0]!.city).toBe("Nusa Penida");
+    expect(model.days[1]!.city).toBe("Denpasar");
+    const flight = model.days[1]!.slots.flatMap((s) => s.items).find((it) => /povratni let/i.test(it.title));
+    expect(flight?.time).toMatch(/09:25/);
+    expect(flight?.time).not.toMatch(/14:30/);
+  });
+
   it("maps day.localTips onto the yellow local-tips PDF callout", () => {
     const model = normalizePlanForPdf({
       title: "MUC → NRT",

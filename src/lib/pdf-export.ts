@@ -63,6 +63,7 @@ import {
   usesHubStayGuide,
   type HubStayModule,
 } from "@/lib/hubStayModules";
+import { sanitizeItineraryPlan } from "@/lib/itinerarySanitize";
 
 /**
  * Served from /public/fonts so Nitro/Vercel always can fetch them.
@@ -1344,9 +1345,11 @@ export function normalizePlanForPdf(plan: PlanForPdf): NormalizedPdfPlan {
   const hotelHints: HotelStayHint[] = Array.isArray(itin.hotels)
     ? (itin.hotels as HotelStayHint[])
     : [];
+  sanitizeItineraryPlan(itin as AiTripPlan);
   stampOvernightCitiesFromHotels(rawDays as OvernightDay[], hotelHints);
   syncDayCityToDaytimeProgram(rawDays as OvernightDay[]);
   holdCityHeaderUntilTransfer(rawDays as OvernightDay[]);
+  sanitizeItineraryPlan(itin as AiTripPlan);
   const sample = [textOf(itin.summary), ...rawDays.map((d) => textOf(d?.title))].join(" ");
   const contentLang = normalizePlanLangCode(
     (itin as { contentLanguage?: string }).contentLanguage ||

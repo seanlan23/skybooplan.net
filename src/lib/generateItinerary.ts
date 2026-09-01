@@ -16,6 +16,7 @@ import { normalizePlanLangCode } from "@/lib/planLanguages";
 import { isSingleBasePayload } from "@/lib/singleBaseContract";
 import { singleBaseJsonToPlan } from "@/lib/singleBasePlanMap";
 import { isDayByDayTripStyle, resolveTripStyle, type TripStyle } from "@/lib/tripStyle";
+import { sanitizeItineraryPlan } from "@/lib/itinerarySanitize";
 import { stabilizeTripStayStructure } from "@/lib/tripStayStructure";
 
 export function buildGeminiMapOpts(userInputs: GenerateItineraryInput) {
@@ -57,7 +58,8 @@ export type GenerateItineraryResult = {
 /**
  * Gemini structured JSON → UI/PDF `AiTripPlan`, then code stay-structure:
  * hotel-base cap (`enforceTripBaseCap`) + last-day clock order
- * (`sortDepartureDayChronology`). Not prompt sentences.
+ * (`sortDepartureDayChronology`) + city/return-clock sanitize
+ * (`sanitizeItineraryPlan`). Not prompt sentences.
  */
 export { CORE_ITINERARY_SYSTEM_RULES } from "@/lib/coreItineraryRules";
 export type { ActivityItem, ItineraryDayPlan } from "@/lib/itineraryDayContract";
@@ -87,7 +89,10 @@ export function itineraryJsonToPlan(
     const plan = singleBaseJsonToPlan(raw, opts);
     if (!plan || !isCatalogTripPlan(plan)) return null;
     finalizeItineraryMapCoords(plan);
-    return stampFlightContext(applyRequestedTripStyle(plan, style), userInputs);
+    return sanitizeItineraryPlan(stampFlightContext(applyRequestedTripStyle(plan, style), userInputs), {
+      inboundDepart: userInputs.flightContext?.inboundDepart,
+      returnTime: userInputs.flightContext?.inboundDepart,
+    });
   }
   const parsed = parseCoercedTripPlan(raw);
   if (!parsed.success) return null;
@@ -95,16 +100,27 @@ export function itineraryJsonToPlan(
   if (!isCatalogTripPlan(plan)) return null;
   finalizeItineraryMapCoords(plan);
   const stamped = stampFlightContext(applyRequestedTripStyle(plan, style), userInputs);
-  return stabilizeTripStayStructure(stamped, {
-    inboundDepart: userInputs.flightContext?.inboundDepart,
-    inboundArrive: userInputs.flightContext?.inboundArrive,
-    language: opts.language,
-    originIata: userInputs.originIata,
-    calendarDays: tripDayCount(userInputs.departDate, userInputs.returnDate),
-  });
+  return sanitizeItineraryPlan(
+    stabilizeTripStayStructure(stamped, {
+      inboundDepart: userInputs.flightContext?.inboundDepart,
+      inboundArrive: userInputs.flightContext?.inboundArrive,
+      language: opts.language,
+      originIata: userInputs.originIata,
+      calendarDays: tripDayCount(userInputs.departDate, userInputs.returnDate),
+    }),
+    {
+      inboundDepart: userInputs.flightContext?.inboundDepart,
+      returnTime: userInputs.flightContext?.inboundDepart,
+    },
+  );
 }
 
 export { stabilizeTripStayStructure } from "@/lib/tripStayStructure";
+export {
+  sanitizeDayCity,
+  sanitizeItineraryPlan,
+  stampLastDayReturnFlightClock,
+} from "@/lib/itinerarySanitize";
 
 function applyRequestedTripStyle(plan: AiTripPlan, style: TripStyle): AiTripPlan {
   if (style === "single_base") return { ...plan, tripStyle: style };
