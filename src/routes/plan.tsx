@@ -1,4 +1,4 @@
-import { Component, useEffect, useMemo, useState, type ReactNode } from "react";
+import { Component, useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
@@ -162,6 +162,10 @@ function SharedPlanPage() {
   const { snapshot: loaded, search } = Route.useLoaderData();
   const [snapshot, setSnapshot] = useState<SharedPackageSnapshot | null>(loaded);
   const [downloading, setDownloading] = useState(false);
+
+  useLayoutEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   useEffect(() => {
     setSnapshot(loaded);

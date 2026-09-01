@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Info } from "lucide-react";
 import type { AiTripPlan, DayPlan } from "@/lib/aiPlan.functions";
 import { type ActivityMapFocus } from "@/components/TripMap";
@@ -188,6 +188,9 @@ export function AiPlanView({
     () => unquoteShareValue(initialSelectedPackageId ?? "") || null,
   );
   const packageDetailsRef = useRef<HTMLDivElement>(null);
+  const skipPackageAutoScrollRef = useRef(
+    Boolean(unquoteShareValue(initialSelectedPackageId ?? "")),
+  );
   const isClickNavigatingRef = useRef(false);
   const isPlayingRef = useRef(false);
   isPlayingRef.current = isPlaying;
@@ -319,10 +322,15 @@ export function AiPlanView({
   const packageIdsKey = resortPackages.map((pkg) => pkg.id).join("|");
   const appliedShareHotelRef = useRef<string | null>(null);
 
+  useLayoutEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   useEffect(() => {
     const wanted = unquoteShareValue(initialSelectedPackageId ?? "");
     if (!wanted || appliedShareHotelRef.current === wanted) return;
     if (matchResortPackageId(resortPackages, wanted)) {
+      skipPackageAutoScrollRef.current = true;
       setSelectedPackageId(wanted);
       appliedShareHotelRef.current = wanted;
     }
@@ -330,6 +338,11 @@ export function AiPlanView({
 
   useEffect(() => {
     if (!selectedPackageId || !packageDetailsRef.current) return;
+    if (skipPackageAutoScrollRef.current) {
+      skipPackageAutoScrollRef.current = false;
+      window.scrollTo(0, 0);
+      return;
+    }
     packageDetailsRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [selectedPackageId]);
 
