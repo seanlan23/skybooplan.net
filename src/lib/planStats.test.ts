@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   formatPlansGeneratedLabel,
+  KNOWN_PLANS_GENERATED_FLOOR,
   resolvePublicPlanCount,
 } from "@/lib/planStats";
 
@@ -36,10 +37,11 @@ describe("formatPlansGeneratedLabel", () => {
   });
 
   it("never reports below the known generated floor", () => {
-    expect(resolvePublicPlanCount(1, 0)).toBe(912);
-    expect(resolvePublicPlanCount(12, 200)).toBe(912);
-    expect(resolvePublicPlanCount(12, 300)).toBe(912);
-    expect(resolvePublicPlanCount(920, 12)).toBe(920);
-    expect(resolvePublicPlanCount(912, 10)).toBe(912);
+    expect(resolvePublicPlanCount(1, 0)).toBe(KNOWN_PLANS_GENERATED_FLOOR);
+    expect(resolvePublicPlanCount(12, 200)).toBe(KNOWN_PLANS_GENERATED_FLOOR);
+    expect(resolvePublicPlanCount(12, 300)).toBe(KNOWN_PLANS_GENERATED_FLOOR);
+    expect(resolvePublicPlanCount(920, 12)).toBe(KNOWN_PLANS_GENERATED_FLOOR);
+    expect(resolvePublicPlanCount(1123, 10)).toBe(1123);
+    expect(resolvePublicPlanCount(1200, 12)).toBe(1200);
   });
 });
