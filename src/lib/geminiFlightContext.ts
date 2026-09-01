@@ -1,5 +1,6 @@
 import type { Activity, AiTripPlan, DayPlan, DayTransportLeg } from "@/lib/aiPlan.functions";
 import { isSmallIsland } from "@/lib/islandStays";
+import { stabilizeTripStayStructure } from "@/lib/tripStayStructure";
 import {
   clearActivityStructuredClocks,
   isFlightRangeActivity,
@@ -1881,4 +1882,11 @@ export function applyFlightContextToGeminiPlan(
   for (const day of plan.days) {
     if (day.activities) day.activities = sortDayActivitiesByClock(day.activities);
   }
+  stabilizeTripStayStructure(plan, {
+    inboundDepart: flights.inboundDepart,
+    inboundArrive: flights.inboundArrive,
+    language: lang,
+    originIata,
+    calendarDays: totalDays,
+  });
 }

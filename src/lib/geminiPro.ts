@@ -38,6 +38,7 @@ import {
   hasExplicitStayPlan,
   parseStayPlanFromWishes,
 } from "@/lib/userStayPlan";
+import { tripStayBaseCap } from "@/lib/tripBaseCap";
 import { flightContextPromptBlock } from "@/lib/geminiFlightContext";
 import { lookupDestination } from "@/lib/destinationCoords";
 import { DISTANCE_TRANSPORT_RULES } from "@/lib/transportPromptRules";
@@ -312,16 +313,11 @@ function isRoadTripRequest(params: GenerateTripPlanParams): boolean {
 }
 
 /**
- * Cap overnight hotel bases on flight trips so 14–21 day itineraries stay
- * 4–6 main bases (quality over a chain of 1-night hops).
+ * Cap overnight hotel bases on flight trips so 14–17 day itineraries stay
+ * at most 4 main bases (quality over a chain of 2-night hops).
  */
 export function flightTripMaxBases(days: number): number {
-  if (days <= 0) return 0;
-  if (days <= 9) return 2;
-  if (days <= 13) return 3;
-  if (days <= 16) return 4;
-  if (days <= 18) return 5;
-  return 6;
+  return tripStayBaseCap(days).maxBases;
 }
 
 /**

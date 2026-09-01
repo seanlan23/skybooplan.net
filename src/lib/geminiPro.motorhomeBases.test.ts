@@ -36,6 +36,7 @@ describe("flightTripMaxBases", () => {
     expect(flightTripMaxBases(13)).toBe(3);
     expect(flightTripMaxBases(14)).toBe(4);
     expect(flightTripMaxBases(16)).toBe(4);
+    expect(flightTripMaxBases(17)).toBe(4);
     expect(flightTripMaxBases(18)).toBe(5);
     expect(flightTripMaxBases(21)).toBe(6);
   });

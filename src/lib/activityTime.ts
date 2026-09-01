@@ -50,6 +50,18 @@ const SLOT_FALLBACK_MIN: Record<DaypartSlot, number> = {
   evening: 19 * 60,
 };
 
+const NEXT_DAY_LANDING_RE =
+  /naslednji dan|next day|folgetag|giorno successivo|día siguiente|lendemain/i;
+
+function sortMinutes(
+  min: number | null,
+  from: DaypartSlot,
+  name: string | undefined,
+): number {
+  if (NEXT_DAY_LANDING_RE.test(name ?? "")) return 24 * 60 + 60;
+  return min ?? SLOT_FALLBACK_MIN[from];
+}
+
 /**
  * Re-bucket a day's activities by start clock (00:00–23:59).
  * Timed items move to morning / afternoon / evening; untimed keep their slot.
@@ -66,8 +78,8 @@ export function sortDayActivitiesByClock<T extends ActivityClockFields & { time?
   }
   const order: Record<DaypartSlot, number> = { morning: 0, afternoon: 1, evening: 2 };
   rows.sort((x, y) => {
-    const xm = x.min ?? SLOT_FALLBACK_MIN[x.from];
-    const ym = y.min ?? SLOT_FALLBACK_MIN[y.from];
+    const xm = sortMinutes(x.min, x.from, x.a.name);
+    const ym = sortMinutes(y.min, y.from, y.a.name);
     if (xm !== ym) return xm - ym;
     if (x.from !== y.from) return order[x.from] - order[y.from];
     return x.i - y.i;

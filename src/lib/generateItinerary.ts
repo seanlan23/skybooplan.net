@@ -16,6 +16,7 @@ import { normalizePlanLangCode } from "@/lib/planLanguages";
 import { isSingleBasePayload } from "@/lib/singleBaseContract";
 import { singleBaseJsonToPlan } from "@/lib/singleBasePlanMap";
 import { isDayByDayTripStyle, resolveTripStyle, type TripStyle } from "@/lib/tripStyle";
+import { stabilizeTripStayStructure } from "@/lib/tripStayStructure";
 
 export function buildGeminiMapOpts(userInputs: GenerateItineraryInput) {
   const wishesText = [
@@ -54,10 +55,9 @@ export type GenerateItineraryResult = {
 };
 
 /**
- * Field copy only: Gemini structured JSON → UI/PDF `AiTripPlan`.
- * Live system rules: `CORE_ITINERARY_SYSTEM_RULES` (sleep city, clock order,
- * no prompt leaks, one transfer, unique tips, linear route, time slots, SL copy).
- * No day padding or route repair.
+ * Gemini structured JSON → UI/PDF `AiTripPlan`, then code stay-structure:
+ * hotel-base cap (`enforceTripBaseCap`) + last-day clock order
+ * (`sortDepartureDayChronology`). Not prompt sentences.
  */
 export { CORE_ITINERARY_SYSTEM_RULES } from "@/lib/coreItineraryRules";
 export type { ActivityItem, ItineraryDayPlan } from "@/lib/itineraryDayContract";
@@ -94,8 +94,17 @@ export function itineraryJsonToPlan(
   const plan = tripPlanResponseToAiTripPlan(parsed.data, opts);
   if (!isCatalogTripPlan(plan)) return null;
   finalizeItineraryMapCoords(plan);
-  return stampFlightContext(applyRequestedTripStyle(plan, style), userInputs);
+  const stamped = stampFlightContext(applyRequestedTripStyle(plan, style), userInputs);
+  return stabilizeTripStayStructure(stamped, {
+    inboundDepart: userInputs.flightContext?.inboundDepart,
+    inboundArrive: userInputs.flightContext?.inboundArrive,
+    language: opts.language,
+    originIata: userInputs.originIata,
+    calendarDays: tripDayCount(userInputs.departDate, userInputs.returnDate),
+  });
 }
+
+export { stabilizeTripStayStructure } from "@/lib/tripStayStructure";
 
 function applyRequestedTripStyle(plan: AiTripPlan, style: TripStyle): AiTripPlan {
   if (style === "single_base") return { ...plan, tripStyle: style };

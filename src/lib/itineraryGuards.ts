@@ -40,6 +40,7 @@ import {
 import { lookupLeg } from "@/lib/curatedRoutes.legs";
 import { relabelHubDayTripOvernights } from "@/lib/stayFacts";
 import { stripUnrenderablePlanCopy } from "@/lib/twoStagePlan";
+import { stabilizeTripStayStructure } from "@/lib/tripStayStructure";
 
 type DaySlots = NonNullable<DayPlan["activities"]>;
 type Slot = keyof DaySlots;
@@ -2177,6 +2178,13 @@ export function applyItineraryGuards(
   const homeStays = stripHomeboundPaidStays(plan);
   const balkanTips = annotateBalkanRoadTips(plan);
   ensureCompleteDaySlots(plan);
+  stabilizeTripStayStructure(plan, {
+    inboundDepart: plan.flightContext?.inboundDepart,
+    inboundArrive: plan.flightContext?.inboundArrive,
+    language: opts?.language ?? plan.contentLanguage,
+    originIata: plan.originIata,
+    calendarDays: plan.days?.length,
+  });
   return {
     placeholders,
     genericMeals,

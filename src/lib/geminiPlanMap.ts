@@ -33,6 +33,8 @@ import type { GroundTransportMode } from "@/lib/aiPlan.functions";
 import { repairTransportLegs } from "@/lib/transportLegRepair";
 import { isBaseTransferLeg, orientArrivalTransferLeg } from "@/lib/baseTransfer";
 import { applyRedEyeDepartureChronology, stampDepartureDayThreeHourLead } from "@/lib/redEyeDeparture";
+import { stabilizeTripStayStructure } from "@/lib/tripStayStructure";
+import { tripDayCount } from "@/lib/geminiPro.functions";
 import { dropDayTripsToOvernightStays } from "@/lib/islandHopGuard";
 import { sanitizeReturnFlightSummary } from "@/lib/returnFlightSummary";
 import { driveTypeLabel } from "@/lib/planLangCopy";
@@ -904,7 +906,17 @@ export function tripPlanResponseToAiTripPlan(
   dropDayTripsToOvernightStays(plan, lang);
   scrubLocalTipsOnPlan(plan);
   sanitizePlanGuestCopy(plan, lang);
-  return plan;
+  const calendarDays =
+    opts?.departDate && opts?.returnDate
+      ? tripDayCount(opts.departDate, opts.returnDate)
+      : days.length;
+  return stabilizeTripStayStructure(plan, {
+    inboundDepart: opts?.inboundDepart,
+    inboundArrive: opts?.inboundArrive,
+    language: lang,
+    originIata: opts?.originIata,
+    calendarDays,
+  });
 }
 
 function extractReturnFlightFromLastDay(
