@@ -5,6 +5,10 @@ import {
   type DepartureDaySortOpts,
 } from "@/lib/departureDaySort";
 import { alignDayCityToActivities } from "@/lib/itineraryCityAlign";
+import {
+  holdCityHeaderUntilTransfer,
+  syncDayCityToDaytimeProgram,
+} from "@/lib/overnightHotelStays";
 import { enforceTripBaseCap } from "@/lib/tripBaseCap";
 import { isSingleBasePlan } from "@/lib/tripStyle";
 
@@ -21,6 +25,8 @@ export function stabilizeTripStayStructure(
   opts?: StabilizeTripStayOpts,
 ): AiTripPlan {
   if (isSingleBasePlan(plan)) return plan;
+  syncDayCityToDaytimeProgram(plan.days ?? []);
+  holdCityHeaderUntilTransfer(plan.days ?? []);
   enforceTripBaseCap(plan, { calendarDays: opts?.calendarDays });
   alignDayCityToActivities(plan);
   stripPrematureDepartureLogistics(plan, opts);

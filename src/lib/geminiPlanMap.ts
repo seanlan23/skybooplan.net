@@ -36,7 +36,7 @@ import { applyRedEyeDepartureChronology, stampDepartureDayThreeHourLead } from "
 import { stabilizeTripStayStructure } from "@/lib/tripStayStructure";
 import { tripDayCount } from "@/lib/geminiPro.functions";
 import { dropDayTripsToOvernightStays } from "@/lib/islandHopGuard";
-import { sanitizeReturnFlightSummary } from "@/lib/returnFlightSummary";
+import { sanitizeReturnFlightEu } from "@/lib/returnFlightAirports";
 import { driveTypeLabel } from "@/lib/planLangCopy";
 import { normalizePlanLangCode } from "@/lib/planLanguages";
 import { scrubLocalTipsOnPlan } from "@/lib/localTipsSanitize";
@@ -849,24 +849,26 @@ export function tripPlanResponseToAiTripPlan(
   if (!opts?.groundTransportMode) {
     const rf = meta?.return_flight_eu;
     if (rf?.departure_time && rf.arrival_time_eu) {
-      const fromAirport = rf.from_airport;
-      const toAirport = rf.to_airport;
-      returnFlightEu = {
-        departureTime: rf.departure_time,
-        arrivalTimeEu: rf.arrival_time_eu,
-        fromAirport,
-        toAirport,
-        // Never trust Gemini "Direct flight" for long-haul — UI sanitizes again.
-        summary: sanitizeReturnFlightSummary(rf.summary, {
-          fromIata: fromAirport,
-          toIata: toAirport,
+      returnFlightEu = sanitizeReturnFlightEu(
+        {
+          departureTime: rf.departure_time,
+          arrivalTimeEu: rf.arrival_time_eu,
+          fromAirport: rf.from_airport,
+          toAirport: rf.to_airport,
+          summary: rf.summary ?? "",
+        },
+        {
+          destinationIata: opts?.destinationIata,
+          originIata: opts?.originIata,
           language: opts?.language ?? "sl",
-          depart: rf.departure_time,
-          arrive: rf.arrival_time_eu,
-        }),
-      };
+        },
+      );
     } else {
-      returnFlightEu = extractReturnFlightFromLastDay(days, opts?.originIata);
+      returnFlightEu = extractReturnFlightFromLastDay(days, {
+        originIata: opts?.originIata,
+        destinationIata: opts?.destinationIata,
+        language: opts?.language ?? "sl",
+      });
     }
   }
 
@@ -921,7 +923,7 @@ export function tripPlanResponseToAiTripPlan(
 
 function extractReturnFlightFromLastDay(
   days: DayPlan[],
-  originIata?: string,
+  opts?: { originIata?: string; destinationIata?: string; language?: string },
 ): ReturnFlightEu | undefined {
   const last = days[days.length - 1];
   if (!last) return undefined;
@@ -938,13 +940,20 @@ function extractReturnFlightFromLastDay(
         continue;
       }
       if (!act.arrivalTime && !act.departureTime) continue;
-      return {
-        departureTime: act.arrivalTime ?? act.departureTime ?? "",
-        arrivalTimeEu: act.departureTime ?? "",
-        fromAirport: last.city ?? "Letališče",
-        toAirport: originIata ?? "EU",
-        summary: act.description ?? act.name,
-      };
+      return sanitizeReturnFlightEu(
+        {
+          departureTime: act.arrivalTime ?? act.departureTime ?? "",
+          arrivalTimeEu: act.departureTime ?? "",
+          fromAirport: last.city ?? "Letališče",
+          toAirport: opts?.originIata ?? "EU",
+          summary: act.description ?? act.name,
+        },
+        {
+          destinationIata: opts?.destinationIata,
+          originIata: opts?.originIata,
+          language: opts?.language,
+        },
+      );
     }
   }
   return undefined;

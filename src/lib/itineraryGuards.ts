@@ -25,6 +25,7 @@ import { applyUserStayPlan, hasExplicitStayPlan } from "@/lib/userStayPlan";
 import { paceMetropolisStays } from "@/lib/metropolisPacing";
 import { scrubLocalTipsOnPlan } from "@/lib/localTipsSanitize";
 import { hotelsFromSleepNights, holdCityHeaderUntilTransfer, syncDayCityToDaytimeProgram } from "@/lib/overnightHotelStays";
+import { sanitizePlanReturnFlight } from "@/lib/returnFlightAirports";
 import { isSmallIsland } from "@/lib/islandStays";
 import { scrubBangkokSightsOnIslandTransferDays } from "@/lib/bangkokMustSee";
 import { alignSummaryTripLength } from "@/lib/planTeaser";
@@ -1430,6 +1431,7 @@ function reassignOvernightCity(day: DayPlan, src: DayPlan): void {
 /**
  * One-way overnight arc: A→B→A→B among non-hub bases is forbidden.
  * Re-entering the international IATA hub (connecting flight / last day) is allowed.
+ * Mainland → island (≥2 days) → same mainland is a real overnight, not a bounce.
  */
 export function linearizeOvernightArc(plan: AiTripPlan): number {
   const days = plan.days ?? [];
@@ -1440,6 +1442,8 @@ export function linearizeOvernightArc(plan: AiTripPlan): number {
   const abandoned = new Set<string>();
   let liveKey = "";
   let liveSrc: DayPlan | null = null;
+  let liveRunDays = 0;
+  let mainlandAnchor = "";
 
   for (const day of days) {
     if (day.inFlightDay) continue;
@@ -1451,6 +1455,8 @@ export function linearizeOvernightArc(plan: AiTripPlan): number {
       if (!seen.includes(key)) seen.push(key);
       liveKey = key;
       liveSrc = day;
+      liveRunDays = 1;
+      mainlandAnchor = "";
       continue;
     }
 
@@ -1461,14 +1467,33 @@ export function linearizeOvernightArc(plan: AiTripPlan): number {
     }
 
     if (!seen.includes(key)) {
+      if (liveSrc && isSmallIsland(city) && !isSmallIsland(liveSrc.city)) {
+        mainlandAnchor = liveKey;
+      }
       seen.push(key);
       liveKey = key;
       liveSrc = day;
+      liveRunDays = 1;
       continue;
     }
 
     if (key === liveKey) {
       liveSrc = day;
+      liveRunDays += 1;
+      continue;
+    }
+
+    if (
+      liveSrc &&
+      isSmallIsland(liveSrc.city) &&
+      !isSmallIsland(city) &&
+      key === mainlandAnchor &&
+      liveRunDays >= 2
+    ) {
+      liveKey = key;
+      liveSrc = day;
+      liveRunDays = 1;
+      mainlandAnchor = "";
       continue;
     }
 
@@ -2184,6 +2209,7 @@ export function applyItineraryGuards(
   const homeStays = stripHomeboundPaidStays(plan);
   const balkanTips = annotateBalkanRoadTips(plan);
   ensureCompleteDaySlots(plan);
+  sanitizePlanReturnFlight(plan, opts?.language ?? plan.contentLanguage);
   stabilizeTripStayStructure(plan, {
     inboundDepart: plan.flightContext?.inboundDepart,
     inboundArrive: plan.flightContext?.inboundArrive,

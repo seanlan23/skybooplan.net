@@ -466,3 +466,94 @@ describe("holdCityHeaderUntilTransfer", () => {
     expect(days.map((d) => d.city)).toEqual(["Munich", "New York", "New York"]);
   });
 });
+
+describe("island boat overnight hop", () => {
+  it("stamps day.city onto the island until the return, and splits NAMESTITVE nights", () => {
+    const days = [
+      { day: 12, date: "2026-11-06", city: "Ubud", title: "Ubud" },
+      {
+        day: 13,
+        date: "2026-11-07",
+        city: "Ubud",
+        title: "Ubud",
+        activities: {
+          morning: [
+            {
+              name: "Padang Bai → Gili Trawangan",
+              type: "TRANSPORT",
+              description: "Speedboat z ladjo na Gili Trawangan.",
+            },
+          ],
+          afternoon: [{ name: "Snorkljanje s želvami na Gili Trawangan" }],
+          evening: [],
+        },
+      },
+      {
+        day: 14,
+        date: "2026-11-08",
+        city: "Ubud",
+        title: "Ubud",
+        activities: {
+          morning: [{ name: "Kolesarjenje okoli Gili Trawangan" }],
+          afternoon: [{ name: "Sunset na zahodni obali" }],
+          evening: [],
+        },
+      },
+      {
+        day: 15,
+        date: "2026-11-09",
+        city: "Ubud",
+        title: "Ubud",
+        activities: {
+          morning: [{ name: "Čoln med Gili otoki" }],
+          afternoon: [{ name: "Plaža na Gili Trawangan" }],
+          evening: [],
+        },
+      },
+      {
+        day: 16,
+        date: "2026-11-10",
+        city: "Ubud",
+        title: "Ubud",
+        activities: {
+          morning: [
+            {
+              name: "Gili Trawangan → Padang Bai",
+              type: "TRANSPORT",
+              description: "Trajekt nazaj v Ubud.",
+            },
+          ],
+          afternoon: [{ name: "Tegalalang in riževe terase v Ubudu" }],
+          evening: [],
+        },
+      },
+      {
+        day: 17,
+        date: "2026-11-11",
+        city: "Ubud",
+        title: "Ubud",
+        activities: {
+          morning: [{ name: "Sacred Monkey Forest v Ubudu" }],
+          afternoon: [],
+          evening: [],
+        },
+      },
+      { day: 18, date: "2026-11-12", city: "Ubud", title: "Ubud" },
+    ];
+    expect(syncDayCityToDaytimeProgram(days)).toBeGreaterThan(0);
+    expect(days[1]!.city).toMatch(/Gili/i);
+    expect(days[2]!.city).toMatch(/Gili/i);
+    expect(days[3]!.city).toMatch(/Gili/i);
+    expect(days[4]!.city).toMatch(/Ubud/i);
+    expect(days[5]!.city).toMatch(/Ubud/i);
+    const stays = collectOvernightHotelStays({
+      originPlace: "München",
+      start_date: "2026-10-26",
+      days,
+    });
+    const gili = stays.find((s) => /gili/i.test(s.city));
+    const ubudAfter = [...stays].reverse().find((s) => /ubud/i.test(s.city));
+    expect(gili).toMatchObject({ nights: 3, checkIn: "2026-11-07", checkOut: "2026-11-10" });
+    expect(ubudAfter).toMatchObject({ nights: 2, checkIn: "2026-11-10", checkOut: "2026-11-12" });
+  });
+});

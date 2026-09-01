@@ -2442,4 +2442,123 @@ describe("linearizeOvernightArc", () => {
       "Phuket",
     ]);
   });
+
+  it("keeps a multi-night island stay and the mainland return", () => {
+    const plan = {
+      destinationName: "Bali",
+      destinationIata: "DPS",
+      contentLanguage: "sl",
+      days: [
+        day({ day: 1, city: "Ubud" }),
+        day({ day: 2, city: "Ubud" }),
+        day({ day: 3, city: "Gili Trawangan" }),
+        day({ day: 4, city: "Gili Trawangan" }),
+        day({ day: 5, city: "Gili Trawangan" }),
+        day({ day: 6, city: "Ubud" }),
+        day({ day: 7, city: "Ubud" }),
+      ],
+    } as AiTripPlan;
+
+    expect(linearizeOvernightArc(plan)).toBe(0);
+    expect(plan.days.map((d) => d.city)).toEqual([
+      "Ubud",
+      "Ubud",
+      "Gili Trawangan",
+      "Gili Trawangan",
+      "Gili Trawangan",
+      "Ubud",
+      "Ubud",
+    ]);
+  });
+});
+
+describe("applyItineraryGuards island overnight + return IATA", () => {
+  it("stamps Gili from a boat hop and rewrites BUD to DPS", () => {
+    const plan = {
+      destinationName: "Bali",
+      destinationIata: "DPS",
+      originIata: "MUC",
+      originPlace: "München",
+      contentLanguage: "sl",
+      tripStyle: "explorer",
+      returnFlightEu: {
+        departureTime: "21:10",
+        arrivalTimeEu: "06:00",
+        fromAirport: "BUD",
+        toAirport: "MUC",
+        summary: "BUD → MUC",
+      },
+      days: [
+        day({ day: 1, date: "2026-11-06", city: "Ubud" }),
+        day({
+          day: 2,
+          date: "2026-11-07",
+          city: "Ubud",
+          activities: {
+            morning: [
+              {
+                name: "Padang Bai → Gili Trawangan",
+                type: "TRANSPORT",
+                description: "Speedboat z ladjo na Gili Trawangan.",
+              },
+            ],
+            afternoon: [{ name: "Snorkljanje na Gili Trawangan" }],
+            evening: [],
+          },
+        }),
+        day({
+          day: 3,
+          date: "2026-11-08",
+          city: "Ubud",
+          activities: {
+            morning: [{ name: "Kolesarjenje okoli Gili Trawangan" }],
+            afternoon: [],
+            evening: [],
+          },
+        }),
+        day({
+          day: 4,
+          date: "2026-11-09",
+          city: "Ubud",
+          activities: {
+            morning: [{ name: "Plaža na Gili Trawangan" }],
+            afternoon: [],
+            evening: [],
+          },
+        }),
+        day({
+          day: 5,
+          date: "2026-11-10",
+          city: "Ubud",
+          activities: {
+            morning: [{ name: "Gili Trawangan → Ubud", type: "TRANSPORT" }],
+            afternoon: [{ name: "Tegalalang v Ubudu" }],
+            evening: [],
+          },
+        }),
+        day({
+          day: 6,
+          date: "2026-11-11",
+          city: "Ubud",
+          activities: {
+            morning: [{ name: "Sacred Monkey Forest v Ubudu" }],
+            afternoon: [],
+            evening: [],
+          },
+        }),
+        day({ day: 7, date: "2026-11-12", city: "Ubud" }),
+      ],
+    } as AiTripPlan;
+
+    applyItineraryGuards(plan, { language: "sl" });
+    expect(plan.days[1]!.city).toMatch(/Gili/i);
+    expect(plan.days[2]!.city).toMatch(/Gili/i);
+    expect(plan.days[3]!.city).toMatch(/Gili/i);
+    expect(plan.days[4]!.city).toMatch(/Ubud/i);
+    const gili = plan.hotels?.find((h) => /gili/i.test(h.city));
+    const ubudLast = [...(plan.hotels ?? [])].reverse().find((h) => /ubud/i.test(h.city));
+    expect(gili).toMatchObject({ nights: 3, from_date: "2026-11-07", to_date: "2026-11-10" });
+    expect(ubudLast).toMatchObject({ nights: 2, from_date: "2026-11-10", to_date: "2026-11-12" });
+    expect(plan.returnFlightEu?.fromAirport).toBe("DPS");
+  });
 });

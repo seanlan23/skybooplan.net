@@ -34,6 +34,9 @@ import { inclusiveCalendarDayCount } from "@/lib/dateUtils";
 import { hotelStayDatesFromContext } from "@/lib/hotelStayDates";
 import { DESTINATION_BY_IATA, lookupDestination } from "@/lib/destinationCoords";
 import {
+  sanitizeReturnFromAirport,
+} from "@/lib/returnFlightAirports";
+import {
   resolveResortDiningModel,
   resortDiningSectionLabel,
 } from "@/lib/resortDiningModel";
@@ -482,16 +485,26 @@ function rewritePdfReturnFlightEndpoints(
   destIata: string | undefined,
   originIata: string | undefined,
 ): { from: string; to: string } {
-  if (!exitIata || !originIata) return { from, to };
+  if (!originIata) return { from, to };
+  const origin = originIata.toUpperCase();
   const toCode = lookupPdfHubIata(to);
   const fromCode = lookupPdfHubIata(from);
-  if (toCode !== originIata.toUpperCase()) return { from, to };
+  if (toCode === origin) {
+    const coercedFrom = sanitizeReturnFromAirport(from, {
+      destinationIata: destIata,
+      originIata: origin,
+      returnFromIata: exitIata,
+    });
+    if (coercedFrom) return { from: coercedFrom, to: origin };
+  }
+  if (!exitIata) return { from, to };
+  if (toCode !== origin) return { from, to };
   const fromIsArrivalHub =
     Boolean(destIata) &&
     (fromCode === destIata!.toUpperCase() || pdfSameBase(from, destIata!));
   if (!fromIsArrivalHub) return { from, to };
   if (fromCode === exitIata) return { from, to };
-  return { from: exitIata, to: originIata.toUpperCase() };
+  return { from: exitIata, to: origin };
 }
 
 function roadBudgetCaption(model: NormalizedPdfPlan): string {

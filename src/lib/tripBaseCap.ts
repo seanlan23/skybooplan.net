@@ -3,7 +3,9 @@ import { haversineKm } from "@/lib/geoMath";
 import {
   collectOvernightHotelStays,
   hotelsFromSleepNights,
+  holdCityHeaderUntilTransfer,
   overnightPlacesMatch,
+  syncDayCityToDaytimeProgram,
 } from "@/lib/overnightHotelStays";
 import { isSmallIsland } from "@/lib/islandStays";
 import { lookupRegionCoords } from "@/lib/regionCoords";
@@ -205,10 +207,15 @@ function applyMerge(days: DayPlan[], from: CityRun, into: CityRun, lastRun: City
   }
 }
 
+function islandLocked(run: CityRun, days: DayPlan[], minNights: number): boolean {
+  return runIsIsland(run, days) && run.nights >= minNights;
+}
+
 function pickMerge(
   runs: CityRun[],
   days: DayPlan[],
   maxNights: number,
+  minNights: number,
 ): { from: number; into: number } | null {
   if (runs.length < 2) return null;
   let best: { score: number; from: number; into: number } | null = null;
@@ -218,6 +225,7 @@ function pickMerge(
     for (const j of [i - 1, i + 1]) {
       if (j < 0 || j >= runs.length) continue;
       const into = runs[j]!;
+      if (islandLocked(from, days, minNights) || islandLocked(into, days, minNights)) continue;
       const combined = from.nights + into.nights;
       const over = combined > maxNights ? 1000 + (combined - maxNights) * 80 : 0;
       const pairBonus =
@@ -276,6 +284,8 @@ export function enforceTripBaseCap(
   const days = sortedDays(plan);
   if (days.length < 4) return 0;
 
+  syncDayCityToDaytimeProgram(days);
+  holdCityHeaderUntilTransfer(days);
   rebaseLastDayToLastHotel(plan, days);
 
   const calendarDays = Math.max(opts?.calendarDays ?? 0, days.length, lastCalendarDayNum(days));
@@ -286,7 +296,7 @@ export function enforceTripBaseCap(
   let absorbed = 0;
   const mergeOnce = (forceOverMax: boolean): boolean => {
     const runs = buildRuns(days);
-    const fromTo = pickMerge(runs, days, forceOverMax ? 99 : cap.maxNights);
+    const fromTo = pickMerge(runs, days, forceOverMax ? 99 : cap.maxNights, cap.minNights);
     if (!fromTo) return false;
     applyMerge(days, runs[fromTo.from]!, runs[fromTo.into]!, runs[runs.length - 1]!);
     absorbed += 1;
@@ -301,13 +311,21 @@ export function enforceTripBaseCap(
   for (let i = 0; i < 12; i++) {
     const runs = buildRuns(days);
     if (hotelRunCount(runs) <= cap.minBases) break;
-    const short = runs.find((r) => r.nights > 0 && r.nights < cap.minNights);
-    if (!short) break;
-    const idx = runs.indexOf(short);
-    const neighbor = (idx > 0 ? runs[idx - 1] : undefined) ?? runs[idx + 1];
-    if (!neighbor) break;
-    applyMerge(days, short, neighbor, runs[runs.length - 1]!);
-    absorbed += 1;
+    let merged = false;
+    for (const short of runs) {
+      if (short.nights <= 0 || short.nights >= cap.minNights) continue;
+      if (islandLocked(short, days, cap.minNights)) continue;
+      const idx = runs.indexOf(short);
+      const neighbor = [idx > 0 ? runs[idx - 1] : undefined, runs[idx + 1]].find(
+        (n): n is CityRun => Boolean(n) && !islandLocked(n, days, cap.minNights),
+      );
+      if (!neighbor) continue;
+      applyMerge(days, short, neighbor, runs[runs.length - 1]!);
+      absorbed += 1;
+      merged = true;
+      break;
+    }
+    if (!merged) break;
   }
 
   for (let i = 0; i < 8; i++) {

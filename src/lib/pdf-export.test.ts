@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { isPdfDaypartToken, normalizePlanForPdf, sanitizePdfText, buildPdfDownloadFileName, pdfDayHeading, isPdfBaseTransferLeg, resolvePdfReturnFromIata, shouldBreakBeforeBlock, accommodationStayParts, formatPdfAirportPair, formatPdfDateRange, repairSmashedPdfDates } from "@/lib/pdf-export";
 import { isoAddDays } from "@/lib/overnightHotelStays";
+import { sanitizeReturnFromAirport } from "@/lib/returnFlightAirports";
 
 describe("sanitizePdfText", () => {
   it("strips emoji that break jsPDF custom fonts", () => {
@@ -1497,6 +1498,15 @@ describe("resolvePdfReturnFromIata", () => {
         ],
       }),
     ).toBe("YVR");
+  });
+
+  it("does not treat BUD as the Bali inbound origin", () => {
+    expect(
+      sanitizeReturnFromAirport("BUD", {
+        destinationIata: "DPS",
+        originIata: "MUC",
+      }),
+    ).toBe("DPS");
   });
 });
 

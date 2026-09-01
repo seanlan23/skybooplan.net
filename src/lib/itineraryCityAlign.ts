@@ -5,7 +5,7 @@ import { isSingleBasePlan } from "@/lib/tripStyle";
 import { hasExplicitStayPlan } from "@/lib/userStayPlan";
 
 const MOVE_RE =
-  /let\b|flight|trajekt|ferry|prevoz na letališč|airport transfer|check-?out|odjava|odhod iz hotela|mednarodn/i;
+  /let\b|flight|trajekt|ferry|\btransport\b|prevoz na letališč|airport transfer|check-?out|odjava|odhod iz hotela|mednarodn|speedboat|fast\s*boat|gliser|čoln|ladja|\bboat\b/i;
 
 function norm(value: string): string {
   return value

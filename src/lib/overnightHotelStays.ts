@@ -2,6 +2,8 @@ import {
   buildBookingSearchUrl,
   toAbsoluteBookingClickHref,
 } from "@/lib/bookingUrl";
+import { isSmallIsland } from "@/lib/islandStays";
+import { lookupRegionCoords } from "@/lib/regionCoords";
 
 export type OvernightHotelStay = {
   city: string;
@@ -19,11 +21,13 @@ export type OvernightDay = {
   focusName?: string;
   title?: string;
   inFlightDay?: boolean;
+  lat?: number;
+  lng?: number;
   transportation?: Array<{ type?: string; from?: string; to?: string }>;
   activities?: {
-    morning?: Array<{ name?: string; title?: string; type?: string }>;
-    afternoon?: Array<{ name?: string; title?: string; type?: string }>;
-    evening?: Array<{ name?: string; title?: string; type?: string }>;
+    morning?: Array<{ name?: string; title?: string; type?: string; description?: string }>;
+    afternoon?: Array<{ name?: string; title?: string; type?: string; description?: string }>;
+    evening?: Array<{ name?: string; title?: string; type?: string; description?: string }>;
   };
 };
 
@@ -82,16 +86,81 @@ function dayDate(day: OvernightDay, startDate: string | undefined, index: number
 }
 
 const MOVEMENT_ACT_RE =
-  /let\b|flight|trajekt|ferry|vlak|train|shinkansen|bullet train|tgv|\bice\b|eurostar|thalys|\bave\b|visokohitrostn|železn|rail|speedboat|kombi|\bvan\b|prevoz na letališč|airport transfer|check-?out|odjava|odhod iz hotela/i;
+  /let\b|flight|trajekt|ferry|vlak|train|shinkansen|bullet train|tgv|\bice\b|eurostar|thalys|\bave\b|visokohitrostn|železn|rail|speedboat|fast\s*boat|gliser|čoln|coln|čolnom|ladja|ladjo|\bboat\b|kombi|\bvan\b|prevoz na letališč|airport transfer|check-?out|odjava|odhod iz hotela/i;
 
-function actLabel(a: { name?: string; title?: string }): string {
+const DAY_TRIP_HOP_RE =
+  /day\s*trip|celodnevni izlet|izlet na|izlet z |same[- ]day|excursion|escursione|ausflug|boat tour|island hop/i;
+
+const TRANSFER_WAYPOINT_RE =
+  /pier|harbour|harbor|pristanišč|terminal|jetty|pelabuhan|padang bai|bangsal|rassada|klong jilad|pak bara|benoa|serangan/i;
+
+type HopAct = { name?: string; title?: string; type?: string; description?: string };
+
+function actLabel(a: HopAct): string {
   return (a.name || a.title || "").trim();
 }
 
-function isMovementActivity(a: { name?: string; title?: string; type?: string }): boolean {
+function actBlob(a: HopAct): string {
+  return `${actLabel(a)} ${a.description ?? ""}`.trim();
+}
+
+function isMovementActivity(a: HopAct): boolean {
   const t = (a.type ?? "").toUpperCase();
   if (t === "TRANSPORT" || t === "TRAIN" || t === "FLIGHT" || t === "FERRY") return true;
-  return MOVEMENT_ACT_RE.test(actLabel(a));
+  return MOVEMENT_ACT_RE.test(actBlob(a));
+}
+
+function parseArrowRoute(text: string): { from: string; to: string } | null {
+  const match = text.match(/(.+?)\s*(?:→|->)\s*(.+)/);
+  if (!match) return null;
+  const from = stripHopLabel(match[1] ?? "");
+  const to = stripHopLabel(match[2] ?? "");
+  if (!from || !to || overnightPlacesMatch(from, to)) return null;
+  if (looksLikeIata(from) || looksLikeIata(to)) return null;
+  return { from, to };
+}
+
+function parseBoatDestination(text: string): string {
+  const m = text.match(
+    /(?:trajekt|ferry|speedboat|fast\s*boat|gliser|gliserjem|čoln|coln|čolnom|ladja|ladjo|\bboat\b)\s+(?:nazaj\s+)?(?:na|v|to|vers|nach|a|para)\s+([^,.(]+)/i,
+  );
+  return stripHopLabel(m?.[1] ?? "");
+}
+
+function isLikelyTransferWaypoint(value: string): boolean {
+  return TRANSFER_WAYPOINT_RE.test(value);
+}
+
+function hopLooksLikeOvernightMove(blob: string, to: string, isArrow = false): boolean {
+  if (isArrow && (isSmallIsland(to) || lookupRegionCoords(to))) return true;
+  if (DAY_TRIP_HOP_RE.test(blob) && !/nočit|overnight|prenocit|stay\b|nastanit/i.test(blob)) {
+    return false;
+  }
+  if (isSmallIsland(to) || lookupRegionCoords(to)) return true;
+  return MOVEMENT_ACT_RE.test(blob);
+}
+
+function hopsFromActivities(day: OvernightDay): Array<{ from: string; to: string }> {
+  const hops: Array<{ from: string; to: string }> = [];
+  const labeled = (day.city ?? day.focusName ?? "").trim();
+  for (const a of chronoActivities(day)) {
+    const blob = actBlob(a);
+    if (!blob) continue;
+    const arrow = parseArrowRoute(blob);
+    if (arrow && (isMovementActivity(a) || hopLooksLikeOvernightMove(blob, arrow.to, true))) {
+      hops.push(arrow);
+      continue;
+    }
+    if (!isMovementActivity(a)) continue;
+    const dest = parseBoatDestination(blob);
+    if (!dest || (labeled && overnightPlacesMatch(labeled, dest))) continue;
+    if (!hopLooksLikeOvernightMove(blob, dest)) continue;
+    if (!isSmallIsland(dest) && !lookupRegionCoords(dest)) continue;
+    const from = labeled || dest;
+    if (overnightPlacesMatch(from, dest)) continue;
+    hops.push({ from, to: dest });
+  }
+  return hops;
 }
 
 function isBareCityTitle(title: string, city: string): boolean {
@@ -107,6 +176,8 @@ function hopOriginCity(
 ): string {
   const prevCity = (days[index - 1]?.city ?? days[index - 1]?.focusName ?? "").trim();
   if (prevCity && overnightPlacesMatch(prevCity, hop.from)) return prevCity;
+  // Padang Bai → Gili: the pier is not the sleep city; keep the previous overnight base.
+  if (prevCity && !overnightPlacesMatch(prevCity, hop.to)) return prevCity;
   return stripHopLabel(hop.from);
 }
 
@@ -118,6 +189,27 @@ function stampDayCity(day: OvernightDay, city: string, fromCity?: string): void 
   if (typeof day.title === "string" && fromCity && isBareCityTitle(day.title, fromCity)) {
     day.title = city;
   }
+  const coords = lookupRegionCoords(city);
+  if (coords) {
+    day.lat = coords.lat;
+    day.lng = coords.lng;
+  }
+}
+
+function programMentionsPlace(day: OvernightDay, place: string): boolean {
+  const token = cityKey(place);
+  if (token.length < 4) return false;
+  const header = (day.city ?? day.focusName ?? "").trim();
+  const parts: string[] = [];
+  if (day.title && !isBareCityTitle(day.title, header)) parts.push(day.title);
+  if (day.focusName && header && !overnightPlacesMatch(day.focusName, header)) {
+    parts.push(day.focusName);
+  }
+  for (const a of chronoActivities(day)) parts.push(actBlob(a));
+  const blob = cityKey(parts.join(" "));
+  if (blob.includes(token)) return true;
+  const first = token.split(" ")[0] ?? token;
+  return first.length >= 4 && blob.includes(first);
 }
 
 /** Days after a morning/daytime base-change that Gemini left on the old city. */
@@ -138,14 +230,17 @@ function forwardFillNewBase(
     const labeled = (d.city ?? d.focusName ?? "").trim();
     if (!labeled) continue;
     if (overnightPlacesMatch(labeled, toCity)) continue;
-    if (!overnightPlacesMatch(labeled, fromCity)) break;
+    const mentionsDest = programMentionsPlace(d, toCity);
+    const mentionsFrom = programMentionsPlace(d, fromCity);
+    if (mentionsFrom && !mentionsDest) break;
+    if (!overnightPlacesMatch(labeled, fromCity) && !mentionsDest) break;
     stampDayCity(d, toCity, fromCity);
     n += 1;
   }
   return n;
 }
 
-function chronoActivities(day: OvernightDay): Array<{ name?: string; title?: string; type?: string }> {
+function chronoActivities(day: OvernightDay): HopAct[] {
   const acts = day.activities;
   if (!acts) return [];
   return [
@@ -157,11 +252,19 @@ function chronoActivities(day: OvernightDay): Array<{ name?: string; title?: str
 
 function baseHops(day: OvernightDay): Array<{ from: string; to: string }> {
   const hops: Array<{ from: string; to: string }> = [];
+  const seen = new Set<string>();
+  const push = (from: string, to: string) => {
+    const key = `${cityKey(from)}>${cityKey(to)}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    hops.push({ from, to });
+  };
   for (const leg of day.transportation ?? []) {
     const from = (leg.from ?? "").trim();
     const to = (leg.to ?? "").trim();
-    if (from && to && !overnightPlacesMatch(from, to)) hops.push({ from, to });
+    if (from && to && !overnightPlacesMatch(from, to)) push(from, to);
   }
+  for (const hop of hopsFromActivities(day)) push(hop.from, hop.to);
   return hops;
 }
 
@@ -180,9 +283,16 @@ function placeNameForHopEnd(
   nextCity?: string,
 ): string {
   const stripped = stripHopLabel(raw);
-  if (!looksLikeIata(stripped)) return stripped;
-  if (labeled && !looksLikeIata(labeled)) return labeled;
-  if (nextCity && !looksLikeIata(nextCity)) return nextCity;
+  if (looksLikeIata(stripped)) {
+    if (labeled && !looksLikeIata(labeled)) return labeled;
+    if (nextCity && !looksLikeIata(nextCity)) return nextCity;
+    return stripped;
+  }
+  if (nextCity && overnightPlacesMatch(nextCity, stripped)) return nextCity;
+  if (nextCity && isLikelyTransferWaypoint(stripped) && !isSmallIsland(stripped)) {
+    return nextCity;
+  }
+  if (labeled && overnightPlacesMatch(labeled, stripped)) return labeled;
   return stripped;
 }
 

@@ -4,6 +4,7 @@ import { normalizeSafetyWarning, normalizeWeatherWidget } from "@/lib/geminiPlan
 import { addDays, inclusiveCalendarDayCount } from "@/lib/dateUtils";
 import { lookupRegionCoords } from "@/lib/regionCoords";
 import { lookupDestination } from "@/lib/destinationCoords";
+import { sanitizeReturnFlightEu } from "@/lib/returnFlightAirports";
 import { normalizePlanLangCode } from "@/lib/planLanguages";
 import { cleanText } from "@/lib/textSanitize";
 import { ensureTransferPickupCopy } from "@/lib/resortTransferModel";
@@ -207,13 +208,20 @@ export function singleBaseJsonToPlan(
     ],
     wishes: opts.wishesText,
     returnFlightEu: data.trip_metadata?.return_flight_eu?.departure_time
-      ? {
-          departureTime: data.trip_metadata.return_flight_eu.departure_time ?? "",
-          arrivalTimeEu: data.trip_metadata.return_flight_eu.arrival_time_eu ?? "",
-          fromAirport: data.trip_metadata.return_flight_eu.from_airport ?? "",
-          toAirport: data.trip_metadata.return_flight_eu.to_airport ?? "",
-          summary: txt(data.trip_metadata.return_flight_eu.summary),
-        }
+      ? sanitizeReturnFlightEu(
+          {
+            departureTime: data.trip_metadata.return_flight_eu.departure_time ?? "",
+            arrivalTimeEu: data.trip_metadata.return_flight_eu.arrival_time_eu ?? "",
+            fromAirport: data.trip_metadata.return_flight_eu.from_airport ?? "",
+            toAirport: data.trip_metadata.return_flight_eu.to_airport ?? "",
+            summary: txt(data.trip_metadata.return_flight_eu.summary),
+          },
+          {
+            destinationIata: opts.destinationIata,
+            originIata: opts.originIata,
+            language: opts.language,
+          },
+        )
       : undefined,
   };
 }

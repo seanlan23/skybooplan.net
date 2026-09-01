@@ -182,6 +182,48 @@ describe("enforceTripBaseCap", () => {
     expect(enforceTripBaseCap(plan)).toBe(0);
     expect((plan.hotels ?? []).map((h) => h.city).join("|")).toBe(before);
   });
+
+  it("keeps a 3-night island stay and the 2-night mainland return", () => {
+    const days: DayPlan[] = [];
+    for (let n = 1; n <= 18; n++) {
+      const onGili = n >= 13 && n <= 15;
+      const returning = n === 16;
+      days.push(
+        day(n, "Ubud", {
+          lat: -8.51,
+          lng: 115.26,
+          activities: {
+            morning: onGili
+              ? [
+                  {
+                    name: n === 13 ? "Padang Bai → Gili Trawangan" : "Kolesarjenje okoli Gili Trawangan",
+                    type: n === 13 ? "TRANSPORT" : "ACTIVITY",
+                  },
+                ]
+              : returning
+                ? [
+                    { name: "Gili Trawangan → Padang Bai", type: "TRANSPORT" },
+                    { name: "Tegalalang v Ubudu", description: "Riževe terase." },
+                  ]
+                : [{ name: "Ogled v Ubudu", description: "Sacred Monkey Forest v Ubudu." }],
+            afternoon: onGili ? [{ name: "Snorkljanje na Gili Trawangan" }] : [],
+            evening: [],
+          },
+        }),
+      );
+    }
+    const plan = planOf(days);
+    enforceTripBaseCap(plan, { calendarDays: 18 });
+    expect(plan.days[12]!.city).toMatch(/Gili/i);
+    expect(plan.days[13]!.city).toMatch(/Gili/i);
+    expect(plan.days[14]!.city).toMatch(/Gili/i);
+    expect(plan.days[15]!.city).toMatch(/Ubud/i);
+    const hotels = plan.hotels ?? [];
+    const gili = hotels.find((h) => /gili/i.test(h.city));
+    const ubudLast = [...hotels].reverse().find((h) => /ubud/i.test(h.city));
+    expect(gili).toMatchObject({ nights: 3, from_date: "2026-11-07", to_date: "2026-11-10" });
+    expect(ubudLast).toMatchObject({ nights: 2, from_date: "2026-11-10", to_date: "2026-11-12" });
+  });
 });
 
 describe("sortDepartureDayChronology", () => {
@@ -237,6 +279,24 @@ describe("alignDayCityToActivities", () => {
     ]);
     expect(alignDayCityToActivities(plan)).toBeGreaterThan(0);
     expect(plan.days[0]!.city).toMatch(/Denpasar/i);
+  });
+
+  it("relabels an Ubud header when the day is on Gili Trawangan", () => {
+    const plan = planOf([
+      day(1, "Ubud", {
+        lat: -8.51,
+        lng: 115.26,
+        title: "Gili Trawangan",
+        activities: {
+          morning: [{ name: "Kolesarjenje okoli Gili Trawangan", description: "Obhod otoka." }],
+          afternoon: [{ name: "Snorkljanje s želvami na Gili Trawangan" }],
+          evening: [],
+        },
+      }),
+      day(2, "Ubud", { lat: -8.51, lng: 115.26 }),
+    ]);
+    expect(alignDayCityToActivities(plan)).toBeGreaterThan(0);
+    expect(plan.days[0]!.city).toMatch(/Gili/i);
   });
 });
 
